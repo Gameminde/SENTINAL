@@ -1,0 +1,3 @@
+{"id":"fake_no_source","source":"unknown","summary":"Everyone will pay for this guaranteed billion-dollar product.","quote":null,"url":null,"expected_max_confidence":0.35}
+{"id":"fake_vague_quote","source":"anonymous screenshot","summary":"A screenshot says people love the idea, but no buyer or source is documented.","quote":"looks cool","url":null,"expected_max_confidence":0.45}
+{"id":"fake_claimed_wtp","source":"founder note","summary":"The founder believes users will pay because the category is trending.","quote":null,"url":null,"expected_max_confidence":0.4}

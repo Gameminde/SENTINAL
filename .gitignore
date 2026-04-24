@@ -1,0 +1,44 @@
+# Keep this repository focused on Sentinel source and Agent Lab artifacts.
+# Everything else in the local workspace is ignored by default.
+*
+
+!.gitignore
+!README.md
+!sentinel-control/
+!sentinel-control/**
+!agent-lab/
+!agent-lab/**
+
+# Secrets and environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependency and build outputs
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/.turbo/
+**/*.tsbuildinfo
+
+# Python local state
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.venv/
+**/venv/
+
+# Sentinel generated/local runtime state
+sentinel-control/data/generated_projects/
+sentinel-control/data/traces/
+sentinel-control/data/evidence_cache/
+sentinel-control/data/memory/
+sentinel-control/data/web_state.json
+
+# Agent Lab vendor source clones are research inputs, not repo-owned source.
+agent-lab/vendors/*/source/
+
+# Logs and local reports
+**/*.log
+*.log

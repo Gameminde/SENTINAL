@@ -1,0 +1,3874 @@
+{
+  "items": [
+    {
+      "declared_capabilities": [
+        "package_scripts",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "install_time_script",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "root_package_scripts",
+      "kind": "plugin",
+      "network_access": [],
+      "notes": [
+        "package_has_install_lifecycle_script",
+        "root_package_scripts_scanned"
+      ],
+      "required_binaries": [
+        "adb",
+        "docker",
+        "git",
+        "xcodebuild"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "plugin_install_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "package.json"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "channel",
+        "external_contact",
+        "filesystem",
+        "http_route",
+        "memory",
+        "network",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "channel_adapter",
+        "external_binary_requirement",
+        "external_message_send",
+        "filesystem_access",
+        "http_route",
+        "memory_or_persistence",
+        "network_api_access",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "fs.",
+        "readFile",
+        "rm("
+      ],
+      "id": "bluebubbles",
+      "kind": "plugin",
+      "network_access": [
+        "api.registerHttp",
+        "http://",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Bypass",
+        "matched:Edge",
+        "matched:Memory",
+        "matched:Store.",
+        "matched:api.registerChannel",
+        "matched:bypass",
+        "matched:channels:"
+      ],
+      "required_binaries": [
+        "op"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "exec(",
+        "runCommandWithTimeout"
+      ],
+      "source_path": "extensions/bluebubbles/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "copilot-proxy",
+      "kind": "plugin",
+      "network_access": [
+        "http://"
+      ],
+      "notes": [
+        "manifest_has_config_schema"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "DEFAULT_API_KEY",
+        "DEFAULT_MAX_TOKENS"
+      ],
+      "required_firewall_policies": [
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "extensions/copilot-proxy/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "background_service",
+        "network"
+      ],
+      "detected_risks": [
+        "background_service",
+        "env_secret_or_config_reference",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "diagnostics-otel",
+      "kind": "plugin",
+      "network_access": [
+        "http://"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerService"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "OTEL_EXPORTER_OTLP_PROTOCOL",
+        "OTEL_SERVICE_NAME"
+      ],
+      "required_firewall_policies": [
+        "background_service_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [],
+      "source_path": "extensions/diagnostics-otel/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send"
+      ],
+      "filesystem_access": [],
+      "id": "discord",
+      "kind": "plugin",
+      "network_access": [
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Channels:",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "DISCORD_BOT_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/discord/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem",
+        "http_route",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "filesystem_access",
+        "http_route",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "readFile"
+      ],
+      "id": "google-antigravity-auth",
+      "kind": "plugin",
+      "network_access": [
+        "OAuth",
+        "fetch(",
+        "http://",
+        "https://",
+        "listen(",
+        "oauth",
+        "oauth2"
+      ],
+      "notes": [
+        "manifest_has_config_schema"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "CLIENT_SECRET"
+      ],
+      "required_firewall_policies": [
+        "filesystem_access_policy",
+        "http_route_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "extensions/google-antigravity-auth/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "dependency_install",
+        "filesystem",
+        "http_route",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "env_secret_or_config_reference",
+        "filesystem_access",
+        "http_route",
+        "network_api_access",
+        "package_or_remote_install",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "ReadFile",
+        "readFile"
+      ],
+      "id": "google-gemini-cli-auth",
+      "kind": "plugin",
+      "network_access": [
+        "OAUTH",
+        "OAUTH2",
+        "OAuth",
+        "listen(",
+        "oauth"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:edGe"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "CLIENT_ID_KEYS",
+        "CLIENT_SECRET_KEYS",
+        "FAKE_CLIENT_ID",
+        "FAKE_CLIENT_SECRET",
+        "GEMINI_CLI_OAUTH_CLIENT_ID",
+        "GEMINI_CLI_OAUTH_CLIENT_SECRET",
+        "GOOGLE_CLOUD_PROJECT",
+        "GOOGLE_CLOUD_PROJECT_ID",
+        "OPENCLAW_GEMINI_OAUTH_CLIENT_ID",
+        "OPENCLAW_GEMINI_OAUTH_CLIENT_SECRET",
+        "PATH"
+      ],
+      "required_firewall_policies": [
+        "browser_sandbox_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "brew install",
+        "npm install"
+      ],
+      "source_path": "extensions/google-gemini-cli-auth/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact",
+        "filesystem",
+        "http_route",
+        "network",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "external_message_send",
+        "filesystem_access",
+        "http_route",
+        "network_api_access",
+        "prompt_injection_instruction"
+      ],
+      "filesystem_access": [
+        "rm("
+      ],
+      "id": "googlechat",
+      "kind": "plugin",
+      "network_access": [
+        "OAuth",
+        "OAuth2",
+        "Reply(",
+        "api.registerHttp",
+        "fetch(",
+        "http://",
+        "https://",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Bypass",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/googlechat/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "external_message_send"
+      ],
+      "filesystem_access": [],
+      "id": "imessage",
+      "kind": "plugin",
+      "network_access": [
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/imessage/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "line",
+      "kind": "plugin",
+      "network_access": [
+        "Reply(",
+        "http://",
+        "https://",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "LINE_CHANNEL_ACCESS_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "exec("
+      ],
+      "source_path": "extensions/line/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem"
+      ],
+      "detected_risks": [
+        "filesystem_access"
+      ],
+      "filesystem_access": [
+        "../",
+        "fs.",
+        "rm("
+      ],
+      "id": "llm-task",
+      "kind": "plugin",
+      "network_access": [],
+      "notes": [
+        "manifest_has_config_schema"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "filesystem_access_policy"
+      ],
+      "risk_level": "medium",
+      "secret_patterns": [],
+      "sentinel_decision": "draft_only_tool",
+      "shell_patterns": [],
+      "source_path": "extensions/llm-task/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem",
+        "http_route",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "filesystem_access",
+        "http_route",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "fs.",
+        "writeFile"
+      ],
+      "id": "lobster",
+      "kind": "plugin",
+      "network_access": [
+        "OAuth",
+        "registerHttpRoute"
+      ],
+      "notes": [
+        "manifest_has_config_schema"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "PATH"
+      ],
+      "required_firewall_policies": [
+        "filesystem_access_policy",
+        "http_route_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "child_process",
+        "spawn("
+      ],
+      "source_path": "extensions/lobster/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact",
+        "filesystem",
+        "memory",
+        "network",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "external_message_send",
+        "filesystem_access",
+        "memory_or_persistence",
+        "network_api_access",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "fs.",
+        "mkdir"
+      ],
+      "id": "matrix",
+      "kind": "plugin",
+      "network_access": [
+        "Reply(",
+        "fetch(",
+        "https://",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Bypass",
+        "matched:Sqlite",
+        "matched:api.registerChannel",
+        "matched:channels:",
+        "matched:system prompt",
+        "matched:vector"
+      ],
+      "required_binaries": [
+        "op"
+      ],
+      "required_env": [
+        "DEFAULT_ACCOUNT_KEY",
+        "MATRIX_ACCESS_TOKEN",
+        "MATRIX_HOMESERVER",
+        "MATRIX_PASSWORD",
+        "MATRIX_USER_ID",
+        "OPENCLAW_GATEWAY_PORT"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "runCommandWithTimeout"
+      ],
+      "source_path": "extensions/matrix/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact",
+        "filesystem",
+        "network",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send",
+        "filesystem_access",
+        "network_api_access",
+        "prompt_injection_instruction"
+      ],
+      "filesystem_access": [
+        "../",
+        "rm("
+      ],
+      "id": "mattermost",
+      "kind": "plugin",
+      "network_access": [
+        "Reply(",
+        "WebSocket",
+        "api/v",
+        "fetch(",
+        "https://",
+        "sendMessage",
+        "websocket"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Bypass",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "MATTERMOST_BOT_TOKEN",
+        "MATTERMOST_URL"
+      ],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/mattermost/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "memory"
+      ],
+      "detected_risks": [
+        "memory_or_persistence"
+      ],
+      "filesystem_access": [],
+      "id": "memory-core",
+      "kind": "plugin",
+      "network_access": [],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Memory",
+        "matched:memory"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "memory_write_policy"
+      ],
+      "risk_level": "medium",
+      "secret_patterns": [],
+      "sentinel_decision": "draft_only_tool",
+      "shell_patterns": [],
+      "source_path": "extensions/memory-core/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "background_service",
+        "filesystem",
+        "memory"
+      ],
+      "detected_risks": [
+        "background_service",
+        "env_secret_or_config_reference",
+        "filesystem_access",
+        "memory_or_persistence"
+      ],
+      "filesystem_access": [
+        "fs.",
+        "rm("
+      ],
+      "id": "memory-lancedb",
+      "kind": "plugin",
+      "network_access": [],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:EMBEDDING",
+        "matched:Embedding",
+        "matched:MEMORY",
+        "matched:Memory",
+        "matched:api.registerService",
+        "matched:embedding",
+        "matched:lancedb",
+        "matched:memory",
+        "matched:vector"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "HAS_OPENAI_KEY",
+        "OPENAI_API_KEY",
+        "OPENCLAW_LIVE_TEST",
+        "TEST_MEMORY_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "background_service_policy",
+        "filesystem_access_policy",
+        "memory_write_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [],
+      "source_path": "extensions/memory-lancedb/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "minimax-portal-auth",
+      "kind": "plugin",
+      "network_access": [
+        "OAUTH",
+        "OAuth",
+        "https://",
+        "oauth"
+      ],
+      "notes": [
+        "manifest_has_config_schema"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "DEFAULT_MAX_TOKENS"
+      ],
+      "required_firewall_policies": [
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "extensions/minimax-portal-auth/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "channel",
+        "external_contact",
+        "filesystem",
+        "http_route",
+        "memory",
+        "network",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send",
+        "filesystem_access",
+        "http_route",
+        "memory_or_persistence",
+        "network_api_access",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "fs.",
+        "readFile",
+        "writeFile"
+      ],
+      "id": "msteams",
+      "kind": "plugin",
+      "network_access": [
+        "https://",
+        "listen(",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Bypass",
+        "matched:Memory",
+        "matched:api.registerChannel",
+        "matched:channels:",
+        "matched:edge",
+        "matched:memory",
+        "matched:persist",
+        "matched:store."
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "MSTEAMS_APP_ID",
+        "MSTEAMS_APP_PASSWORD",
+        "MSTEAMS_TENANT_ID",
+        "SILENT_REPLY_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "browser_sandbox_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "exec("
+      ],
+      "source_path": "extensions/msteams/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "channel",
+        "external_contact",
+        "filesystem",
+        "http_route",
+        "network",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send",
+        "filesystem_access",
+        "http_route",
+        "network_api_access",
+        "prompt_injection_instruction"
+      ],
+      "filesystem_access": [
+        "readFile",
+        "rm("
+      ],
+      "id": "nextcloud-talk",
+      "kind": "plugin",
+      "network_access": [
+        "Reply(",
+        "api/v",
+        "fetch(",
+        "http://",
+        "https://",
+        "listen(",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Bypass",
+        "matched:api.registerChannel",
+        "matched:channels:",
+        "matched:edge",
+        "matched:system prompt"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "NEXTCLOUD_TALK_BOT_SECRET",
+        "OPENCLAW_DEBUG_NEXTCLOUD_TALK_ACCOUNTS"
+      ],
+      "required_firewall_policies": [
+        "browser_sandbox_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/nextcloud-talk/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "channel",
+        "external_contact",
+        "filesystem",
+        "http_route",
+        "memory",
+        "network",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "external_message_send",
+        "filesystem_access",
+        "http_route",
+        "memory_or_persistence",
+        "network_api_access",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "fs.",
+        "mkdir",
+        "readFile",
+        "rm(",
+        "writeFile"
+      ],
+      "id": "nostr",
+      "kind": "plugin",
+      "network_access": [
+        "WebSocket",
+        "api.registerHttp",
+        "https://",
+        "reply(",
+        "ws://",
+        "wss://"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Edge",
+        "matched:Memory",
+        "matched:api.registerChannel",
+        "matched:bypass",
+        "matched:channels:",
+        "matched:edge",
+        "matched:memory"
+      ],
+      "required_binaries": [
+        "docker",
+        "op"
+      ],
+      "required_env": [
+        "NOSTR_PRIVATE_KEY",
+        "OPENCLAW_STATE_DIR",
+        "TEST_HEX_KEY",
+        "TEST_PRIVATE_KEY",
+        "TEST_PUBKEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "extensions/nostr/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "background_service",
+        "browser",
+        "dependency_install",
+        "filesystem",
+        "http_route",
+        "memory",
+        "network",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "background_service",
+        "browser_control",
+        "external_binary_requirement",
+        "filesystem_access",
+        "http_route",
+        "memory_or_persistence",
+        "network_api_access",
+        "package_or_remote_install",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "mkdir",
+        "rm ("
+      ],
+      "id": "open-prose",
+      "kind": "plugin",
+      "network_access": [
+        "OAuth",
+        "hono",
+        "http://",
+        "https://"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Persist",
+        "matched:System Prompt",
+        "matched:System prompt",
+        "matched:daemon",
+        "matched:edge",
+        "matched:memory",
+        "matched:persist",
+        "matched:system prompt"
+      ],
+      "required_binaries": [
+        "curl",
+        "docker",
+        "git"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "background_service_policy",
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "apt install",
+        "bash",
+        "brew install"
+      ],
+      "source_path": "extensions/open-prose/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "qwen-portal-auth",
+      "kind": "plugin",
+      "network_access": [
+        "OAUTH",
+        "OAuth",
+        "https://",
+        "oauth"
+      ],
+      "notes": [
+        "manifest_has_config_schema"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "DEFAULT_MAX_TOKENS",
+        "QWEN_OAUTH_CLIENT_ID",
+        "QWEN_OAUTH_TOKEN_ENDPOINT"
+      ],
+      "required_firewall_policies": [
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "extensions/qwen-portal-auth/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "external_message_send"
+      ],
+      "filesystem_access": [],
+      "id": "signal",
+      "kind": "plugin",
+      "network_access": [
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/signal/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "external_message_send"
+      ],
+      "filesystem_access": [],
+      "id": "slack",
+      "kind": "plugin",
+      "network_access": [
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/slack/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send"
+      ],
+      "filesystem_access": [],
+      "id": "telegram",
+      "kind": "plugin",
+      "network_access": [
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "TELEGRAM_BOT_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/telegram/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "filesystem_access",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "rm("
+      ],
+      "id": "tlon",
+      "kind": "plugin",
+      "network_access": [
+        "fetch(",
+        "https://"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Channels:",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "exec("
+      ],
+      "source_path": "extensions/tlon/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "channel",
+        "external_contact",
+        "filesystem",
+        "memory",
+        "network",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send",
+        "filesystem_access",
+        "memory_or_persistence",
+        "network_api_access",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "rm("
+      ],
+      "id": "twitch",
+      "kind": "plugin",
+      "network_access": [
+        "OAuth",
+        "Reply(",
+        "https://",
+        "oauth",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:bypass",
+        "matched:channels:",
+        "matched:edge",
+        "matched:persist"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "OPENCLAW_TWITCH_ACCESS_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "browser_sandbox_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "exec("
+      ],
+      "source_path": "extensions/twitch/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "background_service",
+        "browser",
+        "channel",
+        "dependency_install",
+        "filesystem",
+        "http_route",
+        "memory",
+        "network",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "background_service",
+        "browser_control",
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "filesystem_access",
+        "http_route",
+        "memory_or_persistence",
+        "network_api_access",
+        "package_or_remote_install",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "../",
+        "fs.",
+        "mkdir",
+        "readFile"
+      ],
+      "id": "voice-call",
+      "kind": "plugin",
+      "network_access": [
+        "WebSocket",
+        "http://",
+        "https://",
+        "listen(",
+        "socket"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:Bypass",
+        "matched:Edge",
+        "matched:System Prompt",
+        "matched:System prompt",
+        "matched:api.registerService",
+        "matched:bypass",
+        "matched:channels:",
+        "matched:edge",
+        "matched:persist",
+        "matched:store."
+      ],
+      "required_binaries": [
+        "op"
+      ],
+      "required_env": [
+        "NGROK_AUTHTOKEN",
+        "NGROK_DOMAIN",
+        "OPENAI_API_KEY",
+        "OPENCLAW_ROOT",
+        "PLIVO_AUTH_ID",
+        "PLIVO_AUTH_TOKEN",
+        "TELNYX_API_KEY",
+        "TELNYX_CONNECTION_ID",
+        "TELNYX_PUBLIC_KEY",
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_AUTH_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "background_service_policy",
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "channel_adapter_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "child_process",
+        "pnpm install",
+        "spawn("
+      ],
+      "source_path": "extensions/voice-call/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "external_message_send"
+      ],
+      "filesystem_access": [],
+      "id": "whatsapp",
+      "kind": "plugin",
+      "network_access": [
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "extensions/whatsapp/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "external_contact",
+        "filesystem",
+        "http_route",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_message_send",
+        "filesystem_access",
+        "http_route",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "readFile",
+        "rm("
+      ],
+      "id": "zalo",
+      "kind": "plugin",
+      "network_access": [
+        "Fetch(",
+        "Reply(",
+        "SendMessage",
+        "api.registerHttp",
+        "fetch(",
+        "http://",
+        "https://",
+        "listen(",
+        "sendMessage",
+        "undici"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [],
+      "required_env": [
+        "ZALO_BOT_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "http_route_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "extensions/zalo/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "channel",
+        "dependency_install",
+        "external_contact",
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "channel_adapter",
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "external_message_send",
+        "filesystem_access",
+        "network_api_access",
+        "package_or_remote_install",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "rm("
+      ],
+      "id": "zalouser",
+      "kind": "plugin",
+      "network_access": [
+        "Reply(",
+        "https://",
+        "sendMessage"
+      ],
+      "notes": [
+        "manifest_has_config_schema",
+        "matched:api.registerChannel",
+        "matched:channels:"
+      ],
+      "required_binaries": [
+        "curl"
+      ],
+      "required_env": [
+        "ZCA_PROFILE"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "PowerShell",
+        "bash",
+        "child_process",
+        "curl -fsSL",
+        "powershell"
+      ],
+      "source_path": "extensions/zalouser/openclaw.plugin.json"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem",
+        "network",
+        "secrets",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "filesystem_access",
+        "network_api_access",
+        "secret_manager_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "1password",
+      "kind": "skill",
+      "network_access": [
+        "SOCKET",
+        "https://",
+        "socket"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "op",
+        "tmux"
+      ],
+      "required_env": [
+        "DB_PASSWORD"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [
+        "1Password",
+        "1password",
+        "OP_ACCOUNT",
+        "op inject",
+        "op read",
+        "op run",
+        "op signin",
+        "vault"
+      ],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "PowerShell",
+        "bash"
+      ],
+      "source_path": "skills/1password/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "dependency_install",
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "package_or_remote_install"
+      ],
+      "filesystem_access": [],
+      "id": "apple-notes",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "memo"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "plugin_install_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "brew install",
+        "pip install"
+      ],
+      "source_path": "skills/apple-notes/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "dependency_install",
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "package_or_remote_install"
+      ],
+      "filesystem_access": [],
+      "id": "apple-reminders",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "remindctl"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "plugin_install_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "brew install",
+        "pnpm install"
+      ],
+      "source_path": "skills/apple-reminders/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "bear-notes",
+      "kind": "skill",
+      "network_access": [
+        "http://",
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "grizzly"
+      ],
+      "required_env": [
+        "GRIZZLY_TOKEN_FILE",
+        "YOUR_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/bear-notes/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "dependency_install",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "external_binary_requirement",
+        "network_api_access",
+        "package_or_remote_install",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "bird",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [
+        "matched:Brave",
+        "matched:Chrome",
+        "matched:Chromium",
+        "matched:chrome"
+      ],
+      "required_binaries": [
+        "bird"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "brew install",
+        "npm install"
+      ],
+      "source_path": "skills/bird/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "blogwatcher",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "blogwatcher"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/blogwatcher/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "blucli",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "blu"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/blucli/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "external_contact",
+        "http_route"
+      ],
+      "detected_risks": [
+        "external_message_send",
+        "http_route"
+      ],
+      "filesystem_access": [],
+      "id": "bluebubbles",
+      "kind": "skill",
+      "network_access": [
+        "api.registerHttp",
+        "sendMessage"
+      ],
+      "notes": [],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "external_contact_policy",
+        "http_route_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/bluebubbles/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "camsnap",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "camsnap"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/camsnap/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "memory",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "memory_or_persistence",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "canvas",
+      "kind": "skill",
+      "network_access": [
+        "WebSocket",
+        "http://"
+      ],
+      "notes": [
+        "matched:persist"
+      ],
+      "required_binaries": [
+        "curl",
+        "jq"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/canvas/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "dependency_install",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "package_or_remote_install",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "clawhub",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "clawhub"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "npm i"
+      ],
+      "source_path": "skills/clawhub/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "dependency_install",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "package_or_remote_install",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "coding-agent",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "git"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "Bash",
+        "PTY",
+        "bash",
+        "npm install",
+        "pnpm install",
+        "pty"
+      ],
+      "source_path": "skills/coding-agent/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "channel",
+        "external_contact",
+        "network"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "channel_adapter",
+        "external_message_send",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "discord",
+      "kind": "skill",
+      "network_access": [
+        "https://",
+        "sendMessage"
+      ],
+      "notes": [
+        "matched:channels:",
+        "matched:edge"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "browser_sandbox_policy",
+        "channel_adapter_policy",
+        "external_contact_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/discord/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "eightctl",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "eightctl"
+      ],
+      "required_env": [
+        "EIGHTCTL_PASSWORD"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/eightctl/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "network"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "food-order",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [
+        "matched:chrome"
+      ],
+      "required_binaries": [
+        "ordercli"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/food-order/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "gemini",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "gemini"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/gemini/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "gifgrep",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "gifgrep",
+        "jq"
+      ],
+      "required_env": [
+        "GIPHY_API_KEY",
+        "TENOR_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/gifgrep/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "github",
+      "kind": "skill",
+      "network_access": [],
+      "notes": [],
+      "required_binaries": [
+        "gh",
+        "git",
+        "jq"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/github/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "gog",
+      "kind": "skill",
+      "network_access": [
+        "OAuth",
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "gog"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/gog/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "dependency_install",
+        "network"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access",
+        "package_or_remote_install"
+      ],
+      "filesystem_access": [],
+      "id": "goplaces",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "goplaces"
+      ],
+      "required_env": [
+        "GOOGLE_PLACES_API_KEY",
+        "NEXT_PAGE_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "brew install"
+      ],
+      "source_path": "skills/goplaces/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "external_contact",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "external_message_send",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "himalaya",
+      "kind": "skill",
+      "network_access": [
+        "OAuth2",
+        "Reply (",
+        "https://",
+        "oauth",
+        "oauth2",
+        "reply ("
+      ],
+      "notes": [],
+      "required_binaries": [
+        "himalaya"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "external_contact_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/himalaya/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "imsg",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "imsg"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/imsg/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "dependency_install",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access",
+        "package_or_remote_install",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "local-places",
+      "kind": "skill",
+      "network_access": [
+        "http://",
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "curl",
+        "uv"
+      ],
+      "required_env": [
+        "GOOGLE_PLACES_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "pip install"
+      ],
+      "source_path": "skills/local-places/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "background_service",
+        "network"
+      ],
+      "detected_risks": [
+        "background_service",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "mcporter",
+      "kind": "skill",
+      "network_access": [
+        "OAuth",
+        "http://",
+        "https://"
+      ],
+      "notes": [
+        "matched:Daemon",
+        "matched:daemon"
+      ],
+      "required_binaries": [
+        "mcporter"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "background_service_policy",
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [],
+      "source_path": "skills/mcporter/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "model-usage",
+      "kind": "skill",
+      "network_access": [],
+      "notes": [],
+      "required_binaries": [
+        "codexbar"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/model-usage/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "filesystem_access",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "nano-banana-pro",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "uv"
+      ],
+      "required_env": [
+        "GEMINI_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/nano-banana-pro/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "nano-pdf",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "nano-pdf"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/nano-pdf/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "filesystem_access",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "notion",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "curl"
+      ],
+      "required_env": [
+        "NOTION_API_KEY",
+        "NOTION_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/notion/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "secrets"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "secret_manager_access"
+      ],
+      "filesystem_access": [],
+      "id": "obsidian",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "obsidian-cli"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [
+        "Vault",
+        "vault"
+      ],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [],
+      "source_path": "skills/obsidian/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "filesystem_access",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "openai-image-gen",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [
+        "matched:chrome"
+      ],
+      "required_binaries": [
+        "python3"
+      ],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/openai-image-gen/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "openai-whisper",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "whisper"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/openai-whisper/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "filesystem_access",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "openai-whisper-api",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "curl"
+      ],
+      "required_env": [
+        "OPENAI_API_KEY",
+        "OPENAI_KEY_HERE"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/openai-whisper-api/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "openhue",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "openhue"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/openhue/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "http_route",
+        "memory",
+        "network"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "http_route",
+        "memory_or_persistence",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "oracle",
+      "kind": "skill",
+      "network_access": [
+        "Hono",
+        "https://"
+      ],
+      "notes": [
+        "matched:edge",
+        "matched:sqlite"
+      ],
+      "required_binaries": [
+        "git",
+        "oracle"
+      ],
+      "required_env": [
+        "OPENAI_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "http_route_policy",
+        "memory_write_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/oracle/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "network"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "ordercli",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [
+        "matched:Chrome",
+        "matched:chrome"
+      ],
+      "required_binaries": [
+        "ordercli"
+      ],
+      "required_env": [
+        "DELIVEROO_BEARER_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/ordercli/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "peekaboo",
+      "kind": "skill",
+      "network_access": [
+        "https://",
+        "socket"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "peekaboo"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/peekaboo/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "external_contact",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "external_message_send",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "sag",
+      "kind": "skill",
+      "network_access": [
+        "https://",
+        "reply ("
+      ],
+      "notes": [],
+      "required_binaries": [
+        "sag"
+      ],
+      "required_env": [
+        "ELEVENLABS_API_KEY",
+        "SAG_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "external_contact_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/sag/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "memory",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "memory_or_persistence",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "session-logs",
+      "kind": "skill",
+      "network_access": [],
+      "notes": [
+        "matched:memory",
+        "matched:system prompt"
+      ],
+      "required_binaries": [
+        "jq",
+        "rg"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "memory_write_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/session-logs/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "sherpa-onnx-tts",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/sherpa-onnx-tts/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "filesystem",
+        "shell",
+        "untrusted_instruction"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "filesystem_access",
+        "prompt_injection_instruction",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "skill-creator",
+      "kind": "skill",
+      "network_access": [],
+      "notes": [
+        "matched:edge",
+        "matched:system prompt"
+      ],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "browser_sandbox_policy",
+        "filesystem_access_policy",
+        "prompt_injection_review_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "Bash",
+        "bash"
+      ],
+      "source_path": "skills/skill-creator/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "external_contact"
+      ],
+      "detected_risks": [
+        "external_message_send"
+      ],
+      "filesystem_access": [],
+      "id": "slack",
+      "kind": "skill",
+      "network_access": [
+        "sendMessage"
+      ],
+      "notes": [],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "external_contact_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/slack/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "songsee",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "songsee"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/songsee/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "sonoscli",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "sonos"
+      ],
+      "required_env": [
+        "SPOTIFY_CLIENT_ID"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/sonoscli/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "browser",
+        "network"
+      ],
+      "detected_risks": [
+        "browser_control",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "spotify-player",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [
+        "matched:chrome"
+      ],
+      "required_binaries": [
+        "spogo",
+        "spotify_player"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "browser_sandbox_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/spotify-player/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "summarize",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "summarize"
+      ],
+      "required_env": [
+        "ANTHROPIC_API_KEY",
+        "APIFY_API_TOKEN",
+        "FIRECRAWL_API_KEY",
+        "GEMINI_API_KEY",
+        "GOOGLE_API_KEY",
+        "GOOGLE_GENERATIVE_AI_API_KEY",
+        "OPENAI_API_KEY",
+        "XAI_API_KEY"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/summarize/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "things-mac",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "things"
+      ],
+      "required_env": [
+        "THINGS_AUTH_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "secret_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/things-mac/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "dependency_install",
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "filesystem_access",
+        "network_api_access",
+        "package_or_remote_install",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "tmux",
+      "kind": "skill",
+      "network_access": [
+        "SOCKET",
+        "socket"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "git",
+        "tmux"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "plugin_install_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash",
+        "pnpm install"
+      ],
+      "source_path": "skills/tmux/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "env_secret_or_config_reference",
+        "external_binary_requirement",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "trello",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "curl",
+        "jq"
+      ],
+      "required_env": [
+        "TRELLO_API_KEY",
+        "TRELLO_TOKEN"
+      ],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "run_shell_command",
+        "secret_access_policy"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/trello/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "filesystem",
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "filesystem_access",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [
+        "mkdir"
+      ],
+      "id": "video-frames",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "ffmpeg"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "filesystem_access_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/video-frames/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "shell"
+      ],
+      "detected_risks": [
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "voice-call",
+      "kind": "skill",
+      "network_access": [],
+      "notes": [],
+      "required_binaries": [],
+      "required_env": [],
+      "required_firewall_policies": [
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/voice-call/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access"
+      ],
+      "filesystem_access": [],
+      "id": "wacli",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "wacli"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy"
+      ],
+      "risk_level": "high",
+      "secret_patterns": [],
+      "sentinel_decision": "needs_review",
+      "shell_patterns": [],
+      "source_path": "skills/wacli/SKILL.md"
+    },
+    {
+      "declared_capabilities": [
+        "network",
+        "shell"
+      ],
+      "detected_risks": [
+        "external_binary_requirement",
+        "network_api_access",
+        "shell_execution"
+      ],
+      "filesystem_access": [],
+      "id": "weather",
+      "kind": "skill",
+      "network_access": [
+        "https://"
+      ],
+      "notes": [],
+      "required_binaries": [
+        "curl"
+      ],
+      "required_env": [],
+      "required_firewall_policies": [
+        "binary_allowlist_policy",
+        "network_access_policy",
+        "run_shell_command"
+      ],
+      "risk_level": "critical",
+      "secret_patterns": [],
+      "sentinel_decision": "blocked",
+      "shell_patterns": [
+        "bash"
+      ],
+      "source_path": "skills/weather/SKILL.md"
+    }
+  ],
+  "metadata": {
+    "json_sha256": "3cc47f733eef993be50fb065adfd6298f848631c29232fc43199652cdb27dbcf",
+    "json_sha256_scope": "sha256 of canonical JSON with metadata.json_sha256 set to an empty string",
+    "ruleset_version": "2026-04-24.b2.5",
+    "scan_timestamp": "2026-04-24T18:12:20Z",
+    "scanner_version": "0.2.0",
+    "source_commit": "a2288c2b09e621f89a915960398f58e200b3b69d",
+    "source_path": "C:/Users/PC/Desktop/youcef/A/agent-lab/vendors/openclaw/source",
+    "total_items": 83
+  },
+  "scanner": "openclaw_static_scanner",
+  "schema_version": "0.2",
+  "source_root": "C:/Users/PC/Desktop/youcef/A/agent-lab/vendors/openclaw/source",
+  "summary": {
+    "decision_counts": {
+      "blocked": 52,
+      "draft_only_tool": 2,
+      "needs_review": 29
+    },
+    "risk_counts": {
+      "critical": 52,
+      "high": 29,
+      "medium": 2
+    },
+    "top_high_risk": [
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "channel_adapter",
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "external_message_send",
+          "filesystem_access",
+          "network_api_access",
+          "package_or_remote_install",
+          "shell_execution"
+        ],
+        "id": "zalouser",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/zalouser/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "channel_adapter",
+          "env_secret_or_config_reference",
+          "external_message_send",
+          "filesystem_access",
+          "http_route",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "zalo",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/zalo/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "weather",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/weather/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "background_service",
+          "browser_control",
+          "channel_adapter",
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "filesystem_access",
+          "http_route",
+          "memory_or_persistence"
+        ],
+        "id": "voice-call",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/voice-call/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "shell_execution"
+        ],
+        "id": "voice-call",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/voice-call/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "filesystem_access",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "video-frames",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/video-frames/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "browser_control",
+          "channel_adapter",
+          "env_secret_or_config_reference",
+          "external_message_send",
+          "filesystem_access",
+          "memory_or_persistence",
+          "network_api_access",
+          "prompt_injection_instruction"
+        ],
+        "id": "twitch",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/twitch/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "trello",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/trello/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "filesystem_access",
+          "network_api_access",
+          "package_or_remote_install",
+          "shell_execution"
+        ],
+        "id": "tmux",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/tmux/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "channel_adapter",
+          "filesystem_access",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "tlon",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/tlon/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "summarize",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/summarize/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "browser_control",
+          "filesystem_access",
+          "prompt_injection_instruction",
+          "shell_execution"
+        ],
+        "id": "skill-creator",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/skill-creator/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "sherpa-onnx-tts",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/sherpa-onnx-tts/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "memory_or_persistence",
+          "prompt_injection_instruction",
+          "shell_execution"
+        ],
+        "id": "session-logs",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/session-logs/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "external_message_send",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "sag",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/sag/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "install_time_script",
+          "shell_execution"
+        ],
+        "id": "root_package_scripts",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "package.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "env_secret_or_config_reference",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "qwen-portal-auth",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/qwen-portal-auth/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "peekaboo",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/peekaboo/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "filesystem_access",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "openai-whisper-api",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/openai-whisper-api/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "browser_control",
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "filesystem_access",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "openai-image-gen",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/openai-image-gen/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "background_service",
+          "browser_control",
+          "external_binary_requirement",
+          "filesystem_access",
+          "http_route",
+          "memory_or_persistence",
+          "network_api_access",
+          "package_or_remote_install"
+        ],
+        "id": "open-prose",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/open-prose/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "network_api_access",
+          "secret_manager_access"
+        ],
+        "id": "obsidian",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/obsidian/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "filesystem_access",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "notion",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/notion/SKILL.md"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "browser_control",
+          "channel_adapter",
+          "env_secret_or_config_reference",
+          "external_binary_requirement",
+          "external_message_send",
+          "filesystem_access",
+          "http_route",
+          "memory_or_persistence"
+        ],
+        "id": "nostr",
+        "kind": "plugin",
+        "risk_level": "critical",
+        "source_path": "extensions/nostr/openclaw.plugin.json"
+      },
+      {
+        "decision": "blocked",
+        "detected_risks": [
+          "external_binary_requirement",
+          "network_api_access",
+          "shell_execution"
+        ],
+        "id": "nano-pdf",
+        "kind": "skill",
+        "risk_level": "critical",
+        "source_path": "skills/nano-pdf/SKILL.md"
+      }
+    ],
+    "total_items": 83,
+    "total_plugins": 31,
+    "total_skills": 52
+  }
+}

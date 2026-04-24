@@ -1,0 +1,7 @@
+{
+  "id": "safe",
+  "configSchema": {
+    "type": "object",
+    "properties": {}
+  }
+}

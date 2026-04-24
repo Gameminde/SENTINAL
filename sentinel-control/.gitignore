@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env*
+!.env.example
+*.log
+*.tsbuildinfo
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+data/generated_projects/
+data/traces/
+data/evidence_cache/
+data/memory/
+data/web_state.json

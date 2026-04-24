@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sentinel Control Preview</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f6f4;
+        --panel: rgba(255, 255, 255, 0.88);
+        --panel-strong: #ffffff;
+        --text: #101418;
+        --muted: #5b6772;
+        --muted-2: #7b8792;
+        --line: rgba(17, 24, 39, 0.12);
+        --shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+        --shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
+        --nav: #111820;
+        --nav-line: rgba(255, 255, 255, 0.08);
+        --accent: #1f8a8e;
+        --accent-2: #2457d3;
+        --warn: #c26a00;
+        --danger: #c83d2d;
+        --success: #1d7a47;
+        --success-soft: rgba(29, 122, 71, 0.12);
+        --warn-soft: rgba(194, 106, 0, 0.12);
+        --danger-soft: rgba(200, 61, 45, 0.12);
+        --radius-lg: 24px;
+        --radius-md: 18px;
+        --radius-sm: 12px;
+        --sidebar-width: 270px;
+        --topbar-height: 72px;
+        font-synthesis-weight: none;
+        text-rendering: optimizeLegibility;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(31, 138, 142, 0.08), transparent 30%),
+          radial-gradient(circle at bottom right, rgba(36, 87, 211, 0.06), transparent 24%),
+          var(--bg);
+        color: var(--text);
+        font-family: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+        letter-spacing: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      a { color: inherit; text-decoration: none; }
+      button, input, select { font: inherit; }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        background: linear-gradient(180deg, var(--nav), #0f141b 100%);
+        color: rgba(255, 255, 255, 0.92);
+        border-right: 1px solid var(--nav-line);
+        display: flex;
+        flex-direction: column;
+        padding: 24px 18px;
+        gap: 20px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+
+      .brand { display: flex; align-items: center; gap: 12px; padding: 4px 6px 10px; }
+      .brand-mark {
+        width: 38px; height: 38px; border-radius: 12px;
+        background: linear-gradient(180deg, rgba(84, 228, 230, 0.95), rgba(31, 138, 142, 0.92));
+        display: grid; place-items: center; color: #071113;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+      }
+      .brand-text strong { display: block; letter-spacing: 0.08em; font-size: 1.02rem; }
+      .brand-text span { display: block; margin-top: 3px; font-size: 0.8rem; color: rgba(255,255,255,0.66); letter-spacing: 0.08em; text-transform: uppercase; }
+
+      .nav { display: grid; gap: 6px; }
+      .nav-item {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 14px; border-radius: 14px; color: rgba(255,255,255,0.85);
+        border: 1px solid transparent; background: transparent; cursor: pointer;
+        transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+      }
+      .nav-item[data-active="true"] {
+        background: linear-gradient(180deg, rgba(31, 138, 142, 0.24), rgba(31, 138, 142, 0.12));
+        border-color: rgba(84, 228, 230, 0.2); color: #fff;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.05); }
+
+      .sidebar-footer { margin-top: auto; display: grid; gap: 14px; }
+      .status-card {
+        border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+        border-radius: 18px; padding: 14px;
+      }
+      .status-row {
+        display: flex; justify-content: space-between; gap: 10px; align-items: center;
+        padding: 7px 0; font-size: 0.95rem;
+      }
+      .status-row + .status-row { border-top: 1px solid rgba(255,255,255,0.08); }
+      .user-chip {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 14px; border-radius: 18px;
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+      }
+      .user-avatar {
+        width: 42px; height: 42px; border-radius: 50%;
+        display: grid; place-items: center; color: #fff;
+        background: linear-gradient(180deg, rgba(36, 87, 211, 0.94), rgba(31, 138, 142, 0.94));
+        font-weight: 700;
+      }
+
+      .shell-main { min-width: 0; display: grid; grid-template-rows: var(--topbar-height) minmax(0, 1fr); }
+      .topbar {
+        display: flex; align-items: center; justify-content: space-between; gap: 18px;
+        padding: 20px 24px 14px; border-bottom: 1px solid var(--line);
+        background: rgba(245, 246, 244, 0.72); backdrop-filter: blur(14px);
+        position: sticky; top: 0; z-index: 10;
+      }
+      .crumbs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 0.92rem; }
+      .crumbs strong { color: var(--text); font-weight: 600; }
+      .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+      .btn, .icon-btn, .ghost-btn, .primary-btn, .secondary-btn {
+        border: 1px solid var(--line); background: var(--panel-strong); color: var(--text);
+        border-radius: 14px; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px;
+        box-shadow: var(--shadow-soft); transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+        cursor: pointer;
+      }
+      .btn:hover, .icon-btn:hover, .ghost-btn:hover, .primary-btn:hover, .secondary-btn:hover { transform: translateY(-1px); }
+      .primary-btn { background: linear-gradient(180deg, rgba(31, 138, 142, 0.94), rgba(31, 122, 126, 0.98)); border-color: transparent; color: white; }
+      .ghost-btn { background: transparent; box-shadow: none; }
+
+      .page { padding: 22px 24px 30px; display: grid; gap: 18px; }
+      .hero { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.85fr); gap: 18px; align-items: start; }
+      .hero-panel, .panel {
+        background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow);
+        border-radius: var(--radius-lg); backdrop-filter: blur(14px);
+      }
+      .hero-panel { padding: 22px; }
+      .panel { padding: 18px; }
+
+      .eyebrow { text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); font-size: 0.74rem; font-weight: 700; }
+      .page-title { margin: 6px 0 0; font-size: clamp(1.8rem, 2vw, 2.5rem); line-height: 1.08; letter-spacing: -0.03em; }
+      .page-copy { margin: 10px 0 0; color: var(--muted); max-width: 64ch; line-height: 1.5; }
+
+      .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+      .metric {
+        padding: 14px 16px; border-radius: 18px; border: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(245,248,246,0.84));
+      }
+      .metric-label { color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.11em; }
+      .metric-value { margin-top: 8px; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.04em; }
+      .metric-sub { margin-top: 4px; color: var(--muted-2); font-size: 0.9rem; }
+
+      .progress { display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+      .progress-step {
+        flex: 1 1 0; min-width: 130px; padding: 12px 14px; border-radius: 16px;
+        border: 1px solid var(--line); background: rgba(255,255,255,0.8);
+      }
+      .progress-step[data-active="true"] {
+        border-color: rgba(31, 138, 142, 0.34); background: linear-gradient(180deg, rgba(31, 138, 142, 0.12), rgba(31, 138, 142, 0.04));
+      }
+      .progress-step strong { display: block; font-size: 0.92rem; }
+      .progress-step span { display: block; color: var(--muted); margin-top: 4px; font-size: 0.84rem; }
+
+      .workspace-grid { display: grid; grid-template-columns: minmax(0, 1.56fr) minmax(300px, 0.82fr); gap: 18px; align-items: start; }
+      .section-band { display: grid; gap: 14px; }
+      .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+      .section-heading h2 { margin: 0; font-size: 1.02rem; letter-spacing: -0.01em; }
+      .section-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+      .select, .input {
+        width: 100%; border: 1px solid var(--line); background: rgba(255,255,255,0.94); color: var(--text);
+        border-radius: 14px; padding: 11px 13px; outline: none;
+      }
+      .select:focus, .input:focus, .btn:focus-visible, .ghost-btn:focus-visible, .primary-btn:focus-visible, .secondary-btn:focus-visible, .nav-item:focus-visible, .row-button:focus-visible {
+        outline: 3px solid rgba(31, 138, 142, 0.18); outline-offset: 2px;
+      }
+
+      .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .toolbar .input { min-width: 260px; flex: 1 1 260px; }
+
+      .table-wrap {
+        overflow: auto; border-radius: 18px; border: 1px solid var(--line); background: rgba(255,255,255,0.84);
+      }
+      table { width: 100%; border-collapse: collapse; min-width: 900px; }
+      th, td { text-align: left; padding: 14px 14px; border-bottom: 1px solid rgba(17,24,39,0.08); vertical-align: top; }
+      th {
+        color: var(--muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.12em;
+        font-weight: 700; background: rgba(250,251,249,0.88);
+      }
+      tr[data-selected="true"] td { background: linear-gradient(90deg, rgba(31,138,142,0.08), transparent 70%); }
+
+      .row-button { width: 100%; display: grid; gap: 6px; text-align: left; border: 0; background: transparent; padding: 0; cursor: pointer; color: inherit; }
+      .row-title { font-weight: 600; }
+      .row-meta { color: var(--muted); font-size: 0.9rem; }
+
+      .tier-badge, .risk-badge, .state-badge, .chip {
+        display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px;
+        border: 1px solid transparent; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.03em; white-space: nowrap;
+      }
+      .tier-badge { background: rgba(31, 138, 142, 0.08); color: var(--accent); border-color: rgba(31, 138, 142, 0.18); }
+      .risk-badge[data-level="low"], .state-badge[data-state="approved"], .chip[data-tone="good"] {
+        background: var(--success-soft); color: var(--success); border-color: rgba(29,122,71,0.16);
+      }
+      .risk-badge[data-level="medium"], .state-badge[data-state="pending"] {
+        background: var(--warn-soft); color: var(--warn); border-color: rgba(194,106,0,0.16);
+      }
+      .risk-badge[data-level="high"], .state-badge[data-state="blocked"] {
+        background: var(--danger-soft); color: var(--danger); border-color: rgba(200,61,45,0.16);
+      }
+      .chip[data-tone="neutral"] { background: rgba(36,87,211,0.08); color: var(--accent-2); border-color: rgba(36,87,211,0.16); }
+      .chip[data-tone="warn"] { background: var(--warn-soft); color: var(--warn); border-color: rgba(194,106,0,0.16); }
+      .chip[data-tone="bad"] { background: var(--danger-soft); color: var(--danger); border-color: rgba(200,61,45,0.16); }
+
+      .row-detail { padding: 0 14px 14px; background: rgba(249,251,250,0.86); border-top: 1px solid rgba(17,24,39,0.08); }
+      .detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+      .detail-box {
+        padding: 12px; border-radius: 16px; border: 1px solid var(--line);
+        background: rgba(255,255,255,0.88);
+      }
+      .detail-label { text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-size: 0.72rem; font-weight: 700; }
+      .detail-body { margin-top: 8px; line-height: 1.45; color: var(--text); }
+
+      .firewall-stack, .board-stack { display: grid; gap: 12px; }
+      .firewall-card {
+        background: rgba(255,255,255,0.88); border: 1px solid var(--line); border-radius: 20px; padding: 14px; display: grid; gap: 12px;
+      }
+      .firewall-card[data-highlight="true"] {
+        border-color: rgba(200,61,45,0.22); background: linear-gradient(180deg, rgba(200,61,45,0.06), rgba(255,255,255,0.9));
+      }
+      .firewall-top { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+      .firewall-top strong { display: block; font-size: 0.96rem; }
+      .firewall-top span { color: var(--muted); font-size: 0.88rem; }
+
+      .dry-run {
+        padding: 14px; border-radius: 18px; background: linear-gradient(180deg, rgba(36,87,211,0.08), rgba(255,255,255,0.9));
+        border: 1px solid rgba(36,87,211,0.14);
+      }
+      .dry-run h4 { margin: 0; font-size: 0.9rem; }
+      .dry-run-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+      .dry-run-kpi {
+        padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,0.88); border: 1px solid rgba(17,24,39,0.08);
+      }
+      .dry-run-kpi span { display: block; color: var(--muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.11em; }
+      .dry-run-kpi strong { display: block; margin-top: 6px; font-size: 1rem; }
+
+      .board-grid {
+        display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 4px;
+      }
+      .board-column {
+        min-height: 230px; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,0.86);
+        padding: 14px; display: grid; gap: 12px;
+      }
+      .board-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+      .board-header strong { font-size: 0.95rem; }
+      .board-list { display: grid; gap: 10px; }
+      .board-card {
+        padding: 12px; border-radius: 16px; border: 1px solid var(--line); background: linear-gradient(180deg, #fff, #f6f8f6);
+        display: grid; gap: 8px;
+      }
+      .board-card h4 { margin: 0; font-size: 0.92rem; }
+      .board-card p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
+
+      .list { display: grid; gap: 10px; }
+      .list-item {
+        border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,0.88);
+        padding: 14px; display: grid; gap: 8px;
+      }
+      .list-item strong { font-size: 0.96rem; }
+      .list-item p { margin: 0; color: var(--muted); line-height: 1.45; }
+      .page-note { color: var(--muted); font-size: 0.9rem; }
+      .divider { height: 1px; background: var(--line); }
+      .footer-strip {
+        margin-top: 8px; border-top: 1px solid var(--line); padding-top: 14px; color: var(--muted);
+        display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      }
+
+      .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; }
+      .filter-chip {
+        border: 1px solid var(--line); background: rgba(255,255,255,0.88); border-radius: 999px;
+        padding: 8px 12px; cursor: pointer;
+      }
+      .filter-chip[data-active="true"] { border-color: rgba(31,138,142,0.22); color: var(--accent); background: rgba(31,138,142,0.08); font-weight: 700; }
+
+      .muted-badge {
+        display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px;
+        background: rgba(17,24,39,0.05); border: 1px solid rgba(17,24,39,0.08); color: var(--muted); font-size: 0.76rem; font-weight: 700;
+      }
+
+      .control-row { display: flex; gap: 10px; flex-wrap: wrap; }
+      .control-row .select, .control-row .input { min-width: 170px; }
+
+      @media (max-width: 1280px) {
+        .app-shell { grid-template-columns: 1fr; }
+        .sidebar { position: relative; height: auto; border-right: 0; border-bottom: 1px solid var(--nav-line); }
+        .hero, .workspace-grid, .columns-2 { grid-template-columns: 1fr; }
+        .board-grid { grid-template-columns: repeat(5, minmax(200px, 1fr)); }
+      }
+      @media (max-width: 900px) {
+        .page, .topbar { padding-left: 16px; padding-right: 16px; }
+        .metric-grid, .detail-grid, .dry-run-grid { grid-template-columns: 1fr; }
+        .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .board-grid { grid-template-columns: repeat(5, minmax(180px, 1fr)); }
+        .topbar { align-items: start; flex-direction: column; }
+      }
+      @media (max-width: 640px) {
+        .metric-grid { grid-template-columns: 1fr; }
+        .board-grid { grid-template-columns: repeat(5, minmax(168px, 1fr)); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 2l7 3v5c0 4.9-3.1 9.1-7 12-3.9-2.9-7-7.1-7-12V5l7-3z" stroke="#071113" stroke-width="1.8" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <strong>SENTINEL CONTROL</strong>
+            <span>Operator + Firewall</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Primary">
+          <button class="nav-item" data-active="true" data-target="agents"><span>Agents</span></button>
+          <button class="nav-item" data-target="firewall"><span>Firewall</span></button>
+          <button class="nav-item" data-target="customers"><span>Customers</span></button>
+          <button class="nav-item" data-target="evidence"><span>Evidence</span></button>
+          <button class="nav-item" data-target="projects"><span>Projects</span></button>
+          <button class="nav-item" data-target="logs"><span>Logs</span></button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="status-card">
+            <div class="status-row"><span>System Status</span><span style="color: var(--success)">All Systems Operational</span></div>
+            <div class="status-row"><span>Active Runs</span><strong>12</strong></div>
+            <div class="status-row"><span>Pending Approvals</span><strong style="color: var(--warn)">3</strong></div>
+            <div class="status-row"><span>Blocked Actions</span><strong style="color: var(--danger)">2</strong></div>
+          </div>
+          <div class="user-chip">
+            <div class="user-avatar">AC</div>
+            <div>
+              <strong style="display:block;">Alex Chen</strong>
+              <span style="color: rgba(255,255,255,0.68); font-size: 0.88rem;">Admin</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="shell-main">
+        <header class="topbar">
+          <div class="crumbs"><strong>Sentinel</strong><span style="color: var(--muted-2)">/</span><strong>Control Room</strong></div>
+          <div class="top-actions">
+            <button class="ghost-btn" id="runDetailsBtn" type="button">Run Details</button>
+            <button class="ghost-btn" type="button">Share Run</button>
+            <button class="primary-btn" id="newRunBtn" type="button">New Run</button>
+          </div>
+        </header>
+
+        <main>
+          <div class="page">
+            <section class="hero">
+              <div class="hero-panel">
+                <div class="eyebrow" id="runEyebrow">Agents / Growth Orchestrator / GR-2025-05-18-1427</div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;">
+                  <span class="muted-badge" id="runState">RUN IN PROGRESS</span>
+                  <span class="page-note" id="runStartedAt">Started 18 May 2025, 2:27 PM</span>
+                </div>
+
+                <h1 class="page-title" id="runTitle">Expand ACME in Manufacturing Segment</h1>
+                <p class="page-copy">
+                  Sentinel Control turns market evidence into a decision, a GTM pack, and a permissioned execution path. The current run is still under review, so the pack is ready but external actions remain draft-only.
+                </p>
+
+                <div class="metric-grid">
+                  <div class="metric"><div class="metric-label">Verdict</div><div class="metric-value" id="metricVerdict">Proceed with guardrails</div><div class="metric-sub">Guardrails active across 2 actions</div></div>
+                  <div class="metric"><div class="metric-label">Confidence</div><div class="metric-value" id="metricConfidence">78%</div><div class="metric-sub">Evidence weighted</div></div>
+                  <div class="metric"><div class="metric-label">Risk Score</div><div class="metric-value" id="metricRisk">36/100</div><div class="metric-sub">Moderate</div></div>
+                  <div class="metric"><div class="metric-label">Actions</div><div class="metric-value" id="metricActions">4</div><div class="metric-sub">1 approved, 2 pending, 1 blocked</div></div>
+                </div>
+
+                <div class="progress" aria-label="Run progress">
+                  <button class="progress-step" data-step="evidence" data-active="false" type="button"><strong>1. Evidence</strong><span>7/7 collected</span></button>
+                  <button class="progress-step" data-step="debate" data-active="false" type="button"><strong>2. Debate</strong><span>Complete</span></button>
+                  <button class="progress-step" data-step="pack" data-active="true" type="button"><strong>3. GTM Pack</strong><span>Generated</span></button>
+                  <button class="progress-step" data-step="firewall" data-active="false" type="button"><strong>4. Firewall</strong><span>Reviewing</span></button>
+                  <button class="progress-step" data-step="approval" data-active="false" type="button"><strong>5. Approval</strong><span>Pending</span></button>
+                </div>
+              </div>
+
+              <div class="panel" id="firewallSummary">
+                <div class="section-heading" style="margin-bottom:14px;">
+                  <div><div class="eyebrow">Firewall</div><h2>Review queue</h2></div>
+                  <span class="chip" data-tone="neutral">4 actions</span>
+                </div>
+                <div class="firewall-stack" id="actionStack"></div>
+              </div>
+            </section>
+
+            <div class="workspace-grid">
+              <section class="panel">
+                <div class="section-heading">
+                  <div><div class="eyebrow">Evidence</div><h2>Evidence Ledger</h2></div>
+                  <div class="section-actions">
+                    <div class="control-row">
+                      <select class="select" id="sourceFilter" aria-label="Source filter">
+                        <option value="all">All Sources</option>
+                        <option value="direct">Direct Proof</option>
+                        <option value="adjacent">Adjacent Proof</option>
+                        <option value="supporting">Supporting Proof</option>
+                      </select>
+                      <button class="ghost-btn" type="button">View Filters</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Source</th>
+                        <th>Proof Tier</th>
+                        <th>Summary</th>
+                        <th>Confidence</th>
+                        <th>Freshness</th>
+                        <th>Linked Action Refs</th>
+                      </tr>
+                    </thead>
+                    <tbody id="evidenceBody"></tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="panel">
+                <div class="section-heading">
+                  <div><div class="eyebrow">Firewall</div><h2>Dry-run and approval context</h2></div>
+                  <button class="secondary-btn" type="button">View Full Log</button>
+                </div>
+                <div class="firewall-stack">
+                  <div class="dry-run">
+                    <h4 id="dryRunTitle">Dry-Run Preview (A-101)</h4>
+                    <div class="dry-run-grid" id="dryRunGrid"></div>
+                    <div class="divider" style="margin:12px 0;"></div>
+                    <div style="display:grid; gap:8px;">
+                      <div style="display:flex; justify-content:space-between; gap:10px;">
+                        <span class="page-note">Risk notes</span>
+                        <span class="chip" data-tone="good" id="riskChip">No policy violations detected</span>
+                      </div>
+                      <div class="page-note" id="riskNote">Medium-risk draft only. Approval required before any external contact. The blocked action remains blocked even if the subject line looks safe.</div>
+                    </div>
+                  </div>
+
+                  <div class="list" id="policyList"></div>
+                </div>
+              </section>
+            </div>
+
+            <section class="panel">
+              <div class="section-heading">
+                <div><div class="eyebrow">Execution</div><h2>Execution Board</h2></div>
+                <div class="section-actions">
+                  <button class="ghost-btn" type="button">Open Run</button>
+                  <button class="secondary-btn" type="button">Export Pack</button>
+                </div>
+              </div>
+              <div class="board-grid" id="boardGrid"></div>
+            </section>
+
+            <section class="columns-2" style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px;">
+              <section class="panel">
+                <div class="section-heading">
+                  <div><div class="eyebrow">Agents</div><h2>Active agent stack</h2></div>
+                  <button class="ghost-btn" type="button">Open run details</button>
+                </div>
+                <div class="list" id="agentList"></div>
+              </section>
+
+              <section class="panel">
+                <div class="section-heading">
+                  <div><div class="eyebrow">Projects</div><h2>Generated project folders</h2></div>
+                  <button class="secondary-btn" type="button">Download JSON</button>
+                </div>
+                <div class="list" id="projectList"></div>
+              </section>
+            </section>
+
+            <section class="panel" id="logsPanel">
+              <div class="section-heading">
+                <div><div class="eyebrow">Logs</div><h2>Trace and feedback</h2></div>
+                <span class="chip" data-tone="neutral">Trace log active</span>
+              </div>
+              <div class="list" id="logList"></div>
+            </section>
+
+            <div class="footer-strip">
+              <span>Sentinel Control preview</span>
+              <span>Evidence -> Debate -> GTM Pack -> Firewall -> Approval</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      const agents = [
+        {
+          name: "Opportunity Agent",
+          role: "reads CueIdea signals and filters pain, WTP, and competitor complaints",
+          status: "complete",
+          note: "7 direct signals, 4 adjacent signals, 2 WTP markers."
+        },
+        {
+          name: "Research Agent",
+          role: "adds competitor and market context before any decision",
+          status: "running",
+          note: "Ranked sources and isolated repeated buyer pain."
+        },
+        {
+          name: "Debate Orchestrator",
+          role: "forces a skeptical pass before GTM output is allowed",
+          status: "complete",
+          note: "Decision landed on niche down, not build-first."
+        },
+        {
+          name: "GTM Operator",
+          role: "writes the pack only if evidence and risk are acceptable",
+          status: "ready",
+          note: "Drafts generated. Approval needed for next step."
+        },
+        {
+          name: "Firewall",
+          role: "enforces policy, dry-run, and approval routing",
+          status: "reviewing",
+          note: "One action blocked, two drafts pending, one folder allowed."
+        }
+      ];
+
+      const evidence = [
+        {
+          id: "ev_001",
+          source: "Reddit / r/freelance",
+          proofTier: "direct",
+          summary: "Freelancers repeatedly complain about chasing unpaid invoices and awkward follow-ups.",
+          confidence: 92,
+          freshness: "2h ago",
+          actionRefs: ["A-101", "A-104"],
+          quote: "I hate chasing late payments every month.",
+          details: {
+            excerpt: "The pain is recurring, concrete, and tied to a clear workflow breakdown.",
+            methodology: "Direct complaint extraction from repeated pain language.",
+            tags: ["pain", "invoice", "follow-up"]
+          }
+        },
+        {
+          id: "ev_002",
+          source: "G2 review cluster",
+          proofTier: "adjacent",
+          summary: "Users want better relationship-aware reminders, not just generic billing nudges.",
+          confidence: 78,
+          freshness: "5h ago",
+          actionRefs: ["A-101"],
+          details: {
+            excerpt: "The complaint is adjacent to the buyer pain but still useful for wedge shaping.",
+            methodology: "Normalized review complaints and grouped repeated themes.",
+            tags: ["competitor gap", "reminders"]
+          }
+        },
+        {
+          id: "ev_003",
+          source: "Product Hunt comments",
+          proofTier: "adjacent",
+          summary: "People ask for faster onboarding and less manual setup in billing tools.",
+          confidence: 65,
+          freshness: "1d ago",
+          actionRefs: ["A-102"],
+          details: {
+            excerpt: "This signal helps the positioning angle but is not direct proof of WTP.",
+            methodology: "Comment theme aggregation across launch threads.",
+            tags: ["onboarding", "workflow"]
+          }
+        },
+        {
+          id: "ev_004",
+          source: "StackOverflow / GitHub",
+          proofTier: "supporting",
+          summary: "Automation is desirable, but integration complexity remains a recurring concern.",
+          confidence: 61,
+          freshness: "1d ago",
+          actionRefs: ["A-102"],
+          details: {
+            excerpt: "Supporting evidence only; useful for execution risk.",
+            methodology: "Cross-source technical friction scan.",
+            tags: ["integration", "risk"]
+          }
+        },
+        {
+          id: "ev_005",
+          source: "Reddit / r/freelance",
+          proofTier: "direct",
+          summary: "At least one user says they would pay for automated payment reminders if it saved awkward follow-ups.",
+          confidence: 88,
+          freshness: "5h ago",
+          actionRefs: ["A-101", "A-104"],
+          quote: "I would pay for something that chases invoices without sounding robotic.",
+          details: {
+            excerpt: "Strong WTP phrasing tied to a painful, repeated workflow.",
+            methodology: "Direct willingness-to-pay language detection.",
+            tags: ["wtp", "pricing"]
+          }
+        },
+        {
+          id: "ev_006",
+          source: "Hacker News",
+          proofTier: "adjacent",
+          summary: "Discussion around manual ops and workflow automation suggests the category is timely.",
+          confidence: 58,
+          freshness: "1d ago",
+          actionRefs: ["A-103"],
+          details: {
+            excerpt: "Timing signal only; no product-specific proof.",
+            methodology: "Trend and discussion context extraction.",
+            tags: ["trend", "timing"]
+          }
+        },
+        {
+          id: "ev_007",
+          source: "Competitor complaints",
+          proofTier: "direct",
+          summary: "Existing tools track invoices but do not handle relationship-aware reminders.",
+          confidence: 90,
+          freshness: "2h ago",
+          actionRefs: ["A-103"],
+          details: {
+            excerpt: "This is a clean wedge signal and feeds the competitor gap section.",
+            methodology: "Complaint cluster from competitor review extraction.",
+            tags: ["competitor complaint", "gap"]
+          }
+        }
+      ];
+
+      const actions = [
+        {
+          id: "A-101",
+          tool: "prepare_email_draft",
+          title: "Draft outreach to validate WTP",
+          intent: "Validate interest from target ICP",
+          risk: "medium",
+          approvalStatus: "pending",
+          requiresApproval: true,
+          dryRun: {
+            whyNeeded: "Test willingness to pay before broader build work.",
+            preview: {
+              subject: "Quick question about invoice follow-ups",
+              body: "I am validating a lightweight workflow for chasing late invoices. Would you be open to 10 minutes of feedback?"
+            },
+            evidenceUsed: ["ev_001", "ev_005"]
+          },
+          sourceNotes: ["Direct pain language", "Direct WTP phrasing"]
+        },
+        {
+          id: "A-102",
+          tool: "create_file",
+          title: "Write GTM Pack sections",
+          intent: "Persist a local first-customer pack",
+          risk: "low",
+          approvalStatus: "not_required",
+          requiresApproval: false,
+          dryRun: {
+            whyNeeded: "Create a portable pack for review and handoff.",
+            preview: {
+              path: "./data/generated_projects/ai-invoice-chasing/00_VERDICT.md",
+              content: "Niche down first, build only after WTP proof."
+            },
+            evidenceUsed: ["ev_001", "ev_002", "ev_005"]
+          },
+          sourceNotes: ["Allowed path only", "Evidence referenced"]
+        },
+        {
+          id: "A-103",
+          tool: "send_email",
+          title: "Send pilot invite",
+          intent: "External contact",
+          risk: "high",
+          approvalStatus: "blocked",
+          blocked: true,
+          requiresApproval: true,
+          dryRun: {
+            whyNeeded: "Blocked in v1; drafts only.",
+            preview: {
+              to: "not executed",
+              subject: "Pilot invitation",
+              body: "Would you like to try this?"
+            },
+            evidenceUsed: ["ev_007"]
+          },
+          sourceNotes: ["V1-disabled action", "Would bypass policy"]
+        },
+        {
+          id: "A-104",
+          tool: "create_folder",
+          title: "Create generated project folder",
+          intent: "Store local project docs",
+          risk: "low",
+          approvalStatus: "approved",
+          requiresApproval: false,
+          dryRun: {
+            whyNeeded: "Create the project root before writing docs.",
+            preview: {
+              path: "./data/generated_projects/ai-invoice-chasing"
+            },
+            evidenceUsed: ["ev_001", "ev_005"]
+          },
+          sourceNotes: ["Allowed path only", "Project root"]
+        }
+      ];
+
+      const firewallPolicies = [
+        { tool: "create_folder", risk: "low", autoAllowed: true, approval: false, disabled: false, scope: "./data/generated_projects" },
+        { tool: "create_file", risk: "low", autoAllowed: true, approval: false, disabled: false, scope: "./data/generated_projects" },
+        { tool: "prepare_email_draft", risk: "medium", autoAllowed: false, approval: true, disabled: false, scope: "draft-only" },
+        { tool: "send_email", risk: "high", autoAllowed: false, approval: true, disabled: true, scope: "disabled in v1" },
+        { tool: "browser_submit_form", risk: "high", autoAllowed: false, approval: true, disabled: true, scope: "disabled in v1" },
+        { tool: "run_shell_command", risk: "critical", autoAllowed: false, approval: true, disabled: true, scope: "disabled in v1" },
+        { tool: "modify_code", risk: "critical", autoAllowed: false, approval: true, disabled: true, scope: "disabled in v1" }
+      ];
+
+      const projects = [
+        {
+          id: "ai-invoice-chasing",
+          name: "AI Invoice Chasing",
+          status: "Pack generated",
+          updatedAt: "18 May",
+          description: "Narrow wedge for freelancers and small agencies with recurring late-payment pain.",
+          files: ["00_VERDICT.md", "01_EVIDENCE.md", "02_ICP.md", "05_OUTREACH_MESSAGES.md"]
+        },
+        {
+          id: "client-followup",
+          name: "Client Follow-up OS",
+          status: "Needs approval",
+          updatedAt: "17 May",
+          description: "Draft-only outreach pack pending approval before any external contact.",
+          files: ["00_VERDICT.md", "04_LANDING_PAGE_COPY.md", "06_INTERVIEW_SCRIPT.md"]
+        },
+        {
+          id: "service-ops",
+          name: "Service Ops Gap",
+          status: "Monitoring",
+          updatedAt: "16 May",
+          description: "Competitor weakness cluster being tracked for timing and positioning.",
+          files: ["08_WATCHLIST.md", "trace.json"]
+        }
+      ];
+
+      const board = [
+        {
+          title: "Ideas",
+          count: 6,
+          cards: [
+            { title: "AI Invoice Chasing", meta: "78", description: "Strong direct pain and clean WTP phrasing." },
+            { title: "Client Follow-up OS", meta: "65", description: "Promising but still narrow on buyer reachability." },
+            { title: "Public Sector Expansion", meta: "41", description: "Too broad for v1 execution." }
+          ]
+        },
+        {
+          title: "Packs",
+          count: 4,
+          cards: [
+            { title: "AI Invoice Chasing Pack", meta: "Generated 18 May", description: "Includes verdict, evidence, ICP, outreach and roadmap." },
+            { title: "Client Follow-up Brief", meta: "Draft", description: "Waiting on WTP proof before file creation." }
+          ]
+        },
+        {
+          title: "Needs Approval",
+          count: 3,
+          cards: [
+            { title: "Launch ABM Campaign", meta: "A-101", description: "Medium risk and approval required." },
+            { title: "LinkedIn Sponsored Content", meta: "A-102", description: "Drafted but not executed." },
+            { title: "Discount > 15%", meta: "A-103", description: "Blocked by policy in v1." }
+          ]
+        },
+        {
+          title: "Drafts",
+          count: 2,
+          cards: [
+            { title: "Email: Intro to ACME Leadership", meta: "Draft", description: "Evidence-backed, user approval pending." },
+            { title: "LinkedIn Message", meta: "Draft", description: "Short, narrow, and referenced to direct pain." }
+          ]
+        },
+        {
+          title: "Done",
+          count: 5,
+          cards: [
+            { title: "Project Folder Created", meta: "18 May", description: "Safe file write inside generated projects." },
+            { title: "Research Brief", meta: "Completed", description: "Ranked evidence and competitor gaps." }
+          ]
+        }
+      ];
+
+      const logs = [
+        { title: "run_started", body: "Idea received and evidence capture initiated." },
+        { title: "decision_created", body: "Debate returned niche down because WTP was present but the wedge is still narrow." },
+        { title: "action_proposed", body: "Folder creation and draft-only outreach were proposed before execution." }
+      ];
+
+      const state = {
+        filter: "all",
+        selectedEvidence: "ev_002",
+        actionState: actions.reduce((acc, action) => {
+          acc[action.id] = action;
+          return acc;
+        }, {}),
+        runComplete: false,
+        activeStep: "pack"
+      };
+
+      const badgeTone = (stateName) => {
+        if (stateName === "approved") return "good";
+        if (stateName === "pending") return "warn";
+        if (stateName === "blocked") return "bad";
+        return "neutral";
+      };
+
+      const riskClass = (risk) => risk;
+
+      function renderEvidence() {
+        const tbody = document.getElementById("evidenceBody");
+        const items = evidence.filter((row) => state.filter === "all" || row.proofTier === state.filter);
+        tbody.innerHTML = items.map((row, index) => {
+          const selected = row.id === state.selectedEvidence;
+          return `
+            <tr data-selected="${selected}">
+              <td>
+                <button class="row-button" data-evidence-id="${row.id}" type="button">
+                  <span class="row-title">${row.source}</span>
+                  <span class="row-meta">${row.id}</span>
+                </button>
+              </td>
+              <td><span class="tier-badge">T${index + 1}</span></td>
+              <td>
+                <div style="display:grid; gap:4px;">
+                  <span>${row.summary}</span>
+                  ${row.quote ? `<span class="row-meta">Quote: "${row.quote}"</span>` : ""}
+                </div>
+              </td>
+              <td>
+                <div style="display:grid; gap:8px;">
+                  <span>${row.confidence}%</span>
+                  <div style="height:4px; border-radius:999px; background:rgba(17,24,39,0.08); overflow:hidden;">
+                    <div style="width:${row.confidence}%; height:100%; border-radius:999px; background:linear-gradient(90deg, var(--accent), var(--accent-2));"></div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="width:8px; height:8px; border-radius:999px; background:${index < 2 ? "var(--success)" : "var(--accent)"};"></span>
+                  <span>${row.freshness}</span>
+                </div>
+              </td>
+              <td>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  ${row.actionRefs.map((ref) => `<span class="chip" data-tone="${ref === "A-103" ? "bad" : "neutral"}">${ref}</span>`).join("")}
+                </div>
+              </td>
+            </tr>
+            ${selected ? `
+              <tr>
+                <td colspan="6" class="row-detail">
+                  <div class="detail-grid">
+                    <div class="detail-box">
+                      <div class="detail-label">Excerpt</div>
+                      <div class="detail-body">${row.details.excerpt}</div>
+                    </div>
+                    <div class="detail-box">
+                      <div class="detail-label">Methodology</div>
+                      <div class="detail-body">${row.details.methodology}</div>
+                    </div>
+                    <div class="detail-box">
+                      <div class="detail-label">Tags</div>
+                      <div class="detail-body" style="display:flex; gap:8px; flex-wrap:wrap;">
+                        ${row.details.tags.map((tag) => `<span class="chip" data-tone="neutral">${tag}</span>`).join("")}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ` : ""}
+          `;
+        }).join("");
+
+        tbody.querySelectorAll("[data-evidence-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.selectedEvidence = button.getAttribute("data-evidence-id");
+            renderEvidence();
+            renderSelectedEvidence();
+          });
+        });
+      }
+
+      function renderSelectedEvidence() {
+        const selected = evidence.find((row) => row.id === state.selectedEvidence) || evidence[0];
+        const title = document.querySelector("#evidenceHeadline");
+        const body = document.querySelector("#evidenceBodyText");
+        const note = document.querySelector("#evidenceNote");
+        if (title) title.textContent = selected.source;
+        if (body) body.textContent = selected.details.excerpt;
+        if (note) note.textContent = selected.details.methodology;
+      }
+
+      function renderActions() {
+        const stack = document.getElementById("actionStack");
+        stack.innerHTML = actions.map((action) => {
+          const current = state.actionState[action.id];
+          return `
+            <div class="firewall-card" data-highlight="${current.blocked ? "true" : "false"}">
+              <div class="firewall-top">
+                <div>
+                  <strong>${current.id} ${current.title}</strong>
+                  <span>${current.intent}</span>
+                </div>
+                <span class="risk-badge" data-level="${riskClass(current.risk)}">${current.risk}</span>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span class="state-badge" data-state="${current.blocked ? "blocked" : current.approvalStatus === "approved" ? "approved" : "pending"}">${current.approvalStatus.toUpperCase()}</span>
+                <span class="chip" data-tone="${current.requiresApproval ? "warn" : "good"}">${current.requiresApproval ? "Approval required" : "Auto allowed"}</span>
+              </div>
+              <div class="dry-run">
+                <h4>Dry-run preview</h4>
+                <div class="dry-run-grid">
+                  ${Object.entries(current.dryRun.preview).slice(0, 3).map(([key, value]) => `
+                    <div class="dry-run-kpi"><span>${key}</span><strong>${value}</strong></div>
+                  `).join("")}
+                </div>
+              </div>
+              <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <span class="page-note">${current.dryRun.whyNeeded}</span>
+                <button class="${current.blocked ? "ghost-btn" : "secondary-btn"}" type="button" data-action-id="${current.id}">
+                  ${current.blocked ? "View Risk" : current.approvalStatus === "pending" ? "Approve" : "Review"}
+                </button>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        stack.querySelectorAll("[data-action-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const actionId = button.getAttribute("data-action-id");
+            const current = state.actionState[actionId];
+            if (current.blocked) return;
+            if (current.approvalStatus === "pending") {
+              current.approvalStatus = "approved";
+              renderActions();
+              renderLogs("approval_recorded", `${actionId} approved by local preview.`);
+            }
+          });
+        });
+      }
+
+      function renderPolicies() {
+        const list = document.getElementById("policyList");
+        list.innerHTML = firewallPolicies.map((policy) => `
+          <div class="list-item">
+            <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+              <strong>${policy.tool}</strong>
+              <span class="risk-badge" data-level="${policy.risk}">${policy.risk}</span>
+            </div>
+            <p>${policy.scope}</p>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <span class="chip" data-tone="${policy.autoAllowed ? "good" : "warn"}">${policy.autoAllowed ? "Auto allowed" : "Approval"}</span>
+              <span class="chip" data-tone="${policy.disabled ? "bad" : "neutral"}">${policy.disabled ? "V1 disabled" : "Enabled"}</span>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderBoard() {
+        const boardGrid = document.getElementById("boardGrid");
+        boardGrid.innerHTML = board.map((column) => `
+          <div class="board-column">
+            <div class="board-header">
+              <strong>${column.title}</strong>
+              <span class="chip" data-tone="${column.title === "Needs Approval" ? "warn" : "neutral"}">${column.count}</span>
+            </div>
+            <div class="board-list">
+              ${column.cards.map((card) => `
+                <div class="board-card">
+                  <h4>${card.title}</h4>
+                  <p>${card.description}</p>
+                  <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <span class="page-note">${card.meta}</span>
+                    <span style="font-size: 1rem;">→</span>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderAgents() {
+        const list = document.getElementById("agentList");
+        list.innerHTML = agents.map((agent) => `
+          <div class="list-item">
+            <div style="display:flex; justify-content:space-between; gap:10px; align-items:start; flex-wrap:wrap;">
+              <strong>${agent.name}</strong>
+              <span class="chip" data-tone="${agent.status === "complete" ? "good" : agent.status === "reviewing" ? "warn" : "neutral"}">${agent.status}</span>
+            </div>
+            <p>${agent.role}</p>
+            <span class="page-note">${agent.note}</span>
+          </div>
+        `).join("");
+      }
+
+      function renderProjects() {
+        const list = document.getElementById("projectList");
+        list.innerHTML = projects.map((project) => `
+          <a class="list-item" href="#${project.id}">
+            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+              <strong>${project.name}</strong>
+              <span class="state-badge" data-state="${project.status === "Monitoring" ? "approved" : project.status === "Needs approval" ? "pending" : "approved"}">${project.status}</span>
+            </div>
+            <p>${project.description}</p>
+            <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+              <span class="page-note">Updated ${project.updatedAt}</span>
+              <span class="page-note">${project.files.join(" | ")}</span>
+            </div>
+          </a>
+        `).join("");
+      }
+
+      function renderLogs(actionType, extra) {
+        const list = document.getElementById("logList");
+        const rows = extra ? [{ title: actionType, body: extra }, ...logs] : logs;
+        list.innerHTML = rows.map((log) => `
+          <div class="list-item">
+            <strong>${log.title}</strong>
+            <p>${log.body}</p>
+          </div>
+        `).join("");
+      }
+
+      function renderDryRun() {
+        const selected = state.actionState["A-101"];
+        const grid = document.getElementById("dryRunGrid");
+        grid.innerHTML = Object.entries(selected.dryRun.preview).map(([key, value]) => `
+          <div class="dry-run-kpi"><span>${key}</span><strong>${value}</strong></div>
+        `).join("");
+      }
+
+      function applyFilter(value) {
+        state.filter = value;
+        document.querySelectorAll(".filter-chip").forEach((chip) => {
+          chip.dataset.active = String(chip.dataset.filter === value);
+        });
+        renderEvidence();
+      }
+
+      function buildEvidenceControls() {
+        const filters = [
+          { label: "All", filter: "all" },
+          { label: "Direct", filter: "direct" },
+          { label: "Adjacent", filter: "adjacent" },
+          { label: "Supporting", filter: "supporting" }
+        ];
+        const controlRow = document.createElement("div");
+        controlRow.className = "filter-bar";
+        controlRow.style.margin = "0 0 12px";
+        controlRow.innerHTML = filters.map((item) => `
+          <button class="filter-chip" type="button" data-filter="${item.filter}" data-active="${item.filter === "all"}">${item.label}</button>
+        `).join("");
+        const tableWrap = document.querySelector(".table-wrap");
+        tableWrap.parentNode.insertBefore(controlRow, tableWrap);
+
+        controlRow.querySelectorAll(".filter-chip").forEach((chip) => {
+          chip.addEventListener("click", () => applyFilter(chip.dataset.filter));
+        });
+      }
+
+      function renderAll() {
+        renderEvidence();
+        renderSelectedEvidence();
+        renderActions();
+        renderPolicies();
+        renderBoard();
+        renderAgents();
+        renderProjects();
+        renderLogs();
+        renderDryRun();
+      }
+
+      document.getElementById("runDetailsBtn").addEventListener("click", () => {
+        document.getElementById("logsPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      document.getElementById("newRunBtn").addEventListener("click", () => {
+        state.runComplete = !state.runComplete;
+        document.getElementById("runState").textContent = state.runComplete ? "RUN COMPLETE" : "RUN IN PROGRESS";
+        document.getElementById("metricVerdict").textContent = state.runComplete ? "Ready for approval" : "Proceed with guardrails";
+        document.querySelectorAll(".progress-step").forEach((step) => {
+          step.dataset.active = String(step.dataset.step === (state.runComplete ? "approval" : "pack"));
+        });
+      });
+
+      renderAll();
+      buildEvidenceControls();
+    </script>
+  </body>
+</html>
