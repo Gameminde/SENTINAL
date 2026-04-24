@@ -1,0 +1,26 @@
+# RedditPulse
+node_modules/
+.env*
+.env.local
+__pycache__/
+*.pyc
+.venv/
+output/
+.next/
+dist/
+*.log
+engine/data/working_proxies.json
+engine/data/working_proxies.txt
+
+# SQL schemas moved to sql/ dir
+sql/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.gitnexus
+.claude/
+AGENTS.md
+CLAUDE.md
+READKKK.md

@@ -24,6 +24,15 @@ The core idea is simple:
 │   ├── docs/                      # Product, security, deployment, and progress docs
 │   └── preview/                   # Static preview fallback
 │
+├── RedditPulse/                   # CueIdea / RedditPulse source project
+│   ├── app/                       # Next.js product app
+│   ├── engine/                    # Python scraping, scoring, enrichment, and analysis engine
+│   ├── migrations/                # Database migrations
+│   ├── scripts/                   # Local and VPS automation scripts
+│   ├── docs/                      # Product, market, and architecture docs
+│   ├── tests/                     # Python tests
+│   └── sql/                       # SQL setup and schema helpers
+│
 └── agent-lab/                     # Research-only runtime lab
     ├── audits/                    # Runtime audits and failure matrices
     ├── benchmarks/                # Safe benchmark plans
@@ -143,6 +152,64 @@ SUPABASE_SERVICE_ROLE_KEY
 
 Never commit real Supabase credentials.
 
+## RedditPulse / CueIdea
+
+Main path:
+
+```text
+RedditPulse/
+```
+
+RedditPulse is the existing CueIdea market-validation project. It contains the product app, scraping engine, validation logic, market intelligence modules, database migrations, and docs that Sentinel can use as an evidence layer.
+
+Important files:
+
+- `RedditPulse/README.md`
+- `RedditPulse/WORKSPACE_MAP.md`
+- `RedditPulse/DOCUMENTATION.md`
+- `RedditPulse/PRODUCT_BLUEPRINT.md`
+- `RedditPulse/SYSTEM_CARTOGRAPHY.md`
+- `RedditPulse/app/package.json`
+- `RedditPulse/requirements-scraper.txt`
+
+### Local Web App
+
+```bash
+cd RedditPulse/app
+npm install
+npm run dev
+```
+
+### Python Engine
+
+```bash
+cd RedditPulse
+python -m pip install -r requirements-scraper.txt
+python run_validation_test.py
+```
+
+The project includes:
+
+- Reddit and market source scraping;
+- idea validation;
+- source credibility and evidence scoring;
+- competitor and complaint intelligence;
+- live market memory;
+- validation depth controls;
+- dashboard/admin routes;
+- Supabase migrations and SQL setup helpers.
+
+Local credentials are intentionally not tracked:
+
+- `RedditPulse/.env`
+- `RedditPulse/app/.env.local`
+
+Local tool state is also not tracked:
+
+- `RedditPulse/.git/`
+- `RedditPulse/.gitnexus/`
+- `RedditPulse/.claude/`
+
 ## Agent Lab
 
 Main path:
@@ -217,6 +284,7 @@ Every future execution feature must pass through:
 - Do not commit generated GTM packs from `sentinel-control/data/generated_projects`.
 - Do not commit Python caches, Next build outputs, `node_modules`, or local virtual environments.
 - Do not commit third-party runtime source clones under `agent-lab/vendors/*/source`.
+- Do not commit RedditPulse local env files or local tool state.
 - Keep Agent Lab research separate from Sentinel production code.
 
 ## North Star

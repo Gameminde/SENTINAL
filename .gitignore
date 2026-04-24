@@ -8,6 +8,8 @@
 !sentinel-control/**
 !agent-lab/
 !agent-lab/**
+!RedditPulse/
+!RedditPulse/**
 
 # Secrets and environment files
 **/.env
@@ -38,6 +40,26 @@ sentinel-control/data/web_state.json
 
 # Agent Lab vendor source clones are research inputs, not repo-owned source.
 agent-lab/vendors/*/source/
+
+# RedditPulse local state and nested repository metadata
+RedditPulse/.git/
+RedditPulse/.gitnexus/
+RedditPulse/.claude/
+RedditPulse/AGENTS.md
+RedditPulse/CLAUDE.md
+RedditPulse/**/.env
+RedditPulse/**/.env.*
+!RedditPulse/**/.env.example
+RedditPulse/**/node_modules/
+RedditPulse/**/.next/
+RedditPulse/**/__pycache__/
+RedditPulse/**/.pytest_cache/
+RedditPulse/**/.venv/
+RedditPulse/**/dist/
+RedditPulse/**/output/
+RedditPulse/**/*.pyc
+RedditPulse/engine/data/working_proxies.json
+RedditPulse/engine/data/working_proxies.txt
 
 # Logs and local reports
 **/*.log

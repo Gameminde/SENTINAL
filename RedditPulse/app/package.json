@@ -1,0 +1,43 @@
+{
+  "name": "app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:all": "concurrently -k -n web,worker -c blue,magenta \"npm:dev\" \"npm:worker\"",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "scrape": "python ../scraper_job.py",
+    "worker": "tsx worker.ts",
+    "verify:queue": "tsx scripts/verify-validation-queue.ts"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^9.0.0-rc.10",
+    "@stripe/stripe-js": "^8.9.0",
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "@types/three": "^0.183.1",
+    "framer-motion": "^12.35.1",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.6",
+    "pg-boss": "^12.14.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "stripe": "^20.4.0",
+    "three": "^0.160.0",
+    "use-sync-external-store": "^1.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^9",
+    "tailwindcss": "^4",
+    "tsx": "^4.20.6",
+    "typescript": "^5"
+  }
+}
