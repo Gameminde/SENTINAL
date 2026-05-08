@@ -1,24 +1,83 @@
 # Current State Lock
 
-Date: 2026-05-07
+Date: 2026-05-09
 
 ## Phase
 
 ```text
-current_phase = ARCHITECTURE_A_TO_Z_LOCKED
-previous_phase = P5L_FULL_LOCKED
-next_phase = P6A_EXTERNAL_ORGAN_FOUNDRY
+current_phase = P6A_FULL_LOCKED
+previous_phase = ARCHITECTURE_A_TO_Z_LOCKED
+next_phase = P6B_AGENT_LAB_ORGAN_HARVEST
 ```
 
-The Sentinel A to Z architecture lock is accepted as the project compass before
-P6 external organs. It records where Sentinel's powers are harvested from, why
-they matter, how they are rewritten under Sentinel authority, which product
-workflows use them, and which promotion levels must be passed before execution.
+P6A External Organ Foundry is accepted as full locked. It creates the
+Sentinel-native contract layer for future external organs without adding real
+external execution powers.
 
-This lock is docs-only. It does not execute external systems, grant authority,
-add external powers, implement payment/spend runtime, trading runtime, account
-creation, credential access, browser power expansion, vendor runtime bridges, or
-authority expansion.
+P6A does not execute external systems, grant authority, add browser execution,
+implement payment/spend runtime, trading runtime, account creation, credential
+access, vendor runtime bridges, vendor code copies, or silent authority
+expansion.
+
+## P6A Verification
+
+```text
+targeted P6A tests = 20 passed
+P5L integrated review tests = 23 passed
+full sentinel-core regression = 638 passed
+```
+
+Commands verified:
+
+```bash
+python -m pytest tests/test_p6_external_organ_foundry.py -v --tb=short
+python -m pytest tests/test_agent_brain_l4_integrated_review.py tests/test_agent_brain_l4_premortem_fixtures.py -v --tb=short
+python -m pytest tests -v --tb=short
+```
+
+P6A required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/authority.py
+sentinel-control/services/sentinel-core/sentinel/organs/contracts.py
+sentinel-control/services/sentinel-core/sentinel/organs/dry_run.py
+sentinel-control/services/sentinel-core/sentinel/organs/kill_switch.py
+sentinel-control/services/sentinel-core/sentinel/organs/promotion_gate.py
+sentinel-control/services/sentinel-core/sentinel/organs/receipts.py
+sentinel-control/services/sentinel-core/sentinel/organs/registry.py
+sentinel-control/services/sentinel-core/sentinel/organs/replay.py
+sentinel-control/services/sentinel-core/sentinel/organs/risk.py
+sentinel-control/services/sentinel-core/tests/test_p6_external_organ_foundry.py
+sentinel-control/docs/organs/P6A_EXTERNAL_ORGAN_FOUNDRY_SCORECARD.md
+sentinel-control/docs/organs/P6A_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6A rules:
+
+```text
+ExternalOrganContract requires authority mapping, risk profile schema,
+dry-run receipt schema, execution receipt schema, trace/event compatibility,
+kill-switch compatibility, source refs, and FinalGate compatibility.
+VendorHarvestReference records rewrite knowledge only and cannot grant
+authority.
+Signals, workspace, memory, and expected profit cannot expand authority.
+Payment/trading/account/credential action classes are blocked by default.
+Dry-run-only organ authority cannot execute.
+Execution-shaped receipts require explicit executable authority and untriggered
+kill switch.
+Receipts use deterministic hashes and replay rejects forged/mismatched records.
+Promotion toward execution requires eval dataset, risk map, failure modes,
+rollback/disable plan, receipt schema, kill switch, and FinalGate adapter.
+```
+
+## Prior Architecture Lock
+
+The Sentinel A to Z architecture lock remains the project compass before P6
+external organs. It records where Sentinel's powers are harvested from, why they
+matter, how they are rewritten under Sentinel authority, which product workflows
+use them, and which promotion levels must be passed before execution.
 
 ## Architecture A To Z Verification
 

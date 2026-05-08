@@ -28,9 +28,13 @@ class OrganPromotionGate:
         *,
         target_level: OrganPromotionLevel,
         fake_eval_passed: bool = False,
+        eval_dataset_present: bool = False,
+        risk_map_present: bool = False,
+        failure_modes_present: bool = False,
         dry_run_schema_present: bool = False,
         receipt_schema_present: bool = False,
         kill_switch_present: bool = False,
+        rollback_disable_plan_present: bool = False,
         final_gate_adapter_present: bool = False,
         event_bus: EventBus | None = None,
     ) -> OrganPromotionDecision:
@@ -46,6 +50,13 @@ class OrganPromotionGate:
             OrganPromotionLevel.L8_CONTINUOUS_ORGANBENCH_MONITORING,
         } and not fake_eval_passed:
             errors.append("fake_eval_required")
+        if PROMOTION_ORDER[target_level] >= PROMOTION_ORDER[OrganPromotionLevel.L3_FAKE_EVAL] and not eval_dataset_present:
+            errors.append("eval_dataset_required")
+        if PROMOTION_ORDER[target_level] >= PROMOTION_ORDER[OrganPromotionLevel.L4_DRY_RUN]:
+            if not risk_map_present:
+                errors.append("risk_map_required")
+            if not failure_modes_present:
+                errors.append("failure_modes_required")
         if PROMOTION_ORDER[target_level] >= PROMOTION_ORDER[OrganPromotionLevel.L4_DRY_RUN] and not dry_run_schema_present:
             errors.append("dry_run_schema_required")
         if PROMOTION_ORDER[target_level] >= PROMOTION_ORDER[OrganPromotionLevel.L6_LIMITED_EXECUTION]:
@@ -53,6 +64,8 @@ class OrganPromotionGate:
                 errors.append("receipt_schema_required")
             if not kill_switch_present:
                 errors.append("kill_switch_required")
+            if not rollback_disable_plan_present:
+                errors.append("rollback_disable_plan_required")
             if not final_gate_adapter_present:
                 errors.append("final_gate_adapter_required")
         if contract.vendor_code_copied:
@@ -70,9 +83,13 @@ class OrganPromotionGate:
                 "contract",
                 "authority_mapping",
                 "risk_profile",
+                "eval_dataset",
+                "risk_map",
+                "failure_modes",
                 "dry_run_schema",
                 "receipt_schema",
                 "kill_switch",
+                "rollback_disable_plan",
                 "final_gate_compatibility",
             ],
             execution_enabled=False,

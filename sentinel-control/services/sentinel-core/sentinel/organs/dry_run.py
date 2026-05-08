@@ -42,20 +42,26 @@ class OrganDryRunReceipt(SentinelModel):
             raise ValueError("OrganDryRunReceipt cannot start execution.")
         if self.authority_expansion:
             raise ValueError("OrganDryRunReceipt cannot expand authority.")
+        expected_hash = self.expected_preview_hash()
+        if self.preview_hash and self.preview_hash != expected_hash:
+            raise ValueError("OrganDryRunReceipt preview hash mismatch.")
         if not self.preview_hash:
-            self.preview_hash = _hash_payload(
-                {
-                    "mission_id": self.mission_id,
-                    "organ_id": self.organ_id,
-                    "action": self.action,
-                    "reason": self.reason,
-                    "preview": self.preview,
-                    "risk_profile_id": self.risk_profile_id,
-                    "authority_id": self.authority_id,
-                    "evidence_refs": self.evidence_refs,
-                }
-            )
+            self.preview_hash = expected_hash
         return self
+
+    def expected_preview_hash(self) -> str:
+        return _hash_payload(
+            {
+                "mission_id": self.mission_id,
+                "organ_id": self.organ_id,
+                "action": self.action,
+                "reason": self.reason,
+                "preview": self.preview,
+                "risk_profile_id": self.risk_profile_id,
+                "authority_id": self.authority_id,
+                "evidence_refs": self.evidence_refs,
+            }
+        )
 
     @classmethod
     def create(

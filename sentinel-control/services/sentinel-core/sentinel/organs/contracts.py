@@ -55,6 +55,20 @@ PROMOTION_ORDER = {
 }
 
 
+REQUIRED_DRY_RUN_FIELDS = {"reason", "preview", "risk_profile_id", "authority_id", "evidence_refs"}
+REQUIRED_RECEIPT_FIELDS = {"dry_run_receipt_id", "trace_refs", "output_summary", "receipt_hash"}
+REQUIRED_RISK_PROFILE_FIELDS = {"risk_score", "risk_level", "reasons", "requires_dry_run"}
+REQUIRED_TRACE_EVENTS = {
+    AgentEventType.ORGAN_CONTRACT_REGISTERED.value,
+    AgentEventType.ORGAN_AUTHORITY_EVALUATED.value,
+    AgentEventType.ORGAN_RISK_PROFILED.value,
+    AgentEventType.ORGAN_DRY_RUN_RECORDED.value,
+    AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED.value,
+    AgentEventType.ORGAN_PROMOTION_EVALUATED.value,
+    AgentEventType.ORGAN_KILL_SWITCH_TRIGGERED.value,
+}
+
+
 class VendorHarvestReference(SentinelModel):
     id: str = ""
     source_system: str
@@ -130,9 +144,13 @@ class ExternalOrganContract(SentinelModel):
     capabilities: list[OrganCapability] = Field(default_factory=list)
     supported_actions: list[str] = Field(default_factory=list)
     authority_fields: list[str] = Field(default_factory=list)
-    required_dry_run_fields: list[str] = Field(default_factory=lambda: ["reason", "preview", "risk_profile_id"])
-    required_receipt_fields: list[str] = Field(default_factory=lambda: ["dry_run_receipt_id", "trace_refs", "output_summary"])
+    required_dry_run_fields: list[str] = Field(default_factory=lambda: sorted(REQUIRED_DRY_RUN_FIELDS))
+    required_receipt_fields: list[str] = Field(default_factory=lambda: sorted(REQUIRED_RECEIPT_FIELDS))
+    required_risk_profile_fields: list[str] = Field(default_factory=lambda: sorted(REQUIRED_RISK_PROFILE_FIELDS))
+    required_trace_events: list[str] = Field(default_factory=lambda: sorted(REQUIRED_TRACE_EVENTS))
     source_refs: list[VendorHarvestReference] = Field(default_factory=list)
+    authority_mapping_required: bool = True
+    risk_profile_required: bool = True
     fake_eval_required: bool = True
     dry_run_required: bool = True
     kill_switch_required: bool = True
@@ -147,8 +165,33 @@ class ExternalOrganContract(SentinelModel):
     def _validate(self) -> ExternalOrganContract:
         if not self.supported_actions:
             raise ValueError("ExternalOrganContract requires supported actions.")
+        if not self.capabilities:
+            raise ValueError("ExternalOrganContract requires capabilities.")
+        if self.authority_mapping_required and not self.authority_fields:
+            raise ValueError("ExternalOrganContract requires authority mapping fields.")
+        if self.risk_profile_required and not set(self.required_risk_profile_fields).issuperset(REQUIRED_RISK_PROFILE_FIELDS):
+            raise ValueError("ExternalOrganContract requires risk profile schema fields.")
+        if self.dry_run_required and not set(self.required_dry_run_fields).issuperset(REQUIRED_DRY_RUN_FIELDS):
+            raise ValueError("ExternalOrganContract requires dry-run receipt schema fields.")
+        if not set(self.required_receipt_fields).issuperset(REQUIRED_RECEIPT_FIELDS):
+            raise ValueError("ExternalOrganContract requires execution receipt schema fields.")
+        if not set(self.required_trace_events).issuperset(REQUIRED_TRACE_EVENTS):
+            raise ValueError("ExternalOrganContract requires trace event compatibility.")
+        if not self.kill_switch_required:
+            raise ValueError("ExternalOrganContract requires kill-switch compatibility.")
+        if not self.final_gate_required:
+            raise ValueError("ExternalOrganContract requires FinalGate compatibility.")
         if not self.source_refs:
             raise ValueError("ExternalOrganContract requires source refs.")
+        supported = set(self.supported_actions)
+        authority_fields = set(self.authority_fields)
+        for capability in self.capabilities:
+            if not capability.evidence_refs:
+                raise ValueError("OrganCapability requires evidence refs.")
+            if not set(capability.actions).issubset(supported):
+                raise ValueError("OrganCapability actions must be supported by the organ contract.")
+            if not set(capability.authority_fields).issubset(authority_fields):
+                raise ValueError("OrganCapability authority fields must be declared by the organ contract.")
         if self.vendor_code_copied:
             raise ValueError("ExternalOrganContract cannot copy vendor code.")
         if self.vendor_runtime_bridge:

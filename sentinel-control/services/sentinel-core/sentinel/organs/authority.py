@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import Field, model_validator
 
 from sentinel.agent.event_bus import EventBus
@@ -38,6 +40,27 @@ class OrganAuthorityEnvelope(SentinelModel):
 
 
 class OrganAuthorityEvaluator:
+    BLACK_ZONE_ACTION_TERMS = {
+        "payment",
+        "spend",
+        "trade",
+        "trading",
+        "credential",
+        "account_create",
+        "create_account",
+        "send_email",
+        "send_message",
+    }
+    BLACK_ZONE_TOOL_TERMS = {
+        "stripe",
+        "payment",
+        "trading",
+        "broker",
+        "credential",
+        "vault",
+        "email_sender",
+    }
+
     def evaluate(
         self,
         root: MissionAuthorityEnvelope,
@@ -47,6 +70,10 @@ class OrganAuthorityEvaluator:
         requested_tools: list[str] | None = None,
         requested_domains: list[str] | None = None,
         requested_accounts: list[str] | None = None,
+        context_signals: dict[str, Any] | None = None,
+        workspace_context: dict[str, Any] | None = None,
+        memory_context: dict[str, Any] | None = None,
+        expected_profit: float | None = None,
         event_bus: EventBus | None = None,
     ) -> OrganAuthorityEnvelope:
         errors = []
@@ -56,6 +83,8 @@ class OrganAuthorityEvaluator:
         forbidden = {item.lower() for item in root.forbidden_actions}
 
         for action in requested_actions:
+            if self._is_black_zone_action(action):
+                errors.append(f"black_zone_action_blocked_by_default:{action}")
             if action not in root.allowed_actions:
                 errors.append(f"action_outside_root_authority:{action}")
             if action not in contract.supported_actions:
@@ -63,6 +92,8 @@ class OrganAuthorityEvaluator:
             if action.lower() in forbidden:
                 errors.append(f"action_forbidden:{action}")
         for tool in tools:
+            if self._is_black_zone_tool(tool):
+                errors.append(f"black_zone_tool_blocked_by_default:{tool}")
             if tool not in root.allowed_tools:
                 errors.append(f"tool_outside_root_authority:{tool}")
             if tool.lower() in forbidden:
@@ -104,6 +135,20 @@ class OrganAuthorityEvaluator:
                 "dry_run_only": True,
                 "execution_authorized": False,
                 "authority_expansion": False,
+                "context_signals_ignored_for_authority": context_signals is not None,
+                "workspace_context_ignored_for_authority": workspace_context is not None,
+                "memory_context_ignored_for_authority": memory_context is not None,
+                "expected_profit_ignored_for_authority": expected_profit is not None,
             },
         )
         return authority.model_copy(update={"trace_refs": [event.id]})
+
+    @classmethod
+    def _is_black_zone_action(cls, action: str) -> bool:
+        normalized = action.lower()
+        return any(term in normalized for term in cls.BLACK_ZONE_ACTION_TERMS)
+
+    @classmethod
+    def _is_black_zone_tool(cls, tool: str) -> bool:
+        normalized = tool.lower()
+        return any(term in normalized for term in cls.BLACK_ZONE_TOOL_TERMS)
