@@ -87,6 +87,32 @@ vendor code copied = no
 silent authority expansion = no
 ```
 
+## Autonomy/Risk Lane Correction
+
+P6A safety is not a permanent restriction. It is a promotion boundary.
+
+```text
+blocked-by-default = not executable until promoted
+blocked-by-default != forbidden forever
+```
+
+Sentinel must compete with highly automated agents by becoming more autonomous
+inside explicit authority, not by refusing all risk. Future phases may promote
+Orange and Red Lane action classes when explicit root authority, risk budget,
+receipts, replay, kill switch, and FinalGate compatibility exist.
+
+Black Lane misuse objectives remain always blocked:
+
+```text
+fraud
+fake identity
+KYC bypass
+credential theft
+illegal spam
+unlawful evasion
+profit guarantees
+```
+
 ## Review Notes
 
 P6A is a foundry layer, not an organ runtime. It allows Sentinel to classify and

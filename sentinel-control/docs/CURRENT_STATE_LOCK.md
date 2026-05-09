@@ -73,6 +73,46 @@ P6B preserves dangerous runtime surfaces as blocked findings.
 VendorHarvestReference remains rewrite knowledge only.
 ```
 
+## Autonomy/Risk Lane Doctrine
+
+This doctrine corrects the interpretation of P6A safety. Sentinel must become
+more autonomous inside explicit authority, not less autonomous.
+
+```text
+Green Lane:
+local, reversible, low-risk actions; auto-execute when authorized.
+
+Blue Lane:
+external read-only or low-risk actions; auto-execute with trace when
+authorized.
+
+Orange Lane:
+cost/account/message/API actions; execute inside explicit RootAuthorityEnvelope
+and risk budget, without micro-approval for every small authorized action.
+
+Red Lane:
+trading, spend runtime, credentials, desktop/sidecar, stealth browser; require
+special authority, caps, receipts, kill switch, and FinalGate.
+
+Black Lane:
+fraud, fake identity, KYC bypass, credential theft, illegal spam, unlawful
+evasion, profit guarantees; always blocked as misuse objectives.
+```
+
+```text
+blocked-by-default = not executable until promoted
+blocked-by-default != forbidden forever
+powerful-by-authority > safe-by-refusal
+```
+
+Risk is allowed only when user authority is explicit, risk budget exists, the
+action class is promoted, receipts/replay exist, kill switch exists, and
+FinalGate passes.
+
+Risk is not allowed when it crosses root authority, hides cost or identity,
+creates unapproved obligation, violates legal/compliance boundaries, or bypasses
+policy.
+
 ## Prior P6A Phase
 
 P6A External Organ Foundry remains accepted as full locked. It creates the

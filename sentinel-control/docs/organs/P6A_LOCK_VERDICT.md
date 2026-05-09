@@ -45,6 +45,24 @@ Promotion toward execution requires eval dataset, risk map, failure modes,
 rollback/disable plan, receipts, kill switch, and FinalGate compatibility.
 ```
 
+## Autonomy/Risk Lane Doctrine
+
+```text
+Green Lane = local, reversible, low-risk actions; auto-execute when authorized.
+Blue Lane = external read-only or low-risk actions; auto-execute with trace.
+Orange Lane = cost/account/message/API actions; execute inside explicit
+RootAuthorityEnvelope and risk budget without micro-approval for every small
+authorized action.
+Red Lane = trading, spend runtime, credentials, desktop/sidecar, stealth
+browser; require special authority, caps, receipts, kill switch, and FinalGate.
+Black Lane = fraud, fake identity, KYC bypass, credential theft, illegal spam,
+unlawful evasion, profit guarantees; always blocked.
+```
+
+P6A's blocked-by-default rule means "not executable until promoted." It does not
+mean "forbidden forever." Sentinel is powerful by authority, not safe by
+refusal.
+
 ## Verification
 
 ```text
