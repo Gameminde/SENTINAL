@@ -152,6 +152,11 @@ from sentinel.organs.real_world_gauntlet import (
 )
 from sentinel.organs.replay import OrganReplayRecord
 from sentinel.organs.risk import OrganRiskLevel, OrganRiskProfile, OrganRiskProfiler
+from sentinel.organs.runtime_promotion import (
+    ExistingOrgansRuntimePromotionPlanner,
+    RuntimePromotionCandidate,
+    RuntimePromotionPlan,
+)
 from sentinel.organs.spend import (
     FakeSpendProvider,
     RefundCancelPath,
@@ -280,6 +285,7 @@ __all__ = [
     "ExternalOrganRegistry",
     "ExistingOrganRealWorldGauntlet",
     "ExistingOrganRealWorldGauntletRunner",
+    "ExistingOrgansRuntimePromotionPlanner",
     "FakeSpendProvider",
     "FakeSidecarDryRunResult",
     "FakeSidecarProvider",
@@ -325,6 +331,8 @@ __all__ = [
     "RequiredLLMIntegration",
     "RequiredNextAdapter",
     "RiskLaneFit",
+    "RuntimePromotionCandidate",
+    "RuntimePromotionPlan",
     "ScopedCredentialGrant",
     "ResolvedCredential",
     "SanitizedDesktopContext",

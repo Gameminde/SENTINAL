@@ -5,87 +5,86 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6O_FULL_LOCKED
-previous_phase = P6N_FULL_LOCKED
-next_phase = P6P_EXISTING_ORGANS_RUNTIME_PROMOTION_PLAN
+current_phase = P6P_FULL_LOCKED
+previous_phase = P6O_FULL_LOCKED
+next_phase = P6Q_CODE_SHELL_AGENTLAB_HARVEST
 ```
 
-P6O Existing Organs Real World Gauntlet is accepted as full locked. It pushes
-the existing P6M/P6N organs harder in repeated, combined, max-mode scenarios
-before adding any new organ family.
+P6P Existing Organs Runtime Promotion Plan is accepted as full locked. It
+converts P6O gauntlet evidence into a deterministic L6 promotion plan for
+existing organs only.
 
-P6O strengthens:
+P6P selects this priority order:
 
 ```text
-browser multi-page public reads
-external API batch GET/HEAD reads
-local channel multi-draft campaigns
-credential env refs through scoped grants, expiry, revocation, and redaction
-desktop workspace batch create/write/read/list with stronger root containment
-capital receipt-backed signal ledgers and spend proposals
-trading multi-symbol read-only market data and paper-trade baskets
-spend multi-vendor test-mode execution
+1. desktop_workspace_l6
+2. browser_controlled_navigation_l6
+3. api_authenticated_read_l6
+4. channel_provider_draft_l6
+5. credential_vault_ref_l6
+6. capital_roi_feedback_l6
+7. trading_live_paper_feed_l6
+8. spend_provider_test_mode_l6
 ```
 
-P6O does not add a new organ family, start Code/Shell harvest, add real
-payment, real broker execution, live channel send, account creation, raw
-credential logging, browser stealth/login/mutation expansion, live host desktop
-control, shell/process execution, vendor runtime bridge, vendor code copy, or
-authority expansion.
+P6P does not add a new organ family, start Code/Shell harvest, add live payment
+providers, real broker execution, live channel send, browser login/session
+mutation, live desktop host control, shell/process execution, vendor runtime
+bridge, vendor code copy, or authority expansion.
 
-## P6O Verification
+## P6P Verification
 
 ```text
-P6O targeted tests = 6 passed
+P6P targeted tests = 5 passed
+P6O neighbor tests = 6 passed
 P6N neighbor tests = 8 passed
-P6M neighbor tests = 8 passed
 full sentinel-core tests = not run by instruction
 ```
 
 Commands:
 
 ```bash
+python -m pytest tests/test_p6_existing_organs_runtime_promotion_plan.py -v --tb=short
 python -m pytest tests/test_p6_existing_organs_real_world_gauntlet.py -v --tb=short
 python -m pytest tests/test_p6_existing_organs_capability_frontier.py -v --tb=short
-python -m pytest tests/test_p6_existing_organs_reality_activation.py -v --tb=short
 ```
 
-P6O required files:
+P6P required files:
 
 ```text
+sentinel-control/services/sentinel-core/sentinel/organs/runtime_promotion.py
 sentinel-control/services/sentinel-core/sentinel/organs/real_world_gauntlet.py
-sentinel-control/services/sentinel-core/sentinel/organs/reality_activation.py
-sentinel-control/services/sentinel-core/sentinel/organs/capability_frontier.py
 sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_runtime_promotion_plan.py
 sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_real_world_gauntlet.py
 sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_capability_frontier.py
-sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_reality_activation.py
+sentinel-control/docs/organs/P6P_EXISTING_ORGANS_RUNTIME_PROMOTION_PLAN_SCORECARD.md
+sentinel-control/docs/organs/P6P_RUNTIME_PROMOTION_PLAN.md
+sentinel-control/docs/organs/P6P_LOCK_VERDICT.md
 sentinel-control/docs/organs/P6O_EXISTING_ORGANS_REAL_WORLD_GAUNTLET_SCORECARD.md
 sentinel-control/docs/organs/P6O_REAL_WORLD_GAUNTLET_FIXES.md
 sentinel-control/docs/organs/P6O_LOCK_VERDICT.md
-sentinel-control/docs/organs/P6N_EXISTING_ORGANS_CAPABILITY_FRONTIER_SCORECARD.md
-sentinel-control/docs/organs/P6N_ORGAN_LIMITS_MAP.md
-sentinel-control/docs/organs/P6N_LOCK_VERDICT.md
-sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6O findings:
+Locked P6P findings:
 
 ```text
-Sentinel can run existing organs in max-mode batches and cross-organ evidence
-paths.
-Credential refs now require scoped env grants with expiry and revocation checks.
-Workspace and draft paths now use Path.relative_to root containment.
-Weakest organ = credentials.
-Closest organ to production-scoped execution = desktop.
-Next promotion candidates include desktop_workspace_l6,
-browser_controlled_navigation_l6, api_authenticated_read_l6,
-channel_provider_draft_l6, credential_vault_ref_l6,
-capital_roi_feedback_l6, trading_live_paper_feed_l6, and
-spend_provider_test_mode_l6.
+Every runtime promotion candidate requires P6O evidence, adapters, authority
+requirements, receipts, rollback/disable plan, kill switch, and FinalGate.
+The next build block is desktop_workspace_l6.
+High-power surfaces are unlockable product powers, not deleted features.
+Real payment provider, real broker execution, live channel send,
+browser login/session, and desktop screenshot/clipboard remain staged behind
+their promotion paths.
 No new organ family or authority expansion is allowed.
 ```
+
+## Prior P6O Phase
+
+P6O Existing Organs Real World Gauntlet remains accepted as full locked. It
+pushes the existing P6M/P6N organs harder in repeated, combined, max-mode
+scenarios before adding any new organ family.
 
 ## Prior P6N Phase
 
