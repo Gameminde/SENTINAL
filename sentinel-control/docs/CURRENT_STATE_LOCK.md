@@ -5,12 +5,73 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6B_FULL_LOCKED
-previous_phase = P6A_FULL_LOCKED
-next_phase = P6C_BROWSER_ORGAN_CONTRACT_REVIEW
+current_phase = P6C_FULL_LOCKED
+previous_phase = P6B_FULL_LOCKED
+next_phase = P6D_EXTERNAL_API_ORGAN_DRY_RUN
 ```
 
-P6B Agent Lab Organ Harvest is accepted as full locked. It turns forensic
+P6C Browser Organ Contract Review is accepted as full locked. It normalizes
+Sentinel browser capability under the P6A external organ foundry contract system
+and prepares governed Cloak-like power classification without adding new browser
+execution routes.
+
+P6C does not execute external systems, grant authority, add browser execution,
+implement payment/spend runtime, trading runtime, account creation, credential
+access, external API execution, channel send, sidecar execution, vendor runtime
+bridges, vendor code copies, or silent authority expansion.
+
+## P6C Verification
+
+```text
+targeted P6C tests = 11 passed
+```
+
+Command verified:
+
+```bash
+python -m pytest tests/test_p6_browser_organ_contract.py -v --tb=short
+```
+
+P6C required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/lanes.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/contract.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/power_governor.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/misuse_classifier.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/reliability_profile.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/session_policy.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/fingerprint_risk.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/compliance_gate.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/detection_bench.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/receipts.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_browser_organ_contract.py
+sentinel-control/docs/organs/P6C_BROWSER_ORGAN_CONTRACT_REVIEW_SCORECARD.md
+sentinel-control/docs/organs/P6C_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6C rules:
+
+```text
+Cloak-like browser powers are classified and governed, not discarded.
+P5 is misuse-objective rejection, not capability deletion.
+BrowserPowerGovernor may downgrade stronger power to the lowest needed safe
+power.
+Read-only public browsing maps to Blue Lane when authorized and traced.
+Sensitive submit/form/click/login/upload actions remain dry-run/proposal unless
+future promotion explicitly authorizes them.
+P4 stealth-class browser power requires special authority.
+Browser receipts require evidence refs and trace refs.
+Browser receipts cannot start execution or expand authority.
+```
+
+## Prior P6B Phase
+
+P6B Agent Lab Organ Harvest remains accepted as full locked. It turns forensic
 evidence from Agent Lab and external source ledgers into deterministic,
 machine-readable Sentinel organ harvest candidates.
 

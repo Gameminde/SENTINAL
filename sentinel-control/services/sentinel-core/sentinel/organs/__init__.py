@@ -1,4 +1,22 @@
 from sentinel.organs.authority import OrganAuthorityEnvelope, OrganAuthorityEvaluator
+from sentinel.organs.browser import (
+    BrowserActionPlanReceipt,
+    BrowserComplianceDecision,
+    BrowserComplianceGate,
+    BrowserDetectionBench,
+    BrowserDetectionBenchCase,
+    BrowserDetectionBenchReport,
+    BrowserFingerprintRiskProfile,
+    BrowserMisuseClassifier,
+    BrowserMisuseDecision,
+    BrowserPowerDecision,
+    BrowserPowerGovernor,
+    BrowserPowerLevel,
+    BrowserPowerRequest,
+    BrowserReliabilityProfile,
+    BrowserSessionContinuityPolicy,
+    build_browser_organ_contract,
+)
 from sentinel.organs.contracts import (
     ExternalOrganContract,
     OrganCapability,
@@ -8,6 +26,7 @@ from sentinel.organs.contracts import (
 )
 from sentinel.organs.dry_run import OrganDryRunReceipt
 from sentinel.organs.kill_switch import OrganKillSwitch
+from sentinel.organs.lanes import AutonomyRiskLane, lane_allows_auto_execute
 from sentinel.organs.promotion_gate import OrganPromotionDecision, OrganPromotionGate
 from sentinel.organs.receipts import OrganExecutionReceipt
 from sentinel.organs.registry import ExternalOrganRegistry
@@ -27,6 +46,22 @@ __all__ = [
     "AgentLabHarvestSource",
     "AgentLabOrganHarvestClassifier",
     "AgentLabOrganHarvestMatrix",
+    "AutonomyRiskLane",
+    "BrowserActionPlanReceipt",
+    "BrowserComplianceDecision",
+    "BrowserComplianceGate",
+    "BrowserDetectionBench",
+    "BrowserDetectionBenchCase",
+    "BrowserDetectionBenchReport",
+    "BrowserFingerprintRiskProfile",
+    "BrowserMisuseClassifier",
+    "BrowserMisuseDecision",
+    "BrowserPowerDecision",
+    "BrowserPowerGovernor",
+    "BrowserPowerLevel",
+    "BrowserPowerRequest",
+    "BrowserReliabilityProfile",
+    "BrowserSessionContinuityPolicy",
     "ExternalOrganContract",
     "ExternalOrganRegistry",
     "HarvestCandidateStatus",
@@ -48,4 +83,6 @@ __all__ = [
     "OrganHarvestCandidate",
     "OrganType",
     "VendorHarvestReference",
+    "build_browser_organ_contract",
+    "lane_allows_auto_execute",
 ]
