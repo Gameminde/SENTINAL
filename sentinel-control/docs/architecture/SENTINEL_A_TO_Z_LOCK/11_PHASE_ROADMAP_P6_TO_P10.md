@@ -30,10 +30,11 @@ L8 continuous OrganBench monitoring
 | P6J AgentLab Implementation Alignment | Ensure P6C-P6I organs harvest real vendor patterns | AgentLab audits, OpenClaw, Hermes, OpenJarvis, JARVIS, CloakBrowser, financial-services, TradingAgents | L1 -> L4 | rewrite mechanisms, never copy vendor runtime |
 | P6K Desktop AgentLab Harvest and Blueprint | Harvest Desktop from real sidecar/desktop agents before coding host control | JARVIS first, OpenClaw, OpenJarvis | L1 -> L2 | source-backed capability map and Sentinel-native sidecar blueprint |
 | P6L Desktop Sidecar Organ Implementation | Permissioned host-control contracts from the P6K blueprint | JARVIS first, P6K blueprint | L2 -> L3 | sidecar manifest, fake RPC, sanitizer, approval, kill-switch tests |
-| P6M Code/Shell AgentLab Harvest | Harvest shell/code powers before building execution | OpenClaw first, JARVIS, OpenJarvis | L1 -> L2 | source-backed shell/code capability map and Sentinel-native sandbox blueprint |
-| P6N Code/Shell Sandbox Organ Implementation | Permissioned code and shell sandbox contracts from the P6M blueprint | OpenClaw first, P6M blueprint | L2 -> L3 | fake executor, typed commands, sandbox mounts, timeout, receipts |
-| P6O OrganBench External Organ Integrated Review | Continuous organ certification | all P6 organs | L3 -> L8 | benchmark reports and negative regressions |
-| P6P End-to-End Controlled Mission Runtime Review | Certify organs + Brain together | all | L5 -> L6 | controlled mission suite |
+| P6M Reality Activation For Existing Organs | Make existing organs perform scoped real work before adding more families | Browser, API, Channel, Credentials, Desktop, Capital, Trading, Spend | L3 -> L5 | public read, read-only API, local draft, env credential ref, workspace files, capital signals, market data paper trade, test-mode spend |
+| P6N Code/Shell AgentLab Harvest | Harvest shell/code powers before building execution | OpenClaw first, JARVIS, OpenJarvis | L1 -> L2 | source-backed shell/code capability map and Sentinel-native sandbox blueprint |
+| P6O Code/Shell Sandbox Organ Implementation | Permissioned code and shell sandbox contracts from the P6N blueprint | OpenClaw first, P6N blueprint | L2 -> L3 | fake executor, typed commands, sandbox mounts, timeout, receipts |
+| P6P OrganBench External Organ Integrated Review | Continuous organ certification | all P6 organs | L3 -> L8 | benchmark reports and negative regressions |
+| P6Q End-to-End Controlled Mission Runtime Review | Certify organs + Brain together | all | L5 -> L6 | controlled mission suite |
 | P7 Brain L4 Runtime Wiring | Wire P5 modules into runtime | P5L | L2 -> L6 | AgentRuntime/MissionRunner integration |
 | P8 Mission OS Product UI | Productize mission control | Sentinel docs | L4 -> L6 | UI status, approvals, trace viewer |
 | P9 Long-Horizon Operational Continuity | Persistent missions, monitoring, workflow loops | Hermes, JARVIS, OpenJarvis | L4 -> L6 | continuity and revocation tests |

@@ -5,77 +5,74 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6L_FULL_LOCKED
-previous_phase = P6K_FULL_LOCKED
-next_phase = P6M_CODE_SHELL_AGENTLAB_HARVEST
+current_phase = P6M_FULL_LOCKED
+previous_phase = P6L_FULL_LOCKED
+next_phase = P6N_CODE_SHELL_AGENTLAB_HARVEST
 ```
 
-P6L Desktop Sidecar Organ Implementation is accepted as full locked. It
-implements the Sentinel-native Desktop Sidecar Organ from the P6K JARVIS-first
-harvest and blueprint.
+P6M Reality Activation for Existing Organs is accepted as full locked. It
+changes the direction from adding another organ family to making the already
+created organs do scoped real work.
 
-P6L adds a permissioned sidecar manifest, enrollment grant, fake sidecar
-dry-run path, desktop action previews, screen and clipboard sanitizers,
-deterministic receipts, kill-switch behavior, high-power surface promotion
-paths, and a Desktop FinalGate adapter shape.
-
-P6L does not execute vendor runtimes, copy vendor code, add live desktop
-execution, add host control, execute real shell/process commands, access
-credential secrets, or silently expand authority.
-
-## P6L Verification
+P6M activates:
 
 ```text
-P6L targeted tests = 14 passed
-P6K neighbor tests = 8 passed
-full sentinel-core tests = not run for this small block by instruction
+Browser public read
+External API read-only allowlisted GET/HEAD
+Channel local draft creation
+CredentialRef -> scoped env-var resolution with redacted receipt
+Desktop workspace list/read/write/create inside scoped root
+Capital signal ingestion from real receipts
+Trading read-only market data into paper trade
+Spend test-mode provider
+```
+
+P6M does not add a new organ family, real payment, real trading, live channel
+send, account creation, credential secret logging, browser power expansion,
+host desktop control, shell/process execution, or authority expansion.
+
+## P6M Verification
+
+```text
+P6M targeted tests = 8 passed
+full sentinel-core tests = not run by instruction
 ```
 
 Commands:
 
 ```bash
-python -m pytest tests/test_p6_desktop_sidecar_organ.py -v --tb=short
-python -m pytest tests/test_p6_desktop_agentlab_harvest.py -v --tb=short
+python -m pytest tests/test_p6_existing_organs_reality_activation.py -v --tb=short
 ```
 
-P6L required files:
+P6M required files:
 
 ```text
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/contract.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/sidecar_manifest.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/enrollment.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/action_lifecycle.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/action_preview.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/fake_sidecar.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/screen_sanitizer.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/clipboard_sanitizer.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/receipts.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/kill_switch.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/finalgate_adapter.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/misuse_classifier.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/reality_activation.py
 sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
-sentinel-control/services/sentinel-core/tests/test_p6_desktop_sidecar_organ.py
-sentinel-control/docs/organs/P6L_DESKTOP_SIDECAR_ORGAN_SCORECARD.md
-sentinel-control/docs/organs/P6L_LOCK_VERDICT.md
+sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_reality_activation.py
+sentinel-control/docs/organs/P6M_REALITY_ACTIVATION_SCORECARD.md
+sentinel-control/docs/organs/P6M_LOCK_VERDICT.md
 sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6L rules:
+Locked P6M rules:
 
 ```text
-P6L is built from the P6K JARVIS-first harvest.
-Fake sidecar previews are allowed; live host control is not enabled.
-Screen and clipboard context must be sanitized before receipts.
-Wrong-target desktop mutation is rejected.
-Path traversal and symlink escape are rejected for file previews.
-High-power Desktop surfaces are promotion-ready, not deleted.
-Black Lane host misuse objectives remain blocked.
-No vendor runtime bridge, vendor code copy, live desktop execution, real
-shell/process execution, credential secret access, or authority expansion is
-allowed.
+Green/Blue existing-organ actions may be real when scoped and receipted.
+Orange/Red actions remain test-mode, paper-mode, proposal, or special-authority
+paths.
+Black Lane misuse remains blocked.
+Full sentinel-core suite is reserved for giant block completion, not every
+small phase.
+No authority expansion is allowed.
 ```
+
+## Prior P6L Phase
+
+P6L Desktop Sidecar Organ Implementation remains accepted as full locked. It
+implements the Sentinel-native Desktop Sidecar Organ from the P6K JARVIS-first
+harvest and blueprint.
 
 ## Prior P6K Phase
 
