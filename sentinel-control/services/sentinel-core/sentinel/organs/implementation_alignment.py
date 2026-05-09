@@ -39,10 +39,12 @@ class AgentLabImplementationAlignmentEntry(SentinelModel):
     vendor_patterns: list[str]
     sentinel_rewrites: list[str]
     current_sentinel_files: list[str]
-    dangerous_surfaces: list[str] = Field(default_factory=list)
-    blocked_surfaces: list[str] = Field(default_factory=list)
-    sandboxed_surfaces: list[str] = Field(default_factory=list)
-    promotion_gated_surfaces: list[str] = Field(default_factory=list)
+    high_power_surfaces: list[str] = Field(default_factory=list)
+    authorized_surfaces: list[str] = Field(default_factory=list)
+    evaluated_surfaces: list[str] = Field(default_factory=list)
+    sandboxed_capability_surfaces: list[str] = Field(default_factory=list)
+    capability_promotion_surfaces: list[str] = Field(default_factory=list)
+    black_lane_blocked_objectives: list[str] = Field(default_factory=list)
     required_controls: list[str]
     evidence_refs: list[str]
     current_promotion_level: OrganPromotionLevel
@@ -71,10 +73,17 @@ class AgentLabImplementationAlignmentEntry(SentinelModel):
             raise ValueError("AgentLabImplementationAlignmentEntry requires controls.")
         if not self.evidence_refs:
             raise ValueError("AgentLabImplementationAlignmentEntry requires evidence refs.")
-        handled = set(self.blocked_surfaces + self.sandboxed_surfaces + self.promotion_gated_surfaces)
-        if not set(self.dangerous_surfaces).issubset(handled):
-            missing = sorted(set(self.dangerous_surfaces) - handled)
-            raise ValueError(f"dangerous surfaces must be blocked, sandboxed, or promotion gated:{','.join(missing)}")
+        handled = set(
+            self.authorized_surfaces
+            + self.evaluated_surfaces
+            + self.sandboxed_capability_surfaces
+            + self.capability_promotion_surfaces
+        )
+        if not set(self.high_power_surfaces).issubset(handled):
+            missing = sorted(set(self.high_power_surfaces) - handled)
+            raise ValueError(f"high-power surfaces must have a capability handling path:{','.join(missing)}")
+        if not self.black_lane_blocked_objectives:
+            raise ValueError("AgentLabImplementationAlignmentEntry requires Black Lane misuse objectives.")
         if self.vendor_code_copied:
             raise ValueError("AgentLabImplementationAlignmentEntry cannot copy vendor code.")
         if self.vendor_runtime_bridge:
@@ -193,11 +202,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
                 "sentinel/organs/browser/misuse_classifier.py",
                 "sentinel/organs/browser/detection_bench.py",
             ],
-            dangerous_surfaces=["fake_identity", "kyc_bypass", "credential_theft", "unauthorized_scraping", "stealth_browser_operation"],
-            blocked_surfaces=["fake_identity", "kyc_bypass", "credential_theft", "unauthorized_scraping"],
-            sandboxed_surfaces=["public_read_only_browsing", "detection_resilience_research"],
-            promotion_gated_surfaces=["stealth_browser_operation"],
-            required_controls=["authority_mapping", "browser_compliance_gate", "misuse_classifier", "special_authority_gate", "receipts", "FinalGate", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["browser_session_continuity", "public_read_only_browsing", "fingerprint_consistency", "detection_resilience_research", "stealth_browser_operation"],
+            authorized_surfaces=["browser_session_continuity", "public_read_only_browsing"],
+            evaluated_surfaces=["fingerprint_consistency"],
+            sandboxed_capability_surfaces=["detection_resilience_research"],
+            capability_promotion_surfaces=["stealth_browser_operation"],
+            black_lane_blocked_objectives=["fake_identity", "kyc_bypass", "credential_theft", "unauthorized_scraping", "unlawful_evasion"],
+            required_controls=["authority_mapping", "browser_compliance_gate", "misuse_classifier", "special_authority_gate", "receipts", "FinalGate", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["openclaw_final", "jarvis_final", "cloak_power_review", "p6c_lock"],
             current_promotion_level=OrganPromotionLevel.L2_SENTINEL_CONTRACT,
             target_promotion_level=OrganPromotionLevel.L5_SANDBOX,
@@ -228,11 +239,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
                 "sentinel/organs/external_api/cost_estimator.py",
                 "sentinel/organs/external_api/privacy_risk.py",
             ],
-            dangerous_surfaces=["live_external_api_call", "credential_secret_read", "mutation_api", "paid_api"],
-            blocked_surfaces=["credential_secret_read"],
-            sandboxed_surfaces=["request_dry_run", "cost_estimation", "privacy_classification"],
-            promotion_gated_surfaces=["live_external_api_call", "mutation_api", "paid_api"],
-            required_controls=["allowlist", "credential_ref_only", "cost_estimate", "privacy_risk", "dry_run_receipt", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["live_external_api_call", "mutation_api", "paid_api", "vendor_fallback_route"],
+            authorized_surfaces=[],
+            evaluated_surfaces=["vendor_fallback_route"],
+            sandboxed_capability_surfaces=["request_dry_run", "cost_estimation", "privacy_classification"],
+            capability_promotion_surfaces=["live_external_api_call", "mutation_api", "paid_api"],
+            black_lane_blocked_objectives=["credential_secret_read", "unlawful_data_access"],
+            required_controls=["allowlist", "credential_ref_only", "cost_estimate", "privacy_risk", "dry_run_receipt", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["openclaw_final", "openjarvis_final", "financial_services_harvest", "tradingagents_capability_map", "p6d_lock"],
             current_promotion_level=OrganPromotionLevel.L4_DRY_RUN,
             target_promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
@@ -261,11 +274,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
                 "sentinel/organs/channels/inbound.py",
                 "sentinel/organs/channels/compliance.py",
             ],
-            dangerous_surfaces=["live_send", "spam", "deceptive_identity", "credential_capture"],
-            blocked_surfaces=["spam", "deceptive_identity", "credential_capture"],
-            sandboxed_surfaces=["draft_generation", "send_gate_rejection_receipt"],
-            promotion_gated_surfaces=["live_send"],
-            required_controls=["draft_first", "recipient_provenance", "compliance_check", "rate_limit", "send_receipt", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["live_send", "outbound_prospecting", "inbound_context_reuse"],
+            authorized_surfaces=["inbound_context_reuse"],
+            evaluated_surfaces=["outbound_prospecting"],
+            sandboxed_capability_surfaces=["draft_generation", "send_gate_rejection_receipt"],
+            capability_promotion_surfaces=["live_send"],
+            black_lane_blocked_objectives=["illegal_spam", "spam", "deceptive_identity", "credential_capture"],
+            required_controls=["draft_first", "recipient_provenance", "compliance_check", "rate_limit", "send_receipt", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["openclaw_final", "hermes_final", "jarvis_final", "p6e_lock"],
             current_promotion_level=OrganPromotionLevel.L4_DRY_RUN,
             target_promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
@@ -294,11 +309,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
                 "sentinel/organs/credentials/vault_policy.py",
                 "sentinel/organs/credentials/redaction.py",
             ],
-            dangerous_surfaces=["credential_secret_read", "memory_granted_secret", "prompt_granted_secret", "vendor_harvest_granted_secret"],
-            blocked_surfaces=["credential_secret_read", "memory_granted_secret", "prompt_granted_secret", "vendor_harvest_granted_secret"],
-            sandboxed_surfaces=["credential_ref_registration", "trace_redaction"],
-            promotion_gated_surfaces=["scoped_credential_use"],
-            required_controls=["credential_ref_only", "scoped_grant", "expiry", "redaction", "revocation", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["credential_ref_registration", "trace_redaction", "scoped_credential_use"],
+            authorized_surfaces=["credential_ref_registration", "trace_redaction"],
+            evaluated_surfaces=[],
+            sandboxed_capability_surfaces=[],
+            capability_promotion_surfaces=["scoped_credential_use"],
+            black_lane_blocked_objectives=["credential_secret_read", "memory_granted_secret", "prompt_granted_secret", "vendor_harvest_granted_secret"],
+            required_controls=["credential_ref_only", "scoped_grant", "expiry", "redaction", "revocation", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["jarvis_final", "openclaw_final", "hermes_final", "p6f_lock"],
             current_promotion_level=OrganPromotionLevel.L2_SENTINEL_CONTRACT,
             target_promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
@@ -324,11 +341,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
             ],
             sentinel_rewrites=["CapitalOpportunity", "SignalLedger", "AdaptiveOperatingEnvelope", "BudgetReallocator", "DynamicSpendPolicy", "CapitalRiskReview"],
             current_sentinel_files=["sentinel/organs/capital/sandbox.py"],
-            dangerous_surfaces=["live_spend", "profit_guarantee", "budget_overrun", "unbacked_signal_reallocation"],
-            blocked_surfaces=["profit_guarantee", "budget_overrun", "unbacked_signal_reallocation"],
-            sandboxed_surfaces=["opportunity_portfolio", "signal_ledger", "spend_proposal"],
-            promotion_gated_surfaces=["live_spend"],
-            required_controls=["signal_refs", "evidence_refs", "budget_caps", "risk_review", "proposal_only", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["opportunity_portfolio", "dynamic_budget_reallocation", "spend_proposal", "live_spend"],
+            authorized_surfaces=["opportunity_portfolio"],
+            evaluated_surfaces=["dynamic_budget_reallocation"],
+            sandboxed_capability_surfaces=["signal_ledger", "spend_proposal"],
+            capability_promotion_surfaces=["live_spend"],
+            black_lane_blocked_objectives=["profit_guarantee", "budget_overrun", "unbacked_signal_reallocation"],
+            required_controls=["signal_refs", "evidence_refs", "budget_caps", "risk_review", "proposal_only", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["financial_services_harvest", "openjarvis_final", "hermes_final", "tradingagents_capability_map", "p6g_lock", "p6i5_lock"],
             current_promotion_level=OrganPromotionLevel.L5_SANDBOX,
             target_promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
@@ -352,11 +371,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
             ],
             sentinel_rewrites=["SpendAuthorityEnvelope", "SpendRequest", "FakeSpendProvider", "SpendReceipt", "SubscriptionGuard", "RefundCancelPath", "SpendKillSwitch"],
             current_sentinel_files=["sentinel/organs/spend/runtime.py"],
-            dangerous_surfaces=["real_payment_execution", "hidden_subscription", "budget_overrun", "credential_secret_read"],
-            blocked_surfaces=["hidden_subscription", "budget_overrun", "credential_secret_read"],
-            sandboxed_surfaces=["fake_spend_provider"],
-            promotion_gated_surfaces=["real_payment_execution"],
-            required_controls=["root_authority_envelope", "vendor_category_caps", "receipt", "kill_switch", "refund_cancel_path", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["fake_spend_provider", "real_payment_execution", "subscription_purchase"],
+            authorized_surfaces=[],
+            evaluated_surfaces=[],
+            sandboxed_capability_surfaces=["fake_spend_provider"],
+            capability_promotion_surfaces=["real_payment_execution", "subscription_purchase"],
+            black_lane_blocked_objectives=["hidden_subscription", "budget_overrun", "credential_secret_read"],
+            required_controls=["root_authority_envelope", "vendor_category_caps", "receipt", "kill_switch", "refund_cancel_path", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["financial_services_harvest", "jarvis_final", "openclaw_final", "p6h_lock", "p6i5_lock"],
             current_promotion_level=OrganPromotionLevel.L5_SANDBOX,
             target_promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
@@ -381,11 +402,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
                 "sentinel/organs/trading/special_authority.py",
                 "sentinel/organs/trading/tradingagents_harvest.py",
             ],
-            dangerous_surfaces=["real_trading_execution", "leverage", "profit_guarantee", "unauthorized_asset", "missing_stop_loss"],
-            blocked_surfaces=["profit_guarantee", "unauthorized_asset", "missing_stop_loss"],
-            sandboxed_surfaces=["paper_trade_provider"],
-            promotion_gated_surfaces=["real_trading_execution", "leverage"],
-            required_controls=["special_authority", "broker_contract", "asset_policy", "max_loss", "stop_loss", "trade_journal", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["paper_trade_provider", "real_trading_execution", "leverage"],
+            authorized_surfaces=[],
+            evaluated_surfaces=[],
+            sandboxed_capability_surfaces=["paper_trade_provider"],
+            capability_promotion_surfaces=["real_trading_execution", "leverage"],
+            black_lane_blocked_objectives=["profit_guarantee", "unauthorized_asset", "missing_stop_loss"],
+            required_controls=["special_authority", "broker_contract", "asset_policy", "max_loss", "stop_loss", "trade_journal", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["tradingagents_static_audit", "tradingagents_capability_map", "financial_services_harvest", "p6i_lock", "p6i5_lock"],
             current_promotion_level=OrganPromotionLevel.L5_SANDBOX,
             target_promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
@@ -410,11 +433,13 @@ def _default_entries() -> list[AgentLabImplementationAlignmentEntry]:
             ],
             sentinel_rewrites=["TradingAgentsFirmPlan", "TradingAgentsRoleAssignment", "TradingAgentsSignalParser", "TradingAgentsDataVendorRoute", "TradingOutcomeMemoryEntry"],
             current_sentinel_files=["sentinel/organs/trading/tradingagents_harvest.py"],
-            dangerous_surfaces=["vendor_runtime_bridge", "live_api_call", "real_trading_execution", "investment_advice_without_authority"],
-            blocked_surfaces=["vendor_runtime_bridge", "live_api_call", "investment_advice_without_authority"],
-            sandboxed_surfaces=["trading_firm_plan", "rating_parse", "outcome_memory_entry"],
-            promotion_gated_surfaces=["real_trading_execution"],
-            required_controls=["source_only_audit", "sentinel_native_rewrite", "paper_only", "no_vendor_runtime", "blocked_by_default_not_forbidden_forever"],
+            high_power_surfaces=["trading_firm_plan", "rating_parse", "data_vendor_fallback", "outcome_memory_entry", "live_api_call", "real_trading_execution"],
+            authorized_surfaces=[],
+            evaluated_surfaces=["data_vendor_fallback"],
+            sandboxed_capability_surfaces=["trading_firm_plan", "rating_parse", "outcome_memory_entry"],
+            capability_promotion_surfaces=["live_api_call", "real_trading_execution"],
+            black_lane_blocked_objectives=["vendor_runtime_bridge", "investment_advice_without_authority"],
+            required_controls=["source_only_audit", "sentinel_native_rewrite", "paper_only", "no_vendor_runtime", "blocked_by_default_not_forbidden_forever", "capability_promotion_path"],
             evidence_refs=["tradingagents_static_audit", "tradingagents_capability_map", "tradingagents_to_sentinel", "p6i6_lock"],
             current_promotion_level=OrganPromotionLevel.L2_SENTINEL_CONTRACT,
             target_promotion_level=OrganPromotionLevel.L5_SANDBOX,

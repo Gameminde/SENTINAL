@@ -58,7 +58,9 @@ def test_browser_alignment_maps_openclaw_jarvis_and_cloak_power_governance():
     assert "BrowserPowerGovernor" in browser.sentinel_rewrites
     assert "BrowserMisuseClassifier" in browser.sentinel_rewrites
     assert "BrowserDetectionBench" in browser.sentinel_rewrites
-    assert "fake_identity" in browser.dangerous_surfaces
+    assert "stealth_browser_operation" in browser.high_power_surfaces
+    assert "fake_identity" in browser.black_lane_blocked_objectives
+    assert not hasattr(browser, "dangerous_surfaces")
     assert "special_authority_gate" in browser.required_controls
 
 
@@ -107,21 +109,36 @@ def test_capital_spend_and_trading_alignment_maps_finance_and_tradingagents():
     assert "TradingOutcomeMemoryEntry" in tradingagents.sentinel_rewrites
 
 
-def test_dangerous_surfaces_are_blocked_sandboxed_or_promotion_gated():
+def test_high_power_surfaces_have_capability_promotion_paths_and_black_lane_blocks():
     matrix = build_matrix()
 
     for entry in matrix.entries:
-        assert set(entry.dangerous_surfaces).issubset(set(entry.blocked_surfaces + entry.sandboxed_surfaces + entry.promotion_gated_surfaces))
+        handled = set(
+            entry.authorized_surfaces
+            + entry.evaluated_surfaces
+            + entry.sandboxed_capability_surfaces
+            + entry.capability_promotion_surfaces
+        )
+        assert set(entry.high_power_surfaces).issubset(handled)
+        assert "capability_promotion_path" in entry.required_controls
+        assert not hasattr(entry, "dangerous_surfaces")
 
-    blocked = {surface for entry in matrix.entries for surface in entry.blocked_surfaces}
-    gated = {surface for entry in matrix.entries for surface in entry.promotion_gated_surfaces}
+    black_lane = {objective for entry in matrix.entries for objective in entry.black_lane_blocked_objectives}
+    promotion = {surface for entry in matrix.entries for surface in entry.capability_promotion_surfaces}
+    high_power = {surface for entry in matrix.entries for surface in entry.high_power_surfaces}
 
-    assert "vendor_runtime_bridge" in blocked
-    assert "fake_identity" in blocked
-    assert "credential_secret_read" in blocked
-    assert "real_trading_execution" in gated
-    assert "real_payment_execution" in gated
-    assert "stealth_browser_operation" in gated
+    assert "vendor_runtime_bridge" in black_lane
+    assert "fake_identity" in black_lane
+    assert "credential_secret_read" in black_lane
+    assert "illegal_spam" in black_lane
+    assert "kyc_bypass" in black_lane
+    assert "profit_guarantee" in black_lane
+    assert "real_trading_execution" in high_power
+    assert "real_payment_execution" in high_power
+    assert "stealth_browser_operation" in high_power
+    assert "real_trading_execution" in promotion
+    assert "real_payment_execution" in promotion
+    assert "stealth_browser_operation" in promotion
 
 
 def test_matrix_rejects_missing_rewrite_vendor_bridge_and_authority_expansion():

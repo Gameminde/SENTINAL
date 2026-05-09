@@ -15,25 +15,42 @@ Date: 2026-05-09
 | Trading | TradingAgents risk debate/portfolio manager, financial-services evidence/review boundary | TradingSpecialAuthority, BrokerContract, AssetPolicy, PositionSizingPolicy, MaxLossPolicy, StopLossPolicy, PaperTradeProvider, TradingReceipt | Paper provider is bound to authority asset scope and max leverage | real broker adapter after special authority and OrganBench |
 | TradingAgents Harvest | Trading desk role graph, five-tier rating parser, vendor fallback, outcome memory | TradingAgentsFirmPlan, TradingAgentsRoleAssignment, TradingAgentsSignalParser, TradingAgentsDataVendorRoute, TradingOutcomeMemoryEntry | TradingAgents is now official P6J source evidence | OrganBench trading fixtures |
 
-## Dangerous Surface Handling
+## High-Power Surface Classification And Promotion
 
-| Surface | Handling |
+| Surface | Capability path |
 | --- | --- |
-| fake identity / KYC bypass / credential theft | blocked |
-| unauthorized scraping / spam / deceptive identity | blocked |
-| raw credential read | blocked |
-| vendor runtime bridge | blocked |
-| profit guarantee | blocked |
-| budget overrun / unbacked signal spend | blocked |
-| live API calls | promotion-gated |
-| live channel send | promotion-gated |
-| real payment execution | promotion-gated |
-| real trading execution | promotion-gated |
-| stealth browser operation | promotion-gated |
-| dry-run request planning / fake providers / paper trading | sandboxed |
+| browser session continuity / public read-only browsing | authorized when mission authority fits |
+| fingerprint consistency / data vendor fallback / dynamic budget reallocation | evaluated before use |
+| detection research / dry-run request planning / fake providers / paper trading | sandboxed capability |
+| live API calls | capability promotion path |
+| live channel send | capability promotion path |
+| real payment execution | capability promotion path |
+| real trading execution | capability promotion path |
+| stealth browser operation | capability promotion path |
+| scoped credential use | capability promotion path |
+
+## Black Lane Misuse Objectives
+
+These are blocked as objectives, not because the underlying capability is
+deleted:
+
+```text
+fake identity
+KYC bypass
+credential theft or raw secret extraction
+illegal spam or deceptive identity
+unlawful evasion
+unauthorized scraping outside lawful authority
+vendor runtime bridge
+profit guarantee
+budget overrun or unbacked signal spend
+```
 
 ## Alignment Verdict
 
 P6C-P6I.6 are no longer generic organ shells. Each one has a source-backed
 mechanism, a Sentinel rewrite, an explicit control layer, and a promotion path.
-No gap required new external power in P6J.
+No gap required new external power in P6J. P6J1 reframes the old defensive
+surface language into a power-first capability map: high-power surfaces are
+classified and unlockable through explicit authority, evals, receipts, kill
+switches, and FinalGate; Black Lane misuse objectives remain blocked.

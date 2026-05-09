@@ -27,12 +27,16 @@ CURRENT_STATE_LOCK updated
 ```text
 Every P6C-P6I.6 organ maps to source-backed vendor patterns.
 Every harvested pattern has a Sentinel rewrite.
-Every dangerous surface is blocked, sandboxed, or promotion-gated.
+Every high-power surface has a capability promotion path.
+Core operator powers are classified and unlockable through explicit authority,
+evals, receipts, kill switch, and FinalGate.
+Black Lane misuse objectives remain blocked.
 No vendor code is copied.
 No vendor runtime is bridged.
 No new execution powers are added.
 No authority expansion is allowed.
 Blocked-by-default means not executable until promoted, not forbidden forever.
+Sentinel is powerful-by-authority, not safe-by-refusal.
 ```
 
 ## Verification

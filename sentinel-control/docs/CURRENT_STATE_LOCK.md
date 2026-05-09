@@ -5,27 +5,26 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6J_FULL_LOCKED
-previous_phase = P6I6_FULL_LOCKED
+current_phase = P6J1_FULL_LOCKED
+previous_phase = P6J_FULL_LOCKED
 next_phase = P6K_ORGANBENCH_EXTERNAL_ORGAN_INTEGRATED_REVIEW
 ```
 
-P6J AgentLab Implementation Alignment is accepted as full locked. It verifies
-that every implemented P6C-P6I.6 organ maps to source-backed AgentLab/vendor
-patterns and has a Sentinel-native rewrite, dangerous-surface handling, and
-promotion path.
+P6J1 Power Surface Doctrine Reframe is accepted as full locked. It corrects
+the P6J vocabulary so Sentinel treats advanced browser, live API, channel,
+credential, spend, trading, and sidecar surfaces as high-power operator
+capabilities with promotion paths, not as capabilities to delete.
 
-P6J does not execute vendor runtimes, copy vendor code, add browser execution,
+P6J1 does not execute vendor runtimes, copy vendor code, add browser execution,
 execute live APIs, execute real trading providers, execute real payment
 providers, create accounts, access credentials, send channels, execute sidecars,
 or silently expand authority.
 
-## P6J Verification
+## P6J1 Verification
 
 ```text
-P6J targeted tests = 10 passed
+P6J1 targeted P6J tests = 10 passed
 P6C-P6I.6 organ tests = 89 passed
-P5L neighbor tests = 23 passed
 full sentinel-core tests = 746 passed
 ```
 
@@ -41,26 +40,34 @@ python -m pytest tests -v --tb=short
 P6J required files:
 
 ```text
-sentinel-control/services/sentinel-core/sentinel/agent/events.py
 sentinel-control/services/sentinel-core/sentinel/organs/implementation_alignment.py
-sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
 sentinel-control/services/sentinel-core/tests/test_p6_agentlab_implementation_alignment.py
 sentinel-control/docs/organs/P6J_AGENTLAB_IMPLEMENTATION_ALIGNMENT.md
 sentinel-control/docs/organs/P6J_VENDOR_PATTERN_TO_ORGAN_GAP_MATRIX.md
 sentinel-control/docs/organs/P6J_LOCK_VERDICT.md
+sentinel-control/docs/organs/P6J1_POWER_SURFACE_DOCTRINE_REFRAME.md
+sentinel-control/docs/organs/P6J1_LOCK_VERDICT.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6J rules:
+Locked P6J1 rules:
 
 ```text
-Each P6C-P6I.6 organ has at least one source-backed vendor pattern.
-Each pattern has a Sentinel-native rewrite.
-Every dangerous surface is blocked, sandboxed, or promotion-gated.
-Blocked-by-default does not mean forbidden forever.
+High-power surfaces are product powers, not deleted capabilities.
+Every high-power surface has a capability handling path.
+Black Lane misuse objectives remain blocked.
+Blocked-by-default means not unlocked until authority and promotion exist.
+Sentinel is powerful-by-authority, not safe-by-refusal.
 No vendor runtime bridge, vendor code copy, live execution power, or authority
 expansion is allowed.
 ```
+
+## Prior P6J Phase
+
+P6J AgentLab Implementation Alignment remains accepted as full locked. It
+verifies that every implemented P6C-P6I.6 organ maps to source-backed
+AgentLab/vendor patterns and has a Sentinel-native rewrite, capability
+classification, and promotion path.
 
 ## Prior P6I.6 Phase
 

@@ -45,7 +45,10 @@ TradingAgents static audit and capability map
 
 ```text
 Blocked-by-default does not mean forbidden forever.
-Strong powers are classified, controlled, and promoted through L0-L8.
+High-power surfaces are product powers, not deleted capabilities.
+High-power surfaces are classified, authorized, evaluated, and promoted through L0-L8.
+Sentinel is powerful-by-authority, not safe-by-refusal.
+Power is governed capability, not bypass.
 No vendor runtime is bridged.
 No vendor code is copied.
 No authority is granted by source docs, signals, expected profit, workspace, or memory.
@@ -73,11 +76,25 @@ duplicate organ phases
 missing source systems
 missing vendor patterns
 missing Sentinel rewrites
-unhandled dangerous surfaces
+high-power surfaces without a capability handling path
+missing Black Lane misuse objectives
 vendor code copy
 vendor runtime bridge
 authority expansion
 runtime powers added
+```
+
+Black Lane misuse objectives remain blocked:
+
+```text
+fake identity
+KYC bypass
+credential theft
+illegal spam
+unlawful evasion
+profit guarantees
+vendor runtime bridges
+secret extraction
 ```
 
 ## Next Phase
