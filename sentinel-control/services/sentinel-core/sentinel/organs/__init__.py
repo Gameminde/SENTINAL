@@ -61,6 +61,11 @@ from sentinel.organs.credentials import (
     revoke_credential_grant,
 )
 from sentinel.organs.dry_run import OrganDryRunReceipt
+from sentinel.organs.implementation_alignment import (
+    AgentLabImplementationAlignmentBuilder,
+    AgentLabImplementationAlignmentEntry,
+    AgentLabImplementationAlignmentMatrix,
+)
 from sentinel.organs.external_api import (
     APIAllowlistDecision,
     APICostEstimate,
@@ -124,6 +129,9 @@ from sentinel.organs.vendor_harvest import (
 
 __all__ = [
     "AgentLabHarvestSource",
+    "AgentLabImplementationAlignmentBuilder",
+    "AgentLabImplementationAlignmentEntry",
+    "AgentLabImplementationAlignmentMatrix",
     "AgentLabOrganHarvestClassifier",
     "AgentLabOrganHarvestMatrix",
     "APIAllowlistDecision",

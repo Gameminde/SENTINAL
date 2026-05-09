@@ -111,6 +111,7 @@ class AgentEventType(StrEnum):
     ORGAN_HARVEST_REFERENCE_RECORDED = "organ_harvest_reference_recorded"
     ORGAN_HARVEST_CANDIDATE_CLASSIFIED = "organ_harvest_candidate_classified"
     ORGAN_HARVEST_MATRIX_BUILT = "organ_harvest_matrix_built"
+    ORGAN_IMPLEMENTATION_ALIGNMENT_BUILT = "organ_implementation_alignment_built"
     EXTERNAL_API_REQUEST_PLANNED = "external_api_request_planned"
     EXTERNAL_API_DRY_RUN_RECORDED = "external_api_dry_run_recorded"
     CHANNEL_DRAFT_CREATED = "channel_draft_created"

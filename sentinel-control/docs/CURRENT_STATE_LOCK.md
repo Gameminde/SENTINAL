@@ -5,71 +5,69 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6I6_FULL_LOCKED
-previous_phase = P6I5_FULL_LOCKED
-next_phase = P6J_AGENTLAB_IMPLEMENTATION_ALIGNMENT
+current_phase = P6J_FULL_LOCKED
+previous_phase = P6I6_FULL_LOCKED
+next_phase = P6K_ORGANBENCH_EXTERNAL_ORGAN_INTEGRATED_REVIEW
 ```
 
-P6I.6 TradingAgents Harvest is accepted as full locked. It clones
-TauricResearch/TradingAgents into AgentLab for static audit only, extracts its
-multi-agent trading-desk patterns, and integrates them into Sentinel as
-Sentinel-native internal trading cognition.
+P6J AgentLab Implementation Alignment is accepted as full locked. It verifies
+that every implemented P6C-P6I.6 organ maps to source-backed AgentLab/vendor
+patterns and has a Sentinel-native rewrite, dangerous-surface handling, and
+promotion path.
 
-P6I.6 does not execute TradingAgents, import vendor runtime, copy vendor code,
-execute live market data APIs, execute real trading providers, grant authority,
-add browser execution, implement real payment provider execution, account
-creation, credential access, external API execution, channel send, sidecar
-execution, vendor runtime bridges, or silent authority expansion.
+P6J does not execute vendor runtimes, copy vendor code, add browser execution,
+execute live APIs, execute real trading providers, execute real payment
+providers, create accounts, access credentials, send channels, execute sidecars,
+or silently expand authority.
 
-## P6I.6 Verification
+## P6J Verification
 
 ```text
-P6I.6 TradingAgents harvest tests = 7 passed
-P6G/P6H/P6I/P6I.5 neighbor tests = 37 passed
-P6A-P6F neighbor tests = 74 passed
+P6J targeted tests = 10 passed
+P6C-P6I.6 organ tests = 89 passed
 P5L neighbor tests = 23 passed
-full sentinel-core tests = 736 passed
+full sentinel-core tests = 746 passed
 ```
 
-Command verified:
+Commands:
 
 ```bash
-python -m pytest tests/test_p6_tradingagents_harvest.py -v --tb=short
-python -m pytest tests/test_p6_trading_special_authority.py tests/test_p6_capital_stack_hardening.py tests/test_p6_capital_operator_sandbox.py tests/test_p6_spend_runtime_limited.py -v --tb=short
-python -m pytest tests/test_p6_browser_organ_contract.py tests/test_p6_external_api_organ.py tests/test_p6_channel_organ.py tests/test_p6_credential_vault_policy.py tests/test_p6_agent_lab_organ_harvest.py tests/test_p6_external_organ_foundry.py -v --tb=short
+python -m pytest tests/test_p6_agentlab_implementation_alignment.py -v --tb=short
+python -m pytest tests/test_p6_browser_organ_contract.py tests/test_p6_external_api_organ.py tests/test_p6_channel_organ.py tests/test_p6_credential_vault_policy.py tests/test_p6_capital_operator_sandbox.py tests/test_p6_spend_runtime_limited.py tests/test_p6_trading_special_authority.py tests/test_p6_capital_stack_hardening.py tests/test_p6_tradingagents_harvest.py -v --tb=short
 python -m pytest tests/test_agent_brain_l4_integrated_review.py tests/test_agent_brain_l4_premortem_fixtures.py -v --tb=short
 python -m pytest tests -v --tb=short
 ```
 
-P6I.6 required files:
+P6J required files:
 
 ```text
-agent-lab/vendors/tradingagents/README.md
-agent-lab/audits/vendor_clone_checks.md
-agent-lab/audits/tradingagents_static_audit.md
-agent-lab/audits/tradingagents_capability_map.md
-agent-lab/sentinel_integration_notes/tradingagents_to_sentinel.md
 sentinel-control/services/sentinel-core/sentinel/agent/events.py
-sentinel-control/services/sentinel-core/sentinel/organs/trading/tradingagents_harvest.py
-sentinel-control/services/sentinel-core/sentinel/organs/trading/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/implementation_alignment.py
 sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
-sentinel-control/services/sentinel-core/tests/test_p6_tradingagents_harvest.py
-sentinel-control/docs/organs/P6I6_TRADINGAGENTS_HARVEST_SCORECARD.md
-sentinel-control/docs/organs/P6I6_LOCK_VERDICT.md
+sentinel-control/services/sentinel-core/tests/test_p6_agentlab_implementation_alignment.py
+sentinel-control/docs/organs/P6J_AGENTLAB_IMPLEMENTATION_ALIGNMENT.md
+sentinel-control/docs/organs/P6J_VENDOR_PATTERN_TO_ORGAN_GAP_MATRIX.md
+sentinel-control/docs/organs/P6J_LOCK_VERDICT.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6I.6 rules:
+Locked P6J rules:
 
 ```text
-TradingAgents vendor source is AgentLab evidence, not runtime dependency.
-TradingAgents role topology is rewritten as TradingAgentsFirmPlan.
-TradingAgents five-tier rating is rewritten as TradingAgentsSignalParser.
-TradingAgents vendor fallback is rewritten as TradingAgentsDataVendorRoute.
-TradingAgents outcome memory is rewritten as TradingOutcomeMemoryEntry.
-No vendor runtime bridge, vendor code copy, live API, real trading, raw
-credential, or authority expansion is allowed.
+Each P6C-P6I.6 organ has at least one source-backed vendor pattern.
+Each pattern has a Sentinel-native rewrite.
+Every dangerous surface is blocked, sandboxed, or promotion-gated.
+Blocked-by-default does not mean forbidden forever.
+No vendor runtime bridge, vendor code copy, live execution power, or authority
+expansion is allowed.
 ```
+
+## Prior P6I.6 Phase
+
+P6I.6 TradingAgents Harvest remains accepted as full locked. It clones
+TauricResearch/TradingAgents into AgentLab for static audit only, extracts its
+multi-agent trading-desk patterns, and integrates them into Sentinel as
+Sentinel-native internal trading cognition.
 
 ## Prior P6I.5 Phase
 
