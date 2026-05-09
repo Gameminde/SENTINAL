@@ -80,6 +80,16 @@ from sentinel.organs.receipts import OrganExecutionReceipt
 from sentinel.organs.registry import ExternalOrganRegistry
 from sentinel.organs.replay import OrganReplayRecord
 from sentinel.organs.risk import OrganRiskLevel, OrganRiskProfile, OrganRiskProfiler
+from sentinel.organs.spend import (
+    FakeSpendProvider,
+    RefundCancelPath,
+    SpendAuthorityEnvelope,
+    SpendKillSwitch,
+    SpendProviderAdapter,
+    SpendReceipt,
+    SpendRequest,
+    SubscriptionGuard,
+)
 from sentinel.organs.vendor_harvest import (
     AgentLabHarvestSource,
     AgentLabOrganHarvestClassifier,
@@ -143,6 +153,7 @@ __all__ = [
     "ExternalAPIDryRunPlanner",
     "ExternalAPIRequestReceipt",
     "ExternalOrganRegistry",
+    "FakeSpendProvider",
     "HarvestCandidateStatus",
     "HarvestPowerFamily",
     "HarvestSourceKind",
@@ -164,7 +175,14 @@ __all__ = [
     "RecipientProvenance",
     "ScopedCredentialGrant",
     "SignalLedger",
+    "RefundCancelPath",
+    "SpendAuthorityEnvelope",
+    "SpendKillSwitch",
+    "SpendProviderAdapter",
+    "SpendReceipt",
+    "SpendRequest",
     "SpendDecisionTrace",
+    "SubscriptionGuard",
     "OrganHarvestCandidate",
     "OrganType",
     "VendorHarvestReference",

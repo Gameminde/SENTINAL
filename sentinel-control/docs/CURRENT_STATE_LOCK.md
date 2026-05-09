@@ -5,15 +5,65 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6G_FULL_LOCKED
-previous_phase = P6F_FULL_LOCKED
-next_phase = P6H_SPEND_RUNTIME_LIMITED
+current_phase = P6H_FULL_LOCKED
+previous_phase = P6G_FULL_LOCKED
+next_phase = P6I_TRADING_SPECIAL_AUTHORITY
 ```
 
-P6G Capital Operator Sandbox is accepted as full locked. It defines opportunity
-modeling, signal ledgers, adaptive operating envelopes, sandbox budget
-reallocation, dynamic spend proposals, capital risk review, and deterministic
-capital sandbox receipts without live spend.
+P6H Spend Runtime Limited is accepted as full locked. It defines explicit spend
+authority, spend requests, provider adapter interface, fake/sandbox provider,
+spend receipts, subscription guard, refund/cancel path, and spend kill switch.
+
+P6H does not execute real payment providers, grant authority, add browser
+execution, implement real trading runtime, account creation, credential access,
+external API execution, channel send, sidecar execution, vendor runtime bridges,
+vendor code copies, or silent authority expansion.
+
+## P6H Verification
+
+```text
+targeted P6H tests = 10 passed
+```
+
+Command verified:
+
+```bash
+python -m pytest tests/test_p6_spend_runtime_limited.py -v --tb=short
+```
+
+P6H required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/spend/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/spend/runtime.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_spend_runtime_limited.py
+sentinel-control/docs/organs/P6H_SPEND_RUNTIME_LIMITED_SCORECARD.md
+sentinel-control/docs/organs/P6H_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6H rules:
+
+```text
+Spend authority requires explicit budget, vendor, category, expiry, receipt, and
+kill switch.
+FakeSpendProvider creates sandbox receipts only.
+Real provider interface exists but is disabled by default.
+Budget overrun and single-transaction overrun are blocked.
+Hidden subscriptions are blocked.
+Explicit subscriptions require explicit authority and refund/cancel path.
+Credential use is reference-only; raw credential material is blocked.
+SpendReceipt cannot start real payment, access secrets, or expand authority.
+```
+
+## Prior P6G Phase
+
+P6G Capital Operator Sandbox remains accepted as full locked. It defines
+opportunity modeling, signal ledgers, adaptive operating envelopes, sandbox
+budget reallocation, dynamic spend proposals, capital risk review, and
+deterministic capital sandbox receipts without live spend.
 
 P6G does not execute external systems, grant authority, add browser execution,
 implement payment/spend runtime, trading runtime, account creation, credential
