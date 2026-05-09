@@ -5,14 +5,67 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6H_FULL_LOCKED
-previous_phase = P6G_FULL_LOCKED
-next_phase = P6I_TRADING_SPECIAL_AUTHORITY
+current_phase = P6I_FULL_LOCKED
+previous_phase = P6H_FULL_LOCKED
+next_phase = P6J_DESKTOP_SIDECAR_ORGAN
 ```
 
-P6H Spend Runtime Limited is accepted as full locked. It defines explicit spend
-authority, spend requests, provider adapter interface, fake/sandbox provider,
-spend receipts, subscription guard, refund/cancel path, and spend kill switch.
+P6I Trading Special Authority is accepted as full locked. It defines paper-first
+trading special authority, broker contracts, asset policy, position sizing,
+max-loss policy, stop-loss policy, trade journal, paper trade provider, and
+deterministic trading receipts.
+
+P6I does not execute real trading providers, grant authority, add browser
+execution, implement real payment provider execution, account creation,
+credential access, external API execution, channel send, sidecar execution,
+vendor runtime bridges, vendor code copies, or silent authority expansion.
+
+## P6I Verification
+
+```text
+targeted P6I tests = 11 passed
+```
+
+Command verified:
+
+```bash
+python -m pytest tests/test_p6_trading_special_authority.py -v --tb=short
+```
+
+P6I required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/trading/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/trading/special_authority.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_trading_special_authority.py
+sentinel-control/docs/organs/P6I_TRADING_SPECIAL_AUTHORITY_SCORECARD.md
+sentinel-control/docs/organs/P6I_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6I rules:
+
+```text
+Trading is Red Lane special authority.
+Paper trading comes first.
+Real trading is disabled by default.
+Explicit broker/exchange, asset class, max capital, max loss, leverage policy,
+stop-loss, journal, expiry, and evidence are required.
+No leverage unless explicitly authorized.
+Profit guarantee claims are blocked.
+Volatility/risk reduces exposure through position sizing.
+Missing authority creates a proposal only.
+TradingReceipt cannot start real trading or expand authority.
+```
+
+## Prior P6H Phase
+
+P6H Spend Runtime Limited remains accepted as full locked. It defines explicit
+spend authority, spend requests, provider adapter interface, fake/sandbox
+provider, spend receipts, subscription guard, refund/cancel path, and spend kill
+switch.
 
 P6H does not execute real payment providers, grant authority, add browser
 execution, implement real trading runtime, account creation, credential access,
