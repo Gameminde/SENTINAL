@@ -5,72 +5,85 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6K_FULL_LOCKED
-previous_phase = P6J1_FULL_LOCKED
-next_phase = P6L_DESKTOP_SIDECAR_ORGAN_IMPLEMENTATION
+current_phase = P6L_FULL_LOCKED
+previous_phase = P6K_FULL_LOCKED
+next_phase = P6M_CODE_SHELL_AGENTLAB_HARVEST
 ```
 
-P6K Desktop AgentLab Harvest and Blueprint is accepted as full locked. It
-prevents Sentinel from building the Desktop Sidecar Organ from a generic
-specification by harvesting JARVIS first, then OpenClaw and OpenJarvis, and
-rewriting their desktop/sidecar mechanisms into Sentinel-native blueprint
-models.
+P6L Desktop Sidecar Organ Implementation is accepted as full locked. It
+implements the Sentinel-native Desktop Sidecar Organ from the P6K JARVIS-first
+harvest and blueprint.
 
-P6K records sidecar capability manifests, enrollment/revocation patterns,
-desktop awareness, host RPC taxonomy, screenshot/clipboard surfaces, action
-preview, cost/sandbox discipline, failure modes, and promotion requirements.
+P6L adds a permissioned sidecar manifest, enrollment grant, fake sidecar
+dry-run path, desktop action previews, screen and clipboard sanitizers,
+deterministic receipts, kill-switch behavior, high-power surface promotion
+paths, and a Desktop FinalGate adapter shape.
 
-P6K does not execute vendor runtimes, copy vendor code, add live desktop
-execution, add host control, execute shell/process commands, access
-credentials, or silently expand authority.
+P6L does not execute vendor runtimes, copy vendor code, add live desktop
+execution, add host control, execute real shell/process commands, access
+credential secrets, or silently expand authority.
 
-## P6K Verification
+## P6L Verification
 
 ```text
-P6K targeted tests = 8 passed
-P6J neighbor tests = 10 passed
-P6C-P6I.6 organ tests = 89 passed
-P5L Brain neighbor tests = 23 passed
-full sentinel-core tests = 754 passed
+P6L targeted tests = 14 passed
+P6K neighbor tests = 8 passed
+full sentinel-core tests = not run for this small block by instruction
 ```
 
 Commands:
 
 ```bash
+python -m pytest tests/test_p6_desktop_sidecar_organ.py -v --tb=short
 python -m pytest tests/test_p6_desktop_agentlab_harvest.py -v --tb=short
-python -m pytest tests/test_p6_agentlab_implementation_alignment.py -v --tb=short
-python -m pytest tests/test_p6_browser_organ_contract.py tests/test_p6_external_api_organ.py tests/test_p6_channel_organ.py tests/test_p6_credential_vault_policy.py tests/test_p6_capital_operator_sandbox.py tests/test_p6_spend_runtime_limited.py tests/test_p6_trading_special_authority.py tests/test_p6_capital_stack_hardening.py tests/test_p6_tradingagents_harvest.py -v --tb=short
-python -m pytest tests/test_agent_brain_l4_integrated_review.py tests/test_agent_brain_l4_premortem_fixtures.py -v --tb=short
-python -m pytest tests -v --tb=short
 ```
 
-P6K required files:
+P6L required files:
 
 ```text
-agent-lab/audits/jarvis_desktop_static_audit.md
-agent-lab/audits/jarvis_desktop_capability_map.md
-agent-lab/sentinel_integration_notes/jarvis_desktop_to_sentinel.md
-sentinel-control/services/sentinel-core/sentinel/agent/events.py
-sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/contract.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/sidecar_manifest.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/enrollment.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/action_lifecycle.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/action_preview.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/fake_sidecar.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/screen_sanitizer.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/clipboard_sanitizer.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/receipts.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/kill_switch.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/finalgate_adapter.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/misuse_classifier.py
 sentinel-control/services/sentinel-core/sentinel/organs/desktop/__init__.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/harvest.py
-sentinel-control/services/sentinel-core/tests/test_p6_desktop_agentlab_harvest.py
-sentinel-control/docs/organs/P6K_DESKTOP_AGENTLAB_HARVEST_SCORECARD.md
-sentinel-control/docs/organs/P6K_LOCK_VERDICT.md
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/tests/test_p6_desktop_sidecar_organ.py
+sentinel-control/docs/organs/P6L_DESKTOP_SIDECAR_ORGAN_SCORECARD.md
+sentinel-control/docs/organs/P6L_LOCK_VERDICT.md
 sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6K rules:
+Locked P6L rules:
 
 ```text
-Desktop is JARVIS-first, OpenClaw/OpenJarvis-supported.
-Desktop powers are harvested, classified, and given promotion paths.
-P6K adds blueprint power, not live host control.
-No vendor runtime bridge or vendor code copy is allowed.
-No live desktop execution, shell/process execution, credential access, or
-authority expansion is allowed.
+P6L is built from the P6K JARVIS-first harvest.
+Fake sidecar previews are allowed; live host control is not enabled.
+Screen and clipboard context must be sanitized before receipts.
+Wrong-target desktop mutation is rejected.
+Path traversal and symlink escape are rejected for file previews.
+High-power Desktop surfaces are promotion-ready, not deleted.
+Black Lane host misuse objectives remain blocked.
+No vendor runtime bridge, vendor code copy, live desktop execution, real
+shell/process execution, credential secret access, or authority expansion is
+allowed.
 ```
+
+## Prior P6K Phase
+
+P6K Desktop AgentLab Harvest and Blueprint remains accepted as full locked. It
+prevents Sentinel from building the Desktop Sidecar Organ from a generic
+specification by harvesting JARVIS first, then OpenClaw and OpenJarvis, and
+rewriting their desktop/sidecar mechanisms into Sentinel-native blueprint
+models.
 
 ## Prior P6J1 Phase
 
