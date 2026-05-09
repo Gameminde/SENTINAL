@@ -5,62 +5,79 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6J1_FULL_LOCKED
-previous_phase = P6J_FULL_LOCKED
-next_phase = P6K_ORGANBENCH_EXTERNAL_ORGAN_INTEGRATED_REVIEW
+current_phase = P6K_FULL_LOCKED
+previous_phase = P6J1_FULL_LOCKED
+next_phase = P6L_DESKTOP_SIDECAR_ORGAN_IMPLEMENTATION
 ```
 
-P6J1 Power Surface Doctrine Reframe is accepted as full locked. It corrects
-the P6J vocabulary so Sentinel treats advanced browser, live API, channel,
-credential, spend, trading, and sidecar surfaces as high-power operator
-capabilities with promotion paths, not as capabilities to delete.
+P6K Desktop AgentLab Harvest and Blueprint is accepted as full locked. It
+prevents Sentinel from building the Desktop Sidecar Organ from a generic
+specification by harvesting JARVIS first, then OpenClaw and OpenJarvis, and
+rewriting their desktop/sidecar mechanisms into Sentinel-native blueprint
+models.
 
-P6J1 does not execute vendor runtimes, copy vendor code, add browser execution,
-execute live APIs, execute real trading providers, execute real payment
-providers, create accounts, access credentials, send channels, execute sidecars,
-or silently expand authority.
+P6K records sidecar capability manifests, enrollment/revocation patterns,
+desktop awareness, host RPC taxonomy, screenshot/clipboard surfaces, action
+preview, cost/sandbox discipline, failure modes, and promotion requirements.
 
-## P6J1 Verification
+P6K does not execute vendor runtimes, copy vendor code, add live desktop
+execution, add host control, execute shell/process commands, access
+credentials, or silently expand authority.
+
+## P6K Verification
 
 ```text
-P6J1 targeted P6J tests = 10 passed
+P6K targeted tests = 8 passed
+P6J neighbor tests = 10 passed
 P6C-P6I.6 organ tests = 89 passed
-full sentinel-core tests = 746 passed
+P5L Brain neighbor tests = 23 passed
+full sentinel-core tests = 754 passed
 ```
 
 Commands:
 
 ```bash
+python -m pytest tests/test_p6_desktop_agentlab_harvest.py -v --tb=short
 python -m pytest tests/test_p6_agentlab_implementation_alignment.py -v --tb=short
 python -m pytest tests/test_p6_browser_organ_contract.py tests/test_p6_external_api_organ.py tests/test_p6_channel_organ.py tests/test_p6_credential_vault_policy.py tests/test_p6_capital_operator_sandbox.py tests/test_p6_spend_runtime_limited.py tests/test_p6_trading_special_authority.py tests/test_p6_capital_stack_hardening.py tests/test_p6_tradingagents_harvest.py -v --tb=short
 python -m pytest tests/test_agent_brain_l4_integrated_review.py tests/test_agent_brain_l4_premortem_fixtures.py -v --tb=short
 python -m pytest tests -v --tb=short
 ```
 
-P6J required files:
+P6K required files:
 
 ```text
-sentinel-control/services/sentinel-core/sentinel/organs/implementation_alignment.py
-sentinel-control/services/sentinel-core/tests/test_p6_agentlab_implementation_alignment.py
-sentinel-control/docs/organs/P6J_AGENTLAB_IMPLEMENTATION_ALIGNMENT.md
-sentinel-control/docs/organs/P6J_VENDOR_PATTERN_TO_ORGAN_GAP_MATRIX.md
-sentinel-control/docs/organs/P6J_LOCK_VERDICT.md
-sentinel-control/docs/organs/P6J1_POWER_SURFACE_DOCTRINE_REFRAME.md
-sentinel-control/docs/organs/P6J1_LOCK_VERDICT.md
+agent-lab/audits/jarvis_desktop_static_audit.md
+agent-lab/audits/jarvis_desktop_capability_map.md
+agent-lab/sentinel_integration_notes/jarvis_desktop_to_sentinel.md
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/harvest.py
+sentinel-control/services/sentinel-core/tests/test_p6_desktop_agentlab_harvest.py
+sentinel-control/docs/organs/P6K_DESKTOP_AGENTLAB_HARVEST_SCORECARD.md
+sentinel-control/docs/organs/P6K_LOCK_VERDICT.md
+sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6J1 rules:
+Locked P6K rules:
 
 ```text
-High-power surfaces are product powers, not deleted capabilities.
-Every high-power surface has a capability handling path.
-Black Lane misuse objectives remain blocked.
-Blocked-by-default means not unlocked until authority and promotion exist.
-Sentinel is powerful-by-authority, not safe-by-refusal.
-No vendor runtime bridge, vendor code copy, live execution power, or authority
-expansion is allowed.
+Desktop is JARVIS-first, OpenClaw/OpenJarvis-supported.
+Desktop powers are harvested, classified, and given promotion paths.
+P6K adds blueprint power, not live host control.
+No vendor runtime bridge or vendor code copy is allowed.
+No live desktop execution, shell/process execution, credential access, or
+authority expansion is allowed.
 ```
+
+## Prior P6J1 Phase
+
+P6J1 Power Surface Doctrine Reframe remains accepted as full locked. It corrects
+the P6J vocabulary so Sentinel treats advanced browser, live API, channel,
+credential, spend, trading, and sidecar surfaces as high-power operator
+capabilities with promotion paths, not as capabilities to delete.
 
 ## Prior P6J Phase
 

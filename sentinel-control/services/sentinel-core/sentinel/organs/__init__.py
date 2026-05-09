@@ -61,6 +61,15 @@ from sentinel.organs.credentials import (
     revoke_credential_grant,
 )
 from sentinel.organs.dry_run import OrganDryRunReceipt
+from sentinel.organs.desktop import (
+    DesktopActionLifecycle,
+    DesktopCapabilityMap,
+    DesktopFailureMode,
+    DesktopHarvestIntegrator,
+    DesktopPermissionSurface,
+    DesktopSidecarBlueprint,
+    DesktopVendorPattern,
+)
 from sentinel.organs.implementation_alignment import (
     AgentLabImplementationAlignmentBuilder,
     AgentLabImplementationAlignmentEntry,
@@ -180,6 +189,13 @@ __all__ = [
     "CredentialRef",
     "CredentialTraceRedactor",
     "CredentialVaultPolicy",
+    "DesktopActionLifecycle",
+    "DesktopCapabilityMap",
+    "DesktopFailureMode",
+    "DesktopHarvestIntegrator",
+    "DesktopPermissionSurface",
+    "DesktopSidecarBlueprint",
+    "DesktopVendorPattern",
     "DynamicSpendPolicy",
     "ExternalOrganContract",
     "ExternalAPIAllowlist",
