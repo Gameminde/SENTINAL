@@ -5,15 +5,64 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6F_FULL_LOCKED
-previous_phase = P6E_FULL_LOCKED
-next_phase = P6G_CAPITAL_OPERATOR_SANDBOX
+current_phase = P6G_FULL_LOCKED
+previous_phase = P6F_FULL_LOCKED
+next_phase = P6H_SPEND_RUNTIME_LIMITED
 ```
 
-P6F Credential Vault Policy is accepted as full locked. It defines credential
-access as scoped references, scoped grants, policy decisions, revocation,
-redaction, and deterministic receipts without adding real credential vault
-integration or secret access.
+P6G Capital Operator Sandbox is accepted as full locked. It defines opportunity
+modeling, signal ledgers, adaptive operating envelopes, sandbox budget
+reallocation, dynamic spend proposals, capital risk review, and deterministic
+capital sandbox receipts without live spend.
+
+P6G does not execute external systems, grant authority, add browser execution,
+implement payment/spend runtime, trading runtime, account creation, credential
+access, external API execution, channel send, sidecar execution, vendor runtime
+bridges, vendor code copies, or silent authority expansion.
+
+## P6G Verification
+
+```text
+targeted P6G tests = 9 passed
+```
+
+Command verified:
+
+```bash
+python -m pytest tests/test_p6_capital_operator_sandbox.py -v --tb=short
+```
+
+P6G required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/capital/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/capital/sandbox.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_capital_operator_sandbox.py
+sentinel-control/docs/organs/P6G_CAPITAL_OPERATOR_SANDBOX_SCORECARD.md
+sentinel-control/docs/organs/P6G_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6G rules:
+
+```text
+Capital opportunities and planned Browser/API/Channel/Credential inputs are
+modeled as sandbox references only.
+SignalLedger records market, API, outreach, ROI, and risk signals.
+Dynamic budget reallocation requires signal refs.
+CapitalRiskReview flags profit guarantee claims.
+DynamicSpendPolicy produces spend proposals only.
+CapitalSandboxReceipt cannot start spend, execution, or authority expansion.
+```
+
+## Prior P6F Phase
+
+P6F Credential Vault Policy remains accepted as full locked. It defines
+credential access as scoped references, scoped grants, policy decisions,
+revocation, redaction, and deterministic receipts without adding real credential
+vault integration or secret access.
 
 P6F does not execute external systems, grant authority, add browser execution,
 implement payment/spend runtime, trading runtime, account creation, credential
