@@ -15,6 +15,29 @@ def _hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+PROFIT_GUARANTEE_PATTERNS = (
+    "guaranteed profit",
+    "guarantee profit",
+    "profit guarantee",
+    "guaranteed return",
+    "guaranteed returns",
+    "guaranteed income",
+    "risk-free profit",
+    "risk free profit",
+    "riskless profit",
+    "risk-free income",
+    "risk free income",
+    "riskless income",
+    "100% win",
+    "100 percent win",
+)
+
+
+def _contains_profit_guarantee(text: str) -> bool:
+    normalized = text.lower()
+    return any(pattern in normalized for pattern in PROFIT_GUARANTEE_PATTERNS)
+
+
 class TradingAuthorityProposal(SentinelModel):
     id: str = Field(default_factory=lambda: new_id("tradeprop"))
     mission_id: str
@@ -256,12 +279,18 @@ class PaperTradeProvider:
             raise ValueError("trading authority expired")
         if stop_loss is None:
             raise ValueError("stop-loss policy required")
-        if "guaranteed profit" in thesis.lower() or "risk-free profit" in thesis.lower():
+        if _contains_profit_guarantee(thesis):
             raise ValueError("profit guarantee claim blocked")
         if leverage > 1.0 and not authority.leverage_allowed:
             raise ValueError("leverage not authorized")
+        if leverage > authority.max_leverage:
+            raise ValueError("max leverage exceeded")
         if broker_contract.broker != authority.broker or broker_contract.exchange != authority.exchange:
             raise ValueError("broker contract does not match authority")
+        if asset_class not in authority.allowed_asset_classes:
+            raise ValueError(f"authority_asset_class_not_allowed:{asset_class}")
+        if symbol not in authority.allowed_symbols:
+            raise ValueError(f"authority_symbol_not_allowed:{symbol}")
         decision = asset_policy.evaluate(asset_class=asset_class, symbol=symbol)
         if not decision.accepted:
             raise ValueError(";".join(decision.errors))

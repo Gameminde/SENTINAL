@@ -5,60 +5,69 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6I_FULL_LOCKED
-previous_phase = P6H_FULL_LOCKED
-next_phase = P6J_DESKTOP_SIDECAR_ORGAN
+current_phase = P6I5_FULL_LOCKED
+previous_phase = P6I_FULL_LOCKED
+next_phase = P6J_AGENTLAB_IMPLEMENTATION_ALIGNMENT
 ```
 
-P6I Trading Special Authority is accepted as full locked. It defines paper-first
-trading special authority, broker contracts, asset policy, position sizing,
-max-loss policy, stop-loss policy, trade journal, paper trade provider, and
-deterministic trading receipts.
+P6I.5 Capital Stack Hardening is accepted as full locked. It hardens the locked
+P6G/P6H/P6I capital stack after logic review by binding spend proposals to real
+signal refs, capping sandbox budget reallocation, binding spend kill-switches to
+the authority mission, blocking credential-ref overrides, enforcing trading
+authority asset scope, enforcing max leverage, and broadening profit-guarantee
+detection.
 
-P6I does not execute real trading providers, grant authority, add browser
+P6I.5 does not execute real trading providers, grant authority, add browser
 execution, implement real payment provider execution, account creation,
 credential access, external API execution, channel send, sidecar execution,
 vendor runtime bridges, vendor code copies, or silent authority expansion.
 
-## P6I Verification
+## P6I.5 Verification
 
 ```text
-targeted P6I tests = 11 passed
+P6I.5 hardening tests = 7 passed
+P6G/P6H/P6I neighbor tests = 30 passed
 ```
 
-Command verified:
+Commands verified:
 
 ```bash
-python -m pytest tests/test_p6_trading_special_authority.py -v --tb=short
+python -m pytest tests/test_p6_capital_stack_hardening.py -v --tb=short
+python -m pytest tests/test_p6_capital_operator_sandbox.py tests/test_p6_spend_runtime_limited.py tests/test_p6_trading_special_authority.py -v --tb=short
 ```
 
-P6I required files:
+P6I.5 required files:
 
 ```text
-sentinel-control/services/sentinel-core/sentinel/organs/trading/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/capital/sandbox.py
+sentinel-control/services/sentinel-core/sentinel/organs/spend/runtime.py
 sentinel-control/services/sentinel-core/sentinel/organs/trading/special_authority.py
-sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
-sentinel-control/services/sentinel-core/sentinel/agent/events.py
-sentinel-control/services/sentinel-core/tests/test_p6_trading_special_authority.py
-sentinel-control/docs/organs/P6I_TRADING_SPECIAL_AUTHORITY_SCORECARD.md
-sentinel-control/docs/organs/P6I_LOCK_VERDICT.md
+sentinel-control/services/sentinel-core/tests/test_p6_capital_stack_hardening.py
+sentinel-control/docs/organs/P6I5_CAPITAL_STACK_HARDENING_SCORECARD.md
+sentinel-control/docs/organs/P6I5_LOCK_VERDICT.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6I rules:
+Locked P6I.5 rules:
 
 ```text
-Trading is Red Lane special authority.
-Paper trading comes first.
-Real trading is disabled by default.
-Explicit broker/exchange, asset class, max capital, max loss, leverage policy,
-stop-loss, journal, expiry, and evidence are required.
-No leverage unless explicitly authorized.
-Profit guarantee claims are blocked.
-Volatility/risk reduces exposure through position sizing.
-Missing authority creates a proposal only.
-TradingReceipt cannot start real trading or expand authority.
+Spend proposals must use ledger-backed signal refs.
+Sandbox budget allocation cannot exceed budget remaining.
+Spend kill-switches must match the authority mission.
+Spend requests cannot override the authority credential ref.
+Trading authority asset class and symbol boundaries are enforced by provider.
+Trading authority max leverage is enforced.
+Profit guarantee variants are blocked.
+Real spend/trading remains disabled by default.
+No authority expansion is allowed.
 ```
+
+## Prior P6I Phase
+
+P6I Trading Special Authority remains accepted as full locked. It defines
+paper-first trading special authority, broker contracts, asset policy, position
+sizing, max-loss policy, stop-loss policy, trade journal, paper trade provider,
+and deterministic trading receipts.
 
 ## Prior P6H Phase
 

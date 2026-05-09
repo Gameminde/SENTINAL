@@ -51,5 +51,5 @@ python -m pytest tests/test_p6_trading_special_authority.py -v --tb=short
 ## Next Phase
 
 ```text
-next_phase = P6J_DESKTOP_SIDECAR_ORGAN
+next_phase = P6I5_CAPITAL_STACK_HARDENING
 ```

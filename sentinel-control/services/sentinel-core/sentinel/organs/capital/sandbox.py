@@ -14,6 +14,29 @@ def _hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+PROFIT_GUARANTEE_PATTERNS = (
+    "guaranteed profit",
+    "guarantee profit",
+    "profit guarantee",
+    "guaranteed return",
+    "guaranteed returns",
+    "guaranteed income",
+    "risk-free profit",
+    "risk free profit",
+    "riskless profit",
+    "risk-free income",
+    "risk free income",
+    "riskless income",
+    "100% win",
+    "100 percent win",
+)
+
+
+def _contains_profit_guarantee(text: str) -> bool:
+    normalized = text.lower()
+    return any(pattern in normalized for pattern in PROFIT_GUARANTEE_PATTERNS)
+
+
 class CapitalSignal(SentinelModel):
     id: str = Field(default_factory=lambda: new_id("capsig"))
     signal_type: str
@@ -50,6 +73,10 @@ class SignalLedger(SentinelModel):
         if not matched:
             return 0.0
         return sum(matched) / len(matched)
+
+    def missing_refs(self, refs: list[str]) -> list[str]:
+        known = set(self.signal_refs)
+        return [ref for ref in refs if ref not in known]
 
 
 class CapitalOpportunity(SentinelModel):
@@ -125,6 +152,12 @@ class AdaptiveOperatingEnvelope(SentinelModel):
     def _validate(self) -> AdaptiveOperatingEnvelope:
         if self.budget_remaining_usd > self.root_budget_max_usd:
             raise ValueError("AdaptiveOperatingEnvelope budget remaining cannot exceed root budget.")
+        if any(amount < 0 for amount in self.sub_budgets.values()):
+            raise ValueError("AdaptiveOperatingEnvelope sub-budgets cannot be negative.")
+        if sum(self.sub_budgets.values()) > self.budget_remaining_usd:
+            raise ValueError("AdaptiveOperatingEnvelope sub-budgets cannot exceed budget remaining.")
+        if self.max_single_transaction_usd > self.budget_remaining_usd:
+            raise ValueError("AdaptiveOperatingEnvelope max transaction cannot exceed budget remaining.")
         if not self.signal_refs:
             raise ValueError("AdaptiveOperatingEnvelope requires signal refs.")
         if not self.evidence_refs:
@@ -146,19 +179,37 @@ class BudgetReallocator:
         top = portfolio.top()
         if not top.signal_refs:
             raise ValueError("Budget reallocation requires opportunity signal refs.")
+        missing_refs = ledger.missing_refs(top.signal_refs)
+        if missing_refs:
+            raise ValueError(f"signal refs not found:{','.join(missing_refs)}")
         strength = max(0.0, ledger.strength_for(top.signal_refs))
         if strength <= 0:
             raise ValueError("Budget reallocation requires positive signal refs.")
-        allocation = round(min(envelope.budget_remaining_usd * 0.25, max(top.proposed_spend_usd, 1.0) * (1 + strength)), 2)
+        unallocated_budget = round(envelope.budget_remaining_usd - sum(envelope.sub_budgets.values()), 2)
+        if unallocated_budget <= 0:
+            raise ValueError("Budget reallocation has no unallocated budget remaining.")
+        allocation = round(
+            min(
+                envelope.budget_remaining_usd * 0.25,
+                max(top.proposed_spend_usd, 1.0) * (1 + strength),
+                unallocated_budget,
+            ),
+            2,
+        )
         new_sub_budgets = dict(envelope.sub_budgets)
         new_sub_budgets[top.category] = round(new_sub_budgets.get(top.category, 0.0) + allocation, 2)
         new_max = round(min(envelope.budget_remaining_usd, max(envelope.max_single_transaction_usd, allocation)), 2)
-        return envelope.model_copy(
-            update={
-                "sub_budgets": new_sub_budgets,
-                "max_single_transaction_usd": new_max,
-                "signal_refs": sorted(set([*envelope.signal_refs, *top.signal_refs, *ledger.signal_refs])),
-            }
+        return AdaptiveOperatingEnvelope(
+            id=envelope.id,
+            root_budget_max_usd=envelope.root_budget_max_usd,
+            budget_remaining_usd=envelope.budget_remaining_usd,
+            max_single_transaction_usd=new_max,
+            sub_budgets=new_sub_budgets,
+            exploration_fraction=envelope.exploration_fraction,
+            stop_loss_usd=envelope.stop_loss_usd,
+            signal_refs=sorted(set([*envelope.signal_refs, *top.signal_refs, *ledger.signal_refs])),
+            evidence_refs=list(envelope.evidence_refs),
+            authority_expansion=envelope.authority_expansion,
         )
 
 
@@ -199,9 +250,10 @@ class DynamicSpendPolicy:
     ) -> SpendDecisionTrace:
         if not opportunity.signal_refs:
             raise ValueError("DynamicSpendPolicy requires opportunity signal refs.")
+        missing_refs = ledger.missing_refs(opportunity.signal_refs)
+        if missing_refs:
+            raise ValueError(f"signal refs not found:{','.join(missing_refs)}")
         signal_strength = max(0.0, ledger.strength_for(opportunity.signal_refs))
-        if signal_strength == 0 and ledger.signal_refs:
-            signal_strength = max(0.0, ledger.average_strength())
         if signal_strength <= 0:
             raise ValueError("DynamicSpendPolicy requires positive signal refs.")
         proposed = round(
@@ -235,7 +287,7 @@ class CapitalRiskReview(SentinelModel):
     def review(cls, opportunity: CapitalOpportunity) -> CapitalRiskReview:
         text = f"{opportunity.name} {opportunity.objective_text}".lower()
         flags = []
-        if "guaranteed profit" in text or "guarantee profit" in text or "risk-free profit" in text:
+        if _contains_profit_guarantee(text):
             flags.append("profit_guarantee_claim")
         if opportunity.downside_risk >= 0.8:
             flags.append("high_downside_risk")

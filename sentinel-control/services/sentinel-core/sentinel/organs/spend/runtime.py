@@ -200,7 +200,7 @@ class FakeSpendProvider(SpendProviderAdapter):
             vendor=request.vendor,
             category=request.category,
             amount_usd=request.amount_usd,
-            credential_ref=request.credential_ref or authority.credential_ref,
+            credential_ref=authority.credential_ref,
             subscription=request.subscription,
             refund_cancel_path_ref=refund_cancel_path.id if request.subscription else None,
             evidence_refs=[*authority.evidence_refs, *request.evidence_refs, *refund_cancel_path.evidence_refs],
@@ -214,10 +214,14 @@ class FakeSpendProvider(SpendProviderAdapter):
         authority: SpendAuthorityEnvelope,
         kill_switch: SpendKillSwitch,
     ) -> None:
+        if kill_switch.mission_id != authority.mission_id:
+            raise ValueError("kill switch mission mismatch")
         if kill_switch.triggered or not kill_switch.execution_allowed:
             raise ValueError("spend blocked by kill switch")
         if datetime.now(UTC) > authority.expires_at:
             raise ValueError("spend authority expired")
+        if request.credential_ref and request.credential_ref != authority.credential_ref:
+            raise ValueError("credential_ref_not_allowed")
         if request.vendor not in authority.allowed_vendors:
             raise ValueError(f"vendor_not_allowed:{request.vendor}")
         if request.category not in authority.allowed_categories:
