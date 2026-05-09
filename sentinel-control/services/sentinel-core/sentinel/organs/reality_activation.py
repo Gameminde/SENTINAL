@@ -197,7 +197,7 @@ class LocalChannelDraftStore:
     def store(self, draft: ChannelMessageDraft, *, mission_id: str) -> StoredChannelDraft:
         filename = f"{draft.id}.json"
         path = (self.root / filename).resolve()
-        if not str(path).startswith(str(self.root)):
+        if not _is_within_root(path, self.root):
             raise ValueError("draft store path escape")
         payload = draft.model_dump(mode="json")
         path.write_text(json.dumps(payload, sort_keys=True, indent=2), encoding="utf-8")
@@ -270,7 +270,7 @@ class DesktopWorkspaceOperator:
 
     def _resolve(self, relative_path: str) -> Path:
         candidate = (self.root / relative_path).resolve()
-        if not str(candidate).startswith(str(self.root)):
+        if not _is_within_root(candidate, self.root):
             raise ValueError("workspace escape blocked")
         return candidate
 
@@ -407,3 +407,11 @@ class SpendTestModeProvider:
             trace_refs=["test_mode_spend_trace"],
         )
         return receipt.model_copy(update={"provider_name": "test_mode_spend_provider"})
+
+
+def _is_within_root(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return False
+    return True

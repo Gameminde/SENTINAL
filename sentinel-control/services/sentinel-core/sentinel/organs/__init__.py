@@ -142,6 +142,14 @@ from sentinel.organs.reality_activation import (
     StoredChannelDraft,
     TradingRealityPaperRunner,
 )
+from sentinel.organs.real_world_gauntlet import (
+    EnvCredentialGrant,
+    ExistingOrganRealWorldGauntlet,
+    ExistingOrganRealWorldGauntletRunner,
+    OrganRealWorldGauntletResult,
+    RealWorldGauntletReport,
+    RealityCredentialGrantStore,
+)
 from sentinel.organs.replay import OrganReplayRecord
 from sentinel.organs.risk import OrganRiskLevel, OrganRiskProfile, OrganRiskProfiler
 from sentinel.organs.spend import (
@@ -247,6 +255,7 @@ __all__ = [
     "CredentialVaultPolicy",
     "CurrentLimit",
     "EnvCredentialRefResolver",
+    "EnvCredentialGrant",
     "DesktopActionLifecycle",
     "DesktopActionPreview",
     "DesktopActionReceipt",
@@ -269,6 +278,8 @@ __all__ = [
     "ExternalAPIRequestReceipt",
     "ExternalAPIRealityClient",
     "ExternalOrganRegistry",
+    "ExistingOrganRealWorldGauntlet",
+    "ExistingOrganRealWorldGauntletRunner",
     "FakeSpendProvider",
     "FakeSidecarDryRunResult",
     "FakeSidecarProvider",
@@ -294,6 +305,7 @@ __all__ = [
     "OrganPromotionDecision",
     "OrganPromotionGate",
     "OrganPromotionLevel",
+    "OrganRealWorldGauntletResult",
     "OrganReplayRecord",
     "OrganRiskLevel",
     "OrganRiskProfile",
@@ -307,7 +319,9 @@ __all__ = [
     "ReadOnlyMarketDataProvider",
     "RecipientProvenance",
     "RealityActivationReceipt",
+    "RealityCredentialGrantStore",
     "RealityBrowserReader",
+    "RealWorldGauntletReport",
     "RequiredLLMIntegration",
     "RequiredNextAdapter",
     "RiskLaneFit",

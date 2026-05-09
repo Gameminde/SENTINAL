@@ -5,36 +5,39 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6N_FULL_LOCKED
-previous_phase = P6M_FULL_LOCKED
-next_phase = P6O_EXISTING_ORGANS_RUNTIME_PROMOTION_PLAN
+current_phase = P6O_FULL_LOCKED
+previous_phase = P6N_FULL_LOCKED
+next_phase = P6P_EXISTING_ORGANS_RUNTIME_PROMOTION_PLAN
 ```
 
-P6N Existing Organs Capability Frontier is accepted as full locked. It pushes
-the P6M-activated organs to their practical limits before adding any new organ
-family.
+P6O Existing Organs Real World Gauntlet is accepted as full locked. It pushes
+the existing P6M/P6N organs harder in repeated, combined, max-mode scenarios
+before adding any new organ family.
 
-P6N measures:
+P6O strengthens:
 
 ```text
-what each organ can do now
-what each organ can only simulate/test-mode
-what each organ cannot do yet
-what fails or is too weak
-what needs runtime/provider work
-what requires LLM runtime integration
-what should be promoted next
+browser multi-page public reads
+external API batch GET/HEAD reads
+local channel multi-draft campaigns
+credential env refs through scoped grants, expiry, revocation, and redaction
+desktop workspace batch create/write/read/list with stronger root containment
+capital receipt-backed signal ledgers and spend proposals
+trading multi-symbol read-only market data and paper-trade baskets
+spend multi-vendor test-mode execution
 ```
 
-P6N does not add a new organ family, start Code/Shell harvest, add real
-payment, real trading, live channel send, account creation, credential secret
-logging, browser power expansion, host desktop control, shell/process
-execution, or authority expansion.
+P6O does not add a new organ family, start Code/Shell harvest, add real
+payment, real broker execution, live channel send, account creation, raw
+credential logging, browser stealth/login/mutation expansion, live host desktop
+control, shell/process execution, vendor runtime bridge, vendor code copy, or
+authority expansion.
 
-## P6N Verification
+## P6O Verification
 
 ```text
-P6N targeted tests = 8 passed
+P6O targeted tests = 6 passed
+P6N neighbor tests = 8 passed
 P6M neighbor tests = 8 passed
 full sentinel-core tests = not run by instruction
 ```
@@ -42,16 +45,24 @@ full sentinel-core tests = not run by instruction
 Commands:
 
 ```bash
+python -m pytest tests/test_p6_existing_organs_real_world_gauntlet.py -v --tb=short
 python -m pytest tests/test_p6_existing_organs_capability_frontier.py -v --tb=short
 python -m pytest tests/test_p6_existing_organs_reality_activation.py -v --tb=short
 ```
 
-P6N required files:
+P6O required files:
 
 ```text
+sentinel-control/services/sentinel-core/sentinel/organs/real_world_gauntlet.py
+sentinel-control/services/sentinel-core/sentinel/organs/reality_activation.py
 sentinel-control/services/sentinel-core/sentinel/organs/capability_frontier.py
 sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_real_world_gauntlet.py
 sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_capability_frontier.py
+sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_reality_activation.py
+sentinel-control/docs/organs/P6O_EXISTING_ORGANS_REAL_WORLD_GAUNTLET_SCORECARD.md
+sentinel-control/docs/organs/P6O_REAL_WORLD_GAUNTLET_FIXES.md
+sentinel-control/docs/organs/P6O_LOCK_VERDICT.md
 sentinel-control/docs/organs/P6N_EXISTING_ORGANS_CAPABILITY_FRONTIER_SCORECARD.md
 sentinel-control/docs/organs/P6N_ORGAN_LIMITS_MAP.md
 sentinel-control/docs/organs/P6N_LOCK_VERDICT.md
@@ -59,21 +70,28 @@ sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6N findings:
+Locked P6O findings:
 
 ```text
-Sentinel can do public reads, read-only API calls, local drafts, env credential
-refs, workspace file ops, capital signal ingestion, market-data paper trading,
-and test-mode spend.
-Sentinel can only simulate/test-mode live spend, real trading, channel send,
-and desktop host control.
-Sentinel cannot yet do authenticated live provider workflows, account creation,
-browser mutation, or shell execution.
+Sentinel can run existing organs in max-mode batches and cross-organ evidence
+paths.
+Credential refs now require scoped env grants with expiry and revocation checks.
+Workspace and draft paths now use Path.relative_to root containment.
 Weakest organ = credentials.
 Closest organ to production-scoped execution = desktop.
-Organs needing LLM runtime first = channel, capital, trading.
-No authority expansion is allowed.
+Next promotion candidates include desktop_workspace_l6,
+browser_controlled_navigation_l6, api_authenticated_read_l6,
+channel_provider_draft_l6, credential_vault_ref_l6,
+capital_roi_feedback_l6, trading_live_paper_feed_l6, and
+spend_provider_test_mode_l6.
+No new organ family or authority expansion is allowed.
 ```
+
+## Prior P6N Phase
+
+P6N Existing Organs Capability Frontier remains accepted as full locked. It
+pushes the P6M-activated organs to their practical limits before adding any new
+organ family.
 
 ## Prior P6M Phase
 
