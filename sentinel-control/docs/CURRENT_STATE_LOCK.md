@@ -5,12 +5,67 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6C_FULL_LOCKED
-previous_phase = P6B_FULL_LOCKED
-next_phase = P6D_EXTERNAL_API_ORGAN_DRY_RUN
+current_phase = P6D_FULL_LOCKED
+previous_phase = P6C_FULL_LOCKED
+next_phase = P6E_CHANNEL_ORGAN_DRAFT_FIRST
 ```
 
-P6C Browser Organ Contract Review is accepted as full locked. It normalizes
+P6D External API Organ Dry Run is accepted as full locked. It creates the
+dry-run external API organ for request planning, allowlist checks, cost/latency
+estimation, privacy-risk classification, and deterministic request receipts.
+
+P6D does not execute external systems, grant authority, add browser execution,
+implement payment/spend runtime, trading runtime, account creation, credential
+access, external API execution, channel send, sidecar execution, vendor runtime
+bridges, vendor code copies, or silent authority expansion.
+
+## P6D Verification
+
+```text
+targeted P6D tests = 11 passed
+```
+
+Command verified:
+
+```bash
+python -m pytest tests/test_p6_external_api_organ.py -v --tb=short
+```
+
+P6D required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/contract.py
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/request_plan.py
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/allowlist.py
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/cost_estimator.py
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/privacy_risk.py
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/dry_run.py
+sentinel-control/services/sentinel-core/sentinel/organs/external_api/receipts.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_external_api_organ.py
+sentinel-control/docs/organs/P6D_EXTERNAL_API_ORGAN_SCORECARD.md
+sentinel-control/docs/organs/P6D_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6D rules:
+
+```text
+External API organ is dry-run only in P6D.
+Future live execution requires vendor/domain allowlist.
+Read-only API planning maps to Blue Lane when authorized and traced.
+Paid, mutation, and account-affecting API planning remains Orange/Red dry-run
+until future promotion.
+Raw credential material is blocked; CredentialRef placeholders are allowed.
+API receipts require evidence refs and trace refs.
+API receipts cannot start execution or expand authority.
+```
+
+## Prior P6C Phase
+
+P6C Browser Organ Contract Review remains accepted as full locked. It normalizes
 Sentinel browser capability under the P6A external organ foundry contract system
 and prepares governed Cloak-like power classification without adding new browser
 execution routes.

@@ -25,6 +25,18 @@ from sentinel.organs.contracts import (
     VendorHarvestReference,
 )
 from sentinel.organs.dry_run import OrganDryRunReceipt
+from sentinel.organs.external_api import (
+    APIAllowlistDecision,
+    APICostEstimate,
+    APICostEstimator,
+    APIPrivacyRiskClassifier,
+    APIPrivacyRiskProfile,
+    APIRequestPlan,
+    ExternalAPIAllowlist,
+    ExternalAPIDryRunPlanner,
+    ExternalAPIRequestReceipt,
+    build_external_api_organ_contract,
+)
 from sentinel.organs.kill_switch import OrganKillSwitch
 from sentinel.organs.lanes import AutonomyRiskLane, lane_allows_auto_execute
 from sentinel.organs.promotion_gate import OrganPromotionDecision, OrganPromotionGate
@@ -46,6 +58,12 @@ __all__ = [
     "AgentLabHarvestSource",
     "AgentLabOrganHarvestClassifier",
     "AgentLabOrganHarvestMatrix",
+    "APIAllowlistDecision",
+    "APICostEstimate",
+    "APICostEstimator",
+    "APIPrivacyRiskClassifier",
+    "APIPrivacyRiskProfile",
+    "APIRequestPlan",
     "AutonomyRiskLane",
     "BrowserActionPlanReceipt",
     "BrowserComplianceDecision",
@@ -63,6 +81,9 @@ __all__ = [
     "BrowserReliabilityProfile",
     "BrowserSessionContinuityPolicy",
     "ExternalOrganContract",
+    "ExternalAPIAllowlist",
+    "ExternalAPIDryRunPlanner",
+    "ExternalAPIRequestReceipt",
     "ExternalOrganRegistry",
     "HarvestCandidateStatus",
     "HarvestPowerFamily",
@@ -84,5 +105,6 @@ __all__ = [
     "OrganType",
     "VendorHarvestReference",
     "build_browser_organ_contract",
+    "build_external_api_organ_contract",
     "lane_allows_auto_execute",
 ]
