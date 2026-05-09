@@ -105,6 +105,8 @@ class AgentEventType(StrEnum):
     ORGAN_PROMOTION_EVALUATED = "organ_promotion_evaluated"
     ORGAN_KILL_SWITCH_TRIGGERED = "organ_kill_switch_triggered"
     ORGAN_HARVEST_REFERENCE_RECORDED = "organ_harvest_reference_recorded"
+    ORGAN_HARVEST_CANDIDATE_CLASSIFIED = "organ_harvest_candidate_classified"
+    ORGAN_HARVEST_MATRIX_BUILT = "organ_harvest_matrix_built"
     EFFORT_ROUTED = "effort_routed"
     PLAN_CREATED = "plan_created"
     PLAN_REVIEWED = "plan_reviewed"

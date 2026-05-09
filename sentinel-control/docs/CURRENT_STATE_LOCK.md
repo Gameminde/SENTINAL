@@ -5,19 +5,79 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6A_FULL_LOCKED
-previous_phase = ARCHITECTURE_A_TO_Z_LOCKED
-next_phase = P6B_AGENT_LAB_ORGAN_HARVEST
+current_phase = P6B_FULL_LOCKED
+previous_phase = P6A_FULL_LOCKED
+next_phase = P6C_BROWSER_ORGAN_CONTRACT_REVIEW
 ```
 
-P6A External Organ Foundry is accepted as full locked. It creates the
+P6B Agent Lab Organ Harvest is accepted as full locked. It turns forensic
+evidence from Agent Lab and external source ledgers into deterministic,
+machine-readable Sentinel organ harvest candidates.
+
+P6B does not execute external systems, grant authority, add browser execution,
+implement payment/spend runtime, trading runtime, account creation, credential
+access, external API execution, channel send, sidecar execution, vendor runtime
+bridges, vendor code copies, or silent authority expansion.
+
+## P6B Verification
+
+```text
+targeted P6B tests = 9 passed
+P6A neighbor tests = 20 passed
+event bus + P5L neighbor tests = 30 passed
+full sentinel-core regression = 647 passed
+```
+
+Commands verified:
+
+```bash
+python -m pytest tests/test_p6_agent_lab_organ_harvest.py -v --tb=short
+python -m pytest tests/test_p6_external_organ_foundry.py -v --tb=short
+python -m pytest tests/test_agent_event_bus.py tests/test_agent_brain_l4_integrated_review.py tests/test_agent_brain_l4_premortem_fixtures.py -v --tb=short
+python -m pytest tests -v --tb=short
+```
+
+P6B required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/vendor_harvest.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_agent_lab_organ_harvest.py
+sentinel-control/docs/organs/P6B_AGENT_LAB_ORGAN_HARVEST_SCORECARD.md
+sentinel-control/docs/organs/P6B_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6B harvest candidates:
+
+```text
+OpenClaw -> SentinelActionKernel
+Hermes -> SentinelMemorySkillSpec
+OpenJarvis -> SentinelCostRouter
+JARVIS -> PermissionedSidecarManifest
+financial-services -> FinancialProcedureGraph
+CloakBrowser -> BrowserPowerGovernor
+```
+
+Locked P6B rules:
+
+```text
+Agent Lab harvests mechanisms, not vendor runtime.
+P6B candidates are L2 Sentinel contract candidates only.
+P6B does not register executable organs.
+P6B does not grant authority.
+P6B does not copy vendor code.
+P6B does not bridge vendor runtime.
+P6B preserves dangerous runtime surfaces as blocked findings.
+VendorHarvestReference remains rewrite knowledge only.
+```
+
+## Prior P6A Phase
+
+P6A External Organ Foundry remains accepted as full locked. It creates the
 Sentinel-native contract layer for future external organs without adding real
 external execution powers.
-
-P6A does not execute external systems, grant authority, add browser execution,
-implement payment/spend runtime, trading runtime, account creation, credential
-access, vendor runtime bridges, vendor code copies, or silent authority
-expansion.
 
 ## P6A Verification
 

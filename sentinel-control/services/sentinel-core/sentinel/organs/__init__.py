@@ -13,10 +13,25 @@ from sentinel.organs.receipts import OrganExecutionReceipt
 from sentinel.organs.registry import ExternalOrganRegistry
 from sentinel.organs.replay import OrganReplayRecord
 from sentinel.organs.risk import OrganRiskLevel, OrganRiskProfile, OrganRiskProfiler
+from sentinel.organs.vendor_harvest import (
+    AgentLabHarvestSource,
+    AgentLabOrganHarvestClassifier,
+    AgentLabOrganHarvestMatrix,
+    HarvestCandidateStatus,
+    HarvestPowerFamily,
+    HarvestSourceKind,
+    OrganHarvestCandidate,
+)
 
 __all__ = [
+    "AgentLabHarvestSource",
+    "AgentLabOrganHarvestClassifier",
+    "AgentLabOrganHarvestMatrix",
     "ExternalOrganContract",
     "ExternalOrganRegistry",
+    "HarvestCandidateStatus",
+    "HarvestPowerFamily",
+    "HarvestSourceKind",
     "OrganAuthorityEnvelope",
     "OrganAuthorityEvaluator",
     "OrganCapability",
@@ -30,6 +45,7 @@ __all__ = [
     "OrganRiskLevel",
     "OrganRiskProfile",
     "OrganRiskProfiler",
+    "OrganHarvestCandidate",
     "OrganType",
     "VendorHarvestReference",
 ]
