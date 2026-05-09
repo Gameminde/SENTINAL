@@ -5,68 +5,81 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6M_FULL_LOCKED
-previous_phase = P6L_FULL_LOCKED
-next_phase = P6N_CODE_SHELL_AGENTLAB_HARVEST
+current_phase = P6N_FULL_LOCKED
+previous_phase = P6M_FULL_LOCKED
+next_phase = P6O_EXISTING_ORGANS_RUNTIME_PROMOTION_PLAN
 ```
 
-P6M Reality Activation for Existing Organs is accepted as full locked. It
-changes the direction from adding another organ family to making the already
-created organs do scoped real work.
+P6N Existing Organs Capability Frontier is accepted as full locked. It pushes
+the P6M-activated organs to their practical limits before adding any new organ
+family.
 
-P6M activates:
+P6N measures:
 
 ```text
-Browser public read
-External API read-only allowlisted GET/HEAD
-Channel local draft creation
-CredentialRef -> scoped env-var resolution with redacted receipt
-Desktop workspace list/read/write/create inside scoped root
-Capital signal ingestion from real receipts
-Trading read-only market data into paper trade
-Spend test-mode provider
+what each organ can do now
+what each organ can only simulate/test-mode
+what each organ cannot do yet
+what fails or is too weak
+what needs runtime/provider work
+what requires LLM runtime integration
+what should be promoted next
 ```
 
-P6M does not add a new organ family, real payment, real trading, live channel
-send, account creation, credential secret logging, browser power expansion,
-host desktop control, shell/process execution, or authority expansion.
+P6N does not add a new organ family, start Code/Shell harvest, add real
+payment, real trading, live channel send, account creation, credential secret
+logging, browser power expansion, host desktop control, shell/process
+execution, or authority expansion.
 
-## P6M Verification
+## P6N Verification
 
 ```text
-P6M targeted tests = 8 passed
+P6N targeted tests = 8 passed
+P6M neighbor tests = 8 passed
 full sentinel-core tests = not run by instruction
 ```
 
 Commands:
 
 ```bash
+python -m pytest tests/test_p6_existing_organs_capability_frontier.py -v --tb=short
 python -m pytest tests/test_p6_existing_organs_reality_activation.py -v --tb=short
 ```
 
-P6M required files:
+P6N required files:
 
 ```text
-sentinel-control/services/sentinel-core/sentinel/organs/reality_activation.py
+sentinel-control/services/sentinel-core/sentinel/organs/capability_frontier.py
 sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
-sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_reality_activation.py
-sentinel-control/docs/organs/P6M_REALITY_ACTIVATION_SCORECARD.md
-sentinel-control/docs/organs/P6M_LOCK_VERDICT.md
+sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_capability_frontier.py
+sentinel-control/docs/organs/P6N_EXISTING_ORGANS_CAPABILITY_FRONTIER_SCORECARD.md
+sentinel-control/docs/organs/P6N_ORGAN_LIMITS_MAP.md
+sentinel-control/docs/organs/P6N_LOCK_VERDICT.md
 sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
-Locked P6M rules:
+Locked P6N findings:
 
 ```text
-Green/Blue existing-organ actions may be real when scoped and receipted.
-Orange/Red actions remain test-mode, paper-mode, proposal, or special-authority
-paths.
-Black Lane misuse remains blocked.
-Full sentinel-core suite is reserved for giant block completion, not every
-small phase.
+Sentinel can do public reads, read-only API calls, local drafts, env credential
+refs, workspace file ops, capital signal ingestion, market-data paper trading,
+and test-mode spend.
+Sentinel can only simulate/test-mode live spend, real trading, channel send,
+and desktop host control.
+Sentinel cannot yet do authenticated live provider workflows, account creation,
+browser mutation, or shell execution.
+Weakest organ = credentials.
+Closest organ to production-scoped execution = desktop.
+Organs needing LLM runtime first = channel, capital, trading.
 No authority expansion is allowed.
 ```
+
+## Prior P6M Phase
+
+P6M Reality Activation for Existing Organs remains accepted as full locked. It
+changes the direction from adding another organ family to making the already
+created organs do scoped real work.
 
 ## Prior P6L Phase
 
