@@ -11,6 +11,17 @@ from sentinel.organs.trading.special_authority import (
     TradingReceipt,
     TradingSpecialAuthority,
 )
+from sentinel.organs.trading.tradingagents_harvest import (
+    TradingAgentsDataVendorRoute,
+    TradingAgentsFirmPlan,
+    TradingAgentsHarvestIntegrator,
+    TradingAgentsRoleAssignment,
+    TradingAgentsSignalParser,
+    TradingAgentsVendorPattern,
+    TradingDecisionRating,
+    TradingOutcomeMemoryEntry,
+    TradingRolePurpose,
+)
 
 __all__ = [
     "AssetPolicy",
@@ -22,6 +33,15 @@ __all__ = [
     "StopLossPolicy",
     "TradeJournal",
     "TradingAuthorityProposal",
+    "TradingAgentsDataVendorRoute",
+    "TradingAgentsFirmPlan",
+    "TradingAgentsHarvestIntegrator",
+    "TradingAgentsRoleAssignment",
+    "TradingAgentsSignalParser",
+    "TradingAgentsVendorPattern",
+    "TradingDecisionRating",
+    "TradingOutcomeMemoryEntry",
+    "TradingRolePurpose",
     "TradingReceipt",
     "TradingSpecialAuthority",
 ]

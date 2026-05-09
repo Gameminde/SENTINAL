@@ -23,7 +23,7 @@ Notes:
 
 ## Current Status
 
-OpenClaw, Hermes Agent, OpenJarvis, and JARVIS are approved for source clone only. No install or runtime execution is approved.
+OpenClaw, Hermes Agent, OpenJarvis, JARVIS, and TradingAgents are approved for source clone only. No install or runtime execution is approved.
 
 ## OpenClaw
 
@@ -80,6 +80,25 @@ Sandbox directory: agent-lab/vendors/openjarvis/source
 Known high-risk permissions: skill import from GitHub/Hermes/OpenClaw, channel integrations, browser extra, cloud model credentials, local engine downloads
 Run decision: clone only
 Notes: Source-only audit for CostRouter, skill import, learning, and routing mechanisms.
+```
+
+## TradingAgents
+
+```text
+Project: TradingAgents
+Repository: https://github.com/TauricResearch/TradingAgents
+Date checked: 2026-05-09
+Expected size: cloned source is 100 files / 5,079,309 bytes at commit 7e9e7b83c7fcc18d941300b253c6ed24d985788d
+Primary language/runtime: Python package using LangGraph, LangChain, yfinance, Alpha Vantage adapters, CLI, Docker
+Dependency manager: pyproject.toml / setuptools / uv.lock
+Install commands reviewed: pyproject scripts, README CLI, Dockerfile, docker-compose.yml, provider key setup
+Commands to avoid: pip install, uv sync, tradingagents CLI, python main.py, python -m cli.main, docker compose, data provider calls, LLM provider calls, broker/trading execution
+Network required: yes for clone only; no runtime network approved
+Secrets required: none for static audit
+Sandbox directory: agent-lab/vendors/tradingagents/source
+Known high-risk permissions: LLM provider API keys, Alpha Vantage key, yfinance network access, trading decision generation, persisted decision logs, checkpoint databases
+Run decision: clone only
+Notes: Source-only audit for trading role topology, bull/bear debate, risk debate, structured decision schemas, data vendor fallback, checkpoint/resume, and outcome reflection memory.
 ```
 
 ## JARVIS

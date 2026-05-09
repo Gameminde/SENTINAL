@@ -52,7 +52,7 @@ python -m pytest tests/test_p6_capital_operator_sandbox.py tests/test_p6_spend_r
 ## Next Phase
 
 ```text
-next_phase = P6J_AGENTLAB_IMPLEMENTATION_ALIGNMENT
+next_phase = P6I6_TRADINGAGENTS_HARVEST
 ```
 
 P6J must align P6C-P6I organs against AgentLab forensic findings and vendor
