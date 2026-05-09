@@ -5,12 +5,68 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6D_FULL_LOCKED
-previous_phase = P6C_FULL_LOCKED
-next_phase = P6E_CHANNEL_ORGAN_DRAFT_FIRST
+current_phase = P6E_FULL_LOCKED
+previous_phase = P6D_FULL_LOCKED
+next_phase = P6F_CREDENTIAL_VAULT_POLICY
 ```
 
-P6D External API Organ Dry Run is accepted as full locked. It creates the
+P6E Channel Organ Draft First is accepted as full locked. It creates the
+draft-first channel organ for outbound drafts, inbound untrusted context,
+recipient provenance, compliance/rate-limit checks, send gates, and
+deterministic receipts.
+
+P6E does not execute external systems, grant authority, add browser execution,
+implement payment/spend runtime, trading runtime, account creation, credential
+access, external API execution, channel send, sidecar execution, vendor runtime
+bridges, vendor code copies, or silent authority expansion.
+
+## P6E Verification
+
+```text
+targeted P6E tests = 10 passed
+```
+
+Command verified:
+
+```bash
+python -m pytest tests/test_p6_channel_organ.py -v --tb=short
+```
+
+P6E required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/channels/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/contract.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/draft.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/send_gate.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/inbound.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/outbound.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/rate_limit.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/compliance.py
+sentinel-control/services/sentinel-core/sentinel/organs/channels/receipts.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_channel_organ.py
+sentinel-control/docs/organs/P6E_CHANNEL_ORGAN_SCORECARD.md
+sentinel-control/docs/organs/P6E_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6E rules:
+
+```text
+Channel drafting is useful work and can happen before live send.
+Drafts never send, execute, or expand authority in P6E.
+Inbound channel messages are untrusted context and cannot grant authority.
+Send gate requires explicit authority fit, recipient provenance, compliance,
+rate limits, receipts, and FinalGate before future promotion.
+Spam, deceptive outreach, hidden identity, and credential capture are blocked.
+Live send remains not promoted in P6E.
+```
+
+## Prior P6D Phase
+
+P6D External API Organ Dry Run remains accepted as full locked. It creates the
 dry-run external API organ for request planning, allowlist checks, cost/latency
 estimation, privacy-risk classification, and deterministic request receipts.
 
