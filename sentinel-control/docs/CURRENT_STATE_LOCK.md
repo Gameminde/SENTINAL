@@ -5,12 +5,69 @@ Date: 2026-05-09
 ## Phase
 
 ```text
-current_phase = P6E_FULL_LOCKED
-previous_phase = P6D_FULL_LOCKED
-next_phase = P6F_CREDENTIAL_VAULT_POLICY
+current_phase = P6F_FULL_LOCKED
+previous_phase = P6E_FULL_LOCKED
+next_phase = P6G_CAPITAL_OPERATOR_SANDBOX
 ```
 
-P6E Channel Organ Draft First is accepted as full locked. It creates the
+P6F Credential Vault Policy is accepted as full locked. It defines credential
+access as scoped references, scoped grants, policy decisions, revocation,
+redaction, and deterministic receipts without adding real credential vault
+integration or secret access.
+
+P6F does not execute external systems, grant authority, add browser execution,
+implement payment/spend runtime, trading runtime, account creation, credential
+access, external API execution, channel send, sidecar execution, vendor runtime
+bridges, vendor code copies, or silent authority expansion.
+
+## P6F Verification
+
+```text
+targeted P6F tests = 13 passed
+```
+
+Command verified:
+
+```bash
+python -m pytest tests/test_p6_credential_vault_policy.py -v --tb=short
+```
+
+P6F required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/credentials/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/credentials/credential_ref.py
+sentinel-control/services/sentinel-core/sentinel/organs/credentials/vault_policy.py
+sentinel-control/services/sentinel-core/sentinel/organs/credentials/scoped_grant.py
+sentinel-control/services/sentinel-core/sentinel/organs/credentials/redaction.py
+sentinel-control/services/sentinel-core/sentinel/organs/credentials/revocation.py
+sentinel-control/services/sentinel-core/sentinel/organs/credentials/receipts.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/events.py
+sentinel-control/services/sentinel-core/tests/test_p6_credential_vault_policy.py
+sentinel-control/docs/organs/P6F_CREDENTIAL_VAULT_POLICY_SCORECARD.md
+sentinel-control/docs/organs/P6F_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6F rules:
+
+```text
+CredentialRef stores references only, never raw secrets.
+ScopedCredentialGrant requires scope, expiry, allowed organ, and allowed action
+class.
+CredentialTraceRedactor removes secret-like trace content.
+Prompt, memory, workspace, vendor harvest, and expected profit cannot authorize
+credential access.
+Matching grants may allow reference use only; secret access remains false.
+Credential use is Red Lane by default.
+Credential receipts require evidence refs and trace refs.
+Credential receipts cannot access secrets or expand authority.
+```
+
+## Prior P6E Phase
+
+P6E Channel Organ Draft First remains accepted as full locked. It creates the
 draft-first channel organ for outbound drafts, inbound untrusted context,
 recipient provenance, compliance/rate-limit checks, send gates, and
 deterministic receipts.

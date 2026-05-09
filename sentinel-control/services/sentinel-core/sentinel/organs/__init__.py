@@ -38,6 +38,16 @@ from sentinel.organs.contracts import (
     OrganType,
     VendorHarvestReference,
 )
+from sentinel.organs.credentials import (
+    CredentialAccessSource,
+    CredentialPolicyDecision,
+    CredentialPolicyReceipt,
+    CredentialRef,
+    CredentialTraceRedactor,
+    CredentialVaultPolicy,
+    ScopedCredentialGrant,
+    revoke_credential_grant,
+)
 from sentinel.organs.dry_run import OrganDryRunReceipt
 from sentinel.organs.external_api import (
     APIAllowlistDecision,
@@ -103,6 +113,12 @@ __all__ = [
     "ChannelSendGate",
     "ChannelSendGateDecision",
     "ChannelSendGateReceipt",
+    "CredentialAccessSource",
+    "CredentialPolicyDecision",
+    "CredentialPolicyReceipt",
+    "CredentialRef",
+    "CredentialTraceRedactor",
+    "CredentialVaultPolicy",
     "ExternalOrganContract",
     "ExternalAPIAllowlist",
     "ExternalAPIDryRunPlanner",
@@ -126,6 +142,7 @@ __all__ = [
     "OrganRiskProfile",
     "OrganRiskProfiler",
     "RecipientProvenance",
+    "ScopedCredentialGrant",
     "OrganHarvestCandidate",
     "OrganType",
     "VendorHarvestReference",
@@ -133,4 +150,5 @@ __all__ = [
     "build_channel_organ_contract",
     "build_external_api_organ_contract",
     "lane_allows_auto_execute",
+    "revoke_credential_grant",
 ]
