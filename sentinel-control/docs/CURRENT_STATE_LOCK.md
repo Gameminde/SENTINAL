@@ -5,12 +5,106 @@ Date: 2026-05-10
 ## Phase
 
 ```text
-current_phase = P6S_A_FULL_LOCKED
-previous_phase = P6R5_FULL_LOCKED
-next_phase = P6S_B_DESKTOP_WORKSPACE_L6_IMPLEMENTATION
+current_phase = P6S_B_FULL_LOCKED
+previous_phase = P6S_A_FULL_LOCKED
+next_phase = P6T_BROWSER_CONTROLLED_NAVIGATION_L6
 ```
 
-P6S-A Desktop AgentLab Power Binding is accepted as full locked. It binds
+P6S-B Desktop Workspace L6 Implementation is accepted as full locked. It
+promotes the existing desktop workspace capability into real scoped L6 local
+workspace operations without adding broad host control.
+
+P6S-B implements:
+
+```text
+DesktopWorkspaceAuthority
+WorkspaceOperationAdapter
+WorkspaceOperationBudget
+WorkspaceTimeoutPolicy
+WorkspaceMutationScope
+PathContainmentProofRef
+WorkspaceRollbackRef
+DesktopWorkspaceKillSwitch
+WorkspaceCostTrace
+DesktopWorkspaceL6Receipt
+DesktopWorkspaceL6Result
+WorkspaceFailureReceipt
+WorkspaceDiffSummary
+WorkspaceContextCard
+DesktopDecisionFrameSlice
+WorkspaceActionKernel
+WorkspaceCapabilityScanner
+DesktopWorkspaceL6FinalGate
+WorkspaceReceiptAdapter
+```
+
+P6S-B real scoped workspace actions:
+
+```text
+list_dir
+read_file
+write_file
+create_folder
+```
+
+P6S-B requires scoped root authority, P6S-A source-binding refs, path
+containment proof refs, deterministic receipts, rollback refs for mutation,
+compact workspace context cards, Desktop decision-frame slices, kill switch,
+and FinalGate compatibility.
+
+P6S-B preserves P6R context discipline:
+
+```text
+raw workspace content may be returned to the local caller
+raw workspace content is not placed in receipts or decision frames
+receipt refs and content hashes travel in the LLM-facing context
+workspace trees are compact summaries, not raw dumps
+```
+
+P6S-B does not add Code/Shell harvest, a new organ family, full host control,
+shell/process execution, live screenshot/clipboard, desktop click/type/key,
+sidecar admin mutation, vendor runtime bridging, vendor code copy, browser power
+expansion, payment/spend runtime, trading runtime, credential secret access, or
+authority expansion.
+
+## P6S-B Verification
+
+```text
+P6S-B targeted tests = 9 passed
+P6L desktop sidecar neighbor tests = 14 passed
+P6M reality activation neighbor tests = 8 passed
+full sentinel-core tests = not run by instruction
+```
+
+```bash
+python -m pytest tests/test_p6_desktop_workspace_l6.py -v --tb=short
+python -m pytest tests/test_p6_desktop_sidecar_organ.py -v --tb=short
+python -m pytest tests/test_p6_existing_organs_reality_activation.py -v --tb=short
+```
+
+P6S-B required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/workspace_l6.py
+sentinel-control/services/sentinel-core/sentinel/organs/desktop/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/tests/test_p6_desktop_workspace_l6.py
+sentinel-control/docs/organs/P6S_B_DESKTOP_WORKSPACE_L6_SCORECARD.md
+sentinel-control/docs/organs/P6S_B_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6T go condition:
+
+```text
+P6T may start only as controlled browser navigation L6 that uses P6R context
+discipline, allowed domains, navigation receipts, timeout budget, compact page
+evidence, authority checks, and no login/session mutation.
+```
+
+## Prior P6S-A Phase
+
+P6S-A Desktop AgentLab Power Binding remains accepted as full locked. It binds
 Desktop Workspace L6 to the strongest relevant AgentLab mechanisms before any
 Desktop L6 implementation code starts.
 
@@ -43,29 +137,6 @@ vendor runtime bridging, vendor code copy, or authority expansion.
 ```text
 P6S-A docs verification = git diff --check clean
 full sentinel-core tests = not run; docs-only binding phase
-```
-
-Command:
-
-```bash
-git diff --check -- sentinel-control/docs/organs/P6S_DESKTOP_AGENTLAB_POWER_BINDING.md sentinel-control/docs/CURRENT_STATE_LOCK.md sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
-```
-
-P6S-A required files:
-
-```text
-sentinel-control/docs/organs/P6S_DESKTOP_AGENTLAB_POWER_BINDING.md
-sentinel-control/docs/organs/P6S_A_LOCK_VERDICT.md
-sentinel-control/docs/CURRENT_STATE_LOCK.md
-sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
-```
-
-Locked P6S-B go condition:
-
-```text
-P6S-B may start only as a Desktop Workspace L6 implementation that uses the
-P6S-A binding, P6R decision frames, scoped workspace authority, path containment
-proofs, receipts, rollback refs, kill switch, and FinalGate.
 ```
 
 ## Prior P6R5 Phase
