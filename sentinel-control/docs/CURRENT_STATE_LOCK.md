@@ -12,7 +12,8 @@ next_phase = P6S_DESKTOP_WORKSPACE_L6_PROMOTION
 
 P6R5 Sentinel Cognitive Mechanics Review is accepted as full locked. It
 formally reviews Sentinel as a mathematical, physical, algorithmic, and
-real-world thinking/action system before Desktop Workspace L6.
+real-world thinking/action system before Desktop Workspace L6, then grounds
+that review in P6Q/P6R code behavior.
 
 P6R5 verdict:
 
@@ -56,8 +57,11 @@ family, runtime powers, external execution powers, or authority expansion.
 ## P6R5 Verification
 
 ```text
-P6R5 docs-only verification = git diff --check clean
-full sentinel-core tests = not run; docs-only phase
+P6R5 docs verification = git diff --check clean
+P6Q targeted tests = 9 passed
+P6R targeted tests = 17 passed
+P6M/P6O/P6P/P6L neighbor tests = 33 passed
+full sentinel-core tests = not run by instruction
 ```
 
 Command:
@@ -74,9 +78,20 @@ sentinel-control/docs/research/P6R5_MATH_PHYSICS_ALGORITHM_MODEL.md
 sentinel-control/docs/research/P6R5_AGENT_LOOP_FORMAL_SPEC.md
 sentinel-control/docs/research/P6R5_FUTURE_OR_GENERIC_VERDICT.md
 sentinel-control/docs/research/P6R5_FAILURE_MODES_AND_PROOF_GAPS.md
+sentinel-control/docs/research/P6R5_CODE_GROUNDED_REVIEW_ADDENDUM.md
 sentinel-control/docs/research/P6R5_LOCK_VERDICT.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+```
+
+P6R5 code-grounded corrections:
+
+```text
+P6Q over-budget decision frames are measured and flagged instead of capped.
+P6R compression checks specific required evidence refs when provided.
+P6R verifier can validate receipt refs against a known receipt graph.
+AuthorityCardBuilder removes allowed/forbidden overlap with forbidden winning.
+Decision-frame sanitization covers dict keys as well as values.
 ```
 
 Locked P6R5 go condition:
@@ -133,8 +148,8 @@ family, external execution powers, or authority expansion.
 ## P6R Verification
 
 ```text
-P6R targeted tests = 12 passed
-P6Q neighbor tests = 8 passed
+P6R targeted tests = 17 passed
+P6Q neighbor tests = 9 passed
 full sentinel-core tests = not run by instruction
 ```
 
@@ -215,7 +230,7 @@ family, external execution powers, or authority expansion.
 ## P6Q Verification
 
 ```text
-P6Q targeted tests = 8 passed
+P6Q targeted tests = 9 passed
 full sentinel-core tests = not run by instruction
 ```
 
@@ -249,6 +264,8 @@ Sentinel optimizes context for the selected model.
 Model prices and context lengths are configurable profiles.
 Receipts remain exact outside the prompt.
 P6R must construct compact LLM decision frames using P6Q measurements.
+Over-budget decision frames are reported truthfully before compression and
+cost projection uses the measured frame size.
 ```
 
 ## Prior P6Q0 Phase

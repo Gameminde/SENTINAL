@@ -135,8 +135,9 @@ class DecisionFrameVerificationResult(SentinelModel):
 
 
 class DecisionFrameVerifier:
-    def __init__(self, *, required_evidence_refs: list[str] | None = None) -> None:
+    def __init__(self, *, required_evidence_refs: list[str] | None = None, known_receipt_ids: list[str] | None = None) -> None:
         self.required_evidence_refs = required_evidence_refs or []
+        self.known_receipt_ids = set(known_receipt_ids) if known_receipt_ids is not None else None
 
     def verify(self, frame: LLMDecisionFrame) -> DecisionFrameVerificationResult:
         failures: list[str] = []
@@ -144,6 +145,10 @@ class DecisionFrameVerifier:
         for ref in self.required_evidence_refs:
             if ref not in evidence_refs:
                 failures.append(f"missing critical evidence ref: {ref}")
+        if self.known_receipt_ids is not None:
+            for ref in frame.receipt_refs:
+                if ref not in self.known_receipt_ids:
+                    failures.append(f"unresolvable receipt ref: {ref}")
         if not frame.authority_card:
             failures.append("authority card missing")
         if frame.authority_expansion:
@@ -158,7 +163,8 @@ class DecisionFrameVerifier:
             authority_preserved=bool(frame.authority_card) and not frame.authority_expansion,
             critical_evidence_preserved=not any(failure.startswith("missing critical evidence ref") for failure in failures),
             tool_surface_minimized=len(frame.selected_tool_surface) <= 5,
-            receipt_refs_resolvable=bool(frame.receipt_refs),
+            receipt_refs_resolvable=bool(frame.receipt_refs)
+            and not any(failure.startswith("unresolvable receipt ref") for failure in failures),
             deterministic_frame_hash=frame.deterministic_frame_hash and bool(frame.frame_hash),
             prompt_budget_respected=frame.prompt_budget_respected,
             raw_secret_leakage=frame.raw_secret_leakage,

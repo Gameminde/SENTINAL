@@ -32,7 +32,7 @@ def sanitize_context_payload(payload: Any) -> Any:
     if isinstance(payload, tuple):
         return tuple(sanitize_context_payload(item) for item in payload)
     if isinstance(payload, dict):
-        return {key: sanitize_context_payload(value) for key, value in payload.items()}
+        return {sanitize_context_payload(key): sanitize_context_payload(value) for key, value in payload.items()}
     return payload
 
 

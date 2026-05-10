@@ -190,9 +190,25 @@ def test_user_selected_expensive_model_projects_narrow_quality_cost_without_over
 
     assert report.user_selected_model == "o3-pro"
     assert report.model_override_attempted is False
-    assert report.decision_frame_tokens <= 1_000
+    assert report.decision_frame_tokens > 1_000
+    assert report.decision_frame_over_budget is True
     assert report.estimated_cost_by_user_model.input_cost_usd > 0
     assert "critical_reasoning" in report.quality_expectation
+
+
+def test_context_pressure_reports_over_budget_without_capping_projection():
+    ledger = seeded_ledger()
+    model = selected_model(max_frame_tokens=500)
+
+    report = ContextPressureAnalyzer().analyze(
+        mission_id="over_budget_context",
+        ledger=ledger,
+        user_model=model,
+    )
+
+    assert report.decision_frame_tokens > 500
+    assert report.decision_frame_over_budget is True
+    assert report.estimated_cost_by_user_model.input_tokens == report.decision_frame_tokens
 
 
 def test_user_model_contract_allows_recommendation_but_rejects_silent_override():

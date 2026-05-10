@@ -37,6 +37,8 @@ model cost/context/capability values are configurable profiles
 naive_full_context vs summary_context vs subquadratic_decision_frame are compared
 largest pressure source is identified
 P6R implementation inputs are generated
+over-budget decision frames are reported instead of capped
+cost projection uses measured decision frame tokens
 no authority expansion
 no external execution
 ```
@@ -57,7 +59,7 @@ expensive user-selected model -> narrow quality cost projection
 
 ```text
 python -m pytest tests/test_p6_context_token_model_economy_frontier.py -v --tb=short
-8 passed
+9 passed
 ```
 
 ## Boundaries
@@ -73,4 +75,3 @@ add new external execution powers
 override the user-selected model
 copy or bridge vendor runtime
 ```
-

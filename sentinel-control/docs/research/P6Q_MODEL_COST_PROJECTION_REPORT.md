@@ -55,6 +55,18 @@ cache_savings_usd
 total_estimated_usd
 ```
 
+P6R5 code-grounded review hardened this behavior:
+
+```text
+decision_frame_tokens are measured, not capped before projection
+decision_frame_over_budget records whether the selected model budget is exceeded
+input cost is projected from measured decision_frame_tokens
+```
+
+This keeps token pressure honest for expensive or narrow-budget models. A
+frame that exceeds the user's configured decision-frame budget must be visible
+before P6R attempts compression.
+
 ## Cheap Vs Expensive Model Behavior
 
 For cheap user-selected models, Sentinel can project broader exploration and
@@ -71,4 +83,3 @@ model_override_attempted = false
 
 Sentinel may recommend an alternative model, but it must not silently replace
 the user's selected model.
-

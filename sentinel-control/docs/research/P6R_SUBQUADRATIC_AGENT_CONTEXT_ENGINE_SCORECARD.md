@@ -45,6 +45,10 @@ ContextCompressionResult
 | Redact secret-like content from prompt and stored frame cards | locked |
 | Report over-budget frames instead of hiding overflow | locked |
 | Fail verifier when critical evidence is missing | locked |
+| Check required evidence refs in compression result | locked |
+| Check receipt refs against known receipt graph when provided | locked |
+| Remove allowed/forbidden authority overlap | locked |
+| Redact secret-like dict keys as well as values | locked |
 | Add no new external execution powers | locked |
 | Add no authority expansion | locked |
 
@@ -58,8 +62,8 @@ python -m pytest tests/test_p6_context_token_model_economy_frontier.py -v --tb=s
 Expected targeted result:
 
 ```text
-P6R tests = 12 passed
-P6Q neighbor tests = 8 passed
+P6R tests = 17 passed
+P6Q neighbor tests = 9 passed
 full sentinel-core suite = not run by instruction
 ```
 

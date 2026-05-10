@@ -53,6 +53,7 @@ class ContextPressureReport(SentinelModel):
     estimated_cost_by_user_model: DecisionFrameCostProjection
     retry_cost_projection: DecisionFrameCostProjection
     cache_savings_if_available: float = Field(ge=0.0)
+    decision_frame_over_budget: bool = False
     mode_comparison: ContextModeComparison
     tool_schema_report: ToolSchemaTokenReport
     receipt_token_report: ReceiptTokenReport
@@ -86,10 +87,8 @@ class ContextPressureAnalyzer:
         categories = ledger.tokens_by_category()
         raw_tokens = ledger.total_tokens()
         compressed_tokens = self._compressed_tokens(raw_tokens, summary_ratio)
-        decision_frame_tokens = min(
-            user_model.context_budget_policy.max_decision_frame_tokens,
-            self._decision_frame_tokens(categories, compressed_tokens),
-        )
+        decision_frame_tokens = self._decision_frame_tokens(categories, compressed_tokens)
+        decision_frame_over_budget = decision_frame_tokens > user_model.context_budget_policy.max_decision_frame_tokens
         estimated_cost = user_model.cost_profile.project(
             input_tokens=decision_frame_tokens,
             output_tokens=user_model.context_budget_policy.reserve_output_tokens,
@@ -139,6 +138,7 @@ class ContextPressureAnalyzer:
             estimated_cost_by_user_model=estimated_cost,
             retry_cost_projection=retry_cost,
             cache_savings_if_available=retry_cost.cache_savings_usd,
+            decision_frame_over_budget=decision_frame_over_budget,
             mode_comparison=mode_comparison,
             tool_schema_report=tool_report,
             receipt_token_report=receipt_report,

@@ -30,13 +30,17 @@ User-selected model is preserved.
 Prompt budget is derived from UserModelContract.
 Authority constraints are carried into the frame.
 Critical evidence refs are carried into the frame.
+Required evidence refs can be checked explicitly after compression.
 Raw receipts remain outside the prompt.
 Receipt refs remain replayable.
+Receipt refs can be checked against a known receipt graph.
+An empty known receipt graph is authoritative and rejects all frame receipt refs.
 Tool surface is minimized.
 Frame hash is deterministic.
-Secret-like content is redacted.
+Secret-like content is redacted in values and keys.
 Stored frame cards are sanitized before hashing and persistence.
 Over-budget frames remain measurable and fail the budget check.
+Forbidden tools win over allowed-tool overlap.
 Missing critical evidence fails verification.
 ```
 
@@ -64,7 +68,7 @@ python -m pytest tests/test_p6_context_token_model_economy_frontier.py -v --tb=s
 Expected result:
 
 ```text
-P6R targeted tests = 12 passed
-P6Q neighbor tests = 8 passed
+P6R targeted tests = 17 passed
+P6Q neighbor tests = 9 passed
 full sentinel-core suite = not run by instruction
 ```

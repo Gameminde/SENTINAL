@@ -141,6 +141,17 @@ def test_decision_frame_preserves_authority_constraints():
     assert frame.authority_expansion is False
 
 
+def test_authority_card_removes_forbidden_allowed_overlap():
+    card = AuthorityCardBuilder().authority_card(
+        allowed_tools=["api_get", "shell_exec"],
+        forbidden_tools=["shell_exec"],
+        constraints=["no shell"],
+    )
+
+    assert card["allowed_tools"] == ["api_get"]
+    assert card["forbidden_tools"] == ["shell_exec"]
+
+
 def test_decision_frame_preserves_critical_evidence_refs():
     frame = build_frame()
 
@@ -214,6 +225,23 @@ def test_raw_30k_context_compresses_to_1k_2k_frame():
     assert result.compression_ratio < 0.10
 
 
+def test_context_compression_result_checks_required_evidence_refs():
+    frame = build_frame()
+    passing = ContextCompressionResult.from_frame(
+        raw_context="mission context " * 100,
+        frame=frame,
+        required_evidence_refs=["ev_browser"],
+    )
+    failing = ContextCompressionResult.from_frame(
+        raw_context="mission context " * 100,
+        frame=frame,
+        required_evidence_refs=["ev_missing"],
+    )
+
+    assert passing.critical_evidence_preserved is True
+    assert failing.critical_evidence_preserved is False
+
+
 def test_frame_hash_is_deterministic():
     one = build_frame()
     two = build_frame()
@@ -285,6 +313,30 @@ def test_secret_like_content_is_not_stored_inside_frame_cards():
     assert frame.raw_secret_leakage is False
 
 
+def test_secret_like_content_in_payload_keys_is_redacted():
+    need = ContextNeedEstimator().estimate(
+        mission_id="mission_secret_key",
+        objective="Review payload keys.",
+    )
+
+    frame = LLMDecisionFrame.build(
+        mission_id="mission_secret_key",
+        mission_card=StateCardBuilder().mission_card(need) | {"sk-secret-value": "key label"},
+        authority_card=AuthorityCardBuilder().authority_card(allowed_tools=[], forbidden_tools=[], constraints=[]),
+        progress_card=StateCardBuilder().progress_card(completed=[], pending=[]),
+        evidence=[],
+        selected_tool_surface=[],
+        current_blockers=[],
+        next_decision_options=[],
+        required_output_schema={"password=hunter2": "string"},
+        budget_allocator=PromptBudgetAllocator(selected_model()),
+    )
+    stored = str(frame.model_dump())
+
+    assert "sk-secret-value" not in stored
+    assert "hunter2" not in stored
+
+
 def test_missing_critical_evidence_fails_verifier():
     frame = build_frame()
     broken = frame.model_copy(update={"top_k_evidence": []})
@@ -293,3 +345,22 @@ def test_missing_critical_evidence_fails_verifier():
 
     assert result.passed is False
     assert "missing critical evidence ref: ev_browser" in result.failures
+
+
+def test_verifier_checks_receipt_refs_against_known_graph():
+    frame = build_frame()
+
+    result = DecisionFrameVerifier(known_receipt_ids=["r_browser"]).verify(frame)
+
+    assert result.passed is False
+    assert "unresolvable receipt ref: r_api" in result.failures
+
+
+def test_verifier_treats_empty_known_receipt_graph_as_authoritative():
+    frame = build_frame()
+
+    result = DecisionFrameVerifier(known_receipt_ids=[]).verify(frame)
+
+    assert result.passed is False
+    assert "unresolvable receipt ref: r_api" in result.failures
+    assert "unresolvable receipt ref: r_browser" in result.failures

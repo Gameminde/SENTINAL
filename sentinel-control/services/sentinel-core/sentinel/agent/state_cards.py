@@ -28,9 +28,11 @@ class AuthorityCardBuilder:
         forbidden_tools: list[str],
         constraints: list[str],
     ) -> dict[str, Any]:
+        forbidden = sorted(set(forbidden_tools))
+        allowed = sorted(tool for tool in set(allowed_tools) if tool not in set(forbidden))
         return {
-            "allowed_tools": sorted(allowed_tools),
-            "forbidden_tools": sorted(forbidden_tools),
+            "allowed_tools": allowed,
+            "forbidden_tools": forbidden,
             "constraints": constraints,
             "authority_expansion": False,
         }

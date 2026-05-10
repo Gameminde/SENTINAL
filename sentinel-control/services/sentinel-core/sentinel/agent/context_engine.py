@@ -74,16 +74,29 @@ class ContextCompressionResult(SentinelModel):
     authority_preserved: bool
     critical_evidence_preserved: bool
     prompt_budget_respected: bool
+    required_evidence_refs: list[str] = Field(default_factory=list)
+    missing_evidence_refs: list[str] = Field(default_factory=list)
 
     @classmethod
-    def from_frame(cls, *, raw_context: str, frame: LLMDecisionFrame) -> ContextCompressionResult:
+    def from_frame(
+        cls,
+        *,
+        raw_context: str,
+        frame: LLMDecisionFrame,
+        required_evidence_refs: list[str] | None = None,
+    ) -> ContextCompressionResult:
         raw_tokens = estimate_tokens(raw_context)
         ratio = (frame.token_count / raw_tokens) if raw_tokens else 0.0
+        required_refs = required_evidence_refs or []
+        frame_refs = set(frame.all_evidence_refs())
+        missing_refs = sorted(ref for ref in required_refs if ref not in frame_refs)
         return cls(
             raw_context_tokens=raw_tokens,
             decision_frame_tokens=frame.token_count,
             compression_ratio=round(ratio, 6),
             authority_preserved=bool(frame.authority_card),
-            critical_evidence_preserved=bool(frame.top_k_evidence),
+            critical_evidence_preserved=not missing_refs if required_refs else bool(frame.top_k_evidence),
             prompt_budget_respected=frame.prompt_budget_respected,
+            required_evidence_refs=required_refs,
+            missing_evidence_refs=missing_refs,
         )
