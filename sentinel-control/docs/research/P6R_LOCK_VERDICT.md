@@ -1,0 +1,68 @@
+# P6R Lock Verdict
+
+Date: 2026-05-10
+
+```text
+phase = P6R_SUBQUADRATIC_AGENT_CONTEXT_ENGINE_PROTOTYPE
+verdict = FULL_LOCKED
+previous_phase = P6Q_FULL_LOCKED
+next_phase = P6S_DESKTOP_WORKSPACE_L6_PROMOTION
+```
+
+## What Locked
+
+P6R locks a prototype subquadratic agent context engine. It converts large
+multi-organ context into a compact `LLMDecisionFrame` using top-k receipts,
+evidence cards, state cards, authority cards, selected tools, blockers, and
+required output schema.
+
+## Why It Matters
+
+P6Q proved that stronger organs create token pressure through receipts, tool
+schemas, browser/API outputs, workspace state, channel drafts, and market
+signals. P6R gives Sentinel a context economy layer before Desktop Workspace L6
+so real organs can become stronger without flooding the selected model.
+
+## Locked Guarantees
+
+```text
+User-selected model is preserved.
+Prompt budget is derived from UserModelContract.
+Authority constraints are carried into the frame.
+Critical evidence refs are carried into the frame.
+Raw receipts remain outside the prompt.
+Receipt refs remain replayable.
+Tool surface is minimized.
+Frame hash is deterministic.
+Secret-like content is redacted.
+Missing critical evidence fails verification.
+```
+
+## Boundaries
+
+```text
+new external execution powers = 0
+desktop L6 started = no
+code/shell harvest started = no
+new organ family = no
+payment/spend execution = no
+trading execution = no
+credential access = no
+authority expansion = no
+vendor runtime bridge = no
+```
+
+## Verification
+
+```bash
+python -m pytest tests/test_p6_subquadratic_agent_context_engine.py -v --tb=short
+python -m pytest tests/test_p6_context_token_model_economy_frontier.py -v --tb=short
+```
+
+Expected result:
+
+```text
+P6R targeted tests = 10 passed
+P6Q neighbor tests = 8 passed
+full sentinel-core suite = not run by instruction
+```

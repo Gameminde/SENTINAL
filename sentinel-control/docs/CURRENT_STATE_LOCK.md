@@ -5,12 +5,100 @@ Date: 2026-05-10
 ## Phase
 
 ```text
-current_phase = P6Q_FULL_LOCKED
-previous_phase = P6Q0_FULL_LOCKED
-next_phase = P6R_SUBQUADRATIC_AGENT_CONTEXT_ENGINE_PROTOTYPE
+current_phase = P6R_FULL_LOCKED
+previous_phase = P6Q_FULL_LOCKED
+next_phase = P6S_DESKTOP_WORKSPACE_L6_PROMOTION
 ```
 
-P6Q Context Token And Model Economy Frontier is accepted as full locked. It
+P6R Subquadratic Agent Context Engine Prototype is accepted as full locked. It
+turns P6Q context economy measurements into compact LLM decision frames that
+preserve authority, critical evidence refs, blockers, selected tools, and
+receipt replay integrity while keeping exact receipts outside the prompt.
+
+P6R locks these internal models and components:
+
+```text
+ContextNeedEstimator
+ReceiptGraphRetriever
+EvidenceRanker
+StateCardBuilder
+AuthorityCardBuilder
+ToolSurfaceRouter
+PromptBudgetAllocator
+LLMDecisionFrame
+DecisionFrameVerifier
+DecisionFrameHash
+ContextCompressionResult
+```
+
+P6R decision frames include:
+
+```text
+mission card
+authority card
+progress card
+top-k evidence
+selected tool surface only
+current blockers
+next decision options
+required output schema
+receipt refs, not raw receipts
+```
+
+P6R excludes raw receipts, raw files, raw browser pages, raw API outputs, raw
+channel messages, raw tool schemas, debate transcripts, historical state, and
+secret-like material by default.
+
+P6R does not start Desktop Workspace L6, Code/Shell harvest, a new organ
+family, external execution powers, or authority expansion.
+
+## P6R Verification
+
+```text
+P6R targeted tests = 10 passed
+P6Q neighbor tests = 8 passed
+full sentinel-core tests = not run by instruction
+```
+
+Commands:
+
+```bash
+python -m pytest tests/test_p6_subquadratic_agent_context_engine.py -v --tb=short
+python -m pytest tests/test_p6_context_token_model_economy_frontier.py -v --tb=short
+```
+
+P6R required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/context_engine.py
+sentinel-control/services/sentinel-core/sentinel/agent/decision_frame.py
+sentinel-control/services/sentinel-core/sentinel/agent/receipt_retriever.py
+sentinel-control/services/sentinel-core/sentinel/agent/evidence_ranker.py
+sentinel-control/services/sentinel-core/sentinel/agent/state_cards.py
+sentinel-control/services/sentinel-core/sentinel/agent/tool_surface_router.py
+sentinel-control/services/sentinel-core/sentinel/agent/prompt_budget.py
+sentinel-control/services/sentinel-core/sentinel/agent/__init__.py
+sentinel-control/services/sentinel-core/tests/test_p6_subquadratic_agent_context_engine.py
+sentinel-control/docs/research/P6R_SUBQUADRATIC_AGENT_CONTEXT_ENGINE_SCORECARD.md
+sentinel-control/docs/research/P6R_DECISION_FRAME_SPEC.md
+sentinel-control/docs/research/P6R_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6R findings:
+
+```text
+The user-selected model remains authoritative.
+Sentinel optimizes prompt exposure for that selected model.
+Raw evidence remains exact and replayable outside the prompt.
+The LLM sees a compact decision frame, not a raw mission dump.
+Tool surfaces are minimized to relevant authorized tools.
+Missing critical evidence causes verifier failure.
+```
+
+## Prior P6Q Phase
+
+P6Q Context Token And Model Economy Frontier remains accepted as full locked. It
 turns P6Q0 research into measurable token/context/model-cost pressure reports
 before building the P6R context engine.
 

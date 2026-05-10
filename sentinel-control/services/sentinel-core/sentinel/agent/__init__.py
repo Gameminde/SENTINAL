@@ -50,6 +50,14 @@ from sentinel.agent.context_pressure import (
     ReceiptTokenReport,
     ToolSchemaTokenReport,
 )
+from sentinel.agent.context_engine import ContextCompressionResult, ContextNeed, ContextNeedEstimator
+from sentinel.agent.decision_frame import (
+    DecisionFrameHash,
+    DecisionFrameVerificationResult,
+    DecisionFrameVerifier,
+    LLMDecisionFrame,
+)
+from sentinel.agent.evidence_ranker import EvidenceCard, EvidenceRanker
 from sentinel.agent.model_contract import (
     ContextBudgetPolicy,
     ModelCapabilityProfile,
@@ -57,7 +65,11 @@ from sentinel.agent.model_contract import (
     UserModelContract,
 )
 from sentinel.agent.model_cost import DecisionFrameCostProjection, ModelCostProfile
+from sentinel.agent.prompt_budget import PromptBudgetAllocator
+from sentinel.agent.receipt_retriever import ReceiptGraphRetriever, ReceiptRecord
+from sentinel.agent.state_cards import AuthorityCardBuilder, StateCardBuilder
 from sentinel.agent.token_ledger import TokenLedger, TokenLedgerEntry, estimate_tokens
+from sentinel.agent.tool_surface_router import ToolSurfaceRouter
 from sentinel.agent.workspace import (
     BroadcastSlice,
     MissionGlobalWorkspace,
@@ -335,6 +347,7 @@ __all__ = [
     "AdversarialReviewer",
     "AdaptiveDebateRouter",
     "Assumption",
+    "AuthorityCardBuilder",
     "AuthorityExtensionProposal",
     "BrowserCitation",
     "BrainMode",
@@ -448,13 +461,19 @@ __all__ = [
     "CoreGateCheck",
     "CoreGateCheckKind",
     "ContextBudgetPolicy",
+    "ContextCompressionResult",
     "ContextModeComparison",
+    "ContextNeed",
+    "ContextNeedEstimator",
     "ContextPressureAnalyzer",
     "ContextPressureReport",
     "ContradictionRef",
     "ContradictionSupport",
     "DebateAggregationPlan",
     "DecisionFrameCostProjection",
+    "DecisionFrameHash",
+    "DecisionFrameVerificationResult",
+    "DecisionFrameVerifier",
     "DebateRolePlan",
     "DebateRoute",
     "DebrouilleLevel",
@@ -462,8 +481,10 @@ __all__ = [
     "EvidenceChainBuilder",
     "EvidenceChainReviewer",
     "EvidenceChainReviewResult",
+    "EvidenceCard",
     "EvidenceClaim",
     "EvidenceDecisionType",
+    "EvidenceRanker",
     "EvidenceRef",
     "EvidenceSourceType",
     "EvidenceSupport",
@@ -495,6 +516,7 @@ __all__ = [
     "InvariantViolation",
     "KnownFailureMode",
     "LearningProposal",
+    "LLMDecisionFrame",
     "LLMReasoningOutput",
     "LLMRole",
     "LLMVerificationOutput",
@@ -512,6 +534,7 @@ __all__ = [
     "ObjectiveScore",
     "OrganOutputTokenReport",
     "PlannerBridge",
+    "PromptBudgetAllocator",
     "ProcedurePrecondition",
     "PerceptionActionLink",
     "PerceptionConfidence",
@@ -534,6 +557,8 @@ __all__ = [
     "QualityExpectationContract",
     "ReadOnlyHttpFetcher",
     "ReceiptTokenReport",
+    "ReceiptGraphRetriever",
+    "ReceiptRecord",
     "RequiredAuthority",
     "RepairDecision",
     "RepairDecisionType",
@@ -549,6 +574,7 @@ __all__ = [
     "SkillProcedureGraph",
     "SkillProcedureMatch",
     "SparseMoAPlan",
+    "StateCardBuilder",
     "SuccessProof",
     "SceneActionCandidate",
     "Supervisor",
@@ -556,6 +582,7 @@ __all__ = [
     "ToolSelectionResult",
     "ToolSelectionStatus",
     "ToolSchemaTokenReport",
+    "ToolSurfaceRouter",
     "ToolCallCanonicalizationResult",
     "ToolCallParseMethod",
     "ToolCallParseStatus",
