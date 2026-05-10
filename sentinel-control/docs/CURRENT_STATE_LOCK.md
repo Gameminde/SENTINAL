@@ -5,58 +5,88 @@ Date: 2026-05-10
 ## Phase
 
 ```text
-current_phase = P6Q0_FULL_LOCKED
-previous_phase = P6P_FULL_LOCKED
-next_phase = P6Q_CONTEXT_TOKEN_AND_MODEL_ECONOMY_FRONTIER
+current_phase = P6Q_FULL_LOCKED
+previous_phase = P6Q0_FULL_LOCKED
+next_phase = P6R_SUBQUADRATIC_AGENT_CONTEXT_ENGINE_PROTOTYPE
 ```
 
-P6Q0 AgentLab Frontier Deep Research is accepted as full locked. It confirms
-that Sentinel should analyze AgentLab and recent agent trends before coding the
-next runtime tranche, and that Context/Token/Model Economy must precede Desktop
-Workspace L6.
+P6Q Context Token And Model Economy Frontier is accepted as full locked. It
+turns P6Q0 research into measurable token/context/model-cost pressure reports
+before building the P6R context engine.
 
-P6Q0 locks this research order:
+P6Q locks these internal models:
 
 ```text
-1. AgentLab deep analysis
-2. GitHub trends cross-check
-3. Sentinel-native rewrite backlog
-4. P6Q/P6R implementation after
+UserModelContract
+ModelCostProfile
+ModelCapabilityProfile
+ContextBudgetPolicy
+QualityExpectationContract
+TokenLedger
+TokenLedgerEntry
+ContextPressureReport
+ToolSchemaTokenReport
+ReceiptTokenReport
+OrganOutputTokenReport
+DecisionFrameCostProjection
+ContextModeComparison
 ```
 
-P6Q0 answers the required question:
+P6Q compares:
 
 ```text
-Is Context/Token/Model Economy before Desktop L6 the correct next move?
-Answer: yes.
+naive_full_context
+summary_context
+subquadratic_decision_frame
 ```
 
-Reason:
+P6Q does not start Desktop Workspace L6, Code/Shell harvest, a new organ
+family, external execution powers, or authority expansion.
+
+## P6Q Verification
 
 ```text
-Stronger organs generate more receipts, logs, workspace outputs, browser
-outputs, API responses, drafts, market data, debates, retries, and traces.
-Without a compact LLM decision frame, stronger L6 promotions will burn tokens
-and reduce decision clarity.
+P6Q targeted tests = 8 passed
+full sentinel-core tests = not run by instruction
 ```
 
-P6Q0 does not add a new organ family, start Code/Shell harvest, start Desktop
-L6, copy vendor runtime, bridge vendor runtime, add external execution, add
-browser/payment/trading/channel/desktop powers, or expand authority.
-
-## P6Q0 Verification
-
-```text
-P6Q0 docs-only verification = passed
-full sentinel-core tests = not run because P6Q0 is docs-only
-```
-
-Commands:
+Command:
 
 ```bash
-git status --short
-git diff --check -- sentinel-control/docs/research sentinel-control/docs/CURRENT_STATE_LOCK.md sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+python -m pytest tests/test_p6_context_token_model_economy_frontier.py -v --tb=short
 ```
+
+P6Q required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/model_contract.py
+sentinel-control/services/sentinel-core/sentinel/agent/model_cost.py
+sentinel-control/services/sentinel-core/sentinel/agent/token_ledger.py
+sentinel-control/services/sentinel-core/sentinel/agent/context_pressure.py
+sentinel-control/services/sentinel-core/sentinel/agent/__init__.py
+sentinel-control/services/sentinel-core/tests/test_p6_context_token_model_economy_frontier.py
+sentinel-control/docs/research/P6Q_CONTEXT_TOKEN_AND_MODEL_ECONOMY_FRONTIER_SCORECARD.md
+sentinel-control/docs/research/P6Q_CONTEXT_PRESSURE_REPORT.md
+sentinel-control/docs/research/P6Q_MODEL_COST_PROJECTION_REPORT.md
+sentinel-control/docs/research/P6Q_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6Q findings:
+
+```text
+The user chooses the model.
+Sentinel optimizes context for the selected model.
+Model prices and context lengths are configurable profiles.
+Receipts remain exact outside the prompt.
+P6R must construct compact LLM decision frames using P6Q measurements.
+```
+
+## Prior P6Q0 Phase
+
+P6Q0 AgentLab Frontier Deep Research remains accepted as full locked. It
+confirmed that AgentLab is the deep source, GitHub trends are cross-check only,
+and Context/Token/Model Economy must precede Desktop Workspace L6.
 
 P6Q0 required files:
 
