@@ -5,10 +5,88 @@ Date: 2026-05-10
 ## Phase
 
 ```text
-current_phase = P6R_FULL_LOCKED
-previous_phase = P6Q_FULL_LOCKED
+current_phase = P6R5_FULL_LOCKED
+previous_phase = P6R_FULL_LOCKED
 next_phase = P6S_DESKTOP_WORKSPACE_L6_PROMOTION
 ```
+
+P6R5 Sentinel Cognitive Mechanics Review is accepted as full locked. It
+formally reviews Sentinel as a mathematical, physical, algorithmic, and
+real-world thinking/action system before Desktop Workspace L6.
+
+P6R5 verdict:
+
+```text
+Sentinel is a promising but incomplete future-grade architecture.
+It is not architecture theater.
+It is not yet proven as a full future-grade operator.
+```
+
+P6R5 locks this model:
+
+```text
+S_t = mission state + authority + workspace + beliefs + receipts + organs +
+      user-selected model contract + blockers + traces
+
+a_t = argmax expected_progress + expected_information_gain
+      - token_cost - latency_cost - risk_cost - retry_cost
+
+subject to:
+  authority_allows = true
+  risk <= allowed_risk
+  receipt_integrity = true
+  no_authority_expansion = true
+  FinalGate = pass
+```
+
+P6R5 frames Sentinel as a feedback-control agent:
+
+```text
+sensors = organs and receipts
+controller = Brain L4 + Context Engine + Authority + FinalGate
+actuators = promoted organs
+memory = workspace + beliefs + receipt graph + traces
+energy = tokens + latency + dollars + risk
+feedback = receipts + verifier + replay + FinalGate
+```
+
+P6R5 does not start Desktop Workspace L6, Code/Shell harvest, a new organ
+family, runtime powers, external execution powers, or authority expansion.
+
+## P6R5 Verification
+
+```text
+P6R5 docs-only verification = git diff --check clean
+full sentinel-core tests = not run; docs-only phase
+```
+
+Command:
+
+```bash
+git diff --check -- sentinel-control/docs/research sentinel-control/docs/CURRENT_STATE_LOCK.md sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+```
+
+P6R5 required files:
+
+```text
+sentinel-control/docs/research/P6R5_SENTINEL_COGNITIVE_MECHANICS_REVIEW.md
+sentinel-control/docs/research/P6R5_MATH_PHYSICS_ALGORITHM_MODEL.md
+sentinel-control/docs/research/P6R5_AGENT_LOOP_FORMAL_SPEC.md
+sentinel-control/docs/research/P6R5_FUTURE_OR_GENERIC_VERDICT.md
+sentinel-control/docs/research/P6R5_FAILURE_MODES_AND_PROOF_GAPS.md
+sentinel-control/docs/research/P6R5_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+```
+
+Locked P6R5 go condition:
+
+```text
+P6S may start only if Desktop Workspace L6 uses P6R decision frames from the
+beginning and never dumps raw workspace trees/files/diffs into the LLM.
+```
+
+## Prior P6R Phase
 
 P6R Subquadratic Agent Context Engine Prototype is accepted as full locked. It
 turns P6Q context economy measurements into compact LLM decision frames that
