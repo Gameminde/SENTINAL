@@ -28,6 +28,10 @@ class BrowserMisuseClassifier:
         "unauthorized_scraping",
         "unlawful_evasion",
         "access_control_evasion",
+        "captcha_bypass",
+        "stealth_abuse",
+        "malware_objective",
+        "payment_abuse",
     }
 
     def classify(self, *, objective_tags: list[str] | None = None, objective_text: str = "") -> BrowserMisuseDecision:

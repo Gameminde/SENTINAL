@@ -5,12 +5,129 @@ Date: 2026-05-10
 ## Phase
 
 ```text
-current_phase = P6T_A_FULL_LOCKED
-previous_phase = P6S_B_FULL_LOCKED
-next_phase = P6T_B_BROWSER_CONTROLLED_NAVIGATION_L6_IMPLEMENTATION
+current_phase = P6T_B_FULL_LOCKED
+previous_phase = P6T_A_FULL_LOCKED
+next_phase = P6U_API_AUTHENTICATED_READ_L6
 ```
 
-P6T-A Browser AgentLab Power Binding is accepted as full locked. It splits
+P6T-B Browser Controlled Navigation L6 Implementation is accepted as full
+locked. It promotes the existing Sentinel browser capability to controlled
+navigation L6 without creating a new browser organ.
+
+P6T-B implements:
+
+```text
+BrowserNavigationAuthority
+BrowserNavigationAdapter
+BrowserNavigationBudget
+BrowserNavigationTimeoutPolicy
+BrowserNavigationReceipt
+BrowserNavigationResult
+BrowserFailureReceipt
+BrowserPageEvidenceCard
+BrowserNavigationDiffSummary
+BrowserLinkCandidateRef
+BrowserActionCandidateRef
+BrowserNavigationDecisionFrameSlice
+BrowserNavigationFinalGate
+BrowserNavigationKillSwitch
+BrowserNavigationCapabilityScanner
+BrowserNavigationReceiptAdapter
+BrowserNavigationActionKernel
+BrowserNavigationPreview
+BrowserRiskRouter
+BrowserSchemeClassifier
+BrowserQuarantineSandboxPolicy
+BrowserSandboxAuthority
+BrowserSandboxInspectionReceipt
+BrowserSandboxNetworkPolicy
+BrowserSandboxArtifactStore
+BrowserSandboxEscapeGuard
+SuspiciousUrlEvidenceCard
+BrowserSandboxDecisionFrameSlice
+```
+
+P6T-B source-binding refs:
+
+```text
+openclaw_browser_action_kernel
+cloakbrowser_power_classification
+jarvis_permission_lifecycle
+browser_use_action_registry_crosscheck
+cua_browser_tool_boundary_crosscheck
+chrome_devtools_mcp_cdp_shape_crosscheck
+hermes_browser_output_pruning
+sentinel_p6r_decision_frame
+```
+
+P6T-B route model:
+
+```text
+NORMAL_NAVIGATION = http/https allowlisted public domain read-only navigation
+QUARANTINE_SANDBOX_INSPECTION = file/javascript/data/local/private/suspicious redirect
+PROPOSAL_ONLY = chrome/devtools/profile/login/form/upload/download/account-affecting actions
+BLACK_LANE_BLOCK = credential theft, fake identity, KYC bypass, captcha bypass,
+                   stealth abuse, malware, fraud/payment abuse
+```
+
+P6T-B normal navigation can fetch/read allowlisted public pages, verify redirect
+chains, emit deterministic navigation receipts, emit compact page evidence
+cards, emit link/action candidate refs, and produce P6R-compatible browser
+decision-frame slices.
+
+Suspicious URL schemes are not permanently rejected capabilities. They are
+denied from normal navigation, classified by `BrowserSchemeClassifier`, and
+routed by `BrowserRiskRouter` to sandbox/proposal/block according to authority,
+objective, and risk.
+
+P6T-B does not add login/session mutation, form submit, upload/download
+automation, payment/checkout, publishing/posting/sending, arbitrary JavaScript
+execution, stealth/captcha/bypass, browser profile takeover, personal/default
+browser profile connection, credential secret access, browser power expansion
+beyond controlled navigation, vendor runtime bridge, vendor code copy, or
+authority expansion.
+
+## P6T-B Verification
+
+```text
+P6T-B targeted tests = 35 passed
+P6C browser organ neighbor tests = 11 passed
+P6R/P6Q context economy neighbor tests = 26 passed
+P6M reality activation neighbor tests = 8 passed
+full sentinel-core tests = not run by instruction
+```
+
+```bash
+python -m pytest tests/test_p6_browser_controlled_navigation_l6.py -v --tb=short
+python -m pytest tests/test_p6_browser_organ_contract.py -v --tb=short
+python -m pytest tests/test_p6_subquadratic_agent_context_engine.py tests/test_p6_context_token_model_economy_frontier.py -v --tb=short
+python -m pytest tests/test_p6_existing_organs_reality_activation.py -v --tb=short
+```
+
+P6T-B required files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/organs/browser/navigation_l6.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/__init__.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/misuse_classifier.py
+sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
+sentinel-control/services/sentinel-core/tests/test_p6_browser_controlled_navigation_l6.py
+sentinel-control/docs/organs/P6T_B_BROWSER_CONTROLLED_NAVIGATION_L6_SCORECARD.md
+sentinel-control/docs/organs/P6T_B_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+```
+
+Locked P6U go condition:
+
+```text
+P6U may start only as authenticated read-only API L6 through scoped credential
+refs, rate-limit ledger, allowed vendor/endpoint authority, API response
+receipts, credential-ref receipts, P6R context discipline, and no mutation API.
+```
+
+## Prior P6T-A Phase
+
+P6T-A Browser AgentLab Power Binding remains accepted as full locked. It splits
 Browser Controlled Navigation L6 into a binding phase and an implementation
 phase, following the same pattern as Desktop L6.
 
@@ -28,64 +145,13 @@ Hermes: browser output pruning and context compression
 P6R: compact page evidence and decision-frame discipline
 ```
 
-P6T-B must promote existing browser capability to controlled navigation L6.
-
-```text
-existing BrowserPowerGovernor
-existing BrowserMisuseClassifier
-existing RealityBrowserReader public read path
-P6T-A source binding
-P6R decision-frame discipline
-allowed-domain authority
-navigation receipts
-timeout budget
-compact page evidence
-FinalGate
-```
-
-P6T-B allowed scope:
-
-```text
-controlled navigation on allowed domains
-public page fetch/navigation
-navigation receipts
-timeout budget
-compact page evidence
-link/action candidates as refs
-```
-
-P6T-B must not add login/session mutation, form submit, upload, stealth,
-captcha/bypass, browser profile takeover, arbitrary JS execution, browser power
-expansion beyond controlled navigation, vendor runtime bridge, vendor code copy,
-credential secret access, or authority expansion.
+P6T-A does not add code or runtime powers.
 
 ## P6T-A Verification
 
 ```text
 P6T-A docs verification = git diff --check clean
 code tests = not run; docs-only binding phase
-```
-
-```bash
-git diff --check -- sentinel-control/docs/organs/P6T_BROWSER_AGENTLAB_POWER_BINDING.md sentinel-control/docs/organs/P6T_A_LOCK_VERDICT.md sentinel-control/docs/CURRENT_STATE_LOCK.md sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
-```
-
-P6T-A required files:
-
-```text
-sentinel-control/docs/organs/P6T_BROWSER_AGENTLAB_POWER_BINDING.md
-sentinel-control/docs/organs/P6T_A_LOCK_VERDICT.md
-sentinel-control/docs/CURRENT_STATE_LOCK.md
-sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
-```
-
-Locked P6T-B go condition:
-
-```text
-P6T-B may start only as controlled browser navigation L6 that uses P6T-A
-source binding, P6R context discipline, allowed domains, navigation receipts,
-timeout budget, compact page evidence, authority checks, and no login/session
-mutation.
 ```
 
 ## Prior P6S-B Phase
