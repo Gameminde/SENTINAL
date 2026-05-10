@@ -35,6 +35,8 @@ Receipt refs remain replayable.
 Tool surface is minimized.
 Frame hash is deterministic.
 Secret-like content is redacted.
+Stored frame cards are sanitized before hashing and persistence.
+Over-budget frames remain measurable and fail the budget check.
 Missing critical evidence fails verification.
 ```
 
@@ -62,7 +64,7 @@ python -m pytest tests/test_p6_context_token_model_economy_frontier.py -v --tb=s
 Expected result:
 
 ```text
-P6R targeted tests = 10 passed
+P6R targeted tests = 12 passed
 P6Q neighbor tests = 8 passed
 full sentinel-core suite = not run by instruction
 ```

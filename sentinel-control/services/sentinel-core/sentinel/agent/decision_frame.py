@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import Field
 
-from sentinel.agent.evidence_ranker import EvidenceCard, sanitize_context_text
+from sentinel.agent.evidence_ranker import EvidenceCard, sanitize_context_payload, sanitize_context_text
 from sentinel.agent.prompt_budget import PromptBudgetAllocator
 from sentinel.shared.models import SentinelModel, new_id
 
@@ -59,16 +59,22 @@ class LLMDecisionFrame(SentinelModel):
         evidence_cards = [card.model_copy(update={"summary": sanitize_context_text(card.summary)}) for card in evidence]
         receipt_refs = sorted({card.receipt_id for card in evidence_cards})
         selected_tools = sorted(set(selected_tool_surface))
+        sanitized_mission_card = sanitize_context_payload(mission_card)
+        sanitized_authority_card = sanitize_context_payload(authority_card)
+        sanitized_progress_card = sanitize_context_payload(progress_card)
+        sanitized_blockers = sanitize_context_payload(current_blockers)
+        sanitized_options = sanitize_context_payload(next_decision_options)
+        sanitized_schema = sanitize_context_payload(required_output_schema)
         payload = {
             "mission_id": mission_id,
-            "mission_card": mission_card,
-            "authority_card": authority_card,
-            "progress_card": progress_card,
+            "mission_card": sanitized_mission_card,
+            "authority_card": sanitized_authority_card,
+            "progress_card": sanitized_progress_card,
             "top_k_evidence": [card.model_dump(exclude={"id"}) for card in evidence_cards],
             "selected_tool_surface": selected_tools,
-            "current_blockers": current_blockers,
-            "next_decision_options": next_decision_options,
-            "required_output_schema": required_output_schema,
+            "current_blockers": sanitized_blockers,
+            "next_decision_options": sanitized_options,
+            "required_output_schema": sanitized_schema,
             "receipt_refs": receipt_refs,
         }
         rendered = json.dumps(payload, sort_keys=True, ensure_ascii=True)
@@ -76,21 +82,21 @@ class LLMDecisionFrame(SentinelModel):
         frame_hash = _stable_hash(payload)
         return cls(
             mission_id=mission_id,
-            mission_card=mission_card,
-            authority_card=authority_card,
-            progress_card=progress_card,
+            mission_card=sanitized_mission_card,
+            authority_card=sanitized_authority_card,
+            progress_card=sanitized_progress_card,
             top_k_evidence=evidence_cards,
             selected_tool_surface=selected_tools,
-            current_blockers=current_blockers,
-            next_decision_options=next_decision_options,
-            required_output_schema=required_output_schema,
+            current_blockers=sanitized_blockers,
+            next_decision_options=sanitized_options,
+            required_output_schema=sanitized_schema,
             receipt_refs=receipt_refs,
             token_count=token_count,
             user_selected_model=budget_allocator.user_model.selected_model,
             frame_hash=frame_hash,
             prompt_budget_respected=budget_allocator.within_budget(token_count),
             deterministic_frame_hash=True,
-            raw_secret_leakage="[REDACTED_SECRET]" not in rendered and "sk-" in rendered,
+            raw_secret_leakage=sanitize_context_text(rendered) != rendered,
         )
 
     def all_evidence_refs(self) -> list[str]:

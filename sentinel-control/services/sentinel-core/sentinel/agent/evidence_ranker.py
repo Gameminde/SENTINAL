@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from pydantic import Field
 
@@ -21,6 +22,18 @@ def sanitize_context_text(text: str) -> str:
     for pattern in SECRET_PATTERNS:
         sanitized = pattern.sub("[REDACTED_SECRET]", sanitized)
     return sanitized
+
+
+def sanitize_context_payload(payload: Any) -> Any:
+    if isinstance(payload, str):
+        return sanitize_context_text(payload)
+    if isinstance(payload, list):
+        return [sanitize_context_payload(item) for item in payload]
+    if isinstance(payload, tuple):
+        return tuple(sanitize_context_payload(item) for item in payload)
+    if isinstance(payload, dict):
+        return {key: sanitize_context_payload(value) for key, value in payload.items()}
+    return payload
 
 
 class EvidenceCard(SentinelModel):

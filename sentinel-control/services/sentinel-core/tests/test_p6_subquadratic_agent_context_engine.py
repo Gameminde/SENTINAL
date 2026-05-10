@@ -187,6 +187,15 @@ def test_prompt_budget_allocator_respects_user_model_contract():
     assert frame.user_selected_model == "deepseek-v4-pro"
 
 
+def test_prompt_budget_allocator_flags_over_budget_frame():
+    allocator = PromptBudgetAllocator(selected_model(max_frame_tokens=1_000))
+
+    token_count = allocator.estimate_frame_tokens("x" * 20_000)
+
+    assert token_count > 1_000
+    assert allocator.within_budget(token_count) is False
+
+
 def test_decision_frame_keeps_exact_receipts_outside_prompt():
     frame = build_frame()
     rendered = frame.render_prompt_text()
@@ -246,6 +255,33 @@ def test_secret_like_content_is_not_in_frame():
     )
 
     assert "sk-secret-value" not in frame.render_prompt_text()
+    assert frame.raw_secret_leakage is False
+
+
+def test_secret_like_content_is_not_stored_inside_frame_cards():
+    need = ContextNeedEstimator().estimate(
+        mission_id="mission_secret_card",
+        objective="Review sk-secret-value without leaking it.",
+        blockers=["token=abc123 must stay out of frame state"],
+    )
+
+    frame = LLMDecisionFrame.build(
+        mission_id="mission_secret_card",
+        mission_card=StateCardBuilder().mission_card(need),
+        authority_card=AuthorityCardBuilder().authority_card(allowed_tools=[], forbidden_tools=[], constraints=[]),
+        progress_card=StateCardBuilder().progress_card(completed=["password=hunter2"], pending=[]),
+        evidence=[],
+        selected_tool_surface=[],
+        current_blockers=need.blockers,
+        next_decision_options=["inspect sk-secret-value"],
+        required_output_schema={"token": "do not leak token=abc123"},
+        budget_allocator=PromptBudgetAllocator(selected_model()),
+    )
+    stored = str(frame.model_dump())
+
+    assert "sk-secret-value" not in stored
+    assert "abc123" not in stored
+    assert "hunter2" not in stored
     assert frame.raw_secret_leakage is False
 
 

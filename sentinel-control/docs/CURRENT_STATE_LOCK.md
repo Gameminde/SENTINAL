@@ -55,7 +55,7 @@ family, external execution powers, or authority expansion.
 ## P6R Verification
 
 ```text
-P6R targeted tests = 10 passed
+P6R targeted tests = 12 passed
 P6Q neighbor tests = 8 passed
 full sentinel-core tests = not run by instruction
 ```
@@ -94,6 +94,9 @@ Raw evidence remains exact and replayable outside the prompt.
 The LLM sees a compact decision frame, not a raw mission dump.
 Tool surfaces are minimized to relevant authorized tools.
 Missing critical evidence causes verifier failure.
+Over-budget frames are reported as over budget rather than capped.
+Secret-like content is redacted from stored decision-frame cards, not only from
+prompt rendering.
 ```
 
 ## Prior P6Q Phase

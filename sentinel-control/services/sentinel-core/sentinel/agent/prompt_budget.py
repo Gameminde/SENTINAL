@@ -15,7 +15,7 @@ class PromptBudgetAllocator:
     def estimate_frame_tokens(self, rendered_prompt: str) -> int:
         actual = estimate_tokens(rendered_prompt)
         floor = min(1_000, self.max_decision_frame_tokens)
-        return min(self.max_decision_frame_tokens, max(floor, actual))
+        return max(floor, actual)
 
     def within_budget(self, tokens: int) -> bool:
         return tokens <= self.max_decision_frame_tokens
