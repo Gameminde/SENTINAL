@@ -5,12 +5,92 @@ Date: 2026-05-10
 ## Phase
 
 ```text
-current_phase = P6S_B_FULL_LOCKED
-previous_phase = P6S_A_FULL_LOCKED
-next_phase = P6T_BROWSER_CONTROLLED_NAVIGATION_L6
+current_phase = P6T_A_FULL_LOCKED
+previous_phase = P6S_B_FULL_LOCKED
+next_phase = P6T_B_BROWSER_CONTROLLED_NAVIGATION_L6_IMPLEMENTATION
 ```
 
-P6S-B Desktop Workspace L6 Implementation is accepted as full locked. It
+P6T-A Browser AgentLab Power Binding is accepted as full locked. It splits
+Browser Controlled Navigation L6 into a binding phase and an implementation
+phase, following the same pattern as Desktop L6.
+
+P6T-A binds Browser L6 to:
+
+```text
+OpenClaw first: browser action surface, gateway/action kernel,
+approval/preview, scanner, tool schema discipline
+CloakBrowser: browser power classification, detection, reliability, session,
+fingerprint lessons
+JARVIS: sidecar/browser awareness and permission lifecycle where relevant
+browser-use / Cua / Chrome DevTools MCP: public cross-check for browser and
+computer-use patterns
+Hermes: browser output pruning and context compression
+P6R: compact page evidence and decision-frame discipline
+```
+
+P6T-B must promote existing browser capability to controlled navigation L6.
+
+```text
+existing BrowserPowerGovernor
+existing BrowserMisuseClassifier
+existing RealityBrowserReader public read path
+P6T-A source binding
+P6R decision-frame discipline
+allowed-domain authority
+navigation receipts
+timeout budget
+compact page evidence
+FinalGate
+```
+
+P6T-B allowed scope:
+
+```text
+controlled navigation on allowed domains
+public page fetch/navigation
+navigation receipts
+timeout budget
+compact page evidence
+link/action candidates as refs
+```
+
+P6T-B must not add login/session mutation, form submit, upload, stealth,
+captcha/bypass, browser profile takeover, arbitrary JS execution, browser power
+expansion beyond controlled navigation, vendor runtime bridge, vendor code copy,
+credential secret access, or authority expansion.
+
+## P6T-A Verification
+
+```text
+P6T-A docs verification = git diff --check clean
+code tests = not run; docs-only binding phase
+```
+
+```bash
+git diff --check -- sentinel-control/docs/organs/P6T_BROWSER_AGENTLAB_POWER_BINDING.md sentinel-control/docs/organs/P6T_A_LOCK_VERDICT.md sentinel-control/docs/CURRENT_STATE_LOCK.md sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+```
+
+P6T-A required files:
+
+```text
+sentinel-control/docs/organs/P6T_BROWSER_AGENTLAB_POWER_BINDING.md
+sentinel-control/docs/organs/P6T_A_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+```
+
+Locked P6T-B go condition:
+
+```text
+P6T-B may start only as controlled browser navigation L6 that uses P6T-A
+source binding, P6R context discipline, allowed domains, navigation receipts,
+timeout budget, compact page evidence, authority checks, and no login/session
+mutation.
+```
+
+## Prior P6S-B Phase
+
+P6S-B Desktop Workspace L6 Implementation remains accepted as full locked. It
 promotes the existing desktop workspace capability into real scoped L6 local
 workspace operations without adding broad host control.
 
@@ -74,32 +154,6 @@ P6S-B targeted tests = 9 passed
 P6L desktop sidecar neighbor tests = 14 passed
 P6M reality activation neighbor tests = 8 passed
 full sentinel-core tests = not run by instruction
-```
-
-```bash
-python -m pytest tests/test_p6_desktop_workspace_l6.py -v --tb=short
-python -m pytest tests/test_p6_desktop_sidecar_organ.py -v --tb=short
-python -m pytest tests/test_p6_existing_organs_reality_activation.py -v --tb=short
-```
-
-P6S-B required files:
-
-```text
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/workspace_l6.py
-sentinel-control/services/sentinel-core/sentinel/organs/desktop/__init__.py
-sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
-sentinel-control/services/sentinel-core/tests/test_p6_desktop_workspace_l6.py
-sentinel-control/docs/organs/P6S_B_DESKTOP_WORKSPACE_L6_SCORECARD.md
-sentinel-control/docs/organs/P6S_B_LOCK_VERDICT.md
-sentinel-control/docs/CURRENT_STATE_LOCK.md
-```
-
-Locked P6T go condition:
-
-```text
-P6T may start only as controlled browser navigation L6 that uses P6R context
-discipline, allowed domains, navigation receipts, timeout budget, compact page
-evidence, authority checks, and no login/session mutation.
 ```
 
 ## Prior P6S-A Phase
