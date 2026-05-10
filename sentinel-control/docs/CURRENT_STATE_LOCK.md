@@ -1,84 +1,94 @@
 # Current State Lock
 
-Date: 2026-05-09
+Date: 2026-05-10
 
 ## Phase
 
 ```text
-current_phase = P6P_FULL_LOCKED
-previous_phase = P6O_FULL_LOCKED
-next_phase = P6Q_CODE_SHELL_AGENTLAB_HARVEST
+current_phase = P6Q0_FULL_LOCKED
+previous_phase = P6P_FULL_LOCKED
+next_phase = P6Q_CONTEXT_TOKEN_AND_MODEL_ECONOMY_FRONTIER
 ```
 
-P6P Existing Organs Runtime Promotion Plan is accepted as full locked. It
-converts P6O gauntlet evidence into a deterministic L6 promotion plan for
-existing organs only.
+P6Q0 AgentLab Frontier Deep Research is accepted as full locked. It confirms
+that Sentinel should analyze AgentLab and recent agent trends before coding the
+next runtime tranche, and that Context/Token/Model Economy must precede Desktop
+Workspace L6.
 
-P6P selects this priority order:
+P6Q0 locks this research order:
 
 ```text
-1. desktop_workspace_l6
-2. browser_controlled_navigation_l6
-3. api_authenticated_read_l6
-4. channel_provider_draft_l6
-5. credential_vault_ref_l6
-6. capital_roi_feedback_l6
-7. trading_live_paper_feed_l6
-8. spend_provider_test_mode_l6
+1. AgentLab deep analysis
+2. GitHub trends cross-check
+3. Sentinel-native rewrite backlog
+4. P6Q/P6R implementation after
 ```
 
-P6P does not add a new organ family, start Code/Shell harvest, add live payment
-providers, real broker execution, live channel send, browser login/session
-mutation, live desktop host control, shell/process execution, vendor runtime
-bridge, vendor code copy, or authority expansion.
-
-## P6P Verification
+P6Q0 answers the required question:
 
 ```text
-P6P targeted tests = 5 passed
-P6O neighbor tests = 6 passed
-P6N neighbor tests = 8 passed
-full sentinel-core tests = not run by instruction
+Is Context/Token/Model Economy before Desktop L6 the correct next move?
+Answer: yes.
+```
+
+Reason:
+
+```text
+Stronger organs generate more receipts, logs, workspace outputs, browser
+outputs, API responses, drafts, market data, debates, retries, and traces.
+Without a compact LLM decision frame, stronger L6 promotions will burn tokens
+and reduce decision clarity.
+```
+
+P6Q0 does not add a new organ family, start Code/Shell harvest, start Desktop
+L6, copy vendor runtime, bridge vendor runtime, add external execution, add
+browser/payment/trading/channel/desktop powers, or expand authority.
+
+## P6Q0 Verification
+
+```text
+P6Q0 docs-only verification = passed
+full sentinel-core tests = not run because P6Q0 is docs-only
 ```
 
 Commands:
 
 ```bash
-python -m pytest tests/test_p6_existing_organs_runtime_promotion_plan.py -v --tb=short
-python -m pytest tests/test_p6_existing_organs_real_world_gauntlet.py -v --tb=short
-python -m pytest tests/test_p6_existing_organs_capability_frontier.py -v --tb=short
+git status --short
+git diff --check -- sentinel-control/docs/research sentinel-control/docs/CURRENT_STATE_LOCK.md sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
 ```
 
-P6P required files:
+P6Q0 required files:
 
 ```text
-sentinel-control/services/sentinel-core/sentinel/organs/runtime_promotion.py
-sentinel-control/services/sentinel-core/sentinel/organs/real_world_gauntlet.py
-sentinel-control/services/sentinel-core/sentinel/organs/__init__.py
-sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_runtime_promotion_plan.py
-sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_real_world_gauntlet.py
-sentinel-control/services/sentinel-core/tests/test_p6_existing_organs_capability_frontier.py
-sentinel-control/docs/organs/P6P_EXISTING_ORGANS_RUNTIME_PROMOTION_PLAN_SCORECARD.md
-sentinel-control/docs/organs/P6P_RUNTIME_PROMOTION_PLAN.md
-sentinel-control/docs/organs/P6P_LOCK_VERDICT.md
-sentinel-control/docs/organs/P6O_EXISTING_ORGANS_REAL_WORLD_GAUNTLET_SCORECARD.md
-sentinel-control/docs/organs/P6O_REAL_WORLD_GAUNTLET_FIXES.md
-sentinel-control/docs/organs/P6O_LOCK_VERDICT.md
+sentinel-control/docs/research/P6Q0_AGENTLAB_FRONTIER_DEEP_RESEARCH.md
+sentinel-control/docs/research/P6Q0_AGENTLAB_POWER_TO_SENTINEL_REWRITE_MATRIX.md
+sentinel-control/docs/research/P6Q0_CONTEXT_ECONOMY_FINDINGS.md
+sentinel-control/docs/research/P6Q0_TRENDING_REPO_CROSS_CHECK.md
+sentinel-control/docs/research/P6Q0_SENTINEL_REWRITE_BACKLOG.md
+sentinel-control/docs/research/P6Q0_LOCK_VERDICT.md
 sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
 ```
 
-Locked P6P findings:
+Locked P6Q0 findings:
 
 ```text
-Every runtime promotion candidate requires P6O evidence, adapters, authority
-requirements, receipts, rollback/disable plan, kill switch, and FinalGate.
-The next build block is desktop_workspace_l6.
-High-power surfaces are unlockable product powers, not deleted features.
-Real payment provider, real broker execution, live channel send,
-browser login/session, and desktop screenshot/clipboard remain staged behind
-their promotion paths.
-No new organ family or authority expansion is allowed.
+AgentLab is the deep source.
+GitHub trends are cross-check only.
+The user chooses the model.
+Sentinel optimizes context for the selected model.
+Model prices and context lengths are configurable profiles.
+Receipts remain exact outside the prompt.
+The next implementation tranche is P6Q Context/Token/Model Economy Frontier.
 ```
+
+## Prior P6P Phase
+
+P6P Existing Organs Runtime Promotion Plan remains accepted as full locked. It
+converted P6O gauntlet evidence into a deterministic L6 promotion plan for
+existing organs only, with `desktop_workspace_l6` as the first runtime promotion
+candidate after the context economy layer.
 
 ## Prior P6O Phase
 
