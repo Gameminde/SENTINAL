@@ -5,12 +5,72 @@ Date: 2026-05-10
 ## Phase
 
 ```text
-current_phase = P6R5_FULL_LOCKED
-previous_phase = P6R_FULL_LOCKED
-next_phase = P6S_DESKTOP_WORKSPACE_L6_PROMOTION
+current_phase = P6S_A_FULL_LOCKED
+previous_phase = P6R5_FULL_LOCKED
+next_phase = P6S_B_DESKTOP_WORKSPACE_L6_IMPLEMENTATION
 ```
 
-P6R5 Sentinel Cognitive Mechanics Review is accepted as full locked. It
+P6S-A Desktop AgentLab Power Binding is accepted as full locked. It binds
+Desktop Workspace L6 to the strongest relevant AgentLab mechanisms before any
+Desktop L6 implementation code starts.
+
+P6S-A source order:
+
+```text
+JARVIS first: sidecar, enrollment, RPC registry, desktop awareness, approval,
+audit, revocation
+OpenJarvis second: budget, timeout, local execution discipline, cost routing
+OpenClaw third: action kernel, manifest, scanner, preview, approval surface
+Hermes fourth: context quarantine, compression, prompt discipline
+Sentinel existing implementation last: P6K/P6L/P6M/P6P/P6R promotion base
+```
+
+P6S-A locks this doctrine:
+
+```text
+Sentinel must surpass audited agents, not imitate them.
+Desktop L6 is not a fresh organ and not a generic file helper.
+Desktop L6 is a Sentinel-native promotion of AgentLab power plus Brain L4,
+P6R context discipline, receipts, rollback, authority, and FinalGate.
+```
+
+P6S-A does not start Desktop L6 implementation, Code/Shell harvest, a new organ
+family, full host control, shell/process execution, screenshot/clipboard live,
+vendor runtime bridging, vendor code copy, or authority expansion.
+
+## P6S-A Verification
+
+```text
+P6S-A docs verification = git diff --check clean
+full sentinel-core tests = not run; docs-only binding phase
+```
+
+Command:
+
+```bash
+git diff --check -- sentinel-control/docs/organs/P6S_DESKTOP_AGENTLAB_POWER_BINDING.md sentinel-control/docs/CURRENT_STATE_LOCK.md sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+```
+
+P6S-A required files:
+
+```text
+sentinel-control/docs/organs/P6S_DESKTOP_AGENTLAB_POWER_BINDING.md
+sentinel-control/docs/organs/P6S_A_LOCK_VERDICT.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/architecture/SENTINEL_A_TO_Z_LOCK/11_PHASE_ROADMAP_P6_TO_P10.md
+```
+
+Locked P6S-B go condition:
+
+```text
+P6S-B may start only as a Desktop Workspace L6 implementation that uses the
+P6S-A binding, P6R decision frames, scoped workspace authority, path containment
+proofs, receipts, rollback refs, kill switch, and FinalGate.
+```
+
+## Prior P6R5 Phase
+
+P6R5 Sentinel Cognitive Mechanics Review remains accepted as full locked. It
 formally reviews Sentinel as a mathematical, physical, algorithmic, and
 real-world thinking/action system before Desktop Workspace L6, then grounds
 that review in P6Q/P6R code behavior.
