@@ -27,4 +27,7 @@ include = ["sentinel*"]
 pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "slow: long-running benchmark or property test (deselect with -m 'not slow')",
+]
 

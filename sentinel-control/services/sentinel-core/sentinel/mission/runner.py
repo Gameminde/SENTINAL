@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from sentinel.mission.artifacts import MissionArtifactIndex
 from sentinel.mission.autonomy import AutonomyEngine
@@ -13,6 +13,13 @@ from sentinel.mission.registry import MissionRegistry, default_mission_registry
 from sentinel.mission.safe_executors import SafeMissionExecutors, mission_slug
 from sentinel.mission.trace_timeline import MissionTraceTimeline
 from sentinel.shared.enums import MissionActionRoute, MissionStatus, MissionTraceEventType
+
+
+if TYPE_CHECKING:
+    from sentinel.perf.hot_cold.cold_receipt_store import ColdReceiptStore
+    from sentinel.perf.hot_cold.hot_mission_cache import HotMissionCache
+    from sentinel.perf.hot_cold.receipt_index import ReceiptIndex
+    from sentinel.perf.measure.latency_profiler import LatencyProfiler
 
 
 class BrowserOperatorMissionRouteProtocol(Protocol):
@@ -41,6 +48,10 @@ class MissionRunner:
         self.registry = registry or default_mission_registry(str(self.project_root))
         self.posture_policy = MissionExecutionPosturePolicy()
         self.browser_operator_route = browser_operator_route
+        self._latency_profiler = latency_profiler
+        self._hot_cache = hot_cache
+        self._cold_store = cold_store
+        self._receipt_index = receipt_index
 
     def run_gtm_mission(
         self,
@@ -53,6 +64,42 @@ class MissionRunner:
         return self.run_mission(envelope, idea=idea, evidence_refs=evidence_refs, plan=plan)
 
     def run_mission(
+        self,
+        envelope: MissionAuthorityEnvelope,
+        *,
+        idea: str | None = None,
+        evidence_refs: list[str] | None = None,
+        plan: MissionPlan | None = None,
+    ) -> MissionRunResult:
+        # Emit mission-start trace if profiler is injected
+        trace_id = None
+        if self._latency_profiler is not None:
+            trace_id = self._latency_profiler.start_trace(
+                mission_id=envelope.id,
+                action_id=f"{envelope.id}:mission_run",
+                action_type="mission_run",
+                metadata={"phase": "mission_runner"},
+            )
+
+        try:
+            result = self._do_run_mission(
+                envelope,
+                idea=idea,
+                evidence_refs=evidence_refs,
+                plan=plan,
+            )
+
+            if self._hot_cache is not None:
+                self._hot_cache.set(envelope.id, result)
+
+            return result
+        finally:
+            if self._hot_cache is not None:
+                self._hot_cache.evict(envelope.id)
+            if self._latency_profiler is not None and trace_id is not None:
+                self._latency_profiler.stop_trace(trace_id)
+
+    def _do_run_mission(
         self,
         envelope: MissionAuthorityEnvelope,
         *,

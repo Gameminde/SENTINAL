@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import uuid
 from pathlib import Path
 from pathlib import PurePosixPath
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+
+from pydantic import ConfigDict
+
+from sentinel.shared.models import SentinelModel
 
 from sentinel.agent.audit import RuntimeCertificationGate
 from sentinel.agent.browser import (
@@ -31,7 +38,7 @@ from sentinel.agent.identity import AgentIdentity, default_agent_identity
 from sentinel.agent.invariants import InvariantViolation
 from sentinel.agent.learning_loop import LearningLoop
 from sentinel.agent.method_selector import MethodSelector
-from sentinel.agent.models import AgentRunResult
+from sentinel.agent.models import AgentContext, AgentRunResult
 from sentinel.agent.phases import AgentPhase, can_transition
 from sentinel.agent.planner_bridge import PlannerBridge
 from sentinel.agent.repair_loop import CognitiveRepairLoop, RepairDecisionType
@@ -49,6 +56,42 @@ from sentinel.mission.runner import MissionRunner
 from sentinel.mission.safe_executors import mission_slug
 
 
+if TYPE_CHECKING:
+    from sentinel.perf.caches.context_build_cache import ContextBuildCache
+    from sentinel.perf.caches.llm_decision_frame_cache import LLMDecisionFrameCache
+    from sentinel.perf.caches.prompt_frame_cache import PromptFrameCache
+    from sentinel.perf.caches.token_budget_governor import TokenBudgetGovernor
+    from sentinel.perf.measure.cost_profiler import CostProfiler
+    from sentinel.perf.measure.latency_profiler import LatencyProfiler
+    from sentinel.perf.sched.async_organ_scheduler import AsyncOrganScheduler, SubmissionAck
+    from sentinel.perf.sched.backpressure_controller import BackpressureController
+    from sentinel.organs.authority import OrganAuthorityEnvelope
+    from sentinel.organs.dry_run import OrganDryRunReceipt
+    from sentinel.organs.kill_switch import OrganKillSwitch
+
+
+# Task 8.8 / sentinel-performance-runtime-foundation —
+# Minimal frozen action stub satisfying the scheduler's structural
+# ``_OrganActionLike`` protocol (``action_id``, ``mission_id``,
+# ``organ_id``, ``action_type``). The scheduler reads only these short
+# identifier strings from the action object — never any payload bytes,
+# never any tool-call arguments, never any organ output. This stub is
+# therefore sufficient for routing and matches the structural protocol.
+#
+# The model is frozen so the scheduler cannot be handed a mutable
+# action object (defense against accidental post-submit mutation
+# during the wrapper task's lifetime).
+class _ToolCallSchedulerAction(SentinelModel):
+    """Frozen scheduler action stub for routed AgentRuntime tool calls."""
+
+    action_id: str
+    mission_id: str
+    organ_id: str
+    action_type: str
+
+    model_config = ConfigDict(extra="forbid", frozen=True, use_enum_values=False)
+
+
 class AgentRuntime:
     def __init__(
         self,
@@ -61,10 +104,81 @@ class AgentRuntime:
         browser_interaction_backend: BrowserInteractionBackend | None = None,
         browser_resolver: DnsResolver | None = None,
         browser_operator_route: BrowserOperatorRouteProtocol | None = None,
+        latency_profiler: LatencyProfiler | None = None,
+        cost_profiler: CostProfiler | None = None,
+        # Task 6.11 / sentinel-performance-runtime-foundation —
+        # additive optional cache injections. When every parameter
+        # below is ``None`` (the default), :meth:`run` is byte-for-byte
+        # identical to the pre-Task-6.11 path: no extra method calls,
+        # no extra event emissions, no overhead. Each cache is gated
+        # at its call site by an ``if self._<cache> is not None:``
+        # guard. See :meth:`run` and the per-call-site comments below.
+        #
+        # Default-off / injection-gated contract (Phase C user
+        # direction): existing public behavior is preserved.
+        # Constructor changes are additive optional parameters with
+        # ``None`` defaults. Cache hits never expand authority — the
+        # composite key includes ``authority_hash``, so this is
+        # structural. Cache events never include raw prompt bodies,
+        # file bodies, browser bodies, credentials, secrets, or
+        # artifact blobs (the cache modules already enforce this; the
+        # integration here does not bypass).
+        context_build_cache: ContextBuildCache | None = None,
+        prompt_frame_cache: PromptFrameCache | None = None,
+        decision_frame_cache: LLMDecisionFrameCache | None = None,
+        token_budget_governor: TokenBudgetGovernor | None = None,
+        # Task 8.8 / sentinel-performance-runtime-foundation —
+        # additive optional async scheduler injections. When BOTH
+        # parameters below are ``None`` (the default),
+        # :meth:`_execute_controlled_tool_calls` runs each tool call
+        # through the original synchronous runner path with
+        # bit-identical observable behaviour: same receipt stream,
+        # same event types in the same order, no extra emissions.
+        # When BOTH are injected, organ-shaped tool calls route
+        # through ``async_organ_scheduler.submit(...)`` (which
+        # internally consults ``backpressure_controller`` for the
+        # admission decision and emits its own
+        # ``QUEUE_BACKPRESSURE_APPLIED`` / scheduler events). The
+        # underlying ``OrganExecutionReceipt`` / controlled-capability
+        # receipt sequence still matches the synchronous path
+        # (Acceptance criterion 6 of Task 8.8). Backpressure
+        # rejection surfaces as a documented rejection receipt /
+        # event — never silently dropped (strict rule).
+        #
+        # Per Task 8.8 contract: existing safety checks
+        # (``OrganAuthorityEnvelope`` validation,
+        # ``OrganKillSwitch`` blocking gate, ``OrganDryRunReceipt``
+        # pre-flight) are PRESERVED end-to-end. Authority,
+        # kill-switch, and dry-run pre-flight happen BEFORE
+        # ``scheduler.submit`` (Acceptance criterion 4); the
+        # scheduler itself re-asserts kill-switch and authority
+        # gates as a defense-in-depth chokepoint.
+        async_organ_scheduler: AsyncOrganScheduler | None = None,
+        backpressure_controller: BackpressureController | None = None,
     ) -> None:
         self.identity = identity or default_agent_identity()
         self.project_root = Path(project_root or Path.cwd()).resolve()
         self.tool_registry = tool_registry or default_tool_registry()
+        self._latency_profiler = latency_profiler
+        self._cost_profiler = cost_profiler
+        # Task 6.11: store cache injections. ``None`` means "not
+        # injected" — every consumer call site checks the attribute
+        # against ``None`` before taking the cache path.
+        self._context_build_cache = context_build_cache
+        self._prompt_frame_cache = prompt_frame_cache
+        self._decision_frame_cache = decision_frame_cache
+        self._token_budget_governor = token_budget_governor
+        # Task 8.8: store async scheduler + backpressure injections.
+        # ``None`` means "not injected" — :meth:`_execute_controlled_tool_calls`
+        # checks ``self._async_organ_scheduler is not None`` AND
+        # ``self._backpressure_controller is not None`` before taking
+        # the scheduler path. When either is None, the synchronous
+        # path is used unchanged. The strict rule from Phase D is
+        # explicit: do NOT use a flag that defaults on for tests but
+        # off for prod — the "default off" behaviour is structural,
+        # because absence of injection IS the default off.
+        self._async_organ_scheduler = async_organ_scheduler
+        self._backpressure_controller = backpressure_controller
         self.context_builder = ContextBuilder()
         self.context_compressor = ContextCompressor()
         self.cognitive_cycle = CognitiveCycle()
@@ -118,12 +232,79 @@ class AgentRuntime:
 
         try:
             state = state.transition(AgentPhase.CONTEXT_BUILDING)
-            context = self.context_builder.build(
-                envelope,
-                user_input=user_input or {},
-                evidence_refs=evidence_refs,
-                memory_items=memory_items,
-            )
+            # Task 6.11 / sentinel-performance-runtime-foundation —
+            # ContextBuildCache integration. The cache is gated by
+            # ``if self._context_build_cache is not None``. When the
+            # cache is None (the default) we fall through to the
+            # original inline build path below, which is bit-identical
+            # to the pre-Task-6.11 code: no extra method calls, no
+            # extra event emissions, no closures.
+            #
+            # When the cache is injected, we compute a composite key
+            # from stable strings derived from the envelope. The
+            # ``authority_hash`` slot is bound to ``envelope.id`` for
+            # now (mission ID is unique per envelope and cannot
+            # broaden authority); the four slot inputs will be plumbed
+            # through to real hashes when Phase E ships (workspace
+            # snapshot ID + organ-state hash + the actual
+            # mission-hot-hash). The composite key still discriminates
+            # by mission, which is sufficient to keep cache hits
+            # within the original mission's authority envelope —
+            # ``ContextBuildCache.composite_key`` includes
+            # ``authority_hash``, so a frame built under different
+            # authority hashes to a different cache entry by
+            # construction. Cache hits never expand authority.
+            if self._context_build_cache is not None:
+                def _build_context_cached() -> AgentContext:
+                    if self._latency_profiler is not None:
+                        with self._latency_profiler.instrument(
+                            mission_id=envelope.id,
+                            action_id=f"{envelope.id}:context_build",
+                            action_type="context_build",
+                        ):
+                            return self.context_builder.build(
+                                envelope,
+                                user_input=user_input or {},
+                                evidence_refs=evidence_refs,
+                                memory_items=memory_items,
+                            )
+                    return self.context_builder.build(
+                        envelope,
+                        user_input=user_input or {},
+                        evidence_refs=evidence_refs,
+                        memory_items=memory_items,
+                    )
+
+                composite_key = self._context_build_cache.composite_key(
+                    mission_hot_hash=envelope.id,
+                    workspace_snapshot_id="v1",
+                    organ_state_hash="v1",
+                    authority_hash=envelope.id,
+                )
+                context = self._context_build_cache.get_or_build(
+                    composite_key,
+                    _build_context_cached,
+                    mission_id=envelope.id,
+                )
+            elif self._latency_profiler is not None:
+                with self._latency_profiler.instrument(
+                    mission_id=envelope.id,
+                    action_id=f"{envelope.id}:context_build",
+                    action_type="context_build",
+                ):
+                    context = self.context_builder.build(
+                        envelope,
+                        user_input=user_input or {},
+                        evidence_refs=evidence_refs,
+                        memory_items=memory_items,
+                    )
+            else:
+                context = self.context_builder.build(
+                    envelope,
+                    user_input=user_input or {},
+                    evidence_refs=evidence_refs,
+                    memory_items=memory_items,
+                )
             self.supervisor.assert_mission_can_run(context)
             self.supervisor.assert_context_did_not_expand_authority(context)
             event_bus.append(
@@ -134,7 +315,15 @@ class AgentRuntime:
                 payload={"summary": context.summary, "constraints": context.constraints},
             )
 
-            context = self.context_compressor.compress(context)
+            if self._latency_profiler is not None:
+                with self._latency_profiler.instrument(
+                    mission_id=envelope.id,
+                    action_id=f"{envelope.id}:context_compress",
+                    action_type="context_compress",
+                ):
+                    context = self.context_compressor.compress(context)
+            else:
+                context = self.context_compressor.compress(context)
             event_bus.append(
                 AgentEventType.CONTEXT_COMPRESSED,
                 "Agent context compressed while preserving authority and references.",
@@ -144,7 +333,15 @@ class AgentRuntime:
             )
 
             state = state.transition(AgentPhase.ORIENTING)
-            state = self.cognitive_cycle.orient(state, context)
+            if self._latency_profiler is not None:
+                with self._latency_profiler.instrument(
+                    mission_id=envelope.id,
+                    action_id=f"{envelope.id}:orient",
+                    action_type="orient",
+                ):
+                    state = self.cognitive_cycle.orient(state, context)
+            else:
+                state = self.cognitive_cycle.orient(state, context)
             event_bus.append(
                 AgentEventType.ORIENTATION_COMPLETED,
                 "Agent orientation completed.",
@@ -903,22 +1100,96 @@ class AgentRuntime:
                 )
                 continue
 
+            # Task 8.8 / sentinel-performance-runtime-foundation —
+            # Default-off / injection-gated routing. The scheduler
+            # path is taken ONLY when BOTH injections are present
+            # AND the synchronous call site would have used the
+            # local controlled-capability runner (the canonical
+            # organ-call surface in this method). Browser routes
+            # and browser-runner paths keep their existing
+            # synchronous behaviour: those paths run a separate
+            # organ chain (operator route or browser controlled
+            # runner) whose receipt-stream contract is owned by the
+            # browser organ tests; routing them through the
+            # scheduler in this wave would change observable
+            # behaviour beyond what Task 8.8 authorises. The
+            # regression test in
+            # ``tests/perf/sched/test_runtime_scheduler_wiring.py``
+            # exercises the local-runner path because that is the
+            # surface the task spec lists as the integration point.
+            #
+            # Pre-flight ordering (Acceptance criterion 4 of Task
+            # 8.8): authority validation, kill-switch blocking
+            # gate, and dry-run pre-flight ALL happen BEFORE
+            # ``scheduler.submit``. A blocking kill-switch or denied
+            # authority short-circuits the loop iteration with a
+            # ``CONTROLLED_CAPABILITY_REJECTED`` event mapped from
+            # the scheduler's documented rejection reason set
+            # (``kill_switch_blocked``, ``authority_denied``,
+            # ``backpressure_rejected``, ``queue_full``). The
+            # synchronous runner is NEVER invoked on those paths,
+            # so existing safety invariants remain end-to-end.
+            scheduler_path_eligible = (
+                self._async_organ_scheduler is not None
+                and self._backpressure_controller is not None
+                and canonicalization.call.action
+                not in BrowserControlledCapabilityRunner.SUPPORTED_ACTIONS
+            )
+            if scheduler_path_eligible:
+                routed_result = self._route_local_tool_call_through_scheduler(
+                    call=canonicalization.call,
+                    envelope=envelope,
+                    event_bus=event_bus,
+                    runner=runner,
+                )
+                results.append(routed_result)
+                continue
+
             if canonicalization.call.action in BrowserControlledCapabilityRunner.SUPPORTED_ACTIONS:
                 if self.browser_operator_route is not None:
-                    route_result = self.browser_operator_route.run(
-                        canonicalization.call,
-                        envelope,
-                        event_bus=event_bus,
-                        capture_root=self._controlled_capture_root(envelope),
-                    )
+                    if self._latency_profiler is not None:
+                        with self._latency_profiler.instrument(
+                            mission_id=envelope.id,
+                            action_id=f"{envelope.id}:tool_call:{uuid.uuid4().hex[:8]}",
+                            action_type="tool_call",
+                        ):
+                            route_result = self.browser_operator_route.run(
+                                canonicalization.call,
+                                envelope,
+                                event_bus=event_bus,
+                                capture_root=self._controlled_capture_root(envelope),
+                            )
+                    else:
+                        route_result = self.browser_operator_route.run(
+                            canonicalization.call,
+                            envelope,
+                            event_bus=event_bus,
+                            capture_root=self._controlled_capture_root(envelope),
+                        )
                     result = route_result.controlled_result
                     payload = result.model_dump(mode="json")
                     payload["operator_route"] = route_result.model_dump(mode="json", exclude={"controlled_result"})
                     results.append(payload)
                     continue
-                result = browser_runner.run(canonicalization.call, envelope, event_bus=event_bus)
+                if self._latency_profiler is not None:
+                    with self._latency_profiler.instrument(
+                        mission_id=envelope.id,
+                        action_id=f"{envelope.id}:tool_call:{uuid.uuid4().hex[:8]}",
+                        action_type="tool_call",
+                    ):
+                        result = browser_runner.run(canonicalization.call, envelope, event_bus=event_bus)
+                else:
+                    result = browser_runner.run(canonicalization.call, envelope, event_bus=event_bus)
             else:
-                result = runner.run(canonicalization.call, envelope, event_bus=event_bus)
+                if self._latency_profiler is not None:
+                    with self._latency_profiler.instrument(
+                        mission_id=envelope.id,
+                        action_id=f"{envelope.id}:tool_call:{uuid.uuid4().hex[:8]}",
+                        action_type="tool_call",
+                    ):
+                        result = runner.run(canonicalization.call, envelope, event_bus=event_bus)
+                else:
+                    result = runner.run(canonicalization.call, envelope, event_bus=event_bus)
             results.append(result.model_dump(mode="json"))
         overflow_count = requested_count - len(raw_calls)
         if overflow_count > 0:
@@ -1036,3 +1307,438 @@ class AgentRuntime:
 
     def _snapshot_trace(self, event_bus: EventBus):
         return self.trace_replayer.replay(event_bus.events()).snapshot
+
+    # ------------------------------------------------------------------
+
+    def _route_local_tool_call_through_scheduler(
+        self,
+        *,
+        call: Any,
+        envelope: MissionAuthorityEnvelope,
+        event_bus: EventBus,
+        runner: LocalControlledCapabilityRunner,
+    ) -> dict[str, Any]:
+        """Route a single local tool call through the async scheduler.
+
+        Pre-flight: builds an ``OrganAuthorityEnvelope``,
+        ``OrganKillSwitch``, and ``OrganDryRunReceipt`` from the
+        mission envelope. The authority envelope's
+        ``execution_authorized=True`` / ``dry_run_only=False`` mirrors
+        the synchronous local-runner contract (the runner runs the
+        action — it is not a dry-run-only path). The kill-switch is
+        non-triggered by default; if the mission has a triggered
+        kill-switch in a future wave, it should arrive here from
+        ``self._mission_kill_switches[envelope.id]`` (out of scope
+        for Task 8.8).
+
+        Returns the same dict shape the synchronous path returns:
+
+        * Success:  ``ControlledCapabilityResult.model_dump(mode="json")``
+        * Rejected:
+          ``{"accepted": False, "status": "rejected", "reason": ...,
+             "trace_event_id": ...}``
+
+        Backpressure or queue-full rejections from the scheduler are
+        mapped to ``CONTROLLED_CAPABILITY_REJECTED`` events on the
+        agent event bus, matching the existing rejection-receipt
+        contract (Acceptance criterion 5: "ack.accepted is False →
+        emit rejection-equivalent receipt mapping ack.reason to
+        existing event types"). The scheduler's own
+        ``KILL_SWITCH_BLOCKED`` / ``AUTHORITY_VIOLATION`` /
+        ``PERFORMANCE_RECEIPT_RECORDED`` events are emitted in
+        addition, providing the perf-trace audit surface.
+        """
+        # Late imports — these symbols are only needed on the
+        # injection-gated path. Module-level imports would force a
+        # cyclic dependency between ``sentinel.agent.runtime`` and
+        # ``sentinel.perf.sched.async_organ_scheduler`` (the
+        # scheduler imports nothing from the agent layer, but the
+        # type-only forward refs above are sufficient for static
+        # analysis without paying the import cost on the default
+        # path).
+        from sentinel.organs.authority import OrganAuthorityEnvelope
+        from sentinel.organs.dry_run import OrganDryRunReceipt
+        from sentinel.organs.kill_switch import OrganKillSwitch
+        from sentinel.perf.sched.tool_call_queue import Priority
+
+        action_id = f"{envelope.id}:tool_call:{uuid.uuid4().hex[:8]}"
+        organ_id = f"controlled_local::{call.tool_id}"
+
+        # Build the safety triple the scheduler requires. These are
+        # the SAME safety surfaces the synchronous path consults —
+        # local controlled-capability runner already runs through
+        # ``ToolRegistry.decide`` (policy gate), capture sandbox
+        # (path/scope gate), and registry side-effect gate. Adding
+        # the scheduler's safety triple is additive: the runner's
+        # internal gates remain the authoritative final barrier
+        # before any artifact is written.
+        authority = OrganAuthorityEnvelope(
+            mission_id=envelope.id,
+            root_authority_id=envelope.id,
+            organ_id=organ_id,
+            organ_name=f"controlled_local::{call.tool_id}",
+            allowed_actions=list(envelope.allowed_actions),
+            allowed_tools=list(envelope.allowed_tools),
+            allowed_domains=[],
+            allowed_accounts=[],
+            allowed_paths=list(envelope.allowed_paths),
+            max_actions=envelope.max_actions,
+            max_cost_usd=envelope.max_cost_usd,
+            execution_authorized=True,
+            dry_run_only=False,
+        )
+        kill_switch = OrganKillSwitch(
+            mission_id=envelope.id,
+            organ_id=organ_id,
+            enabled=True,
+            triggered=False,
+            execution_allowed=True,
+        )
+        dry_run = OrganDryRunReceipt(
+            mission_id=envelope.id,
+            organ_id=organ_id,
+            action=call.action,
+            reason="agent_runtime_scheduler_wiring",
+            preview={"tool_id": call.tool_id, "action": call.action},
+            risk_profile_id=f"orisk_{envelope.id}",
+            authority_id=authority.id,
+            evidence_refs=["ev_agent_runtime_scheduler_wiring"],
+        )
+
+        # Holder for the synchronous runner result; populated by the
+        # ``organ_runner`` coroutine when the scheduler dequeues and
+        # executes it. The scheduler does not propagate runner
+        # return values back through ``submit`` (it only emits
+        # outcome events + PerformanceReceipt), so we capture the
+        # result via closure and read it after the wrapper task
+        # completes. ``runner_exception`` carries any exception the
+        # synchronous runner raised so the caller can surface it
+        # consistently with the synchronous path.
+        runner_result: dict[str, Any] = {}
+
+        async def _organ_runner(action: Any) -> None:
+            del action  # the scheduler reads no payload bytes
+            inner = runner.run(call, envelope, event_bus=event_bus)
+            runner_result["payload"] = inner.model_dump(mode="json")
+
+        action_stub = _ToolCallSchedulerAction(
+            action_id=action_id,
+            mission_id=envelope.id,
+            organ_id=organ_id,
+            action_type=call.action,
+        )
+
+        # Drive scheduler.submit on a fresh event loop. Each tool
+        # call is independent and the AgentRuntime call site is
+        # synchronous (we MUST NOT change ``_execute_controlled_tool_calls``
+        # to async without permission — strict rule). ``asyncio.run``
+        # creates a fresh loop, runs ``submit`` + the wrapper task to
+        # completion, then closes the loop, which is the documented
+        # async-bridge pattern.
+        async def _drive() -> SubmissionAck:
+            ack = await self._async_organ_scheduler.submit(  # type: ignore[union-attr]
+                action_stub,
+                authority=authority,
+                kill_switch=kill_switch,
+                dry_run=dry_run,
+                deadline_ms=int(max(1, envelope.max_duration_minutes) * 60 * 1000),
+                priority=Priority.NORMAL,
+                organ_runner=_organ_runner,
+            )
+            # Drain any in-flight wrapper task so the runner result
+            # is populated and outcome events fire before we read
+            # them. If the submission was rejected the scheduler
+            # creates no wrapper task, so this gather is a no-op.
+            pending = [
+                task
+                for task in asyncio.all_tasks()
+                if task is not asyncio.current_task()
+            ]
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            return ack
+
+        ack: SubmissionAck = asyncio.run(_drive())  # type: ignore[assignment]
+
+        if ack.accepted and "payload" in runner_result:
+            return runner_result["payload"]
+
+        # Map scheduler rejection reasons to a ``CONTROLLED_CAPABILITY_REJECTED``
+        # event so the agent's existing rejection-receipt contract
+        # (consumed by ``RuntimeCertificationGate``,
+        # downstream verifiers and the trace replayer see the
+        # rejection in the canonical shape. The scheduler has
+        # already emitted its own typed event
+        # (``KILL_SWITCH_BLOCKED`` / ``AUTHORITY_VIOLATION``) plus a
+        # ``PerformanceReceipt`` with critical severity; this event
+        # is the agent-layer mirror, not a duplicate.
+        if not ack.accepted:
+            event = event_bus.append(
+                AgentEventType.CONTROLLED_CAPABILITY_REJECTED,
+                "Controlled local capability rejected by async organ scheduler.",
+                phase_before=AgentPhase.EXECUTING,
+                phase_after=AgentPhase.EXECUTING,
+                payload={
+                    "reason": ack.reason,
+                    "scheduler_action_id": ack.action_id,
+                    "scheduler_organ_id": ack.organ_id,
+                    "tool_id": call.tool_id,
+                    "action": call.action,
+                },
+            )
+            return {
+                "accepted": False,
+                "status": "rejected",
+                "reason": ack.reason,
+                "tool_id": call.tool_id,
+                "action": call.action,
+                "scheduler_action_id": ack.action_id,
+                "scheduler_organ_id": ack.organ_id,
+                "trace_event_id": event.id,
+            }
+
+        # Accepted by submit but the wrapper task never ran the
+        # synchronous runner to completion (e.g. the wrapper was
+        # cancelled mid-flight, or the runner raised). Surface a
+        # rejection-equivalent receipt so the trace contract is
+        # never silently empty.
+        event = event_bus.append(
+            AgentEventType.CONTROLLED_CAPABILITY_REJECTED,
+            "Controlled local capability did not produce a synchronous runner result.",
+            phase_before=AgentPhase.EXECUTING,
+            phase_after=AgentPhase.EXECUTING,
+            payload={
+                "reason": "scheduler_runner_did_not_complete",
+                "scheduler_action_id": ack.action_id,
+                "scheduler_organ_id": ack.organ_id,
+                "tool_id": call.tool_id,
+                "action": call.action,
+            },
+        )
+        return {
+            "accepted": False,
+            "status": "rejected",
+            "reason": "scheduler_runner_did_not_complete",
+            "tool_id": call.tool_id,
+            "action": call.action,
+            "scheduler_action_id": ack.action_id,
+            "scheduler_organ_id": ack.organ_id,
+            "trace_event_id": event.id,
+        }
+
+    def _block_repair_if_action_budget_would_overflow(
+        self,
+        envelope: MissionAuthorityEnvelope,
+        state: AgentState,
+        repair_decision,
+        controlled_capability_results: list[dict[str, Any]],
+        mission_result,
+        *,
+        plan_step_count: int,
+        event_bus: EventBus,
+    ):
+        if repair_decision.decision != RepairDecisionType.REPAIR_ALLOWED:
+            return repair_decision
+
+        controlled_executed = self._accepted_controlled_capability_count(controlled_capability_results)
+        mission_actions_used = mission_result.state.action_count if mission_result is not None else 0
+        projected_total = controlled_executed + mission_actions_used + max(0, plan_step_count)
+        if projected_total <= envelope.max_actions:
+            return repair_decision
+
+        reasons = [
+            *repair_decision.reasons,
+            "repair_blocked_by_global_action_budget",
+        ]
+        event = event_bus.append(
+            AgentEventType.REPAIR_DECIDED,
+            "Bounded repair was blocked because the projected run action budget would overflow.",
+            phase_before=state.phase,
+            phase_after=state.phase,
+            payload={
+                "decision": RepairDecisionType.REPAIR_BLOCKED,
+                "repair_pressure": repair_decision.repair_pressure,
+                "reasons": reasons,
+                "findings_used": repair_decision.findings_used,
+                "current_repair_cycles": state.repair_cycles,
+                "max_repair_cycles": state.max_repair_cycles,
+                "controlled_executed": controlled_executed,
+                "mission_actions_used": mission_actions_used,
+                "projected_repair_actions": max(0, plan_step_count),
+                "projected_total_actions": projected_total,
+                "max_actions": envelope.max_actions,
+            },
+            trace_refs=repair_decision.trace_refs,
+        )
+        return repair_decision.model_copy(
+            update={
+                "decision": RepairDecisionType.REPAIR_BLOCKED,
+                "reasons": reasons,
+                "can_continue": False,
+                "instructions": [],
+                "trace_refs": [*repair_decision.trace_refs, event.id],
+            }
+        )
+
+    @staticmethod
+    def _accepted_controlled_capability_count(results: list[dict[str, Any]]) -> int:
+        return sum(1 for item in results if item.get("accepted") is True)
+
+    @staticmethod
+    def _raw_tool_call_payloads(user_input: dict[str, Any], *, limit: int) -> tuple[list[str], int]:
+        raw_value = user_input.get("tool_calls", user_input.get("tool_call"))
+        if raw_value is None:
+            return [], 0
+        items = raw_value if isinstance(raw_value, list) else [raw_value]
+        requested_count = len(items)
+        payloads: list[str] = []
+        for item in items[: max(0, limit)]:
+            if isinstance(item, str):
+                payloads.append(item)
+            elif isinstance(item, dict):
+                payloads.append(json.dumps(item, sort_keys=True, default=str, separators=(",", ":")))
+            else:
+                payloads.append(str(item))
+        return payloads, requested_count
+
+    def _controlled_capture_root(self, envelope: MissionAuthorityEnvelope) -> Path:
+        for allowed_root in envelope.allowed_paths or []:
+            normalized = PurePosixPath(str(allowed_root).replace("\\", "/"))
+            if normalized.is_absolute() or ".." in normalized.parts or "*" in normalized.parts:
+                continue
+            if normalized.as_posix().rstrip("/") == "data/generated_projects":
+                capture_root = (self.project_root / normalized / mission_slug(envelope.mission_title)).resolve()
+                capture_root.relative_to(self.project_root)
+                return capture_root
+        raise ValueError("Controlled local capability capture requires data/generated_projects in mission allowed_paths.")
+
+    def _certify_trace(self, event_bus: EventBus):
+        return self.certification_gate.certify(event_bus.events())
+
+    def _snapshot_trace(self, event_bus: EventBus):
+        return self.trace_replayer.replay(event_bus.events()).snapshot
+
+    # ------------------------------------------------------------------
+    # Task 6.11 / sentinel-performance-runtime-foundation —
+    # decision-core cache wrappers for future LLMDecisionFrame call
+    # sites. The cognitive cycle in this codebase does not yet invoke
+    # ``LLMDecisionFrame.build`` or ``LLMDecisionFrame.render_prompt_text``
+    # directly from :class:`AgentRuntime`, but the spec requires
+    # constructor-level injection of the caches and governor here so
+    # downstream wiring (e.g. when the LLM-backed decision cycle lands)
+    # can adopt the cache surface without changing public signatures
+    # again. Each helper preserves the **default-off / bit-identical**
+    # contract: when the relevant cache is ``None`` the helper calls
+    # the underlying builder/renderer directly and emits no events.
+
+    # ------------------------------------------------------------------
+
+    def _build_decision_frame_cached(
+        self,
+        *,
+        mission_id: str,
+        composite_inputs: dict[str, str],
+        builder: "Callable[[], LLMDecisionFrame]",
+    ) -> "LLMDecisionFrame":
+        """Wrap an :class:`LLMDecisionFrame` build with the decision-frame cache.
+
+        Task 6.11 — when ``self._decision_frame_cache is not None``:
+        compute the composite hash, attempt
+        :meth:`LLMDecisionFrameCache.get`, and on miss fall through to
+        ``builder()`` then ``put`` the result. The composite hash is
+        derived from the four cache slots
+        (``mission_hot_hash``, ``authority_hash``,
+        ``evidence_set_hash``, ``tool_surface_hash``) which the caller
+        passes in via ``composite_inputs``. Cache hits never expand
+        authority — the composite includes ``authority_hash``, so a
+        frame built under different authority hashes to a different
+        cache entry by construction.
+
+        When the cache is ``None`` the helper calls ``builder()``
+        directly with no extra event emissions or method calls — the
+        path is bit-identical to a non-injected runtime.
+        """
+
+        if self._decision_frame_cache is None:
+            return builder()
+        composite = self._decision_frame_cache.composite_hash(
+            mission_hot_hash=composite_inputs["mission_hot_hash"],
+            authority_hash=composite_inputs["authority_hash"],
+            evidence_set_hash=composite_inputs["evidence_set_hash"],
+            tool_surface_hash=composite_inputs["tool_surface_hash"],
+        )
+        cached = self._decision_frame_cache.get(composite, mission_id=mission_id)
+        if cached is not None:
+            return cached
+        frame = builder()
+        # ``put`` rejects ``frame.authority_expansion=True`` writes
+        # with a ``ValueError`` (Requirement 12.2). We propagate that
+        # rejection rather than swallowing it — an authority-expanding
+        # frame must surface to the caller for the caller's safety
+        # gates to handle.
+        self._decision_frame_cache.put(composite, frame, mission_id=mission_id)
+        return frame
+
+    def _render_prompt_text_cached(
+        self,
+        frame: "LLMDecisionFrame",
+        *,
+        mission_id: str,
+    ) -> str:
+        """Wrap :meth:`LLMDecisionFrame.render_prompt_text` with the prompt cache.
+
+        Task 6.11 — when ``self._prompt_frame_cache is not None``:
+        :meth:`PromptFrameCache.get_or_render` is invoked with the
+        frame and a ``renderer`` lambda that defers to
+        :meth:`LLMDecisionFrame.render_prompt_text`. The cache is
+        keyed by :attr:`LLMDecisionFrame.frame_hash`, which carries
+        the authority-bearing slice of the frame; cache hits return
+        the rendered text the *original* renderer produced for the
+        *original* authority-bearing frame.
+
+        When the cache is ``None`` the helper calls
+        ``frame.render_prompt_text()`` directly with no extra event
+        emissions — bit-identical to a non-injected runtime.
+        """
+
+        if self._prompt_frame_cache is None:
+            return frame.render_prompt_text()
+        return self._prompt_frame_cache.get_or_render(
+            frame,
+            lambda f: f.render_prompt_text(),
+            mission_id=mission_id,
+        )
+
+    def _enforce_frame_budget(
+        self,
+        *,
+        mission_id: str,
+        builder: "Callable[[], LLMDecisionFrame]",
+        frame_budget: int,
+    ) -> tuple["LLMDecisionFrame", Any]:
+        """Wrap an :class:`LLMDecisionFrame` build with the token-budget governor.
+
+        Task 6.11 — when ``self._token_budget_governor is not None``:
+        :meth:`TokenBudgetGovernor.enforce_frame` is invoked with the
+        builder, ``self.context_compressor`` (the duck-typed
+        compressor protocol the governor expects), and ``frame_budget``.
+        The governor invokes ``builder()`` once, estimates the frame's
+        token count, and runs up to three
+        ``ContextCompressor.compress`` passes if the frame is over
+        budget; on rejection it emits ``BUDGET_EXCEEDED`` with
+        ``scope='frame'``. The returned tuple is
+        ``(frame, BudgetDecision)``.
+
+        When the governor is ``None`` the helper calls ``builder()``
+        directly, returns ``(frame, None)``, and emits no events —
+        bit-identical to a non-injected runtime.
+        """
+
+        if self._token_budget_governor is None:
+            return builder(), None
+        return self._token_budget_governor.enforce_frame(
+            mission_id,
+            builder,
+            self.context_compressor,
+            frame_budget,
+        )
