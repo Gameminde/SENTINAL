@@ -1,26 +1,15 @@
+"""Backward-compatibility shim — real module lives at
+:mod:`sentinel.organs.browser.pdf`.
+
+Task 5.2-A (Browser Legacy Consolidation, Wave A). All names re-exported so
+existing callers that import ``from sentinel.agent.browser.pdf import ...``
+continue to work while the browser legacy surface migrates to
+:mod:`sentinel.organs.browser`.
+"""
+
 from __future__ import annotations
 
-import re
+from sentinel.organs.browser.pdf import *  # noqa: F401,F403
+from sentinel.organs.browser.pdf import pdf_metadata  # noqa: F401
 
-from sentinel.agent.browser.models import BrowserPdfMetadata
-
-
-def pdf_metadata(data: bytes, *, max_bytes: int) -> BrowserPdfMetadata:
-    warnings: list[str] = []
-    if not data.startswith(b"%PDF-"):
-        warnings.append("invalid_pdf_header")
-    if len(data) > max_bytes:
-        warnings.append("bytes_exceed_max")
-    return BrowserPdfMetadata(
-        bytes=len(data),
-        max_bytes=max_bytes,
-        page_count_estimate=_page_count_estimate(data),
-        warnings=warnings,
-    )
-
-
-def _page_count_estimate(data: bytes) -> int | None:
-    if not data.startswith(b"%PDF-"):
-        return None
-    # Conservative estimate used only for metadata; it is not a PDF parser.
-    return len(re.findall(rb"/Type\s*/Page\b", data))
+__all__ = ["pdf_metadata"]

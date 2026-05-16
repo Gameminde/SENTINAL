@@ -3,6 +3,34 @@
 This package defines read-only browser boundaries. It does not fetch pages,
 open browsers, or execute page scripts unless a governed backend is explicitly
 wired behind the public contracts.
+
+.. deprecated:: Task 5 / Wave D (Browser Legacy Consolidation)
+   The canonical browser implementation now lives in
+   :mod:`sentinel.organs.browser`. Every re-export below is a
+   backward-compatibility shim. New code SHOULD import directly from
+   ``sentinel.organs.browser`` instead of ``sentinel.agent.browser``.
+
+   Two modules intentionally REMAIN in this package (not shims):
+
+   * :mod:`sentinel.agent.browser.cortex` — cognitive bridge that
+     interprets browser evidence into hypothesis updates. It belongs
+     to the agent cognitive cycle, not to the organ execution layer.
+   * :mod:`sentinel.agent.browser.perception_adapter` — cognitive
+     bridge that converts browser UI/visual observations into
+     ``PerceptionSource`` objects consumed by
+     :class:`sentinel.agent.perception.PerceptionEngine`. Also agent
+     cognitive cycle, not organ execution.
+
+   The shims keep legacy import paths (``from sentinel.agent.browser
+   import ...``) working. They re-export the canonical organ-side
+   classes and functions with preserved class identity — an
+   ``isinstance`` check against a legacy path object returns True for
+   instances produced from the organ path, and vice versa.
+
+   The shim retention policy is "keep for one release cycle"; a
+   future sub-task will either emit a runtime ``DeprecationWarning``
+   (once every downstream caller has migrated) or physically delete
+   the shims and rewrite every import.
 """
 
 from sentinel.agent.browser.evidence_adapter import BrowserEvidenceAdapter, BrowserFetcher, BrowserFetchError

@@ -4,8 +4,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from sentinel.agent.event_bus import EventBus
-from sentinel.agent.events import AgentEventType
+from sentinel.shared.events import AgentEventType, EventBus
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.organs.contracts import ExternalOrganContract
 from sentinel.shared.models import SentinelModel, new_id

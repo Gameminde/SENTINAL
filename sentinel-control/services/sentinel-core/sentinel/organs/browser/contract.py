@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sentinel.agent.events import AgentEventType
+from sentinel.shared.events import AgentEventType
 from sentinel.organs.contracts import (
     REQUIRED_TRACE_EVENTS,
     ExternalOrganContract,

@@ -50,6 +50,8 @@ class OrganReplayRecord(SentinelModel):
                 errors.append(f"execution_organ_mismatch:{execution.id}")
             if execution.action != dry_run.action:
                 errors.append(f"execution_action_mismatch:{execution.id}")
+            if execution.action_payload_hash != dry_run.action_payload_hash:
+                errors.append(f"execution_payload_hash_mismatch:{execution.id}")
         return cls(
             mission_id=mission_id,
             dry_run_receipts=dry_run_receipts,

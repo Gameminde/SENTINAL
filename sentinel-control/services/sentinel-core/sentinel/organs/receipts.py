@@ -2,17 +2,21 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import Field, model_validator
 
-from sentinel.agent.event_bus import EventBus
-from sentinel.agent.events import AgentEventType
+from sentinel.shared.events import AgentEventType, EventBus
 from sentinel.organs.authority import OrganAuthorityEnvelope
 from sentinel.organs.contracts import OrganPromotionLevel, PROMOTION_ORDER
-from sentinel.organs.dry_run import OrganDryRunReceipt
+from sentinel.organs.dry_run import OrganDryRunReceipt, _hash_action_payload
+from sentinel.organs.exceptions import ReceiptIntegrityError
 from sentinel.organs.kill_switch import OrganKillSwitch
 from sentinel.shared.models import SentinelModel, new_id
+
+if TYPE_CHECKING:
+    from sentinel.perf.hot_cold.cold_receipt_store import ColdReceiptStore
+    from sentinel.perf.hot_cold.receipt_index import ReceiptIndex
 
 
 def _hash_payload(payload: dict[str, Any]) -> str:
@@ -29,6 +33,7 @@ class OrganExecutionReceipt(SentinelModel):
     promotion_level: OrganPromotionLevel
     output_summary: str
     output_ref: str | None = None
+    action_payload_hash: str
     receipt_hash: str = ""
     execution_started: bool = False
     execution_completed: bool = False
@@ -60,6 +65,7 @@ class OrganExecutionReceipt(SentinelModel):
                 "promotion_level": self.promotion_level.value,
                 "output_summary": self.output_summary,
                 "output_ref": self.output_ref,
+                "action_payload_hash": self.action_payload_hash,
                 "trace_refs": self.trace_refs,
             }
         )
@@ -72,6 +78,8 @@ class OrganExecutionReceipt(SentinelModel):
         promotion_level: OrganPromotionLevel,
         output_summary: str,
         event_bus: EventBus | None = None,
+        cold_store: ColdReceiptStore | None = None,
+        receipt_index: ReceiptIndex | None = None,
     ) -> OrganExecutionReceipt:
         receipt = cls(
             mission_id=dry_run.mission_id,
@@ -80,11 +88,14 @@ class OrganExecutionReceipt(SentinelModel):
             dry_run_receipt_id=dry_run.id,
             promotion_level=promotion_level,
             output_summary=output_summary,
+            action_payload_hash=dry_run.action_payload_hash,
             execution_started=False,
             execution_completed=False,
             trace_refs=list(dry_run.trace_refs),
         )
         if event_bus is None:
+            # Persist to cold store even without event_bus
+            _persist_receipt_to_cold(receipt, cold_store=cold_store, receipt_index=receipt_index)
             return receipt
         event = event_bus.append(
             AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED,
@@ -100,7 +111,7 @@ class OrganExecutionReceipt(SentinelModel):
             },
             trace_refs=list(dry_run.trace_refs),
         )
-        return cls(
+        final_receipt = cls(
             id=receipt.id,
             mission_id=receipt.mission_id,
             organ_id=receipt.organ_id,
@@ -109,10 +120,14 @@ class OrganExecutionReceipt(SentinelModel):
             promotion_level=receipt.promotion_level,
             output_summary=receipt.output_summary,
             output_ref=receipt.output_ref,
+            action_payload_hash=dry_run.action_payload_hash,
             execution_started=False,
             execution_completed=False,
             trace_refs=[*receipt.trace_refs, event.id],
         )
+        # Persist to cold store after event emission (Requirement 5.2, 5.5)
+        _persist_receipt_to_cold(final_receipt, cold_store=cold_store, receipt_index=receipt_index)
+        return final_receipt
 
     @classmethod
     def started(
@@ -124,9 +139,12 @@ class OrganExecutionReceipt(SentinelModel):
         promotion_level: OrganPromotionLevel,
         output_summary: str,
         trace_refs: list[str],
+        execution_action_payload: dict[str, Any],
         output_ref: str | None = None,
         execution_completed: bool = False,
         event_bus: EventBus | None = None,
+        cold_store: ColdReceiptStore | None = None,
+        receipt_index: ReceiptIndex | None = None,
     ) -> OrganExecutionReceipt:
         if authority.id != dry_run.authority_id:
             raise ValueError("Organ execution request authority does not match dry-run receipt.")
@@ -138,6 +156,11 @@ class OrganExecutionReceipt(SentinelModel):
             raise ValueError("Organ execution request kill switch does not match organ.")
         if kill_switch.triggered or not kill_switch.execution_allowed:
             raise ValueError("Organ execution request blocked by kill switch.")
+        actual_hash = _hash_action_payload(execution_action_payload)
+        if actual_hash != dry_run.action_payload_hash:
+            raise ReceiptIntegrityError(
+                f"execution_action_payload_hash_mismatch: expected={dry_run.action_payload_hash} actual={actual_hash}"
+            )
         receipt = cls(
             mission_id=dry_run.mission_id,
             organ_id=dry_run.organ_id,
@@ -146,11 +169,14 @@ class OrganExecutionReceipt(SentinelModel):
             promotion_level=promotion_level,
             output_summary=output_summary,
             output_ref=output_ref,
+            action_payload_hash=actual_hash,
             execution_started=True,
             execution_completed=execution_completed,
             trace_refs=trace_refs,
         )
         if event_bus is None:
+            # Persist to cold store even without event_bus
+            _persist_receipt_to_cold(receipt, cold_store=cold_store, receipt_index=receipt_index)
             return receipt
         event = event_bus.append(
             AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED,
@@ -166,7 +192,7 @@ class OrganExecutionReceipt(SentinelModel):
             },
             trace_refs=trace_refs,
         )
-        return cls(
+        final_receipt = cls(
             id=receipt.id,
             mission_id=receipt.mission_id,
             organ_id=receipt.organ_id,
@@ -175,7 +201,35 @@ class OrganExecutionReceipt(SentinelModel):
             promotion_level=receipt.promotion_level,
             output_summary=receipt.output_summary,
             output_ref=receipt.output_ref,
+            action_payload_hash=actual_hash,
             execution_started=True,
             execution_completed=execution_completed,
             trace_refs=[*receipt.trace_refs, event.id],
         )
+        # Persist to cold store after event emission (Requirement 5.2, 5.5)
+        _persist_receipt_to_cold(final_receipt, cold_store=cold_store, receipt_index=receipt_index)
+        return final_receipt
+
+
+def _persist_receipt_to_cold(
+    receipt: OrganExecutionReceipt,
+    *,
+    cold_store: ColdReceiptStore | None = None,
+    receipt_index: ReceiptIndex | None = None,
+) -> None:
+    """Persist an OrganExecutionReceipt to the cold store and/or index.
+
+    Guards with ``if ... is not None:`` so default behavior is unchanged
+    when neither cold_store nor receipt_index is provided.
+
+    Priority order (Requirement 5.2, 5.5):
+    - If receipt_index is provided, use ``persist_and_index`` which handles
+      both cold-store persistence and indexing atomically.
+    - If only cold_store is provided (no index), call ``cold_store.persist``
+      directly.
+    - If neither is provided, this is a no-op (preserves existing behavior).
+    """
+    if receipt_index is not None:
+        receipt_index.persist_and_index(receipt)
+    elif cold_store is not None:
+        cold_store.persist(receipt)

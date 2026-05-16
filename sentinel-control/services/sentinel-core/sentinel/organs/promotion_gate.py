@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from sentinel.agent.event_bus import EventBus
-from sentinel.agent.events import AgentEventType
+from sentinel.shared.events import AgentEventType, EventBus
 from sentinel.organs.contracts import ExternalOrganContract, OrganPromotionLevel, PROMOTION_ORDER
 from sentinel.shared.models import SentinelModel, new_id
 

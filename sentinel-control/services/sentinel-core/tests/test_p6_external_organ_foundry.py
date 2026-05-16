@@ -289,6 +289,7 @@ def test_execution_receipt_cannot_start_before_l6():
             dry_run_receipt_id=dry_run.id,
             promotion_level=OrganPromotionLevel.L2_SENTINEL_CONTRACT,
             output_summary="bad",
+            action_payload_hash=dry_run.action_payload_hash,
             execution_started=True,
             execution_completed=True,
             trace_refs=["trace_1"],
@@ -311,6 +312,7 @@ def test_dry_run_only_authority_cannot_create_started_execution_receipt():
             promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
             output_summary="blocked",
             trace_refs=["trace_1"],
+            execution_action_payload={"action": dry_run.action, "preview": dry_run.preview},
         )
 
 
@@ -346,6 +348,7 @@ def test_kill_switch_blocks_execution_shaped_requests():
             promotion_level=OrganPromotionLevel.L6_LIMITED_EXECUTION,
             output_summary="blocked",
             trace_refs=["trace_1"],
+            execution_action_payload={"action": dry_run.action, "preview": dry_run.preview},
         )
 
 

@@ -6,8 +6,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from sentinel.agent.event_bus import EventBus
-from sentinel.agent.events import AgentEventType
+from sentinel.shared.events import AgentEventType, EventBus
 from sentinel.organs.authority import OrganAuthorityEnvelope
 from sentinel.organs.risk import OrganRiskProfile
 from sentinel.shared.models import SentinelModel, new_id
@@ -15,6 +14,11 @@ from sentinel.shared.models import SentinelModel, new_id
 
 def _hash_payload(payload: dict[str, Any]) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _hash_action_payload(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
@@ -29,6 +33,7 @@ class OrganDryRunReceipt(SentinelModel):
     authority_id: str
     evidence_refs: list[str]
     preview_hash: str = ""
+    action_payload_hash: str = ""
     execution_started: bool = False
     accepted_for_review: bool = True
     authority_expansion: bool = False
@@ -47,7 +52,20 @@ class OrganDryRunReceipt(SentinelModel):
             raise ValueError("OrganDryRunReceipt preview hash mismatch.")
         if not self.preview_hash:
             self.preview_hash = expected_hash
+        expected_action_payload_hash = self.expected_action_payload_hash()
+        if self.action_payload_hash and self.action_payload_hash != expected_action_payload_hash:
+            raise ValueError("OrganDryRunReceipt action payload hash mismatch.")
+        if not self.action_payload_hash:
+            self.action_payload_hash = expected_action_payload_hash
         return self
+
+    def expected_action_payload_hash(self) -> str:
+        return _hash_action_payload(
+            {
+                "action": self.action,
+                "preview": self.preview,
+            }
+        )
 
     def expected_preview_hash(self) -> str:
         return _hash_payload(

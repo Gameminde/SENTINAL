@@ -4,8 +4,7 @@ from enum import StrEnum
 
 from pydantic import Field
 
-from sentinel.agent.event_bus import EventBus
-from sentinel.agent.events import AgentEventType
+from sentinel.shared.events import AgentEventType, EventBus
 from sentinel.organs.authority import OrganAuthorityEnvelope
 from sentinel.organs.contracts import ExternalOrganContract, OrganType
 from sentinel.shared.models import SentinelModel, new_id
