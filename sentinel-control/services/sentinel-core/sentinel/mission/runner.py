@@ -42,6 +42,11 @@ class MissionRunner:
         project_root: str | Path | None = None,
         registry: MissionRegistry | None = None,
         browser_operator_route: BrowserOperatorMissionRouteProtocol | None = None,
+        *,
+        latency_profiler: LatencyProfiler | None = None,
+        hot_cache: HotMissionCache | None = None,
+        cold_store: ColdReceiptStore | None = None,
+        receipt_index: ReceiptIndex | None = None,
     ) -> None:
         self.project_root = Path(project_root or Path.cwd()).resolve()
         self.executors = SafeMissionExecutors(self.project_root)
@@ -83,15 +88,22 @@ class MissionRunner:
         cancellation_token: CancellationToken | None = None,
     ) -> MissionRunResult:
         # Emit mission-start trace if profiler is injected
-        trace_id = None
+        _profiler_handle: str | None = None
         if self._latency_profiler is not None:
-            trace_id = self._latency_profiler.start_trace(
+            _profiler_handle = self._latency_profiler.start(
                 mission_id=envelope.id,
                 action_id=f"{envelope.id}:mission_run",
                 action_type="mission_run",
-                metadata={"phase": "mission_runner"},
             )
 
+        # Populate hot cache on mission start (Requirement 4.6)
+        if self._hot_cache is not None:
+            self._hot_cache.set_objective(envelope.id, envelope.mission_objective)
+            self._hot_cache.set_constraints(
+                envelope.id, envelope.success_criteria[:32]
+            )
+
+        _error_occurred = False
         try:
             result = self._do_run_mission(
                 envelope,
@@ -100,16 +112,20 @@ class MissionRunner:
                 plan=plan,
                 cancellation_token=cancellation_token,
             )
-
-            if self._hot_cache is not None:
-                self._hot_cache.set(envelope.id, result)
-
             return result
+        except BaseException:
+            _error_occurred = True
+            if self._latency_profiler is not None and _profiler_handle is not None:
+                self._latency_profiler.stop(_profiler_handle, error=True, error_category="mission_run_exception")
+            raise
         finally:
+            # Evict hot cache on terminal state (Requirement 4.7) - fires
+            # even on exception so the cache is always cleaned up.
             if self._hot_cache is not None:
-                self._hot_cache.evict(envelope.id)
-            if self._latency_profiler is not None and trace_id is not None:
-                self._latency_profiler.stop_trace(trace_id)
+                self._hot_cache.evict_mission(envelope.id)
+            # Emit mission-end trace on success path
+            if not _error_occurred and self._latency_profiler is not None and _profiler_handle is not None:
+                self._latency_profiler.stop(_profiler_handle)
 
     def _do_run_mission(
         self,
