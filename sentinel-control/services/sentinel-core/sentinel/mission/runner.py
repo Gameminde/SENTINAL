@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING, Any, Protocol
 from sentinel.mission.artifacts import MissionArtifactIndex
 from sentinel.mission.autonomy import AutonomyEngine
 from sentinel.mission.budget import MissionBudgetController
+from sentinel.mission.cancellation import CancellationToken
 from sentinel.mission.escalation import EscalationGateway
+from sentinel.mission.exceptions import BrowserOperatorRouteRejected
+from sentinel.mission.exceptions import MissionRevokedException
 from sentinel.mission.models import MissionAuthorityEnvelope, MissionPlan, MissionRunResult, MissionState, ReviewResult, utc_now
 from sentinel.mission.posture import MissionExecutionPosturePolicy
 from sentinel.mission.registry import MissionRegistry, default_mission_registry
@@ -60,8 +63,15 @@ class MissionRunner:
         idea: str | None = None,
         evidence_refs: list[str] | None = None,
         plan: MissionPlan | None = None,
+        cancellation_token: CancellationToken | None = None,
     ) -> MissionRunResult:
-        return self.run_mission(envelope, idea=idea, evidence_refs=evidence_refs, plan=plan)
+        return self.run_mission(
+            envelope,
+            idea=idea,
+            evidence_refs=evidence_refs,
+            plan=plan,
+            cancellation_token=cancellation_token,
+        )
 
     def run_mission(
         self,
@@ -70,6 +80,7 @@ class MissionRunner:
         idea: str | None = None,
         evidence_refs: list[str] | None = None,
         plan: MissionPlan | None = None,
+        cancellation_token: CancellationToken | None = None,
     ) -> MissionRunResult:
         # Emit mission-start trace if profiler is injected
         trace_id = None
@@ -87,6 +98,7 @@ class MissionRunner:
                 idea=idea,
                 evidence_refs=evidence_refs,
                 plan=plan,
+                cancellation_token=cancellation_token,
             )
 
             if self._hot_cache is not None:
@@ -106,6 +118,7 @@ class MissionRunner:
         idea: str | None = None,
         evidence_refs: list[str] | None = None,
         plan: MissionPlan | None = None,
+        cancellation_token: CancellationToken | None = None,
     ) -> MissionRunResult:
         definition = self.registry.get(envelope.mission_type)
         project_dir = self.executors.project_dir_for(envelope.mission_title)
@@ -129,8 +142,26 @@ class MissionRunner:
         escalations = []
         blocked_actions = []
         completed_steps: set[str] = set()
+        revoked = False
 
         for step in plan.steps:
+            # Task 4 / Requirement 4 (F-A3.10) - reactive revocation check.
+            # Poll ``envelope.revoked_at`` and the optional cancellation
+            # token BEFORE each plan step so the kill-switch takes effect
+            # within one phase boundary. If revoked, abort the remaining
+            # steps; they must not execute.
+            try:
+                self._check_revocation(envelope, cancellation_token)
+            except MissionRevokedException:
+                revoked = True
+                timeline.emit(
+                    MissionTraceEventType.MISSION_REVOKED,
+                    "Mission authority revoked mid-run; remaining plan steps suppressed.",
+                    action_id=step.action.id,
+                    result={"step_id": step.id, "reason": "mission_revoked"},
+                )
+                break
+
             missing_deps = [dep for dep in step.depends_on if dep not in completed_steps]
             if missing_deps:
                 timeline.emit(
@@ -169,6 +200,21 @@ class MissionRunner:
                 timeline.emit_executed(routed_action.id, f"Executed `{routed_action.action_type}`.", output, routed_action.reversibility)
                 state = self.budget.record_usage(state, routed_action)
                 completed_steps.add(step.id)
+                # Also poll AFTER the step so the next step does not start
+                # when revocation arrived mid-step. This does not roll back
+                # the completed step; it only guarantees no subsequent step
+                # begins after revocation is observed.
+                try:
+                    self._check_revocation(envelope, cancellation_token)
+                except MissionRevokedException:
+                    revoked = True
+                    timeline.emit(
+                        MissionTraceEventType.MISSION_REVOKED,
+                        "Mission authority revoked between steps; remaining plan steps suppressed.",
+                        action_id=routed_action.id,
+                        result={"step_id": step.id, "reason": "mission_revoked"},
+                    )
+                    break
                 continue
 
             if decision.route == MissionActionRoute.ESCALATE:
@@ -196,7 +242,17 @@ class MissionRunner:
         timeline.persist()
 
         success, failures = definition.success_evaluator.evaluate(project_dir, review, unresolved_critical_escalations=len(escalations))
-        if success and not blocked_actions and not escalations:
+        if revoked:
+            state = state.model_copy(
+                update={"status": MissionStatus.REVOKED, "updated_at": utc_now(), "ended_at": utc_now()}
+            )
+            review = ReviewResult(
+                mission_id=envelope.id,
+                ready=False,
+                issues=review.issues,
+            )
+            success = False
+        elif success and not blocked_actions and not escalations:
             state = state.model_copy(update={"status": MissionStatus.COMPLETED, "current_step": "mission_completed", "updated_at": utc_now(), "ended_at": utc_now()})
             timeline.emit(MissionTraceEventType.MISSION_COMPLETED, "Mission completed after ReviewerLite and success evaluation.")
         else:
@@ -220,19 +276,73 @@ class MissionRunner:
             artifacts=artifact_index.artifacts,
             artifact_receipts=artifact_index.artifact_receipts,
             review=review,
-            success=success and not blocked_actions and not escalations,
+            success=success and not blocked_actions and not escalations and not revoked,
             trace_events=timeline.events,
             escalations=escalations,
             blocked_actions=blocked_actions,
         )
 
+    @staticmethod
+    def _check_revocation(
+        envelope: MissionAuthorityEnvelope,
+        cancellation_token: CancellationToken | None = None,
+    ) -> None:
+        """Raise :class:`MissionRevokedException` if the run is revoked."""
+        if envelope.revoked_at is not None:
+            raise MissionRevokedException(
+                "mission_revoked: envelope.revoked_at is set; "
+                "remaining plan steps must not execute."
+            )
+        if cancellation_token is not None and cancellation_token.is_cancelled:
+            raise MissionRevokedException(
+                "mission_revoked: cancellation token fired; "
+                "remaining plan steps must not execute."
+            )
+
     def _execute_browser_operator_route(self, envelope: MissionAuthorityEnvelope, action) -> dict[str, Any]:
         if self.browser_operator_route is None:
-            raise ValueError("browser_operator_route_not_configured")
+            raise BrowserOperatorRouteRejected(
+                reason="browser_operator_route_not_configured",
+                context={
+                    "mission_id": envelope.id,
+                    "action_id": getattr(action, "id", None),
+                    "action_type": getattr(action, "action_type", None),
+                },
+            )
         capture_root = self.project_root / "browser_operator_captures" / mission_slug(envelope.mission_title)
-        result = self.browser_operator_route.run_mission_action(action, envelope, capture_root=capture_root)
+        try:
+            result = self.browser_operator_route.run_mission_action(
+                action, envelope, capture_root=capture_root
+            )
+        except BrowserOperatorRouteRejected:
+            raise
+        except Exception as original_exc:
+            raise BrowserOperatorRouteRejected(
+                reason="browser_operator_route_adapter_failed",
+                context={
+                    "mission_id": envelope.id,
+                    "action_id": getattr(action, "id", None),
+                    "action_type": getattr(action, "action_type", None),
+                    "capture_root": str(capture_root),
+                    "error_type": type(original_exc).__name__,
+                },
+                original_exception=original_exc,
+            ) from original_exc
         if result.get("accepted") is not True:
-            raise ValueError(f"browser_operator_route_rejected:{result.get('reason')}")
+            raise BrowserOperatorRouteRejected(
+                reason=str(result.get("reason") or "unspecified"),
+                context={
+                    "mission_id": envelope.id,
+                    "action_id": getattr(action, "id", None),
+                    "action_type": getattr(action, "action_type", None),
+                    "capture_root": str(capture_root),
+                    "adapter_result": {
+                        k: v
+                        for k, v in result.items()
+                        if k not in {"accepted", "reason"}
+                    },
+                },
+            )
         return {
             "status": "executed",
             "type": "browser_operator_route",
