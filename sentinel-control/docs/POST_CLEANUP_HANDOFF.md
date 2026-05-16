@@ -1,5 +1,60 @@
 # Post-Cleanup Handoff
 
+## Phase F Full Lock Addendum
+
+Recorded at: 2026-05-16 23:52:54 +02:00
+
+Phase F was promoted from structural lock to full lock for the current
+`sentinel-performance-runtime-foundation` spec.
+
+Implemented in the full-lock pass:
+
+```text
+deterministic local golden mission runners:
+  startup
+  single_tool
+  multi_tool
+  browser_heavy
+BenchmarkHarness.run gate-aware pass semantics
+pytest hot-path coverage merge gate
+CoreFinalGate mission-close PerformanceReceipt verification for supplied receipts
+```
+
+Benchmark evidence:
+
+```text
+timestamp = 2026-05-16T21:56:36.273773+00:00
+gate_passed = true
+total_iterations = 120
+startup = 30 iterations, p50 12 ms, p95 17 ms, p99 27 ms
+single_tool = 30 iterations, p50 3 ms, p95 4 ms, p99 4 ms
+multi_tool = 30 iterations, p50 1 ms, p95 1 ms, p99 2 ms
+browser_heavy = 30 iterations, p50 35 ms, p95 51 ms, p99 57 ms
+```
+
+Closed by this full-lock pass:
+
+```text
+P-F-RUNNER-01
+P-F-CI-01
+```
+
+Backlog that remains open:
+
+```text
+P-B-PERF-01
+P-B-PERF-02
+P-C-RUNTIME-01
+P-C-KEY-01
+P-D-RUNTIME-01
+P-D-BATCH-01
+P-D-BROWSER-01
+```
+
+No P6U implementation, Brain/Science implementation, Consensus.ai work, new
+product powers, push, or unrelated backlog closure happened during this
+full-lock pass.
+
 ## Final Residual Cleanup Addendum
 
 Recorded at: 2026-05-16 23:13:56 +02:00

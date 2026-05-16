@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     # by ``sentinel.agent.final_gate`` which calls ``AgentRunResult.model_rebuild``
     # with an explicit ``_types_namespace`` once the class is defined.
     from sentinel.agent.final_gate import CoreFinalGateResult
+    from sentinel.perf.measure.performance_receipt import PerformanceReceipt
 
 
 def utc_now() -> datetime:
@@ -237,6 +238,7 @@ class AgentRunResult(SentinelModel):
     state_snapshot: AgentStateSnapshot | None = None
     mission_result: MissionRunResult | None = None
     mission_results: list[MissionRunResult] = Field(default_factory=list)
+    performance_receipts: list["PerformanceReceipt"] = Field(default_factory=list)
     escalation_reason: str | None = None
     active_plan: MissionPlan | None = None
     # Task 1.3 / Requirement 1 (FinalGate Runtime Integration):

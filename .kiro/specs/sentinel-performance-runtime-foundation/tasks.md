@@ -319,40 +319,40 @@ Latency SLAs (p95 / p99 targets) are enforced by `BenchmarkHarness` (Phase F), n
       - **Phase verdict**: `LOCKED` or `NOT LOCKED` with a one-line reason
     - A phase is **LOCKED** only when all non-optional tasks pass AND every associated `*` validation task has either passed or has a documented deferral approved by the user. Otherwise the verdict is `NOT LOCKED` and the next phase does not start.
 
-- [ ] 11. Phase F — Benchmark Regression Gates
-  - [ ] 11.1 Define `GoldenMission` classes and budgets
+- [x] 11. Phase F — Benchmark Regression Gates
+  - [x] 11.1 Define `GoldenMission` classes and budgets
     - File: `sentinel/perf/bench/golden_missions.py`
     - Classes `startup` / `single_tool` / `multi_tool` / `browser_heavy` with their p50 / p95 / p99 budgets and `min_iterations=30`
     - _Requirements: 11.1, 11.5, 11.6, 11.7_
 
-  - [ ] 11.2 Implement `BenchmarkHarness.run`
+  - [x] 11.2 Implement `BenchmarkHarness.run`
     - File: `sentinel/perf/bench/harness.py`
     - Blocks until every golden-mission class completes ≥30 iterations; computes p50 / p95 / p99 per class; sets `BenchmarkReport.completed_at` on successful completion; emits a structured pass report `(run_timestamp, iteration_count, p50, p95, p99 per class)` when all gates pass
     - _Requirements: 11.2, 11.9_
 
-  - [ ] 11.3 Implement `BenchmarkHarness.evaluate_gates`
+  - [x] 11.3 Implement `BenchmarkHarness.evaluate_gates`
     - Same file as 11.2 (append-only); 10 % p95 / 15 % p99 tolerance; on `completed_at is None` waits rather than failing; returns `GateVerdict` with `(metric, class, measured, budget, overage%)` entries
     - _Requirements: 11.3, 11.4_
 
-  - [ ]* 11.4 Write property test — Benchmark-gate semantics under completed runs
+  - [x]* 11.4 Write property test — Benchmark-gate semantics under completed runs
     - **Property 14: Benchmark-gate semantics under completed runs**
     - **Validates: Requirements 11.2, 11.3, 11.4, 11.9**
     - Hypothesis over synthetic `BenchmarkReport`s (completed + in-progress); verdict fails exactly on the >10 % p95 / >15 % p99 classes, waits on in-progress, passes otherwise
 
-  - [ ]* 11.5 Write unit tests — golden-mission enumeration and budget constants
+  - [x]* 11.5 Write unit tests — golden-mission enumeration and budget constants
     - Assert each class exists with the documented budgets and `min_iterations ≥ 30`
     - _Requirements: 11.1, 11.5, 11.6, 11.7_
 
-  - [ ] 11.6 Implement hot-path module registry + CI gate (Requirement 11.8)
+  - [x] 11.6 Implement hot-path module registry + CI gate (Requirement 11.8)
     - File: `sentinel/perf/bench/hot_path_registry.py`
     - Enumerates hot-path modules (invoked during Decision_Core processing, context building, prompt frame assembly, or receipt retrieval); CI check fails the merge when a new hot-path module is added without a benchmark entry in `GOLDEN_MISSION_CLASSES`
     - _Requirements: 11.8_
 
-  - [ ] 11.7 Wire `CoreFinalGate` to verify cross-cutting `PerformanceReceipt` invariants only
+  - [x] 11.7 Wire `CoreFinalGate` to verify cross-cutting `PerformanceReceipt` invariants only
     - Verify `authority_expansion=False`, `raw_secret_leakage=False`, `receipt_hash` validity before mission close; explicitly do NOT re-run performance budgets (owned by `BenchmarkHarness`)
     - _Requirements: 12.1, 12.2, 12.3_
 
-- [ ] 12. Final checkpoint — Full run
+- [x] 12. Final checkpoint — Full run
   - Produce a **Phase Lock Report** and do not proceed until it is reviewed. The report must include:
     - **Files changed**: full list of added / modified files
     - **Tests run**: test command(s) invoked

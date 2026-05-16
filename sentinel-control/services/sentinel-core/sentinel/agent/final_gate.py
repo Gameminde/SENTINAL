@@ -125,11 +125,20 @@ class CoreFinalGate:
         *,
         allowed_project_root: str | Path | None = None,
     ) -> CoreFinalGateResult:
-        return self._registry.evaluate_all(
+        verdict = self._registry.evaluate_all(
             result,
             allowed_project_root=Path(allowed_project_root).resolve()
             if allowed_project_root is not None
             else None,
+        )
+        performance_receipts = tuple(getattr(result, "performance_receipts", ()) or ())
+        if not performance_receipts:
+            return verdict
+
+        performance_check = self._performance_receipt_invariants(performance_receipts)
+        return CoreFinalGateResult(
+            accepted=verdict.accepted and performance_check.passed,
+            checks=[*verdict.checks, performance_check],
         )
 
     def verify_performance_receipts(
@@ -2943,4 +2952,11 @@ def _check_no_credential_payload(payload: dict[str, Any], errors: list[str], cod
 # to ``CoreFinalGateResult`` to avoid a circular import (models.py is loaded
 # before this module). Now that both classes are defined, resolve the forward
 # reference so the field validates/serializes correctly at runtime.
-AgentRunResult.model_rebuild(_types_namespace={"CoreFinalGateResult": CoreFinalGateResult})
+from sentinel.perf.measure.performance_receipt import PerformanceReceipt as _PerformanceReceipt
+
+AgentRunResult.model_rebuild(
+    _types_namespace={
+        "CoreFinalGateResult": CoreFinalGateResult,
+        "PerformanceReceipt": _PerformanceReceipt,
+    }
+)

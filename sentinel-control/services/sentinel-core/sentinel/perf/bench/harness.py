@@ -4,10 +4,9 @@ Task 11.2 / sentinel-performance-runtime-foundation.
 
 Requirements: 11.2, 11.9.
 
-This module implements ``BenchmarkHarness.run`` only. Gate evaluation belongs
-to Task 11.3 and is intentionally absent here. The harness requires an
-injected iteration runner so this foundation does not fake production mission
-execution.
+This module implements ``BenchmarkHarness.run`` plus gate evaluation. The
+default runner executes deterministic local golden missions. Tests may still
+inject runners for boundary/property cases.
 """
 
 from __future__ import annotations
@@ -19,6 +18,7 @@ from typing import Any, Self
 from pydantic import ConfigDict, Field, model_validator
 
 from sentinel.perf.bench.golden_missions import GOLDEN_MISSION_CLASSES, GoldenMission
+from sentinel.perf.bench.golden_runners import run_golden_mission_iteration
 from sentinel.perf.measure.latency_profiler import MissionPerformanceAggregate
 from sentinel.shared.models import SentinelModel
 
@@ -67,8 +67,9 @@ class BenchmarkReport(SentinelModel):
     def structured_pass_report(self) -> dict[str, Any]:
         """Return the Requirement 11.9 pass report shape.
 
-        Gate semantics are not evaluated in Task 11.2; this method only exposes
-        the structured shape for completed, passing runs.
+        ``BenchmarkHarness.run`` sets ``passed`` only after
+        ``evaluate_gates`` passes. This method exposes the structured shape
+        only for completed, passing runs.
         """
 
         if self.completed_at is None or not self.passed:
@@ -128,10 +129,10 @@ class BenchmarkHarness:
     def __init__(
         self,
         *,
-        iteration_runner: GoldenMissionIterationRunner,
+        iteration_runner: GoldenMissionIterationRunner | None = None,
         golden_missions: tuple[GoldenMission, ...] = GOLDEN_MISSION_CLASSES,
     ) -> None:
-        self._iteration_runner = iteration_runner
+        self._iteration_runner = iteration_runner or run_golden_mission_iteration
         self._golden_missions = golden_missions
 
     def run(self) -> BenchmarkReport:
@@ -162,13 +163,15 @@ class BenchmarkHarness:
             )
 
         completed_at = datetime.now(timezone.utc)
-        return BenchmarkReport(
+        completed_report = BenchmarkReport(
             started_at=started_at,
             completed_at=completed_at,
             iteration_count=total_iterations,
             per_mission=per_mission,
-            passed=True,
+            passed=False,
         )
+        verdict = self.evaluate_gates(completed_report)
+        return completed_report.model_copy(update={"passed": verdict.passed})
 
     def evaluate_gates(self, report: BenchmarkReport) -> GateVerdict:
         """Evaluate p95/p99 gates for a benchmark report.

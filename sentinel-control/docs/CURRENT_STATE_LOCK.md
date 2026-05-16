@@ -1,5 +1,82 @@
 # Current State Lock
 
+## Phase F Full Lock State
+
+Recorded at: 2026-05-16 23:52:54 +02:00
+
+Branch: `main`
+
+Phase F full-lock implementation is ready to be committed as:
+
+```text
+perf: fully lock benchmark regression gates
+```
+
+Current phase state:
+
+```text
+Phase A = LOCKED
+Phase B = STRUCTURAL LOCK / PERFORMANCE CAVEATS
+Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
+Phase D = LOCKED
+Phase E = LOCKED
+Phase F = LOCKED
+```
+
+Why Phase F is now locked:
+
+```text
+GoldenMission classes and budgets exist.
+BenchmarkHarness.run executes deterministic local golden mission runners.
+BenchmarkHarness.run marks passed only after evaluate_gates passes.
+BenchmarkHarness.evaluate_gates enforces p95 >10% and p99 >15% overage rules.
+Property 14 covers completed and in-progress gate semantics.
+Hot-path module coverage is wired through a pytest merge-gate test.
+CoreFinalGate verifies supplied mission-close PerformanceReceipt invariants only.
+```
+
+Full-lock benchmark evidence:
+
+```text
+timestamp = 2026-05-16T21:56:36.273773+00:00
+gate_passed = true
+total_iterations = 120
+startup = 30 iterations, p50 12 ms, p95 17 ms, p99 27 ms
+single_tool = 30 iterations, p50 3 ms, p95 4 ms, p99 4 ms
+multi_tool = 30 iterations, p50 1 ms, p95 1 ms, p99 2 ms
+browser_heavy = 30 iterations, p50 35 ms, p95 51 ms, p99 57 ms
+```
+
+Closed by the Phase F full-lock pass:
+
+```text
+P-F-RUNNER-01
+P-F-CI-01
+```
+
+Open performance-runtime backlog remains:
+
+```text
+P-B-PERF-01
+P-B-PERF-02
+P-C-RUNTIME-01
+P-C-KEY-01
+P-D-RUNTIME-01
+P-D-BATCH-01
+P-D-BROWSER-01
+```
+
+Explicit state boundaries:
+
+```text
+No P6U implementation started.
+No Brain/Science implementation started.
+No Consensus.ai implementation started.
+No unrelated backlog item closed silently.
+No new product powers added.
+No push performed for this full-lock pass yet.
+```
+
 ## Final Residual Cleanup State
 
 Recorded at: 2026-05-16 23:13:56 +02:00

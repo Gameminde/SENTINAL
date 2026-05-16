@@ -81,3 +81,44 @@ def test_benchmark_harness_deterministic_runner_produces_stable_metrics() -> Non
 
     assert first.per_mission == second.per_mission
     assert first.iteration_count == second.iteration_count == 30
+
+
+def test_benchmark_harness_default_runner_executes_golden_missions() -> None:
+    """Full-lock requirement: run can execute deterministic local golden missions."""
+
+    report = BenchmarkHarness().run()
+
+    assert report.completed_at is not None
+    assert report.passed is True
+    assert report.structured_pass_report()["iteration_count"] == sum(
+        mission.min_iterations for mission in GOLDEN_MISSION_CLASSES
+    )
+    for mission in GOLDEN_MISSION_CLASSES:
+        aggregate = report.per_mission[mission.name]
+        assert aggregate.action_count >= mission.min_iterations
+        assert aggregate.p50_wall_ms <= aggregate.p95_wall_ms <= aggregate.p99_wall_ms
+
+
+def test_benchmark_harness_run_exposes_pass_report_only_after_gates_pass() -> None:
+    mission = GoldenMission(
+        name="regression",
+        min_iterations=30,
+        p50_budget_ms=1,
+        p95_budget_ms=1,
+        p99_budget_ms=1,
+        benchmarked_modules=("sentinel.agent.runtime",),
+    )
+
+    report = BenchmarkHarness(
+        golden_missions=(mission,),
+        iteration_runner=lambda *_: 100,
+    ).run()
+
+    assert report.completed_at is not None
+    assert report.passed is False
+    try:
+        report.structured_pass_report()
+    except ValueError as exc:
+        assert "completed passing run" in str(exc)
+    else:
+        raise AssertionError("structured_pass_report must be gated by evaluate_gates")

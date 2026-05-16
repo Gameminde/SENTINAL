@@ -41,14 +41,12 @@ Phase B = STRUCTURAL LOCK with performance caveats
 Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
 Phase D = LOCKED
 Phase E = LOCKED
-Phase F = STRUCTURAL LOCK
+Phase F = LOCKED
 ```
 
-Do not read this as a fake full performance lock. Phase F currently provides a
-benchmark/regression gate foundation. It defines golden mission classes,
-benchmark report models, gate evaluation semantics, hot-path coverage checks,
-and a minimal CoreFinalGate PerformanceReceipt invariant helper. It does not yet
-prove production benchmark performance with real golden mission runners. The
+Phase F now provides deterministic local golden mission runners,
+benchmark/regression gate evaluation, hot-path coverage checks, and minimal
+CoreFinalGate PerformanceReceipt mission-close invariant verification. The
 post-Phase-F cleanup split is complete through the residual performance
 instrumentation wiring commit; P6U and Brain/Science work have not started.
 
@@ -70,12 +68,25 @@ python -m pytest tests/perf/ -m "not slow" -q
 python -m pytest tests/test_agent_runtime.py -q
 ```
 
-Latest local Phase F verification before this README update:
+Latest local Phase F full-lock benchmark evidence before this README update:
 
 ```text
-tests/perf/bench = 26 passed
-tests/perf/ -m "not slow" = 173 passed, 6 deselected
+timestamp = 2026-05-16T21:56:36.273773+00:00
+gate_passed = true
+total_iterations = 120
+startup = 30 iterations, p50 12 ms, p95 17 ms, p99 27 ms
+single_tool = 30 iterations, p50 3 ms, p95 4 ms, p99 4 ms
+multi_tool = 30 iterations, p50 1 ms, p95 1 ms, p99 2 ms
+browser_heavy = 30 iterations, p50 35 ms, p95 51 ms, p99 57 ms
+```
+
+Latest local Phase F required verification before this README update:
+
+```text
+tests/perf/bench = 30 passed
+tests/perf/ -m "not slow" = 177 selected tests passed; 6 slow tests deselected
 tests/test_agent_runtime.py = 14 passed
+tests/perf/bench/test_core_final_gate_performance_receipts.py = 8 passed
 ```
 
 Latest residual cleanup verification before this README update:
@@ -97,8 +108,6 @@ P-C-KEY-01
 P-D-RUNTIME-01
 P-D-BATCH-01
 P-D-BROWSER-01
-P-F-RUNNER-01
-P-F-CI-01
 ```
 
 Core governance rule:
