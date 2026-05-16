@@ -1,6 +1,437 @@
 # Current State Lock
 
+## Performance Runtime Foundation Closure - Phase A-F
+
+Recorded at: 2026-05-16 16:45:28 +02:00
+
+Branch: `main`
+
+HEAD: `eddaecb` (`eddaecbb36a202fff18db12f40e41186d097eec3`)
+
+Commit status: local `main` is ahead of `origin/main` by 1 commit.
+`origin/main` currently points to `daa4625`
+(`daa4625d93736523dcdc93afd3850aafedff6a35`).
+
+Baseline A-E commit:
+
+```text
+7aaecb1 - baseline: lock performance runtime foundation phases A-E
+```
+
+Phase F commit:
+
+```text
+eddaecb - perf: add benchmark regression gates foundation
+```
+
+Current phase state:
+
+```text
+Phase A = LOCKED
+Phase B = STRUCTURAL LOCK / PERFORMANCE CAVEATS
+Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
+Phase D = LOCKED
+Phase E = LOCKED
+Phase F = STRUCTURAL LOCK
+```
+
+Why Phase F is structural:
+
+Phase F locked the benchmark/regression gate foundation:
+`GoldenMission` definitions, `BenchmarkHarness.run`, gate evaluation,
+Property 14 coverage, hot-path coverage registry, and the minimal
+`CoreFinalGate.verify_performance_receipts(...)` helper. It is not a
+production benchmark proof yet because real golden mission runners and CI
+integration remain open.
+
+Open backlog remains:
+
+```text
+P-B-PERF-01
+P-B-PERF-02
+P-C-RUNTIME-01
+P-C-KEY-01
+P-D-RUNTIME-01
+P-D-BATCH-01
+P-D-BROWSER-01
+P-F-RUNNER-01
+P-F-CI-01
+```
+
+Explicit closure statements:
+
+```text
+No new phase started.
+Brain/Science research not started.
+Consensus.ai research not started.
+```
+
 Date: 2026-05-10
+
+## Sentinel Full System Audit — Decision Records
+
+### Task 10 / F-A3.1 — InvariantChecker.check_authority
+
+Decision: **Removed as live safety code; retained only as an
+error-directed tombstone stub** that raises `NotImplementedError`.
+
+The method name `InvariantChecker.check_authority` still exists in
+`sentinel/agent/invariants.py` so any legacy caller fails loudly with
+a diagnostic pointing at the canonical chokepoints. It does NOT
+perform an authority check. The method was not physically deleted —
+a future hard delete is acceptable once all external/integration
+callers are migrated, but the tombstone is the current state.
+
+Rationale:
+
+* `InvariantChecker.check_authority` had zero production call sites.
+  It duplicated the two-line check already performed by
+  `sentinel.mission.scope_checker.MissionScopeChecker.is_in_scope`
+  (invoked on every routed action by
+  `sentinel.mission.risk.RiskRouter.route` → `AutonomyEngine.decide`).
+* The router enforces a strictly stronger set of rules than
+  `check_authority` did: forbidden-action matching,
+  `BLACK_ZONE_ACTIONS` terms, path scope, revocation, expiry, budget,
+  posture thresholds. Any action that passed `check_authority` but
+  should have been blocked by these extra rules would have created a
+  false sense of safety.
+* Organ-scoped authority is enforced by
+  `sentinel.organs.authority.OrganAuthorityEvaluator`.
+* Memory-drift-based authority expansion is enforced by
+  `InvariantChecker.check_memory_not_authority` +
+  `check_capabilities_derive_from_authority` at nine cognitive phase
+  boundaries (Task 2 / Requirement 2).
+* Wiring `check_authority` as a belt-and-braces check before
+  `AutonomyEngine.decide` would have duplicated the router's check
+  one function-call earlier, using the live (possibly-mutated)
+  envelope rather than `original_allowed_actions`, making it both
+  redundant and weaker.
+
+Canonical authority-enforcement chokepoints (post-tombstone):
+
+1. `sentinel.mission.risk.RiskRouter.route` via
+   `sentinel.mission.scope_checker.MissionScopeChecker.is_in_scope`
+   (mission-level, always-on, every action).
+2. `sentinel.organs.authority.OrganAuthorityEvaluator` (organ-level,
+   for organ adapters).
+3. `sentinel.agent.invariants.InvariantChecker.check_memory_not_authority`
+   and `.check_capabilities_derive_from_authority` — the
+   Memory-not-Authority drift check, run at every cognitive phase
+   boundary against `original_allowed_actions` captured at run entry
+   (Task 2).
+
+Tombstone behavior:
+
+* Calling `InvariantChecker().check_authority(envelope, action)`
+  raises `NotImplementedError` with a message naming `RiskRouter`,
+  `MissionScopeChecker`, and `OrganAuthorityEvaluator`.
+* Zero production call sites exist (AST-verified by
+  `test_check_authority_method_removed_and_no_production_call_sites_exist`).
+
+Tests locking this decision live in
+`tests/test_agent_invariants.py`:
+`test_check_authority_decision_documented`,
+`test_no_dead_safety_code_in_invariants`,
+`test_check_authority_method_removed_and_no_production_call_sites_exist`,
+`test_router_enforces_action_in_authority_as_canonical_chokepoint`.
+
+### Audit Status Lock — post Task 6.5-A
+
+Snapshot date: 2026-05-13
+
+This section is the canonical audit status after Task 6.5-A landed.
+It supersedes any earlier status report. Scope: the
+`sentinel-full-system-audit` spec at
+`.kiro/specs/sentinel-full-system-audit/`.
+
+#### P0 — Pre-P6U Blockers: COMPLETE
+
+| Task | Title | Outcome |
+|------|-------|---------|
+| 1 | FinalGate Runtime Integration | `CoreFinalGate.evaluate` now runs on every `AgentRuntime.run` exit path. `AgentRunResult.final_gate_certification` always carries an accepted certification; rejected intended results downgrade to BLOCKED and re-certify. `AgentBlockedError` if BLOCKED re-cert fails. |
+| 2 | Memory-not-Authority Multi-Phase | Invariant re-invoked at 9 phase boundaries against `original_allowed_actions` captured at run entry. Supervisor validates both envelope and `context.mission.allowed_actions` drift. |
+| 3 | Dry-Run ↔ Execution Crypto Binding | `OrganDryRunReceipt.action_payload_hash` auto-computed from `{action, preview}`. `OrganExecutionReceipt.started()` requires `execution_action_payload` kwarg and raises `ReceiptIntegrityError` on mismatch. TOCTOU window closed. |
+| 4 | Reactive Kill-Switch | `MissionRunner._check_revocation` polls `envelope.revoked_at` and `CancellationToken.is_cancelled` before each plan step. `MissionKillSwitch.revoke` stamps `revoked_at` AND cancels the token. New `MissionStatus.REVOKED` terminal state. |
+| 7 | Per-Append Trace Hash | `EventBus.append` now calls full O(n) chain re-verification BEFORE linking each new event. `TraceIntegrityError` raised immediately on any prior-event tampering. |
+
+#### P1 / P2 — Structural Integrity and Hardening: COMPLETE
+
+| Task | Title | Outcome |
+|------|-------|---------|
+| 13 | EventBus Primitives → Shared Layer | `AgentEventType`, `AgentPhase`, `AgentEvent`, `TraceIntegrityError`, `EventBus` moved to `sentinel/shared/events.py`. Agent-layer modules are re-export shims. Organs import directly from `sentinel.shared.events`. |
+| 11 | CoreFinalGate Registry Decomposition | `FinalGateRegistry` + `FinalGateCheckModule` protocol. `CoreChecksModule` (24), `BrowserChecksModule` / `BrowserOrganChecksModule` (14), `_ProjectScopeTailModule` (1). Default registry uses `BrowserOrganChecksModule`. |
+| 15 | Phase Self-Transition Guard | `can_transition` rejects absorbing→same-absorbing. `AgentState.transition` raises `InvalidPhaseTransition` (subclass of `ValueError` for backward compat). No production path attempts absorbing self-transition. |
+| 14 | ImprovementProposal Approval Token | `approved_by_human_id: str \| None` + `@model_validator` rejects `status="approved"` without a non-empty token. Belt-and-braces `InvariantChecker.check_improvement_proposals` for reconstituted proposals. |
+| 12 | Structured BrowserOperatorRouteRejected | Replaces `ValueError(f"browser_operator_route_rejected:{reason}")` with a structured exception carrying `reason`, `context`, `original_exception`. Subclasses `ValueError` for legacy `except ValueError` compat. Stack trace preserved via `raise ... from`. |
+| 8 | DecisionFrameVerifier Mandatory Params | `required_evidence_refs` and `known_receipt_ids` are keyword-only and required (no defaults; explicit `None` also rejected). Silent-skip eliminated. |
+| 9 + 9-A | Sanitizer Property Tests + Safety Sanity | `SECRET_PATTERNS` expanded from 2 to 13 with OpenAI/Stripe/AWS/GitHub/Google/Slack/JWT/PEM/DB-URL/Bearer/Authorization coverage. Trailing-boundary bug on `-`-ending tokens fixed (lookaround anchors). Performance bounded (<2s/1MB benign). 22 false-positive tests prove non-over-redaction. Canonical sanitizer documented; sibling domain sanitizers left untouched. |
+| 10 | `check_authority` Tombstone | See the Task 10 / F-A3.1 decision record above. Live body replaced with `NotImplementedError` stub; zero production call sites; canonical chokepoints documented. |
+| 6 | GateSequence + 6.5-A Runtime Wiring | `GateSequence` enforces SPINE_01 §5 seven-gate ordering with short-circuit on any non-PASS verdict. `RiskRouter.route_via_sequence` adapter runs the sequence then delegates to legacy `route()`; `AutonomyEngine.decide` routes through the adapter by default. `RISK_ROUTE_DECIDED` payload preserved byte-for-byte. `GateSequenceRoutingError` fires on sequence/router verdict drift. |
+
+#### Task 5 — Browser Legacy Surface Consolidation: STRUCTURAL LOCK
+
+See the dedicated "Task 5 / Wave D Structural Lock" section below for
+the full lock record. Summary: all 17 browser execution files are
+organ-side; agent-side paths are shims; production FinalGate uses
+`BrowserOrganChecksModule`; receipt runtime adoption deferred to
+post-audit backlog.
+
+**Completed sub-tasks** (incremental waves, each reviewed before
+proceeding):
+
+* `5.1` Inventory — 39 files catalogued across authority / execution /
+  receipt / utility / test-only categories with migration plan.
+* `5.2-A` Utilities migrated to `sentinel/organs/browser/` with shims:
+  `pdf`, `screenshot`, `observability`, `cdp_ax`, `dom_snapshot`,
+  `ui_observation`, `visual_observation`, `accessibility_snapshot`,
+  `extraction`, `url_guard`.
+* `5.2-B1` `models.py` migrated with shim.
+* `5.2-B2` `v3_authority.py` migrated with shim.
+* `5.2-B3` `interaction_dry_run.py` migrated with shim.
+* `5.3` `BrowserOrganChecksModule` (name `"browser_organ"`) owns the 14
+  browser FinalGate checks in `sentinel/organs/browser/final_gate.py`
+  with zero `CoreFinalGate` delegation and zero
+  `sentinel.agent.browser.*` imports. Byte-equivalence with the
+  legacy `BrowserChecksModule` preserved.
+* `5.4` Default `FinalGateRegistry` registers
+  `BrowserOrganChecksModule`; `CoreFinalGate` still emits the same
+  39-check result from a fresh process.
+
+**Wave D completed.** All 17 executor/adapter/orchestrator files
+migrated to `sentinel/organs/browser/`. See the "Task 5 / Wave D
+Structural Lock" section below for the full lock record.
+
+#### Last verified test summaries — from Wave D final run
+
+```
+D2 checkpoint: 81 passed
+D3 checkpoint: 81 passed
+D4 checkpoint: 87 passed
+D5 full regression: 192 passed
+Final self-review targeted battery: 146 passed
+Full suite: 100% reached (pytest teardown hang, zero failures)
+```
+
+Earlier tasks contributed additional per-task regression batteries
+(Task 8: 31 passed; Task 9/9-A: 39 passed; Task 10: 36 passed; Task
+12: 90 passed; Task 14: 37 passed; Task 15: 47 passed; Task 6/6.5-A:
+145 passed). Those numbers reflect isolated runs at the time each
+task landed; the Wave D summary above is the most recent cross-layer
+re-confirmation.
+
+#### Follow-ups explicitly **not** started
+
+* Hard physical deletion of the `check_authority` tombstone stub —
+  acceptable once all external/integration callers are migrated; not
+  attempted here.
+* Production replacement of `RiskRouter.route()` with a pure
+  sequence-driven router — not in scope; the Task 6.5-A adapter
+  wires the sequence additively while preserving the legacy route
+  contract and the `RISK_ROUTE_DECIDED` timeline payload.
+
+### Task 5 / Wave D Structural Lock — accepted with documented transitions
+
+Lock date: 2026-05-13
+
+**Lock type:** STRUCTURAL LOCK — not full `OrganExecutionReceipt`
+runtime adoption.
+
+**What is locked:**
+
+* All 17 browser execution/adapter/orchestrator files now live under
+  `sentinel/organs/browser/` with organ-side imports
+  (`sentinel.shared.events`, `sentinel.organs.browser.*`).
+* `sentinel/agent/browser/` paths are backward-compatibility shims
+  that re-export from the organ-side canonical modules. Class identity
+  is preserved across both paths.
+* Production default `FinalGateRegistry` uses
+  `BrowserOrganChecksModule` (name `"browser_organ"`). The 14 browser
+  FinalGate checks are owned by the organ module with zero
+  `CoreFinalGate` delegation.
+* `BrowserChecksModule` remains only as a deprecated parity/test
+  reference. It is NOT in the production registry.
+* `CoreFinalGate._browser_*` static methods remain only as deprecated
+  test-reachable helpers. They are NOT called by the production
+  FinalGate path.
+* `wrap_browser_execution_receipt` exists in
+  `sentinel/organs/browser/receipt_wrapper.py`, is tested (12 tests),
+  and is available for executor adoption — but is NOT yet called by
+  any executor runtime path.
+* `P3H_ALLOWED_EXECUTION_INTENT_VALUES` in `organs/browser/final_gate.py`
+  is deduplicated — derives from the organ-side
+  `interaction_execution.P3H_ALLOWED_EXECUTION_INTENTS`.
+
+**Spec corrections accepted:**
+
+* **5.7:** Documented deprecation notice in module docstring satisfies
+  this audit. Runtime `DeprecationWarning` deferred until internal
+  callers migrate.
+* **5.9:** Original literal "≤20 checks" replaced with: "CoreFinalGate
+  SHALL NOT own organ-specific checks; cross-organ core checks remain
+  as the safety baseline." Current baseline: 24 core checks +
+  project-scope tail; all 14 browser checks owned by
+  `BrowserOrganChecksModule`. CP-5.2 (FinalGate Delegation) satisfied.
+
+**Documented cross-layer imports (organ → agent):**
+
+* `sentinel.agent.artifact_capture` — pure utility (7 organ files)
+* `sentinel.agent.evidence_ranker.sanitize_*` — pure utility
+  (`navigation_l6.py`, pre-existing)
+* `sentinel.agent.final_gate.CoreGateCheck/CoreGateCheckKind` —
+  shared pydantic result types (`final_gate.py`, TYPE_CHECKING only
+  for `AgentRunResult`)
+* `sentinel.agent.action_engine` — cognitive bridge
+  (`operator_runtime.py`)
+* `sentinel.agent.browser.perception_adapter` — cognitive bridge
+  intentionally kept in agent (`operator_runtime.py`)
+* `sentinel.agent.perception` — cognitive bridge
+  (`operator_runtime.py`)
+* `sentinel.agent.tool_call_protocol` — cognitive bridge
+  (`controlled_runner.py`, `operator_runtime.py`)
+
+**Post-audit Browser Runtime Adoption Backlog:**
+
+1. Wire `wrap_browser_execution_receipt` into executor boundary once
+   `OrganDryRunReceipt`, `OrganAuthorityEnvelope`, and
+   `OrganKillSwitch` are present at the call site.
+2. Migrate parity tests from `BrowserChecksModule` /
+   `CoreFinalGate._browser_*` to `BrowserOrganChecksModule`.
+3. Remove `BrowserChecksModule` after tests migrate.
+4. Remove `CoreFinalGate._browser_*` static helpers after tests
+   migrate.
+5. Rewrite 3 production shim imports (`final_gate.py`,
+   `action_engine.py`, `tool_intent_compiler.py`) to
+   `sentinel.organs.browser.*`.
+6. Move `artifact_capture` and `evidence_ranker` sanitizer utilities
+   to `sentinel/shared/` layer.
+7. Export Wave D modules from `sentinel.organs.browser.__init__` when
+   agent-side shims retire.
+
+---
+
+### Sentinel Full System Audit — CLOSED
+
+Closure date: 2026-05-13
+
+#### 1. Audit scope
+
+This spec (`.kiro/specs/sentinel-full-system-audit/`) was an
+**audit/closure spec** — its purpose was to surface, prioritize, and
+fix architectural findings from the P6R5 code-grounded review before
+P6U readiness. It is NOT a continuation roadmap and no new organ
+should be started inside this spec. Any follow-up work must be opened
+in a new spec.
+
+#### 2. Completed blockers (15 tasks, all closed)
+
+| Task | Title | Priority | Status |
+|------|-------|----------|--------|
+| 1 | FinalGate Runtime Integration | P0 Critical | ✓ Complete |
+| 2 | Memory-not-Authority Multi-Phase | P0 High | ✓ Complete |
+| 3 | Dry-Run ↔ Execution Cryptographic Binding | P0 High | ✓ Complete |
+| 4 | Reactive Kill-Switch Interruption | P0 High | ✓ Complete |
+| 7 | Per-Append Trace Hash Verification | P1 Medium | ✓ Complete |
+| 13 | EventBus Primitives → Shared Layer | P1 Low | ✓ Complete |
+| 11 | CoreFinalGate Registry Decomposition | P1 Medium | ✓ Complete |
+| 5 | Browser Legacy Surface Consolidation | P1 High | ✓ STRUCTURAL LOCK |
+| 6 | GateSequence + Runtime Wiring | P1 Medium | ✓ Complete |
+| 15 | Phase Self-Transition Guard | P2 Low | ✓ Complete |
+| 14 | ImprovementProposal Approval Token | P2 Low | ✓ Complete |
+| 12 | MissionRunner Exception Reform | P2 Medium | ✓ Complete |
+| 8 | DecisionFrameVerifier Mandatory Params | P2 Medium | ✓ Complete |
+| 9 | Sanitizer Property Tests + 9-A Sanity | P2 Medium | ✓ Complete |
+| 10 | `check_authority` Tombstone Decision | P2 Medium | ✓ Complete |
+
+#### 3. Final verdict
+
+**The `sentinel-full-system-audit` spec can be CLOSED.**
+
+* All 15 parent tasks are resolved (14 fully complete + 1 structural
+  lock with accepted spec corrections and documented transitions).
+* The browser execution surface is structurally organ-side — all 17
+  executor/adapter/orchestrator files live under
+  `sentinel/organs/browser/` with clean layering.
+* Receipt-runtime adoption (wiring `wrap_browser_execution_receipt`
+  into executor call sites) remains in the post-audit backlog. It
+  does not block P6U readiness.
+* Any further work on this codebase must be opened in a **new spec**.
+  This spec is closed and should not be reopened.
+
+#### 4. Next Spec Seed Backlog
+
+The following items are explicitly NOT done inside this audit. They
+are seeds for future specs:
+
+**Browser Runtime Adoption** (post-audit backlog from Task 5):
+1. Wire `wrap_browser_execution_receipt` into
+   `controlled_runner` / `operator_runtime` / executor boundary once
+   `OrganDryRunReceipt`, `OrganAuthorityEnvelope`, and
+   `OrganKillSwitch` are present at the call site.
+2. Migrate parity tests from `BrowserChecksModule` /
+   `CoreFinalGate._browser_*` to `BrowserOrganChecksModule`.
+3. Remove `BrowserChecksModule` after tests migrate.
+4. Remove `CoreFinalGate._browser_*` static helpers after tests
+   migrate.
+
+**Shared Utility Extraction:**
+5. Move `sentinel.agent.artifact_capture` to `sentinel/shared/`.
+6. Move `sentinel.agent.evidence_ranker.sanitize_context_text` /
+   `sanitize_context_payload` to `sentinel/shared/sanitizer.py`.
+
+**Import Rewrite:**
+7. Rewrite 3 production shim imports (`final_gate.py`,
+   `action_engine.py`, `tool_intent_compiler.py`) to
+   `sentinel.organs.browser.*`.
+8. Export Wave D modules from `sentinel.organs.browser.__init__` when
+   agent-side shims retire.
+
+**P6U and Beyond:**
+9. P6U API Authenticated Read L6 — the next phase in the roadmap.
+10. Later organs roadmap (capital, desktop L7, channel L7, etc.).
+
+#### 5. Testing summary
+
+**Wave D final run (most recent cross-layer confirmation):**
+
+```
+D2 checkpoint:                     81 passed
+D3 checkpoint:                     81 passed
+D4 checkpoint:                     87 passed
+D5 full regression:               192 passed
+Final self-review targeted battery: 146 passed
+Full suite: 100% reached (zero failures visible; final summary
+  line unavailable due to known PowerShell teardown hang on
+  Windows — the process reaches [100%] with all dots passing
+  but pytest's post-test teardown blocks indefinitely in the
+  piped output stream. This is a test-runner environment issue,
+  not a test failure.)
+```
+
+**Per-task regression batteries (at time of each task's landing):**
+
+| Task | Tests |
+|------|------:|
+| Task 6 + 6.5-A | 145 |
+| Task 12 | 90 |
+| Task 15 | 47 |
+| Task 9 / 9-A | 39 |
+| Task 14 | 37 |
+| Task 10 | 36 |
+| Task 8 | 31 |
+
+**Total unique test files created during this audit:** 12 new test
+files covering property tests, integration tests, layering invariants,
+and structural guards.
+
+#### 6. Post-audit backlog status
+
+**NOT done. NOT started. NOT claimed as complete.**
+
+The 10 items in the "Next Spec Seed Backlog" above are explicitly
+deferred. They must be opened in a new spec with their own
+requirements, design, and tasks before implementation begins.
+
+---
 
 ## Phase
 
@@ -124,6 +555,48 @@ P6U may start only as authenticated read-only API L6 through scoped credential
 refs, rate-limit ledger, allowed vendor/endpoint authority, API response
 receipts, credential-ref receipts, P6R context discipline, and no mutation API.
 ```
+
+## Audit Correction — FinalGate Runtime Integration
+
+Date: 2026-05-11
+
+`CoreFinalGate` is now invoked from inside `AgentRuntime.run`. It is no longer
+a post-hoc external verification step. Finding F-A3.11 from the
+sentinel-full-system-audit spec (Axis 3.9) is closed.
+
+Runtime integration contract:
+
+```text
+AgentRuntime.__init__ constructs self._final_gate = CoreFinalGate().
+AgentRuntime.run routes every return AgentRunResult(...) through
+self._apply_final_gate(result) before returning to the caller.
+Every exit path is covered: COMPLETED, BLOCKED, ESCALATED, FAILED, REVOKED.
+Every returned AgentRunResult carries final_gate_certification: a
+CoreFinalGateResult with accepted=True.
+```
+
+Rejection downgrade semantics:
+
+```text
+If CoreFinalGate.evaluate rejects the intended result, the runtime downgrades
+it to an AgentRunResult with status=BLOCKED.
+The names of the failed checks are preserved as diagnostic text in
+escalation_reason with the prefix "final_gate_rejected:".
+The downgraded BLOCKED result is re-evaluated by CoreFinalGate and attached
+with an accepted certification before being returned.
+If the downgraded BLOCKED result also fails certification, AgentBlockedError
+is raised. The runtime never returns an uncertified result.
+```
+
+Correctness properties now enforced by tests:
+
+```text
+CP-1.1 FinalGate Terminality = tests/test_final_gate_terminality.py
+CP-1.2 FinalGate Determinism = tests/test_final_gate_determinism.py
+```
+
+Prior audit-surfaced claim that "FinalGate is only invoked externally in
+tests" no longer holds. The runtime owns the terminal certification step.
 
 ## Prior P6T-A Phase
 
