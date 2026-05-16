@@ -24,7 +24,7 @@ Current public GitHub checkpoint:
 ```text
 remote = https://github.com/Gameminde/SENTINAL
 branch = main
-latest pushed baseline = 7aaecb1 baseline: lock performance runtime foundation phases A-E
+latest local cleanup tip before push = ab7cf4d perf: finish residual runtime instrumentation wiring
 ```
 
 The active performance-runtime spec lives here:
@@ -41,14 +41,16 @@ Phase B = STRUCTURAL LOCK with performance caveats
 Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
 Phase D = LOCKED
 Phase E = LOCKED
-Phase F = STRUCTURAL LOCK locally, pending intentional staging/commit
+Phase F = STRUCTURAL LOCK
 ```
 
 Do not read this as a fake full performance lock. Phase F currently provides a
 benchmark/regression gate foundation. It defines golden mission classes,
 benchmark report models, gate evaluation semantics, hot-path coverage checks,
 and a minimal CoreFinalGate PerformanceReceipt invariant helper. It does not yet
-prove production benchmark performance with real golden mission runners.
+prove production benchmark performance with real golden mission runners. The
+post-Phase-F cleanup split is complete through the residual performance
+instrumentation wiring commit; P6U and Brain/Science work have not started.
 
 Start with:
 
@@ -74,6 +76,15 @@ Latest local Phase F verification before this README update:
 tests/perf/bench = 26 passed
 tests/perf/ -m "not slow" = 173 passed, 6 deselected
 tests/test_agent_runtime.py = 14 passed
+```
+
+Latest residual cleanup verification before this README update:
+
+```text
+tests/test_agent_runtime.py = 14 passed
+tests/perf/ -m "not slow" = passed
+tests/test_kill_switch_reactive_property.py = 10 passed
+tests/test_mission_runner_browser_operator_route_rejected.py = 10 passed
 ```
 
 Open backlog items that remain intentionally open:

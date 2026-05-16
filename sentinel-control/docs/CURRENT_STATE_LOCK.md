@@ -1,5 +1,72 @@
 # Current State Lock
 
+## Final Residual Cleanup State
+
+Recorded at: 2026-05-16 23:13:56 +02:00
+
+Branch: `main`
+
+Commit status at recording: local `main` is ahead of `origin/main` by 10 commits
+before this final docs commit.
+
+Latest cleanup code tip:
+
+```text
+ab7cf4d - perf: finish residual runtime instrumentation wiring
+```
+
+Final residual cleanup outcome:
+
+```text
+sentinel/agent/cognitive_cycle.py = committed as default-off performance instrumentation residual
+sentinel/agent/context_builder.py = committed as default-off performance instrumentation residual
+sentinel/agent/context_compressor.py = committed as default-off performance instrumentation residual
+sentinel/mission/runner.py = committed only for constructor perf injection and mission profiler/hot-cache lifecycle
+sentinel/agent/runtime.py = obsolete leftovers reverted
+sentinel/mission/runner.py remaining import/comment leftovers = reverted
+```
+
+Residual triage record archived at:
+
+```text
+sentinel-control/docs/archive/performance-runtime-cleanup/RESIDUAL_DIRTY_FILES_TRIAGE.md
+```
+
+Current phase state remains:
+
+```text
+Phase A = LOCKED
+Phase B = STRUCTURAL LOCK / PERFORMANCE CAVEATS
+Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
+Phase D = LOCKED
+Phase E = LOCKED
+Phase F = STRUCTURAL LOCK
+```
+
+Open performance-runtime backlog remains unchanged:
+
+```text
+P-B-PERF-01
+P-B-PERF-02
+P-C-RUNTIME-01
+P-C-KEY-01
+P-D-RUNTIME-01
+P-D-BATCH-01
+P-D-BROWSER-01
+P-F-RUNNER-01
+P-F-CI-01
+```
+
+Explicit closure statements:
+
+```text
+No P6U implementation started.
+No Brain/Science implementation started.
+No Consensus.ai implementation started.
+No performance backlog item closed silently.
+No new phase started.
+```
+
 ## Post-Cleanup Sentinel State
 
 Recorded at: 2026-05-16 22:23:00 +02:00

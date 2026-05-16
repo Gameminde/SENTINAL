@@ -1,5 +1,71 @@
 # Post-Cleanup Handoff
 
+## Final Residual Cleanup Addendum
+
+Recorded at: 2026-05-16 23:13:56 +02:00
+
+The residual dirty-file cleanup is complete at the code level.
+
+Additional commit after the earlier cleanup handoff:
+
+```text
+ab7cf4d - perf: finish residual runtime instrumentation wiring
+```
+
+Resolved residual files:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/cognitive_cycle.py
+sentinel-control/services/sentinel-core/sentinel/agent/context_builder.py
+sentinel-control/services/sentinel-core/sentinel/agent/context_compressor.py
+sentinel-control/services/sentinel-core/sentinel/mission/runner.py
+```
+
+Reverted obsolete leftovers:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/runtime.py
+sentinel-control/services/sentinel-core/sentinel/mission/runner.py remaining import/comment hunks
+```
+
+Archived residual triage record:
+
+```text
+sentinel-control/docs/archive/performance-runtime-cleanup/RESIDUAL_DIRTY_FILES_TRIAGE.md
+```
+
+Final cleanup tests run before this addendum:
+
+```text
+tests/test_agent_runtime.py = 14 passed
+tests/perf/ -m "not slow" = passed
+tests/test_kill_switch_reactive_property.py = 10 passed
+tests/test_mission_runner_browser_operator_route_rejected.py = 10 passed
+```
+
+The open backlog remains unchanged:
+
+```text
+P-B-PERF-01
+P-B-PERF-02
+P-C-RUNTIME-01
+P-C-KEY-01
+P-D-RUNTIME-01
+P-D-BATCH-01
+P-D-BROWSER-01
+P-F-RUNNER-01
+P-F-CI-01
+```
+
+Next recommended action remains:
+
+```text
+P6U API Authenticated Read L6 planning only after cleanup is accepted.
+```
+
+No P6U implementation, Brain/Science work, Consensus.ai work, new phase, push,
+or silent backlog closure happened during this residual cleanup.
+
 Recorded at: 2026-05-16 22:23:00 +02:00
 
 ## Summary
