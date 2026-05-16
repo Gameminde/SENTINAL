@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -41,6 +42,7 @@ class CoreGateCheckKind(StrEnum):
     RISK = "risk"
     MISSION = "mission"
     BUDGET = "budget"
+    PERFORMANCE = "performance"
 
 
 class CoreGateCheck(SentinelModel):
@@ -146,6 +148,49 @@ class CoreFinalGate:
         return CoreFinalGateResult(
             accepted=all(check.passed for check in checks),
             checks=checks,
+        )
+
+    def verify_performance_receipts(
+        self,
+        receipts: Sequence["PerformanceReceipt"],
+    ) -> CoreFinalGateResult:
+        """Verify only cross-cutting PerformanceReceipt safety invariants.
+
+        Phase F keeps latency and benchmark-budget decisions in
+        ``BenchmarkHarness``. This helper intentionally checks only:
+        authority expansion, raw-secret-leakage marker, and receipt hash
+        integrity for receipts supplied at mission-close boundaries.
+        """
+
+        check = self._performance_receipt_invariants(receipts)
+        return CoreFinalGateResult(accepted=check.passed, checks=[check])
+
+    @staticmethod
+    def _performance_receipt_invariants(
+        receipts: Sequence["PerformanceReceipt"],
+    ) -> CoreGateCheck:
+        errors: list[str] = []
+
+        for receipt in receipts:
+            if getattr(receipt, "authority_expansion", False):
+                errors.append("performance_receipt_authority_expansion")
+            if getattr(receipt, "raw_secret_leakage", False):
+                errors.append("performance_receipt_raw_secret_leakage")
+            try:
+                expected_hash = receipt._compute_receipt_hash()
+                if getattr(receipt, "receipt_hash", "") != expected_hash:
+                    errors.append("performance_receipt_hash_mismatch")
+            except Exception:
+                errors.append("performance_receipt_hash_unverifiable")
+
+        return CoreGateCheck(
+            name="performance_receipt_invariants",
+            kind=CoreGateCheckKind.PERFORMANCE,
+            passed=not errors,
+            message="PerformanceReceipt safety invariants hold."
+            if not errors
+            else "PerformanceReceipt safety invariant check failed.",
+            details={"errors": errors, "receipt_count": len(receipts)},
         )
 
     @staticmethod
