@@ -1,5 +1,97 @@
 # Current State Lock
 
+## Post-Cleanup Sentinel State
+
+Recorded at: 2026-05-16 22:23:00 +02:00
+
+Branch: `main`
+
+Commit status at recording: local `main` is ahead of `origin/main` by 8 commits.
+
+Latest committed cleanup tip before this state-lock update:
+
+```text
+b544c2f - docs: archive performance cleanup records
+```
+
+Performance Runtime Foundation baseline and Phase F commits remain:
+
+```text
+7aaecb1 - baseline: lock performance runtime foundation phases A-E
+eddaecb - perf: add benchmark regression gates foundation
+```
+
+Cleanup commits after `8db5336`:
+
+```text
+c2a8010 - refactor: decompose final gate registry
+e6565a1 - runtime: certify agent run results through final gate
+f8d8cda - mission: add revocation and browser route rejection safeguards
+6a8652b - test: consolidate full-system audit safeguards
+b544c2f - docs: archive performance cleanup records
+```
+
+Current phase state remains:
+
+```text
+Phase A = LOCKED
+Phase B = STRUCTURAL LOCK / PERFORMANCE CAVEATS
+Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
+Phase D = LOCKED
+Phase E = LOCKED
+Phase F = STRUCTURAL LOCK
+```
+
+No new phase has started.
+
+The following modified files remain intentionally uncommitted for manual triage:
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/cognitive_cycle.py
+sentinel-control/services/sentinel-core/sentinel/agent/context_builder.py
+sentinel-control/services/sentinel-core/sentinel/agent/context_compressor.py
+sentinel-control/services/sentinel-core/sentinel/agent/runtime.py
+sentinel-control/services/sentinel-core/sentinel/mission/runner.py
+```
+
+Classification of remaining dirty files:
+
+```text
+cognitive_cycle/context_builder/context_compressor = parked performance instrumentation leftovers
+runtime.py = mixed residual scheduler/helper/whitespace hunks; manual hunk triage required
+runner.py = mixed residual perf hot-cache/profiler and comment/order hunks; manual hunk triage required
+```
+
+Open performance-runtime backlog remains unchanged:
+
+```text
+P-B-PERF-01
+P-B-PERF-02
+P-C-RUNTIME-01
+P-C-KEY-01
+P-D-RUNTIME-01
+P-D-BATCH-01
+P-D-BROWSER-01
+P-F-RUNNER-01
+P-F-CI-01
+```
+
+Next recommended phase:
+
+```text
+P6U API Authenticated Read L6 planning only after cleanup is accepted.
+```
+
+Explicit closure statements:
+
+```text
+No push performed.
+No P6U implementation started.
+No Brain/Science implementation started.
+No Consensus.ai implementation started.
+No performance backlog item closed silently.
+```
+
 ## Performance Runtime Foundation Closure - Phase A-F
 
 Recorded at: 2026-05-16 16:45:28 +02:00
