@@ -33,6 +33,7 @@ from sentinel.agent.events import AgentEventType
 from sentinel.agent.evidence import EvidenceChainBuilder
 from sentinel.agent.exceptions import AgentBlockedError, MissionRevokedError
 from sentinel.agent.execution_posture import ExecutionPosturePolicy
+from sentinel.agent.final_gate import CoreFinalGate
 from sentinel.agent.hypothesis import HypothesisVerifier
 from sentinel.agent.identity import AgentIdentity, default_agent_identity
 from sentinel.agent.invariants import InvariantViolation
@@ -202,10 +203,43 @@ class AgentRuntime:
         self.supervisor = Supervisor()
         self.certification_gate = RuntimeCertificationGate()
         self.trace_replayer = AgentTraceReplayer()
+        # Task 1.1 / Requirement 1 (FinalGate Runtime Integration):
+        # CoreFinalGate is constructed here so that AgentRuntime.run can invoke
+        # terminal safety certification on every exit path. CoreFinalGate has
+        # no constructor dependencies — its `evaluate(result, allowed_project_root=...)`
+        # call takes the run result and an optional project-root scope at call time.
+        self._final_gate = CoreFinalGate()
         self.browser_renderer = browser_renderer
         self.browser_fetcher = browser_fetcher
         self.browser_interaction_backend = browser_interaction_backend
         self.browser_resolver = browser_resolver
+
+    def _assert_memory_not_authority_boundary(
+        self,
+        boundary_name: str,
+        context: AgentContext,
+        envelope: MissionAuthorityEnvelope,
+        original_allowed_actions: tuple[str, ...],
+    ) -> None:
+        """Re-invoke the Memory-not-Authority invariant at a phase boundary.
+
+        Requirement 2 / Task 2 — the check is repeated at every phase
+        transition (not just at CONTEXT_BUILDING) so that mid-run mutation of
+        ``context.mission.allowed_actions`` or contamination of
+        ``context.available_capabilities`` is detected before the next phase
+        consumes the tainted state.
+
+        Any :class:`InvariantViolation` raised here propagates to the
+        ``except Exception`` handler in :meth:`run`, which wraps it into a
+        BLOCKED :class:`AgentRunResult` and routes it through
+        :meth:`_apply_final_gate` (F-A3.11).
+        """
+        self.supervisor.assert_context_did_not_expand_authority(
+            context,
+            envelope=envelope,
+            original_allowed_actions=original_allowed_actions,
+            boundary_name=boundary_name,
+        )
 
     def run(
         self,
@@ -221,6 +255,23 @@ class AgentRuntime:
         mission_results = []
         execution_posture = None
         context = None
+        # Task 2.4-A Gap 2 fix: hoist local variables that may be bound in the
+        # happy-path between different phases so the ``except Exception``
+        # handler can unconditionally reference them when building the
+        # BLOCKED fallback ``AgentRunResult``. Without this, an
+        # ``InvariantViolation`` raised at the T21 (REPAIRING→EXECUTING)
+        # boundary would drop ``mission_result`` and ``active_plan`` from
+        # the BLOCKED result, causing ``CoreFinalGate`` to reject it with
+        # ``archived_mission_results_without_final_mission_result`` and the
+        # deep-invariant fail-safe in ``_apply_final_gate`` to raise
+        # ``AgentBlockedError``.
+        plan = None
+        mission_result = None
+        # Task 2 / Requirement 2 — Memory-not-Authority Multi-Phase Enforcement.
+        # Capture the envelope's allowed_actions at run entry so subsequent
+        # boundary re-checks can detect mid-run mutation / context contamination
+        # that tries to grow authority beyond what was originally authorised.
+        original_allowed_actions: tuple[str, ...] = tuple(envelope.allowed_actions)
         state = AgentState(mission_id=envelope.id).transition(AgentPhase.INITIALIZED)
         event_bus.append(
             AgentEventType.AGENT_INITIALIZED,
@@ -333,6 +384,12 @@ class AgentRuntime:
             )
 
             state = state.transition(AgentPhase.ORIENTING)
+            self._assert_memory_not_authority_boundary(
+                "context_building_to_orienting",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             if self._latency_profiler is not None:
                 with self._latency_profiler.instrument(
                     mission_id=envelope.id,
@@ -351,6 +408,12 @@ class AgentRuntime:
             )
 
             state = state.transition(AgentPhase.METHOD_SELECTING)
+            self._assert_memory_not_authority_boundary(
+                "orienting_to_method_selecting",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             methods = self.method_selector.select(context)
             state = state.model_copy(update={"selected_methods": methods})
             event_bus.append(
@@ -362,6 +425,12 @@ class AgentRuntime:
             )
 
             state = state.transition(AgentPhase.CAPABILITY_SELECTING)
+            self._assert_memory_not_authority_boundary(
+                "method_selecting_to_capability_selecting",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             capabilities = self.capability_selector.select(context, methods)
             missing_capabilities = [need for need in capabilities if not need.available]
             self.supervisor.assert_capabilities_are_declared(capabilities)
@@ -375,6 +444,12 @@ class AgentRuntime:
             )
 
             state = state.transition(AgentPhase.TOOL_SELECTING)
+            self._assert_memory_not_authority_boundary(
+                "capability_selecting_to_tool_selecting",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             tool_selection = self.tool_selector.select(context, capabilities, event_bus=event_bus)
             state = state.model_copy(
                 update={
@@ -431,7 +506,7 @@ class AgentRuntime:
                     payload={"findings": [finding.code for finding in critical_tool_selection_findings]},
                 )
                 self.supervisor.assert_trace_integrity(event_bus)
-                return AgentRunResult(
+                return self._apply_final_gate(AgentRunResult(
                     mission_id=envelope.id,
                     final_phase=AgentPhase.BLOCKED,
                     success=False,
@@ -454,9 +529,15 @@ class AgentRuntime:
                     runtime_certification=self._certify_trace(event_bus),
                     state_snapshot=self._snapshot_trace(event_bus),
                     escalation_reason="Tool selection produced critical findings.",
-                )
+                ))
 
             state = state.transition(AgentPhase.HYPOTHESIS_VERIFYING)
+            self._assert_memory_not_authority_boundary(
+                "tool_selecting_to_hypothesis_verifying",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             hypothesis_result = self.hypothesis_verifier.run(context, event_bus=event_bus)
             state = state.model_copy(
                 update={
@@ -510,7 +591,7 @@ class AgentRuntime:
                     payload={"findings": [finding.code for finding in critical_hypothesis_findings]},
                 )
                 self.supervisor.assert_trace_integrity(event_bus)
-                return AgentRunResult(
+                return self._apply_final_gate(AgentRunResult(
                     mission_id=envelope.id,
                     final_phase=AgentPhase.BLOCKED,
                     success=False,
@@ -537,9 +618,15 @@ class AgentRuntime:
                     runtime_certification=self._certify_trace(event_bus),
                     state_snapshot=self._snapshot_trace(event_bus),
                     escalation_reason="Hypothesis verification produced critical findings.",
-                )
+                ))
 
             state = state.transition(AgentPhase.ACTION_SCORING)
+            self._assert_memory_not_authority_boundary(
+                "hypothesis_verifying_to_action_scoring",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             action_result = self.action_evaluator.evaluate(
                 context,
                 state,
@@ -570,6 +657,12 @@ class AgentRuntime:
             state = state.model_copy(update={"effort_route": effort_route})
 
             state = state.transition(AgentPhase.PLANNING)
+            self._assert_memory_not_authority_boundary(
+                "effort_routing_to_planning",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             plan = self.planner_bridge.create_plan(
                 context,
                 methods,
@@ -669,7 +762,7 @@ class AgentRuntime:
                     payload={"findings": [finding.code for finding in critical_plan_findings]},
                 )
                 self.supervisor.assert_trace_integrity(event_bus)
-                return AgentRunResult(
+                return self._apply_final_gate(AgentRunResult(
                     mission_id=envelope.id,
                     final_phase=AgentPhase.BLOCKED,
                     success=False,
@@ -706,9 +799,15 @@ class AgentRuntime:
                     state_snapshot=self._snapshot_trace(event_bus),
                     escalation_reason="Plan review produced critical findings.",
                     active_plan=plan,
-                )
+                ))
 
             state = state.transition(AgentPhase.EXECUTING)
+            self._assert_memory_not_authority_boundary(
+                "plan_reviewing_to_executing",
+                context,
+                envelope,
+                original_allowed_actions,
+            )
             controlled_capability_results = self._execute_controlled_tool_calls(
                 envelope,
                 user_input or {},
@@ -782,7 +881,7 @@ class AgentRuntime:
                     trace_refs=repair_decision.trace_refs,
                 )
                 self.supervisor.assert_trace_integrity(event_bus)
-                return AgentRunResult(
+                return self._apply_final_gate(AgentRunResult(
                     mission_id=envelope.id,
                     final_phase=AgentPhase.ESCALATED,
                     success=False,
@@ -823,13 +922,19 @@ class AgentRuntime:
                     mission_results=mission_results,
                     escalation_reason="Repair pressure exceeded escalation threshold.",
                     active_plan=plan,
-                )
+                ))
             if repair_decision.decision == RepairDecisionType.REPAIR_ALLOWED:
                 state = state.transition(AgentPhase.REPAIRING)
                 state = state.model_copy(update={"repair_cycles": state.repair_cycles + 1})
                 self.supervisor.assert_state_bounds(state)
                 repair_execution_phase_before = state.phase
                 state = state.transition(AgentPhase.EXECUTING)
+                self._assert_memory_not_authority_boundary(
+                    "repairing_to_executing",
+                    context,
+                    envelope,
+                    original_allowed_actions,
+                )
                 event_bus.append(
                     AgentEventType.REPAIR_EXECUTED,
                     "Agent executed one bounded internal repair pass through the existing mission worker.",
@@ -922,7 +1027,7 @@ class AgentRuntime:
             )
             self.supervisor.assert_trace_integrity(event_bus)
 
-            return AgentRunResult(
+            return self._apply_final_gate(AgentRunResult(
                 mission_id=envelope.id,
                 final_phase=final_phase,
                 success=mission_success,
@@ -963,7 +1068,7 @@ class AgentRuntime:
                 mission_result=mission_result,
                 mission_results=mission_results,
                 active_plan=plan,
-            )
+            ))
         except Exception as exc:
             final_phase = AgentPhase.FAILED
             event_type = AgentEventType.AGENT_FAILED
@@ -1007,7 +1112,34 @@ class AgentRuntime:
                 payload={"error": str(exc)},
             )
             self.supervisor.assert_trace_integrity(event_bus)
-            return AgentRunResult(
+            # Task 2.4-B: preserve mission_result / mission_results /
+            # active_plan on the BLOCKED fallback. The relevant CoreFinalGate
+            # checks are:
+            #   * ``_mission_result_consistency`` now only rejects the
+            #     dangerous inverse (``result.success=True`` while
+            #     ``mission_result.success=False``). The legitimate downgrade
+            #     where an overall run fails (e.g. a critical review finding
+            #     fires post-execution) while the inner mission worker ran
+            #     cleanly is explicitly permitted.
+            #   * ``_mission_trace_errors_for_result`` still couples the
+            #     mission timeline's terminal type to
+            #     ``mission_result.success`` — but that is an inner-mission
+            #     invariant and is always consistent with the archive we
+            #     produced, regardless of the outer ``result.success``.
+            #   * ``_mission_results_archive`` only requires that
+            #     ``mission_result is None`` implies
+            #     ``mission_results == []``.
+            # Because the outer run's ``success=False`` no longer forces a
+            # matching inner ``mission_result.success``, the fallback can
+            # surface the full archive and the reviewed active plan whenever
+            # we actually produced them, whether the inner mission succeeded
+            # or failed locally.
+            fallback_mission_result = mission_result
+            fallback_mission_results = list(mission_results)
+            fallback_active_plan = plan
+            fallback_project_path = mission_result.project_path if mission_result else None
+            fallback_artifacts = list(mission_result.artifacts) if mission_result else []
+            return self._apply_final_gate(AgentRunResult(
                 mission_id=envelope.id,
                 final_phase=final_phase,
                 success=False,
@@ -1019,9 +1151,13 @@ class AgentRuntime:
                 trace=list(event_bus.events()),
                 runtime_certification=self._certify_trace(event_bus),
                 state_snapshot=self._snapshot_trace(event_bus),
-                mission_results=mission_results,
+                mission_result=fallback_mission_result,
+                mission_results=fallback_mission_results,
+                project_path=fallback_project_path,
+                artifacts=fallback_artifacts,
+                active_plan=fallback_active_plan,
                 escalation_reason=str(exc),
-            )
+            ))
 
     def _execute_controlled_tool_calls(
         self,
@@ -1741,4 +1877,85 @@ class AgentRuntime:
             builder,
             self.context_compressor,
             frame_budget,
+        )
+
+    def _apply_final_gate(self, result: AgentRunResult) -> AgentRunResult:
+        """Evaluate CoreFinalGate on the terminal result before returning it.
+
+        Task 1.2 / Task 1.3 / Requirement 1 (FinalGate Runtime Integration,
+        finding F-A3.11).
+
+        Guarantees no ``AgentRunResult`` can escape ``AgentRuntime.run``
+        without passing terminal safety certification. The returned result
+        ALWAYS carries a ``CoreFinalGateResult`` on
+        ``final_gate_certification`` whose ``accepted`` flag is ``True``.
+
+        Diagnostic vs certification distinction
+        ---------------------------------------
+        * ``final_gate_certification`` is the certification of the result
+          that is **actually returned** to the caller. It therefore always
+          represents an *accepted* gate evaluation — never the verdict of a
+          rejected intended result.
+        * When the intended result fails the gate, the rejection details
+          are surfaced via ``escalation_reason`` (carrying the failed check
+          names) on a downgraded ``AgentPhase.BLOCKED`` result, which is
+          then re-certified so that the returned result's
+          ``final_gate_certification.accepted`` is ``True``.
+
+        If the downgraded ``BLOCKED`` result itself fails re-certification,
+        that is a deep invariant failure: the runtime cannot manufacture a
+        safe result, so ``AgentBlockedError`` is raised with both sets of
+        failed check names rather than silently returning an uncertified
+        result.
+
+        Invariant preserved
+        -------------------
+            ∀ result returned by AgentRuntime.run:
+                result.final_gate_certification is not None
+                and result.final_gate_certification.accepted is True
+        """
+        gate_result = self._final_gate.evaluate(
+            result,
+            allowed_project_root=str(self.project_root),
+        )
+        if gate_result.accepted:
+            return result.model_copy(
+                update={"final_gate_certification": gate_result}
+            )
+
+        failed_check_names = [
+            check.name for check in gate_result.checks if not check.passed
+        ]
+        blocked_reason = (
+            "final_gate_rejected:" + ",".join(failed_check_names)
+            if failed_check_names
+            else "final_gate_rejected"
+        )
+        blocked_result = result.model_copy(
+            update={
+                "final_phase": AgentPhase.BLOCKED,
+                "success": False,
+                "escalation_reason": blocked_reason,
+            }
+        )
+        blocked_gate_result = self._final_gate.evaluate(
+            blocked_result,
+            allowed_project_root=str(self.project_root),
+        )
+        if not blocked_gate_result.accepted:
+            blocked_failed_check_names = [
+                check.name
+                for check in blocked_gate_result.checks
+                if not check.passed
+            ]
+            raise AgentBlockedError(
+                "CoreFinalGate rejected the intended result and the "
+                "downgraded BLOCKED result also failed re-certification; "
+                "refusing to return an uncertified AgentRunResult. "
+                f"Intended-result failed checks: {failed_check_names}. "
+                f"BLOCKED re-certification failed checks: "
+                f"{blocked_failed_check_names}."
+            )
+        return blocked_result.model_copy(
+            update={"final_gate_certification": blocked_gate_result}
         )

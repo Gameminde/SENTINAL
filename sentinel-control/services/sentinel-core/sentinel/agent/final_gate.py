@@ -405,7 +405,11 @@ class CoreFinalGate:
             errors.append("mission_envelope_id_mismatch")
         if mission_result.state.mission_id != result.mission_id:
             errors.append("mission_state_id_mismatch")
-        if mission_result.success != result.success:
+        # A run can legitimately downgrade to success=False when critical
+        # review findings fire post-execution, even if the inner mission
+        # worker succeeded. The dangerous inverse — claiming overall run
+        # success while the inner mission failed — is still rejected.
+        if result.success and not mission_result.success:
             errors.append("mission_success_mismatch")
         if mission_result.project_path != result.project_path:
             errors.append("mission_project_path_mismatch")
@@ -2932,3 +2936,11 @@ def _check_no_credential_payload(payload: dict[str, Any], errors: list[str], cod
 
     if visit(payload):
         errors.append(code)
+
+
+# Task 1.3 / Requirement 1 (FinalGate Runtime Integration):
+# ``AgentRunResult.final_gate_certification`` is typed as a forward reference
+# to ``CoreFinalGateResult`` to avoid a circular import (models.py is loaded
+# before this module). Now that both classes are defined, resolve the forward
+# reference so the field validates/serializes correctly at runtime.
+AgentRunResult.model_rebuild(_types_namespace={"CoreFinalGateResult": CoreFinalGateResult})
