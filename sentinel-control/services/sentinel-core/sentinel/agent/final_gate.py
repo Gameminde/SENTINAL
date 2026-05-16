@@ -20,6 +20,7 @@ from sentinel.agent.browser.ui_observation import verify_ui_observation_hash
 from sentinel.agent.browser.visual_observation import verify_visual_observation_hash
 from sentinel.agent.events import AgentEventType
 from sentinel.agent.evidence import EvidenceDecisionType
+from sentinel.agent.final_gate_registry import FinalGateRegistry
 from sentinel.agent.models import AgentRunResult, ToolSelectionStatus
 from sentinel.agent.phases import AgentPhase
 from sentinel.agent.replay import AgentTraceReplayer
@@ -63,7 +64,16 @@ class CoreFinalGateResult(SentinelModel):
 
 
 class CoreFinalGate:
-    """Final P1 brain gate before any P2 capability expansion."""
+    """Final P1 brain gate before any P2 capability expansion.
+
+    Task 11 / Requirement 11 — CoreFinalGate Decomposition.
+    Checks are split across :class:`FinalGateCheckModule` instances held in
+    a :class:`FinalGateRegistry`. The default registry (core + browser +
+    conditional project-scope tail) reproduces the pre-Task-11 check order
+    and count exactly, so behavior is unchanged. Organ-side adapters can
+    be appended via ``registry.register(module)`` without modifying this
+    class.
+    """
 
     SUCCESS_REQUIRED_EVENTS = (
         AgentEventType.CONTEXT_BUILT,
@@ -97,57 +107,29 @@ class CoreFinalGate:
         EvidenceDecisionType.LEARNING_PROPOSAL,
     )
 
+    def __init__(self, registry: "FinalGateRegistry | None" = None) -> None:
+        # Local import to avoid circular dependency at module-load time —
+        # ``final_gate_registry`` imports ``CoreFinalGate`` to delegate
+        # its check methods.
+        from sentinel.agent.final_gate_registry import default_registry as _default
+
+        self._registry = registry if registry is not None else _default()
+
+    @property
+    def registry(self) -> "FinalGateRegistry":
+        return self._registry
+
     def evaluate(
         self,
         result: AgentRunResult,
         *,
         allowed_project_root: str | Path | None = None,
     ) -> CoreFinalGateResult:
-        checks = [
-            self._trace_present(result),
-            self._trace_mission_consistency(result),
-            self._runtime_certification(result),
-            self._state_replay(result),
-            self._phase_contract(result),
-            self._tool_policy_decisions_trace_bound(result),
-            self._selected_tools_are_policy_eligible(result),
-            self._non_selected_tools_stay_out(result),
-            self._learning_is_human_approved(result),
-            self._mission_trace_integrity(result),
-            self._mission_result_consistency(result),
-            self._mission_results_archive(result),
-            self._global_action_budget(result),
-            self._active_plan_matches_mission_trace(result),
-            self._evidence_chains_trace_bound(result),
-            self._success_event_contract(result),
-            self._success_evidence_contract(result),
-            self._success_artifact_contract(result),
-            self._artifact_paths_are_relative(result),
-            self._execution_posture_matches_authority(result),
-            self._mission_risk_route_decisions(result),
-            self._controlled_capability_receipts(result),
-            self._browser_capability_receipts(result),
-            self._browser_interaction_dry_run_contract(result),
-            self._browser_interaction_execution_contract(result),
-            self._browser_public_lifecycle_contract(result),
-            self._browser_reliability_supervisor_contract(result),
-            self._browser_v25_observation_and_operator_contract(result),
-            self._browser_v3_form_submit_contract(result),
-            self._browser_v3_download_quarantine_contract(result),
-            self._browser_v3_upload_authorized_contract(result),
-            self._browser_v3_private_session_contract(result),
-            self._browser_v3_login_authority_contract(result),
-            self._browser_v3_cookie_storage_contract(result),
-            self._browser_v3_js_evaluate_sandboxed_contract(result),
-            self._browser_v3_har_body_capture_contract(result),
-            self._llm_context_pack_and_tool_intent_contract(result),
-            self._mission_artifact_receipts(result),
-        ]
-        if allowed_project_root is not None:
-            checks.append(self._project_scope(result, Path(allowed_project_root).resolve()))
-        return CoreFinalGateResult(
-            accepted=all(check.passed for check in checks),
-            checks=checks,
+        return self._registry.evaluate_all(
+            result,
+            allowed_project_root=Path(allowed_project_root).resolve()
+            if allowed_project_root is not None
+            else None,
         )
 
     def verify_performance_receipts(
