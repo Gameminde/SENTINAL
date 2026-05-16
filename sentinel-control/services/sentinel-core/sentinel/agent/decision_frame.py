@@ -135,9 +135,57 @@ class DecisionFrameVerificationResult(SentinelModel):
 
 
 class DecisionFrameVerifier:
-    def __init__(self, *, required_evidence_refs: list[str] | None = None, known_receipt_ids: list[str] | None = None) -> None:
-        self.required_evidence_refs = required_evidence_refs or []
-        self.known_receipt_ids = set(known_receipt_ids) if known_receipt_ids is not None else None
+    """Verifies an :class:`LLMDecisionFrame` against known receipt and
+    evidence graphs before a P6U worker sees the prompt.
+
+    Task 8 / F-A2.7 / CP-8.1 (No Silent Skip) — ``required_evidence_refs``
+    and ``known_receipt_ids`` are keyword-only and REQUIRED (no
+    ``None`` defaults). A caller that genuinely has no required
+    evidence or no receipt graph MUST pass explicit empty collections
+    (``required_evidence_refs=[]``, ``known_receipt_ids=set()`` or
+    ``known_receipt_ids=[]``). The previous signature permitted
+    ``DecisionFrameVerifier()`` and silently skipped the
+    ``missing critical evidence ref`` and ``unresolvable receipt ref``
+    failures; that silent-skip mode is removed.
+
+    An explicit empty ``known_receipt_ids`` now means "no receipts are
+    trusted", which causes verification to flag every receipt ref in
+    the frame as unresolvable. This matches the pre-Task-8 behavior of
+    constructing with ``known_receipt_ids=[]`` (see
+    ``test_verifier_treats_empty_known_receipt_graph_as_authoritative``)
+    and is the correct semantics for a zero-trust gate. The only
+    previously-possible "disable the receipt check" path was
+    ``known_receipt_ids=None``; that path no longer exists.
+    """
+
+    def __init__(
+        self,
+        *,
+        required_evidence_refs: list[str],
+        known_receipt_ids: list[str] | set[str],
+    ) -> None:
+        # The pythonic "required keyword-only, no default" declaration
+        # above already raises TypeError on a construction like
+        # ``DecisionFrameVerifier()``. The explicit None rejection
+        # below guards against callers that forward ``None`` through
+        # ``**kwargs`` (e.g. ``DecisionFrameVerifier(**config)`` where
+        # ``config`` contains ``"required_evidence_refs": None``) —
+        # that pattern would satisfy the keyword presence check but
+        # silently reinstate the old silent-skip behavior. We refuse.
+        if required_evidence_refs is None:
+            raise TypeError(
+                "DecisionFrameVerifier: required_evidence_refs must not be "
+                "None. Pass an explicit empty list if the call site has no "
+                "required refs."
+            )
+        if known_receipt_ids is None:
+            raise TypeError(
+                "DecisionFrameVerifier: known_receipt_ids must not be None. "
+                "Pass an explicit empty collection if the call site has no "
+                "known receipt graph (zero-trust)."
+            )
+        self.required_evidence_refs = list(required_evidence_refs)
+        self.known_receipt_ids: set[str] = set(known_receipt_ids)
 
     def verify(self, frame: LLMDecisionFrame) -> DecisionFrameVerificationResult:
         failures: list[str] = []
@@ -145,10 +193,12 @@ class DecisionFrameVerifier:
         for ref in self.required_evidence_refs:
             if ref not in evidence_refs:
                 failures.append(f"missing critical evidence ref: {ref}")
-        if self.known_receipt_ids is not None:
-            for ref in frame.receipt_refs:
-                if ref not in self.known_receipt_ids:
-                    failures.append(f"unresolvable receipt ref: {ref}")
+        # Task 8 / CP-8.1: the receipt check is ALWAYS on. An empty
+        # ``known_receipt_ids`` set is zero-trust, not silent-skip —
+        # any receipt ref in the frame fails verification.
+        for ref in frame.receipt_refs:
+            if ref not in self.known_receipt_ids:
+                failures.append(f"unresolvable receipt ref: {ref}")
         if not frame.authority_card:
             failures.append("authority card missing")
         if frame.authority_expansion:

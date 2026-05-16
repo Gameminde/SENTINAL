@@ -1,31 +1,16 @@
-from enum import StrEnum
+"""Cognitive phase state-machine rules.
 
+Task 13 / Requirement 13 — ``AgentPhase`` (the enum) now lives in
+:mod:`sentinel.shared.events`. This module keeps the cognitive-cycle
+helpers (``ALLOWED_PHASE_TRANSITIONS``, ``ABSORBING_PHASES``, and
+``can_transition``) which encode Sentinel's cognitive state machine.
 
-class AgentPhase(StrEnum):
-    CREATED = "created"
-    INITIALIZED = "initialized"
-    CONTEXT_BUILDING = "context_building"
-    ORIENTING = "orienting"
-    METHOD_SELECTING = "method_selecting"
-    CAPABILITY_SELECTING = "capability_selecting"
-    TOOL_SELECTING = "tool_selecting"
-    HYPOTHESIS_VERIFYING = "hypothesis_verifying"
-    ACTION_SCORING = "action_scoring"
-    EFFORT_ROUTING = "effort_routing"
-    PLANNING = "planning"
-    PLAN_REVIEWING = "plan_reviewing"
-    EXECUTING = "executing"
-    ARTIFACT_REVIEWING = "artifact_reviewing"
-    REPAIRING = "repairing"
-    SUCCESS_EVALUATING = "success_evaluating"
-    LEARNING_PROPOSING = "learning_proposing"
-    COMPLETED = "completed"
-    ESCALATED = "escalated"
-    PAUSED = "paused"
-    STOPPED = "stopped"
-    REVOKED = "revoked"
-    BLOCKED = "blocked"
-    FAILED = "failed"
+``AgentPhase`` is re-exported here for backward compatibility.
+"""
+
+from __future__ import annotations
+
+from sentinel.shared.events import AgentPhase
 
 
 ALLOWED_PHASE_TRANSITIONS: dict[AgentPhase, frozenset[AgentPhase]] = {
@@ -62,7 +47,19 @@ ABSORBING_PHASES = {
 
 def can_transition(phase: AgentPhase, next_phase: AgentPhase) -> bool:
     if phase == next_phase:
+        # Task 15 / F-A3.2: absorbing phases must not self-transition.
+        # A terminal phase (COMPLETED/FAILED/BLOCKED/REVOKED/...) is a
+        # dead end in the cognitive state machine by doctrine; allowing
+        # a self-loop would mask that invariant and let runtime code
+        # "re-complete" an already-completed mission or "re-block" an
+        # already-blocked one, losing the distinction between a first
+        # transition into the absorbing state and a spurious later one.
+        if phase in ABSORBING_PHASES:
+            return False
         return True
     if phase in ABSORBING_PHASES:
         return False
     return next_phase in ALLOWED_PHASE_TRANSITIONS.get(phase, frozenset())
+
+
+__all__ = ["AgentPhase", "ALLOWED_PHASE_TRANSITIONS", "ABSORBING_PHASES", "can_transition"]

@@ -12,8 +12,76 @@ from sentinel.shared.models import SentinelModel, new_id
 
 
 SECRET_PATTERNS = [
-    re.compile(r"sk-[A-Za-z0-9_-]+"),
-    re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*=\s*\S+"),
+    # Task 9 / F-A2.1 — explicit coverage for each documented secret
+    # shape. The patterns run in order; earlier matches do not prevent
+    # later ones from firing on separate occurrences of the same
+    # string, so multi-secret lines are fully redacted.
+    #
+    # OpenAI / Stripe sk-/sk_ style.
+    re.compile(r"sk-[A-Za-z0-9_-]{10,}"),
+    re.compile(r"sk_(?:live|test)_[A-Za-z0-9]{10,}"),
+    # AWS access-key id (AKIA / ASIA / AROA / AIDA / ANPA / ANVA / ACCA).
+    re.compile(r"\b(?:AKIA|ASIA|AROA|AIDA|ANPA|ANVA|ACCA)[0-9A-Z]{16}\b"),
+    # GitHub personal access tokens (classic + fine-grained) and OAuth
+    # / app tokens.
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    # Google API keys — exactly 39 chars total: "AIza" + 35 of
+    # ``[0-9A-Za-z_-]``. The body alphabet includes ``-`` and ``_``
+    # which have asymmetric ``\b`` semantics (``-`` is ``\W`` so a
+    # trailing ``\b`` after a ``-`` does not form a word boundary and
+    # the match fails). We use explicit lookahead/lookbehind class
+    # negation to anchor the key without relying on ``\b``.
+    re.compile(r"(?<![0-9A-Za-z_-])AIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])"),
+    # Slack tokens. Same ``-``-in-class issue as Google keys; use
+    # class-negation lookarounds for the trailing boundary.
+    re.compile(r"(?<![A-Za-z0-9-])xox[abprs]-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])"),
+    # JWT — three base64url segments separated by dots. Tighter than
+    # generic base64 so it does not eat ordinary dotted identifiers.
+    # Using class-negation lookarounds: the trailing segment may end
+    # with ``-`` (``\W`` under Python's default word-char class),
+    # which breaks a naive trailing ``\b``.
+    re.compile(
+        r"(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}(?![A-Za-z0-9_-])"
+    ),
+    # PEM private key blocks. DOTALL so the body between BEGIN/END is
+    # swallowed wholesale.
+    re.compile(
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----"
+        r"[\s\S]+?"
+        r"-----END [A-Z ]*PRIVATE KEY-----"
+    ),
+    # Database connection strings with inline credentials. Match the
+    # credential segment after the scheme; the scheme and host tail
+    # are preserved through the replacement token so context about
+    # "postgres URL was here" is not lost.
+    re.compile(
+        r"(?P<scheme>(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?"
+        r"|redis|amqp|amqps|ftp|ftps|sftp|ssh|rediss))"
+        r"://[^\s:/@]+:[^\s@]+@"
+    ),
+    # Authorization / Bearer headers.
+    re.compile(r"(?i)\bauthorization\s*[:=]\s*(?:bearer\s+)?\S+"),
+    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{10,}"),
+    # Generic `name=value` style. The alternation also covers
+    # ``access_token``, ``auth_token``, ``refresh_token``,
+    # ``client_secret``, ``private_key``, etc. Matches both ``=`` and
+    # ``:`` separators and supports optional quoting around the value.
+    re.compile(
+        r"(?i)\b("
+        r"api[_-]?key"
+        r"|access[_-]?token"
+        r"|auth[_-]?token"
+        r"|refresh[_-]?token"
+        r"|client[_-]?secret"
+        r"|private[_-]?key"
+        r"|token"
+        r"|secret"
+        r"|password"
+        r"|passwd"
+        r"|pwd"
+        r")\s*[:=]\s*\"?[^\s\"',;]+\"?"
+    ),
 ]
 
 

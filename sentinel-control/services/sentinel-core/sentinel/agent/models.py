@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import ConfigDict, Field
 
@@ -17,6 +17,14 @@ from sentinel.agent.uncertainty import Assumption, Fact, Hypothesis, Question, U
 from sentinel.agent.world_model import ActionEvaluation, CognitiveAction, ObjectiveScore, WorldModelPrediction
 from sentinel.mission.models import MissionArtifact, MissionAuthorityEnvelope, MissionPlan, MissionRunResult
 from sentinel.shared.models import SentinelModel, new_id
+
+if TYPE_CHECKING:
+    # Forward reference only — importing CoreFinalGateResult at runtime would
+    # create a circular import because ``sentinel.agent.final_gate`` already
+    # imports ``AgentRunResult`` from this module. The real type is wired in
+    # by ``sentinel.agent.final_gate`` which calls ``AgentRunResult.model_rebuild``
+    # with an explicit ``_types_namespace`` once the class is defined.
+    from sentinel.agent.final_gate import CoreFinalGateResult
 
 
 def utc_now() -> datetime:
@@ -124,24 +132,11 @@ class AgentContext(SentinelModel):
     summary: str = ""
 
 
-class AgentEvent(SentinelModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    id: str = Field(default_factory=lambda: new_id("aev"))
-    mission_id: str
-    sequence: int = Field(ge=0)
-    logical_time: int = Field(ge=0)
-    event_type: AgentEventType
-    phase_before: AgentPhase | None = None
-    phase_after: AgentPhase | None = None
-    actor: str = "sentinel_agent"
-    summary: str
-    payload: dict[str, Any] = Field(default_factory=dict)
-    trace_refs: list[str] = Field(default_factory=list)
-    parent_event_id: str | None = None
-    previous_hash: str | None = None
-    event_hash: str
-    created_at: datetime = Field(default_factory=utc_now)
+# Task 13 / Requirement 13 — ``AgentEvent`` has been lifted into
+# :mod:`sentinel.shared.events` as a platform primitive. It is re-exported
+# here for backward compatibility. Callers that used to do
+# ``from sentinel.agent.models import AgentEvent`` continue to work.
+from sentinel.shared.events import AgentEvent  # noqa: F401, E402  (re-export)
 
 
 class RuntimeCertificationResult(SentinelModel):
@@ -244,3 +239,10 @@ class AgentRunResult(SentinelModel):
     mission_results: list[MissionRunResult] = Field(default_factory=list)
     escalation_reason: str | None = None
     active_plan: MissionPlan | None = None
+    # Task 1.3 / Requirement 1 (FinalGate Runtime Integration):
+    # Full CoreFinalGateResult attached by AgentRuntime._apply_final_gate so
+    # callers can inspect every gate check (accepted flag + per-check details).
+    # Declared as an optional forward reference to avoid a circular import
+    # with ``sentinel.agent.final_gate``; the real type is resolved at module
+    # load time by ``CoreFinalGate``'s module via ``model_rebuild``.
+    final_gate_certification: "CoreFinalGateResult | None" = None

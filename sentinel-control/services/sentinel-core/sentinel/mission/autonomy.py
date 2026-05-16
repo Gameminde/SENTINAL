@@ -20,4 +20,15 @@ class AutonomyEngine:
         timeline: MissionTraceTimeline | None = None,
         posture: MissionExecutionPosture | None = None,
     ) -> RouteDecision:
-        return self.router.route(envelope, state, action, timeline=timeline, posture=posture)
+        # Task 6.5-A / F-A3.8 — route through the SPINE_01 §5 ordered
+        # gate sequence in addition to the router's existing checks.
+        # ``RiskRouter.route_via_sequence`` runs
+        # :meth:`GateSequence.evaluate` for audit/ordering evidence,
+        # then delegates to :meth:`RiskRouter.route` for the existing
+        # :class:`RouteDecision` shape and ``RISK_ROUTE_DECIDED``
+        # timeline event payload (preserved exactly). The sequence
+        # result is available on ``self.router.last_sequence_result``
+        # for tests and audit tooling.
+        return self.router.route_via_sequence(
+            envelope, state, action, timeline=timeline, posture=posture
+        )

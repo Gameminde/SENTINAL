@@ -5,6 +5,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from sentinel.mission.budget import MissionBudgetController
+from sentinel.mission.gate_sequence import (
+    GateSequence,
+    GateVerdict,
+    SequenceResult,
+)
 from sentinel.mission.models import MissionAction, MissionAuthorityEnvelope, MissionState
 from sentinel.mission.posture import MissionExecutionPosture, MissionExecutionPosturePolicy
 from sentinel.mission.scope_checker import MissionScopeChecker
@@ -30,11 +35,59 @@ class RouteDecision:
     blocking_rule: str | None = None
 
 
+class GateSequenceRoutingError(RuntimeError):
+    """Raised when :meth:`RiskRouter.route_via_sequence` observes an
+    inconsistency between the gate sequence's verdict and the
+    router's :class:`RouteDecision`.
+
+    Task 6.5-A — the sequence is the canonical 1→7 ordering enforcer;
+    the router preserves the existing timeline/event contract. Under
+    normal operation the two agree (sequence BLOCK ⇒ router BLOCK,
+    etc.). A mismatch is either a bug in the router's mapping or
+    tampering with one side — either way it MUST NOT be silently
+    papered over. This exception surfaces the drift loudly at the
+    call site where it can be investigated.
+    """
+
+
 class RiskRouter:
     def __init__(self, project_root: str | Path | None = None) -> None:
         self.scope_checker = MissionScopeChecker(project_root)
         self.budget = MissionBudgetController()
         self.posture_policy = MissionExecutionPosturePolicy()
+        self._project_root = project_root
+        # Lazily built — the gate sequence construction uses the same
+        # scope_checker / budget as this router, so the two code paths
+        # can never disagree on what "black_zone" or "over budget" mean.
+        self._gate_sequence: GateSequence | None = None
+        # Populated by :meth:`route_via_sequence` so tests and audit
+        # tooling can inspect the ordered gate trace after a routing
+        # decision. Not part of the public :class:`RouteDecision`
+        # contract (adding fields there would break
+        # ``RISK_ROUTE_DECIDED`` payload parity).
+        self._last_sequence_result: SequenceResult | None = None
+
+    @property
+    def last_sequence_result(self) -> SequenceResult | None:
+        """Most recent :class:`SequenceResult` produced by
+        :meth:`route_via_sequence`, or ``None`` if the router has
+        never been invoked via the sequence path."""
+        return self._last_sequence_result
+
+    def _build_gate_sequence(self) -> GateSequence:
+        """Construct the canonical 7-gate sequence.
+
+        Gate 6 (``unknown_tool_or_capability``) is a no-op in this
+        construction because the router does not own a tool
+        registry; the capability check lives in
+        :class:`sentinel.agent.capability_selector.CapabilitySelector`
+        upstream. Passing ``known_tools=None`` yields a PASS from
+        gate 6, preserving the router's existing behavior.
+        """
+        return GateSequence.default(
+            project_root=self._project_root,
+            known_tools=None,
+        )
 
     def route(
         self,
@@ -124,6 +177,89 @@ class RiskRouter:
             return self._decision(action, MissionActionRoute.LOG_AND_CONTINUE, risk_score, reasons or ["Action is in scope and routed through bounded continuation."], timeline, posture, applied_threshold=posture.log_and_continue_threshold)
 
         return self._decision(action, MissionActionRoute.ESCALATE, risk_score, reasons or ["Action is authorized but exceeds posture continuation threshold."], timeline, posture, applied_threshold=posture.escalate_threshold, blocking_rule="posture_continuation_threshold")
+
+    def route_via_sequence(
+        self,
+        envelope: MissionAuthorityEnvelope,
+        state: MissionState,
+        action: MissionAction,
+        timeline: MissionTraceTimeline | None = None,
+        posture: MissionExecutionPosture | None = None,
+    ) -> RouteDecision:
+        """Route an action through :class:`GateSequence` then
+        :meth:`route` (Task 6.5-A / F-A3.8 wiring).
+
+        The gate sequence enforces the SPINE_01 §5 1→7 order with
+        short-circuit on any non-PASS verdict. After the sequence
+        records its :class:`SequenceResult` on
+        :attr:`_last_sequence_result`, this method delegates to
+        :meth:`route` for the legacy route-decision shape and
+        ``RISK_ROUTE_DECIDED`` timeline emission. **Neither code path
+        is altered**: the sequence is additive audit/ordering
+        evidence; the router is the existing verdict producer.
+
+        Consistency contract (enforced):
+
+        * If the sequence returned ``BLOCK``, the router's
+          :class:`RouteDecision` MUST also carry
+          ``MissionActionRoute.BLOCK``. Any drift raises
+          :class:`GateSequenceRoutingError` — a production invariant
+          violation worth investigating, not silently papering over.
+        * If the sequence returned ``ESCALATE``, the router's route
+          MUST be either ``BLOCK`` (strictly stronger — the router
+          caught an additional rule the sequence did not) or
+          ``ESCALATE``. Auto-execute after sequence-escalate would
+          indicate the router dropped a gate.
+        * ``PASS`` / ``REPORT_MISSING`` sequence verdicts do not
+          constrain the router's route — both are advisory signals
+          without a hardened mapping to the :class:`MissionActionRoute`
+          enum.
+
+        The timeline payload emitted by :meth:`_decision` is
+        unchanged. A new ``RISK_ROUTE_DECIDED`` event still carries
+        ``posture``, ``posture_level``, ``risk_score``,
+        ``applied_threshold``, ``blocking_rule``, and ``reasons``
+        exactly as :meth:`route` has always emitted them. Tests
+        asserting on those fields continue to pass.
+        """
+        if self._gate_sequence is None:
+            self._gate_sequence = self._build_gate_sequence()
+        sequence_result = self._gate_sequence.evaluate(action, envelope, state)
+        self._last_sequence_result = sequence_result
+        decision = self.route(envelope, state, action, timeline=timeline, posture=posture)
+        self._assert_sequence_router_consistency(sequence_result, decision, action)
+        return decision
+
+    @staticmethod
+    def _assert_sequence_router_consistency(
+        sequence_result: SequenceResult,
+        decision: RouteDecision,
+        action: MissionAction,
+    ) -> None:
+        if sequence_result.terminal_verdict == GateVerdict.BLOCK:
+            if decision.route != MissionActionRoute.BLOCK:
+                raise GateSequenceRoutingError(
+                    "GateSequence returned BLOCK but RiskRouter returned "
+                    f"{decision.route.value!r} for action "
+                    f"{action.action_type!r}/{action.tool!r}. The two "
+                    "enforcers must agree on terminal denies; a "
+                    "mismatch indicates a bug in the router's route "
+                    "mapping or in the sequence's default gate "
+                    "construction. Blocking gate: "
+                    f"{sequence_result.blocking_gate.gate_name if sequence_result.blocking_gate else None!r}."
+                )
+        elif sequence_result.terminal_verdict == GateVerdict.ESCALATE:
+            if decision.route not in {
+                MissionActionRoute.BLOCK,
+                MissionActionRoute.ESCALATE,
+            }:
+                raise GateSequenceRoutingError(
+                    "GateSequence returned ESCALATE but RiskRouter "
+                    f"auto-executed {action.action_type!r}/{action.tool!r}. "
+                    "An escalation gate was dropped; refusing to "
+                    "auto-execute. Blocking gate: "
+                    f"{sequence_result.blocking_gate.gate_name if sequence_result.blocking_gate else None!r}."
+                )
 
     def score(self, envelope: MissionAuthorityEnvelope, action: MissionAction, *, out_of_scope: bool = False) -> float:
         external = action.externality in {ExternalityLevel.EXTERNAL_PRIVATE, ExternalityLevel.EXTERNAL_PUBLIC}

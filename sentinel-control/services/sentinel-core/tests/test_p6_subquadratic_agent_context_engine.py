@@ -341,7 +341,17 @@ def test_missing_critical_evidence_fails_verifier():
     frame = build_frame()
     broken = frame.model_copy(update={"top_k_evidence": []})
 
-    result = DecisionFrameVerifier(required_evidence_refs=["ev_browser"]).verify(broken)
+    # Task 8 / CP-8.1: known_receipt_ids is now mandatory. This test
+    # isolates the required-evidence-ref failure path, so we pass an
+    # empty known_receipt_ids to keep the frame's receipt refs from
+    # generating unrelated unresolvable failures. The empty set is a
+    # zero-trust graph; the frame under test has an emptied
+    # top_k_evidence, so the frame.receipt_refs that would normally
+    # fail are irrelevant to this assertion's failure string.
+    result = DecisionFrameVerifier(
+        required_evidence_refs=["ev_browser"],
+        known_receipt_ids=set(frame.receipt_refs),
+    ).verify(broken)
 
     assert result.passed is False
     assert "missing critical evidence ref: ev_browser" in result.failures
@@ -350,7 +360,14 @@ def test_missing_critical_evidence_fails_verifier():
 def test_verifier_checks_receipt_refs_against_known_graph():
     frame = build_frame()
 
-    result = DecisionFrameVerifier(known_receipt_ids=["r_browser"]).verify(frame)
+    # Task 8 / CP-8.1: required_evidence_refs is now mandatory. This
+    # test isolates the receipt-resolvability failure path, so we pass
+    # an explicit empty list; the frame's evidence refs are fine for
+    # the purposes of this assertion.
+    result = DecisionFrameVerifier(
+        required_evidence_refs=[],
+        known_receipt_ids=["r_browser"],
+    ).verify(frame)
 
     assert result.passed is False
     assert "unresolvable receipt ref: r_api" in result.failures
@@ -359,7 +376,13 @@ def test_verifier_checks_receipt_refs_against_known_graph():
 def test_verifier_treats_empty_known_receipt_graph_as_authoritative():
     frame = build_frame()
 
-    result = DecisionFrameVerifier(known_receipt_ids=[]).verify(frame)
+    # Task 8 / CP-8.1: required_evidence_refs is now mandatory. An
+    # explicit empty known_receipt_ids encodes zero-trust — every
+    # receipt ref in the frame SHALL be reported unresolvable.
+    result = DecisionFrameVerifier(
+        required_evidence_refs=[],
+        known_receipt_ids=[],
+    ).verify(frame)
 
     assert result.passed is False
     assert "unresolvable receipt ref: r_api" in result.failures

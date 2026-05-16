@@ -6,6 +6,7 @@ from pydantic import Field
 
 from sentinel.agent.effort_router import EffortRoute
 from sentinel.agent.evidence import EvidenceChain
+from sentinel.agent.exceptions import InvalidPhaseTransition
 from sentinel.agent.execution_posture import ExecutionPosture
 from sentinel.agent.hypothesis import AdversarialFinding, MissionHypothesis, VerificationTest
 from sentinel.agent.models import CapabilityNeed, MethodRef, ReviewFinding, ToolSelectionDecision
@@ -69,5 +70,7 @@ class AgentState(SentinelModel):
 
     def transition(self, next_phase: AgentPhase) -> "AgentState":
         if not can_transition(self.phase, next_phase):
-            raise ValueError(f"Invalid agent phase transition: `{self.phase}` -> `{next_phase}`.")
+            raise InvalidPhaseTransition(
+                f"Invalid agent phase transition: `{self.phase}` -> `{next_phase}`."
+            )
         return self.model_copy(update={"phase": next_phase})
