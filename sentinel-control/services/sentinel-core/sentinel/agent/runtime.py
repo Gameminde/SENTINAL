@@ -55,6 +55,13 @@ from sentinel.capabilities import ToolRegistry, default_tool_registry
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.mission.runner import MissionRunner
 from sentinel.mission.safe_executors import mission_slug
+from sentinel.perf.caches import (
+    CacheKeySanitizerRejection,
+    ContextCacheKeyBuilder,
+    MissingCacheKeyComponent,
+    OrganStateEntry,
+    OrganStateView,
+)
 
 
 if TYPE_CHECKING:
@@ -326,17 +333,92 @@ class AgentRuntime:
                         memory_items=memory_items,
                     )
 
-                composite_key = self._context_build_cache.composite_key(
-                    mission_hot_hash=envelope.id,
-                    workspace_snapshot_id="v1",
-                    organ_state_hash="v1",
-                    authority_hash=envelope.id,
-                )
-                context = self._context_build_cache.get_or_build(
-                    composite_key,
-                    _build_context_cached,
-                    mission_id=envelope.id,
-                )
+                # sentinel-context-cache-runtime-closure / Task 3.2 —
+                # replace the temporary envelope.id stand-in with the
+                # canonical four-component ContextCacheKey. AgentRuntime
+                # owns the derivation: ContextBuilder.build is wrapped
+                # externally via ContextBuildCache.get_or_build. The
+                # draft_context below is a pre-build AgentContext
+                # snapshot constructed from the inputs already available
+                # at CONTEXT_BUILDING (envelope, user_input,
+                # evidence_refs, memory_items); it is NOT the post-build
+                # context — that would require calling
+                # ContextBuilder.build twice. mission_hot_hash reads
+                # only envelope-side fields plus context.constraints /
+                # evidence_refs / blockers, so the empty defaults on
+                # draft_context produce a deterministic key for
+                # identical inputs.
+                #
+                # original_allowed_actions is required as an explicit
+                # kwarg per ContextCacheKeyBuilder.derive(...). There
+                # is no fallback to envelope.id or to
+                # envelope.original_allowed_actions (which does not
+                # exist on MissionAuthorityEnvelope).
+                #
+                # On MissingCacheKeyComponent or
+                # CacheKeySanitizerRejection: fall through to fresh
+                # computation by invoking the existing
+                # ``_build_context_cached`` closure directly. We never
+                # serve a cached entry under uncertainty, never
+                # construct a partial key, and never fall back to the
+                # old envelope.id stand-in. The exception messages
+                # raised by ContextCacheKeyBuilder do not echo any
+                # rejected substring; this branch propagates no extra
+                # detail beyond the deterministic exception type.
+                try:
+                    draft_context = AgentContext(
+                        mission=envelope,
+                        user_input=user_input or {},
+                        evidence_refs=evidence_refs or [],
+                        memory_items=memory_items or [],
+                    )
+                    ck = ContextCacheKeyBuilder.derive(
+                        envelope=envelope,
+                        context=draft_context,
+                        organ_state=self._organ_state_view(),
+                        workspace_snapshot_id=self._workspace_snapshot_id(),
+                        original_allowed_actions=original_allowed_actions,
+                    )
+                    # sentinel-context-cache-runtime-closure / Task 3.3 —
+                    # authority drift detector. Between ck derivation
+                    # (above) and serving a cached context (below), the
+                    # live envelope's authority surface could mutate.
+                    # Recompute authority_hash ONLY (single cheap
+                    # re-hash, not a full four-component re-derivation)
+                    # from the active envelope using the same explicit
+                    # original_allowed_actions snapshot already captured
+                    # at run entry. If the recomputed value differs from
+                    # ck.authority_hash, treat the in-flight key as
+                    # invalid: do NOT serve cached, do NOT fall back to
+                    # envelope.id, compute fresh via the existing
+                    # _build_context_cached() closure. Per design
+                    # §Invalidation Rules §Rule 1 — Authority drift
+                    # mid-flight: never serve a cached entry under
+                    # uncertainty. No raw envelope values are logged
+                    # and no new AgentEventType is emitted; the drift
+                    # path is silent and deterministic.
+                    current_authority_hash = ContextCacheKeyBuilder.authority_hash(
+                        envelope,
+                        original_allowed_actions=original_allowed_actions,
+                    )
+                    if current_authority_hash != ck.authority_hash:
+                        context = _build_context_cached()
+                    else:
+                        composite_key = self._context_build_cache.composite_key(
+                            mission_hot_hash=ck.mission_hot_hash,
+                            workspace_snapshot_id=ck.workspace_snapshot_id,
+                            organ_state_hash=ck.organ_state_hash,
+                            authority_hash=ck.authority_hash,
+                        )
+                        context = self._context_build_cache.get_or_build(
+                            composite_key,
+                            _build_context_cached,
+                            mission_id=envelope.id,
+                        )
+                except (MissingCacheKeyComponent, CacheKeySanitizerRejection):
+                    # Fall through to fresh computation. No partial key.
+                    # No envelope.id fallback. No cached entry served.
+                    context = _build_context_cached()
             elif self._latency_profiler is not None:
                 with self._latency_profiler.instrument(
                     mission_id=envelope.id,
@@ -1878,6 +1960,58 @@ class AgentRuntime:
             self.context_compressor,
             frame_budget,
         )
+
+    def _organ_state_view(self) -> "OrganStateView":
+        """Return the organ-state snapshot for ContextCacheKey derivation.
+
+        sentinel-context-cache-runtime-closure / Task 3.1.
+
+        At HEAD, ``AgentRuntime`` has no mission-wide organ-state map: there
+        is no ``self._organ_registry``, no ``self._mission_kill_switches``,
+        and ``self.tool_registry`` is a tool/capability registry — a tool is
+        not equivalent to an organ. ``CapabilityManifest`` does not expose
+        an ``organ_id`` field.
+
+        At the CONTEXT_BUILDING phase no controlled-tool-call has been
+        dispatched yet, so no ``OrganKillSwitch`` is engaged. Per the
+        Task 3.1 brief's fallback rule (and the design's
+        ``CacheInvalidationPolicy``-driven invalidation contract), return
+        an empty ``OrganStateView``. Mid-run organ-state changes are
+        reflected via the existing ``CacheInvalidationPolicy.invalidate(...)``
+        path, not via re-deriving this view per call.
+
+        Pure read-only over ``self``. Mutates no caller-owned object. No
+        I/O. No external system access. No tool-registry expansion.
+        """
+
+        return OrganStateView(organs=[])
+
+    def _workspace_snapshot_id(self) -> str:
+        """Return the workspace snapshot id for ContextCacheKey derivation.
+
+        sentinel-context-cache-runtime-closure / Task 3.1.
+
+        Returns ``self._workspace_snapshot_cache.snapshot_id`` when a
+        ``WorkspaceSnapshotCache`` is injected on the runtime (a future
+        wave's optional kwarg) and exposes a non-empty ``snapshot_id``
+        attribute. At HEAD no such cache is injected (``getattr`` returns
+        ``None``); fall back to the canonical empty-snapshot SHA-256 hex
+        constant ``e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855``
+        (= ``sha256(b"").hexdigest()``), which is the value the Phase E
+        ``WorkspaceSnapshotCache`` returns for an empty snapshot. Semantics
+        identical.
+
+        Pure read-only over ``self``. No I/O. Returns a 64-character
+        lowercase hex string in all cases — the value is suitable as the
+        ``workspace_snapshot_id`` slot on ``ContextCacheKey``.
+        """
+
+        cache = getattr(self, "_workspace_snapshot_cache", None)
+        if cache is not None:
+            snapshot_id = getattr(cache, "snapshot_id", None)
+            if isinstance(snapshot_id, str) and snapshot_id:
+                return snapshot_id
+        return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
     def _apply_final_gate(self, result: AgentRunResult) -> AgentRunResult:
         """Evaluate CoreFinalGate on the terminal result before returning it.

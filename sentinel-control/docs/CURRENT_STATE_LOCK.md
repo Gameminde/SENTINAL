@@ -1,5 +1,180 @@
 # Current State Lock
 
+## Sentinel Context Cache Runtime Closure — LOCKED
+
+Recorded at: 2026-05-17 (this commit)
+
+Branch: `main`
+
+Spec: `.kiro/specs/sentinel-context-cache-runtime-closure/`
+
+Implementation log: `sentinel-control/docs/P_C_KEY_RUNTIME_CLOSURE_IMPLEMENTATION_LOG.md`
+
+```text
+current_phase  = P-C_KEY_RUNTIME_CLOSURE_LOCKED
+previous_phase = Phase F Full Lock State (commit 378d862310bc1b5939b210a49c04026cd99a860d)
+anchor_commit  = 378d862310bc1b5939b210a49c04026cd99a860d (perf: fully lock benchmark regression gates)
+```
+
+### Backlog status closed by this lock
+
+```text
+P-C-KEY-01     = CLOSED (cache-key replacement structurally complete)
+P-C-RUNTIME-01 = PARTIAL CLOSE — constructor / default-off injection layer LOCKED;
+                 live-call-site adoption deferred under six identifiers (below)
+```
+
+### What P-C-KEY-01 closure delivered
+
+```text
+ContextCacheKey                model exists in sentinel/perf/caches/context_cache_key.py
+ContextCacheKeyBuilder         exists in sentinel/perf/caches/context_cache_key.py
+OrganStateView / Entry         exist in sentinel/perf/caches/context_cache_key.py
+MissingCacheKeyComponent       exists (raised on any None / empty / unresolved input)
+CacheKeySanitizerRejection     exists (raised on canonical sanitizer detection; no raw substring leakage)
+authority drift detector       exists at sentinel/agent/runtime.py:383-406
+ContextBuilder                 byte-identical to foundation lock (Task 8.1 verified)
+envelope.id stand-ins          GONE from runtime.py — none of the four pre-closure placeholders remain:
+                                 mission_hot_hash=envelope.id   (gone)
+                                 authority_hash=envelope.id     (gone)
+                                 workspace_snapshot_id="v1"     (gone)
+                                 organ_state_hash="v1"          (gone)
+                               (mission_id=envelope.id retained as the legitimate event tag)
+```
+
+### What P-C-RUNTIME-01 closed (constructor / default-off layer)
+
+```text
+context_build_cache:    ContextBuildCache       | None = None  at runtime.py:134
+prompt_frame_cache:     PromptFrameCache        | None = None  at runtime.py:135
+decision_frame_cache:   LLMDecisionFrameCache   | None = None  at runtime.py:136
+token_budget_governor:  TokenBudgetGovernor     | None = None  at runtime.py:137
+```
+
+All four are additive, default-off, identity-preserving on injection, and verified by:
+
+```text
+Task 4.2  (decision_frame_cache identity smoke + signature pin)
+Task 5.2  (prompt_frame_cache identity smoke + signature pin)
+U9 AST signature pins for AgentRuntime.run, _execute_controlled_tool_calls,
+   _build_decision_frame_cached, _render_prompt_text_cached, _enforce_frame_budget
+U9 AST signature pin for ContextBuilder.build (no new required parameter)
+```
+
+### Live-call-site adoption deferrals (open backlog)
+
+These six deferrals all gate on the future LLM-backed decision-cycle spec.
+Each future-caller contract is recorded in detail in
+`P_C_KEY_RUNTIME_CLOSURE_IMPLEMENTATION_LOG.md`:
+
+```text
+P-C-RUNTIME-01-DECISIONFRAME-DEFER  Task 4.1 — _build_decision_frame_cached has no live caller; AgentRuntime.run does not invoke LLMDecisionFrame.build
+P-C-RUNTIME-01-PROMPTRENDER-DEFER   Task 5.1 — _render_prompt_text_cached has no live caller; AgentRuntime.run does not invoke render_prompt_text
+P-C-RUNTIME-01-FRAMEBUDGET-DEFER    Task 6.1 — _enforce_frame_budget has no live caller (paired with DECISIONFRAME)
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER   Task 6.2 — no per-raw_call token estimate, no per-action token budget on MissionAuthorityEnvelope, no downstream block behavior
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER  Task 6.3 — no tokens_just_spent source, no mission token budget, no downstream block behavior (depends on ACTIONBUDGET)
+P-C-RUNTIME-01-MODELOPT-DEFER       Task 7.1 — no model-call planning seam; ModelCallOptimizer.plan has no live caller; Task 7.2 SKIPPED per spec gate
+```
+
+```text
+Task 7.2  = SKIPPED — gated by P-C-RUNTIME-01-MODELOPT-DEFER per tasks.md SKIP rule
+No fake caller          was added.
+No fake token budget    was added.
+No fake model call      was added.
+No new product behavior was added by this spec.
+```
+
+### Test summary (Wave 9 + Wave 10)
+
+```text
+U12 boundary gate                                                = 20/20 pass every run
+U1-U7  (test_context_cache_key_builder.py)                       = 26/26 pass
+P1-P4  (test_context_cache_runtime_closure_property.py)          =  4/4  pass (P1 max=100, P2 max=200, P3 max=100, P4 max=200)
+I1-I5+R1 (test_context_cache_runtime_integration.py)             =  6/6  pass
+U8-U11 (test_context_cache_structural_guards.py)                 = 14/14 pass
+Closure-spec test surface total                                  = 70/70 pass
+Phase F bench suite (the lock-criterion suite)                   = 30/30 pass
+Non-slow regression sweep (-m "not slow", Phase B excluded)      = 1322 passed, 0 failed, 3 deselected (slow)
+git diff --check                                                 = clean (zero whitespace, zero conflict markers)
+```
+
+### Benchmark p50/p95/p99 (Wave 10, informational only — NOT new fixed budgets)
+
+run_timestamp `2026-05-17T13:00:29.503439+00:00`, iteration count 120 (= 30 × 4 missions), values in milliseconds.
+
+```text
+mission        iter  p50  p95  p99   p50_budget  p95_budget  p99_budget   p95 vs budget   p99 vs budget
+startup         30    18   45   58       150         400         800        -88.75 %        -92.75 %
+single_tool     30     2    4    4       200         500        1000        -99.20 %        -99.60 %
+multi_tool      30     1    1    1       400        1000        2000        -99.90 %        -99.95 %
+browser_heavy   30    35   42   43       800        2000        4000        -97.90 %        -98.93 %
+```
+
+Phase F relative gate verdict: **PASS**. Every measured `p95` is far below
+its `p95_budget_ms` and every measured `p99` is far below its `p99_budget_ms`
+under the encoded tolerances `BenchmarkHarness.P95_FAIL_TOLERANCE = 1.10`
+and `BenchmarkHarness.P99_FAIL_TOLERANCE = 1.15`. The structural witness
+is the green `pytest tests/perf/bench -q` run (30/30, exit 0).
+
+### Safety witnesses
+
+```text
+no production authority expansion                                  - confirmed by U11 (no new AgentEventType) + grep (no new EventBus.append) + Task 8.1 (ContextBuilder unchanged)
+no fake runtime behavior added                                     - confirmed by Wave 6 prerequisite analysis + Wave 7 deferral
+no payment / spend / trading / channel-send / credential-secret    - confirmed by U12 regex denylist scan
+no browser power expansion                                         - confirmed by U12 + no new files under sentinel/organs/browser/
+no new public required parameter                                   - confirmed by U9 AST pins
+no ContextBuilder cache imports                                    - confirmed by I5 + Task 8.1 git diff
+```
+
+### Excluded from this lock by documented pre-existing policy
+
+```text
+tests/perf/hot_cold/test_phase_b_benchmarks.py
+  - environmental absolute-budget flake on Windows hosts (~9-10 ms p95 vs 5 ms canonical budget)
+  - excluded by Task 0.3 policy as pre-existing and outside the closure spec's scope
+  - foundation-spec maintainers own that follow-up
+```
+
+### Next phase recommendation
+
+```text
+next_phase = future LLM-backed decision-cycle spec
+  - closes P-C-RUNTIME-01-DECISIONFRAME-DEFER
+  - closes P-C-RUNTIME-01-PROMPTRENDER-DEFER
+  - closes P-C-RUNTIME-01-FRAMEBUDGET-DEFER
+  - closes P-C-RUNTIME-01-MODELOPT-DEFER (depends on DECISIONFRAME)
+
+prerequisite for token-budget closure:
+  per-raw_call token estimator  +  authority-bound per-action token budget
+  - both currently missing at HEAD; required before P-C-RUNTIME-01-ACTIONBUDGET-DEFER lands
+  - P-C-RUNTIME-01-MISSIONBUDGET-DEFER then becomes implementable on top of ACTIONBUDGET
+```
+
+### Pre-existing import-cycle caveat (out of scope for this spec)
+
+```text
+sentinel.perf.caches.context_cache_key
+  -> sentinel.agent.evidence_ranker (sanitize_context_text)
+  -> sentinel.agent.__init__
+  -> sentinel.agent.runtime (AgentRuntime)
+  -> sentinel.perf.caches  (re-entry, partial init)
+
+production code never enters via this path (every production caller goes
+through `from sentinel.agent.runtime import AgentRuntime` first); Wave 9
+test files use the same canonical seeding line. Closing the cycle would
+require either moving sanitize_context_text to a leaf module or moving
+the import inside ContextCacheKeyBuilder method bodies; out of scope.
+```
+
+### Final lock verdict
+
+```text
+P-C-KEY-01     = LOCKED CLOSED
+P-C-RUNTIME-01 = LOCKED at constructor / default-off layer; six adoption deferrals open
+no push performed; no commit performed; no stage performed.
+```
+
 ## Phase F Full Lock State
 
 Recorded at: 2026-05-16 23:52:54 +02:00
