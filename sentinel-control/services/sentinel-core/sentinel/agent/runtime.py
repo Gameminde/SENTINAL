@@ -2099,6 +2099,7 @@ class AgentRuntime:
             "request": None,
             "result": None,
             "receipt": None,
+            "budget_summary": None,
         }
 
     def _default_model_execution_policies(self, *, selected_model_call_plan: Any) -> tuple[
@@ -2131,6 +2132,7 @@ class AgentRuntime:
             "request": request.serializable_metadata(),
             "result": outcome.result.model_dump(mode="json") if outcome.result is not None else None,
             "receipt": outcome.receipt.model_dump(mode="json") if outcome.receipt is not None else None,
+            "budget_summary": outcome.budget_summary,
         }
 
     @staticmethod

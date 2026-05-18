@@ -18,6 +18,7 @@ from sentinel.agent.model_execution import (
     EnvironmentCredentialResolver,
     LLMDecisionResultValidator,
     ModelExecutionBudgetPolicy,
+    ModelExecutionBudgetLedger,
     ModelExecutionCoordinator,
     ModelExecutionOutcomeClass,
     ModelProviderRegistry,
@@ -460,6 +461,251 @@ def test_coordinator_validates_provider_response_and_builds_safe_receipt() -> No
     dumped = outcome.receipt.model_dump_json()
     assert RAW_PROMPT not in dumped
     assert SECRET_VALUE not in dumped
+
+
+def test_action_budget_blocks_oversized_model_request_before_provider_call() -> None:
+    provider = RecordingProvider()
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="deepseek",
+                env_var_name="SENTINEL_TEST_MODEL_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        budget_ledger=ModelExecutionBudgetLedger(mission_id="mission_pack_a"),
+    )
+    request = _request().model_copy(update={"estimated_input_tokens": 2_001})
+
+    outcome = coordinator.execute(request=request)
+
+    assert outcome.outcome_class is ModelExecutionOutcomeClass.BUDGET_REJECTED
+    assert outcome.success is False
+    assert outcome.provider_called is False
+    assert provider.calls == 0
+    assert outcome.budget_summary["compliant"] is False
+    assert outcome.budget_summary["decision"] == "action_input_tokens_exceeded"
+
+
+def test_mission_budget_accumulates_across_multiple_model_calls() -> None:
+    response = ProviderModelResponse(
+        provider_id="deepseek",
+        model_id="deepseek-v4-pro",
+        content={"decision": "continue", "rationale": "within mission budget", "evidence_refs": ["evidence_1"]},
+        input_tokens=60,
+        output_tokens=40,
+    )
+    provider = RecordingProvider(response=response)
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    ledger = ModelExecutionBudgetLedger(mission_id="mission_pack_a", max_mission_total_tokens=220)
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="deepseek",
+                env_var_name="SENTINEL_TEST_MODEL_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        budget_ledger=ledger,
+    )
+
+    first = coordinator.execute(request=_request().model_copy(update={"estimated_input_tokens": 10, "estimated_output_tokens": 10}))
+    second = coordinator.execute(
+        request=_request().model_copy(
+            update={"id": "model_request_second", "estimated_input_tokens": 10, "estimated_output_tokens": 10}
+        )
+    )
+
+    assert first.success is True
+    assert second.success is True
+    assert ledger.safe_summary()["used_input_tokens"] == 120
+    assert ledger.safe_summary()["used_output_tokens"] == 80
+    assert ledger.safe_summary()["used_total_tokens"] == 200
+    assert provider.calls == 2
+
+
+def test_mission_budget_exhaustion_blocks_further_model_calls() -> None:
+    response = ProviderModelResponse(
+        provider_id="deepseek",
+        model_id="deepseek-v4-pro",
+        content={"decision": "continue", "rationale": "first call only", "evidence_refs": ["evidence_1"]},
+        input_tokens=60,
+        output_tokens=40,
+    )
+    provider = RecordingProvider(response=response)
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    ledger = ModelExecutionBudgetLedger(mission_id="mission_pack_a", max_mission_total_tokens=110)
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="deepseek",
+                env_var_name="SENTINEL_TEST_MODEL_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        budget_ledger=ledger,
+    )
+
+    first = coordinator.execute(request=_request().model_copy(update={"estimated_input_tokens": 10, "estimated_output_tokens": 10}))
+    second = coordinator.execute(
+        request=_request().model_copy(
+            update={"id": "model_request_second", "estimated_input_tokens": 10, "estimated_output_tokens": 10}
+        )
+    )
+
+    assert first.success is True
+    assert second.outcome_class is ModelExecutionOutcomeClass.BUDGET_REJECTED
+    assert second.provider_called is False
+    assert second.budget_summary["decision"] == "mission_total_tokens_exhausted"
+    assert provider.calls == 1
+
+
+def test_actual_usage_budget_overrun_is_not_returned_as_success() -> None:
+    response = ProviderModelResponse(
+        provider_id="deepseek",
+        model_id="deepseek-v4-pro",
+        content={"decision": "continue", "rationale": "actual usage overran budget", "evidence_refs": ["evidence_1"]},
+        input_tokens=2_500,
+        output_tokens=40,
+    )
+    provider = RecordingProvider(response=response)
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="deepseek",
+                env_var_name="SENTINEL_TEST_MODEL_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        budget_ledger=ModelExecutionBudgetLedger(mission_id="mission_pack_a"),
+    )
+
+    outcome = coordinator.execute(
+        request=_request().model_copy(update={"estimated_input_tokens": 10, "estimated_output_tokens": 10})
+    )
+
+    assert outcome.outcome_class is ModelExecutionOutcomeClass.BUDGET_REJECTED
+    assert outcome.success is False
+    assert outcome.provider_called is True
+    assert outcome.result is not None
+    assert outcome.result.success is True
+    assert outcome.budget_summary["compliant"] is False
+    assert outcome.budget_summary["decision"] == "actual_action_input_tokens_exceeded"
+    assert provider.calls == 1
+
+
+def test_retry_attempts_consume_retry_budget() -> None:
+    provider = RecordingProvider(
+        response=ProviderModelResponse(
+            provider_id="deepseek",
+            model_id="deepseek-v4-pro",
+            content={"decision": "continue", "rationale": "retry budget accounting", "evidence_refs": ["evidence_1"]},
+            input_tokens=10,
+            output_tokens=5,
+        )
+    )
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    ledger = ModelExecutionBudgetLedger(mission_id="mission_pack_a", max_mission_retry_attempts=1)
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="deepseek",
+                env_var_name="SENTINEL_TEST_MODEL_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        budget_ledger=ledger,
+    )
+
+    first = coordinator.execute(request=_request().model_copy(update={"estimated_input_tokens": 10, "estimated_output_tokens": 10}))
+    second = coordinator.execute(
+        request=_request().model_copy(
+            update={"id": "model_request_second", "estimated_input_tokens": 10, "estimated_output_tokens": 10}
+        )
+    )
+
+    assert first.success is True
+    assert ledger.safe_summary()["used_retry_attempts"] == 1
+    assert second.outcome_class is ModelExecutionOutcomeClass.BUDGET_REJECTED
+    assert second.budget_summary["decision"] == "mission_retry_attempts_exhausted"
+    assert provider.calls == 1
+
+
+def test_timeout_budget_is_enforced_or_recorded_honestly() -> None:
+    timeout, retry, _budget = _policies()
+    constrained_budget = ModelExecutionBudgetPolicy(
+        max_input_tokens=2_000,
+        max_output_tokens=500,
+        max_total_estimated_usd=0.01,
+        max_provider_time_seconds_per_action=5.0,
+    )
+    request = RealModelRequestBuilder.build(
+        frame=_decision_frame(),
+        rendered_prompt=RAW_PROMPT,
+        plan=_model_call_plan(),
+        user_model=_model_contract(),
+        timeout_policy=timeout,
+        retry_policy=retry,
+        budget_policy=constrained_budget,
+    )
+    provider = RecordingProvider()
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="deepseek",
+                env_var_name="SENTINEL_TEST_MODEL_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        budget_ledger=ModelExecutionBudgetLedger(mission_id="mission_pack_a"),
+    )
+
+    outcome = coordinator.execute(request=request)
+
+    assert outcome.outcome_class is ModelExecutionOutcomeClass.BUDGET_REJECTED
+    assert outcome.provider_called is False
+    assert outcome.budget_summary["decision"] == "action_provider_time_budget_exceeded"
+    assert outcome.budget_summary["provider_time_budget_seconds"] == 5.0
+
+
+def test_budget_metadata_contains_no_raw_prompt_response_reasoning_or_key() -> None:
+    provider = RecordingProvider()
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="deepseek",
+                env_var_name="SENTINEL_TEST_MODEL_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        budget_ledger=ModelExecutionBudgetLedger(mission_id="mission_pack_a"),
+    )
+
+    outcome = coordinator.execute(request=_request().model_copy(update={"estimated_input_tokens": 2_001}))
+    dumped = str(outcome.budget_summary)
+
+    assert RAW_PROMPT not in dumped
+    assert SECRET_VALUE not in dumped
+    assert "reasoning_details" not in dumped
+    assert "raw_response" not in dumped
 
 
 def test_model_output_never_executes_tools_or_organs() -> None:

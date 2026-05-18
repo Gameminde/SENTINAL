@@ -175,10 +175,10 @@ def test_new_module_registration_without_core_modification(tmp_path) -> None:
 def test_core_checks_module_independent(tmp_path) -> None:
     """**Validates: CP-11.2 (Completeness).**
 
-    The core module returns exactly the 24 core checks (25 when
+    The core module returns exactly the core checks (project_scope would be
     ``allowed_project_root`` would be added by the trailing module). The
     project-scope check is emitted by ``_ProjectScopeTailModule``, not by
-    ``CoreChecksModule``, so the core-only output has 24 entries.
+    ``CoreChecksModule``.
     """
     result = _run(tmp_path)
     module = CoreChecksModule()
@@ -194,6 +194,7 @@ def test_core_checks_module_independent(tmp_path) -> None:
     assert "trace_present" in names
     assert "runtime_certification" in names
     assert "global_action_budget" in names
+    assert "model_execution_budget_contract" in names
     assert "mission_artifact_receipts" in names
 
 
@@ -230,7 +231,7 @@ def test_browser_checks_module_independent(tmp_path) -> None:
 
 
 _EXPECTED_NAMES_IN_ORDER = [
-    # CoreChecksModule (24 checks)
+    # CoreChecksModule (25 checks)
     "trace_present",
     "trace_mission_consistency",
     "runtime_certification",
@@ -244,6 +245,7 @@ _EXPECTED_NAMES_IN_ORDER = [
     "mission_result_consistency",
     "mission_results_archive",
     "global_action_budget",
+    "model_execution_budget_contract",
     "active_plan_matches_mission_trace",
     "evidence_chains_trace_bound",
     "success_event_contract",
@@ -279,9 +281,9 @@ def test_decomposed_gate_equivalent_to_monolithic(tmp_path) -> None:
     """**Validates: CP-11.2 (Completeness).**
 
     ``CoreFinalGate().evaluate(result, allowed_project_root=...)`` produces
-    the same check sequence the pre-Task-11 monolith produced: exact names,
-    exact order, 39 total checks when ``allowed_project_root`` is supplied
-    and 38 otherwise.
+        the same stable check sequence, with the post-budget-governance model
+        execution budget check included: exact names, exact order, 40 total
+        checks when ``allowed_project_root`` is supplied and 39 otherwise.
     """
     result = _run(tmp_path)
     gate = CoreFinalGate()
@@ -289,13 +291,13 @@ def test_decomposed_gate_equivalent_to_monolithic(tmp_path) -> None:
     verdict_with_scope = gate.evaluate(result, allowed_project_root=str(tmp_path))
     names_with_scope = [c.name for c in verdict_with_scope.checks]
     assert names_with_scope == _EXPECTED_NAMES_IN_ORDER
-    assert len(verdict_with_scope.checks) == 39
+    assert len(verdict_with_scope.checks) == 40
     assert verdict_with_scope.accepted is True
 
     verdict_no_scope = gate.evaluate(result)
     names_no_scope = [c.name for c in verdict_no_scope.checks]
     assert names_no_scope == _EXPECTED_NAMES_IN_ORDER[:-1]  # drop project_scope
-    assert len(verdict_no_scope.checks) == 38
+    assert len(verdict_no_scope.checks) == 39
     assert verdict_no_scope.accepted is True
 
 

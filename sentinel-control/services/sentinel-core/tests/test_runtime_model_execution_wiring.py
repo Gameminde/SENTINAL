@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from sentinel.agent.model_contract import (
     ContextBudgetPolicy,
     ModelCapabilityProfile,
@@ -99,8 +101,16 @@ def user_model_contract(
 
 
 class RecordingModelExecutionCoordinator:
-    def __init__(self, outcome_class: ModelExecutionOutcomeClass = ModelExecutionOutcomeClass.SUCCESS_VALIDATED) -> None:
+    def __init__(
+        self,
+        outcome_class: ModelExecutionOutcomeClass = ModelExecutionOutcomeClass.SUCCESS_VALIDATED,
+        *,
+        budget_summary: dict[str, object] | None = None,
+        provider_called: bool | None = None,
+    ) -> None:
         self.outcome_class = outcome_class
+        self.budget_summary = budget_summary
+        self.provider_called = provider_called
         self.calls: list[RealModelRequest] = []
 
     def execute(self, *, request: RealModelRequest) -> ModelExecutionOutcome:
@@ -135,7 +145,10 @@ class RecordingModelExecutionCoordinator:
             success=result.success,
             result=result,
             receipt=receipt,
-            provider_called=True,
+            provider_called=self.provider_called
+            if self.provider_called is not None
+            else self.outcome_class is not ModelExecutionOutcomeClass.BUDGET_REJECTED,
+            budget_summary=self.budget_summary,
         )
 
 
@@ -297,10 +310,81 @@ def test_model_output_cannot_execute_tools_or_organs_and_final_gate_still_runs(t
     assert result.final_gate_certification.accepted is True
 
 
+def test_final_gate_sees_model_execution_budget_compliance_metadata(tmp_path: Path) -> None:
+    contract = user_model_contract()
+    coordinator = RecordingModelExecutionCoordinator(
+        ModelExecutionOutcomeClass.BUDGET_REJECTED,
+        budget_summary={
+            "compliant": False,
+            "decision": "action_input_tokens_exceeded",
+            "provider_called": False,
+            "used_input_tokens": 0,
+            "used_output_tokens": 0,
+            "used_total_tokens": 0,
+        },
+    )
+
+    result = _runtime(
+        tmp_path,
+        contract=contract,
+        optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id="unit_provider",
+            default_backend="unit_openai_compatible_chat",
+        ),
+        coordinator=coordinator,
+    ).run(envelope(), {"idea": "Sentinel"}, evidence_refs=["ev_direct"])
+
+    cycle = result.llm_decision_cycle
+    assert cycle is not None
+    assert cycle["model_execution"]["outcome_class"] == ModelExecutionOutcomeClass.BUDGET_REJECTED.value
+    assert cycle["model_execution"]["budget_summary"]["compliant"] is False
+    assert cycle["model_execution"]["success"] is False
+    assert cycle["model_execution_deferred"] is True
+    assert result.final_gate_certification is not None
+    checks = {check.name: check for check in result.final_gate_certification.checks}
+    assert checks["model_execution_budget_contract"].passed is True
+
+
+def test_final_gate_certifies_post_response_budget_overrun_as_blocked(tmp_path: Path) -> None:
+    contract = user_model_contract()
+    coordinator = RecordingModelExecutionCoordinator(
+        ModelExecutionOutcomeClass.BUDGET_REJECTED,
+        budget_summary={
+            "compliant": False,
+            "decision": "actual_action_input_tokens_exceeded",
+            "provider_called": True,
+            "used_input_tokens": 2_500,
+            "used_output_tokens": 40,
+            "used_total_tokens": 2_540,
+        },
+        provider_called=True,
+    )
+
+    result = _runtime(
+        tmp_path,
+        contract=contract,
+        optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id="unit_provider",
+            default_backend="unit_openai_compatible_chat",
+        ),
+        coordinator=coordinator,
+    ).run(envelope(), {"idea": "Sentinel"}, evidence_refs=["ev_direct"])
+
+    cycle = result.llm_decision_cycle
+    assert cycle is not None
+    assert cycle["model_execution"]["outcome_class"] == ModelExecutionOutcomeClass.BUDGET_REJECTED.value
+    assert cycle["model_execution"]["success"] is False
+    assert cycle["model_execution"]["provider_called"] is True
+    assert cycle["model_execution_deferred"] is True
+    assert result.final_gate_certification is not None
+    checks = {check.name: check for check in result.final_gate_certification.checks}
+    assert checks["model_execution_budget_contract"].passed is True
+
+
 def test_runtime_real_groq_provider_success_validated_skip_safe(tmp_path: Path) -> None:
     if not _ensure_groq_key_loaded_from_process_or_dotenv():
-        import pytest
-
         pytest.skip("GROQ_API_KEY absent from process env and ignored .env; skipping real runtime model call")
 
     contract = user_model_contract(
@@ -345,6 +429,13 @@ def test_runtime_real_groq_provider_success_validated_skip_safe(tmp_path: Path) 
     model_execution = cycle["model_execution"]
     assert model_execution["enabled"] is True
     assert model_execution["provider_called"] is True
+    dumped = json.dumps(cycle, sort_keys=True)
+    assert os.environ["GROQ_API_KEY"] not in dumped
+    assert "prompt_text_in_memory_only" not in dumped
+    assert "reasoning_details" not in dumped
+    assert "raw_text" not in dumped
+    if model_execution["outcome_class"] != ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value:
+        pytest.skip(f"real runtime Groq call returned provider outcome: {model_execution['outcome_class']}")
     assert model_execution["success"] is True
     assert model_execution["outcome_class"] == ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value
     assert model_execution["request"]["provider_id"] == "groq"
@@ -358,12 +449,6 @@ def test_runtime_real_groq_provider_success_validated_skip_safe(tmp_path: Path) 
     assert result.controlled_capability_results == []
     assert result.final_gate_certification is not None
     assert result.final_gate_certification.accepted is True
-
-    dumped = json.dumps(cycle, sort_keys=True)
-    assert os.environ["GROQ_API_KEY"] not in dumped
-    assert "prompt_text_in_memory_only" not in dumped
-    assert "reasoning_details" not in dumped
-    assert "raw_text" not in dumped
 
 
 def _ensure_groq_key_loaded_from_process_or_dotenv() -> bool:

@@ -4,6 +4,7 @@ from typing import Any
 
 from sentinel.agent.decision_frame import LLMDecisionFrame
 from sentinel.agent.model_contract import UserModelContract
+from sentinel.agent.model_execution.budget import ModelExecutionBudgetLedger
 from sentinel.agent.model_execution.catalog import ProviderCatalog, ProviderCatalogStatus
 from sentinel.agent.model_execution.credentials import CredentialResolution, ProviderCredentialHandle
 from sentinel.agent.model_execution.models import ModelExecutionOutcome, ModelExecutionOutcomeClass, RealModelRequest
@@ -35,6 +36,7 @@ class RealModelRequestBuilder:
             raise ValueError("ModelCallPlan backend_id must match the user-selected backend.")
         prompt_hash = text_hash(rendered_prompt)
         metadata = {
+            "mission_id": frame.mission_id,
             "plan_rationale": plan.rationale,
             "provider_id": plan.provider_id,
             "backend_id": plan.backend_id,
@@ -47,6 +49,9 @@ class RealModelRequestBuilder:
                 for ref in getattr(card, "evidence_refs", [])
             ],
             "frame_receipt_refs": list(frame.receipt_refs),
+            "timeout_policy": timeout_policy.model_dump(mode="json"),
+            "retry_policy": retry_policy.model_dump(mode="json"),
+            "budget_policy": budget_policy.model_dump(mode="json"),
         }
         hash_payload = {
             "provider_id": plan.provider_id,
@@ -61,8 +66,11 @@ class RealModelRequestBuilder:
             "estimated_output_tokens": user_model.context_budget_policy.reserve_output_tokens,
             "request_metadata": metadata,
             "timeout_policy_id": timeout_policy.id,
+            "timeout_policy": timeout_policy.model_dump(mode="json"),
             "retry_policy_id": retry_policy.id,
+            "retry_policy": retry_policy.model_dump(mode="json"),
             "budget_policy_id": budget_policy.id,
+            "budget_policy": budget_policy.model_dump(mode="json"),
         }
         return RealModelRequest(
             provider_id=plan.provider_id,
@@ -94,6 +102,7 @@ class ModelExecutionCoordinator:
         provider_catalog: ProviderCatalog | None = None,
         enabled_provider_ids: set[str] | frozenset[str] | None = None,
         allow_diagnostic_provider_ids: set[str] | frozenset[str] | None = None,
+        budget_ledger: ModelExecutionBudgetLedger | None = None,
     ) -> None:
         self._registry = registry
         self._credential_resolver = credential_resolver
@@ -105,6 +114,7 @@ class ModelExecutionCoordinator:
         self._provider_catalog = provider_catalog
         self._enabled_provider_ids = frozenset(enabled_provider_ids) if enabled_provider_ids is not None else None
         self._allow_diagnostic_provider_ids = frozenset(allow_diagnostic_provider_ids or ())
+        self._budget_ledger = budget_ledger
 
     def execute(self, *, request: RealModelRequest) -> ModelExecutionOutcome:
         if self._registry is None:
@@ -123,6 +133,19 @@ class ModelExecutionCoordinator:
         except PermissionError:
             return ModelExecutionOutcome(outcome_class=ModelExecutionOutcomeClass.DISABLED_BACKEND, success=False)
 
+        budget_ledger = self._budget_ledger or ModelExecutionBudgetLedger(
+            mission_id=str(request.request_metadata.get("mission_id") or "model_execution")
+        )
+        budget_decision = budget_ledger.preflight(request)
+        if not budget_decision.allowed:
+            return ModelExecutionOutcome(
+                outcome_class=ModelExecutionOutcomeClass.BUDGET_REJECTED,
+                success=False,
+                provider_called=False,
+                budget_summary=budget_ledger.record_rejection(request=request, decision=budget_decision),
+                message="model execution budget blocked request",
+            )
+
         if self._credential_resolver is None:
             return ModelExecutionOutcome(outcome_class=ModelExecutionOutcomeClass.MISSING_CREDENTIAL, success=False)
         credential = self._resolve_credential(request.provider_id)
@@ -133,10 +156,15 @@ class ModelExecutionCoordinator:
 
         response = provider.execute(request, timeout=self._timeout_policy, credential=credential)
         if response is None:
+            budget_summary = budget_ledger.safe_summary(
+                decision=ModelExecutionOutcomeClass.MODEL_EXECUTION_DEFERRED.value,
+                compliant=True,
+            )
             return ModelExecutionOutcome(
                 outcome_class=ModelExecutionOutcomeClass.MODEL_EXECUTION_DEFERRED,
                 success=False,
                 provider_called=True,
+                budget_summary=budget_summary,
                 message="Pack A does not accept fake success or real provider success without Wave 8.",
             )
         allowed_refs: set[str] = set()
@@ -153,12 +181,25 @@ class ModelExecutionCoordinator:
             credential=credential,
             attempts=1,
         )
-        return ModelExecutionOutcome(
+        budget_summary = budget_ledger.record_response(
+            request=request,
+            response=response,
             outcome_class=result.outcome_class,
-            success=result.success,
+            attempts=1,
+            provider_time_seconds=budget_decision.projected_provider_time_seconds,
+        )
+        outcome_class = result.outcome_class
+        success = result.success
+        if budget_summary.get("compliant") is False:
+            outcome_class = ModelExecutionOutcomeClass.BUDGET_REJECTED
+            success = False
+        return ModelExecutionOutcome(
+            outcome_class=outcome_class,
+            success=success,
             result=result,
             receipt=receipt,
             provider_called=True,
+            budget_summary=budget_summary,
         )
 
     def _resolve_credential(self, provider_id: str) -> ProviderCredentialHandle | None:

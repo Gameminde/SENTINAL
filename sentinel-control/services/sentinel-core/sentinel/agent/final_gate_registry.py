@@ -158,6 +158,7 @@ class CoreChecksModule:
             _Gate._mission_result_consistency(result),
             _Gate._mission_results_archive(result),
             _Gate._global_action_budget(result),
+            _Gate._model_execution_budget_contract(result),
             _Gate._active_plan_matches_mission_trace(result),
             _Gate._evidence_chains_trace_bound(result),
             _gate_instance._success_event_contract(result),
@@ -217,7 +218,8 @@ class BrowserChecksModule:
 def default_registry() -> FinalGateRegistry:
     """Default registry — core module first, then browser module.
 
-    Matches the pre-Task-11 check order: 24 core checks, then 14 browser
+    Matches the pre-Task-11 check order, with one later model-execution
+    budget governance check added to the core budget cluster: 25 core checks, then 14 browser
     checks, then the conditional ``_project_scope`` check (emitted
     within ``CoreChecksModule`` when ``allowed_project_root`` is
     provided). Changing this function's output would change
@@ -257,7 +259,7 @@ def default_registry() -> FinalGateRegistry:
 
     return FinalGateRegistry(
         modules=[
-            CoreChecksModule(),  # 24 core checks (project-scope NOT included here)
+            CoreChecksModule(),  # 25 core checks (project-scope NOT included here)
             BrowserOrganChecksModule(),  # 14 browser checks (organ-side owner)
             _ProjectScopeTailModule(),  # conditional project-scope check at the end
         ]

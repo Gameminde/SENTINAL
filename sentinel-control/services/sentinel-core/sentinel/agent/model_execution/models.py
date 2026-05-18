@@ -124,4 +124,5 @@ class ModelExecutionOutcome(SentinelModel):
     result: LLMDecisionResult | None = None
     receipt: Any | None = None
     provider_called: bool = False
+    budget_summary: dict[str, Any] | None = None
     message: str | None = None

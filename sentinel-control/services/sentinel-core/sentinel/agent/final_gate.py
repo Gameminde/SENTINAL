@@ -596,6 +596,70 @@ class CoreFinalGate:
         )
 
     @staticmethod
+    def _model_execution_budget_contract(result: AgentRunResult) -> CoreGateCheck:
+        cycle = result.llm_decision_cycle
+        if not isinstance(cycle, dict):
+            return CoreGateCheck(
+                name="model_execution_budget_contract",
+                kind=CoreGateCheckKind.BUDGET,
+                passed=True,
+                message="Run has no model execution budget metadata.",
+            )
+        model_execution = cycle.get("model_execution")
+        if not isinstance(model_execution, dict):
+            return CoreGateCheck(
+                name="model_execution_budget_contract",
+                kind=CoreGateCheckKind.BUDGET,
+                passed=False,
+                message="Model execution metadata is malformed.",
+                details={"errors": ["model_execution_metadata_missing_or_invalid"]},
+            )
+        summary = model_execution.get("budget_summary")
+        if summary is None:
+            return CoreGateCheck(
+                name="model_execution_budget_contract",
+                kind=CoreGateCheckKind.BUDGET,
+                passed=True,
+                message="Model execution budget summary is not present for this run.",
+            )
+        errors: list[str] = []
+        if not isinstance(summary, dict):
+            errors.append("model_execution_budget_summary_invalid")
+        else:
+            rendered = str(summary).lower()
+            for forbidden in (
+                "prompt_text_in_memory_only",
+                "raw_prompt",
+                "raw_response",
+                "reasoning_details",
+                "authorization: bearer",
+                "gsk_",
+                "nvapi-",
+                "sk-or-v1",
+            ):
+                if forbidden in rendered:
+                    errors.append(f"model_execution_budget_summary_leaks_{forbidden}")
+            if summary.get("compliant") is False and model_execution.get("success") is True:
+                errors.append("model_execution_budget_noncompliant_success")
+        if model_execution.get("outcome_class") == "BUDGET_REJECTED":
+            if model_execution.get("success") is True:
+                errors.append("budget_rejected_marked_success")
+            decision = summary.get("decision") if isinstance(summary, dict) else None
+            if model_execution.get("provider_called") is True and not str(decision or "").startswith("actual_"):
+                errors.append("budget_rejected_after_provider_call")
+            if isinstance(summary, dict) and summary.get("compliant") is not False:
+                errors.append("budget_rejected_missing_noncompliant_summary")
+        return CoreGateCheck(
+            name="model_execution_budget_contract",
+            kind=CoreGateCheckKind.BUDGET,
+            passed=not errors,
+            message="Model execution budget metadata is safe and internally consistent."
+            if not errors
+            else "Model execution budget contract failed.",
+            details={"errors": errors},
+        )
+
+    @staticmethod
     def _active_plan_matches_mission_trace(result: AgentRunResult) -> CoreGateCheck:
         if result.active_plan is None or result.mission_result is None:
             passed = not result.success

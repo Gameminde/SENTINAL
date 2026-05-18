@@ -30,4 +30,13 @@ class ModelExecutionBudgetPolicy(SentinelModel):
     id: str = Field(default_factory=lambda: new_id("model_budget"))
     max_input_tokens: int = Field(gt=0)
     max_output_tokens: int = Field(ge=0)
+    max_total_tokens: int | None = Field(default=None, gt=0)
+    max_retry_attempts_per_action: int | None = Field(default=None, ge=1)
+    max_provider_time_seconds_per_action: float | None = Field(default=None, gt=0.0)
     max_total_estimated_usd: float = Field(ge=0.0)
+
+    @model_validator(mode="after")
+    def _validate_total_token_bound(self) -> ModelExecutionBudgetPolicy:
+        if self.max_total_tokens is not None and self.max_total_tokens < self.max_input_tokens:
+            raise ValueError("max_total_tokens must be at least max_input_tokens.")
+        return self

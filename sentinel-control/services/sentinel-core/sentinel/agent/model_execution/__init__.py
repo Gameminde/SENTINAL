@@ -15,6 +15,11 @@ from sentinel.agent.model_execution.catalog import (
     ProviderTimeoutProfile,
     ProviderUsageMapping,
 )
+from sentinel.agent.model_execution.budget import (
+    ModelExecutionBudgetDecision,
+    ModelExecutionBudgetEntry,
+    ModelExecutionBudgetLedger,
+)
 from sentinel.agent.model_execution.credentials import (
     EnvironmentCredentialResolver,
     ProviderCredentialHandle,
@@ -47,6 +52,9 @@ __all__ = [
     "LLMDecisionResult",
     "LLMDecisionResultValidator",
     "ModelExecutionBudgetPolicy",
+    "ModelExecutionBudgetDecision",
+    "ModelExecutionBudgetEntry",
+    "ModelExecutionBudgetLedger",
     "ModelExecutionCoordinator",
     "ModelExecutionOutcome",
     "ModelExecutionOutcomeClass",

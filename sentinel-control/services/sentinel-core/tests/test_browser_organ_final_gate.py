@@ -384,10 +384,10 @@ def test_default_registry_no_longer_uses_browser_checks_module():
     assert "browser" not in [module.name for module in registry.modules]
 
 
-def test_core_final_gate_default_registry_still_emits_same_39_checks(tmp_path):
+def test_core_final_gate_default_registry_still_emits_same_40_checks(tmp_path):
     """Task 5.2-C2: ``CoreFinalGate().evaluate(...)`` with the new default
-    registry still produces the exact 39-check verdict the monolithic gate
-    produced before Task 11: 24 core + 14 browser + 1 project_scope.
+    registry now produces the 40-check verdict after model-execution budget
+    governance: 25 core + 14 browser + 1 project_scope.
 
     Check ordering and names are identical to the pre-substitution default
     registry (proved bit-exact by the Task 11 equivalence suite).
@@ -397,7 +397,7 @@ def test_core_final_gate_default_registry_still_emits_same_39_checks(tmp_path):
 
     assert verdict.accepted is True
     names = [c.name for c in verdict.checks]
-    assert len(names) == 39
+    assert len(names) == 40
 
     # Browser checks (14) appear in the expected slot between core and project_scope.
     core_names = [c.name for c in CoreChecksModule().checks(result)]
