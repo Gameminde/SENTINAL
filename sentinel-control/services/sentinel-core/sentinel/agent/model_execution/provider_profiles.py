@@ -1,0 +1,339 @@
+from __future__ import annotations
+
+from sentinel.agent.model_execution.catalog import (
+    ProviderBackendProfile,
+    ProviderCapabilityFlags,
+    ProviderCatalog,
+    ProviderCatalogEntry,
+    ProviderCatalogStatus,
+    ProviderCredentialPolicy,
+    ProviderFamily,
+    ProviderRealTestStatus,
+    ProviderRealTestStatusKind,
+    ProviderReasoningRedactionPolicy,
+    ProviderRecommendation,
+    ProviderRetryPolicy,
+    ProviderTimeoutProfile,
+    ProviderUsageMapping,
+)
+
+
+def build_default_provider_catalog() -> ProviderCatalog:
+    return ProviderCatalog(entries=_default_entries())
+
+
+def _default_entries() -> list[ProviderCatalogEntry]:
+    return [
+        _entry(
+            provider_id="groq",
+            display_name="Groq",
+            family=ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+            backend_id="groq_openai_compatible_chat",
+            endpoint="https://api.groq.com/openai/v1/chat/completions",
+            env_var="GROQ_API_KEY",
+            supported_models=["openai/gpt-oss-20b"],
+            status=ProviderCatalogStatus.ACTIVE,
+            real_status=ProviderRealTestStatusKind.SUCCESS_VALIDATED,
+            last_model="openai/gpt-oss-20b",
+            last_backend="groq_openai_compatible_chat",
+            success_commit="39888c1",
+            docs=["https://console.groq.com/docs/api-reference", "https://console.groq.com/docs/text-chat"],
+            capability=ProviderCapabilityFlags(
+                chat=True,
+                streaming=True,
+                json_mode=True,
+                json_schema=True,
+                tool_calling=True,
+                reasoning_controls=True,
+            ),
+            recommendation=ProviderRecommendation(
+                recommended_for=["skip-safe smoke tests", "validated provider regression"],
+                avoid_for=["default routing", "silent fallback target"],
+                latency_class="low",
+                cost_class="low",
+                reliability_class="proven",
+                notes=["First SUCCESS_VALIDATED provider evidence; not runtime architecture."],
+            ),
+        ),
+        _entry(
+            provider_id="openrouter",
+            display_name="OpenRouter",
+            family=ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+            backend_id="openrouter_chat_completions",
+            endpoint="https://openrouter.ai/api/v1/chat/completions",
+            env_var="OPENROUTER_API_KEY",
+            supported_models=["deepseek/deepseek-v4-flash:free"],
+            status=ProviderCatalogStatus.DIAGNOSTIC,
+            real_status=ProviderRealTestStatusKind.DIAGNOSTIC_ONLY,
+            diagnostic_outcomes=["RATE_LIMIT", "TIMEOUT", "PROVIDER_ERROR"],
+            docs=["https://openrouter.ai/docs/api-reference/chat-completion"],
+            timeout=ProviderTimeoutProfile(read_timeout_seconds=30.0, total_timeout_seconds=35.0),
+            recommendation=ProviderRecommendation(
+                recommended_for=["diagnostic gateway research"],
+                avoid_for=["production default", "automatic fallback"],
+                reliability_class="diagnostic",
+                notes=["Routing and fallback knobs must remain pinned off before production use."],
+            ),
+        ),
+        _entry(
+            provider_id="nvidia",
+            display_name="NVIDIA NIM / Integrate",
+            family=ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+            backend_id="nvidia_openai_compatible_chat",
+            endpoint="https://integrate.api.nvidia.com/v1/chat/completions",
+            env_var="NVIDIA_API_KEY",
+            supported_models=["minimaxai/minimax-m2.7"],
+            status=ProviderCatalogStatus.DIAGNOSTIC,
+            real_status=ProviderRealTestStatusKind.DIAGNOSTIC_ONLY,
+            diagnostic_outcomes=["TIMEOUT"],
+            docs=["https://docs.nvidia.com/nim/large-language-models/latest/reference/api-reference.html"],
+            timeout=ProviderTimeoutProfile(read_timeout_seconds=120.0, total_timeout_seconds=150.0),
+            recommendation=ProviderRecommendation(
+                recommended_for=["long-timeout diagnostics"],
+                avoid_for=["short smoke tests"],
+                reliability_class="diagnostic",
+                notes=["Hosted diagnostics observed timeout; local NIM policy remains separate."],
+            ),
+        ),
+        _entry(
+            provider_id="deepseek",
+            display_name="DeepSeek",
+            family=ProviderFamily.DEEPSEEK_COMPATIBLE,
+            backend_id="deepseek_chat_completions",
+            endpoint="https://api.deepseek.com/chat/completions",
+            env_var="DEEPSEEK_API_KEY",
+            supported_models=["deepseek-chat", "deepseek-reasoner"],
+            docs=["https://api-docs.deepseek.com/api/create-chat-completion"],
+            reasoning_fields=["reasoning_content", "reasoning_tokens"],
+            recommendation=ProviderRecommendation(
+                recommended_for=["first new hosted provider after catalog"],
+                avoid_for=["raw reasoning durability"],
+                reliability_class="unknown",
+                notes=["OpenAI-compatible shape with explicit reasoning redaction requirements."],
+            ),
+        ),
+        _entry(
+            provider_id="mistral",
+            display_name="Mistral",
+            family=ProviderFamily.MISTRAL_NATIVE_OR_COMPATIBLE,
+            backend_id="mistral_chat_completions",
+            endpoint="https://api.mistral.ai/v1/chat/completions",
+            env_var="MISTRAL_API_KEY",
+            supported_models=["mistral-small-latest", "mistral-large-latest"],
+            docs=["https://docs.mistral.ai/api"],
+            recommendation=ProviderRecommendation(
+                recommended_for=["structured output provider expansion"],
+                avoid_for=["implicit tool execution"],
+                reliability_class="unknown",
+            ),
+        ),
+        _entry(
+            provider_id="xai",
+            display_name="xAI",
+            family=ProviderFamily.XAI_COMPATIBLE_OR_NATIVE,
+            backend_id="xai_chat_completions",
+            endpoint="https://api.x.ai/v1/chat/completions",
+            env_var="XAI_API_KEY",
+            supported_models=["grok-4", "grok-3"],
+            docs=["https://docs.x.ai/docs/guides/chat-completions"],
+            timeout=ProviderTimeoutProfile(read_timeout_seconds=60.0, total_timeout_seconds=70.0),
+        ),
+        _entry(
+            provider_id="openai",
+            display_name="OpenAI Responses",
+            family=ProviderFamily.OPENAI_NATIVE,
+            backend_id="openai_responses",
+            endpoint="https://api.openai.com/v1/responses",
+            env_var="OPENAI_API_KEY",
+            supported_models=["gpt-5.4", "gpt-5.4-mini", "gpt-oss-20b"],
+            docs=["https://platform.openai.com/docs/api-reference/responses/create"],
+            capability=ProviderCapabilityFlags(responses=True, streaming=True, json_schema=True, tool_calling=True),
+        ),
+        _entry(
+            provider_id="openai_chat",
+            display_name="OpenAI Chat Completions",
+            family=ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+            backend_id="openai_chat_completions",
+            endpoint="https://api.openai.com/v1/chat/completions",
+            env_var="OPENAI_API_KEY",
+            supported_models=["gpt-5.4", "gpt-5.4-mini"],
+            docs=["https://platform.openai.com/docs/api-reference/chat/create"],
+        ),
+        _entry(
+            provider_id="anthropic",
+            display_name="Anthropic Claude",
+            family=ProviderFamily.ANTHROPIC_MESSAGES_NATIVE,
+            backend_id="anthropic_messages",
+            endpoint="https://api.anthropic.com/v1/messages",
+            env_var="ANTHROPIC_API_KEY",
+            supported_models=["claude-sonnet-4-5", "claude-haiku-4-5"],
+            docs=["https://docs.anthropic.com/en/api/messages"],
+            capability=ProviderCapabilityFlags(messages=True, streaming=True, json_schema=True, tool_calling=True),
+            reasoning_fields=["thinking", "thinking_blocks"],
+        ),
+        _entry(
+            provider_id="google_gemini",
+            display_name="Google Gemini",
+            family=ProviderFamily.GEMINI_NATIVE,
+            backend_id="gemini_generate_content",
+            endpoint="https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            env_var="GEMINI_API_KEY",
+            supported_models=["gemini-2.5-pro", "gemini-2.5-flash"],
+            docs=["https://ai.google.dev/gemini-api/docs/text-generation"],
+            capability=ProviderCapabilityFlags(generate_content=True, streaming=True, json_schema=True, tool_calling=True),
+            reasoning_fields=["thought", "thought_signature"],
+        ),
+        _entry(
+            provider_id="cohere",
+            display_name="Cohere",
+            family=ProviderFamily.COHERE_NATIVE,
+            backend_id="cohere_chat_v2",
+            endpoint="https://api.cohere.com/v2/chat",
+            env_var="COHERE_API_KEY",
+            supported_models=["command-a-03-2025", "command-r7b-12-2024"],
+            docs=["https://docs.cohere.com/v2/reference/chat"],
+            capability=ProviderCapabilityFlags(messages=True, streaming=True, json_schema=True, tool_calling=True),
+            reasoning_fields=["thinking"],
+        ),
+        _entry(
+            provider_id="ollama",
+            display_name="Ollama",
+            family=ProviderFamily.LOCAL_OPENAI_COMPATIBLE,
+            backend_id="ollama_openai_compatible_chat",
+            endpoint="http://localhost:11434/v1/chat/completions",
+            env_var=None,
+            supported_models=["llama3.2", "qwen2.5"],
+            status=ProviderCatalogStatus.LOCAL_ONLY,
+            docs=["https://docs.ollama.com/openai"],
+            capability=ProviderCapabilityFlags(
+                chat=True,
+                streaming=True,
+                json_mode=True,
+                tool_calling=True,
+                reasoning_controls=True,
+                local_runtime=True,
+            ),
+            credential_source_type="local_none",
+            required_for_real_call=False,
+        ),
+        _entry(
+            provider_id="lmstudio",
+            display_name="LM Studio",
+            family=ProviderFamily.LOCAL_OPENAI_COMPATIBLE,
+            backend_id="lmstudio_openai_compatible_chat",
+            endpoint="http://localhost:1234/v1/chat/completions",
+            env_var="LMSTUDIO_API_KEY",
+            supported_models=["local/user-selected"],
+            status=ProviderCatalogStatus.LOCAL_ONLY,
+            docs=["https://lmstudio.ai/docs/app/api/endpoints/openai"],
+            capability=ProviderCapabilityFlags(
+                chat=True,
+                responses=True,
+                streaming=True,
+                json_schema=True,
+                tool_calling=True,
+                local_runtime=True,
+            ),
+            credential_source_type="local_none",
+            required_for_real_call=False,
+        ),
+    ]
+
+
+def _entry(
+    *,
+    provider_id: str,
+    display_name: str,
+    family: ProviderFamily,
+    backend_id: str,
+    endpoint: str,
+    env_var: str | None,
+    supported_models: list[str],
+    docs: list[str],
+    status: ProviderCatalogStatus = ProviderCatalogStatus.PLANNED,
+    real_status: ProviderRealTestStatusKind = ProviderRealTestStatusKind.NOT_STARTED,
+    last_model: str | None = None,
+    last_backend: str | None = None,
+    success_commit: str | None = None,
+    diagnostic_outcomes: list[str] | None = None,
+    capability: ProviderCapabilityFlags | None = None,
+    timeout: ProviderTimeoutProfile | None = None,
+    recommendation: ProviderRecommendation | None = None,
+    reasoning_fields: list[str] | None = None,
+    credential_source_type: str = "env",
+    required_for_real_call: bool = True,
+) -> ProviderCatalogEntry:
+    backend = ProviderBackendProfile(
+        backend_id=backend_id,
+        family=family,
+        endpoint_template=endpoint,
+        runtime=_runtime_for_family(family),
+        supported_models=supported_models,
+        supports_streaming=bool(capability.streaming if capability else True),
+        supports_json_mode=bool(capability.json_mode if capability else True),
+        supports_json_schema=bool(capability.json_schema if capability else False),
+        supports_tools=bool(capability.tool_calling if capability else True),
+        supports_reasoning_controls=bool(capability.reasoning_controls if capability else True),
+        usage_mapping=_usage_mapping_for_family(family),
+        timeout_profile=timeout or ProviderTimeoutProfile(),
+        retry_policy=ProviderRetryPolicy(max_attempts=1, retryable_outcomes=[]),
+        reasoning_redaction_policy=ProviderReasoningRedactionPolicy(
+            raw_reasoning_fields=reasoning_fields or ProviderReasoningRedactionPolicy().raw_reasoning_fields
+        ),
+    )
+    return ProviderCatalogEntry(
+        provider_id=provider_id,
+        display_name=display_name,
+        family=family,
+        status=status,
+        backends=[backend],
+        credential_policy=ProviderCredentialPolicy(
+            credential_env_var=env_var,
+            credential_source_type=credential_source_type,
+            required_for_real_call=required_for_real_call,
+        ),
+        capability_flags=capability or ProviderCapabilityFlags(chat=True, streaming=True, tool_calling=True),
+        recommendation=recommendation,
+        real_test_status=ProviderRealTestStatus(
+            status=real_status,
+            last_validated_model_id=last_model,
+            last_validated_backend_id=last_backend,
+            success_evidence_commit=success_commit,
+            diagnostic_outcomes=diagnostic_outcomes or [],
+            requires_env_var=env_var,
+        ),
+        security_notes=[
+            "metadata only",
+            "no tool or organ execution",
+            "no raw prompt, response, reasoning, or key durability",
+        ],
+        official_docs=docs,
+    )
+
+
+def _runtime_for_family(family: ProviderFamily) -> str:
+    if family is ProviderFamily.OPENAI_NATIVE:
+        return "responses"
+    if family is ProviderFamily.ANTHROPIC_MESSAGES_NATIVE:
+        return "messages"
+    if family is ProviderFamily.GEMINI_NATIVE:
+        return "generate_content"
+    return "chat_completions"
+
+
+def _usage_mapping_for_family(family: ProviderFamily) -> ProviderUsageMapping:
+    if family is ProviderFamily.ANTHROPIC_MESSAGES_NATIVE:
+        return ProviderUsageMapping(input_tokens_path="usage.input_tokens", output_tokens_path="usage.output_tokens")
+    if family is ProviderFamily.GEMINI_NATIVE:
+        return ProviderUsageMapping(
+            input_tokens_path="usageMetadata.promptTokenCount",
+            output_tokens_path="usageMetadata.candidatesTokenCount",
+            total_tokens_path="usageMetadata.totalTokenCount",
+        )
+    if family is ProviderFamily.COHERE_NATIVE:
+        return ProviderUsageMapping(input_tokens_path="usage.tokens.input_tokens", output_tokens_path="usage.tokens.output_tokens")
+    return ProviderUsageMapping(
+        input_tokens_path="usage.prompt_tokens",
+        output_tokens_path="usage.completion_tokens",
+        total_tokens_path="usage.total_tokens",
+    )
