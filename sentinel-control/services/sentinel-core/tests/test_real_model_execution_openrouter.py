@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-import urllib.error
 from typing import Any
 
+import httpx
 import pytest
 
 from sentinel.agent.model_execution import (
@@ -28,30 +28,57 @@ RAW_PROMPT = "Return JSON for strawberry without leaking this raw prompt."
 SECRET_VALUE = "unit-test-openrouter-token-not-real"
 
 
-class RecordingUrlOpen:
-    def __init__(self, payload: dict[str, Any], status: int = 200) -> None:
+class RecordingHttpxClient:
+    def __init__(self, payload: dict[str, Any], status_code: int = 200) -> None:
         self.payload = payload
-        self.status = status
-        self.calls: list[Any] = []
+        self.status_code = status_code
+        self.calls: list[dict[str, Any]] = []
 
-    def __call__(self, request: Any, timeout: float) -> Any:
-        self.calls.append((request, timeout))
-        return _Response(self.payload, status=self.status)
+    def __call__(self, *_args: Any, **_kwargs: Any) -> RecordingHttpxClient:
+        return self
 
-
-class _Response:
-    def __init__(self, payload: dict[str, Any], status: int = 200) -> None:
-        self._payload = payload
-        self.status = status
-
-    def __enter__(self) -> _Response:
+    def __enter__(self) -> RecordingHttpxClient:
         return self
 
     def __exit__(self, *_args: Any) -> None:
         return None
 
-    def read(self) -> bytes:
-        return json.dumps(self._payload).encode("utf-8")
+    def post(self, url: str, *, headers: dict[str, str], json: dict[str, Any]) -> Any:
+        self.calls.append({"url": url, "headers": headers, "json": json})
+        return _Response(self.payload, status_code=self.status_code)
+
+
+class TimeoutHttpxClient:
+    def __call__(self, *_args: Any, **_kwargs: Any) -> TimeoutHttpxClient:
+        return self
+
+    def __enter__(self) -> TimeoutHttpxClient:
+        return self
+
+    def __exit__(self, *_args: Any) -> None:
+        return None
+
+    def post(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise httpx.TimeoutException("timeout without key")
+
+
+class _Response:
+    def __init__(self, payload: dict[str, Any], status_code: int = 200) -> None:
+        self._payload = payload
+        self.status_code = status_code
+        self.text = json.dumps(payload)
+        self.request = httpx.Request("POST", "https://redacted.invalid")
+
+    def json(self) -> dict[str, Any]:
+        return self._payload
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise httpx.HTTPStatusError(
+                "provider error",
+                request=self.request,
+                response=httpx.Response(self.status_code, json=self._payload),
+            )
 
 
 def _openrouter_request():
@@ -80,7 +107,7 @@ def test_openrouter_missing_api_key_returns_missing_credential_without_network(
 ) -> None:
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     calls: list[Any] = []
-    monkeypatch.setattr("urllib.request.urlopen", lambda *args, **kwargs: calls.append((args, kwargs)))
+    monkeypatch.setattr("httpx.Client", lambda *args, **kwargs: calls.append((args, kwargs)))
 
     provider = OpenRouterChatCompletionsProvider()
     response = provider.execute(_openrouter_request(), timeout=_request_timeout(), credential=_credential())
@@ -94,8 +121,8 @@ def test_openrouter_provider_metadata_and_request_exclude_raw_prompt_and_credent
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", SECRET_VALUE)
-    recorder = RecordingUrlOpen(_valid_openrouter_payload())
-    monkeypatch.setattr("urllib.request.urlopen", recorder)
+    recorder = RecordingHttpxClient(_valid_openrouter_payload())
+    monkeypatch.setattr("httpx.Client", recorder)
 
     response = OpenRouterChatCompletionsProvider().execute(
         _openrouter_request(),
@@ -103,9 +130,9 @@ def test_openrouter_provider_metadata_and_request_exclude_raw_prompt_and_credent
         credential=_credential(),
     )
 
-    request, _timeout = recorder.calls[0]
-    body = json.loads(request.data.decode("utf-8"))
-    headers = dict(request.header_items())
+    call = recorder.calls[0]
+    body = call["json"]
+    headers = call["headers"]
     metadata = _openrouter_request().serializable_metadata()
 
     assert body["model"] == OPENROUTER_DEFAULT_MODEL_ID
@@ -126,7 +153,7 @@ def test_openrouter_reasoning_fields_are_hash_only(monkeypatch: pytest.MonkeyPat
             "reasoning_content": "sensitive hidden reasoning",
         }
     )
-    monkeypatch.setattr("urllib.request.urlopen", RecordingUrlOpen(payload))
+    monkeypatch.setattr("httpx.Client", RecordingHttpxClient(payload))
 
     response = OpenRouterChatCompletionsProvider().execute(
         _openrouter_request(),
@@ -135,7 +162,7 @@ def test_openrouter_reasoning_fields_are_hash_only(monkeypatch: pytest.MonkeyPat
     )
 
     assert response.content["reasoning_present"] is True
-    assert response.content["reasoning_hash"] == text_hash("sensitive hidden reasoning")
+    assert response.content["reasoning_hash"] == text_hash("sensitive hidden reasoning sensitive hidden reasoning")
     assert "reasoning_details" not in response.content
     assert "reasoning_content" not in response.content
     assert "sensitive hidden reasoning" not in response.model_dump_json()
@@ -143,7 +170,7 @@ def test_openrouter_reasoning_fields_are_hash_only(monkeypatch: pytest.MonkeyPat
 
 def test_openrouter_fake_response_marker_cannot_satisfy_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", SECRET_VALUE)
-    monkeypatch.setattr("urllib.request.urlopen", RecordingUrlOpen({"fake_response": True}))
+    monkeypatch.setattr("httpx.Client", RecordingHttpxClient({"fake_response": True}))
 
     response = OpenRouterChatCompletionsProvider().execute(
         _openrouter_request(),
@@ -158,7 +185,7 @@ def test_openrouter_fake_response_marker_cannot_satisfy_success(monkeypatch: pyt
 
 def test_openrouter_response_validates_and_receipt_excludes_sensitive_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", SECRET_VALUE)
-    monkeypatch.setattr("urllib.request.urlopen", RecordingUrlOpen(_valid_openrouter_payload()))
+    monkeypatch.setattr("httpx.Client", RecordingHttpxClient(_valid_openrouter_payload()))
 
     request = _openrouter_request()
     response = OpenRouterChatCompletionsProvider().execute(
@@ -184,12 +211,7 @@ def test_openrouter_response_validates_and_receipt_excludes_sensitive_values(mon
 
 def test_openrouter_rate_limit_and_timeout_map_to_structured_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", SECRET_VALUE)
-    monkeypatch.setattr(
-        "urllib.request.urlopen",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            urllib.error.HTTPError(url="redacted", code=429, msg="rate limited", hdrs=None, fp=None)
-        ),
-    )
+    monkeypatch.setattr("httpx.Client", RecordingHttpxClient({"error": {"message": "rate limited"}}, status_code=429))
     rate_limited = OpenRouterChatCompletionsProvider().execute(
         _openrouter_request(),
         timeout=_request_timeout(),
@@ -197,10 +219,7 @@ def test_openrouter_rate_limit_and_timeout_map_to_structured_errors(monkeypatch:
     )
     assert rate_limited.error_class == ModelExecutionOutcomeClass.RATE_LIMIT.value
 
-    monkeypatch.setattr(
-        "urllib.request.urlopen",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(TimeoutError("timeout without key")),
-    )
+    monkeypatch.setattr("httpx.Client", TimeoutHttpxClient())
     timeout = OpenRouterChatCompletionsProvider().execute(
         _openrouter_request(),
         timeout=_request_timeout(),
@@ -211,25 +230,17 @@ def test_openrouter_rate_limit_and_timeout_map_to_structured_errors(monkeypatch:
 
 def test_openrouter_http_error_diagnostic_is_sanitized(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", SECRET_VALUE)
-    error_body = json.dumps(
-        {
-            "error": {
-                "message": "Provider rejected reasoning parameter",
-                "type": "invalid_request_error",
-                "code": "bad_request",
-            }
-        }
-    ).encode("utf-8")
     monkeypatch.setattr(
-        "urllib.request.urlopen",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(
-            urllib.error.HTTPError(
-                url="redacted",
-                code=400,
-                msg="bad request",
-                hdrs=None,
-                fp=_ErrorBody(error_body),
-            )
+        "httpx.Client",
+        RecordingHttpxClient(
+            {
+                "error": {
+                    "message": "Provider rejected reasoning parameter",
+                    "type": "invalid_request_error",
+                    "code": "bad_request",
+                }
+            },
+            status_code=400,
         ),
     )
 
@@ -340,14 +351,3 @@ def _valid_openrouter_payload(message_extra: dict[str, Any] | None = None) -> di
         "choices": [{"finish_reason": "stop", "message": message}],
         "usage": {"prompt_tokens": 12, "completion_tokens": 10, "total_tokens": 22},
     }
-
-
-class _ErrorBody:
-    def __init__(self, body: bytes) -> None:
-        self._body = body
-
-    def read(self) -> bytes:
-        return self._body
-
-    def close(self) -> None:
-        return None

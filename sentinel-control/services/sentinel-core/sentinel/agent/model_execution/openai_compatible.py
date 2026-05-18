@@ -1,0 +1,263 @@
+from __future__ import annotations
+
+import json
+import os
+from typing import Any
+
+import httpx
+
+from sentinel.agent.model_execution.catalog import ProviderBackendProfile
+from sentinel.agent.model_execution.credentials import ProviderCredentialHandle
+from sentinel.agent.model_execution.models import ModelExecutionOutcomeClass, ProviderModelResponse, RealModelRequest
+from sentinel.agent.model_execution.policy import ModelTimeoutPolicy
+from sentinel.agent.model_execution.provider import RealModelProvider
+from sentinel.agent.model_execution.redaction import text_hash
+from sentinel.shared.models import SentinelModel
+
+
+class OpenAICompatibleProviderConfig(SentinelModel):
+    provider_id: str
+    backend_id: str
+    base_url: str
+    credential_env: str | None
+    default_model_id: str
+    backend_profile: ProviderBackendProfile
+    max_tokens_field: str = "max_completion_tokens"
+    reasoning_request: dict[str, Any] | None = None
+    enabled: bool = True
+
+
+class OpenAICompatibleChatProvider(RealModelProvider):
+    is_fake_provider = False
+
+    def __init__(self, *, config: OpenAICompatibleProviderConfig) -> None:
+        self._config = config
+        self.provider_id = config.provider_id
+        self.backend_id = config.backend_id
+        self.enabled = config.enabled
+        self.base_url = config.base_url.rstrip("/")
+        self.credential_env = config.credential_env
+        self.default_model_id = config.default_model_id
+        self.backend_profile = config.backend_profile
+        self.supported_models = tuple(config.backend_profile.supported_models)
+        self.metadata = {
+            "provider_id": self.provider_id,
+            "backend_id": self.backend_id,
+            "base_url_hash": text_hash(self.base_url),
+            "credential_env_hash": text_hash(self.credential_env or ""),
+            "profile_runtime": self.backend_profile.runtime,
+        }
+
+    def default_timeout_policy(self) -> ModelTimeoutPolicy:
+        profile = self.backend_profile.timeout_profile
+        return ModelTimeoutPolicy(
+            connect_timeout_seconds=profile.connect_timeout_seconds,
+            read_timeout_seconds=profile.read_timeout_seconds,
+            total_timeout_seconds=profile.total_timeout_seconds,
+        )
+
+    def execute(
+        self,
+        request: RealModelRequest,
+        *,
+        timeout: ModelTimeoutPolicy,
+        credential: ProviderCredentialHandle,
+    ) -> ProviderModelResponse | None:
+        if not self.backend_profile.supports_model(request.model_id):
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.DISABLED_BACKEND,
+                diagnostic={"rejected_reason": "unsupported_model"},
+            )
+        api_key = os.environ.get(self.credential_env or "")
+        if not api_key:
+            return self._error_response(request, ModelExecutionOutcomeClass.MISSING_CREDENTIAL)
+
+        try:
+            with httpx.Client(timeout=_httpx_timeout(timeout)) as client:
+                response = client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json=self._request_body(request),
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            return self._http_error_response(request, exc)
+        except httpx.TimeoutException:
+            return self._error_response(request, ModelExecutionOutcomeClass.TIMEOUT)
+        except (httpx.RequestError, json.JSONDecodeError, ValueError):
+            return self._error_response(request, ModelExecutionOutcomeClass.PROVIDER_ERROR)
+
+        return self.map_payload(request, payload)
+
+    def _request_body(self, request: RealModelRequest) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "model": request.model_id,
+            "messages": [{"role": "user", "content": request.prompt_text_in_memory_only or ""}],
+            "stream": False,
+            self._config.max_tokens_field: max(1, request.estimated_output_tokens),
+            "temperature": 0,
+        }
+        reasoning_request = self._reasoning_request()
+        if reasoning_request:
+            body["reasoning"] = reasoning_request
+        return body
+
+    def _reasoning_request(self) -> dict[str, Any] | None:
+        if self._config.reasoning_request is not None:
+            return self._config.reasoning_request
+        configured = self.backend_profile.reasoning_redaction_policy.request_reasoning_disable_fields
+        reasoning = configured.get("reasoning") if isinstance(configured, dict) else None
+        return reasoning if isinstance(reasoning, dict) else None
+
+    def map_payload(self, request: RealModelRequest, payload: dict[str, Any]) -> ProviderModelResponse:
+        try:
+            choice = payload["choices"][0]
+            message = choice["message"]
+        except (KeyError, IndexError, TypeError):
+            return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+        if not isinstance(message, dict):
+            return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+
+        content = message.get("content")
+        if not isinstance(content, str):
+            return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+
+        parsed_content = _parse_content(content)
+        if not isinstance(parsed_content, dict):
+            return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+
+        reasoning_text = self._extract_reasoning(message)
+        if reasoning_text:
+            parsed_content["reasoning_present"] = True
+            parsed_content["reasoning_hash"] = text_hash(reasoning_text)
+        elif self.backend_profile.supports_reasoning_controls:
+            parsed_content["reasoning_present"] = False
+
+        usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+        response_id = payload.get("id")
+        return ProviderModelResponse(
+            provider_id=self.provider_id,
+            model_id=str(payload.get("model") or request.model_id),
+            response_id=text_hash(str(response_id)) if response_id else None,
+            content=parsed_content,
+            refusal=bool(message.get("refusal")),
+            input_tokens=_safe_int(_get_path({"usage": usage}, self.backend_profile.usage_mapping.input_tokens_path)),
+            output_tokens=_safe_int(_get_path({"usage": usage}, self.backend_profile.usage_mapping.output_tokens_path)),
+        )
+
+    def _extract_reasoning(self, message: dict[str, Any]) -> str | None:
+        values: list[str] = []
+        for field in self.backend_profile.reasoning_redaction_policy.raw_reasoning_fields:
+            if field not in message:
+                continue
+            value = message.get(field)
+            rendered = _render_reasoning_value(value)
+            if rendered:
+                values.append(rendered)
+        return " ".join(values) if values else None
+
+    def _http_error_response(self, request: RealModelRequest, exc: httpx.HTTPStatusError) -> ProviderModelResponse:
+        status_code = exc.response.status_code
+        diagnostic = _http_error_diagnostic(exc.response)
+        if status_code == 429:
+            return self._error_response(request, ModelExecutionOutcomeClass.RATE_LIMIT, diagnostic=diagnostic)
+        return self._error_response(request, ModelExecutionOutcomeClass.PROVIDER_ERROR, diagnostic=diagnostic)
+
+    def _error_response(
+        self,
+        request: RealModelRequest,
+        outcome_class: ModelExecutionOutcomeClass,
+        *,
+        diagnostic: dict[str, Any] | None = None,
+    ) -> ProviderModelResponse:
+        return ProviderModelResponse(
+            provider_id=self.provider_id,
+            model_id=request.model_id,
+            content=diagnostic or {},
+            error_class=outcome_class.value,
+        )
+
+
+def _parse_content(content: str) -> dict[str, Any]:
+    try:
+        parsed_content = json.loads(content)
+    except json.JSONDecodeError:
+        parsed_content = _extract_json_object(content)
+        if parsed_content is None:
+            return {"raw_text_hash": text_hash(content)}
+    return parsed_content if isinstance(parsed_content, dict) else {}
+
+
+def _extract_json_object(content: str) -> dict[str, Any] | None:
+    start = content.find("{")
+    end = content.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+    try:
+        parsed = json.loads(content[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _render_reasoning_value(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, list):
+        rendered_items = [
+            str(item.get("text", item)) if isinstance(item, dict) else str(item)
+            for item in value
+        ]
+        joined = " ".join(item for item in rendered_items if item)
+        return joined or None
+    return str(value)
+
+
+def _httpx_timeout(timeout: ModelTimeoutPolicy) -> httpx.Timeout:
+    return httpx.Timeout(
+        timeout.total_timeout_seconds,
+        connect=timeout.connect_timeout_seconds,
+        read=timeout.read_timeout_seconds,
+        write=timeout.connect_timeout_seconds,
+        pool=timeout.connect_timeout_seconds,
+    )
+
+
+def _http_error_diagnostic(response: httpx.Response) -> dict[str, Any]:
+    diagnostic: dict[str, Any] = {"http_status": response.status_code}
+    try:
+        parsed = response.json()
+    except ValueError:
+        diagnostic["provider_error_body_hash"] = text_hash(response.text)
+        return diagnostic
+    error = parsed.get("error") if isinstance(parsed, dict) else None
+    if isinstance(error, dict):
+        diagnostic["provider_error_type"] = str(error.get("type", ""))[:240]
+        diagnostic["provider_error_code"] = str(error.get("code", ""))[:240]
+        diagnostic["provider_error_message"] = str(error.get("message", ""))[:240]
+    else:
+        diagnostic["provider_error_body_hash"] = text_hash(json.dumps(parsed, sort_keys=True))
+    return diagnostic
+
+
+def _get_path(payload: dict[str, Any], path: str | None) -> Any:
+    if not path:
+        return None
+    current: Any = payload
+    for part in path.split("."):
+        if not isinstance(current, dict):
+            return None
+        current = current.get(part)
+    return current
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, parsed)

@@ -29,6 +29,10 @@ from sentinel.agent.model_execution.models import (
     RealModelRequest,
 )
 from sentinel.agent.model_execution.nvidia import NvidiaChatCompletionsProvider
+from sentinel.agent.model_execution.openai_compatible import (
+    OpenAICompatibleChatProvider,
+    OpenAICompatibleProviderConfig,
+)
 from sentinel.agent.model_execution.openrouter import OpenRouterChatCompletionsProvider
 from sentinel.agent.model_execution.policy import ModelExecutionBudgetPolicy, ModelRetryPolicy, ModelTimeoutPolicy
 from sentinel.agent.model_execution.provider import RealModelProvider
@@ -51,6 +55,8 @@ __all__ = [
     "ModelRetryPolicy",
     "ModelTimeoutPolicy",
     "NvidiaChatCompletionsProvider",
+    "OpenAICompatibleChatProvider",
+    "OpenAICompatibleProviderConfig",
     "OpenRouterChatCompletionsProvider",
     "ProviderBackendProfile",
     "ProviderCapabilityFlags",
