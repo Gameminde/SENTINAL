@@ -1,5 +1,110 @@
 # Current State Lock
 
+## Real Model Provider Adapter Layer - LOCKED
+
+Recorded at: 2026-05-18
+
+Branch: `main`
+
+```text
+current_phase = REAL_MODEL_PROVIDER_ADAPTERS_LOCKED
+previous_phase = SENTINEL_LLM_BACKED_DECISION_CYCLE_LOCKED
+provider_adapter_commit = 187d251 runtime: add real model provider adapters
+foundation_commit = bcb35d2 runtime: add real model execution foundation
+plan_commit = 8a7414b docs: define real model execution backend plan
+llm_seam_commit = 6861ed4 runtime: lock llm decision cycle seam
+```
+
+### Proven Provider Path
+
+```text
+provider_id = groq
+backend_id = groq_openai_compatible_chat
+model_id = openai/gpt-oss-20b
+outcome = SUCCESS_VALIDATED
+LLMDecisionResult validation = passed
+receipt/redaction = passed
+fake success = no
+```
+
+Proven chain:
+
+```text
+ModelCallPlan-compatible request ->
+real Groq provider call ->
+ProviderModelResponse ->
+LLMDecisionResult ->
+safe receipt/redaction
+```
+
+### Diagnostic Providers
+
+OpenRouter:
+
+```text
+status = diagnostic-only
+observed = RATE_LIMIT / TIMEOUT / PROVIDER_ERROR
+success overclaim = no
+```
+
+NVIDIA MiniMax:
+
+```text
+status = diagnostic-only
+observed = TIMEOUT
+success overclaim = no
+```
+
+### Not Yet Proven
+
+```text
+runtime_model_execution = NOT_WIRED
+AgentRuntime.run real model execution wiring = OPEN
+FinalGate over real model execution result in runtime = OPEN
+production retry/rate-limit/fallback policy = OPEN
+OpenRouter production readiness = OPEN
+NVIDIA MiniMax production readiness = OPEN
+```
+
+### Deferral Handling
+
+Keep open:
+
+```text
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER
+```
+
+For model execution:
+
+```text
+REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq evidence
+RUNTIME_MODEL_EXECUTION_WIRING = OPEN until Wave 9
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = OPEN
+```
+
+The current lock system still tracks the original broad
+`LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER`, so it remains open. Groq is
+accepted as lock-candidate evidence for the provider adapter layer, but full
+runtime model execution remains deferred until Wave 9.
+
+### Safety Confirmation
+
+```text
+No provider key committed.
+.env remains ignored.
+No raw Bearer key committed.
+No raw prompt durable storage.
+No raw provider response durable storage.
+No raw reasoning_details durable storage.
+No tool/organ execution from model output.
+No authority expansion.
+No P6U implementation started.
+No Brain/Science expansion started.
+AgentRuntime.run not modified for provider execution.
+Wave 9 not started.
+```
+
 ## Sentinel LLM-Backed Decision Cycle - LOCKED
 
 Recorded at: 2026-05-17T16:46:06+02:00
