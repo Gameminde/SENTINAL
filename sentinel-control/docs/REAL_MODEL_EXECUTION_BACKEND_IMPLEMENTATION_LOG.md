@@ -67,3 +67,218 @@ python -m pytest tests/test_llm_backed_decision_cycle.py tests/test_agent_runtim
 git diff --check
 git status --short --untracked-files=all
 ```
+
+## Pack B Status
+
+`openrouter_deepseek_provider_adapter = IMPLEMENTED_SKIP_SAFE`
+
+Pack B implements Wave 8 only:
+
+- OpenRouter chat-completions provider adapter.
+- `provider_id = openrouter`
+- `backend_id = openrouter_chat_completions`
+- `default_model_id = deepseek/deepseek-v4-flash:free`
+- `base_url = https://openrouter.ai/api/v1`
+- `credential_env = OPENROUTER_API_KEY`
+- Skip-safe real-provider integration test.
+
+## Pack B Boundaries Held
+
+- No `AgentRuntime.run` wiring.
+- No Wave 9 runtime wiring.
+- No P6U work.
+- No Brain/Science work.
+- No new organ.
+- No provider SDK imported.
+- Provider uses the standard-library HTTP client.
+- No API key stored, logged, receipted, or written to docs.
+- No `.env` file created or modified.
+- No raw prompt stored in serializable metadata or receipts.
+- No raw reasoning details stored in receipts, logs, traces, or durable metadata.
+- No raw provider response stored in receipts.
+- No fake backend accepted.
+- No fake response accepted as success.
+- No tool or organ execution from model output.
+- No authority expansion.
+
+## Pack B Reasoning Handling
+
+The OpenRouter adapter requests:
+
+```json
+{"reasoning": {"exclude": true, "effort": "high"}}
+```
+
+If `reasoning`, `reasoning_content`, or `reasoning_details` appears anyway,
+the adapter treats it as sensitive provider output and keeps only:
+
+- `reasoning_enabled`
+- `reasoning_excluded_requested`
+- `reasoning_present`
+- `reasoning_hash`
+
+## Pack B Verification
+
+Current local environment:
+
+```text
+OPENROUTER_API_KEY = absent
+```
+
+Targeted Pack B verification:
+
+```bash
+python -m pytest tests/test_real_model_execution_openrouter.py -q
+```
+
+Result:
+
+```text
+7 passed, 1 skipped
+```
+
+The skipped test is the real OpenRouter call when `OPENROUTER_API_KEY` is
+absent in the process environment.
+
+Manual real-provider attempt:
+
+```text
+OPENROUTER_API_KEY = present only as process environment variable
+result = provider returned RATE_LIMIT
+real model success = not proven
+raw key durable leakage = not observed
+raw prompt durable leakage = not observed
+```
+
+The real-provider test now treats provider-side `RATE_LIMIT`, `TIMEOUT`, and
+`PROVIDER_ERROR` as honest non-locking provider outcomes after verifying receipt
+redaction. It does not convert those outcomes into success.
+
+## Pack B Provider-Error Diagnostic
+
+Diagnostic pass:
+
+```text
+OPENROUTER_API_KEY = loaded from ignored local .env into process environment only
+real provider call ran = yes
+request variants tried = reasoning effort+exclude, reasoning exclude-only, no reasoning
+latest observed provider outcome = PROVIDER_ERROR
+previous observed provider outcome = TIMEOUT
+SUCCESS_VALIDATED = not proven
+```
+
+Sanitized findings:
+
+- Missing-credential skip path is not the blocker once `.env` is loaded.
+- Reasoning shape is not proven to be the blocker because fallback variants also
+  return non-success provider outcomes.
+- The adapter now captures sanitized HTTP diagnostics when OpenRouter returns an
+  HTTP error: status code, provider error type/code/message when available, or
+  body hash otherwise.
+- No raw Authorization header, API key, prompt, reasoning details, or provider
+  response body is durably stored.
+
+Current interpretation:
+
+```text
+provider route unavailable, provider-side error, timeout, or rate-limit remains
+possible. No fake success is allowed. LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER
+remains open.
+```
+
+## NVIDIA MiniMax Provider Candidate
+
+`nvidia_minimax_provider_adapter = IMPLEMENTED_SKIP_SAFE`
+
+NVIDIA candidate:
+
+```text
+provider_id = nvidia
+backend_id = nvidia_openai_compatible_chat
+model_id = minimaxai/minimax-m2.7
+base_url = https://integrate.api.nvidia.com/v1
+credential_env = NVIDIA_API_KEY
+```
+
+Implementation notes:
+
+- Uses `httpx`, which is already declared in `sentinel-core/pyproject.toml`.
+- Does not use the OpenAI SDK directly.
+- Reads `NVIDIA_API_KEY` only from process environment at execution time.
+- Keeps `ProviderCredentialHandle` secret-free.
+- Returns Pack A `ProviderModelResponse`.
+- Does not import validator or receipt builder inside the provider.
+- Does not wire `AgentRuntime.run`.
+- Does not start Wave 9.
+
+Real-provider attempt:
+
+```text
+NVIDIA_API_KEY = loaded from ignored local .env into process environment only
+real provider call ran = yes
+latest observed provider outcome = TIMEOUT
+SUCCESS_VALIDATED = not proven
+raw key durable leakage = not observed
+raw prompt durable leakage = not observed
+```
+
+Current interpretation:
+
+```text
+The local Sentinel-native httpx adapter reaches the NVIDIA route but has not yet
+obtained a validated model response before timeout. The user's separate OpenAI
+SDK sample indicates the provider/model can work outside this adapter, so this
+is an adapter/runtime transport behavior to continue diagnosing before any lock
+claim. No fake success is allowed.
+```
+
+## Groq Provider Candidate
+
+`groq_provider_adapter = REAL_SUCCESS_VALIDATED`
+
+Groq candidate:
+
+```text
+provider_id = groq
+backend_id = groq_openai_compatible_chat
+model_id = openai/gpt-oss-20b
+base_url = https://api.groq.com/openai/v1
+credential_env = GROQ_API_KEY
+```
+
+Implementation notes:
+
+- Uses `httpx`, which is already declared in `sentinel-core/pyproject.toml`.
+- Reads `GROQ_API_KEY` only from process environment at execution time.
+- Keeps `ProviderCredentialHandle` secret-free.
+- Returns Pack A `ProviderModelResponse`.
+- Does not import validator or receipt builder inside the provider.
+- Does not wire `AgentRuntime.run`.
+- Does not start Wave 9.
+
+Real-provider result:
+
+```text
+GROQ_API_KEY = loaded from ignored local .env into process environment only
+real provider call ran = yes
+provider outcome = SUCCESS_VALIDATED
+LLMDecisionResult validation = passed
+receipt redaction = passed
+raw key durable leakage = not observed
+raw prompt durable leakage = not observed
+```
+
+Current interpretation:
+
+```text
+Groq is the first provider candidate in this sequence to prove a real
+ModelCallPlan-compatible provider response can be validated into an
+LLMDecisionResult without fake success. Runtime wiring remains out of scope.
+```
+
+## Open Deferrals After Pack B
+
+- `LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER` remains open until real-provider
+  integration evidence is run and reviewed.
+- `P-C-RUNTIME-01-ACTIONBUDGET-DEFER` remains open.
+- `P-C-RUNTIME-01-MISSIONBUDGET-DEFER` remains open.

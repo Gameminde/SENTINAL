@@ -59,6 +59,7 @@ class RealModelRequestBuilder:
             user_model_contract_id=user_model.id,
             estimated_input_tokens=plan.estimated_input_tokens,
             estimated_output_tokens=user_model.context_budget_policy.reserve_output_tokens,
+            prompt_text_in_memory_only=rendered_prompt,
             request_metadata=metadata,
             timeout_policy_id=timeout_policy.id,
             retry_policy_id=retry_policy.id,

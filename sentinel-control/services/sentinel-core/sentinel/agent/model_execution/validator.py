@@ -47,9 +47,10 @@ class LLMDecisionResultValidator:
                 response_hash=response_hash,
             )
         if response.error_class:
+            outcome_class = _outcome_from_error_class(response.error_class)
             return _result(
                 response,
-                outcome_class=ModelExecutionOutcomeClass.PROVIDER_ERROR,
+                outcome_class=outcome_class,
                 success=False,
                 error_class=response.error_class,
                 response_hash=response_hash,
@@ -73,6 +74,13 @@ def _has_valid_schema(content: dict[str, Any]) -> bool:
     return isinstance(content.get("decision"), str) and isinstance(content.get("rationale"), str) and isinstance(
         content.get("evidence_refs"), list
     )
+
+
+def _outcome_from_error_class(error_class: str) -> ModelExecutionOutcomeClass:
+    try:
+        return ModelExecutionOutcomeClass(error_class)
+    except ValueError:
+        return ModelExecutionOutcomeClass.PROVIDER_ERROR
 
 
 def _result(

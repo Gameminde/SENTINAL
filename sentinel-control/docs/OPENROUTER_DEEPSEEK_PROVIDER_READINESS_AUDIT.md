@@ -5,7 +5,8 @@ Audit date: 2026-05-18
 Pack A anchor:
 
 ```text
-9222dec runtime: add real model execution foundation
+bcb35d2 runtime: add real model execution foundation
+pre-squash local evidence hash: 9222dec runtime: add real model execution foundation
 real_model_execution_backend_foundation = STRUCTURAL_READY
 ```
 

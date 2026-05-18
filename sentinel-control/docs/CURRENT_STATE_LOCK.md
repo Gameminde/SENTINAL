@@ -6,7 +6,7 @@ Recorded at: 2026-05-17T16:46:06+02:00
 
 Branch: `main`
 
-Committed implementation: `fb526c1` (`runtime: wire llm decision frame seam`)
+Committed implementation: `6861ed4` (`runtime: lock llm decision cycle seam`)
 
 Spec: `.kiro/specs/sentinel-llm-backed-decision-cycle/`
 
@@ -15,7 +15,7 @@ Implementation log: `sentinel-control/docs/LLM_BACKED_DECISION_CYCLE_IMPLEMENTAT
 ```text
 current_phase  = SENTINEL_LLM_BACKED_DECISION_CYCLE_LOCKED
 previous_phase = P-C_KEY_RUNTIME_CLOSURE_LOCKED
-anchor_commit  = fb526c1 (runtime: wire llm decision frame seam)
+anchor_commit  = 6861ed4 (runtime: lock llm decision cycle seam)
 ```
 
 ### Runtime seam delivered
@@ -106,7 +106,8 @@ git diff --check
 
 ### Commit Boundary
 
-Implementation committed at `fb526c1` (`runtime: wire llm decision frame seam`).
+Implementation committed at `6861ed4` (`runtime: lock llm decision cycle seam`).
+Pre-squash local evidence hash: `fb526c1` (`runtime: wire llm decision frame seam`).
 No push has been performed.
 
 Remaining open deferrals:

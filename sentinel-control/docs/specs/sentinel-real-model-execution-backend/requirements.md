@@ -9,8 +9,9 @@ Current locked state:
 
 ```text
 current_phase = SENTINEL_LLM_BACKED_DECISION_CYCLE_LOCKED
-anchor_commit = fb526c1 (runtime: wire llm decision frame seam)
-lock_commit   = 0fb5df6 (docs: lock llm decision cycle state)
+anchor_commit = 6861ed4 (runtime: lock llm decision cycle seam)
+pre_squash_runtime_evidence = fb526c1 (runtime: wire llm decision frame seam)
+pre_squash_docs_evidence    = 0fb5df6 (docs: lock llm decision cycle state)
 ```
 
 The previous phase already produces:

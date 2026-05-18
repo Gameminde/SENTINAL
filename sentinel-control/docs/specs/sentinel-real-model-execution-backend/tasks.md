@@ -9,8 +9,9 @@ Anchor state:
 
 ```text
 previous_phase = SENTINEL_LLM_BACKED_DECISION_CYCLE_LOCKED
-runtime_commit = fb526c1 (runtime: wire llm decision frame seam)
-docs_commit    = 0fb5df6 (docs: lock llm decision cycle state)
+runtime_commit = 6861ed4 (runtime: lock llm decision cycle seam)
+pre_squash_runtime_evidence = fb526c1 (runtime: wire llm decision frame seam)
+pre_squash_docs_evidence    = 0fb5df6 (docs: lock llm decision cycle state)
 ```
 
 Goal:

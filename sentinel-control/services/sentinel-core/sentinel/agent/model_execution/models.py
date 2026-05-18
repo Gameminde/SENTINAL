@@ -37,6 +37,7 @@ class RealModelRequest(SentinelModel):
     user_model_contract_id: str
     estimated_input_tokens: int = Field(ge=0)
     estimated_output_tokens: int = Field(ge=0)
+    prompt_text_in_memory_only: str | None = Field(default=None, exclude=True, repr=False)
     request_metadata: dict[str, Any] = Field(default_factory=dict)
     timeout_policy_id: str
     retry_policy_id: str

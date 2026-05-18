@@ -4,6 +4,7 @@ from sentinel.agent.model_execution.credentials import (
     ProviderCredentialHandle,
     ProviderCredentialSource,
 )
+from sentinel.agent.model_execution.groq import GroqChatCompletionsProvider
 from sentinel.agent.model_execution.models import (
     LLMDecisionResult,
     ModelExecutionOutcome,
@@ -11,6 +12,8 @@ from sentinel.agent.model_execution.models import (
     ProviderModelResponse,
     RealModelRequest,
 )
+from sentinel.agent.model_execution.nvidia import NvidiaChatCompletionsProvider
+from sentinel.agent.model_execution.openrouter import OpenRouterChatCompletionsProvider
 from sentinel.agent.model_execution.policy import ModelExecutionBudgetPolicy, ModelRetryPolicy, ModelTimeoutPolicy
 from sentinel.agent.model_execution.provider import RealModelProvider
 from sentinel.agent.model_execution.receipts import ModelExecutionReceipt, build_model_execution_receipt
@@ -19,6 +22,7 @@ from sentinel.agent.model_execution.validator import LLMDecisionResultValidator
 
 __all__ = [
     "EnvironmentCredentialResolver",
+    "GroqChatCompletionsProvider",
     "LLMDecisionResult",
     "LLMDecisionResultValidator",
     "ModelExecutionBudgetPolicy",
@@ -29,6 +33,8 @@ __all__ = [
     "ModelProviderRegistry",
     "ModelRetryPolicy",
     "ModelTimeoutPolicy",
+    "NvidiaChatCompletionsProvider",
+    "OpenRouterChatCompletionsProvider",
     "ProviderCapabilityMetadata",
     "ProviderCredentialHandle",
     "ProviderCredentialSource",
