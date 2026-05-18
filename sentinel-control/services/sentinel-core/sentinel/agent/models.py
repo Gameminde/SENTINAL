@@ -239,6 +239,7 @@ class AgentRunResult(SentinelModel):
     mission_result: MissionRunResult | None = None
     mission_results: list[MissionRunResult] = Field(default_factory=list)
     performance_receipts: list["PerformanceReceipt"] = Field(default_factory=list)
+    llm_decision_cycle: dict[str, Any] | None = None
     escalation_reason: str | None = None
     active_plan: MissionPlan | None = None
     # Task 1.3 / Requirement 1 (FinalGate Runtime Integration):

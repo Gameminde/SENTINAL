@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import uuid
 from pathlib import Path
@@ -27,10 +28,12 @@ from sentinel.agent.cognitive_cycle import CognitiveCycle
 from sentinel.agent.controlled_capability import LocalControlledCapabilityRunner
 from sentinel.agent.context_builder import ContextBuilder
 from sentinel.agent.context_compressor import ContextCompressor
+from sentinel.agent.decision_frame import LLMDecisionFrame
 from sentinel.agent.event_bus import EventBus
 from sentinel.agent.effort_router import EffortRouter
 from sentinel.agent.events import AgentEventType
 from sentinel.agent.evidence import EvidenceChainBuilder
+from sentinel.agent.evidence_ranker import EvidenceCard, sanitize_context_payload, sanitize_context_text
 from sentinel.agent.exceptions import AgentBlockedError, MissionRevokedError
 from sentinel.agent.execution_posture import ExecutionPosturePolicy
 from sentinel.agent.final_gate import CoreFinalGate
@@ -42,11 +45,13 @@ from sentinel.agent.method_selector import MethodSelector
 from sentinel.agent.models import AgentContext, AgentRunResult
 from sentinel.agent.phases import AgentPhase, can_transition
 from sentinel.agent.planner_bridge import PlannerBridge
+from sentinel.agent.prompt_budget import PromptBudgetAllocator
 from sentinel.agent.repair_loop import CognitiveRepairLoop, RepairDecisionType
 from sentinel.agent.replay import AgentTraceReplayer
 from sentinel.agent.review_loop import ReviewLoop
 from sentinel.agent.state import AgentState
 from sentinel.agent.supervisor import Supervisor
+from sentinel.agent.token_ledger import estimate_tokens
 from sentinel.agent.tool_call_protocol import ToolCallProtocol
 from sentinel.agent.tool_selector import ToolSelector
 from sentinel.agent.worker_coordinator import WorkerCoordinator
@@ -65,8 +70,10 @@ from sentinel.perf.caches import (
 
 
 if TYPE_CHECKING:
+    from sentinel.agent.model_contract import UserModelContract
     from sentinel.perf.caches.context_build_cache import ContextBuildCache
     from sentinel.perf.caches.llm_decision_frame_cache import LLMDecisionFrameCache
+    from sentinel.perf.caches.model_call_optimizer import ModelCallOptimizer
     from sentinel.perf.caches.prompt_frame_cache import PromptFrameCache
     from sentinel.perf.caches.token_budget_governor import TokenBudgetGovernor
     from sentinel.perf.measure.cost_profiler import CostProfiler
@@ -98,6 +105,18 @@ class _ToolCallSchedulerAction(SentinelModel):
     action_type: str
 
     model_config = ConfigDict(extra="forbid", frozen=True, use_enum_values=False)
+
+
+class _DecisionFrameBudgetCompressor:
+    """Adapter that lets TokenBudgetGovernor reject oversized frames safely."""
+
+    def __init__(self, fallback: ContextCompressor) -> None:
+        self._fallback = fallback
+
+    def compress(self, frame: Any) -> Any:
+        if isinstance(frame, LLMDecisionFrame):
+            return frame
+        return self._fallback.compress(frame)
 
 
 class AgentRuntime:
@@ -135,6 +154,8 @@ class AgentRuntime:
         prompt_frame_cache: PromptFrameCache | None = None,
         decision_frame_cache: LLMDecisionFrameCache | None = None,
         token_budget_governor: TokenBudgetGovernor | None = None,
+        user_model_contract: UserModelContract | None = None,
+        model_call_optimizer: ModelCallOptimizer | None = None,
         # Task 8.8 / sentinel-performance-runtime-foundation —
         # additive optional async scheduler injections. When BOTH
         # parameters below are ``None`` (the default),
@@ -176,6 +197,8 @@ class AgentRuntime:
         self._prompt_frame_cache = prompt_frame_cache
         self._decision_frame_cache = decision_frame_cache
         self._token_budget_governor = token_budget_governor
+        self._user_model_contract = user_model_contract
+        self._model_call_optimizer = model_call_optimizer
         # Task 8.8: store async scheduler + backpressure injections.
         # ``None`` means "not injected" — :meth:`_execute_controlled_tool_calls`
         # checks ``self._async_organ_scheduler is not None`` AND
@@ -262,6 +285,8 @@ class AgentRuntime:
         mission_results = []
         execution_posture = None
         context = None
+        context_cache_key = None
+        llm_decision_cycle = None
         # Task 2.4-A Gap 2 fix: hoist local variables that may be bound in the
         # happy-path between different phases so the ``except Exception``
         # handler can unconditionally reference them when building the
@@ -404,6 +429,7 @@ class AgentRuntime:
                     if current_authority_hash != ck.authority_hash:
                         context = _build_context_cached()
                     else:
+                        context_cache_key = ck
                         composite_key = self._context_build_cache.composite_key(
                             mission_hot_hash=ck.mission_hot_hash,
                             workspace_snapshot_id=ck.workspace_snapshot_id,
@@ -613,6 +639,18 @@ class AgentRuntime:
                     escalation_reason="Tool selection produced critical findings.",
                 ))
 
+            llm_decision_cycle = self._run_llm_backed_decision_cycle(
+                envelope=envelope,
+                context=context,
+                state=state,
+                tool_selection=tool_selection,
+                capabilities=capabilities,
+                missing_capabilities=missing_capabilities,
+                tool_selection_findings=tool_selection_findings,
+                context_cache_key=context_cache_key,
+                original_allowed_actions=original_allowed_actions,
+            )
+
             state = state.transition(AgentPhase.HYPOTHESIS_VERIFYING)
             self._assert_memory_not_authority_boundary(
                 "tool_selecting_to_hypothesis_verifying",
@@ -699,6 +737,7 @@ class AgentRuntime:
                     trace=list(event_bus.events()),
                     runtime_certification=self._certify_trace(event_bus),
                     state_snapshot=self._snapshot_trace(event_bus),
+                    llm_decision_cycle=llm_decision_cycle,
                     escalation_reason="Hypothesis verification produced critical findings.",
                 ))
 
@@ -879,6 +918,7 @@ class AgentRuntime:
                     trace=list(event_bus.events()),
                     runtime_certification=self._certify_trace(event_bus),
                     state_snapshot=self._snapshot_trace(event_bus),
+                    llm_decision_cycle=llm_decision_cycle,
                     escalation_reason="Plan review produced critical findings.",
                     active_plan=plan,
                 ))
@@ -1002,6 +1042,7 @@ class AgentRuntime:
                     state_snapshot=self._snapshot_trace(event_bus),
                     mission_result=mission_result,
                     mission_results=mission_results,
+                    llm_decision_cycle=llm_decision_cycle,
                     escalation_reason="Repair pressure exceeded escalation threshold.",
                     active_plan=plan,
                 ))
@@ -1149,6 +1190,7 @@ class AgentRuntime:
                 state_snapshot=self._snapshot_trace(event_bus),
                 mission_result=mission_result,
                 mission_results=mission_results,
+                llm_decision_cycle=llm_decision_cycle,
                 active_plan=plan,
             ))
         except Exception as exc:
@@ -1237,6 +1279,7 @@ class AgentRuntime:
                 mission_results=fallback_mission_results,
                 project_path=fallback_project_path,
                 artifacts=fallback_artifacts,
+                llm_decision_cycle=llm_decision_cycle,
                 active_plan=fallback_active_plan,
                 escalation_reason=str(exc),
             ))
@@ -1836,6 +1879,327 @@ class AgentRuntime:
     def _snapshot_trace(self, event_bus: EventBus):
         return self.trace_replayer.replay(event_bus.events()).snapshot
 
+    def _run_llm_backed_decision_cycle(
+        self,
+        *,
+        envelope: MissionAuthorityEnvelope,
+        context: AgentContext,
+        state: AgentState,
+        tool_selection: Any,
+        capabilities: list[Any],
+        missing_capabilities: list[Any],
+        tool_selection_findings: list[Any],
+        context_cache_key: Any,
+        original_allowed_actions: tuple[str, ...],
+    ) -> dict[str, Any] | None:
+        """Build frame -> prompt -> model-call plan without executing a model.
+
+        sentinel-llm-backed-decision-cycle: this seam is default-off unless a
+        user-selected model contract is injected. It never calls a provider and
+        never emits the prompt body; only frame/prompt hashes and compact plan
+        metadata are returned on the terminal AgentRunResult.
+        """
+
+        if self._user_model_contract is None:
+            return None
+
+        self._assert_memory_not_authority_boundary(
+            "tool_selecting_to_llm_decision_frame_before_build",
+            context,
+            envelope,
+            original_allowed_actions,
+        )
+
+        budget_allocator = PromptBudgetAllocator(self._user_model_contract)
+        selected_tool_surface = self._selected_llm_tool_surface(
+            envelope=envelope,
+            tool_selection=tool_selection,
+        )
+        evidence_cards = self._llm_decision_evidence_cards(context)
+        mission_card = self._llm_decision_mission_card(envelope=envelope, context=context)
+        authority_card = self._llm_decision_authority_card(
+            envelope=envelope,
+            original_allowed_actions=original_allowed_actions,
+        )
+        progress_card = self._llm_decision_progress_card(
+            state=state,
+            capabilities=capabilities,
+            missing_capabilities=missing_capabilities,
+            tool_selection=tool_selection,
+            tool_selection_findings=tool_selection_findings,
+        )
+        current_blockers = self._llm_decision_blockers(
+            missing_capabilities=missing_capabilities,
+            tool_selection=tool_selection,
+            tool_selection_findings=tool_selection_findings,
+            state=state,
+        )
+        next_decision_options = [
+            "continue_deterministic_runtime_path",
+            "request_user_clarification_if_blocked",
+            "escalate_before_execution_boundary",
+        ]
+        required_output_schema = {
+            "type": "object",
+            "required": ["decision", "rationale", "evidence_refs"],
+            "properties": {
+                "decision": {"type": "string"},
+                "rationale": {"type": "string"},
+                "evidence_refs": {"type": "array", "items": {"type": "string"}},
+                "requested_tool": {"type": ["string", "null"]},
+            },
+            "additionalProperties": False,
+        }
+
+        def build_frame() -> LLMDecisionFrame:
+            return LLMDecisionFrame.build(
+                mission_id=envelope.id,
+                mission_card=mission_card,
+                authority_card=authority_card,
+                progress_card=progress_card,
+                evidence=evidence_cards,
+                selected_tool_surface=selected_tool_surface,
+                current_blockers=current_blockers,
+                next_decision_options=next_decision_options,
+                required_output_schema=required_output_schema,
+                budget_allocator=budget_allocator,
+            )
+
+        key = context_cache_key or self._derive_llm_decision_context_cache_key(
+            envelope=envelope,
+            context=context,
+            original_allowed_actions=original_allowed_actions,
+        )
+        evidence_set_hash = self._stable_decision_cycle_hash(
+            [card.model_dump(mode="json", exclude={"id"}) for card in evidence_cards]
+        )
+        tool_surface_hash = self._stable_decision_cycle_hash(selected_tool_surface)
+        cache_key_metadata: dict[str, str] | None = None
+        if key is not None:
+            cache_key_metadata = {
+                "mission_hot_hash": key.mission_hot_hash,
+                "authority_hash": key.authority_hash,
+                "evidence_set_hash": evidence_set_hash,
+                "tool_surface_hash": tool_surface_hash,
+            }
+
+            def cached_frame_builder() -> LLMDecisionFrame:
+                return self._build_decision_frame_cached(
+                    mission_id=envelope.id,
+                    composite_inputs=cache_key_metadata,
+                    builder=build_frame,
+                )
+
+            frame_builder = cached_frame_builder
+        else:
+            frame_builder = build_frame
+
+        frame, budget_decision = self._enforce_frame_budget(
+            mission_id=envelope.id,
+            builder=frame_builder,
+            frame_budget=budget_allocator.max_decision_frame_tokens,
+        )
+
+        if set(frame.selected_tool_surface) - set(envelope.allowed_tools):
+            raise InvariantViolation("LLM decision frame selected tools outside mission authority.")
+        if frame.authority_expansion:
+            raise InvariantViolation("LLM decision frame attempted authority expansion.")
+        if frame.raw_secret_leakage:
+            raise InvariantViolation("LLM decision frame contains raw secret material.")
+
+        self._assert_memory_not_authority_boundary(
+            "tool_selecting_to_llm_decision_frame_after_build",
+            context,
+            envelope,
+            original_allowed_actions,
+        )
+
+        rendered_prompt = self._render_prompt_text_cached(frame, mission_id=envelope.id)
+        prompt_sha256 = hashlib.sha256(rendered_prompt.encode("utf-8")).hexdigest()
+        prompt_token_count = estimate_tokens(rendered_prompt)
+
+        model_call_plan = None
+        model_call_recommendation = None
+        if self._model_call_optimizer is not None:
+            candidate_plan = self._model_call_optimizer.plan(frame, ledger=None)
+            candidate_plan_payload = candidate_plan.model_dump(mode="json")
+            if candidate_plan.model_id == frame.user_selected_model:
+                model_call_plan = candidate_plan_payload
+            else:
+                model_call_recommendation = candidate_plan_payload
+
+        metadata = {
+            "enabled": True,
+            "frame_id": frame.id,
+            "frame_hash": frame.frame_hash,
+            "frame_token_count": frame.token_count,
+            "prompt_sha256": prompt_sha256,
+            "prompt_token_count": prompt_token_count,
+            "prompt_budget_respected": frame.prompt_budget_respected,
+            "selected_tool_surface": list(frame.selected_tool_surface),
+            "receipt_refs": list(frame.receipt_refs),
+            "cache_key": cache_key_metadata,
+            "budget_decision": budget_decision.model_dump(mode="json") if budget_decision is not None else None,
+            "user_selected_model": frame.user_selected_model,
+            "model_call_plan": model_call_plan,
+            "model_call_recommendation": model_call_recommendation,
+            "model_execution_deferred": True,
+            "model_execution_deferral_id": "LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER",
+        }
+        return sanitize_context_payload(metadata)
+
+    @staticmethod
+    def _stable_decision_cycle_hash(payload: Any) -> str:
+        canonical = json.dumps(
+            sanitize_context_payload(payload),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            default=str,
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    def _derive_llm_decision_context_cache_key(
+        self,
+        *,
+        envelope: MissionAuthorityEnvelope,
+        context: AgentContext,
+        original_allowed_actions: tuple[str, ...],
+    ) -> Any:
+        try:
+            return ContextCacheKeyBuilder.derive(
+                envelope=envelope,
+                context=context,
+                organ_state=self._organ_state_view(),
+                workspace_snapshot_id=self._workspace_snapshot_id(),
+                original_allowed_actions=original_allowed_actions,
+            )
+        except (MissingCacheKeyComponent, CacheKeySanitizerRejection):
+            return None
+
+    @staticmethod
+    def _llm_decision_evidence_cards(context: AgentContext) -> list[EvidenceCard]:
+        cards: list[EvidenceCard] = []
+        for index, ref in enumerate(context.evidence_refs[:8]):
+            safe_ref = sanitize_context_text(str(ref))
+            summary = (
+                f"Evidence ref {safe_ref} is available outside the prompt; "
+                "exact payload remains in the receipt graph."
+            )
+            cards.append(
+                EvidenceCard(
+                    receipt_id=safe_ref,
+                    source_type="runtime_evidence_ref",
+                    summary=summary,
+                    evidence_refs=[safe_ref],
+                    relevance_score=round(1.0 - (index * 0.01), 6),
+                    token_count=estimate_tokens(summary),
+                    critical=index == 0,
+                )
+            )
+        return cards
+
+    @staticmethod
+    def _selected_llm_tool_surface(
+        *,
+        envelope: MissionAuthorityEnvelope,
+        tool_selection: Any,
+    ) -> list[str]:
+        allowed = set(envelope.allowed_tools)
+        selected = getattr(tool_selection, "selected_tools", []) or []
+        return sorted({sanitize_context_text(str(tool)) for tool in selected if tool in allowed})
+
+    @staticmethod
+    def _llm_decision_mission_card(
+        *,
+        envelope: MissionAuthorityEnvelope,
+        context: AgentContext,
+    ) -> dict[str, Any]:
+        return sanitize_context_payload(
+            {
+                "mission_id": envelope.id,
+                "mission_type": envelope.mission_type.value
+                if hasattr(envelope.mission_type, "value")
+                else str(envelope.mission_type),
+                "mission_title": envelope.mission_title,
+                "mission_objective": envelope.mission_objective,
+                "success_criteria": list(envelope.success_criteria),
+                "context_summary": context.summary,
+                "constraints": list(context.constraints),
+            }
+        )
+
+    @staticmethod
+    def _llm_decision_authority_card(
+        *,
+        envelope: MissionAuthorityEnvelope,
+        original_allowed_actions: tuple[str, ...],
+    ) -> dict[str, Any]:
+        return sanitize_context_payload(
+            {
+                "mode": envelope.mode.value if hasattr(envelope.mode, "value") else str(envelope.mode),
+                "allowed_actions": sorted(envelope.allowed_actions),
+                "original_allowed_actions": sorted(original_allowed_actions),
+                "forbidden_actions": sorted(envelope.forbidden_actions),
+                "allowed_tools": sorted(envelope.allowed_tools),
+                "allowed_domains": sorted(envelope.allowed_domains),
+                "allowed_paths": sorted(envelope.allowed_paths),
+                "max_actions": envelope.max_actions,
+                "max_cost_usd": envelope.max_cost_usd,
+                "risk_appetite_score": envelope.risk_appetite_score,
+            }
+        )
+
+    @staticmethod
+    def _llm_decision_progress_card(
+        *,
+        state: AgentState,
+        capabilities: list[Any],
+        missing_capabilities: list[Any],
+        tool_selection: Any,
+        tool_selection_findings: list[Any],
+    ) -> dict[str, Any]:
+        return sanitize_context_payload(
+            {
+                "phase": state.phase.value if hasattr(state.phase, "value") else str(state.phase),
+                "selected_method_ids": [method.id for method in state.selected_methods],
+                "needed_capabilities": [need.name for need in capabilities],
+                "missing_capabilities": [need.name for need in missing_capabilities],
+                "selected_tools": list(getattr(tool_selection, "selected_tools", []) or []),
+                "candidate_tools": list(getattr(tool_selection, "candidate_tools", []) or []),
+                "blocked_tools": list(getattr(tool_selection, "blocked_tools", []) or []),
+                "unavailable_capabilities": list(getattr(tool_selection, "unavailable_capabilities", []) or []),
+                "review_finding_codes": [finding.code for finding in tool_selection_findings],
+            }
+        )
+
+    @staticmethod
+    def _llm_decision_blockers(
+        *,
+        missing_capabilities: list[Any],
+        tool_selection: Any,
+        tool_selection_findings: list[Any],
+        state: AgentState,
+    ) -> list[str]:
+        blockers: list[str] = []
+        blockers.extend(f"missing_capability:{need.name}" for need in missing_capabilities if getattr(need, "required", False))
+        blockers.extend(f"blocked_tool:{tool}" for tool in getattr(tool_selection, "blocked_tools", []) or [])
+        blockers.extend(
+            f"unavailable_capability:{capability}"
+            for capability in getattr(tool_selection, "unavailable_capabilities", []) or []
+        )
+        blockers.extend(
+            f"critical_finding:{finding.code}"
+            for finding in tool_selection_findings
+            if getattr(finding, "severity", "") == "critical"
+        )
+        blockers.extend(
+            f"open_question:{question.question}"
+            for question in state.open_questions
+            if getattr(question, "blocks_completion", False)
+        )
+        return sanitize_context_payload(sorted(set(blockers)))
+
     # ------------------------------------------------------------------
     # Task 6.11 / sentinel-performance-runtime-foundation —
     # decision-core cache wrappers for future LLMDecisionFrame call
@@ -1957,7 +2321,7 @@ class AgentRuntime:
         return self._token_budget_governor.enforce_frame(
             mission_id,
             builder,
-            self.context_compressor,
+            _DecisionFrameBudgetCompressor(self.context_compressor),
             frame_budget,
         )
 

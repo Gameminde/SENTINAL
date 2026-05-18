@@ -1,5 +1,122 @@
 # Current State Lock
 
+## Sentinel LLM-Backed Decision Cycle - LOCKED
+
+Recorded at: 2026-05-17T16:46:06+02:00
+
+Branch: `main`
+
+Committed implementation: `fb526c1` (`runtime: wire llm decision frame seam`)
+
+Spec: `.kiro/specs/sentinel-llm-backed-decision-cycle/`
+
+Implementation log: `sentinel-control/docs/LLM_BACKED_DECISION_CYCLE_IMPLEMENTATION_LOG.md`
+
+```text
+current_phase  = SENTINEL_LLM_BACKED_DECISION_CYCLE_LOCKED
+previous_phase = P-C_KEY_RUNTIME_CLOSURE_LOCKED
+anchor_commit  = fb526c1 (runtime: wire llm decision frame seam)
+```
+
+### Runtime seam delivered
+
+```text
+Context -> LLMDecisionFrame -> PromptRender -> ModelCallPlan
+```
+
+Implemented inside `AgentRuntime.run` after `TOOL_SELECTING` and before
+`HYPOTHESIS_VERIFYING`, behind default-off optional injections:
+
+```text
+user_model_contract:  UserModelContract | None = None
+model_call_optimizer: ModelCallOptimizer | None = None
+```
+
+When no user-selected model contract is injected, existing runtime semantics
+remain compatible and `AgentRunResult.llm_decision_cycle` stays `None`.
+
+### Deferral Status
+
+Closed by this committed implementation:
+
+```text
+P-C-RUNTIME-01-DECISIONFRAME-DEFER = CLOSED
+P-C-RUNTIME-01-PROMPTRENDER-DEFER  = CLOSED
+P-C-RUNTIME-01-FRAMEBUDGET-DEFER   = CLOSED
+P-C-RUNTIME-01-MODELOPT-DEFER      = CLOSED
+```
+
+Still open and explicitly out of scope:
+
+```text
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER  = OPEN
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = OPEN
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = OPEN
+```
+
+Real provider execution remains deferred to the future
+`sentinel-real-model-execution-backend` spec. That future spec may use API keys
+only through environment variables and must include budget, timeout, trace,
+redaction, FinalGate, and skip-safe tests. This spec does not require an API
+key, does not fake an LLM response, and does not execute a model call.
+
+### Safety Boundaries
+
+```text
+No P6U implementation started.
+No Brain/Science implementation started.
+No Consensus.ai implementation started.
+No new organ family created.
+No new product power added.
+No authority expansion added.
+No raw prompt body stored in result metadata, events, receipts, logs, or docs.
+No raw secret observed in the new decision-cycle metadata or trace tests.
+FinalGate remains on AgentRuntime exits.
+ModelCallOptimizer output is treated as plan metadata only.
+If optimizer output targets a model different from the user-selected model, it is recorded as a recommendation, not as an execution plan.
+```
+
+### Verification
+
+```text
+python -m pytest tests/test_llm_backed_decision_cycle.py -q
+  = 7/7 pass
+
+python -m pytest tests/test_agent_runtime.py -q
+  = 14/14 pass
+
+python -m pytest tests/perf/test_scope_guardrails.py -q
+  = 20/20 pass
+
+python -m pytest tests/perf/test_context_cache_key_builder.py tests/perf/test_context_cache_runtime_closure_property.py -q
+  = 30/30 pass
+
+python -m pytest tests/perf/test_context_cache_runtime_integration.py tests/perf/test_context_cache_structural_guards.py -q
+  = 20/20 pass
+
+python -m pytest tests/perf/bench -q
+  = 30/30 pass
+
+python -m pytest -m "not slow" --ignore=tests/perf/hot_cold/test_phase_b_benchmarks.py -q
+  = exit 0
+
+git diff --check
+  = clean
+```
+
+### Commit Boundary
+
+Implementation committed at `fb526c1` (`runtime: wire llm decision frame seam`).
+No push has been performed.
+
+Remaining open deferrals:
+
+```text
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER
+```
+
 ## Sentinel Context Cache Runtime Closure — LOCKED
 
 Recorded at: 2026-05-17 (this commit)
