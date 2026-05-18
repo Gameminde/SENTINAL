@@ -15,6 +15,7 @@ runtime_wiring_commit = 76ad92e runtime: wire model execution coordinator into a
 real_runtime_validation_commit = 9647993 test: validate real runtime model execution
 provider_catalog_commit = 7f0ddcb runtime: add model provider catalog
 openai_compatible_base_commit = 4052be9 runtime: harden openai-compatible provider base
+budget_closure_commit = 074ca1c runtime: enforce model execution budgets
 ```
 
 Current truth:
@@ -24,17 +25,25 @@ runtime_model_execution = WIRED
 runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
 provider_catalog = IMPLEMENTED
 openai_compatible_base = HARDENED
+model_execution_budget_governance = LOCKED
 provider_expansion_immediate = NO-GO
-next_technical_pack = sentinel-model-execution-contract-hardening
+next_phase = CONTROLLED_LLM_ROLE_LOOP_SPEC
 ```
 
-Open:
+Closed:
 
 ```text
 P-C-RUNTIME-01-ACTIONBUDGET-DEFER
 P-C-RUNTIME-01-MISSIONBUDGET-DEFER
 MODEL_EXECUTION_BUDGET_GOVERNANCE
+```
+
+Open:
+
+```text
 PRODUCTION_PROVIDER_ROUTING
+fallback_routing = NOT_STARTED / NOT_APPROVED
+AUTO_model_routing = NOT_STARTED / NOT_APPROVED
 ```
 
 The local Kiro files under `.kiro/specs/sentinel-real-model-execution-backend/`

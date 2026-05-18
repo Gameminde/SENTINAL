@@ -1,6 +1,84 @@
 # Current State Lock
 
-## Sentinel State Truth Repair - LOCKED
+## Sentinel Model Execution Budgets - LOCKED
+
+Recorded at: 2026-05-18
+
+Branch: `main`
+
+This section supersedes older state-truth and model-execution status language
+below that listed model budget governance, action budget, or mission budget
+deferrals as open current work. Those statements are now historical snapshots
+unless explicitly repeated in this section.
+
+```text
+current_phase = SENTINEL_MODEL_EXECUTION_BUDGETS_LOCKED
+previous_phase = SENTINEL_STATE_TRUTH_REPAIRED
+next_phase = CONTROLLED_LLM_ROLE_LOOP_SPEC
+
+budget_closure_commit = 074ca1c runtime: enforce model execution budgets
+state_truth_commit = 2fbb6ab docs: repair Sentinel state truth
+contract_hardening_commit = 570fd93 runtime: harden model execution contract
+```
+
+### Implemented Budget Truth
+
+```text
+action_level_model_budget_preflight = IMPLEMENTED
+mission_level_model_budget_ledger = IMPLEMENTED
+post_response_budget_overrun_downgrade = IMPLEMENTED
+model_execution_budget_summary = SAFE_METADATA
+runtime_budget_metadata = SAFE_METADATA
+FinalGate_model_budget_contract = IMPLEMENTED
+```
+
+The budget closure enforces action-level model-call estimates before provider
+execution, records mission-level token/retry/provider-time ledger entries, and
+can downgrade an already-returned provider response to `BUDGET_REJECTED` when
+actual usage exceeds the active budget. Safe budget summaries are attached to
+`ModelExecutionOutcome` and runtime model-execution metadata; `CoreFinalGate`
+checks the budget summary for internal consistency and forbidden durable
+payload leakage.
+
+### Deferral Handling
+
+Closed:
+
+```text
+MODEL_EXECUTION_BUDGET_GOVERNANCE = CLOSED
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER = CLOSED
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = CLOSED
+```
+
+Still open / not approved:
+
+```text
+PRODUCTION_PROVIDER_ROUTING = OPEN
+fallback_routing = NOT_STARTED / NOT_APPROVED
+AUTO_model_routing = NOT_STARTED / NOT_APPROVED
+provider_expansion_immediate = NO-GO until next roadmap decision
+```
+
+### Boundaries Held
+
+```text
+No provider fallback.
+No model override.
+No provider-native tools.
+No tool/organ execution from model output.
+No raw prompt durable storage.
+No raw provider response durable storage.
+No raw reasoning_details durable storage.
+No provider key durable storage.
+No P6U.
+No Brain live society.
+```
+
+## Sentinel State Truth Repair - LOCKED (historical pre-budget-closure snapshot)
+
+Status note: this section records the accepted state after truth repair and
+before budget closure. The current state is the
+`Sentinel Model Execution Budgets - LOCKED` section above.
 
 Recorded at: 2026-05-18
 
@@ -13,7 +91,8 @@ are now historical snapshots only.
 ```text
 current_phase = SENTINEL_STATE_TRUTH_REPAIRED
 previous_phase = REAL_MODEL_PROVIDER_ADAPTERS_LOCKED
-next_technical_pack = sentinel-model-execution-contract-hardening
+historical_next_technical_pack = sentinel-model-execution-contract-hardening
+superseded_by = SENTINEL_MODEL_EXECUTION_BUDGETS_LOCKED
 
 llm_seam_commit = 6861ed4 runtime: lock llm decision cycle seam
 foundation_commit = bcb35d2 runtime: add real model execution foundation
@@ -85,10 +164,10 @@ RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
 Open:
 
 ```text
-MODEL_EXECUTION_BUDGET_GOVERNANCE = OPEN
+MODEL_EXECUTION_BUDGET_GOVERNANCE = CLOSED later by 074ca1c
 PRODUCTION_PROVIDER_ROUTING = OPEN
-P-C-RUNTIME-01-ACTIONBUDGET-DEFER = OPEN
-P-C-RUNTIME-01-MISSIONBUDGET-DEFER = OPEN
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER = CLOSED later by 074ca1c
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = CLOSED later by 074ca1c
 ```
 
 Broad legacy deferral handling:
@@ -99,8 +178,8 @@ LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = SPLIT / PARTIAL
 
 The broad deferral is no longer accurate as a single binary flag. Provider
 adapter success and runtime model execution wiring are closed by evidence, but
-budget governance, production routing, and broader model-execution hardening
-remain open. If a consumer cannot represent split deferrals, keep the broad
+budget governance was later closed by `074ca1c`; production routing and broader
+model-execution expansion remain open. If a consumer cannot represent split deferrals, keep the broad
 deferral marked open with this note attached.
 
 ### Current Non-Goals And Boundaries
@@ -308,16 +387,15 @@ P-C-RUNTIME-01-MODELOPT-DEFER      = CLOSED
 Still open and explicitly out of scope:
 
 ```text
-P-C-RUNTIME-01-ACTIONBUDGET-DEFER  = OPEN
-P-C-RUNTIME-01-MISSIONBUDGET-DEFER = OPEN
-LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = OPEN
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER  = CLOSED later by 074ca1c
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = CLOSED later by 074ca1c
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = SPLIT / PARTIAL
 ```
 
-Real provider execution remains deferred to the future
-`sentinel-real-model-execution-backend` spec. That future spec may use API keys
-only through environment variables and must include budget, timeout, trace,
-redaction, FinalGate, and skip-safe tests. This spec does not require an API
-key, does not fake an LLM response, and does not execute a model call.
+Historical note: this section predates the real-model backend, provider
+adapter, runtime wiring, contract hardening, and budget closure commits. Use the
+top `SENTINEL_MODEL_EXECUTION_BUDGETS_LOCKED` section for current deferral
+truth.
 
 ### Safety Boundaries
 

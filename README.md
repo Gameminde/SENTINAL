@@ -24,15 +24,15 @@ Current public GitHub checkpoint:
 ```text
 remote = https://github.com/Gameminde/SENTINAL
 branch = main
-latest state evidence before this repair = f80f561 docs: add Sentinel predictive premortem audit
+latest budget closure evidence before this README update = 074ca1c runtime: enforce model execution budgets
 ```
 
 Current state lock:
 
 ```text
-current_phase = SENTINEL_STATE_TRUTH_REPAIRED
-previous_phase = REAL_MODEL_PROVIDER_ADAPTERS_LOCKED
-next_technical_pack = sentinel-model-execution-contract-hardening
+current_phase = SENTINEL_MODEL_EXECUTION_BUDGETS_LOCKED
+previous_phase = SENTINEL_STATE_TRUTH_REPAIRED
+next_phase = CONTROLLED_LLM_ROLE_LOOP_SPEC
 ```
 
 Important current truth:
@@ -52,6 +52,7 @@ Runtime model execution wiring = WIRED
 Runtime real-provider validation = SUCCESS_VALIDATED through AgentRuntime.run
 Provider catalog = IMPLEMENTED
 OpenAI-compatible provider base = HARDENED
+Model execution budget governance = LOCKED
 Provider expansion immediate = NO-GO
 ```
 
@@ -117,9 +118,29 @@ What is not yet proven:
 production retry/rate-limit/fallback policy = OPEN
 OpenRouter production readiness = OPEN
 NVIDIA MiniMax production readiness = OPEN
-MODEL_EXECUTION_BUDGET_GOVERNANCE = OPEN
 PRODUCTION_PROVIDER_ROUTING = OPEN
+fallback routing = NOT_STARTED / NOT_APPROVED
+AUTO model routing = NOT_STARTED / NOT_APPROVED
 AUTO multi-model routing = NOT_STARTED / NOT_APPROVED
+```
+
+Model execution budget closure is locked by:
+
+```text
+budget_closure_commit = 074ca1c runtime: enforce model execution budgets
+MODEL_EXECUTION_BUDGET_GOVERNANCE = CLOSED
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER = CLOSED
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = CLOSED
+```
+
+Implemented budget truth:
+
+```text
+action-level model budget preflight = implemented
+mission-level model budget ledger = implemented
+post-response budget overrun can downgrade to BUDGET_REJECTED
+safe budget summaries on ModelExecutionOutcome and runtime metadata
+FinalGate checks safe/internal model budget metadata
 ```
 
 P6U and Brain/Science work have not started.
@@ -144,19 +165,23 @@ python -m pytest tests/test_real_model_execution_groq.py -q -rs
 python -m pytest tests/test_real_model_execution_openrouter.py -q -rs
 python -m pytest tests/test_real_model_execution_nvidia.py -q -rs
 python -m pytest tests/test_real_model_execution_backend.py -q
+python -m pytest tests/test_openai_compatible_provider_base.py -q
+python -m pytest tests/test_model_provider_catalog.py -q
+python -m pytest tests/test_runtime_model_execution_wiring.py -q -rs
 python -m pytest tests/test_llm_backed_decision_cycle.py tests/test_agent_runtime.py -q
 python -m pytest tests/perf/bench -q
 python -m pytest tests/perf/ -m "not slow" -q
 ```
 
-Latest accepted model-provider verification before this README update:
+Latest accepted model-execution budget verification before this README update:
 
 ```text
-tests/test_real_model_execution_groq.py = 4 passed, 1 skip-safe real call when key absent
-tests/test_real_model_execution_openrouter.py = 8 passed, 1 skip-safe real call when key absent
-tests/test_real_model_execution_nvidia.py = 4 passed, 1 skip-safe real call when key absent
-tests/test_real_model_execution_backend.py = 12 passed
+tests/test_real_model_execution_backend.py = 28 passed
+tests/test_openai_compatible_provider_base.py = 8 passed
+tests/test_model_provider_catalog.py = 10 passed
+tests/test_runtime_model_execution_wiring.py = 9 passed
 tests/test_llm_backed_decision_cycle.py + tests/test_agent_runtime.py = 21 passed
+tests/test_final_gate_registry.py + tests/test_browser_organ_final_gate.py = 22 passed
 git diff --check = clean
 secret scan = no real gsk_, nvapi-, sk-or-v1, or raw Bearer provider key in visible repo files
 ```
@@ -200,19 +225,19 @@ P-C-RUNTIME-01
 P-D-RUNTIME-01
 P-D-BATCH-01
 P-D-BROWSER-01
-P-C-RUNTIME-01-ACTIONBUDGET-DEFER
-P-C-RUNTIME-01-MISSIONBUDGET-DEFER
 REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq provider evidence
 RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
-MODEL_EXECUTION_BUDGET_GOVERNANCE = OPEN
+MODEL_EXECUTION_BUDGET_GOVERNANCE = CLOSED by 074ca1c
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER = CLOSED by 074ca1c
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = CLOSED by 074ca1c
 PRODUCTION_PROVIDER_ROUTING = OPEN
 LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = SPLIT / PARTIAL
 ```
 
 If an older consumer cannot represent split deferrals, keep the old broad
 `LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER` open with the attached note that
-provider adapter success and runtime wiring are closed, while budget governance
-and production routing remain open.
+provider adapter success, runtime wiring, and budget governance are closed,
+while production routing remains open.
 
 Core governance rule:
 

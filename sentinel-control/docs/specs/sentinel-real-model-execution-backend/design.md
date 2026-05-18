@@ -11,8 +11,9 @@ runtime_model_execution = WIRED
 runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
 provider_catalog = IMPLEMENTED
 openai_compatible_base = HARDENED
+model_execution_budget_governance = LOCKED by 074ca1c
 provider_expansion_immediate = NO-GO
-next_technical_pack = sentinel-model-execution-contract-hardening
+next_phase = CONTROLLED_LLM_ROLE_LOOP_SPEC
 ```
 
 Validated chain:
@@ -28,13 +29,20 @@ AgentRuntime.run
 -> FinalGate-certified AgentRunResult
 ```
 
-Still open:
+Closed by budget closure:
 
 ```text
 P-C-RUNTIME-01-ACTIONBUDGET-DEFER
 P-C-RUNTIME-01-MISSIONBUDGET-DEFER
 MODEL_EXECUTION_BUDGET_GOVERNANCE
+```
+
+Still open:
+
+```text
 PRODUCTION_PROVIDER_ROUTING
+fallback_routing = NOT_STARTED / NOT_APPROVED
+AUTO_model_routing = NOT_STARTED / NOT_APPROVED
 ```
 
 The historical design below remains useful context, but any statement that

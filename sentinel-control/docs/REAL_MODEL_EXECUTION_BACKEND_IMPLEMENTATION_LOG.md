@@ -10,6 +10,7 @@ runtime_wiring_commit = 76ad92e runtime: wire model execution coordinator into a
 real_runtime_validation_commit = 9647993 test: validate real runtime model execution
 provider_catalog_commit = 7f0ddcb runtime: add model provider catalog
 openai_compatible_base_commit = 4052be9 runtime: harden openai-compatible provider base
+budget_closure_commit = 074ca1c runtime: enforce model execution budgets
 ```
 
 Current truth:
@@ -19,17 +20,29 @@ REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq provider evidence
 RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
 runtime_model_execution = WIRED
 runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
+MODEL_EXECUTION_BUDGET_GOVERNANCE = CLOSED
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER = CLOSED
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = CLOSED
 provider_expansion_immediate = NO-GO
-next_technical_pack = sentinel-model-execution-contract-hardening
+next_phase = CONTROLLED_LLM_ROLE_LOOP_SPEC
+```
+
+Implemented budget truth:
+
+```text
+action-level model budget preflight
+mission-level model budget ledger
+post-response budget overrun downgrade to BUDGET_REJECTED
+safe budget summaries on ModelExecutionOutcome and runtime metadata
+FinalGate model budget metadata contract
 ```
 
 Still open:
 
 ```text
-P-C-RUNTIME-01-ACTIONBUDGET-DEFER
-P-C-RUNTIME-01-MISSIONBUDGET-DEFER
-MODEL_EXECUTION_BUDGET_GOVERNANCE
 PRODUCTION_PROVIDER_ROUTING
+fallback_routing = NOT_STARTED / NOT_APPROVED
+AUTO_model_routing = NOT_STARTED / NOT_APPROVED
 ```
 
 Historical notes below that say runtime wiring is out of scope are accurate for
