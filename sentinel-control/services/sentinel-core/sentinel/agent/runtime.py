@@ -42,6 +42,15 @@ from sentinel.agent.identity import AgentIdentity, default_agent_identity
 from sentinel.agent.invariants import InvariantViolation
 from sentinel.agent.learning_loop import LearningLoop
 from sentinel.agent.method_selector import MethodSelector
+from sentinel.agent.model_execution import (
+    ModelExecutionBudgetPolicy,
+    ModelExecutionCoordinator,
+    ModelExecutionOutcome,
+    ModelExecutionOutcomeClass,
+    ModelRetryPolicy,
+    ModelTimeoutPolicy,
+    RealModelRequestBuilder,
+)
 from sentinel.agent.models import AgentContext, AgentRunResult
 from sentinel.agent.phases import AgentPhase, can_transition
 from sentinel.agent.planner_bridge import PlannerBridge
@@ -156,6 +165,7 @@ class AgentRuntime:
         token_budget_governor: TokenBudgetGovernor | None = None,
         user_model_contract: UserModelContract | None = None,
         model_call_optimizer: ModelCallOptimizer | None = None,
+        model_execution_coordinator: ModelExecutionCoordinator | None = None,
         # Task 8.8 / sentinel-performance-runtime-foundation —
         # additive optional async scheduler injections. When BOTH
         # parameters below are ``None`` (the default),
@@ -199,6 +209,7 @@ class AgentRuntime:
         self._token_budget_governor = token_budget_governor
         self._user_model_contract = user_model_contract
         self._model_call_optimizer = model_call_optimizer
+        self._model_execution_coordinator = model_execution_coordinator
         # Task 8.8: store async scheduler + backpressure injections.
         # ``None`` means "not injected" — :meth:`_execute_controlled_tool_calls`
         # checks ``self._async_organ_scheduler is not None`` AND
@@ -2018,15 +2029,34 @@ class AgentRuntime:
         prompt_sha256 = hashlib.sha256(rendered_prompt.encode("utf-8")).hexdigest()
         prompt_token_count = estimate_tokens(rendered_prompt)
 
+        selected_model_call_plan = None
         model_call_plan = None
         model_call_recommendation = None
         if self._model_call_optimizer is not None:
             candidate_plan = self._model_call_optimizer.plan(frame, ledger=None)
             candidate_plan_payload = candidate_plan.model_dump(mode="json")
             if candidate_plan.model_id == frame.user_selected_model:
+                selected_model_call_plan = candidate_plan
                 model_call_plan = candidate_plan_payload
             else:
                 model_call_recommendation = candidate_plan_payload
+
+        model_execution_metadata = self._model_execution_metadata_default_off()
+        if self._model_execution_coordinator is not None and selected_model_call_plan is not None:
+            timeout_policy, retry_policy, budget_policy = self._default_model_execution_policies(
+                selected_model_call_plan=selected_model_call_plan
+            )
+            request = RealModelRequestBuilder.build(
+                frame=frame,
+                rendered_prompt=rendered_prompt,
+                plan=selected_model_call_plan,
+                user_model=self._user_model_contract,
+                timeout_policy=timeout_policy,
+                retry_policy=retry_policy,
+                budget_policy=budget_policy,
+            )
+            outcome = self._model_execution_coordinator.execute(request=request)
+            model_execution_metadata = self._model_execution_outcome_metadata(outcome=outcome, request=request)
 
         metadata = {
             "enabled": True,
@@ -2043,10 +2073,61 @@ class AgentRuntime:
             "user_selected_model": frame.user_selected_model,
             "model_call_plan": model_call_plan,
             "model_call_recommendation": model_call_recommendation,
-            "model_execution_deferred": True,
-            "model_execution_deferral_id": "LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER",
+            "model_execution": model_execution_metadata,
+            "model_execution_deferred": model_execution_metadata["outcome_class"] != ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value,
+            "model_execution_deferral_id": (
+                None
+                if model_execution_metadata["outcome_class"] == ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value
+                else model_execution_metadata.get("deferral_id", "RUNTIME_MODEL_EXECUTION_WIRING")
+            ),
         }
         return sanitize_context_payload(metadata)
+
+    @staticmethod
+    def _model_execution_metadata_default_off() -> dict[str, Any]:
+        return {
+            "enabled": False,
+            "outcome_class": ModelExecutionOutcomeClass.MODEL_EXECUTION_DEFERRED.value,
+            "success": False,
+            "provider_called": False,
+            "message": "model execution coordinator is default-off",
+            "deferral_id": "LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER",
+            "request": None,
+            "result": None,
+            "receipt": None,
+        }
+
+    def _default_model_execution_policies(self, *, selected_model_call_plan: Any) -> tuple[
+        ModelTimeoutPolicy,
+        ModelRetryPolicy,
+        ModelExecutionBudgetPolicy,
+    ]:
+        assert self._user_model_contract is not None
+        return (
+            ModelTimeoutPolicy(connect_timeout_seconds=2.0, read_timeout_seconds=5.0, total_timeout_seconds=7.0),
+            ModelRetryPolicy(max_attempts=1, retryable_outcomes=[]),
+            ModelExecutionBudgetPolicy(
+                max_input_tokens=max(
+                    selected_model_call_plan.estimated_input_tokens,
+                    self._user_model_contract.context_budget_policy.max_decision_frame_tokens,
+                ),
+                max_output_tokens=self._user_model_contract.context_budget_policy.reserve_output_tokens,
+                max_total_estimated_usd=0.0,
+            ),
+        )
+
+    @staticmethod
+    def _model_execution_outcome_metadata(*, outcome: ModelExecutionOutcome, request: Any) -> dict[str, Any]:
+        return {
+            "enabled": True,
+            "outcome_class": outcome.outcome_class.value,
+            "success": outcome.success,
+            "provider_called": outcome.provider_called,
+            "message": outcome.message,
+            "request": request.serializable_metadata(),
+            "result": outcome.result.model_dump(mode="json") if outcome.result is not None else None,
+            "receipt": outcome.receipt.model_dump(mode="json") if outcome.receipt is not None else None,
+        }
 
     @staticmethod
     def _stable_decision_cycle_hash(payload: Any) -> str:

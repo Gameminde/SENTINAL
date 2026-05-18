@@ -303,6 +303,40 @@ def test_coordinator_cannot_fake_success() -> None:
     assert outcome.receipt is None
 
 
+def test_coordinator_validates_provider_response_and_builds_safe_receipt() -> None:
+    provider_response = ProviderModelResponse(
+        provider_id="deepseek",
+        model_id="deepseek-v4-pro",
+        content={"decision": "continue", "rationale": "validated by provider", "evidence_refs": ["evidence_1"]},
+        input_tokens=100,
+        output_tokens=20,
+    )
+    provider = RecordingProvider(response=provider_response)
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    resolver = StaticCredentialResolver(
+        ProviderCredentialHandle.from_env(
+            provider_id="deepseek",
+            env_var_name="SENTINEL_TEST_MODEL_KEY",
+            scopes=["model:read"],
+        )
+    )
+    coordinator = ModelExecutionCoordinator(registry=registry, credential_resolver=resolver)
+    request = _request()
+
+    outcome = coordinator.execute(request=request)
+
+    assert provider.calls == 1
+    assert outcome.success is True
+    assert outcome.outcome_class is ModelExecutionOutcomeClass.SUCCESS_VALIDATED
+    assert outcome.result is not None
+    assert outcome.result.decision == "continue"
+    assert outcome.receipt is not None
+    dumped = outcome.receipt.model_dump_json()
+    assert RAW_PROMPT not in dumped
+    assert SECRET_VALUE not in dumped
+
+
 def test_model_output_never_executes_tools_or_organs() -> None:
     result = LLMDecisionResultValidator.validate(
         ProviderModelResponse(

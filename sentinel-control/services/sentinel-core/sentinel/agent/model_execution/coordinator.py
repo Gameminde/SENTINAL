@@ -7,8 +7,10 @@ from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution.credentials import CredentialResolution, ProviderCredentialHandle
 from sentinel.agent.model_execution.models import ModelExecutionOutcome, ModelExecutionOutcomeClass, RealModelRequest
 from sentinel.agent.model_execution.policy import ModelExecutionBudgetPolicy, ModelRetryPolicy, ModelTimeoutPolicy
+from sentinel.agent.model_execution.receipts import build_model_execution_receipt
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.agent.model_execution.registry import ModelProviderRegistry
+from sentinel.agent.model_execution.validator import LLMDecisionResultValidator
 from sentinel.perf.caches.model_call_optimizer import ModelCallPlan
 
 
@@ -112,11 +114,20 @@ class ModelExecutionCoordinator:
                 provider_called=True,
                 message="Pack A does not accept fake success or real provider success without Wave 8.",
             )
+        result = LLMDecisionResultValidator.validate(response)
+        receipt = build_model_execution_receipt(
+            request=request,
+            outcome_class=result.outcome_class,
+            result=result,
+            credential=credential,
+            attempts=1,
+        )
         return ModelExecutionOutcome(
-            outcome_class=ModelExecutionOutcomeClass.MODEL_EXECUTION_DEFERRED,
-            success=False,
+            outcome_class=result.outcome_class,
+            success=result.success,
+            result=result,
+            receipt=receipt,
             provider_called=True,
-            message="Wave 7.2 success path is deferred to Wave 8 real provider adapter.",
         )
 
     def _resolve_credential(self, provider_id: str) -> ProviderCredentialHandle | None:
