@@ -12,7 +12,7 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-05-16
+## Current Snapshot - 2026-05-18
 
 This repository is the full Sentinel working tree. It includes the legacy
 CueIdea/RedditPulse evidence product, the Sentinel Control runtime, and Agent
@@ -24,13 +24,14 @@ Current public GitHub checkpoint:
 ```text
 remote = https://github.com/Gameminde/SENTINAL
 branch = main
-latest local cleanup tip before push = ab7cf4d perf: finish residual runtime instrumentation wiring
+latest local tip before push = 0c8d6ba docs: lock real model provider adapter state
 ```
 
-The active performance-runtime spec lives here:
+Current state lock:
 
 ```text
-.kiro/specs/sentinel-performance-runtime-foundation/
+current_phase = REAL_MODEL_PROVIDER_ADAPTERS_LOCKED
+previous_phase = SENTINEL_LLM_BACKED_DECISION_CYCLE_LOCKED
 ```
 
 Important current truth:
@@ -42,33 +43,106 @@ Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
 Phase D = LOCKED
 Phase E = LOCKED
 Phase F = LOCKED
+Context cache runtime closure = LOCKED
+LLM decision-cycle seam = LOCKED
+Real model execution foundation = STRUCTURAL_READY
+Real model provider adapter layer = LOCKED
+Runtime model execution wiring = NOT_WIRED
 ```
 
 Phase F now provides deterministic local golden mission runners,
 benchmark/regression gate evaluation, hot-path coverage checks, and minimal
-CoreFinalGate PerformanceReceipt mission-close invariant verification. The
-post-Phase-F cleanup split is complete through the residual performance
-instrumentation wiring commit; P6U and Brain/Science work have not started.
+CoreFinalGate PerformanceReceipt mission-close invariant verification.
+
+The context cache runtime closure is locked. `P-C-KEY-01` is closed, and
+runtime cache-key propagation is locked at the constructor/default-off
+injection layer.
+
+The LLM-backed decision-cycle seam is locked through:
+
+```text
+Context -> LLMDecisionFrame -> PromptRender -> ModelCallPlan
+```
+
+The real model provider adapter layer is locked through:
+
+```text
+ModelCallPlan-compatible request ->
+real Groq provider call ->
+ProviderModelResponse ->
+LLMDecisionResult ->
+safe receipt/redaction
+```
+
+Accepted provider evidence:
+
+```text
+provider_id = groq
+backend_id = groq_openai_compatible_chat
+model_id = openai/gpt-oss-20b
+outcome = SUCCESS_VALIDATED
+LLMDecisionResult validation = passed
+receipt/redaction = passed
+fake success = no
+```
+
+Diagnostic-only providers:
+
+```text
+OpenRouter = RATE_LIMIT / TIMEOUT / PROVIDER_ERROR observed; no success overclaim
+NVIDIA MiniMax = TIMEOUT observed; no success overclaim
+```
+
+What is not yet proven:
+
+```text
+AgentRuntime.run real model execution wiring = OPEN
+FinalGate over real model execution result in runtime = OPEN
+production retry/rate-limit/fallback policy = OPEN
+OpenRouter production readiness = OPEN
+NVIDIA MiniMax production readiness = OPEN
+```
+
+P6U and Brain/Science work have not started.
 
 Start with:
 
 ```text
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/specs/sentinel-real-model-execution-backend/requirements.md
+sentinel-control/docs/specs/sentinel-real-model-execution-backend/design.md
+sentinel-control/docs/specs/sentinel-real-model-execution-backend/tasks.md
 .kiro/specs/sentinel-performance-runtime-foundation/requirements.md
 .kiro/specs/sentinel-performance-runtime-foundation/design.md
 .kiro/specs/sentinel-performance-runtime-foundation/tasks.md
-sentinel-control/docs/CURRENT_STATE_LOCK.md
 ```
 
 Useful current verification commands:
 
 ```powershell
 cd sentinel-control/services/sentinel-core
+python -m pytest tests/test_real_model_execution_groq.py -q -rs
+python -m pytest tests/test_real_model_execution_openrouter.py -q -rs
+python -m pytest tests/test_real_model_execution_nvidia.py -q -rs
+python -m pytest tests/test_real_model_execution_backend.py -q
+python -m pytest tests/test_llm_backed_decision_cycle.py tests/test_agent_runtime.py -q
 python -m pytest tests/perf/bench -q
 python -m pytest tests/perf/ -m "not slow" -q
-python -m pytest tests/test_agent_runtime.py -q
 ```
 
-Latest local Phase F full-lock benchmark evidence before this README update:
+Latest accepted model-provider verification before this README update:
+
+```text
+tests/test_real_model_execution_groq.py = 4 passed, 1 skip-safe real call when key absent
+tests/test_real_model_execution_openrouter.py = 8 passed, 1 skip-safe real call when key absent
+tests/test_real_model_execution_nvidia.py = 4 passed, 1 skip-safe real call when key absent
+tests/test_real_model_execution_backend.py = 12 passed
+tests/test_llm_backed_decision_cycle.py + tests/test_agent_runtime.py = 21 passed
+git diff --check = clean
+secret scan = no real gsk_, nvapi-, sk-or-v1, or raw Bearer provider key in visible repo files
+```
+
+Latest local Phase F full-lock benchmark evidence:
 
 ```text
 timestamp = 2026-05-16T21:56:36.273773+00:00
@@ -104,10 +178,15 @@ Open backlog items that remain intentionally open:
 P-B-PERF-01
 P-B-PERF-02
 P-C-RUNTIME-01
-P-C-KEY-01
 P-D-RUNTIME-01
 P-D-BATCH-01
 P-D-BROWSER-01
+P-F-RUNNER-01
+P-F-CI-01
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER
+RUNTIME_MODEL_EXECUTION_WIRING
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER remains open at the broad lock-system level
 ```
 
 Core governance rule:
