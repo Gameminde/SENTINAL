@@ -61,8 +61,15 @@ def envelope() -> MissionAuthorityEnvelope:
     )
 
 
-def user_model_contract(model: str = "unit/model-alpha") -> UserModelContract:
+def user_model_contract(
+    model: str = "unit/model-alpha",
+    *,
+    provider_id: str = "unit_provider",
+    backend_id: str = "unit_openai_compatible_chat",
+) -> UserModelContract:
     return UserModelContract(
+        selected_provider_id=provider_id,
+        selected_backend_id=backend_id,
         selected_model=model,
         cost_profile=ModelCostProfile(
             model_name=model,
@@ -153,7 +160,11 @@ def test_runtime_model_execution_is_default_off_without_coordinator(tmp_path: Pa
     result = _runtime(
         tmp_path,
         contract=contract,
-        optimizer=ModelCallOptimizer(default_model_id=contract.selected_model, default_backend="unit_provider"),
+        optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id="unit_provider",
+            default_backend="unit_openai_compatible_chat",
+        ),
     ).run(envelope(), {"idea": "Sentinel"}, evidence_refs=["ev_direct"])
 
     cycle = result.llm_decision_cycle
@@ -173,13 +184,18 @@ def test_runtime_calls_provider_agnostic_coordinator_after_model_call_plan(tmp_p
     result = _runtime(
         tmp_path,
         contract=contract,
-        optimizer=ModelCallOptimizer(default_model_id=contract.selected_model, default_backend="unit_provider"),
+        optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id="unit_provider",
+            default_backend="unit_openai_compatible_chat",
+        ),
         coordinator=coordinator,
     ).run(envelope(), {"idea": "Sentinel"}, evidence_refs=["ev_direct"])
 
     assert len(coordinator.calls) == 1
     request = coordinator.calls[0]
     assert request.provider_id == "unit_provider"
+    assert request.backend_id == "unit_openai_compatible_chat"
     assert request.model_id == contract.selected_model
     assert request.prompt_hash
     assert request.prompt_text_in_memory_only is not None
@@ -190,6 +206,7 @@ def test_runtime_calls_provider_agnostic_coordinator_after_model_call_plan(tmp_p
     assert cycle["model_execution"]["success"] is True
     assert cycle["model_execution"]["outcome_class"] == "SUCCESS_VALIDATED"
     assert cycle["model_execution"]["request"]["provider_id"] == "unit_provider"
+    assert cycle["model_execution"]["request"]["backend_id"] == "unit_openai_compatible_chat"
     assert cycle["model_execution"]["request"]["model_id"] == contract.selected_model
     assert cycle["model_execution"]["result"]["decision"] == "continue"
     assert "prompt_text_in_memory_only" not in json.dumps(cycle, sort_keys=True)
@@ -208,7 +225,11 @@ def test_optimizer_recommendation_cannot_override_user_selected_model_or_execute
     result = _runtime(
         tmp_path,
         contract=contract,
-        optimizer=ModelCallOptimizer(default_model_id="unit/optimizer-recommendation", default_backend="unit_provider"),
+        optimizer=ModelCallOptimizer(
+            default_model_id="unit/optimizer-recommendation",
+            default_provider_id="unit_provider",
+            default_backend="unit_openai_compatible_chat",
+        ),
         coordinator=coordinator,
     ).run(envelope(), {"idea": "Sentinel"}, evidence_refs=["ev_direct"])
 
@@ -221,6 +242,34 @@ def test_optimizer_recommendation_cannot_override_user_selected_model_or_execute
     assert coordinator.calls == []
 
 
+def test_runtime_rejects_provider_backend_not_selected_by_user_contract(tmp_path: Path) -> None:
+    contract = user_model_contract(
+        "unit/user-selected",
+        provider_id="selected_provider",
+        backend_id="selected_backend",
+    )
+    coordinator = RecordingModelExecutionCoordinator()
+
+    result = _runtime(
+        tmp_path,
+        contract=contract,
+        optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id="other_provider",
+            default_backend="other_backend",
+        ),
+        coordinator=coordinator,
+    ).run(envelope(), {"idea": "Sentinel"}, evidence_refs=["ev_direct"])
+
+    cycle = result.llm_decision_cycle
+    assert cycle is not None
+    assert cycle["model_call_plan"] is None
+    assert cycle["model_call_recommendation"]["provider_id"] == "other_provider"
+    assert cycle["model_call_recommendation"]["backend_id"] == "other_backend"
+    assert cycle["model_execution"]["enabled"] is False
+    assert coordinator.calls == []
+
+
 def test_model_output_cannot_execute_tools_or_organs_and_final_gate_still_runs(tmp_path: Path) -> None:
     contract = user_model_contract()
     coordinator = RecordingModelExecutionCoordinator(ModelExecutionOutcomeClass.AUTHORITY_EXPANSION_REJECTED)
@@ -228,7 +277,11 @@ def test_model_output_cannot_execute_tools_or_organs_and_final_gate_still_runs(t
     result = _runtime(
         tmp_path,
         contract=contract,
-        optimizer=ModelCallOptimizer(default_model_id=contract.selected_model, default_backend="unit_provider"),
+        optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id="unit_provider",
+            default_backend="unit_openai_compatible_chat",
+        ),
         coordinator=coordinator,
     ).run(envelope(), {"idea": "Sentinel"}, evidence_refs=["ev_direct"])
 
@@ -250,7 +303,11 @@ def test_runtime_real_groq_provider_success_validated_skip_safe(tmp_path: Path) 
 
         pytest.skip("GROQ_API_KEY absent from process env and ignored .env; skipping real runtime model call")
 
-    contract = user_model_contract(GROQ_DEFAULT_MODEL_ID).model_copy(
+    contract = user_model_contract(
+        GROQ_DEFAULT_MODEL_ID,
+        provider_id="groq",
+        backend_id="groq_openai_compatible_chat",
+    ).model_copy(
         update={
             "context_budget_policy": ContextBudgetPolicy(
                 max_decision_frame_tokens=2_000,
@@ -275,7 +332,11 @@ def test_runtime_real_groq_provider_success_validated_skip_safe(tmp_path: Path) 
     result = _runtime(
         tmp_path,
         contract=contract,
-        optimizer=ModelCallOptimizer(default_model_id=contract.selected_model, default_backend="groq"),
+        optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id="groq",
+            default_backend="groq_openai_compatible_chat",
+        ),
         coordinator=coordinator,
     ).run(envelope(), {"idea": "Return a safe compact GTM decision only."}, evidence_refs=["ev_direct"])
 
@@ -287,6 +348,7 @@ def test_runtime_real_groq_provider_success_validated_skip_safe(tmp_path: Path) 
     assert model_execution["success"] is True
     assert model_execution["outcome_class"] == ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value
     assert model_execution["request"]["provider_id"] == "groq"
+    assert model_execution["request"]["backend_id"] == "groq_openai_compatible_chat"
     assert model_execution["request"]["model_id"] == GROQ_DEFAULT_MODEL_ID
     assert model_execution["result"]["model_id"] == GROQ_DEFAULT_MODEL_ID
     assert model_execution["result"]["outcome_class"] == ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value

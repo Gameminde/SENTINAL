@@ -48,6 +48,8 @@ from sentinel.agent import (
 def _user_model() -> UserModelContract:
     model = "deepseek-v4-pro"
     return UserModelContract(
+        selected_provider_id="deepseek",
+        selected_backend_id="deepseek_chat_completions",
         selected_model=model,
         cost_profile=ModelCostProfile(
             model_name=model,

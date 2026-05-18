@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_hash
 from sentinel.shared.models import SentinelModel, new_id
@@ -30,6 +30,7 @@ class RealModelRequest(SentinelModel):
     id: str = Field(default_factory=lambda: new_id("model_request"))
     provider_id: str
     model_id: str
+    backend_id: str | None = None
     backend: str
     runtime: str
     prompt_hash: str
@@ -44,12 +45,24 @@ class RealModelRequest(SentinelModel):
     budget_policy_id: str
     request_hash: str
 
+    @model_validator(mode="after")
+    def _bind_backend_identity(self) -> RealModelRequest:
+        backend_id = self.backend_id or self.backend
+        if not self.provider_id.strip():
+            raise ValueError("RealModelRequest.provider_id must be non-empty.")
+        if not backend_id.strip():
+            raise ValueError("RealModelRequest.backend_id must be non-empty.")
+        object.__setattr__(self, "backend_id", backend_id)
+        object.__setattr__(self, "backend", backend_id)
+        return self
+
     def serializable_metadata(self) -> dict[str, Any]:
         return sanitize_metadata(
             {
                 "id": self.id,
                 "provider_id": self.provider_id,
                 "model_id": self.model_id,
+                "backend_id": self.backend_id,
                 "backend": self.backend,
                 "runtime": self.runtime,
                 "prompt_hash": self.prompt_hash,

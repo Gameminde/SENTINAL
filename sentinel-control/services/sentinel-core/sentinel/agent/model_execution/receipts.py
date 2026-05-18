@@ -15,6 +15,7 @@ class ModelExecutionReceipt(SentinelModel):
     response_hash: str | None = None
     provider_id: str
     model_id: str
+    backend_id: str | None = None
     backend: str
     outcome_class: ModelExecutionOutcomeClass
     validation_status: str
@@ -44,6 +45,7 @@ def build_model_execution_receipt(
         "response_hash": result.sanitized_response_hash if result else None,
         "provider_id": request.provider_id,
         "model_id": request.model_id,
+        "backend_id": request.backend_id,
         "backend": request.backend,
         "outcome_class": outcome_class.value,
         "validation_status": result.outcome_class.value if result else outcome_class.value,

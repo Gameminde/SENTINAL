@@ -35,6 +35,8 @@ class QualityExpectationContract(SentinelModel):
 
 class UserModelContract(SentinelModel):
     id: str = Field(default_factory=lambda: new_id("umodel"))
+    selected_provider_id: str
+    selected_backend_id: str
     selected_model: str
     cost_profile: ModelCostProfile
     capability_profile: ModelCapabilityProfile
@@ -46,6 +48,10 @@ class UserModelContract(SentinelModel):
 
     @model_validator(mode="after")
     def _validate_selected_model(self) -> UserModelContract:
+        if not self.selected_provider_id.strip():
+            raise ValueError("UserModelContract requires a selected_provider_id.")
+        if not self.selected_backend_id.strip():
+            raise ValueError("UserModelContract requires a selected_backend_id.")
         if self.cost_profile.model_name != self.selected_model:
             raise ValueError("cost profile model_name must match selected_model.")
         if self.capability_profile.model_name != self.selected_model:

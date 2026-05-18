@@ -20,8 +20,10 @@ def selected_model(
     input_price: float = 0.14,
     output_price: float = 0.28,
     max_frame_tokens: int = 2_000,
-) -> UserModelContract:
+    ) -> UserModelContract:
     return UserModelContract(
+        selected_provider_id="deepseek",
+        selected_backend_id="deepseek_chat_completions",
         selected_model=model_name,
         cost_profile=ModelCostProfile(
             model_name=model_name,

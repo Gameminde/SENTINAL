@@ -152,6 +152,10 @@ def test_real_test_statuses_match_provider_evidence() -> None:
 
     assert catalog.get("groq").real_test_status.status is ProviderRealTestStatusKind.SUCCESS_VALIDATED
     assert catalog.get("groq").real_test_status.last_validated_model_id == "openai/gpt-oss-20b"
+    assert catalog.get("groq").real_test_status.provider_adapter_commit == "187d251"
+    assert catalog.get("groq").real_test_status.runtime_validation_commit == "9647993"
+    assert catalog.get("groq").real_test_status.provider_catalog_commit == "7f0ddcb"
+    assert catalog.get("groq").real_test_status.openai_compatible_base_commit == "4052be9"
     assert catalog.get("openrouter").real_test_status.status is ProviderRealTestStatusKind.DIAGNOSTIC_ONLY
     assert catalog.get("nvidia").real_test_status.status is ProviderRealTestStatusKind.DIAGNOSTIC_ONLY
 
@@ -192,6 +196,8 @@ def _entry(provider_id: str, *, is_fake_provider: bool = False, official_docs: l
 
 def _user_model_contract(model: str) -> UserModelContract:
     return UserModelContract(
+        selected_provider_id="groq",
+        selected_backend_id="groq_openai_compatible_chat",
         selected_model=model,
         cost_profile=ModelCostProfile(
             model_name=model,
@@ -221,6 +227,8 @@ def _user_model_contract(model: str) -> UserModelContract:
 def _model_call_plan(model: str, backend: str) -> ModelCallPlan:
     return ModelCallPlan(
         model_id=model,
+        provider_id=backend,
+        backend_id=f"{backend}_openai_compatible_chat",
         backend=backend,
         runtime="chat_completions",
         use_prefix_reuse=False,

@@ -193,6 +193,10 @@ class ProviderRealTestStatus(SentinelModel):
     last_validated_model_id: str | None = None
     last_validated_backend_id: str | None = None
     success_evidence_commit: str | None = None
+    provider_adapter_commit: str | None = None
+    runtime_validation_commit: str | None = None
+    provider_catalog_commit: str | None = None
+    openai_compatible_base_commit: str | None = None
     diagnostic_outcomes: list[str] = Field(default_factory=list)
     requires_env_var: str | None = None
 

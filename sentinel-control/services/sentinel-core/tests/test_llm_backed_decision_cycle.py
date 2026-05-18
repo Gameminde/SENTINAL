@@ -55,6 +55,8 @@ def envelope(**overrides) -> MissionAuthorityEnvelope:
 
 def user_model_contract(model: str = "deepseek-v4-pro") -> UserModelContract:
     return UserModelContract(
+        selected_provider_id="deepseek",
+        selected_backend_id="deepseek_chat_completions",
         selected_model=model,
         cost_profile=ModelCostProfile(
             model_name=model,
@@ -170,7 +172,11 @@ def test_agent_runtime_default_off_keeps_existing_result_shape(tmp_path: Path):
 
 def test_agent_runtime_builds_frame_prompt_and_model_plan_without_model_execution(tmp_path: Path):
     contract = user_model_contract()
-    optimizer = ModelCallOptimizer(default_model_id=contract.selected_model, default_backend="deepseek")
+    optimizer = ModelCallOptimizer(
+        default_model_id=contract.selected_model,
+        default_provider_id="deepseek",
+        default_backend="deepseek_chat_completions",
+    )
 
     result = AgentRuntime(
         project_root=tmp_path,
@@ -209,7 +215,11 @@ def test_decision_cycle_cache_budget_and_prompt_wrappers_are_used(tmp_path: Path
         prompt_frame_cache=prompt_cache,
         token_budget_governor=budget_governor,
         user_model_contract=contract,
-        model_call_optimizer=ModelCallOptimizer(default_model_id=contract.selected_model),
+        model_call_optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id=contract.selected_provider_id,
+            default_backend=contract.selected_backend_id,
+        ),
     ).run(env, {"idea": "Sentinel SPINE"}, evidence_refs=["ev_direct"])
 
     assert result.success is True
@@ -231,7 +241,11 @@ def test_decision_cycle_keeps_tool_surface_inside_authority_and_preserves_user_m
     result = AgentRuntime(
         project_root=tmp_path,
         user_model_contract=contract,
-        model_call_optimizer=ModelCallOptimizer(default_model_id=contract.selected_model),
+        model_call_optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id=contract.selected_provider_id,
+            default_backend=contract.selected_backend_id,
+        ),
     ).run(env, {"idea": "Sentinel SPINE"}, evidence_refs=["ev_direct"])
 
     cycle = result.llm_decision_cycle
@@ -263,7 +277,11 @@ def test_decision_cycle_metadata_excludes_raw_prompt_and_secrets(tmp_path: Path)
     result = AgentRuntime(
         project_root=tmp_path,
         user_model_contract=contract,
-        model_call_optimizer=ModelCallOptimizer(default_model_id=contract.selected_model),
+        model_call_optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id=contract.selected_provider_id,
+            default_backend=contract.selected_backend_id,
+        ),
     ).run(
         envelope(),
         {"idea": "Sentinel SPINE", "note": "password=redaction-test-value"},
@@ -285,7 +303,11 @@ def test_real_token_budget_governor_rejects_oversized_frame_without_context_comp
         project_root=tmp_path,
         token_budget_governor=TokenBudgetGovernor(event_bus=EventBus(env.id), max_compression_passes=1),
         user_model_contract=contract,
-        model_call_optimizer=ModelCallOptimizer(default_model_id=contract.selected_model),
+        model_call_optimizer=ModelCallOptimizer(
+            default_model_id=contract.selected_model,
+            default_provider_id=contract.selected_provider_id,
+            default_backend=contract.selected_backend_id,
+        ),
     ).run(env, {"idea": "Sentinel SPINE"}, evidence_refs=["ev_direct", "ev_wtp"])
 
     cycle = result.llm_decision_cycle

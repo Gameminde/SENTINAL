@@ -2035,7 +2035,11 @@ class AgentRuntime:
         if self._model_call_optimizer is not None:
             candidate_plan = self._model_call_optimizer.plan(frame, ledger=None)
             candidate_plan_payload = candidate_plan.model_dump(mode="json")
-            if candidate_plan.model_id == frame.user_selected_model:
+            if (
+                candidate_plan.model_id == frame.user_selected_model
+                and candidate_plan.provider_id == self._user_model_contract.selected_provider_id
+                and candidate_plan.backend_id == self._user_model_contract.selected_backend_id
+            ):
                 selected_model_call_plan = candidate_plan
                 model_call_plan = candidate_plan_payload
             else:

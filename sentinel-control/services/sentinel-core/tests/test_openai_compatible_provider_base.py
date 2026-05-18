@@ -191,6 +191,41 @@ def test_openai_compatible_missing_credential_and_fallback_do_not_call_network(
     assert recorder.calls == []
 
 
+def test_openai_compatible_rejects_mismatched_credential_handle_without_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIT_PROVIDER_KEY", SECRET_VALUE)
+    recorder = RecordingHttpxClient(_payload())
+    monkeypatch.setattr("httpx.Client", recorder)
+    mismatched_credential = ProviderCredentialHandle.from_env(
+        provider_id="other_provider",
+        env_var_name="UNIT_PROVIDER_KEY",
+        scopes=["model:read"],
+    )
+
+    response = _provider().execute(_compatible_request(), timeout=_timeout(), credential=mismatched_credential)
+
+    assert response.error_class == ModelExecutionOutcomeClass.MISSING_CREDENTIAL.value
+    assert response.content["rejected_reason"] == "credential_provider_mismatch"
+    assert recorder.calls == []
+
+
+def test_provider_error_message_is_hashed_or_classified_not_raw(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIT_PROVIDER_KEY", SECRET_VALUE)
+    raw_error = "provider echoed sk-test-unit-secret-1234567890 and raw prompt fragment"
+    recorder = RecordingHttpxClient({"error": {"type": "invalid_request", "message": raw_error}}, status_code=400)
+    monkeypatch.setattr("httpx.Client", recorder)
+
+    response = _provider().execute(_compatible_request(), timeout=_timeout(), credential=_credential())
+
+    assert response.error_class == ModelExecutionOutcomeClass.PROVIDER_ERROR.value
+    assert "provider_error_message_hash" in response.content
+    assert raw_error not in response.model_dump_json()
+    assert "sk-test-unit-secret-1234567890" not in response.model_dump_json()
+
+
 def _provider(*, profile: ProviderBackendProfile | None = None) -> OpenAICompatibleChatProvider:
     return OpenAICompatibleChatProvider(
         config=OpenAICompatibleProviderConfig(
@@ -244,6 +279,7 @@ def _compatible_request():
     return _request().model_copy(
         update={
             "provider_id": "unit_provider",
+            "backend_id": "unit_openai_compatible_chat",
             "backend": "unit_openai_compatible_chat",
             "runtime": "chat_completions",
             "model_id": "unit/model",

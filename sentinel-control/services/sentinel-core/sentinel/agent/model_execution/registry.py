@@ -23,6 +23,8 @@ class ModelProviderRegistry:
             raise ValueError("provider_id is required.")
         if bool(getattr(provider, "is_fake_provider", False)):
             raise ValueError("fake provider marker is not allowed.")
+        if provider_id in self._providers:
+            raise ValueError(f"duplicate provider_id registration: {provider_id}")
         self._providers[provider_id] = provider
 
     def get_enabled(self, provider_id: str, *, model_id: str) -> object:

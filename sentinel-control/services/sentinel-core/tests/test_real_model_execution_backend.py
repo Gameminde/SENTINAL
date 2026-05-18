@@ -40,6 +40,8 @@ RAW_PROMPT = "mission card with raw prompt body and " + SECRET_VALUE
 
 def _model_contract() -> UserModelContract:
     return UserModelContract(
+        selected_provider_id="deepseek",
+        selected_backend_id="deepseek_chat_completions",
         selected_model="deepseek-v4-pro",
         cost_profile=ModelCostProfile(
             model_name="deepseek-v4-pro",
@@ -96,6 +98,8 @@ def _decision_frame() -> LLMDecisionFrame:
 def _model_call_plan() -> ModelCallPlan:
     return ModelCallPlan(
         model_id="deepseek-v4-pro",
+        provider_id="deepseek",
+        backend_id="deepseek_chat_completions",
         backend="deepseek",
         runtime="completion",
         use_prefix_reuse=False,
@@ -139,6 +143,93 @@ def test_provider_registry_rejects_unknown_disabled_and_fake_providers() -> None
 
     with pytest.raises(ValueError):
         registry.register(RecordingProvider(provider_id="fake", is_fake_provider=True))
+
+
+def test_user_model_contract_requires_provider_backend_model_identity() -> None:
+    with pytest.raises(ValidationError):
+        UserModelContract(
+            selected_model="deepseek-v4-pro",
+            cost_profile=ModelCostProfile(
+                model_name="deepseek-v4-pro",
+                input_usd_per_1m=0.14,
+                output_usd_per_1m=0.28,
+                context_window_tokens=128_000,
+            ),
+            capability_profile=ModelCapabilityProfile(
+                model_name="deepseek-v4-pro",
+                context_window_tokens=128_000,
+            ),
+            context_budget_policy=ContextBudgetPolicy(
+                max_decision_frame_tokens=2_000,
+                max_tool_schema_tokens=250,
+                max_evidence_tokens=1_000,
+                reserve_output_tokens=500,
+            ),
+            quality_expectation=QualityExpectationContract(
+                expected_quality="pack-a-structural",
+                minimum_evidence_refs=1,
+                retry_budget=1,
+            ),
+        )
+
+
+def test_request_builder_keeps_provider_id_and_backend_id_distinct() -> None:
+    timeout, retry, budget = _policies()
+    plan = _model_call_plan().model_copy(
+        update={
+            "provider_id": "deepseek",
+            "backend_id": "deepseek_chat_completions",
+            "backend": "legacy_backend_alias",
+        }
+    )
+
+    request = RealModelRequestBuilder.build(
+        frame=_decision_frame(),
+        rendered_prompt=RAW_PROMPT,
+        plan=plan,
+        user_model=_model_contract(),
+        timeout_policy=timeout,
+        retry_policy=retry,
+        budget_policy=budget,
+    )
+
+    assert request.provider_id == "deepseek"
+    assert request.backend_id == "deepseek_chat_completions"
+    assert request.backend == "deepseek_chat_completions"
+
+
+def test_request_builder_rejects_provider_backend_or_model_mismatch() -> None:
+    timeout, retry, budget = _policies()
+
+    with pytest.raises(ValueError, match="provider"):
+        RealModelRequestBuilder.build(
+            frame=_decision_frame(),
+            rendered_prompt=RAW_PROMPT,
+            plan=_model_call_plan().model_copy(update={"provider_id": "openrouter"}),
+            user_model=_model_contract(),
+            timeout_policy=timeout,
+            retry_policy=retry,
+            budget_policy=budget,
+        )
+
+    with pytest.raises(ValueError, match="backend"):
+        RealModelRequestBuilder.build(
+            frame=_decision_frame(),
+            rendered_prompt=RAW_PROMPT,
+            plan=_model_call_plan().model_copy(update={"backend_id": "other_backend"}),
+            user_model=_model_contract(),
+            timeout_policy=timeout,
+            retry_policy=retry,
+            budget_policy=budget,
+        )
+
+
+def test_registry_rejects_duplicate_provider_id() -> None:
+    registry = ModelProviderRegistry()
+    registry.register(RecordingProvider())
+
+    with pytest.raises(ValueError, match="duplicate provider_id"):
+        registry.register(RecordingProvider())
 
 
 def test_provider_registry_rejects_silent_user_model_override() -> None:
@@ -283,6 +374,40 @@ def test_coordinator_default_off_returns_deferred_outcome() -> None:
     assert outcome.receipt is None
 
 
+def test_coordinator_rejects_catalog_disabled_or_diagnostic_provider() -> None:
+    from sentinel.agent.model_execution.provider_profiles import build_default_provider_catalog
+
+    registry = ModelProviderRegistry()
+    provider = RecordingProvider(provider_id="openrouter", supported_models=("deepseek/deepseek-v4-flash:free",))
+    registry.register(provider)
+    request = _request().model_copy(
+        update={
+            "provider_id": "openrouter",
+            "backend_id": "openrouter_chat_completions",
+            "backend": "openrouter_chat_completions",
+            "model_id": "deepseek/deepseek-v4-flash:free",
+        }
+    )
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=StaticCredentialResolver(
+            ProviderCredentialHandle.from_env(
+                provider_id="openrouter",
+                env_var_name="OPENROUTER_API_KEY",
+                scopes=["model:read"],
+            )
+        ),
+        provider_catalog=build_default_provider_catalog(),
+        enabled_provider_ids={"openrouter"},
+    )
+
+    outcome = coordinator.execute(request=request)
+
+    assert outcome.outcome_class is ModelExecutionOutcomeClass.DISABLED_BACKEND
+    assert outcome.success is False
+    assert provider.calls == 0
+
+
 def test_coordinator_cannot_fake_success() -> None:
     registry = ModelProviderRegistry()
     registry.register(RecordingProvider(response=None))
@@ -355,6 +480,66 @@ def test_model_output_never_executes_tools_or_organs() -> None:
     assert result.outcome_class is ModelExecutionOutcomeClass.AUTHORITY_EXPANSION_REJECTED
     assert result.tool_execution_requested is True
     assert result.organ_execution_requested is True
+
+
+def test_validator_recursively_rejects_nested_tool_or_organ_intent() -> None:
+    result = LLMDecisionResultValidator.validate(
+        ProviderModelResponse(
+            provider_id="deepseek",
+            model_id="deepseek-v4-pro",
+            content={
+                "decision": "continue",
+                "rationale": "nested action attempt",
+                "evidence_refs": ["evidence_1"],
+                "nested": {
+                    "Tool_Calls": [{"name": "shell"}],
+                    "browser": {"submit": True},
+                    "payment": {"amount": 10},
+                },
+            },
+        )
+    )
+
+    assert result.outcome_class is ModelExecutionOutcomeClass.AUTHORITY_EXPANSION_REJECTED
+    assert result.tool_execution_requested is True
+    assert result.authority_expansion is True
+
+
+def test_validator_redacts_secret_like_rationale_before_durable_result() -> None:
+    result = LLMDecisionResultValidator.validate(
+        ProviderModelResponse(
+            provider_id="deepseek",
+            model_id="deepseek-v4-pro",
+            content={
+                "decision": "continue",
+                "rationale": "echoed prompt sk-test-unit-secret-1234567890 reasoning_details raw provider text",
+                "evidence_refs": ["evidence_1"],
+            },
+        )
+    )
+
+    dumped = result.model_dump_json()
+    assert "sk-test-unit-secret-1234567890" not in dumped
+    assert "reasoning_details" not in dumped
+    assert result.rationale_summary != "echoed prompt sk-test-unit-secret-1234567890 reasoning_details raw provider text"
+
+
+def test_model_evidence_refs_must_bind_to_decision_frame_evidence() -> None:
+    result = LLMDecisionResultValidator.validate(
+        ProviderModelResponse(
+            provider_id="deepseek",
+            model_id="deepseek-v4-pro",
+            content={
+                "decision": "continue",
+                "rationale": "invented evidence",
+                "evidence_refs": ["invented_ref"],
+            },
+        ),
+        allowed_evidence_refs={"evidence_1"},
+    )
+
+    assert result.outcome_class is ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA
+    assert result.success is False
 
 
 class RecordingProvider:

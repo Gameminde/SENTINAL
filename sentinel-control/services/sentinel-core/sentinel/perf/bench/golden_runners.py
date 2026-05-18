@@ -288,6 +288,8 @@ def _receipt(*, mission_id: str) -> PerformanceReceipt:
 def _user_model() -> UserModelContract:
     model_name = "phase-f-local-model"
     return UserModelContract(
+        selected_provider_id="phase_f_local",
+        selected_backend_id="phase_f_local_backend",
         selected_model=model_name,
         cost_profile=ModelCostProfile(
             model_name=model_name,

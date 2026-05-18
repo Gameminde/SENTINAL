@@ -124,7 +124,7 @@ import hashlib
 import json
 from typing import Any
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
 from sentinel.agent.decision_frame import LLMDecisionFrame
 from sentinel.shared.models import SentinelModel
@@ -273,8 +273,9 @@ class ModelCallPlan(SentinelModel):
     ------
 
     * ``model_id``                — recommended model identifier.
-    * ``backend``                 — ``"openai"`` / ``"anthropic"`` /
-                                    fallback ``default_backend``.
+    * ``provider_id``             — provider selected by the user/model contract.
+    * ``backend_id``              — provider backend selected by the user/model contract.
+    * ``backend``                 — legacy alias kept equal to ``backend_id``.
     * ``runtime``                 — ``"streaming"`` / ``"batch"`` /
                                     ``"completion"``.
     * ``use_prefix_reuse``        — ``True`` iff a stable prefix hash
@@ -294,6 +295,8 @@ class ModelCallPlan(SentinelModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     model_id: str
+    provider_id: str | None = None
+    backend_id: str | None = None
     backend: str
     runtime: str
     use_prefix_reuse: bool
@@ -301,6 +304,18 @@ class ModelCallPlan(SentinelModel):
     evidence_delta_count: int = Field(ge=0)
     estimated_input_tokens: int = Field(ge=0)
     rationale: str
+
+    @model_validator(mode="after")
+    def _bind_provider_backend_identity(self) -> ModelCallPlan:
+        provider_id = self.provider_id or self.backend
+        backend_id = self.backend_id or self.backend
+        if not provider_id:
+            raise ValueError("ModelCallPlan.provider_id must be non-empty.")
+        if not backend_id:
+            raise ValueError("ModelCallPlan.backend_id must be non-empty.")
+        object.__setattr__(self, "provider_id", provider_id)
+        object.__setattr__(self, "backend_id", backend_id)
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -325,13 +340,17 @@ class ModelCallOptimizer:
         self,
         *,
         default_model_id: str = DEFAULT_MODEL_ID,
+        default_provider_id: str | None = None,
         default_backend: str = DEFAULT_BACKEND,
     ) -> None:
         if not default_model_id:
             raise ValueError("ModelCallOptimizer.default_model_id must be non-empty")
+        if default_provider_id is not None and not default_provider_id:
+            raise ValueError("ModelCallOptimizer.default_provider_id must be non-empty")
         if not default_backend:
             raise ValueError("ModelCallOptimizer.default_backend must be non-empty")
         self._default_model_id = default_model_id
+        self._default_provider_id = default_provider_id or default_backend
         self._default_backend = default_backend
 
     # ------------------------------------------------------------------
@@ -345,6 +364,10 @@ class ModelCallOptimizer:
     @property
     def default_backend(self) -> str:
         return self._default_backend
+
+    @property
+    def default_provider_id(self) -> str:
+        return self._default_provider_id
 
     # ------------------------------------------------------------------
     # Public API
@@ -377,6 +400,7 @@ class ModelCallOptimizer:
             rationale_model = _RATIONALE_DEFAULT
 
         # 3) Backend selection — derived from model_id prefix.
+        provider_id = self._select_provider_id(model_id)
         backend = self._select_backend(model_id)
 
         # 4) Runtime selection — streaming flag if exposed by frame or
@@ -405,6 +429,8 @@ class ModelCallOptimizer:
 
         return ModelCallPlan(
             model_id=model_id,
+            provider_id=provider_id,
+            backend_id=backend,
             backend=backend,
             runtime=runtime,
             use_prefix_reuse=use_prefix_reuse,
@@ -432,6 +458,14 @@ class ModelCallOptimizer:
         if lowered.startswith("claude-"):
             return BACKEND_ANTHROPIC
         return self._default_backend
+
+    def _select_provider_id(self, model_id: str) -> str:
+        lowered = model_id.lower()
+        if lowered.startswith("gpt-"):
+            return BACKEND_OPENAI
+        if lowered.startswith("claude-"):
+            return BACKEND_ANTHROPIC
+        return self._default_provider_id
 
     @staticmethod
     def _select_runtime(frame: Any) -> str:

@@ -63,6 +63,24 @@ class OpenAICompatibleChatProvider(RealModelProvider):
         timeout: ModelTimeoutPolicy,
         credential: ProviderCredentialHandle,
     ) -> ProviderModelResponse | None:
+        if request.provider_id != self.provider_id or request.backend_id != self.backend_id:
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.DISABLED_BACKEND,
+                diagnostic={"rejected_reason": "provider_backend_mismatch"},
+            )
+        if credential.provider_id != self.provider_id:
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.MISSING_CREDENTIAL,
+                diagnostic={"rejected_reason": "credential_provider_mismatch"},
+            )
+        if self.credential_env and credential.source_ref_hash != text_hash(self.credential_env):
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.MISSING_CREDENTIAL,
+                diagnostic={"rejected_reason": "credential_source_mismatch"},
+            )
         if not self.backend_profile.supports_model(request.model_id):
             return self._error_response(
                 request,
@@ -238,7 +256,10 @@ def _http_error_diagnostic(response: httpx.Response) -> dict[str, Any]:
     if isinstance(error, dict):
         diagnostic["provider_error_type"] = str(error.get("type", ""))[:240]
         diagnostic["provider_error_code"] = str(error.get("code", ""))[:240]
-        diagnostic["provider_error_message"] = str(error.get("message", ""))[:240]
+        message = str(error.get("message", ""))
+        if message:
+            diagnostic["provider_error_message_hash"] = text_hash(message)
+            diagnostic["provider_error_message_redacted"] = True
     else:
         diagnostic["provider_error_body_hash"] = text_hash(json.dumps(parsed, sort_keys=True))
     return diagnostic
