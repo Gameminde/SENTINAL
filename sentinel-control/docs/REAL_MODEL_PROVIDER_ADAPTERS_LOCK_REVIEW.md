@@ -1,5 +1,30 @@
 # Real Model Provider Adapters Lock Review
 
+## Supersession Note - 2026-05-18
+
+This review is a historical Pack B provider-adapter lock review. It remains
+accurate for the provider-adapter layer at the time it was written, but later
+commits wired and validated runtime model execution:
+
+```text
+runtime_wiring_commit = 76ad92e runtime: wire model execution coordinator into agent runtime
+real_runtime_validation_commit = 9647993 test: validate real runtime model execution
+provider_catalog_commit = 7f0ddcb runtime: add model provider catalog
+openai_compatible_base_commit = 4052be9 runtime: harden openai-compatible provider base
+```
+
+Current truth:
+
+```text
+REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq provider evidence
+RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
+MODEL_EXECUTION_BUDGET_GOVERNANCE = OPEN
+PRODUCTION_PROVIDER_ROUTING = OPEN
+```
+
+Any statement below saying runtime model execution was not yet wired should be
+read as a historical pre-Wave-9 snapshot.
+
 Review date: 2026-05-18
 
 ## Accepted Commit

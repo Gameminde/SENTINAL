@@ -1,5 +1,46 @@
 # Design Document - Sentinel Real Model Execution Backend
 
+## Current Implementation Status Overlay - 2026-05-18
+
+This design mirror began as the docs-only plan for the first sanctioned real
+model execution backend. The implementation has since advanced through Pack A,
+Pack B, Wave 9, provider catalog, and OpenAI-compatible base hardening.
+
+```text
+runtime_model_execution = WIRED
+runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
+provider_catalog = IMPLEMENTED
+openai_compatible_base = HARDENED
+provider_expansion_immediate = NO-GO
+next_technical_pack = sentinel-model-execution-contract-hardening
+```
+
+Validated chain:
+
+```text
+AgentRuntime.run
+-> ModelCallPlan
+-> ModelExecutionCoordinator
+-> Groq provider adapter
+-> ProviderModelResponse
+-> LLMDecisionResult
+-> safe receipt metadata
+-> FinalGate-certified AgentRunResult
+```
+
+Still open:
+
+```text
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER
+MODEL_EXECUTION_BUDGET_GOVERNANCE
+PRODUCTION_PROVIDER_ROUTING
+```
+
+The historical design below remains useful context, but any statement that
+model execution is not wired is superseded by this overlay and
+`sentinel-control/docs/CURRENT_STATE_LOCK.md`.
+
 ## Overview
 
 This design extends the locked LLM-backed decision-cycle seam from planning to

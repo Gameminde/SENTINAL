@@ -1,6 +1,162 @@
 # Current State Lock
 
-## Real Model Provider Adapter Layer - LOCKED
+## Sentinel State Truth Repair - LOCKED
+
+Recorded at: 2026-05-18
+
+Branch: `main`
+
+This section supersedes older model-execution status language below that said
+runtime model execution was not wired or still awaiting Wave 9. Those statements
+are now historical snapshots only.
+
+```text
+current_phase = SENTINEL_STATE_TRUTH_REPAIRED
+previous_phase = REAL_MODEL_PROVIDER_ADAPTERS_LOCKED
+next_technical_pack = sentinel-model-execution-contract-hardening
+
+llm_seam_commit = 6861ed4 runtime: lock llm decision cycle seam
+foundation_commit = bcb35d2 runtime: add real model execution foundation
+provider_adapter_commit = 187d251 runtime: add real model provider adapters
+runtime_wiring_commit = 76ad92e runtime: wire model execution coordinator into agent runtime
+real_runtime_validation_commit = 9647993 test: validate real runtime model execution
+provider_catalog_commit = 7f0ddcb runtime: add model provider catalog
+openai_compatible_base_commit = 4052be9 runtime: harden openai-compatible provider base
+deep_logic_audit_commit = 16b3ef2 docs: add deep Sentinel code logic audit
+predictive_premortem_commit = f80f561 docs: add Sentinel predictive premortem audit
+```
+
+### Actual Implemented State
+
+```text
+runtime_model_execution = WIRED
+runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
+provider_catalog = IMPLEMENTED
+openai_compatible_base = HARDENED
+provider_expansion_immediate = NO-GO
+fallback_routing = NOT_STARTED / NOT_APPROVED
+AUTO_model_routing = NOT_STARTED / NOT_APPROVED
+```
+
+Validated runtime path:
+
+```text
+AgentRuntime.run
+-> LLMDecisionFrame
+-> PromptRender
+-> ModelCallPlan
+-> ModelExecutionCoordinator
+-> Groq provider adapter
+-> ProviderModelResponse
+-> LLMDecisionResult
+-> safe model execution receipt metadata
+-> CoreFinalGate-certified AgentRunResult
+```
+
+Groq remains evidence provider only:
+
+```text
+provider_id = groq
+backend_id = groq_openai_compatible_chat
+model_id = openai/gpt-oss-20b
+runtime outcome = SUCCESS_VALIDATED
+LLMDecisionResult validation = passed
+receipt/redaction = passed
+fake success = no
+runtime hardcode = no
+```
+
+Diagnostic providers:
+
+```text
+OpenRouter = diagnostic-only; observed RATE_LIMIT / TIMEOUT / PROVIDER_ERROR; no success overclaim
+NVIDIA MiniMax = diagnostic-only; observed TIMEOUT; no success overclaim
+```
+
+### Deferral Handling
+
+Closed evidence:
+
+```text
+REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq provider evidence
+RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
+```
+
+Open:
+
+```text
+MODEL_EXECUTION_BUDGET_GOVERNANCE = OPEN
+PRODUCTION_PROVIDER_ROUTING = OPEN
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER = OPEN
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER = OPEN
+```
+
+Broad legacy deferral handling:
+
+```text
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = SPLIT / PARTIAL
+```
+
+The broad deferral is no longer accurate as a single binary flag. Provider
+adapter success and runtime model execution wiring are closed by evidence, but
+budget governance, production routing, and broader model-execution hardening
+remain open. If a consumer cannot represent split deferrals, keep the broad
+deferral marked open with this note attached.
+
+### Current Non-Goals And Boundaries
+
+```text
+Sentinel is not yet a full autonomous Mission OS.
+No broad browser/desktop/channel/API execution is enabled by default.
+No Brain live model society is implemented.
+No AUTO multi-model routing is implemented.
+No silent provider fallback is implemented.
+No provider-native tool/function execution is enabled.
+No P6U implementation started.
+No Brain/Science live implementation started.
+No provider key committed.
+.env remains ignored.
+No raw Bearer key committed.
+No raw prompt durable storage approved.
+No raw provider response durable storage approved.
+No raw reasoning_details durable storage approved.
+No tool/organ execution from model output.
+No authority expansion from model output.
+```
+
+### Immediate Next Technical Pack
+
+```text
+sentinel-model-execution-contract-hardening
+```
+
+Required focus:
+
+```text
+selected_provider_id / selected_backend_id become first-class user contract fields
+provider/backend/model identity must bind through frame, plan, request, registry, receipt, and result
+catalog status must constrain registry execution
+duplicate provider IDs must be rejected by execution registry
+provider profile evidence hashes must be normalized away from pre-squash local evidence markers
+LLMDecisionResult must recursively reject nested tool/organ/authority intent
+durable model result metadata must redact rationale/error/prompt echoes
+model evidence refs must bind to real decision-frame evidence
+action and mission model-budget deferrals must remain open until enforced
+```
+
+Known metadata caveat:
+
+```text
+sentinel/agent/model_execution/provider_profiles.py still contains success_commit="39888c1".
+That value is a pre-squash local evidence hash for the Groq provider-adapter pass.
+This docs-only repair does not modify production source; the next contract-hardening pack should normalize that metadata to the final evidence chain.
+```
+
+## Real Model Provider Adapter Layer - LOCKED (historical pre-Wave-9 snapshot)
+
+Status note: this section records the accepted Pack B provider-adapter lock as
+it existed before Wave 9 runtime wiring. The current state is the
+`Sentinel State Truth Repair - LOCKED` section above.
 
 Recorded at: 2026-05-18
 
@@ -55,13 +211,12 @@ observed = TIMEOUT
 success overclaim = no
 ```
 
-### Not Yet Proven
+### Historical Pre-Wave-9 Not-Yet-Proven Snapshot
 
 ```text
-runtime_model_execution = NOT_WIRED
-AgentRuntime.run real model execution wiring = OPEN
-FinalGate over real model execution result in runtime = OPEN
-production retry/rate-limit/fallback policy = OPEN
+At Pack B lock-review time, AgentRuntime.run model execution wiring had not yet landed.
+This is superseded by the Sentinel State Truth Repair section above.
+production retry/rate-limit/fallback policy = still open
 OpenRouter production readiness = OPEN
 NVIDIA MiniMax production readiness = OPEN
 ```
@@ -79,14 +234,13 @@ For model execution:
 
 ```text
 REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq evidence
-RUNTIME_MODEL_EXECUTION_WIRING = OPEN until Wave 9
-LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = OPEN
+RUNTIME_MODEL_EXECUTION_WIRING = later closed by Wave 9 evidence
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = later split / partial
 ```
 
 The current lock system still tracks the original broad
-`LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER`, so it remains open. Groq is
-accepted as lock-candidate evidence for the provider adapter layer, but full
-runtime model execution remains deferred until Wave 9.
+`LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER`. This historical note is superseded
+by the split deferral handling in the Sentinel State Truth Repair section.
 
 ### Safety Confirmation
 

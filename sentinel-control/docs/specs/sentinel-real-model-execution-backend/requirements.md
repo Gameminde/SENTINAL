@@ -1,5 +1,38 @@
 # Requirements Document - Sentinel Real Model Execution Backend
 
+## Current Implementation Status Overlay - 2026-05-18
+
+This tracked mirror preserves the original spec text below, but the current
+repository truth is newer than the original docs-only creation task.
+
+```text
+runtime_model_execution = WIRED
+runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
+provider_catalog = IMPLEMENTED
+openai_compatible_base = HARDENED
+provider_expansion_immediate = NO-GO
+next_technical_pack = sentinel-model-execution-contract-hardening
+```
+
+Closed evidence:
+
+```text
+REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq provider evidence
+RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
+```
+
+Open:
+
+```text
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER
+MODEL_EXECUTION_BUDGET_GOVERNANCE
+PRODUCTION_PROVIDER_ROUTING
+```
+
+The pre-squash evidence hashes in the historical text below are retained as
+historical local evidence, not current commit anchors.
+
 ## Introduction
 
 This specification follows the locked `sentinel-llm-backed-decision-cycle`

@@ -1,5 +1,41 @@
 # Implementation Plan: Sentinel Real Model Execution Backend
 
+## Current Implementation Status Overlay - 2026-05-18
+
+This task list is retained as historical planning context. The actual repository
+state now includes the foundation, provider adapters, runtime wiring, real
+runtime validation, provider catalog, and OpenAI-compatible base hardening.
+
+```text
+foundation_commit = bcb35d2 runtime: add real model execution foundation
+provider_adapter_commit = 187d251 runtime: add real model provider adapters
+runtime_wiring_commit = 76ad92e runtime: wire model execution coordinator into agent runtime
+real_runtime_validation_commit = 9647993 test: validate real runtime model execution
+provider_catalog_commit = 7f0ddcb runtime: add model provider catalog
+openai_compatible_base_commit = 4052be9 runtime: harden openai-compatible provider base
+```
+
+Current truth:
+
+```text
+runtime_model_execution = WIRED
+runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
+provider_expansion_immediate = NO-GO
+next_technical_pack = sentinel-model-execution-contract-hardening
+```
+
+Open:
+
+```text
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER
+MODEL_EXECUTION_BUDGET_GOVERNANCE
+PRODUCTION_PROVIDER_ROUTING
+```
+
+Do not use unchecked historical items below as current state. Use
+`CURRENT_STATE_LOCK.md` for current phase truth.
+
 ## Overview
 
 This plan is for a future implementation pass. The current task creates this

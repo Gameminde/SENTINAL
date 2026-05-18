@@ -1,5 +1,40 @@
 # Real Model Execution Backend Implementation Log
 
+## Current Status Overlay - 2026-05-18
+
+This log preserves Pack A/B diagnostic history. Later commits have advanced the
+system beyond the older "runtime wiring remains out of scope" statements:
+
+```text
+runtime_wiring_commit = 76ad92e runtime: wire model execution coordinator into agent runtime
+real_runtime_validation_commit = 9647993 test: validate real runtime model execution
+provider_catalog_commit = 7f0ddcb runtime: add model provider catalog
+openai_compatible_base_commit = 4052be9 runtime: harden openai-compatible provider base
+```
+
+Current truth:
+
+```text
+REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq provider evidence
+RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
+runtime_model_execution = WIRED
+runtime_real_provider_validation = SUCCESS_VALIDATED through AgentRuntime.run
+provider_expansion_immediate = NO-GO
+next_technical_pack = sentinel-model-execution-contract-hardening
+```
+
+Still open:
+
+```text
+P-C-RUNTIME-01-ACTIONBUDGET-DEFER
+P-C-RUNTIME-01-MISSIONBUDGET-DEFER
+MODEL_EXECUTION_BUDGET_GOVERNANCE
+PRODUCTION_PROVIDER_ROUTING
+```
+
+Historical notes below that say runtime wiring is out of scope are accurate for
+their original pack, but no longer describe the current repository state.
+
 ## Pack A Status
 
 `real_model_execution_backend_foundation = STRUCTURAL_READY`

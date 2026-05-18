@@ -24,14 +24,15 @@ Current public GitHub checkpoint:
 ```text
 remote = https://github.com/Gameminde/SENTINAL
 branch = main
-latest local tip before push = 0c8d6ba docs: lock real model provider adapter state
+latest state evidence before this repair = f80f561 docs: add Sentinel predictive premortem audit
 ```
 
 Current state lock:
 
 ```text
-current_phase = REAL_MODEL_PROVIDER_ADAPTERS_LOCKED
-previous_phase = SENTINEL_LLM_BACKED_DECISION_CYCLE_LOCKED
+current_phase = SENTINEL_STATE_TRUTH_REPAIRED
+previous_phase = REAL_MODEL_PROVIDER_ADAPTERS_LOCKED
+next_technical_pack = sentinel-model-execution-contract-hardening
 ```
 
 Important current truth:
@@ -47,7 +48,11 @@ Context cache runtime closure = LOCKED
 LLM decision-cycle seam = LOCKED
 Real model execution foundation = STRUCTURAL_READY
 Real model provider adapter layer = LOCKED
-Runtime model execution wiring = NOT_WIRED
+Runtime model execution wiring = WIRED
+Runtime real-provider validation = SUCCESS_VALIDATED through AgentRuntime.run
+Provider catalog = IMPLEMENTED
+OpenAI-compatible provider base = HARDENED
+Provider expansion immediate = NO-GO
 ```
 
 Phase F now provides deterministic local golden mission runners,
@@ -74,6 +79,19 @@ LLMDecisionResult ->
 safe receipt/redaction
 ```
 
+Runtime model execution is now validated through:
+
+```text
+AgentRuntime.run
+-> ModelCallPlan
+-> ModelExecutionCoordinator
+-> Groq provider adapter
+-> ProviderModelResponse
+-> LLMDecisionResult
+-> safe receipt metadata
+-> FinalGate-certified AgentRunResult
+```
+
 Accepted provider evidence:
 
 ```text
@@ -96,11 +114,12 @@ NVIDIA MiniMax = TIMEOUT observed; no success overclaim
 What is not yet proven:
 
 ```text
-AgentRuntime.run real model execution wiring = OPEN
-FinalGate over real model execution result in runtime = OPEN
 production retry/rate-limit/fallback policy = OPEN
 OpenRouter production readiness = OPEN
 NVIDIA MiniMax production readiness = OPEN
+MODEL_EXECUTION_BUDGET_GOVERNANCE = OPEN
+PRODUCTION_PROVIDER_ROUTING = OPEN
+AUTO multi-model routing = NOT_STARTED / NOT_APPROVED
 ```
 
 P6U and Brain/Science work have not started.
@@ -181,13 +200,19 @@ P-C-RUNTIME-01
 P-D-RUNTIME-01
 P-D-BATCH-01
 P-D-BROWSER-01
-P-F-RUNNER-01
-P-F-CI-01
 P-C-RUNTIME-01-ACTIONBUDGET-DEFER
 P-C-RUNTIME-01-MISSIONBUDGET-DEFER
-RUNTIME_MODEL_EXECUTION_WIRING
-LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER remains open at the broad lock-system level
+REAL_PROVIDER_ADAPTER_SUCCESS = CLOSED by Groq provider evidence
+RUNTIME_MODEL_EXECUTION_WIRING = CLOSED by Wave 9 runtime validation
+MODEL_EXECUTION_BUDGET_GOVERNANCE = OPEN
+PRODUCTION_PROVIDER_ROUTING = OPEN
+LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER = SPLIT / PARTIAL
 ```
+
+If an older consumer cannot represent split deferrals, keep the old broad
+`LLM-DECISION-CYCLE-MODEL-EXECUTION-DEFER` open with the attached note that
+provider adapter success and runtime wiring are closed, while budget governance
+and production routing remain open.
 
 Core governance rule:
 
