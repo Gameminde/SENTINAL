@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from sentinel.agent.model_contract import (
@@ -11,12 +12,17 @@ from sentinel.agent.model_contract import (
 )
 from sentinel.agent.model_cost import ModelCostProfile
 from sentinel.agent.model_execution import (
+    EnvironmentCredentialResolver,
     LLMDecisionResult,
+    ModelExecutionCoordinator,
     ModelExecutionOutcome,
     ModelExecutionOutcomeClass,
+    ModelProviderRegistry,
+    ModelTimeoutPolicy,
     RealModelRequest,
     build_model_execution_receipt,
 )
+from sentinel.agent.model_execution.groq import GROQ_DEFAULT_MODEL_ID, GroqChatCompletionsProvider
 from sentinel.agent.runtime import AgentRuntime
 from sentinel.mission import MissionAuthorityEnvelope
 from sentinel.perf.caches.model_call_optimizer import ModelCallOptimizer
@@ -236,3 +242,80 @@ def test_model_output_cannot_execute_tools_or_organs_and_final_gate_still_runs(t
     assert result.controlled_capability_results == []
     assert result.final_gate_certification is not None
     assert result.final_gate_certification.accepted is True
+
+
+def test_runtime_real_groq_provider_success_validated_skip_safe(tmp_path: Path) -> None:
+    if not _ensure_groq_key_loaded_from_process_or_dotenv():
+        import pytest
+
+        pytest.skip("GROQ_API_KEY absent from process env and ignored .env; skipping real runtime model call")
+
+    contract = user_model_contract(GROQ_DEFAULT_MODEL_ID).model_copy(
+        update={
+            "context_budget_policy": ContextBudgetPolicy(
+                max_decision_frame_tokens=2_000,
+                max_tool_schema_tokens=250,
+                max_evidence_tokens=1_000,
+                reserve_output_tokens=800,
+            )
+        }
+    )
+    registry = ModelProviderRegistry()
+    registry.register(GroqChatCompletionsProvider())
+    coordinator = ModelExecutionCoordinator(
+        registry=registry,
+        credential_resolver=EnvironmentCredentialResolver({"groq": {"env_var": "GROQ_API_KEY", "scopes": ["model:read"]}}),
+        timeout_policy=ModelTimeoutPolicy(
+            connect_timeout_seconds=5.0,
+            read_timeout_seconds=60.0,
+            total_timeout_seconds=90.0,
+        ),
+    )
+
+    result = _runtime(
+        tmp_path,
+        contract=contract,
+        optimizer=ModelCallOptimizer(default_model_id=contract.selected_model, default_backend="groq"),
+        coordinator=coordinator,
+    ).run(envelope(), {"idea": "Return a safe compact GTM decision only."}, evidence_refs=["ev_direct"])
+
+    cycle = result.llm_decision_cycle
+    assert cycle is not None
+    model_execution = cycle["model_execution"]
+    assert model_execution["enabled"] is True
+    assert model_execution["provider_called"] is True
+    assert model_execution["success"] is True
+    assert model_execution["outcome_class"] == ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value
+    assert model_execution["request"]["provider_id"] == "groq"
+    assert model_execution["request"]["model_id"] == GROQ_DEFAULT_MODEL_ID
+    assert model_execution["result"]["model_id"] == GROQ_DEFAULT_MODEL_ID
+    assert model_execution["result"]["outcome_class"] == ModelExecutionOutcomeClass.SUCCESS_VALIDATED.value
+    assert model_execution["result"]["authority_expansion"] is False
+    assert model_execution["result"]["tool_execution_requested"] is False
+    assert model_execution["result"]["organ_execution_requested"] is False
+    assert result.controlled_capability_results == []
+    assert result.final_gate_certification is not None
+    assert result.final_gate_certification.accepted is True
+
+    dumped = json.dumps(cycle, sort_keys=True)
+    assert os.environ["GROQ_API_KEY"] not in dumped
+    assert "prompt_text_in_memory_only" not in dumped
+    assert "reasoning_details" not in dumped
+    assert "raw_text" not in dumped
+
+
+def _ensure_groq_key_loaded_from_process_or_dotenv() -> bool:
+    if os.environ.get("GROQ_API_KEY"):
+        return True
+    dotenv = Path(".env")
+    if not dotenv.exists():
+        return False
+    for line in dotenv.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        name, value = stripped.split("=", 1)
+        if name.strip() == "GROQ_API_KEY" and value.strip():
+            os.environ["GROQ_API_KEY"] = value.strip().strip('"').strip("'")
+            return True
+    return False
