@@ -261,6 +261,7 @@ class MemoryBridgeInput(SentinelModel):
     invented_evidence_refs: list[str] = Field(default_factory=list)
     contradictions: list[dict[str, Any]] = Field(default_factory=list)
     blocked_intents: list[str] = Field(default_factory=list)
+    user_review_required: list[str] = Field(default_factory=list)
     self_improvement_candidates: list[dict[str, Any]] = Field(default_factory=list)
     current_time: datetime = Field(default_factory=utc_now)
 
@@ -563,6 +564,16 @@ def _signals_from_bridge_input(bridge_input: MemoryBridgeInput) -> list[SafeFeed
                 f"Blocked intent preserved: {blocked}.",
                 severity=FeedbackSignalSeverity.ERROR,
                 source_id=str(blocked),
+            )
+        )
+    for review_ref in bridge_input.user_review_required:
+        feedback.append(
+            _signal(
+                bridge_input,
+                FeedbackSignalKind.USER_REVIEW_REQUIRED,
+                f"User review required before any future execution: {review_ref}.",
+                severity=FeedbackSignalSeverity.WARNING,
+                source_id=str(review_ref),
             )
         )
     for candidate in bridge_input.self_improvement_candidates:

@@ -7,6 +7,13 @@ from pydantic import Field
 from pydantic import ValidationError
 
 from sentinel.agent.llm.evidence_verifier import EvidenceBindingVerdict, EvidenceVerifier
+from sentinel.agent.llm.memory_bridge import (
+    LivingMissionMemorySnapshot,
+    MemoryBridgeInput,
+    MemoryBridgeResult,
+    RoleLoopMemoryBridge,
+    SafeFeedbackSignal,
+)
 from sentinel.agent.llm.proposals import ProposalArtifactValidator, coerce_proposal_artifact
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution import ModelExecutionBudgetLedger, ModelExecutionBudgetPolicy
@@ -218,9 +225,19 @@ class LLMRoleLoopResult(SentinelModel):
     final_packet: dict[str, Any] = Field(default_factory=dict)
     proposal_artifacts: list[dict[str, Any]] = Field(default_factory=list)
     action_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    memory_bridge_result: MemoryBridgeResult | None = None
+    living_memory_snapshot: LivingMissionMemorySnapshot | None = None
+    feedback_signals: list[SafeFeedbackSignal] = Field(default_factory=list)
+    memory_entry_refs: list[str] = Field(default_factory=list)
     blocked_role_id: LLMRoleId | None = None
     blocked_reason: str | None = None
     loopback_count: int = 0
+    authority_effect: str = "none"
+    execution_effect: str = "none"
+    can_grant_authority: bool = False
+    can_approve_execution: bool = False
+    can_create_delegated_lane: bool = False
+    can_override_provider_model: bool = False
 
 
 class LLMRoleModelClient(Protocol):
@@ -235,10 +252,12 @@ class LLMRoleLoopOrchestrator:
         role_model_client: LLMRoleModelClient,
         role_contracts: dict[LLMRoleId, LLMRoleContract] | None = None,
         budget_ledger: ModelExecutionBudgetLedger | None = None,
+        memory_bridge: RoleLoopMemoryBridge | None = None,
     ) -> None:
         self._role_model_client = role_model_client
         self._role_contracts = role_contracts or build_default_llm_role_contracts()
         self._budget_ledger = budget_ledger
+        self._memory_bridge = memory_bridge
 
     def run(self, plan: LLMRoleLoopPlan) -> LLMRoleLoopResult:
         ledger = self._budget_ledger or ModelExecutionBudgetLedger(mission_id=plan.mission_id)
@@ -281,6 +300,7 @@ class LLMRoleLoopOrchestrator:
                     blocked_role_id=role_id,
                     blocked_reason=override_reason,
                     loopback_count=loopback_count,
+                    memory_bridge=self._memory_bridge,
                 )
 
             request = self._role_budget_request(plan=plan, role_id=role_id, prompt_hash=prompt_hash)
@@ -317,6 +337,7 @@ class LLMRoleLoopOrchestrator:
                     blocked_role_id=role_id,
                     blocked_reason=budget_decision.decision,
                     loopback_count=loopback_count,
+                    memory_bridge=self._memory_bridge,
                 )
 
             frame = LLMRoleInputFrame(
@@ -392,6 +413,7 @@ class LLMRoleLoopOrchestrator:
                     blocked_role_id=role_id,
                     blocked_reason=validation_status,
                     loopback_count=loopback_count,
+                    memory_bridge=self._memory_bridge,
                 )
 
             accepted_output = output.model_copy(update={"validation_status": validation_status})
@@ -408,6 +430,7 @@ class LLMRoleLoopOrchestrator:
             proposal_artifacts=proposal_artifacts,
             action_candidates=action_candidates,
             loopback_count=loopback_count,
+            memory_bridge=self._memory_bridge,
         )
 
     def _role_prompt_hash(self, *, plan: LLMRoleLoopPlan, role_id: LLMRoleId) -> str:
@@ -752,25 +775,287 @@ def _result(
     blocked_role_id: LLMRoleId | None = None,
     blocked_reason: str | None = None,
     loopback_count: int = 0,
+    memory_bridge: RoleLoopMemoryBridge | None = None,
 ) -> LLMRoleLoopResult:
+    safe_proposal_artifacts = sanitize_metadata(proposal_artifacts)
+    safe_action_candidates = sanitize_metadata(action_candidates)
+    final_packet = _final_packet(
+        role_outputs=role_outputs,
+        proposal_artifacts=safe_proposal_artifacts,
+        action_candidates=safe_action_candidates,
+        available_evidence_refs=plan.available_evidence_refs,
+    )
+    memory_bridge_result = _build_memory_bridge_result(
+        memory_bridge=memory_bridge,
+        plan=plan,
+        status=status,
+        role_outputs=role_outputs,
+        receipts=receipts,
+        budget_summary=budget_summary,
+        final_packet=final_packet,
+        proposal_artifacts=safe_proposal_artifacts,
+        action_candidates=safe_action_candidates,
+        blocked_reason=blocked_reason,
+    )
     return LLMRoleLoopResult(
         mission_id=plan.mission_id,
         status=status,
         role_outputs=role_outputs,
         receipts=receipts,
         budget_summary=budget_summary,
-        final_packet=_final_packet(
-            role_outputs=role_outputs,
-            proposal_artifacts=proposal_artifacts,
-            action_candidates=action_candidates,
-            available_evidence_refs=plan.available_evidence_refs,
-        ),
-        proposal_artifacts=sanitize_metadata(proposal_artifacts),
-        action_candidates=sanitize_metadata(action_candidates),
+        final_packet=final_packet,
+        proposal_artifacts=safe_proposal_artifacts,
+        action_candidates=safe_action_candidates,
+        memory_bridge_result=memory_bridge_result,
+        living_memory_snapshot=memory_bridge_result.snapshot if memory_bridge_result is not None else None,
+        feedback_signals=memory_bridge_result.feedback_signals if memory_bridge_result is not None else [],
+        memory_entry_refs=[
+            entry.memory_id for entry in memory_bridge_result.memory_entries
+        ]
+        if memory_bridge_result is not None
+        else [],
         blocked_role_id=blocked_role_id,
         blocked_reason=blocked_reason,
         loopback_count=loopback_count,
     )
+
+
+def _build_memory_bridge_result(
+    *,
+    memory_bridge: RoleLoopMemoryBridge | None,
+    plan: LLMRoleLoopPlan,
+    status: RoleLoopStatus,
+    role_outputs: list[LLMRoleOutput],
+    receipts: list[RoleLoopReceipt],
+    budget_summary: RoleLoopBudgetSummary,
+    final_packet: dict[str, Any],
+    proposal_artifacts: list[dict[str, Any]],
+    action_candidates: list[dict[str, Any]],
+    blocked_reason: str | None,
+) -> MemoryBridgeResult | None:
+    if memory_bridge is None:
+        return None
+    bridge_input = _memory_bridge_input(
+        plan=plan,
+        status=status,
+        role_outputs=role_outputs,
+        receipts=receipts,
+        budget_summary=budget_summary,
+        final_packet=final_packet,
+        proposal_artifacts=proposal_artifacts,
+        action_candidates=action_candidates,
+        blocked_reason=blocked_reason,
+    )
+    return memory_bridge.build(bridge_input)
+
+
+def _memory_bridge_input(
+    *,
+    plan: LLMRoleLoopPlan,
+    status: RoleLoopStatus,
+    role_outputs: list[LLMRoleOutput],
+    receipts: list[RoleLoopReceipt],
+    budget_summary: RoleLoopBudgetSummary,
+    final_packet: dict[str, Any],
+    proposal_artifacts: list[dict[str, Any]],
+    action_candidates: list[dict[str, Any]],
+    blocked_reason: str | None,
+) -> MemoryBridgeInput:
+    structured_artifacts = [artifact for artifact in [*proposal_artifacts, *action_candidates] if isinstance(artifact, dict)]
+    evidence_summary = final_packet.get("evidence_verification_summary", {})
+    missing_evidence = _memory_missing_evidence(final_packet=final_packet, blocked_reason=blocked_reason)
+    invented_refs = _memory_invented_refs(evidence_summary=evidence_summary, blocked_reason=blocked_reason)
+    contradictions = _memory_contradictions(role_outputs=role_outputs, evidence_summary=evidence_summary)
+    blocked_intents = _memory_blocked_intents(blocked_reason)
+    memory_items: list[dict[str, Any]] = []
+    if status is RoleLoopStatus.COMPLETED:
+        memory_items.extend(_receipt_memory_items(plan=plan, receipts=receipts))
+        memory_items.extend(_role_output_memory_items(plan=plan, role_outputs=role_outputs, receipts=receipts))
+        memory_items.extend(_proposal_memory_items(plan=plan, structured_artifacts=structured_artifacts))
+
+    return MemoryBridgeInput(
+        mission_id=plan.mission_id,
+        loop_id=plan.id,
+        memory_items=memory_items,
+        role_loop_receipts=[
+            sanitize_metadata(receipt.model_dump(mode="json", exclude={"prompt_hash"}))
+            for receipt in receipts
+        ],
+        proposal_receipts=_proposal_receipts(plan=plan, structured_artifacts=structured_artifacts),
+        evidence_verification_results=[evidence_summary] if evidence_summary else [],
+        final_packet=sanitize_metadata(final_packet),
+        budget_summaries=[budget_summary.model_dump(mode="json")],
+        risk_flags=[str(flag) for flag in final_packet.get("risk_flags", [])],
+        unresolved_objections=[str(item) for item in final_packet.get("unresolved_objections", [])],
+        missing_evidence=missing_evidence,
+        invented_evidence_refs=invented_refs,
+        contradictions=contradictions,
+        blocked_intents=blocked_intents,
+        user_review_required=_memory_user_review_required(structured_artifacts),
+        self_improvement_candidates=_memory_self_improvement_candidates(structured_artifacts),
+    )
+
+
+def _receipt_memory_items(*, plan: LLMRoleLoopPlan, receipts: list[RoleLoopReceipt]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for receipt in receipts:
+        items.append(
+            {
+                "mission_id": plan.mission_id,
+                "source_class": "receipt",
+                "source_id": receipt.id,
+                "source_lineage_id": receipt.receipt_hash,
+                "source_scope": plan.mission_id,
+                "validity_scope": plan.mission_id,
+                "claim_status": "OBSERVED",
+                "confidence": 0.55,
+                "variance": 0.35,
+                "evidence_refs": list(receipt.evidence_refs),
+                "receipt_refs": [receipt.id],
+                "safe_summary": f"Observed role-loop receipt for {receipt.role_id.value}.",
+            }
+        )
+    return items
+
+
+def _role_output_memory_items(
+    *,
+    plan: LLMRoleLoopPlan,
+    role_outputs: list[LLMRoleOutput],
+    receipts: list[RoleLoopReceipt],
+) -> list[dict[str, Any]]:
+    receipt_by_role = {receipt.role_id: receipt.id for receipt in receipts}
+    items: list[dict[str, Any]] = []
+    for output in role_outputs:
+        items.append(
+            {
+                "mission_id": plan.mission_id,
+                "source_class": "role_output",
+                "source_id": output.id,
+                "source_lineage_id": f"role_output:{output.role_id.value}",
+                "source_scope": plan.mission_id,
+                "validity_scope": plan.mission_id,
+                "claim_status": "SUPPORTED",
+                "confidence": 0.45,
+                "variance": 0.45,
+                "evidence_refs": list(output.evidence_refs),
+                "receipt_refs": [receipt_by_role[output.role_id]] if output.role_id in receipt_by_role else [],
+                "uncertainty": list(output.uncertainty),
+                "safe_summary": f"Role output witness for {output.role_id.value}; evidence remains independently verified.",
+            }
+        )
+    return items
+
+
+def _proposal_memory_items(*, plan: LLMRoleLoopPlan, structured_artifacts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for artifact in structured_artifacts:
+        proposal_id = str(artifact.get("proposal_id") or artifact.get("candidate_id") or stable_hash(artifact)[:16])
+        items.append(
+            {
+                "mission_id": plan.mission_id,
+                "source_class": "proposal_artifact",
+                "source_id": proposal_id,
+                "source_lineage_id": f"proposal:{proposal_id}",
+                "source_scope": plan.mission_id,
+                "validity_scope": plan.mission_id,
+                "claim_status": "CLAIMED",
+                "confidence": 0.4,
+                "variance": 0.5,
+                "evidence_refs": [str(ref) for ref in artifact.get("evidence_refs", [])],
+                "receipt_refs": [str(ref) for ref in artifact.get("receipt_refs", [])],
+                "uncertainty": [str(item) for item in artifact.get("uncertainty", [])],
+                "safe_summary": str(artifact.get("safe_summary") or artifact.get("objective_summary") or "Proposal artifact witness."),
+            }
+        )
+    return items
+
+
+def _proposal_receipts(*, plan: LLMRoleLoopPlan, structured_artifacts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    receipts: list[dict[str, Any]] = []
+    for artifact in structured_artifacts:
+        proposal_id = str(artifact.get("proposal_id") or artifact.get("candidate_id") or stable_hash(artifact)[:16])
+        payload = sanitize_metadata(
+            {
+                "proposal_id": proposal_id,
+                "mission_id": plan.mission_id,
+                "artifact_kind": artifact.get("artifact_kind"),
+                "source_role_id": artifact.get("source_role_id"),
+                "proposal_hash": stable_hash(artifact),
+                "evidence_refs": artifact.get("evidence_refs", []),
+                "receipt_refs": artifact.get("receipt_refs", []),
+                "budget_estimate": artifact.get("budget_estimate", {}),
+                "risk_class": artifact.get("risk_class"),
+                "action_level_candidate": artifact.get("action_level_candidate"),
+                "user_review_required": bool(artifact.get("user_review_required", False)),
+                "validation_status": "accepted",
+            }
+        )
+        receipts.append(payload)
+    return receipts
+
+
+def _memory_missing_evidence(*, final_packet: dict[str, Any], blocked_reason: str | None) -> list[str]:
+    missing = [str(item) for item in final_packet.get("missing_evidence", []) if item]
+    if blocked_reason in {"proposal_missing_evidence", "verifier_missing_evidence"}:
+        missing.append(blocked_reason)
+    return _dedupe(missing)
+
+
+def _memory_invented_refs(*, evidence_summary: dict[str, Any], blocked_reason: str | None) -> list[str]:
+    invented = [str(ref) for ref in evidence_summary.get("invented_evidence_refs", []) if ref]
+    if blocked_reason == "invented_evidence_refs":
+        invented.append(blocked_reason)
+    return _dedupe(invented)
+
+
+def _memory_contradictions(
+    *,
+    role_outputs: list[LLMRoleOutput],
+    evidence_summary: dict[str, Any],
+) -> list[dict[str, Any]]:
+    contradictions: list[dict[str, Any]] = []
+    summary_contradictions = evidence_summary.get("contradictions", [])
+    if isinstance(summary_contradictions, list):
+        contradictions.extend(item for item in summary_contradictions if isinstance(item, dict))
+    for output in role_outputs:
+        role_contradictions = output.content.get("contradictions")
+        if isinstance(role_contradictions, list):
+            contradictions.extend(item for item in role_contradictions if isinstance(item, dict))
+    return sanitize_metadata(contradictions)
+
+
+def _memory_blocked_intents(blocked_reason: str | None) -> list[str]:
+    if blocked_reason is None:
+        return []
+    lowered = blocked_reason.lower()
+    indicators = {
+        "forbidden",
+        "override",
+        "approve_execution",
+        "cannot",
+        "must_remain",
+        "blocked",
+        "authority",
+        "execution",
+    }
+    return [blocked_reason] if any(indicator in lowered for indicator in indicators) else []
+
+
+def _memory_user_review_required(structured_artifacts: list[dict[str, Any]]) -> list[str]:
+    refs: list[str] = []
+    for artifact in structured_artifacts:
+        if bool(artifact.get("user_review_required")):
+            refs.append(str(artifact.get("proposal_id") or artifact.get("candidate_id") or "proposal"))
+    return _dedupe(refs)
+
+
+def _memory_self_improvement_candidates(structured_artifacts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    candidates: list[dict[str, Any]] = []
+    for artifact in structured_artifacts:
+        if str(artifact.get("artifact_kind", "")).lower() == "self_improvement":
+            candidates.append(sanitize_metadata(artifact))
+    return candidates
 
 
 def _final_packet(
