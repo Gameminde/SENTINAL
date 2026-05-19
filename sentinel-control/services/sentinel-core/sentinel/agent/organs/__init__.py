@@ -1,9 +1,32 @@
-"""Safe organ proposal contracts.
+"""Safe organ proposal and gate contracts.
 
-Organ modules in this package describe future organ candidates. They do not
-execute actions or create delegated operational lanes.
+Organ modules in this package describe future organ candidates and gate
+metadata. They do not execute actions or create live delegated operational
+lanes.
 """
 
+from sentinel.agent.organs.delegated_action_gate import (
+    DelegatedActionAuthorityClass,
+    DelegatedActionBudgetSummary,
+    DelegatedActionBudgetStatus,
+    DelegatedActionEvidenceSummary,
+    DelegatedActionEvidenceStatus,
+    DelegatedActionGate,
+    DelegatedActionGateDecision,
+    DelegatedActionGateInput,
+    DelegatedActionGateReason,
+    DelegatedActionGateResult,
+    DelegatedActionGateSafetyValidationResult,
+    DelegatedActionGateStatus,
+    DelegatedActionGateTrace,
+    DelegatedActionLane,
+    DelegatedActionLaneStatus,
+    DelegatedActionOrganContractStatus,
+    DelegatedActionReceiptRequirement,
+    DelegatedActionRiskClass,
+    render_gate_result_as_untrusted_context,
+    validate_delegated_action_gate_payload,
+)
 from sentinel.agent.organs.proposal_bridge import (
     ApiOrganCandidate,
     BaseOrganCandidate,
@@ -33,6 +56,24 @@ __all__ = [
     "BrowserOrganCandidate",
     "ChannelDraftOrganCandidate",
     "CodePatchOrganCandidate",
+    "DelegatedActionAuthorityClass",
+    "DelegatedActionBudgetSummary",
+    "DelegatedActionBudgetStatus",
+    "DelegatedActionEvidenceSummary",
+    "DelegatedActionEvidenceStatus",
+    "DelegatedActionGate",
+    "DelegatedActionGateDecision",
+    "DelegatedActionGateInput",
+    "DelegatedActionGateReason",
+    "DelegatedActionGateResult",
+    "DelegatedActionGateSafetyValidationResult",
+    "DelegatedActionGateStatus",
+    "DelegatedActionGateTrace",
+    "DelegatedActionLane",
+    "DelegatedActionLaneStatus",
+    "DelegatedActionOrganContractStatus",
+    "DelegatedActionReceiptRequirement",
+    "DelegatedActionRiskClass",
     "FileOperationOrganCandidate",
     "OrganCandidateAuthorityClass",
     "OrganCandidateRiskClass",
@@ -46,6 +87,8 @@ __all__ = [
     "OrganProposalSafetyValidationResult",
     "ResearchOrganCandidate",
     "SelfImprovementOrganCandidate",
+    "render_gate_result_as_untrusted_context",
     "render_organ_candidates_as_untrusted_context",
+    "validate_delegated_action_gate_payload",
     "validate_organ_proposal_payload",
 ]
