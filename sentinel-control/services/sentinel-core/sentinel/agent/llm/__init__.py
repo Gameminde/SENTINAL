@@ -49,6 +49,19 @@ from sentinel.agent.llm.memory_bridge import (
     RoleLoopMemoryBridge,
     SafeFeedbackSignal,
 )
+from sentinel.agent.llm.memory_slots import (
+    HotContextSlot,
+    HotContextSlotBuildInput,
+    HotContextSlotBuildResult,
+    HotContextSlotBuilder,
+    HotContextSlotId,
+    HotContextSlotSafetyValidationResult,
+    HotContextSlotSet,
+    HotContextSlotSource,
+    HotContextSlotStatus,
+    render_slots_as_untrusted_context,
+    validate_hot_context_slot_payload,
+)
 from sentinel.agent.llm.proposals import (
     ApiRequestCandidate,
     BrowserStepCandidate,
@@ -123,6 +136,15 @@ __all__ = [
     "FeedbackSignalKind",
     "FeedbackSignalSeverity",
     "FileOperationCandidate",
+    "HotContextSlot",
+    "HotContextSlotBuildInput",
+    "HotContextSlotBuildResult",
+    "HotContextSlotBuilder",
+    "HotContextSlotId",
+    "HotContextSlotSafetyValidationResult",
+    "HotContextSlotSet",
+    "HotContextSlotSource",
+    "HotContextSlotStatus",
     "LLMReasoningOutput",
     "LLMRole",
     "LLMRoleContract",
@@ -162,4 +184,6 @@ __all__ = [
     "ToolIntentCompiler",
     "build_default_llm_role_contracts",
     "hash_context_pack_payload",
+    "render_slots_as_untrusted_context",
+    "validate_hot_context_slot_payload",
 ]
