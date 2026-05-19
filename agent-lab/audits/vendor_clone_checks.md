@@ -23,7 +23,7 @@ Notes:
 
 ## Current Status
 
-OpenClaw, Hermes Agent, OpenJarvis, JARVIS, and TradingAgents are approved for source clone only. No install or runtime execution is approved.
+OpenClaw, Hermes Agent, OpenJarvis, JARVIS, TradingAgents, and AgentMemory are approved for source clone only. No install or runtime execution is approved.
 
 ## OpenClaw
 
@@ -118,4 +118,23 @@ Sandbox directory: agent-lab/vendors/jarvis/source
 Known high-risk permissions: sidecar terminal/filesystem/desktop/browser/clipboard/screenshot, browser templates with send flows, daemon persistence, JWT sidecar enrollment
 Run decision: clone only
 Notes: Source-only audit for daemon, authority, approval, sidecar, desktop/browser awareness, and workflow mechanisms.
+```
+
+## AgentMemory
+
+```text
+Project: AgentMemory
+Repository: https://github.com/rohitg00/agentmemory
+Date checked: 2026-05-19
+Expected size: cloned shallow source only; commit 68fddd418e1bbcc41d32a1c61b7a78d91eb7c4dc
+Primary language/runtime: TypeScript/Node package with iii runtime integration, REST API, MCP server, viewer, hooks, provider integrations, local-first storage
+Dependency manager: package.json / npm
+Install commands reviewed: README npm/npx flows, MCP setup, Codex/OpenClaw/Hermes integrations, Docker/iii runtime notes
+Commands to avoid: npm install, npx @agentmemory/agentmemory, agentmemory server, agentmemory demo, agentmemory connect, agentmemory mcp, Docker compose, MCP client setup, viewer/server start, filesystem watcher, provider-backed graph/consolidation/compression, replay import from real histories
+Network required: yes for clone only; no runtime network approved
+Secrets required: none for static audit
+Sandbox directory: agent-lab/vendors/agentmemory/source
+Known high-risk permissions: persistent memory capture, raw prompt/tool/result observation, context injection, MCP/REST memory tools, local file compression/import, filesystem watcher, replay import, provider keys for graph/consolidation, broad host-agent integrations
+Run decision: clone only
+Notes: Source-only audit for Sentinel memory lab. Treat source as untrusted. Harvest mechanisms only; do not bridge AgentMemory runtime or copy vendor code into Sentinel.
 ```

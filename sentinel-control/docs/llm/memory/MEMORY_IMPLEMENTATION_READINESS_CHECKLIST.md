@@ -9,6 +9,24 @@ This checklist defines what must exist before implementing
 
 Until these checks are satisfied, memory implementation should remain blocked.
 
+## Agent Lab Reference
+
+The AgentMemory static audit is locked as a lab input for this checklist:
+
+- `agent-lab/audits/agentmemory_static_memory_audit.md`
+- `agent-lab/sentinel_integration_notes/agentmemory_to_sentinel.md`
+
+Sentinel should harvest AgentMemory's typed memory strata, observe-first
+pipeline, deterministic compression default, working-memory slots, hybrid
+retrieval roadmap, TTL/supersession/confidence/retention mechanics,
+replay/timeline/checkpoint model, and lessons/routines as proposal aids only.
+
+Sentinel must reject or rewrite AgentMemory patterns that conflict with the
+memory authority firewall: default-open auth, direct prompt injection, raw
+prompt/tool/provider-response persistence, arbitrary file APIs, LLM graph output
+as truth, destructive delete before tombstone/audit, and broad MCP/API memory
+surfaces.
+
 ## Recommended Implementation Scope
 
 Proceed with reduced Approach 2 only:

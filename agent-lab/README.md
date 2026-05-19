@@ -51,6 +51,7 @@ Checked on April 24, 2026:
 - Hermes Agent: https://github.com/nousresearch/hermes-agent
 - OpenJarvis: https://github.com/open-jarvis/OpenJarvis
 - JARVIS: https://github.com/vierisid/jarvis
+- AgentMemory: https://github.com/rohitg00/agentmemory
 - OpenClaw marketplace risk reference: https://www.theverge.com/news/874011/openclaw-ai-skill-clawhub-extensions-security-nightmare
 
 ## Layout
@@ -69,6 +70,7 @@ Checked on April 24, 2026:
 | Hermes Agent | none | Not cloned |
 | OpenJarvis | none | Not cloned |
 | JARVIS | none | Not cloned |
+| AgentMemory | `vendors/agentmemory/source`; ignored in fresh clones | Static memory audit completed from local source snapshot |
 
 ## OpenClaw Sprint B2 Artifacts
 
@@ -86,6 +88,12 @@ Checked on April 24, 2026:
 - `benchmarks/openclaw_fake_runtime/expected_results.json`
 - `benchmarks/openclaw_fake_runtime/benchmark_runner.py`
 - `benchmarks/openclaw_fake_runtime/reports/openclaw_fake_benchmark_report.md`
+
+## AgentMemory Memory Lab Artifacts
+
+- `vendors/agentmemory/README.md`
+- `audits/agentmemory_static_memory_audit.md`
+- `sentinel_integration_notes/agentmemory_to_sentinel.md`
 
 ## North Star
 

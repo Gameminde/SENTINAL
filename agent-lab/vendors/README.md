@@ -13,6 +13,7 @@ Vendor sources are cloned for static audit only. They are laboratory specimens, 
 | OpenJarvis | https://github.com/open-jarvis/OpenJarvis | local-first routing, cost/latency/energy evals | Cloned for static audit only |
 | JARVIS | https://github.com/vierisid/jarvis | daemon, sidecars, desktop awareness, workflow builder | Cloned for static audit only |
 | TradingAgents | https://github.com/TauricResearch/TradingAgents | multi-agent trading desk, debates, rating, vendor fallback, outcome memory | Cloned for static audit only |
+| AgentMemory | https://github.com/rohitg00/agentmemory | persistent agent memory, retrieval, replay, retention, slots, lessons, MCP/API memory surface | Cloned for static audit only |
 
 ## Clone Rule
 
