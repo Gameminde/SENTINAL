@@ -52,6 +52,12 @@ from sentinel.agent.model_execution import (
     RealModelRequestBuilder,
 )
 from sentinel.agent.models import AgentContext, AgentRunResult
+from sentinel.agent.organs.runtime_execution import (
+    OrganRuntimeExecutionConfig,
+    OrganRuntimeExecutionRequest,
+    OrganRuntimeExecutionResult,
+    execute_organ_runtime_request,
+)
 from sentinel.agent.phases import AgentPhase, can_transition
 from sentinel.agent.planner_bridge import PlannerBridge
 from sentinel.agent.prompt_budget import PromptBudgetAllocator
@@ -194,6 +200,7 @@ class AgentRuntime:
         # gates as a defense-in-depth chokepoint.
         async_organ_scheduler: AsyncOrganScheduler | None = None,
         backpressure_controller: BackpressureController | None = None,
+        organ_execution_config: OrganRuntimeExecutionConfig | None = None,
     ) -> None:
         self.identity = identity or default_agent_identity()
         self.project_root = Path(project_root or Path.cwd()).resolve()
@@ -221,6 +228,7 @@ class AgentRuntime:
         # because absence of injection IS the default off.
         self._async_organ_scheduler = async_organ_scheduler
         self._backpressure_controller = backpressure_controller
+        self._organ_execution_config = organ_execution_config or OrganRuntimeExecutionConfig()
         self.context_builder = ContextBuilder()
         self.context_compressor = ContextCompressor()
         self.cognitive_cycle = CognitiveCycle()
@@ -254,6 +262,20 @@ class AgentRuntime:
         self.browser_fetcher = browser_fetcher
         self.browser_interaction_backend = browser_interaction_backend
         self.browser_resolver = browser_resolver
+
+    def execute_organ_runtime_request(
+        self,
+        request: OrganRuntimeExecutionRequest | dict[str, Any],
+    ) -> OrganRuntimeExecutionResult:
+        """Execute explicitly opted-in L2/L3 local organ requests only.
+
+        This method is intentionally separate from :meth:`run`. Without an
+        injected ``OrganRuntimeExecutionConfig`` that enables
+        ``l2_l3_local_only``, it returns a safe blocked result and never calls
+        an executor.
+        """
+
+        return execute_organ_runtime_request(request, config=self._organ_execution_config)
 
     def _assert_memory_not_authority_boundary(
         self,

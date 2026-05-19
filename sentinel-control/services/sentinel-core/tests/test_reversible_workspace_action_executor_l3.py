@@ -25,6 +25,7 @@ from sentinel.agent.organs.reversible_workspace_executor import (
     L3WorkspaceResult,
     render_l3_execution_receipt_as_untrusted_context,
 )
+from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionMode
 from sentinel.agent.runtime import AgentRuntime
 from sentinel.agent.model_execution.redaction import text_hash
 
@@ -514,17 +515,17 @@ def test_l3_render_receipt_is_data_not_instruction(tmp_path: Path) -> None:
 
 
 def test_l3_does_not_change_agent_runtime_default_behavior() -> None:
-    params = signature(AgentRuntime).parameters
+    runtime = AgentRuntime()
 
-    assert "reversible_workspace_executor" not in params
-    assert "l3_reversible_workspace_executor" not in params
+    assert "organ_execution_config" in signature(AgentRuntime).parameters
+    assert runtime._organ_execution_config.enabled is False
+    assert runtime._organ_execution_config.mode is OrganRuntimeExecutionMode.DISABLED
 
 
-def test_l3_does_not_wire_any_executor_into_runtime() -> None:
-    runtime_text = (Path(__file__).parents[1] / "sentinel/agent/runtime.py").read_text(encoding="utf-8")
+def test_l3_runtime_wiring_is_explicit_opt_in_only() -> None:
+    runtime = AgentRuntime()
 
-    assert "reversible_workspace_executor" not in runtime_text
-    assert "L3ReversibleWorkspaceExecutor" not in runtime_text
+    assert runtime._organ_execution_config.enabled is False
 
 
 def test_l3_does_not_import_vendor_runtime() -> None:

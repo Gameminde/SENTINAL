@@ -25,6 +25,7 @@ from sentinel.agent.organs.local_artifact_executor import (
     L2LocalArtifactRollbackReceipt,
     render_l2_execution_receipt_as_untrusted_context,
 )
+from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionMode
 from sentinel.agent.organs.proposal_bridge import OrganProposalKind
 from sentinel.agent.runtime import AgentRuntime
 
@@ -383,17 +384,16 @@ def test_l2_render_receipt_is_data_not_instruction(tmp_path: Path) -> None:
 
 
 def test_l2_does_not_change_agent_runtime_default_behavior() -> None:
-    params = signature(AgentRuntime).parameters
+    runtime = AgentRuntime()
 
-    assert "local_artifact_executor" not in params
-    assert "l2_local_artifact_executor" not in params
+    assert "organ_execution_config" in signature(AgentRuntime).parameters
+    assert runtime._organ_execution_config.enabled is False
+    assert runtime._organ_execution_config.mode is OrganRuntimeExecutionMode.DISABLED
 
 
-def test_l2_does_not_wire_any_executor_into_runtime() -> None:
+def test_l2_runtime_wiring_is_explicit_opt_in_only() -> None:
     runtime_source = Path(AgentRuntime.__module__.replace(".", "/"))
     assert runtime_source.name == "runtime"
-    source = Path("sentinel/agent/runtime.py")
-    runtime_text = (Path(__file__).parents[1] / source).read_text(encoding="utf-8")
 
-    assert "local_artifact_executor" not in runtime_text
-    assert "L2LocalArtifactExecutor" not in runtime_text
+    runtime = AgentRuntime()
+    assert runtime._organ_execution_config.enabled is False
