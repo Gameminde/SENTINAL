@@ -4,7 +4,10 @@ from enum import StrEnum
 from typing import Any, Protocol
 
 from pydantic import Field
+from pydantic import ValidationError
 
+from sentinel.agent.llm.evidence_verifier import EvidenceBindingVerdict, EvidenceVerifier
+from sentinel.agent.llm.proposals import ProposalArtifactValidator, coerce_proposal_artifact
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution import ModelExecutionBudgetLedger, ModelExecutionBudgetPolicy
 from sentinel.agent.model_execution.models import ModelExecutionOutcomeClass, ProviderModelResponse, RealModelRequest
@@ -330,6 +333,17 @@ class LLMRoleLoopOrchestrator:
             )
             output = self._role_model_client.complete_role(frame)
             validation_status = _validate_role_output(output=output, plan=plan, role_id=role_id)
+            normalized_proposals: list[dict[str, Any]] = []
+            normalized_candidates: list[dict[str, Any]] = []
+            if validation_status == "accepted":
+                structured_result = _normalize_structured_artifacts(
+                    output=output,
+                    available_evidence_refs=plan.available_evidence_refs,
+                )
+                if structured_result.validation_status != "accepted":
+                    validation_status = structured_result.validation_status
+                normalized_proposals = structured_result.proposal_artifacts
+                normalized_candidates = structured_result.action_candidates
             output_hash = stable_hash(output.safe_hash_payload())
             response = ProviderModelResponse(
                 provider_id=selected_provider,
@@ -382,8 +396,8 @@ class LLMRoleLoopOrchestrator:
 
             accepted_output = output.model_copy(update={"validation_status": validation_status})
             role_outputs.append(accepted_output)
-            proposal_artifacts.extend(sanitize_metadata(output.proposal_artifacts))
-            action_candidates.extend(sanitize_metadata(output.action_candidates))
+            proposal_artifacts.extend(sanitize_metadata(normalized_proposals))
+            action_candidates.extend(sanitize_metadata(normalized_candidates))
 
         return _result(
             plan=plan,
@@ -570,6 +584,67 @@ def _validate_role_output(*, output: LLMRoleOutput, plan: LLMRoleLoopPlan, role_
     return "accepted"
 
 
+class _StructuredArtifactResult(SentinelModel):
+    validation_status: str = "accepted"
+    proposal_artifacts: list[dict[str, Any]] = Field(default_factory=list)
+    action_candidates: list[dict[str, Any]] = Field(default_factory=list)
+
+
+def _normalize_structured_artifacts(
+    *,
+    output: LLMRoleOutput,
+    available_evidence_refs: list[str],
+) -> _StructuredArtifactResult:
+    proposal_artifacts: list[dict[str, Any]] = []
+    action_candidates: list[dict[str, Any]] = []
+    for payload in output.proposal_artifacts:
+        normalized, validation_status = _normalize_one_artifact(
+            payload=payload,
+            available_evidence_refs=available_evidence_refs,
+        )
+        if validation_status != "accepted":
+            return _StructuredArtifactResult(validation_status=validation_status)
+        proposal_artifacts.append(normalized)
+    for payload in output.action_candidates:
+        normalized, validation_status = _normalize_one_artifact(
+            payload=payload,
+            available_evidence_refs=available_evidence_refs,
+        )
+        if validation_status != "accepted":
+            return _StructuredArtifactResult(validation_status=validation_status)
+        action_candidates.append(normalized)
+    return _StructuredArtifactResult(
+        proposal_artifacts=proposal_artifacts,
+        action_candidates=action_candidates,
+    )
+
+
+def _normalize_one_artifact(
+    *,
+    payload: dict[str, Any],
+    available_evidence_refs: list[str],
+) -> tuple[dict[str, Any], str]:
+    if "artifact_kind" not in payload:
+        return sanitize_metadata(payload), "accepted"
+    try:
+        artifact = coerce_proposal_artifact(payload)
+    except (ValueError, ValidationError):
+        return {}, "invalid_proposal_artifact"
+    validation = ProposalArtifactValidator.validate(
+        artifact,
+        available_evidence_refs=set(available_evidence_refs),
+    )
+    if not validation.valid:
+        if "forbidden_executable_payload" in validation.reasons:
+            return {}, "forbidden_model_output_intent"
+        if "invented_evidence_ref" in validation.reasons:
+            return {}, "invented_evidence_refs"
+        if validation.missing_evidence:
+            return {}, "proposal_missing_evidence"
+        return {}, "invalid_proposal_artifact"
+    return artifact.model_dump(mode="json"), "accepted"
+
+
 _FORBIDDEN_INTENT_KEYS = {
     "tool_calls",
     "organ_execution",
@@ -624,7 +699,7 @@ def _contains_forbidden_intent(payload: Any) -> bool:
     if isinstance(payload, dict):
         for key, value in payload.items():
             normalized = str(key).lower()
-            if normalized in _FORBIDDEN_INTENT_KEYS:
+            if normalized in _FORBIDDEN_INTENT_KEYS and _truthy_intent_value(value):
                 return True
             if _contains_forbidden_intent(value):
                 return True
@@ -635,6 +710,10 @@ def _contains_forbidden_intent(payload: Any) -> bool:
         lowered = payload.lower()
         return any(item in lowered for item in _FORBIDDEN_TEXT)
     return False
+
+
+def _truthy_intent_value(value: Any) -> bool:
+    return value not in (None, False, "", [], {})
 
 
 def _contains_execution_approval(payload: Any) -> bool:
@@ -680,7 +759,12 @@ def _result(
         role_outputs=role_outputs,
         receipts=receipts,
         budget_summary=budget_summary,
-        final_packet=_final_packet(role_outputs),
+        final_packet=_final_packet(
+            role_outputs=role_outputs,
+            proposal_artifacts=proposal_artifacts,
+            action_candidates=action_candidates,
+            available_evidence_refs=plan.available_evidence_refs,
+        ),
         proposal_artifacts=sanitize_metadata(proposal_artifacts),
         action_candidates=sanitize_metadata(action_candidates),
         blocked_role_id=blocked_role_id,
@@ -689,7 +773,13 @@ def _result(
     )
 
 
-def _final_packet(role_outputs: list[LLMRoleOutput]) -> dict[str, Any]:
+def _final_packet(
+    *,
+    role_outputs: list[LLMRoleOutput],
+    proposal_artifacts: list[dict[str, Any]],
+    action_candidates: list[dict[str, Any]],
+    available_evidence_refs: list[str],
+) -> dict[str, Any]:
     objections: list[str] = []
     uncertainty: list[str] = []
     evidence_refs: list[str] = []
@@ -705,16 +795,57 @@ def _final_packet(role_outputs: list[LLMRoleOutput]) -> dict[str, Any]:
         if isinstance(content_uncertainty, list):
             uncertainty.extend(str(item) for item in content_uncertainty)
         evidence_refs.extend(str(item) for item in output.evidence_refs)
+    structured_artifacts = [
+        artifact for artifact in [*proposal_artifacts, *action_candidates] if isinstance(artifact, dict)
+    ]
+    evidence_result = EvidenceVerifier(available_evidence_refs=set(available_evidence_refs)).verify_proposal_claims(
+        structured_artifacts
+    )
+    risk_flags = _dedupe(
+        [
+            str(artifact.get("risk_class"))
+            for artifact in structured_artifacts
+            if str(artifact.get("risk_class", "")).lower() not in {"", "low"}
+        ]
+    )
     return sanitize_metadata(
         {
             "role_ids": role_ids,
             "objections": _dedupe(objections),
             "uncertainty": _dedupe(uncertainty),
             "evidence_refs": _dedupe(evidence_refs),
+            "proposal_artifacts": structured_artifacts,
+            "evidence_verification_summary": {
+                "verdict": evidence_result.verdict.value,
+                "status": evidence_result.status.value,
+                "invented_evidence_refs": evidence_result.invented_evidence_refs,
+                "missing_evidence": evidence_result.missing_evidence_claim_ids,
+                "contradictions": evidence_result.contradictions,
+                "can_grant_authority": evidence_result.can_grant_authority,
+                "can_approve_execution": evidence_result.can_approve_execution,
+            },
+            "unresolved_objections": _dedupe(objections),
+            "missing_evidence": evidence_result.missing_evidence_claim_ids,
+            "risk_flags": risk_flags,
+            "safe_next_step_recommendation": _safe_next_step(evidence_result.verdict, structured_artifacts),
             "authority_effect": "none",
             "execution_effect": "none",
         }
     )
+
+
+def _safe_next_step(verdict: EvidenceBindingVerdict, structured_artifacts: list[dict[str, Any]]) -> str:
+    if not structured_artifacts:
+        return "continue_role_loop"
+    if verdict in {
+        EvidenceBindingVerdict.INVENTED_EVIDENCE_REF,
+        EvidenceBindingVerdict.MISSING_EVIDENCE,
+        EvidenceBindingVerdict.UNSUPPORTED_CLAIM,
+    }:
+        return "needs_more_evidence"
+    if verdict is EvidenceBindingVerdict.CONTRADICTED:
+        return "resolve_contradiction"
+    return "submit_proposal_to_gate"
 
 
 def _dedupe(values: list[str]) -> list[str]:
