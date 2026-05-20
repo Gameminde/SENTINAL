@@ -93,9 +93,16 @@ Rollback strategy:
 
 ## Wave 2: Browser Read-Only And Preparation
 
+Status:
+
+- `BROWSER_READONLY_OR_PREPARATION_SPEC` started and locked as the Wave 2
+  entry contract.
+- Runtime implementation remains not started.
+- Browser V3 action surfaces remain out of scope for this wave entry spec.
+
 Packs:
 
-1. `BROWSER_READONLY_OR_PREPARATION_SPEC`
+1. `BROWSER_READONLY_OR_PREPARATION_SPEC` - started/locked, docs-only
 2. `BROWSER_READONLY_ORGAN_V1`
 3. `BROWSER_SEMANTIC_EXTRACTION_ORGAN_V1`
 4. `BROWSER_PREPARATION_ORGAN_V1`

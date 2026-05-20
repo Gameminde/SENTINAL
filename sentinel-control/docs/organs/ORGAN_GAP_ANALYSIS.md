@@ -15,6 +15,13 @@ contract, fake evals, receipts, rollback or disable posture, and FinalGate.
 
 ### Browser Read-Only Organ V1
 
+Spec status:
+
+- `BROWSER_READONLY_OR_PREPARATION_SPEC` is locked as the Wave 2 entry spec.
+- Runtime implementation is not started.
+- Existing browser read/render/extract modules should be harvested through a
+  Sentinel-native request/receipt/FinalGate wrapper.
+
 Importance:
 
 - Gives Sentinel reliable external perception and research evidence.
@@ -65,6 +72,12 @@ Required contracts:
 - evidence verifier binding.
 
 ### Browser Preparation Organ
+
+Spec status:
+
+- `BROWSER_READONLY_OR_PREPARATION_SPEC` defines the preparation contract.
+- Runtime implementation is not started.
+- Preparation remains plan-only and cannot call browser backends.
 
 Importance:
 
