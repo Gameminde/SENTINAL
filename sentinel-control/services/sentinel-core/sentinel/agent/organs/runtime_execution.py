@@ -9,6 +9,24 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.llm.proposals import DelegatedActionLevel
 from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_hash
+from sentinel.agent.organs.browser_preparation_organ_v1 import (
+    BrowserPreparationFinalGate,
+    BrowserPreparationFinalGateCertificate,
+    BrowserPreparationFinalGateDecision,
+    BrowserPreparationOrganV1,
+    BrowserPreparationRequest,
+    BrowserPreparationResult,
+    L4BrowserPreparationExecutorContract,
+)
+from sentinel.agent.organs.browser_readonly_organ_v1 import (
+    BrowserReadOnlyFinalGate,
+    BrowserReadOnlyFinalGateCertificate,
+    BrowserReadOnlyFinalGateDecision,
+    BrowserReadOnlyOrganV1,
+    BrowserReadOnlyRequest,
+    BrowserReadOnlyResult,
+    L4BrowserReadOnlyExecutorContract,
+)
 from sentinel.agent.organs.delegated_action_gate import (
     DelegatedActionGateDecision,
     DelegatedActionGateResult,
@@ -51,6 +69,7 @@ def utc_now() -> datetime:
 class OrganRuntimeExecutionMode(StrEnum):
     DISABLED = "disabled"
     L2_L3_LOCAL_ONLY = "l2_l3_local_only"
+    BROWSER_READONLY_PREPARATION_ONLY = "browser_readonly_preparation_only"
 
 
 class OrganRuntimeExecutionStatus(StrEnum):
@@ -75,6 +94,8 @@ class OrganRuntimeExecutionConfig(SentinelModel):
     require_finalgate_certificate: bool = True
     allow_l2: bool = True
     allow_l3: bool = True
+    allow_browser_readonly: bool = False
+    allow_browser_preparation: bool = False
     workspace_root_allowlist: list[str] = Field(default_factory=list)
     max_action_count: int = Field(default=1, ge=0)
     max_total_bytes: int = Field(default=1_000_000, ge=0)
@@ -100,8 +121,16 @@ class OrganRuntimeExecutionConfig(SentinelModel):
         _assert_runtime_firewall(self)
         if self.mode is OrganRuntimeExecutionMode.DISABLED and self.enabled:
             raise ValueError("Organ runtime execution cannot be enabled in disabled mode.")
-        if any(level not in {DelegatedActionLevel.L2, DelegatedActionLevel.L3} for level in self.allowed_action_levels):
-            raise ValueError("Organ runtime execution opt-in only supports L2/L3.")
+        if self.mode is OrganRuntimeExecutionMode.L2_L3_LOCAL_ONLY:
+            if any(level not in {DelegatedActionLevel.L2, DelegatedActionLevel.L3} for level in self.allowed_action_levels):
+                raise ValueError("L2/L3 organ runtime opt-in only supports L2/L3.")
+            if any(organ not in {"local_artifact", "reversible_workspace"} for organ in self.allowed_organs):
+                raise ValueError("L2/L3 organ runtime opt-in only supports local low-risk organs.")
+        if self.mode is OrganRuntimeExecutionMode.BROWSER_READONLY_PREPARATION_ONLY:
+            if any(level is not DelegatedActionLevel.L4 for level in self.allowed_action_levels):
+                raise ValueError("Browser perception runtime opt-in only supports L4.")
+            if any(organ not in {"browser_readonly", "browser_preparation"} for organ in self.allowed_organs):
+                raise ValueError("Browser perception runtime opt-in only supports browser read-only/preparation organs.")
         if self.data_not_instruction is not True:
             raise ValueError("Organ runtime execution config is data, not instruction.")
         return self
@@ -140,6 +169,8 @@ class OrganRuntimeExecutionRequest(SentinelModel):
     delegated_lane: DelegatedActionLane | dict[str, Any] | None = None
     l2_request: L2LocalArtifactRequest | dict[str, Any] | None = None
     l3_request: L3WorkspaceRequest | dict[str, Any] | None = None
+    browser_readonly_request: BrowserReadOnlyRequest | dict[str, Any] | None = None
+    browser_preparation_request: BrowserPreparationRequest | dict[str, Any] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     selected_provider_id: str | None = None
     selected_backend_id: str | None = None
@@ -183,7 +214,7 @@ class OrganRuntimeExecutionResult(SentinelModel):
     organ_kind: str
     executor_result_summary: dict[str, Any] = Field(default_factory=dict)
     receipt: Any = None
-    finalgate_certificate: LowRiskFinalGateCertificate | None = None
+    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | None = None
     gate_result_id: str | None = None
     lane_id: str | None = None
     blocked_reason: str | None = None
@@ -219,6 +250,7 @@ def execute_organ_runtime_request(
     request: OrganRuntimeExecutionRequest | dict[str, Any],
     *,
     config: OrganRuntimeExecutionConfig | None = None,
+    browser_readonly_fetcher: Any = None,
 ) -> OrganRuntimeExecutionResult:
     runtime_config = config or OrganRuntimeExecutionConfig()
     runtime_request = _coerce_request(request)
@@ -255,6 +287,10 @@ def execute_organ_runtime_request(
         return _execute_l2(runtime_request, runtime_config, safety, input_hash)
     if runtime_request.action_level is DelegatedActionLevel.L3:
         return _execute_l3(runtime_request, runtime_config, safety, input_hash)
+    if runtime_request.action_level is DelegatedActionLevel.L4 and runtime_request.organ_kind == "browser_readonly":
+        return _execute_browser_readonly(runtime_request, runtime_config, safety, input_hash, browser_readonly_fetcher)
+    if runtime_request.action_level is DelegatedActionLevel.L4 and runtime_request.organ_kind == "browser_preparation":
+        return _execute_browser_preparation(runtime_request, runtime_config, safety, input_hash)
 
     return _blocked_result(
         request=runtime_request,
@@ -384,6 +420,95 @@ def _execute_l3(
     )
 
 
+def _execute_browser_readonly(
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    browser_readonly_fetcher: Any,
+) -> OrganRuntimeExecutionResult:
+    readonly_request = _coerce_browser_readonly_request(request.browser_readonly_request)
+    if readonly_request is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="browser_readonly_request_missing",
+        )
+    contract = _browser_readonly_contract(readonly_request)
+    if contract is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="executor_contract_missing",
+        )
+    readonly_reason = _browser_readonly_contract_block_reason(contract, readonly_request, request)
+    if readonly_reason is not None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason=readonly_reason,
+        )
+    executor_result = BrowserReadOnlyOrganV1(fetcher=browser_readonly_fetcher).observe(readonly_request)
+    return _certify_browser_readonly_result(
+        request=request,
+        config=config,
+        safety=safety,
+        input_hash=input_hash,
+        executor_result=executor_result,
+        receipt=executor_result.receipt,
+    )
+
+
+def _execute_browser_preparation(
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+) -> OrganRuntimeExecutionResult:
+    preparation_request = _coerce_browser_preparation_request(request.browser_preparation_request)
+    if preparation_request is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="browser_preparation_request_missing",
+        )
+    contract = _browser_preparation_contract(preparation_request)
+    if contract is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="executor_contract_missing",
+        )
+    preparation_reason = _browser_preparation_contract_block_reason(contract, preparation_request, request)
+    if preparation_reason is not None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason=preparation_reason,
+        )
+    executor_result = BrowserPreparationOrganV1().prepare(preparation_request)
+    return _certify_browser_preparation_result(
+        request=request,
+        config=config,
+        safety=safety,
+        input_hash=input_hash,
+        executor_result=executor_result,
+        receipt=executor_result.receipt,
+    )
+
+
 def _certify_result(
     *,
     request: OrganRuntimeExecutionRequest,
@@ -438,28 +563,109 @@ def _certify_result(
     )
 
 
+def _certify_browser_readonly_result(
+    *,
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    executor_result: BrowserReadOnlyResult,
+    receipt: Any,
+) -> OrganRuntimeExecutionResult:
+    finalgate = BrowserReadOnlyFinalGate().certify(
+        mission_id=request.mission_id,
+        receipt=receipt,
+        expected_lane_id=receipt.lane_id,
+        expected_gate_result_id=receipt.gate_result_id,
+        selected_provider_id=request.selected_provider_id,
+        selected_backend_id=request.selected_backend_id,
+        selected_model=request.selected_model,
+    )
+    certified = finalgate.decision.value.startswith("certified_")
+    success = finalgate.decision is BrowserReadOnlyFinalGateDecision.CERTIFIED_READONLY_SUCCESS and executor_result.accepted
+    status = OrganRuntimeExecutionStatus.CERTIFIED if success else OrganRuntimeExecutionStatus.BLOCKED
+    blocked_reason = None
+    if not success:
+        blocked_reason = _browser_blocked_reason("browser_readonly", executor_result.reason, receipt.blocked_reason, finalgate.decision.value, certified)
+    return _result(
+        request=request,
+        config=config,
+        status=status,
+        safety=safety,
+        input_hash=input_hash,
+        receipt=receipt,
+        finalgate_certificate=finalgate.certificate if certified else None,
+        executor_result_summary=_executor_summary(executor_result),
+        blocked_reason=blocked_reason,
+        execution_effect="none",
+        steps=["preflight_passed", "browser_readonly_observe_called", "receipt_produced", "finalgate_certified" if certified else "finalgate_rejected"],
+    )
+
+
+def _certify_browser_preparation_result(
+    *,
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    executor_result: BrowserPreparationResult,
+    receipt: Any,
+) -> OrganRuntimeExecutionResult:
+    finalgate = BrowserPreparationFinalGate().certify(
+        mission_id=request.mission_id,
+        receipt=receipt,
+        expected_lane_id=receipt.lane_id,
+        expected_gate_result_id=receipt.gate_result_id,
+        selected_provider_id=request.selected_provider_id,
+        selected_backend_id=request.selected_backend_id,
+        selected_model=request.selected_model,
+    )
+    certified = finalgate.decision.value.startswith("certified_")
+    success = finalgate.decision is BrowserPreparationFinalGateDecision.CERTIFIED_PREPARATION_SUCCESS and executor_result.accepted
+    status = OrganRuntimeExecutionStatus.CERTIFIED if success else OrganRuntimeExecutionStatus.BLOCKED
+    blocked_reason = None
+    if not success:
+        blocked_reason = _browser_blocked_reason("browser_preparation", executor_result.reason, receipt.blocked_reason, finalgate.decision.value, certified)
+    return _result(
+        request=request,
+        config=config,
+        status=status,
+        safety=safety,
+        input_hash=input_hash,
+        receipt=receipt,
+        finalgate_certificate=finalgate.certificate if certified else None,
+        executor_result_summary=_executor_summary(executor_result),
+        blocked_reason=blocked_reason,
+        execution_effect="none",
+        steps=["preflight_passed", "browser_preparation_prepare_called", "receipt_produced", "finalgate_certified" if certified else "finalgate_rejected"],
+    )
+
+
+def _browser_blocked_reason(
+    organ_kind: str,
+    result_reason: str | None,
+    receipt_blocked_reason: str | None,
+    finalgate_decision: str,
+    certified: bool,
+) -> str:
+    if receipt_blocked_reason:
+        return f"{organ_kind}_{receipt_blocked_reason}"
+    if result_reason:
+        return f"{organ_kind}_{result_reason}"
+    if certified:
+        return f"{organ_kind}_certified_non_success"
+    return f"finalgate_{finalgate_decision}"
+
+
 def _preflight_block_reason(
     request: OrganRuntimeExecutionRequest,
     config: OrganRuntimeExecutionConfig,
 ) -> str | None:
     if not config.enabled or config.mode is OrganRuntimeExecutionMode.DISABLED:
         return "organ_execution_disabled"
-    if config.mode is not OrganRuntimeExecutionMode.L2_L3_LOCAL_ONLY:
-        return "organ_execution_mode_not_allowed"
-    if request.action_level not in {DelegatedActionLevel.L2, DelegatedActionLevel.L3}:
-        return "action_level_not_allowed"
-    if request.action_level is DelegatedActionLevel.L2 and not config.allow_l2:
-        return "l2_disabled_by_config"
-    if request.action_level is DelegatedActionLevel.L3 and not config.allow_l3:
-        return "l3_disabled_by_config"
-    if request.action_level not in set(config.allowed_action_levels):
-        return "action_level_not_allowed"
-    if request.action_level is DelegatedActionLevel.L2 and request.organ_kind != "local_artifact":
-        return "organ_not_allowed"
-    if request.action_level is DelegatedActionLevel.L3 and request.organ_kind != "reversible_workspace":
-        return "organ_not_allowed"
-    if request.organ_kind not in set(config.allowed_organs):
-        return "organ_not_allowed"
+    mode_reason = _mode_block_reason(request, config)
+    if mode_reason is not None:
+        return mode_reason
     if config.require_mission_authority_envelope:
         authority_reason = _authority_block_reason(request)
         if authority_reason is not None:
@@ -469,6 +675,42 @@ def _preflight_block_reason(
         if gate_reason is not None:
             return gate_reason
     return None
+
+
+def _mode_block_reason(request: OrganRuntimeExecutionRequest, config: OrganRuntimeExecutionConfig) -> str | None:
+    if config.mode is OrganRuntimeExecutionMode.L2_L3_LOCAL_ONLY:
+        if request.action_level not in {DelegatedActionLevel.L2, DelegatedActionLevel.L3}:
+            return "action_level_not_allowed"
+        if request.action_level is DelegatedActionLevel.L2 and not config.allow_l2:
+            return "l2_disabled_by_config"
+        if request.action_level is DelegatedActionLevel.L3 and not config.allow_l3:
+            return "l3_disabled_by_config"
+        if request.action_level not in set(config.allowed_action_levels):
+            return "action_level_not_allowed"
+        if request.action_level is DelegatedActionLevel.L2 and request.organ_kind != "local_artifact":
+            return "organ_not_allowed"
+        if request.action_level is DelegatedActionLevel.L3 and request.organ_kind != "reversible_workspace":
+            return "organ_not_allowed"
+        if request.organ_kind not in set(config.allowed_organs):
+            return "organ_not_allowed"
+        return None
+
+    if config.mode is OrganRuntimeExecutionMode.BROWSER_READONLY_PREPARATION_ONLY:
+        if request.action_level is not DelegatedActionLevel.L4:
+            return "action_level_not_allowed"
+        if request.organ_kind == "browser_readonly" and not config.allow_browser_readonly:
+            return "browser_readonly_disabled_by_config"
+        if request.organ_kind == "browser_preparation" and not config.allow_browser_preparation:
+            return "browser_preparation_disabled_by_config"
+        if request.action_level not in set(config.allowed_action_levels):
+            return "action_level_not_allowed"
+        if request.organ_kind not in {"browser_readonly", "browser_preparation"}:
+            return "organ_not_allowed"
+        if request.organ_kind not in set(config.allowed_organs):
+            return "organ_not_allowed"
+        return None
+
+    return "organ_execution_mode_not_allowed"
 
 
 def _authority_block_reason(request: OrganRuntimeExecutionRequest) -> str | None:
@@ -489,8 +731,10 @@ def _gate_lane_block_reason(request: OrganRuntimeExecutionRequest) -> str | None
         return "lane_mission_mismatch"
     if lane.action_level is not request.action_level:
         return "lane_action_level_mismatch"
-    if lane.organ_kind is not OrganProposalKind.FILE_OPERATION:
+    if request.action_level in {DelegatedActionLevel.L2, DelegatedActionLevel.L3} and lane.organ_kind is not OrganProposalKind.FILE_OPERATION:
         return "lane_organ_kind_not_low_risk_file_operation"
+    if request.action_level is DelegatedActionLevel.L4 and request.organ_kind in {"browser_readonly", "browser_preparation"} and lane.organ_kind is not OrganProposalKind.BROWSER:
+        return "lane_organ_kind_not_browser"
     if lane.lane_status not in {DelegatedActionLaneStatus.METADATA_ONLY, DelegatedActionLaneStatus.NOT_EXECUTED}:
         return "lane_status_invalid"
     if lane.execution_enabled:
@@ -530,6 +774,38 @@ def _l3_contract_block_reason(
     return None
 
 
+def _browser_readonly_contract_block_reason(
+    contract: L4BrowserReadOnlyExecutorContract,
+    readonly_request: BrowserReadOnlyRequest,
+    runtime_request: OrganRuntimeExecutionRequest,
+) -> str | None:
+    if not contract.execution_enabled_for_l4_readonly:
+        return "browser_readonly_contract_execution_disabled"
+    if contract.mission_id != runtime_request.mission_id or readonly_request.mission_id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if not contract.lane_id or not contract.gate_result_id:
+        return "lane_or_gate_ref_missing"
+    if not contract.allowed_domains:
+        return "browser_readonly_domain_policy_missing"
+    return None
+
+
+def _browser_preparation_contract_block_reason(
+    contract: L4BrowserPreparationExecutorContract,
+    preparation_request: BrowserPreparationRequest,
+    runtime_request: OrganRuntimeExecutionRequest,
+) -> str | None:
+    if not contract.execution_enabled_for_l4_preparation:
+        return "browser_preparation_contract_execution_disabled"
+    if contract.mission_id != runtime_request.mission_id or preparation_request.mission_id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if not contract.lane_id or not contract.gate_result_id:
+        return "lane_or_gate_ref_missing"
+    if not preparation_request.source_readonly_receipts and not preparation_request.source_readonly_receipt_refs:
+        return "browser_preparation_source_readonly_receipt_missing"
+    return None
+
+
 def _blocked_result(
     *,
     request: OrganRuntimeExecutionRequest,
@@ -561,7 +837,7 @@ def _result(
     safety: OrganRuntimeExecutionSafetyValidationResult,
     input_hash: str,
     receipt: Any,
-    finalgate_certificate: LowRiskFinalGateCertificate | None,
+    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | None,
     executor_result_summary: dict[str, Any],
     blocked_reason: str | None,
     execution_effect: str,
@@ -608,7 +884,20 @@ def _result(
     )
 
 
-def _executor_summary(result: L2LocalArtifactResult | L3WorkspaceResult) -> dict[str, Any]:
+def _executor_summary(result: L2LocalArtifactResult | L3WorkspaceResult | BrowserReadOnlyResult | BrowserPreparationResult) -> dict[str, Any]:
+    if isinstance(result, BrowserReadOnlyResult | BrowserPreparationResult):
+        finalgate = result.finalgate_result
+        return sanitize_metadata(
+            {
+                "accepted": result.accepted,
+                "attempt_status": result.attempt_status.value,
+                "reason": result.reason,
+                "receipt_id": result.receipt.receipt_id,
+                "receipt_hash": result.receipt.receipt_hash,
+                "finalgate_decision": finalgate.decision.value if finalgate is not None else None,
+                "safe_summary": result.safe_summary,
+            }
+        )
     return sanitize_metadata(
         {
             "status": result.status.value,
@@ -645,6 +934,22 @@ def _coerce_l3_request(value: Any) -> L3WorkspaceRequest | None:
     return None
 
 
+def _coerce_browser_readonly_request(value: Any) -> BrowserReadOnlyRequest | None:
+    if isinstance(value, BrowserReadOnlyRequest):
+        return value
+    if isinstance(value, dict):
+        return BrowserReadOnlyRequest.model_validate(value)
+    return None
+
+
+def _coerce_browser_preparation_request(value: Any) -> BrowserPreparationRequest | None:
+    if isinstance(value, BrowserPreparationRequest):
+        return value
+    if isinstance(value, dict):
+        return BrowserPreparationRequest.model_validate(value)
+    return None
+
+
 def _gate_result(value: Any) -> DelegatedActionGateResult | None:
     if isinstance(value, DelegatedActionGateResult):
         return value
@@ -674,6 +979,22 @@ def _l3_contract(request: L3WorkspaceRequest) -> L3ExecutorContract | None:
         return request.contract
     if isinstance(request.contract, dict):
         return L3ExecutorContract.model_validate(request.contract)
+    return None
+
+
+def _browser_readonly_contract(request: BrowserReadOnlyRequest) -> L4BrowserReadOnlyExecutorContract | None:
+    if isinstance(request.contract, L4BrowserReadOnlyExecutorContract):
+        return request.contract
+    if isinstance(request.contract, dict):
+        return L4BrowserReadOnlyExecutorContract.model_validate(request.contract)
+    return None
+
+
+def _browser_preparation_contract(request: BrowserPreparationRequest) -> L4BrowserPreparationExecutorContract | None:
+    if isinstance(request.contract, L4BrowserPreparationExecutorContract):
+        return request.contract
+    if isinstance(request.contract, dict):
+        return L4BrowserPreparationExecutorContract.model_validate(request.contract)
     return None
 
 

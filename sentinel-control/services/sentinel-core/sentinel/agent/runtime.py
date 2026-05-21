@@ -267,15 +267,19 @@ class AgentRuntime:
         self,
         request: OrganRuntimeExecutionRequest | dict[str, Any],
     ) -> OrganRuntimeExecutionResult:
-        """Execute explicitly opted-in L2/L3 local organ requests only.
+        """Execute explicitly opted-in low-risk/perception organ requests only.
 
         This method is intentionally separate from :meth:`run`. Without an
         injected ``OrganRuntimeExecutionConfig`` that enables
-        ``l2_l3_local_only``, it returns a safe blocked result and never calls
-        an executor.
+        ``l2_l3_local_only`` or ``browser_readonly_preparation_only``, it
+        returns a safe blocked result and never calls an organ.
         """
 
-        return execute_organ_runtime_request(request, config=self._organ_execution_config)
+        return execute_organ_runtime_request(
+            request,
+            config=self._organ_execution_config,
+            browser_readonly_fetcher=self.browser_fetcher,
+        )
 
     def _assert_memory_not_authority_boundary(
         self,
