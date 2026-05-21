@@ -27,6 +27,15 @@ from sentinel.agent.organs.browser_readonly_organ_v1 import (
     BrowserReadOnlyResult,
     L4BrowserReadOnlyExecutorContract,
 )
+from sentinel.agent.organs.browser_semantic_extraction_organ_v1 import (
+    BrowserSemanticExtractionFinalGate,
+    BrowserSemanticExtractionFinalGateCertificate,
+    BrowserSemanticExtractionFinalGateDecision,
+    BrowserSemanticExtractionOrganV1,
+    BrowserSemanticExtractionRequest,
+    BrowserSemanticExtractionResult,
+    L4BrowserSemanticExtractionContract,
+)
 from sentinel.agent.organs.delegated_action_gate import (
     DelegatedActionGateDecision,
     DelegatedActionGateResult,
@@ -96,6 +105,7 @@ class OrganRuntimeExecutionConfig(SentinelModel):
     allow_l3: bool = True
     allow_browser_readonly: bool = False
     allow_browser_preparation: bool = False
+    allow_browser_semantic_extraction: bool = False
     workspace_root_allowlist: list[str] = Field(default_factory=list)
     max_action_count: int = Field(default=1, ge=0)
     max_total_bytes: int = Field(default=1_000_000, ge=0)
@@ -129,8 +139,8 @@ class OrganRuntimeExecutionConfig(SentinelModel):
         if self.mode is OrganRuntimeExecutionMode.BROWSER_READONLY_PREPARATION_ONLY:
             if any(level is not DelegatedActionLevel.L4 for level in self.allowed_action_levels):
                 raise ValueError("Browser perception runtime opt-in only supports L4.")
-            if any(organ not in {"browser_readonly", "browser_preparation"} for organ in self.allowed_organs):
-                raise ValueError("Browser perception runtime opt-in only supports browser read-only/preparation organs.")
+            if any(organ not in {"browser_readonly", "browser_preparation", "browser_semantic_extraction"} for organ in self.allowed_organs):
+                raise ValueError("Browser perception runtime opt-in only supports browser read-only/preparation/semantic extraction organs.")
         if self.data_not_instruction is not True:
             raise ValueError("Organ runtime execution config is data, not instruction.")
         return self
@@ -171,6 +181,7 @@ class OrganRuntimeExecutionRequest(SentinelModel):
     l3_request: L3WorkspaceRequest | dict[str, Any] | None = None
     browser_readonly_request: BrowserReadOnlyRequest | dict[str, Any] | None = None
     browser_preparation_request: BrowserPreparationRequest | dict[str, Any] | None = None
+    browser_semantic_extraction_request: BrowserSemanticExtractionRequest | dict[str, Any] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     selected_provider_id: str | None = None
     selected_backend_id: str | None = None
@@ -214,7 +225,7 @@ class OrganRuntimeExecutionResult(SentinelModel):
     organ_kind: str
     executor_result_summary: dict[str, Any] = Field(default_factory=dict)
     receipt: Any = None
-    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | None = None
+    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | BrowserSemanticExtractionFinalGateCertificate | None = None
     gate_result_id: str | None = None
     lane_id: str | None = None
     blocked_reason: str | None = None
@@ -291,6 +302,8 @@ def execute_organ_runtime_request(
         return _execute_browser_readonly(runtime_request, runtime_config, safety, input_hash, browser_readonly_fetcher)
     if runtime_request.action_level is DelegatedActionLevel.L4 and runtime_request.organ_kind == "browser_preparation":
         return _execute_browser_preparation(runtime_request, runtime_config, safety, input_hash)
+    if runtime_request.action_level is DelegatedActionLevel.L4 and runtime_request.organ_kind == "browser_semantic_extraction":
+        return _execute_browser_semantic_extraction(runtime_request, runtime_config, safety, input_hash)
 
     return _blocked_result(
         request=runtime_request,
@@ -509,6 +522,50 @@ def _execute_browser_preparation(
     )
 
 
+def _execute_browser_semantic_extraction(
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+) -> OrganRuntimeExecutionResult:
+    semantic_request = _coerce_browser_semantic_extraction_request(request.browser_semantic_extraction_request)
+    if semantic_request is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="browser_semantic_extraction_request_missing",
+        )
+    contract = _browser_semantic_extraction_contract(semantic_request)
+    if contract is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="executor_contract_missing",
+        )
+    semantic_reason = _browser_semantic_extraction_contract_block_reason(contract, semantic_request, request)
+    if semantic_reason is not None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason=semantic_reason,
+        )
+    executor_result = BrowserSemanticExtractionOrganV1().observe(semantic_request)
+    return _certify_browser_semantic_extraction_result(
+        request=request,
+        config=config,
+        safety=safety,
+        input_hash=input_hash,
+        executor_result=executor_result,
+        receipt=executor_result.receipt,
+    )
+
+
 def _certify_result(
     *,
     request: OrganRuntimeExecutionRequest,
@@ -641,6 +698,59 @@ def _certify_browser_preparation_result(
     )
 
 
+def _certify_browser_semantic_extraction_result(
+    *,
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    executor_result: BrowserSemanticExtractionResult,
+    receipt: Any,
+) -> OrganRuntimeExecutionResult:
+    finalgate = BrowserSemanticExtractionFinalGate().certify(
+        mission_id=request.mission_id,
+        receipt=receipt,
+        expected_lane_id=receipt.lane_id,
+        expected_gate_result_id=receipt.gate_result_id,
+        selected_provider_id=request.selected_provider_id,
+        selected_backend_id=request.selected_backend_id,
+        selected_model=request.selected_model,
+    )
+    certified = finalgate.decision.value.startswith("certified_")
+    success = (
+        finalgate.decision is BrowserSemanticExtractionFinalGateDecision.CERTIFIED_EXTRACTION_SUCCESS
+        and executor_result.accepted
+    )
+    status = OrganRuntimeExecutionStatus.CERTIFIED if success else OrganRuntimeExecutionStatus.BLOCKED
+    blocked_reason = None
+    if not success:
+        blocked_reason = _browser_blocked_reason(
+            "browser_semantic_extraction",
+            executor_result.reason,
+            receipt.blocked_reason,
+            finalgate.decision.value,
+            certified,
+        )
+    return _result(
+        request=request,
+        config=config,
+        status=status,
+        safety=safety,
+        input_hash=input_hash,
+        receipt=receipt,
+        finalgate_certificate=finalgate.certificate if certified else None,
+        executor_result_summary=_executor_summary(executor_result),
+        blocked_reason=blocked_reason,
+        execution_effect="none",
+        steps=[
+            "preflight_passed",
+            "browser_semantic_extraction_observe_called",
+            "receipt_produced",
+            "finalgate_certified" if certified else "finalgate_rejected",
+        ],
+    )
+
+
 def _browser_blocked_reason(
     organ_kind: str,
     result_reason: str | None,
@@ -702,9 +812,11 @@ def _mode_block_reason(request: OrganRuntimeExecutionRequest, config: OrganRunti
             return "browser_readonly_disabled_by_config"
         if request.organ_kind == "browser_preparation" and not config.allow_browser_preparation:
             return "browser_preparation_disabled_by_config"
+        if request.organ_kind == "browser_semantic_extraction" and not config.allow_browser_semantic_extraction:
+            return "browser_semantic_extraction_disabled_by_config"
         if request.action_level not in set(config.allowed_action_levels):
             return "action_level_not_allowed"
-        if request.organ_kind not in {"browser_readonly", "browser_preparation"}:
+        if request.organ_kind not in {"browser_readonly", "browser_preparation", "browser_semantic_extraction"}:
             return "organ_not_allowed"
         if request.organ_kind not in set(config.allowed_organs):
             return "organ_not_allowed"
@@ -733,7 +845,7 @@ def _gate_lane_block_reason(request: OrganRuntimeExecutionRequest) -> str | None
         return "lane_action_level_mismatch"
     if request.action_level in {DelegatedActionLevel.L2, DelegatedActionLevel.L3} and lane.organ_kind is not OrganProposalKind.FILE_OPERATION:
         return "lane_organ_kind_not_low_risk_file_operation"
-    if request.action_level is DelegatedActionLevel.L4 and request.organ_kind in {"browser_readonly", "browser_preparation"} and lane.organ_kind is not OrganProposalKind.BROWSER:
+    if request.action_level is DelegatedActionLevel.L4 and request.organ_kind in {"browser_readonly", "browser_preparation", "browser_semantic_extraction"} and lane.organ_kind is not OrganProposalKind.BROWSER:
         return "lane_organ_kind_not_browser"
     if lane.lane_status not in {DelegatedActionLaneStatus.METADATA_ONLY, DelegatedActionLaneStatus.NOT_EXECUTED}:
         return "lane_status_invalid"
@@ -806,6 +918,22 @@ def _browser_preparation_contract_block_reason(
     return None
 
 
+def _browser_semantic_extraction_contract_block_reason(
+    contract: L4BrowserSemanticExtractionContract,
+    semantic_request: BrowserSemanticExtractionRequest,
+    runtime_request: OrganRuntimeExecutionRequest,
+) -> str | None:
+    if not contract.execution_enabled_for_l4_semantic_extraction:
+        return "browser_semantic_extraction_contract_execution_disabled"
+    if contract.mission_id != runtime_request.mission_id or semantic_request.mission_id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if not contract.lane_id or not contract.gate_result_id:
+        return "lane_or_gate_ref_missing"
+    if not semantic_request.source_readonly_receipts and not semantic_request.source_readonly_receipt_refs:
+        return "browser_semantic_extraction_source_readonly_receipt_missing"
+    return None
+
+
 def _blocked_result(
     *,
     request: OrganRuntimeExecutionRequest,
@@ -837,7 +965,7 @@ def _result(
     safety: OrganRuntimeExecutionSafetyValidationResult,
     input_hash: str,
     receipt: Any,
-    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | None,
+    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | BrowserSemanticExtractionFinalGateCertificate | None,
     executor_result_summary: dict[str, Any],
     blocked_reason: str | None,
     execution_effect: str,
@@ -884,8 +1012,8 @@ def _result(
     )
 
 
-def _executor_summary(result: L2LocalArtifactResult | L3WorkspaceResult | BrowserReadOnlyResult | BrowserPreparationResult) -> dict[str, Any]:
-    if isinstance(result, BrowserReadOnlyResult | BrowserPreparationResult):
+def _executor_summary(result: L2LocalArtifactResult | L3WorkspaceResult | BrowserReadOnlyResult | BrowserPreparationResult | BrowserSemanticExtractionResult) -> dict[str, Any]:
+    if isinstance(result, BrowserReadOnlyResult | BrowserPreparationResult | BrowserSemanticExtractionResult):
         finalgate = result.finalgate_result
         return sanitize_metadata(
             {
@@ -950,6 +1078,14 @@ def _coerce_browser_preparation_request(value: Any) -> BrowserPreparationRequest
     return None
 
 
+def _coerce_browser_semantic_extraction_request(value: Any) -> BrowserSemanticExtractionRequest | None:
+    if isinstance(value, BrowserSemanticExtractionRequest):
+        return value
+    if isinstance(value, dict):
+        return BrowserSemanticExtractionRequest.model_validate(value)
+    return None
+
+
 def _gate_result(value: Any) -> DelegatedActionGateResult | None:
     if isinstance(value, DelegatedActionGateResult):
         return value
@@ -995,6 +1131,14 @@ def _browser_preparation_contract(request: BrowserPreparationRequest) -> L4Brows
         return request.contract
     if isinstance(request.contract, dict):
         return L4BrowserPreparationExecutorContract.model_validate(request.contract)
+    return None
+
+
+def _browser_semantic_extraction_contract(request: BrowserSemanticExtractionRequest) -> L4BrowserSemanticExtractionContract | None:
+    if isinstance(request.contract, L4BrowserSemanticExtractionContract):
+        return request.contract
+    if isinstance(request.contract, dict):
+        return L4BrowserSemanticExtractionContract.model_validate(request.contract)
     return None
 
 
