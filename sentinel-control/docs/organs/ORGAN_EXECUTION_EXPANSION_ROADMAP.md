@@ -1,8 +1,8 @@
 # Organ Execution Expansion Roadmap
 
-Status: audit lock
+Status: Wave 2 browser perception completion lock
 
-Date: 2026-05-19
+Date: 2026-05-21
 
 ## Objective
 
@@ -32,12 +32,17 @@ Implemented and current:
 - L2 Local Artifact Executor;
 - L3 Reversible Workspace Action Executor;
 - LowRisk FinalGate receipts;
-- explicit AgentRuntime L2/L3 opt-in.
+- explicit AgentRuntime L2/L3 opt-in;
+- Browser Read-Only Organ V1;
+- Browser Preparation Organ V1;
+- Browser Semantic Extraction Organ V1;
+- explicit AgentRuntime browser read-only/preparation/semantic extraction
+  opt-in.
 
 Not approved as broad default:
 
-- browser/API/channel/desktop/shell/network/credential execution;
-- L4/L5/L6/L7 runtime expansion;
+- browser action/API/channel/desktop/shell/network/credential execution;
+- L5/L6/L7 runtime expansion;
 - provider fallback;
 - AUTO routing;
 - vendor runtime import;
@@ -95,17 +100,43 @@ Rollback strategy:
 
 Status:
 
-- `BROWSER_READONLY_OR_PREPARATION_SPEC` started and locked as the Wave 2
-  entry contract.
-- Runtime implementation remains not started.
-- Browser V3 action surfaces remain out of scope for this wave entry spec.
+- completed.
+- Browser Read-Only, Browser Preparation, Browser Semantic Extraction, and
+  explicit AgentRuntime opt-in are implemented.
+- Browser output remains untrusted evidence/preparation data only.
+- Browser V3/V4 action surfaces remain out of scope for this wave.
 
 Packs:
 
-1. `BROWSER_READONLY_OR_PREPARATION_SPEC` - started/locked, docs-only
-2. `BROWSER_READONLY_ORGAN_V1`
-3. `BROWSER_SEMANTIC_EXTRACTION_ORGAN_V1`
-4. `BROWSER_PREPARATION_ORGAN_V1`
+Foundation spec:
+
+- `BROWSER_READONLY_OR_PREPARATION_SPEC` - completed/locked, docs-only.
+
+Delivered implementation packs:
+
+1. `BROWSER_READONLY_ORGAN_V1` - completed.
+2. `BROWSER_PREPARATION_ORGAN_V1` - completed.
+3. `BROWSER_SEMANTIC_EXTRACTION_ORGAN_V1` - completed.
+4. Browser ReadOnly + Preparation + Semantic Extraction AgentRuntime opt-in -
+   completed. This covers the explicit default-off runtime paths for
+   `browser_readonly`, `browser_preparation`, and
+   `browser_semantic_extraction`.
+
+Delivered browser organs:
+
+- `BrowserReadOnlyOrganV1`: L4 read-only public/allowed web observation,
+  domain/redirect policy, hashes, source confidence, prompt-injection flags,
+  receipt, and Browser Read-Only FinalGate.
+- `BrowserPreparationOrganV1`: L4 non-executing target/step preparation from
+  read-only receipts, proposed step hashes, forbidden-action blocking, receipt,
+  and Browser Preparation FinalGate.
+- `BrowserSemanticExtractionOrganV1`: L4 structured evidence-card extraction
+  from read-only/preparation receipts, EvidenceVerifier candidate binding,
+  contradiction and injection flag preservation, receipt, and Browser Semantic
+  Extraction FinalGate.
+- AgentRuntime opt-in: `browser_readonly`, `browser_preparation`, and
+  `browser_semantic_extraction` are reachable only through explicit
+  `OrganRuntimeExecutionConfig` in browser perception mode.
 
 Prerequisites:
 
@@ -120,10 +151,13 @@ Capability gain:
 - external web perception;
 - safer research autonomy;
 - preparation plans for later browser actions.
+- structured browser evidence candidates without claim promotion.
 
 Risk increase:
 
 - medium because web content is adversarial.
+- contained because submit/login/upload/download/private session/credential/JS
+  and browser action surfaces are still blocked.
 
 Rollback strategy:
 
@@ -137,6 +171,9 @@ Tests:
 - browser submit blocked;
 - stale redirect flagged;
 - raw body/secrets not durable.
+- claims remain unverified until EvidenceVerifier;
+- runtime default remains disabled;
+- provider/backend/model contract is preserved.
 
 ## Wave 3: Research, OCR, PDF, Vision
 
@@ -522,14 +559,16 @@ Current Sentinel organ maturity:
 
 - medium-high overall;
 - high for cognition, memory, proposal, gate, L2/L3 local execution;
-- medium for browser because power exists but needs unified current-chain
-  promotion;
+- high for browser perception because Read-Only, Preparation, Semantic
+  Extraction, FinalGate, and explicit runtime opt-in are now in the modern
+  current-chain control plane;
 - medium-low for desktop/API/channel/credential/spend/trading runtime promotion.
 
 Current capability level:
 
 - L2/L3 local execution is real and runtime opt-in;
-- L4-L7 surfaces exist as contracts, older modules, candidates, fakes, or
+- L4 browser perception is real and runtime opt-in;
+- other L4-L7 surfaces exist as contracts, older modules, candidates, fakes, or
   direct-test modules;
 - broad autonomous external execution is not enabled by default.
 
@@ -543,13 +582,13 @@ Biggest weakness:
 
 - control-plane fragmentation between `sentinel.agent.organs.*`,
   `sentinel.organs.*`, browser controlled tools, mission safe executors, and
-  capability manifests, plus adjacent app process execution that is outside
-  Sentinel organ law.
+  capability manifests outside the newly promoted browser perception chain,
+  plus adjacent app process execution that is outside Sentinel organ law.
 
 Biggest opportunity:
 
-- bind the already-rich browser organ family into the modern delegated action
-  gate and FinalGate chain.
+- apply the now-proven browser perception control pattern to API read-only,
+  research/OCR/PDF/vision, and later browser controlled actions.
 
 Most dangerous future organ:
 
@@ -558,13 +597,14 @@ Most dangerous future organ:
 
 Highest-value next implementation:
 
-- `BROWSER_READONLY_OR_PREPARATION_SPEC`, followed by a browser read-only organ
-  that treats all web output as untrusted evidence data.
+- `API_READONLY_SPEC`, followed by an API Read-Only Organ that treats all
+  external API responses as untrusted evidence data and never exposes raw auth
+  headers.
 
 Recommended next pack:
 
 ```text
-BROWSER_READONLY_OR_PREPARATION_SPEC
+API_READONLY_SPEC
 ```
 
 Parallel hardening recommendation:

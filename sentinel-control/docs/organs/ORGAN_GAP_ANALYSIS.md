@@ -1,25 +1,30 @@
 # Organ Gap Analysis
 
-Status: audit lock
+Status: Wave 2 browser perception gap update
 
-Date: 2026-05-19
+Date: 2026-05-21
 
 ## Summary
 
-Sentinel has strong local execution, memory, cognition, and many latent
-high-power organ families. The remaining gaps are mostly not about imagination.
-They are about controlled promotion: each missing organ needs a Sentinel-native
-contract, fake evals, receipts, rollback or disable posture, and FinalGate.
+Sentinel has strong local execution, memory, cognition, and a completed Wave 2
+browser perception chain. Browser Read-Only, Browser Preparation, Browser
+Semantic Extraction, and explicit AgentRuntime opt-in now sit inside the
+Sentinel-native contract/receipt/FinalGate pattern.
+
+The remaining gaps are mostly not about imagination. They are about controlled
+promotion: each missing organ still needs a Sentinel-native contract, fake
+evals, receipts, rollback or disable posture, and FinalGate.
 
 ## Missing Or Under-Promoted Organs
 
 ### Browser Read-Only Organ V1
 
-Spec status:
+Status:
 
 - `BROWSER_READONLY_OR_PREPARATION_SPEC` is locked as the Wave 2 entry spec.
-- Runtime implementation is not started.
-- Existing browser read/render/extract modules should be harvested through a
+- `BrowserReadOnlyOrganV1` is implemented.
+- AgentRuntime opt-in is implemented and default-off.
+- Existing browser read/render/extract modules were harvested through a
   Sentinel-native request/receipt/FinalGate wrapper.
 
 Importance:
@@ -47,7 +52,20 @@ Required contracts:
 - network budget;
 - evidence refs and source confidence.
 
+Gap status:
+
+- closed for Wave 2 read-only perception.
+- later browser action/login/upload/download/private-session surfaces remain
+  separate future gaps.
+
 ### Browser Semantic Extraction Organ
+
+Status:
+
+- `BrowserSemanticExtractionOrganV1` is implemented.
+- AgentRuntime opt-in is implemented and default-off.
+- Extraction consumes read-only/preparation receipts and emits structured
+  evidence cards as untrusted candidate data.
 
 Importance:
 
@@ -71,12 +89,19 @@ Required contracts:
 - prompt-injection scanner;
 - evidence verifier binding.
 
+Gap status:
+
+- closed for Wave 2 semantic evidence candidates.
+- remains intentionally blocked from claim verification or truth promotion
+  without EvidenceVerifier.
+
 ### Browser Preparation Organ
 
-Spec status:
+Status:
 
 - `BROWSER_READONLY_OR_PREPARATION_SPEC` defines the preparation contract.
-- Runtime implementation is not started.
+- `BrowserPreparationOrganV1` is implemented.
+- AgentRuntime opt-in is implemented and default-off.
 - Preparation remains plan-only and cannot call browser backends.
 
 Importance:
@@ -98,6 +123,12 @@ Required contracts:
 - proposed step hashes;
 - target refs;
 - submit-disabled invariant.
+
+Gap status:
+
+- closed for Wave 2 non-executing preparation.
+- later browser action execution still requires a separate controlled-action
+  spec and authority class split.
 
 ### Browser Action Organ
 
@@ -602,17 +633,25 @@ Required contracts:
 
 1. Unified organ adapter layer between older `sentinel.organs.*` and newer
    `sentinel.agent.organs.*`.
-2. Browser promotion path into the new gate/FinalGate chain.
-3. Credential broker with real vault-backed refs.
-4. Safe shell/test runner separation.
-5. Skill/plugin scanner and sandbox as first-class organs.
-6. Explicit no-memory-as-instruction enforcement when retrieval eventually
+2. Browser controlled action path after the completed read-only/preparation/
+   semantic perception chain.
+3. API Read-Only Organ and authenticated response redaction path.
+4. Credential broker with real vault-backed refs.
+5. Safe shell/test runner separation.
+6. Skill/plugin scanner and sandbox as first-class organs.
+7. Explicit no-memory-as-instruction enforcement when retrieval eventually
    enters prompt context.
-7. Quarantine or rewrite adjacent web-worker/process execution so it cannot be
+8. Quarantine or rewrite adjacent web-worker/process execution so it cannot be
    mistaken for approved Sentinel organ execution.
 
 ## Gap Verdict
 
-Sentinel lacks almost none of the conceptual organs. It lacks promotion
-contracts for the highest-power surfaces. The next expansion must be browser
-read-only/preparation, not browser submit or desktop action.
+Sentinel lacks almost none of the conceptual organs. It has now closed the
+Wave 2 browser perception gap with read-only observation, non-executing
+preparation, semantic extraction, FinalGate certification, and explicit
+runtime opt-in.
+
+The next expansion should move to `API_READONLY_SPEC` or research/OCR/PDF/
+vision perception. Browser submit, login, upload/download, private sessions,
+desktop action, shell, credentials, and channel/API mutation remain separate
+future gaps requiring stronger authority classes.
