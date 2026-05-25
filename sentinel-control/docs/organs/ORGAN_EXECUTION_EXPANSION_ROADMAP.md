@@ -1,8 +1,8 @@
 # Organ Execution Expansion Roadmap
 
-Status: Wave 2 browser perception completion lock
+Status: Brain-native action feedback loop locked; authority foundation next
 
-Date: 2026-05-21
+Date: 2026-05-25
 
 ## Objective
 
@@ -37,16 +37,47 @@ Implemented and current:
 - Browser Preparation Organ V1;
 - Browser Semantic Extraction Organ V1;
 - explicit AgentRuntime browser read-only/preparation/semantic extraction
-  opt-in.
+  opt-in;
+- Brain-native candidate source into `AgentRuntime.run()` behind explicit
+  opt-in;
+- real memory feedback through `RoleLoopMemoryBridge.build(...)`;
+- replan-ready packet generation.
+
+Latest runtime lock:
+
+```text
+current_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
+latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
+previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
+durable_memory_persistence = NOT_STARTED
+automatic_replan_execution = NOT_STARTED
+next_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION
+```
 
 Not approved as broad default:
 
 - browser action/API/channel/desktop/shell/network/credential execution;
 - L5/L6/L7 runtime expansion;
+- CloakBrowser controlled backend;
+- credential vault runtime;
 - provider fallback;
 - AUTO routing;
 - vendor runtime import;
 - plugin/MCP runtime.
+
+Current native loop:
+
+```text
+BrainCognitionLoop.run(...)
+-> BrainCognitionResult.proposal_artifacts
+-> OrganDispatcher
+-> DelegatedActionGate
+-> L2/L3/browser perception executor request
+-> receipt
+-> FinalGate certificate
+-> RoleLoopMemoryBridge.build(...)
+-> replan-ready packet
+```
 
 ## Wave 0: Organ Audit Lock
 
@@ -174,6 +205,101 @@ Tests:
 - claims remain unverified until EvidenceVerifier;
 - runtime default remains disabled;
 - provider/backend/model contract is preserved.
+
+## Immediate Foundation: Mission Authority And Credential Vault
+
+Status:
+
+- next recommended pack.
+- required before CloakBrowser live backend, API mutation, channel send,
+  desktop action, shell, cloud/devops, or any credential-bearing organ.
+
+Packs:
+
+1. `MISSION_AUTHORITY_ENVELOPE_HARDENING`
+2. `CREDENTIAL_REFERENCE_AND_VAULT_FOUNDATION`
+3. `AUTHORITY_SCOPE_PROOF_AND_REVOCATION_MODEL`
+4. `CREDENTIAL_USE_RECEIPT_AND_FINALGATE_SPEC`
+
+Prerequisites:
+
+- Brain-native action feedback loop locked;
+- OrganDispatcher/Gate/FinalGate default-off path locked;
+- no credential material in memory, receipts, replay, or prompts;
+- no L5+ execution path opened by this foundation.
+
+Capability gain:
+
+- explicit authority substrate for future high-power organs;
+- credential references without secret exposure;
+- revocation, expiry, scope, and audit posture for later L5/L6/L7 surfaces.
+
+Risk increase:
+
+- medium, because it introduces credential/authority metadata concepts;
+- contained because no credential-bearing execution is implemented here.
+
+Rollback strategy:
+
+- revoke authority envelope;
+- tombstone credential references;
+- invalidate lane metadata;
+- mark related memory as historical only.
+
+Tests:
+
+- no raw credential or token can persist;
+- credential reference cannot grant authority;
+- expired authority blocks future use;
+- memory/replay/checkpoint cannot expand envelope;
+- provider/backend/model cannot be overridden.
+
+## CloakBrowser Controlled Backend And L5 Navigation Path
+
+Status:
+
+- planned after Mission Authority and Credential Vault foundation.
+- not approved as the immediate next implementation pack.
+
+Packs:
+
+1. `CLOAKBROWSER_CONTROLLED_BACKEND_SPEC`
+2. `BROWSER_L5_NAVIGATION_CLICK_TYPE_SPEC`
+3. `BROWSER_L5_CONTROLLED_ACTION_ORGAN_V1`
+
+Prerequisites:
+
+- credential vault references;
+- mission authority scope proofs;
+- browser action lane with expiry/revocation;
+- exact action preview;
+- submit/login/upload/download remain separately gated.
+
+Capability gain:
+
+- controlled high-power browser operation;
+- multi-step web navigation and preparation-to-action continuity.
+
+Risk increase:
+
+- high to critical, because web pages are adversarial and actions can mutate
+  external state.
+
+Rollback strategy:
+
+- stop browser session;
+- revoke lane;
+- preserve screenshots/DOM/action receipts;
+- honest rollback-unavailable certificate when external mutation cannot be
+  undone.
+
+Tests:
+
+- no submit without special authority;
+- no credential without vault reference and exact scope;
+- prompt injection cannot become instruction;
+- action receipts bind screenshot/DOM/AX hashes;
+- FinalGate sees every action and blocks missing proof.
 
 ## Wave 3: Research, OCR, PDF, Vision
 

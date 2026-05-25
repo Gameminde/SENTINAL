@@ -12,7 +12,7 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-05-18
+## Current Snapshot - 2026-05-25
 
 This repository is the full Sentinel working tree. It includes the legacy
 CueIdea/RedditPulse evidence product, the Sentinel Control runtime, and Agent
@@ -24,131 +24,83 @@ Current public GitHub checkpoint:
 ```text
 remote = https://github.com/Gameminde/SENTINAL
 branch = main
-latest budget closure evidence before this README update = 074ca1c runtime: enforce model execution budgets
+latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
+previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 ```
 
 Current state lock:
 
 ```text
-current_phase = SENTINEL_MODEL_EXECUTION_BUDGETS_LOCKED
-previous_phase = SENTINEL_STATE_TRUTH_REPAIRED
-next_phase = CONTROLLED_LLM_ROLE_LOOP_SPEC
+current_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
+previous_phase = BRAIN_TO_ORGAN_RUNTIME_CLOSED_LOOP_LOCKED
+next_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION
 ```
 
 Important current truth:
 
 ```text
-Phase A = LOCKED
-Phase B = STRUCTURAL LOCK with performance caveats
-Phase C = STRUCTURAL LOCK / PARTIAL RUNTIME ADOPTION
-Phase D = LOCKED
-Phase E = LOCKED
-Phase F = LOCKED
-Context cache runtime closure = LOCKED
-LLM decision-cycle seam = LOCKED
-Real model execution foundation = STRUCTURAL_READY
-Real model provider adapter layer = LOCKED
-Runtime model execution wiring = WIRED
-Runtime real-provider validation = SUCCESS_VALIDATED through AgentRuntime.run
-Provider catalog = IMPLEMENTED
-OpenAI-compatible provider base = HARDENED
-Model execution budget governance = LOCKED
+Brain native candidate source = CLOSED
+OrganDispatcher runtime bridge = CLOSED
+DelegatedActionGate = CLOSED
+L2 local artifact execution = CLOSED / explicit opt-in
+L3 reversible workspace execution = CLOSED / explicit opt-in
+Browser ReadOnly + Preparation + Semantic Extraction = CLOSED / explicit opt-in
+Receipts + FinalGate = CLOSED
+Memory feedback via RoleLoopMemoryBridge.build(...) = CLOSED
+Replan-ready packet = CLOSED
+Durable memory persistence = NOT_STARTED
+Automatic replan execution = NOT_STARTED
+AgentRuntime default-off = CLOSED
 Provider expansion immediate = NO-GO
+fallback routing = NOT_STARTED / NOT_APPROVED
+AUTO model routing = NOT_STARTED / NOT_APPROVED
+L5/L6/L7 dangerous execution = NOT_STARTED / NOT_APPROVED
 ```
 
-Phase F now provides deterministic local golden mission runners,
-benchmark/regression gate evaluation, hot-path coverage checks, and minimal
-CoreFinalGate PerformanceReceipt mission-close invariant verification.
-
-The context cache runtime closure is locked. `P-C-KEY-01` is closed, and
-runtime cache-key propagation is locked at the constructor/default-off
-injection layer.
-
-The LLM-backed decision-cycle seam is locked through:
-
-```text
-Context -> LLMDecisionFrame -> PromptRender -> ModelCallPlan
-```
-
-The real model provider adapter layer is locked through:
-
-```text
-ModelCallPlan-compatible request ->
-real Groq provider call ->
-ProviderModelResponse ->
-LLMDecisionResult ->
-safe receipt/redaction
-```
-
-Runtime model execution is now validated through:
+Current native runtime loop:
 
 ```text
 AgentRuntime.run
--> ModelCallPlan
--> ModelExecutionCoordinator
--> Groq provider adapter
--> ProviderModelResponse
--> LLMDecisionResult
--> safe receipt metadata
--> FinalGate-certified AgentRunResult
+-> BrainCognitionLoop.run(...) when explicitly enabled
+-> BrainCognitionResult.proposal_artifacts
+-> OrganDispatcher
+-> DelegatedActionGate
+-> L2/L3/browser perception executor request
+-> receipt
+-> FinalGate certificate
+-> RoleLoopMemoryBridge.build(...) memory feedback
+-> replan-ready packet
 ```
 
-Accepted provider evidence:
+Boundaries still held:
 
 ```text
-provider_id = groq
-backend_id = groq_openai_compatible_chat
-model_id = openai/gpt-oss-20b
-outcome = SUCCESS_VALIDATED
-LLMDecisionResult validation = passed
-receipt/redaction = passed
-fake success = no
+Everything remains default-off.
+No new root authority path.
+No memory-as-authority.
+No receipt-as-authority.
+No automatic replan execution.
+No durable memory persistence yet.
+No browser submit/login/upload/download/private session/credential.
+No API mutation.
+No channel send.
+No desktop action.
+No shell/process execution.
+No provider fallback or AUTO routing.
 ```
 
-Diagnostic-only providers:
-
-```text
-OpenRouter = RATE_LIMIT / TIMEOUT / PROVIDER_ERROR observed; no success overclaim
-NVIDIA MiniMax = TIMEOUT observed; no success overclaim
-```
-
-What is not yet proven:
-
-```text
-production retry/rate-limit/fallback policy = OPEN
-OpenRouter production readiness = OPEN
-NVIDIA MiniMax production readiness = OPEN
-PRODUCTION_PROVIDER_ROUTING = OPEN
-fallback routing = NOT_STARTED / NOT_APPROVED
-AUTO model routing = NOT_STARTED / NOT_APPROVED
-AUTO multi-model routing = NOT_STARTED / NOT_APPROVED
-```
-
-Model execution budget closure is locked by:
-
-```text
-budget_closure_commit = 074ca1c runtime: enforce model execution budgets
-MODEL_EXECUTION_BUDGET_GOVERNANCE = CLOSED
-P-C-RUNTIME-01-ACTIONBUDGET-DEFER = CLOSED
-P-C-RUNTIME-01-MISSIONBUDGET-DEFER = CLOSED
-```
-
-Implemented budget truth:
-
-```text
-action-level model budget preflight = implemented
-mission-level model budget ledger = implemented
-post-response budget overrun can downgrade to BUDGET_REJECTED
-safe budget summaries on ModelExecutionOutcome and runtime metadata
-FinalGate checks safe/internal model budget metadata
-```
-
-P6U and Brain/Science work have not started.
+Historical model-execution, provider, budget, and performance closure details
+remain in `sentinel-control/docs/CURRENT_STATE_LOCK.md`. They are still valid
+as historical locks, but the current public phase is now the Brain-native
+action feedback loop lock above.
 
 Start with:
 
 ```text
 sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/reviews/BRAIN_NATIVE_CANDIDATE_SOURCE_AND_MEMORY_FEEDBACK_LOCK_REPORT.md
+sentinel-control/docs/reviews/BRAIN_TO_ORGAN_RUNTIME_CLOSED_LOOP_LOCK_REPORT.md
+sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md
 sentinel-control/docs/specs/sentinel-real-model-execution-backend/requirements.md
 sentinel-control/docs/specs/sentinel-real-model-execution-backend/design.md
 sentinel-control/docs/specs/sentinel-real-model-execution-backend/tasks.md

@@ -1,5 +1,110 @@
 # Current State Lock
 
+## Brain Native Action Feedback Loop - LOCKED
+
+Recorded at: 2026-05-25
+
+Branch: `main`
+
+This section supersedes older top-level state language that listed
+`SENTINEL_MODEL_EXECUTION_BUDGETS_LOCKED` or
+`CONTROLLED_LLM_ROLE_LOOP_SPEC` as the current public phase. Those sections
+remain below as historical locks.
+
+```text
+current_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
+previous_phase = BRAIN_TO_ORGAN_RUNTIME_CLOSED_LOOP_LOCKED
+next_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION
+
+latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
+previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
+budget_closure_commit = 074ca1c runtime: enforce model execution budgets
+```
+
+### Runtime Truth
+
+```text
+Brain candidate source = CLOSED
+OrganDispatcher = CLOSED
+DelegatedActionGate = CLOSED
+L2 local artifact execution = CLOSED / explicit opt-in
+L3 reversible workspace execution = CLOSED / explicit opt-in
+Browser ReadOnly / Preparation / Semantic Extraction = CLOSED / explicit opt-in
+Receipt = CLOSED
+FinalGate = CLOSED
+Memory feedback = CLOSED via RoleLoopMemoryBridge.build(...)
+Replan-ready output = CLOSED
+AgentRuntime default-off = CLOSED
+```
+
+The current native loop is:
+
+```text
+AgentRuntime.run
+-> BrainCognitionLoop.run(...) when explicitly enabled
+-> BrainCognitionResult.proposal_artifacts
+-> OrganDispatcher
+-> DelegatedActionGate
+-> L2/L3/browser perception executor request
+-> receipt
+-> FinalGate certificate
+-> RoleLoopMemoryBridge.build(...) memory feedback
+-> replan-ready packet
+```
+
+### Honest Non-Claims
+
+```text
+durable_memory_persistence = NOT_STARTED
+automatic_replan_execution = NOT_STARTED
+Brain live society = NOT_STARTED
+L5/L6/L7 dangerous execution = NOT_STARTED / NOT_APPROVED
+Credential vault runtime = NOT_STARTED
+CloakBrowser controlled backend = NOT_STARTED
+provider_fallback = NOT_STARTED / NOT_APPROVED
+AUTO_model_routing = NOT_STARTED / NOT_APPROVED
+```
+
+### Boundaries Held
+
+```text
+Everything remains default-off.
+No new root authority path.
+No memory-as-authority.
+No receipt-as-authority.
+No FinalGate-as-future-permission.
+No automatic replan execution.
+No durable memory persistence yet.
+No browser submit/login/upload/download/private session/credential.
+No API mutation.
+No channel send.
+No desktop action.
+No shell/process execution.
+No provider fallback.
+No AUTO routing.
+No provider/backend/model override.
+```
+
+### Next Phase
+
+The next phase is not CloakBrowser live execution yet.
+
+```text
+next_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION
+```
+
+Reason:
+
+```text
+The runtime can now connect Brain -> organs -> receipts -> FinalGate ->
+memory feedback -> replan-ready packet in explicit opt-in mode.
+
+Before adding CloakBrowser, API mutation, channel send, desktop, shell, or
+credential-bearing surfaces, Sentinel needs the next authority foundation:
+mission authority envelopes, credential references, revocation posture,
+scope proofs, and vault-backed non-secret handles.
+```
+
 ## Sentinel Model Execution Budgets - LOCKED
 
 Recorded at: 2026-05-18
