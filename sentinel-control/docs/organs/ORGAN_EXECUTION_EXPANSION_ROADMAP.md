@@ -1,6 +1,6 @@
 # Organ Execution Expansion Roadmap
 
-Status: Brain-native action feedback loop locked; authority foundation next
+Status: Mission authority and credential foundation locked; CloakBrowser spec next
 
 Date: 2026-05-25
 
@@ -41,17 +41,25 @@ Implemented and current:
 - Brain-native candidate source into `AgentRuntime.run()` behind explicit
   opt-in;
 - real memory feedback through `RoleLoopMemoryBridge.build(...)`;
-- replan-ready packet generation.
+- replan-ready packet generation;
+- mission authority grant foundation;
+- credential refs/grants/proofs foundation;
+- credential revocation/audit metadata;
+- authority presets for local, browser perception, operator browser L5, and
+  full-power template modes.
 
 Latest runtime lock:
 
 ```text
-current_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
+current_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
 automatic_replan_execution = NOT_STARTED
-next_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION
+real_secret_storage = NOT_STARTED
+real_credential_use_by_organs = NOT_STARTED
+browser_login_session_credentials = NOT_STARTED
+next_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
 ```
 
 Not approved as broad default:
@@ -64,6 +72,7 @@ Not approved as broad default:
 - AUTO routing;
 - vendor runtime import;
 - plugin/MCP runtime.
+- real credential value resolution.
 
 Current native loop:
 
@@ -210,16 +219,30 @@ Tests:
 
 Status:
 
-- next recommended pack.
-- required before CloakBrowser live backend, API mutation, channel send,
-  desktop action, shell, cloud/devops, or any credential-bearing organ.
+- completed / locked as metadata foundation.
+- real credential runtime remains NOT_STARTED.
+- this foundation is required before CloakBrowser live backend, API mutation,
+  channel send, desktop action, shell, cloud/devops, or any credential-bearing
+  organ.
 
 Packs:
 
-1. `MISSION_AUTHORITY_ENVELOPE_HARDENING`
-2. `CREDENTIAL_REFERENCE_AND_VAULT_FOUNDATION`
-3. `AUTHORITY_SCOPE_PROOF_AND_REVOCATION_MODEL`
-4. `CREDENTIAL_USE_RECEIPT_AND_FINALGATE_SPEC`
+Delivered:
+
+1. `MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION`
+
+Implemented:
+
+- `MissionAuthorityGrant`;
+- `CredentialGrant`;
+- `CredentialAccessRequest`;
+- `CredentialAccessProof`;
+- `CredentialRevocation`;
+- `CredentialAuditReceipt`;
+- `AuthorityPresetFactory`;
+- `MissionAuthorityEnvelope.credential_grants`;
+- DelegatedActionGate credential proof metadata checks;
+- FinalGate-oriented credential proof metadata validation helper.
 
 Prerequisites:
 
@@ -253,13 +276,16 @@ Tests:
 - expired authority blocks future use;
 - memory/replay/checkpoint cannot expand envelope;
 - provider/backend/model cannot be overridden.
+- missing credential proof blocks when required;
+- valid credential proof remains metadata-only.
 
 ## CloakBrowser Controlled Backend And L5 Navigation Path
 
 Status:
 
-- planned after Mission Authority and Credential Vault foundation.
-- not approved as the immediate next implementation pack.
+- next recommended spec pack after the authority/credential foundation.
+- runtime implementation remains NOT_STARTED until the controlled backend
+  contract is locked.
 
 Packs:
 

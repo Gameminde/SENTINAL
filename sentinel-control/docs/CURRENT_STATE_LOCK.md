@@ -1,5 +1,87 @@
 # Current State Lock
 
+## Mission Authority And Credential Vault Foundation - LOCKED
+
+Recorded at: 2026-05-25
+
+Branch: `main`
+
+This section supersedes `BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED` as the
+current implementation phase. The brain-native action feedback loop remains
+locked and is the previous runtime foundation.
+
+```text
+current_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
+previous_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
+next_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
+```
+
+### Authority And Credential Foundation Truth
+
+```text
+Mission authority grants foundation = CLOSED
+Credential refs/grants/proofs foundation = CLOSED
+Revocation/audit model = CLOSED
+Authority presets = CLOSED
+DelegatedActionGate credential proof metadata checks = CLOSED
+FinalGate credential proof metadata validation helper = CLOSED
+Real secret storage = NOT_STARTED
+Real credential use by organs = NOT_STARTED
+Browser login/session credentials = NOT_STARTED
+CloakBrowser backend = NOT_STARTED
+Durable credential audit persistence = NOT_STARTED
+```
+
+### Implemented Foundation
+
+```text
+sentinel/organs/credentials/foundation.py
+MissionAuthorityEnvelope.credential_grants metadata
+CredentialRef metadata hardening
+OrganRuntimeExecutionConfig credential policy/proof refs
+DelegatedActionGate credential_proof_required metadata check
+AuthorityPresetFactory:
+  - development_local
+  - browser_perception
+  - operator_browser_l5_template
+  - full_power_template
+```
+
+### Boundaries Held
+
+```text
+No raw secret persistence.
+No real credential value storage.
+No credential value resolution.
+No browser login.
+No browser submit.
+No API mutation.
+No channel send.
+No desktop action.
+No shell/process execution.
+No payment/spend/trading.
+No provider fallback.
+No AUTO routing.
+No provider/backend/model override.
+No credential grant can create root authority.
+No credential proof can approve future execution.
+No global enable credentials switch.
+Revocation wins over all grants.
+Expired grants block.
+Scope mismatch blocks.
+```
+
+### Next Phase
+
+The next phase can be a CloakBrowser controlled backend specification because
+Sentinel now has metadata-only authority grants, credential references, access
+proofs, revocation semantics, audit receipts, and non-executing authority
+presets.
+
+```text
+next_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
+```
+
 ## Brain Native Action Feedback Loop - LOCKED
 
 Recorded at: 2026-05-25

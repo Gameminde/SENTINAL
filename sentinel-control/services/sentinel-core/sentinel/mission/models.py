@@ -41,6 +41,7 @@ class MissionAuthorityEnvelope(SentinelModel):
     allowed_accounts: list[str] = Field(default_factory=list)
     allowed_data_types: list[str] = Field(default_factory=list)
     browser_v3_authority_grants: list[dict[str, Any]] = Field(default_factory=list)
+    credential_grants: list[Any] = Field(default_factory=list)
     max_duration_minutes: int = Field(default=60, ge=1)
     max_actions: int = Field(default=50, ge=1)
     max_cost_usd: float = Field(default=0.0, ge=0.0)

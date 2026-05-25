@@ -14,6 +14,7 @@ from sentinel.agent.organs.proposal_bridge import (
     OrganCandidateRiskClass,
     OrganProposalKind,
 )
+from sentinel.organs.credentials import CredentialAccessProof, validate_credential_proof_for_finalgate
 from sentinel.shared.models import SentinelModel
 
 
@@ -55,6 +56,8 @@ class DelegatedActionGateReason(StrEnum):
     ROLLBACK_POSTURE_MISSING = "rollback_posture_missing"
     RAW_EXECUTABLE_PARAMS_FORBIDDEN = "raw_executable_params_forbidden"
     PROVIDER_MODEL_OVERRIDE = "provider_model_override"
+    CREDENTIAL_PROOF_MISSING = "credential_proof_missing"
+    CREDENTIAL_PROOF_INVALID = "credential_proof_invalid"
     UNSAFE_PAYLOAD = "unsafe_payload"
 
 
@@ -257,6 +260,7 @@ class DelegatedActionGateInput(SentinelModel):
     selected_backend_id: str | None = None
     selected_model: str | None = None
     unresolved_objections: list[Any] = Field(default_factory=list)
+    credential_access_proofs: list[dict[str, Any]] = Field(default_factory=list)
     current_time: datetime = Field(default_factory=utc_now)
 
 
@@ -329,6 +333,8 @@ class DelegatedActionGate:
         contract = _organ_contract(gate_input, candidate)
         contract_reasons = _organ_contract_reasons(candidate, contract)
         reasons.extend(contract_reasons)
+        credential_reasons = _credential_reasons(gate_input, candidate, contract)
+        reasons.extend(credential_reasons)
         model_reasons = _model_contract_reasons(gate_input, candidate)
         reasons.extend(model_reasons)
         risk_reasons = _risk_reasons(gate_input, candidate)
@@ -437,6 +443,8 @@ def _decision(
         return DelegatedActionGateDecision.BUDGET_EXHAUSTED
     if DelegatedActionGateReason.MISSING_ROOT_AUTHORITY in reasons or DelegatedActionGateReason.ACTION_LEVEL_NOT_ALLOWED in reasons or DelegatedActionGateReason.ORGAN_NOT_ALLOWED in reasons:
         return DelegatedActionGateDecision.AUTHORITY_EXTENSION_REQUIRED
+    if DelegatedActionGateReason.CREDENTIAL_PROOF_MISSING in reasons or DelegatedActionGateReason.CREDENTIAL_PROOF_INVALID in reasons:
+        return DelegatedActionGateDecision.AUTHORITY_EXTENSION_REQUIRED
     if DelegatedActionGateReason.MISSING_EVIDENCE in reasons:
         return DelegatedActionGateDecision.NEEDS_MORE_EVIDENCE
     if DelegatedActionGateReason.CONTRADICTION_PRESENT in reasons or DelegatedActionGateReason.RISK_TOO_HIGH in reasons:
@@ -540,6 +548,41 @@ def _model_contract_reasons(
     if any(marker in text for marker in ("provider_override", "model_override", "backend_override")):
         return [DelegatedActionGateReason.PROVIDER_MODEL_OVERRIDE]
     return []
+
+
+def _credential_reasons(
+    gate_input: DelegatedActionGateInput,
+    candidate: BaseOrganCandidate,
+    contract: dict[str, Any] | None,
+) -> list[DelegatedActionGateReason]:
+    requires_proof = bool(
+        (contract or {}).get("credential_proof_required")
+        or gate_input.authority.get("credential_proof_required")
+    )
+    if not requires_proof:
+        return []
+
+    proof_payloads = list(gate_input.credential_access_proofs)
+    authority_proofs = gate_input.authority.get("credential_access_proofs")
+    if isinstance(authority_proofs, list):
+        proof_payloads.extend(item for item in authority_proofs if isinstance(item, dict))
+    if not proof_payloads:
+        return [DelegatedActionGateReason.CREDENTIAL_PROOF_MISSING]
+
+    for proof_payload in proof_payloads:
+        validation = validate_credential_proof_for_finalgate(
+            proof=proof_payload,
+            mission_id=gate_input.mission_id,
+        )
+        if not validation.valid:
+            continue
+        proof = CredentialAccessProof.model_validate(proof_payload)
+        if proof.organ_kind != candidate.organ_kind.value:
+            continue
+        if proof.action_level != candidate.action_level_candidate.value:
+            continue
+        return []
+    return [DelegatedActionGateReason.CREDENTIAL_PROOF_INVALID]
 
 
 def _risk_reasons(
@@ -660,6 +703,8 @@ def _evidence_summary(
 
 def _authority_status(reasons: list[DelegatedActionGateReason]) -> DelegatedActionAuthorityClass:
     if DelegatedActionGateReason.MISSING_ROOT_AUTHORITY in reasons or DelegatedActionGateReason.ACTION_LEVEL_NOT_ALLOWED in reasons:
+        return DelegatedActionAuthorityClass.AUTHORITY_EXTENSION_REQUIRED
+    if DelegatedActionGateReason.CREDENTIAL_PROOF_MISSING in reasons or DelegatedActionGateReason.CREDENTIAL_PROOF_INVALID in reasons:
         return DelegatedActionAuthorityClass.AUTHORITY_EXTENSION_REQUIRED
     if DelegatedActionGateReason.USER_REVIEW_REQUIRED in reasons:
         return DelegatedActionAuthorityClass.NEEDS_USER_REVIEW

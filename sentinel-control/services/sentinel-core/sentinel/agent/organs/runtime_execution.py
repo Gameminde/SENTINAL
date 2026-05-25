@@ -130,6 +130,8 @@ class OrganRuntimeExecutionConfig(SentinelModel):
     deny_browser: bool = True
     deny_channel: bool = True
     deny_api: bool = True
+    credential_policy_refs: list[str] = Field(default_factory=list)
+    credential_proof_refs: list[str] = Field(default_factory=list)
     contract_version: str = "organ-runtime-l2-l3-v0"
     authority_effect: str = "none"
     execution_effect: str = "none"
