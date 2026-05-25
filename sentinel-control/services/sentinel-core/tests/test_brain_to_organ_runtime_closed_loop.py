@@ -77,6 +77,7 @@ def _local_config(**updates: Any) -> OrganRuntimeExecutionConfig:
     data = {
         "enabled": True,
         "organ_dispatch_enabled": True,
+        "temporary_candidate_bridge_enabled": True,
         "mode": OrganRuntimeExecutionMode.L2_L3_LOCAL_ONLY,
         "allowed_action_levels": [DelegatedActionLevel.L2, DelegatedActionLevel.L3],
         "allowed_organs": ["local_artifact", "reversible_workspace"],
@@ -91,6 +92,7 @@ def _browser_config(**updates: Any) -> OrganRuntimeExecutionConfig:
     data = {
         "enabled": True,
         "organ_dispatch_enabled": True,
+        "temporary_candidate_bridge_enabled": True,
         "mode": OrganRuntimeExecutionMode.BROWSER_READONLY_PREPARATION_ONLY,
         "allowed_action_levels": [DelegatedActionLevel.L4],
         "allowed_organs": ["browser_readonly", "browser_preparation", "browser_semantic_extraction"],

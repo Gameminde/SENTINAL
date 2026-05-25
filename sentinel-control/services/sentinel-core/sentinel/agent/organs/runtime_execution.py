@@ -98,6 +98,13 @@ class OrganRuntimeExecutionConfig(SentinelModel):
     # inside the dispatch phase. Default-off: existing run() behavior is
     # byte-identical when this is False.
     organ_dispatch_enabled: bool = False
+    # BRAIN_NATIVE_CANDIDATE_SOURCE_AND_MEMORY_FEEDBACK_LOCK:
+    # all three switches default off. Brain output may become the native
+    # proposal source only when explicitly enabled; the previous structured
+    # user_input bridge is now a test/transition fallback, also explicit.
+    brain_native_candidate_source_enabled: bool = False
+    temporary_candidate_bridge_enabled: bool = False
+    memory_feedback_enabled: bool = False
     mode: OrganRuntimeExecutionMode = OrganRuntimeExecutionMode.DISABLED
     allowed_action_levels: list[DelegatedActionLevel] = Field(
         default_factory=lambda: [DelegatedActionLevel.L2, DelegatedActionLevel.L3]

@@ -41,6 +41,7 @@ from sentinel.agent.model_contract import (
     UserModelContract,
 )
 from sentinel.agent.model_cost import ModelCostProfile
+from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionConfig
 from sentinel.agent.runtime import AgentRuntime
 
 
@@ -328,7 +329,10 @@ def test_brain_cognition_loop_orchestrates_existing_components_safely() -> None:
 
 
 def test_brain_cognition_loop_default_off_no_agent_runtime_change() -> None:
-    assert "brain_cognition_loop" not in signature(AgentRuntime.__init__).parameters
+    params = signature(AgentRuntime.__init__).parameters
+
+    assert params["brain_cognition_loop"].default is None
+    assert OrganRuntimeExecutionConfig().brain_native_candidate_source_enabled is False
 
 
 def test_brain_cognition_loop_result_authority_effect_none() -> None:
@@ -468,5 +472,8 @@ def test_brain_cognition_loop_does_not_execute_organs() -> None:
 
 
 def test_brain_cognition_loop_does_not_change_agent_runtime_default_behavior() -> None:
-    assert "brain_cognition_loop" not in signature(AgentRuntime.__init__).parameters
+    params = signature(AgentRuntime.__init__).parameters
+
+    assert params["brain_cognition_loop"].default is None
+    assert OrganRuntimeExecutionConfig().brain_native_candidate_source_enabled is False
     assert "organ_executor" not in signature(AgentRuntime.__init__).parameters

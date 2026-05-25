@@ -25,6 +25,8 @@ if TYPE_CHECKING:
     # by ``sentinel.agent.final_gate`` which calls ``AgentRunResult.model_rebuild``
     # with an explicit ``_types_namespace`` once the class is defined.
     from sentinel.agent.final_gate import CoreFinalGateResult
+    from sentinel.agent.brain.cognition_loop import BrainCognitionResult
+    from sentinel.agent.llm.memory_bridge import MemoryBridgeResult
     from sentinel.agent.organs.organ_dispatch import OrganDispatchResult
     from sentinel.perf.measure.performance_receipt import PerformanceReceipt
 
@@ -241,9 +243,14 @@ class AgentRunResult(SentinelModel):
     mission_results: list[MissionRunResult] = Field(default_factory=list)
     performance_receipts: list["PerformanceReceipt"] = Field(default_factory=list)
     llm_decision_cycle: dict[str, Any] | None = None
+    brain_cognition_result: "BrainCognitionResult | None" = None
+    brain_candidate_source_status: str = "NOT_STARTED"
     organ_dispatch_result: "OrganDispatchResult | None" = None
+    memory_feedback_result: "MemoryBridgeResult | None" = None
     memory_feedback_path: str = "NOT_STARTED"
     memory_feedback_refs: list[str] = Field(default_factory=list)
+    memory_snapshot_ref: str | None = None
+    durable_memory_persistence: str = "NOT_STARTED"
     replan_ready: bool = False
     replan_packet: dict[str, Any] | None = None
     automatic_replan_executed: bool = False

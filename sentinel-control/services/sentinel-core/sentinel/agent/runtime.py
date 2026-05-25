@@ -14,6 +14,7 @@ from pydantic import ConfigDict
 from sentinel.shared.models import SentinelModel
 
 from sentinel.agent.audit import RuntimeCertificationGate
+from sentinel.agent.brain.cognition_loop import BrainCognitionInput, BrainCognitionLoop, BrainCognitionResult
 from sentinel.agent.browser import (
     BrowserControlledCapabilityRunner,
     BrowserEvidenceInterpreter,
@@ -52,6 +53,8 @@ from sentinel.agent.model_execution import (
     RealModelRequestBuilder,
 )
 from sentinel.agent.models import AgentContext, AgentRunResult
+from sentinel.agent.llm.memory_bridge import MemoryBridgeInput, MemoryBridgeResult, RoleLoopMemoryBridge
+from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.agent.organs.organ_dispatch import (
     OrganDispatcher,
     OrganDispatchResult,
@@ -260,6 +263,8 @@ class AgentRuntime:
         backpressure_controller: BackpressureController | None = None,
         organ_execution_config: OrganRuntimeExecutionConfig | None = None,
         organ_dispatcher: OrganDispatcher | None = None,
+        brain_cognition_loop: BrainCognitionLoop | None = None,
+        memory_bridge: RoleLoopMemoryBridge | None = None,
     ) -> None:
         self.identity = identity or default_agent_identity()
         self.project_root = Path(project_root or Path.cwd()).resolve()
@@ -289,6 +294,8 @@ class AgentRuntime:
         self._backpressure_controller = backpressure_controller
         self._organ_execution_config = organ_execution_config or OrganRuntimeExecutionConfig()
         self._organ_dispatcher = organ_dispatcher
+        self._brain_cognition_loop = brain_cognition_loop
+        self._memory_bridge = memory_bridge or RoleLoopMemoryBridge()
         self.context_builder = ContextBuilder()
         self.context_compressor = ContextCompressor()
         self.cognitive_cycle = CognitiveCycle()
@@ -347,16 +354,24 @@ class AgentRuntime:
             and self._organ_execution_config.organ_dispatch_enabled
         )
 
+    def _brain_native_should_run(self) -> bool:
+        return bool(
+            self._organ_dispatch_should_run()
+            and self._organ_execution_config.brain_native_candidate_source_enabled
+        )
+
     def _dispatch_organs_from_runtime(
         self,
         *,
         envelope: MissionAuthorityEnvelope,
         user_input: dict[str, Any],
         evidence_refs: list[str],
+        brain_cognition_result: BrainCognitionResult | None = None,
     ) -> OrganDispatchResult:
         dispatch_inputs = self._organ_dispatch_inputs_from_user_input(
             user_input=user_input,
             evidence_refs=evidence_refs,
+            brain_cognition_result=brain_cognition_result,
         )
         dispatcher = self._organ_dispatcher or OrganDispatcher()
         return dispatcher.dispatch(
@@ -377,24 +392,27 @@ class AgentRuntime:
         *,
         user_input: dict[str, Any],
         evidence_refs: list[str],
+        brain_cognition_result: BrainCognitionResult | None = None,
     ) -> dict[str, Any]:
         dispatch_block = user_input.get("organ_dispatch")
         if not isinstance(dispatch_block, dict):
             dispatch_block = {}
-        brain_result = dispatch_block.get("brain_cognition_result") or user_input.get("brain_cognition_result")
-        brain_proposals = self._proposal_artifacts_from_brain_result(brain_result)
+        brain_proposals = self._proposal_artifacts_from_brain_result(brain_cognition_result)
         if brain_proposals:
             action_candidates = brain_proposals
             proposal_artifacts = brain_proposals
-        else:
+        elif self._organ_execution_config.temporary_candidate_bridge_enabled:
             # TEMPORARY: this bridge exists only until BrainCognitionLoop is
-            # invoked directly by AgentRuntime.run(). It accepts explicit
-            # structured candidates only; it never parses free text.
+            # fully owns candidate generation in all call sites. It accepts
+            # explicit structured candidates only; it never parses free text.
             action_candidates = self._extract_temporary_organ_candidates_from_user_input(dispatch_block)
             proposal_artifacts = [
                 item for item in dispatch_block.get("proposal_artifacts", [])
                 if isinstance(item, dict)
             ]
+        else:
+            action_candidates = []
+            proposal_artifacts = []
         authority = dispatch_block.get("authority") if isinstance(dispatch_block.get("authority"), dict) else {}
         budget = dispatch_block.get("budget") if isinstance(dispatch_block.get("budget"), dict) else {}
         available = dispatch_block.get("available_evidence_refs")
@@ -417,7 +435,315 @@ class AgentRuntime:
             proposals = brain_result.get("proposal_artifacts")
         if not isinstance(proposals, list):
             return []
+        safety = getattr(brain_result, "safety_validation", None)
+        if safety is not None and getattr(safety, "valid", True) is not True:
+            return []
         return [sanitize_context_payload(item) for item in proposals if isinstance(item, dict)]
+
+    def _run_native_brain_cognition(
+        self,
+        *,
+        envelope: MissionAuthorityEnvelope,
+        user_input: dict[str, Any],
+    ) -> tuple[BrainCognitionResult | None, str]:
+        dispatch_block = user_input.get("organ_dispatch")
+        if not isinstance(dispatch_block, dict):
+            dispatch_block = {}
+        raw_input = dispatch_block.get("brain_cognition_input") or user_input.get("brain_cognition_input")
+        if raw_input is None:
+            return None, "PREPARED"
+        mission_id = getattr(raw_input, "mission_id", None)
+        if isinstance(raw_input, dict):
+            mission_id = raw_input.get("mission_id")
+        if mission_id != envelope.id:
+            return None, "PARTIAL"
+
+        brain_loop = self._brain_cognition_loop or BrainCognitionLoop()
+        result = brain_loop.run(raw_input)
+        if self._proposal_artifacts_from_brain_result(result):
+            return result, "CLOSED"
+        return result, "PARTIAL"
+
+    def _write_memory_feedback_from_dispatch(
+        self,
+        *,
+        envelope: MissionAuthorityEnvelope,
+        brain_cognition_result: BrainCognitionResult | None,
+        organ_dispatch_result: OrganDispatchResult,
+    ) -> tuple[MemoryBridgeResult | None, str, list[str], str | None]:
+        if not self._organ_execution_config.memory_feedback_enabled:
+            return None, "PREPARED", [], None
+
+        loop_id = f"organ_dispatch_{organ_dispatch_result.trace.input_hash[:16]}"
+        bridge_input = MemoryBridgeInput(
+            mission_id=envelope.id,
+            loop_id=loop_id,
+            memory_items=self._memory_items_from_brain_and_dispatch(
+                envelope=envelope,
+                brain_cognition_result=brain_cognition_result,
+                organ_dispatch_result=organ_dispatch_result,
+            ),
+            proposal_receipts=self._proposal_receipts_from_brain(brain_cognition_result),
+            final_packet=self._memory_final_packet(organ_dispatch_result),
+            budget_summaries=self._budget_summaries_from_dispatch(organ_dispatch_result),
+            risk_flags=self._risk_flags_from_brain_and_dispatch(brain_cognition_result, organ_dispatch_result),
+            unresolved_objections=list(getattr(brain_cognition_result, "unresolved_objections", []) or []),
+            missing_evidence=list(getattr(brain_cognition_result, "missing_evidence", []) or []),
+            blocked_intents=[
+                f"candidate_blocked_{item.status.value}"
+                for item in organ_dispatch_result.candidate_results
+                if item.execution_result is None
+            ],
+        )
+        result = self._memory_bridge.build(bridge_input)
+        refs = [
+            *[entry.memory_id for entry in result.memory_entries],
+            *[signal.signal_id for signal in result.feedback_signals],
+        ]
+        memory_snapshot_ref = result.snapshot.loop_id if result.snapshot is not None else None
+        if memory_snapshot_ref:
+            refs.append(f"snapshot:{memory_snapshot_ref}")
+        return result, "CLOSED", refs, memory_snapshot_ref
+
+    def _memory_items_from_brain_and_dispatch(
+        self,
+        *,
+        envelope: MissionAuthorityEnvelope,
+        brain_cognition_result: BrainCognitionResult | None,
+        organ_dispatch_result: OrganDispatchResult,
+    ) -> list[dict[str, Any]]:
+        validity_scope = f"{envelope.id}:organ_runtime"
+        items: list[dict[str, Any]] = []
+        for proposal in getattr(brain_cognition_result, "proposal_artifacts", []) or []:
+            if not isinstance(proposal, dict):
+                continue
+            proposal_id = str(proposal.get("proposal_id") or proposal.get("id") or stable_hash(proposal)[:16])
+            items.append(
+                {
+                    "source_class": "proposal_artifact",
+                    "source_id": proposal_id,
+                    "source_lineage_id": stable_hash(sanitize_context_payload(proposal)),
+                    "claim_status": "OBSERVED",
+                    "confidence": 0.5,
+                    "variance": 0.5,
+                    "validity_scope": validity_scope,
+                    "evidence_refs": [str(ref) for ref in proposal.get("evidence_refs", [])],
+                    "receipt_refs": [str(ref) for ref in proposal.get("receipt_refs", [])],
+                    "safe_summary": str(proposal.get("safe_summary") or "Brain proposal artifact observed as data."),
+                }
+            )
+
+        for candidate in organ_dispatch_result.candidate_results:
+            evidence_refs = self._candidate_evidence_refs(candidate)
+            receipt_refs = self._candidate_receipt_refs(candidate)
+            if candidate.gate_decision is not None:
+                items.append(
+                    {
+                        "source_class": "gate_result",
+                        "source_id": f"gate_{candidate.candidate_id}",
+                        "source_lineage_id": stable_hash(
+                            {
+                                "candidate_id": candidate.candidate_id,
+                                "gate_decision": candidate.gate_decision.value,
+                                "lane_id": candidate.lane_id,
+                            }
+                        ),
+                        "claim_status": "OBSERVED",
+                        "confidence": 0.7,
+                        "variance": 0.3,
+                        "validity_scope": validity_scope,
+                        "evidence_refs": evidence_refs,
+                        "receipt_refs": receipt_refs,
+                        "safe_summary": f"DelegatedActionGate recorded decision {candidate.gate_decision.value} for candidate {candidate.candidate_id}.",
+                    }
+                )
+            execution = candidate.execution_result
+            if execution is None:
+                continue
+            receipt = execution.receipt
+            if receipt is not None:
+                receipt_id = self._object_ref(receipt, "receipt_id", "id") or f"receipt_{candidate.candidate_id}"
+                items.append(
+                    {
+                        "source_class": "receipt",
+                        "source_id": receipt_id,
+                        "source_lineage_id": self._object_ref(receipt, "receipt_hash", "event_hash") or receipt_id,
+                        "claim_status": "OBSERVED",
+                        "confidence": 0.72,
+                        "variance": 0.28,
+                        "validity_scope": validity_scope,
+                        "evidence_refs": evidence_refs,
+                        "receipt_refs": [receipt_id],
+                        "safe_summary": f"Organ receipt {receipt_id} recorded for {execution.organ_kind}.",
+                    }
+                )
+            certificate = execution.finalgate_certificate
+            if certificate is not None:
+                certificate_id = self._object_ref(certificate, "certificate_id", "id") or f"certificate_{candidate.candidate_id}"
+                items.append(
+                    {
+                        "source_class": "finalgate_result",
+                        "source_id": certificate_id,
+                        "source_lineage_id": self._object_ref(certificate, "certificate_hash", "input_hash") or certificate_id,
+                        "claim_status": "OBSERVED",
+                        "confidence": 0.74,
+                        "variance": 0.26,
+                        "validity_scope": validity_scope,
+                        "evidence_refs": evidence_refs,
+                        "receipt_refs": receipt_refs,
+                        "safe_summary": f"FinalGate certificate {certificate_id} recorded for {execution.organ_kind}.",
+                    }
+                )
+        return items
+
+    @staticmethod
+    def _proposal_receipts_from_brain(brain_cognition_result: BrainCognitionResult | None) -> list[dict[str, Any]]:
+        receipts: list[dict[str, Any]] = []
+        for proposal in getattr(brain_cognition_result, "proposal_artifacts", []) or []:
+            if isinstance(proposal, dict):
+                receipts.append(
+                    {
+                        "proposal_id": str(proposal.get("proposal_id") or stable_hash(proposal)[:16]),
+                        "proposal_hash": stable_hash(sanitize_context_payload(proposal)),
+                        "receipt_refs": [str(ref) for ref in proposal.get("receipt_refs", [])],
+                        "evidence_refs": [str(ref) for ref in proposal.get("evidence_refs", [])],
+                        "safe_summary": str(proposal.get("safe_summary") or "Proposal artifact observed."),
+                    }
+                )
+        return receipts
+
+    @staticmethod
+    def _memory_final_packet(organ_dispatch_result: OrganDispatchResult) -> dict[str, Any]:
+        return {
+            "source": "organ_dispatch_result",
+            "organ_dispatch_status": organ_dispatch_result.status.value,
+            "candidate_count": len(organ_dispatch_result.candidate_results),
+            "executed_count": organ_dispatch_result.trace.executed_count,
+            "gate_rejected_count": organ_dispatch_result.trace.gate_rejected_count,
+            "input_hash": organ_dispatch_result.trace.input_hash,
+            "safe_summary": organ_dispatch_result.safe_summary,
+        }
+
+    @staticmethod
+    def _budget_summaries_from_dispatch(organ_dispatch_result: OrganDispatchResult) -> list[dict[str, Any]]:
+        return [
+            {
+                "decision": "within_budget",
+                "compliant": True,
+                "candidate_count": len(organ_dispatch_result.candidate_results),
+                "executed_count": organ_dispatch_result.trace.executed_count,
+            }
+        ]
+
+    @staticmethod
+    def _risk_flags_from_brain_and_dispatch(
+        brain_cognition_result: BrainCognitionResult | None,
+        organ_dispatch_result: OrganDispatchResult,
+    ) -> list[str]:
+        flags = [str(flag) for flag in getattr(brain_cognition_result, "risk_flags", []) or []]
+        if organ_dispatch_result.trace.gate_rejected_count:
+            flags.append("gate_rejection_recorded")
+        if organ_dispatch_result.trace.execution_failed_count:
+            flags.append("execution_failure_recorded")
+        return flags
+
+    @staticmethod
+    def _candidate_receipt_refs(candidate: Any) -> list[str]:
+        execution = getattr(candidate, "execution_result", None)
+        refs: list[str] = []
+        if execution is None:
+            return refs
+        receipt_id = AgentRuntime._object_ref(getattr(execution, "receipt", None), "receipt_id", "id")
+        certificate_id = AgentRuntime._object_ref(getattr(execution, "finalgate_certificate", None), "certificate_id", "id")
+        for ref in (receipt_id, certificate_id):
+            if ref:
+                refs.append(ref)
+        return refs
+
+    @staticmethod
+    def _candidate_evidence_refs(candidate: Any) -> list[str]:
+        execution = getattr(candidate, "execution_result", None)
+        receipt = getattr(execution, "receipt", None) if execution is not None else None
+        refs = getattr(receipt, "evidence_refs", None)
+        if isinstance(refs, list):
+            return [str(ref) for ref in refs]
+        return []
+
+    @staticmethod
+    def _object_ref(obj: Any, *names: str) -> str | None:
+        if obj is None:
+            return None
+        for name in names:
+            value = getattr(obj, name, None)
+            if value:
+                return str(value)
+            if isinstance(obj, dict) and obj.get(name):
+                return str(obj[name])
+        return None
+
+    def _build_replan_packet(
+        self,
+        *,
+        envelope: MissionAuthorityEnvelope,
+        brain_cognition_result: BrainCognitionResult | None,
+        organ_dispatch_result: OrganDispatchResult,
+        memory_feedback_result: MemoryBridgeResult | None,
+        memory_feedback_refs: list[str],
+        memory_feedback_path: str,
+    ) -> dict[str, Any]:
+        receipt_refs = [
+            ref
+            for candidate in organ_dispatch_result.candidate_results
+            for ref in self._candidate_receipt_refs(candidate)
+            if ref
+        ]
+        finalgate_refs = [
+            self._object_ref(
+                getattr(getattr(candidate, "execution_result", None), "finalgate_certificate", None),
+                "certificate_id",
+            )
+            for candidate in organ_dispatch_result.candidate_results
+        ]
+        finalgate_refs = [ref for ref in finalgate_refs if ref]
+        proposals = getattr(brain_cognition_result, "proposal_artifacts", []) or []
+        proposal_refs = [
+            str(proposal.get("proposal_id") or stable_hash(sanitize_context_payload(proposal))[:16])
+            for proposal in proposals
+            if isinstance(proposal, dict)
+        ]
+        brain_ref = None
+        if brain_cognition_result is not None:
+            brain_ref = stable_hash(
+                {
+                    "mission_id": brain_cognition_result.mission_id,
+                    "status": brain_cognition_result.status.value,
+                    "proposal_count": len(brain_cognition_result.proposal_artifacts),
+                }
+            )
+        return {
+            "status": "CLOSED" if memory_feedback_result is not None else "PREPARED",
+            "mission_id": envelope.id,
+            "source": "brain_native_organ_dispatch_memory_feedback",
+            "brain_result_ref": brain_ref,
+            "proposal_artifact_refs": proposal_refs,
+            "organ_dispatch_status": organ_dispatch_result.status.value,
+            "organ_dispatch_result_ref": organ_dispatch_result.trace.input_hash,
+            "receipt_refs": receipt_refs,
+            "finalgate_certificate_refs": finalgate_refs,
+            "memory_feedback_path": memory_feedback_path,
+            "memory_feedback_refs": list(memory_feedback_refs),
+            "memory_snapshot_ref": memory_feedback_result.snapshot.loop_id if memory_feedback_result else None,
+            "unresolved_objections": list(getattr(brain_cognition_result, "unresolved_objections", []) or []),
+            "missing_evidence": list(getattr(brain_cognition_result, "missing_evidence", []) or []),
+            "safe_next_step": getattr(brain_cognition_result, "safe_next_step_recommendation", None),
+            "recommended_next_loop_input": {
+                "mission_id": envelope.id,
+                "source_replan_packet": "brain_native_candidate_source_and_memory_feedback_lock",
+                "use_memory_feedback_refs": list(memory_feedback_refs),
+                "automatic_replan_executed": False,
+            },
+            "automatic_replan_executed": False,
+        }
 
     @staticmethod
     def _extract_temporary_organ_candidates_from_user_input(dispatch_block: dict[str, Any]) -> list[dict[str, Any]]:
@@ -478,9 +804,14 @@ class AgentRuntime:
         context = None
         context_cache_key = None
         llm_decision_cycle = None
+        brain_cognition_result: BrainCognitionResult | None = None
+        brain_candidate_source_status = "NOT_STARTED"
         organ_dispatch_result: OrganDispatchResult | None = None
+        memory_feedback_result: MemoryBridgeResult | None = None
         memory_feedback_path = "NOT_STARTED"
         memory_feedback_refs: list[str] = []
+        memory_snapshot_ref: str | None = None
+        durable_memory_persistence = "NOT_STARTED"
         replan_ready = False
         replan_packet: dict[str, Any] | None = None
         automatic_replan_executed = False
@@ -1135,12 +1466,38 @@ class AgentRuntime:
             )
             state = state.model_copy(update={"controlled_capability_results": controlled_capability_results})
             if self._organ_dispatch_should_run():
+                if self._brain_native_should_run():
+                    brain_cognition_result, brain_candidate_source_status = self._run_native_brain_cognition(
+                        envelope=envelope,
+                        user_input=user_input or {},
+                    )
                 state = state.transition(AgentPhase.ORGAN_DISPATCHING)
                 organ_dispatch_result = self._dispatch_organs_from_runtime(
                     envelope=envelope,
                     user_input=user_input or {},
                     evidence_refs=evidence_refs or [],
+                    brain_cognition_result=brain_cognition_result,
                 )
+                if organ_dispatch_result.status is not OrganDispatchStatus.DISABLED:
+                    (
+                        memory_feedback_result,
+                        memory_feedback_path,
+                        memory_feedback_refs,
+                        memory_snapshot_ref,
+                    ) = self._write_memory_feedback_from_dispatch(
+                        envelope=envelope,
+                        brain_cognition_result=brain_cognition_result,
+                        organ_dispatch_result=organ_dispatch_result,
+                    )
+                    replan_ready = True
+                    replan_packet = self._build_replan_packet(
+                        envelope=envelope,
+                        brain_cognition_result=brain_cognition_result,
+                        organ_dispatch_result=organ_dispatch_result,
+                        memory_feedback_result=memory_feedback_result,
+                        memory_feedback_refs=memory_feedback_refs,
+                        memory_feedback_path=memory_feedback_path,
+                    )
                 dispatch_event_type = (
                     AgentEventType.ORGAN_DISPATCH_SKIPPED
                     if organ_dispatch_result.status in {OrganDispatchStatus.DISABLED, OrganDispatchStatus.NO_CANDIDATES}
@@ -1154,24 +1511,20 @@ class AgentRuntime:
                     payload={
                         "status": organ_dispatch_result.status.value,
                         "candidate_count": len(organ_dispatch_result.candidate_results),
-                        "memory_feedback_path": "PREPARED"
-                        if organ_dispatch_result.status is not OrganDispatchStatus.DISABLED
-                        else "NOT_STARTED",
+                        "brain_candidate_source_status": brain_candidate_source_status,
+                        "memory_feedback_path": memory_feedback_path,
                         "automatic_replan_executed": False,
                     },
                 )
-                if organ_dispatch_result.status is not OrganDispatchStatus.DISABLED:
+                if (
+                    organ_dispatch_result.status is not OrganDispatchStatus.DISABLED
+                    and not memory_feedback_refs
+                    and memory_feedback_path == "PREPARED"
+                ):
                     memory_feedback_path = "PREPARED"
                     memory_feedback_refs = [dispatch_event.id, organ_dispatch_result.trace.input_hash]
-                    replan_ready = True
-                    replan_packet = {
-                        "status": "PREPARED",
-                        "source": "organ_dispatch_result",
-                        "organ_dispatch_status": organ_dispatch_result.status.value,
-                        "candidate_count": len(organ_dispatch_result.candidate_results),
-                        "memory_feedback_path": memory_feedback_path,
-                        "automatic_replan_executed": False,
-                    }
+                    if replan_packet is not None:
+                        replan_packet["memory_feedback_refs"] = list(memory_feedback_refs)
             browser_cortex = self.browser_evidence_interpreter.interpret(
                 context,
                 event_bus.events(),
@@ -1279,9 +1632,14 @@ class AgentRuntime:
                     mission_result=mission_result,
                     mission_results=mission_results,
                     llm_decision_cycle=llm_decision_cycle,
+                    brain_cognition_result=brain_cognition_result,
+                    brain_candidate_source_status=brain_candidate_source_status,
                     organ_dispatch_result=organ_dispatch_result,
+                    memory_feedback_result=memory_feedback_result,
                     memory_feedback_path=memory_feedback_path,
                     memory_feedback_refs=memory_feedback_refs,
+                    memory_snapshot_ref=memory_snapshot_ref,
+                    durable_memory_persistence=durable_memory_persistence,
                     replan_ready=replan_ready,
                     replan_packet=replan_packet,
                     automatic_replan_executed=automatic_replan_executed,
@@ -1433,9 +1791,14 @@ class AgentRuntime:
                 mission_result=mission_result,
                 mission_results=mission_results,
                 llm_decision_cycle=llm_decision_cycle,
+                brain_cognition_result=brain_cognition_result,
+                brain_candidate_source_status=brain_candidate_source_status,
                 organ_dispatch_result=organ_dispatch_result,
+                memory_feedback_result=memory_feedback_result,
                 memory_feedback_path=memory_feedback_path,
                 memory_feedback_refs=memory_feedback_refs,
+                memory_snapshot_ref=memory_snapshot_ref,
+                durable_memory_persistence=durable_memory_persistence,
                 replan_ready=replan_ready,
                 replan_packet=replan_packet,
                 automatic_replan_executed=automatic_replan_executed,
@@ -1528,9 +1891,14 @@ class AgentRuntime:
                 project_path=fallback_project_path,
                 artifacts=fallback_artifacts,
                 llm_decision_cycle=llm_decision_cycle,
+                brain_cognition_result=brain_cognition_result,
+                brain_candidate_source_status=brain_candidate_source_status,
                 organ_dispatch_result=organ_dispatch_result,
+                memory_feedback_result=memory_feedback_result,
                 memory_feedback_path=memory_feedback_path,
                 memory_feedback_refs=memory_feedback_refs,
+                memory_snapshot_ref=memory_snapshot_ref,
+                durable_memory_persistence=durable_memory_persistence,
                 replan_ready=replan_ready,
                 replan_packet=replan_packet,
                 automatic_replan_executed=automatic_replan_executed,
