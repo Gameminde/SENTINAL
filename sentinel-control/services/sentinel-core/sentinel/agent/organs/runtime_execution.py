@@ -91,6 +91,13 @@ class OrganRuntimeExecutionStatus(StrEnum):
 
 class OrganRuntimeExecutionConfig(SentinelModel):
     enabled: bool = False
+    # SENTINEL-POWER-ACTIVATION-01: organ_dispatch_enabled controls whether
+    # AgentRuntime.run() enters the ORGAN_DISPATCHING phase. This is
+    # structurally separate from ``enabled`` (which gates individual organ
+    # execution requests). Both must be True for organs to actually execute
+    # inside the dispatch phase. Default-off: existing run() behavior is
+    # byte-identical when this is False.
+    organ_dispatch_enabled: bool = False
     mode: OrganRuntimeExecutionMode = OrganRuntimeExecutionMode.DISABLED
     allowed_action_levels: list[DelegatedActionLevel] = Field(
         default_factory=lambda: [DelegatedActionLevel.L2, DelegatedActionLevel.L3]

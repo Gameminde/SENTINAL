@@ -3017,10 +3017,12 @@ def _check_no_credential_payload(payload: dict[str, Any], errors: list[str], cod
 # before this module). Now that both classes are defined, resolve the forward
 # reference so the field validates/serializes correctly at runtime.
 from sentinel.perf.measure.performance_receipt import PerformanceReceipt as _PerformanceReceipt
+from sentinel.agent.organs.organ_dispatch import OrganDispatchResult as _OrganDispatchResult
 
 AgentRunResult.model_rebuild(
     _types_namespace={
         "CoreFinalGateResult": CoreFinalGateResult,
+        "OrganDispatchResult": _OrganDispatchResult,
         "PerformanceReceipt": _PerformanceReceipt,
     }
 )

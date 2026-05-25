@@ -443,7 +443,11 @@ def _decision(
         return DelegatedActionGateDecision.RISK_ESCALATION_REQUIRED
     if DelegatedActionGateReason.USER_REVIEW_REQUIRED in reasons:
         return DelegatedActionGateDecision.NEEDS_USER_REVIEW
-    if candidate.action_level_candidate in {DelegatedActionLevel.L4, DelegatedActionLevel.L5, DelegatedActionLevel.L6, DelegatedActionLevel.L7}:
+    if candidate.action_level_candidate is DelegatedActionLevel.L4:
+        if candidate.organ_kind is OrganProposalKind.BROWSER:
+            return DelegatedActionGateDecision.ALLOWED
+        return DelegatedActionGateDecision.NEEDS_USER_REVIEW
+    if candidate.action_level_candidate in {DelegatedActionLevel.L5, DelegatedActionLevel.L6, DelegatedActionLevel.L7}:
         return DelegatedActionGateDecision.NEEDS_USER_REVIEW
     return DelegatedActionGateDecision.ALLOWED
 

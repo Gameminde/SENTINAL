@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     # by ``sentinel.agent.final_gate`` which calls ``AgentRunResult.model_rebuild``
     # with an explicit ``_types_namespace`` once the class is defined.
     from sentinel.agent.final_gate import CoreFinalGateResult
+    from sentinel.agent.organs.organ_dispatch import OrganDispatchResult
     from sentinel.perf.measure.performance_receipt import PerformanceReceipt
 
 
@@ -240,6 +241,12 @@ class AgentRunResult(SentinelModel):
     mission_results: list[MissionRunResult] = Field(default_factory=list)
     performance_receipts: list["PerformanceReceipt"] = Field(default_factory=list)
     llm_decision_cycle: dict[str, Any] | None = None
+    organ_dispatch_result: "OrganDispatchResult | None" = None
+    memory_feedback_path: str = "NOT_STARTED"
+    memory_feedback_refs: list[str] = Field(default_factory=list)
+    replan_ready: bool = False
+    replan_packet: dict[str, Any] | None = None
+    automatic_replan_executed: bool = False
     escalation_reason: str | None = None
     active_plan: MissionPlan | None = None
     # Task 1.3 / Requirement 1 (FinalGate Runtime Integration):

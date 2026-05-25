@@ -52,6 +52,11 @@ from sentinel.agent.model_execution import (
     RealModelRequestBuilder,
 )
 from sentinel.agent.models import AgentContext, AgentRunResult
+from sentinel.agent.organs.organ_dispatch import (
+    OrganDispatcher,
+    OrganDispatchResult,
+    OrganDispatchStatus,
+)
 from sentinel.agent.organs.runtime_execution import (
     OrganRuntimeExecutionConfig,
     OrganRuntimeExecutionRequest,
@@ -134,6 +139,59 @@ class _DecisionFrameBudgetCompressor:
         return self._fallback.compress(frame)
 
 
+def _temporary_dispatch_rejected_paths(payload: Any, path: str = "$") -> list[str]:
+    rejected: list[str] = []
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            normalized = str(key).strip().lower().replace("-", "_").replace(" ", "_")
+            child_path = f"{path}.{key}"
+            if normalized in _TEMPORARY_DISPATCH_FORBIDDEN_KEYS and value not in (None, False, "", [], {}):
+                rejected.append(child_path)
+                continue
+            rejected.extend(_temporary_dispatch_rejected_paths(value, child_path))
+        return rejected
+    if isinstance(payload, list | tuple | set):
+        for index, value in enumerate(payload):
+            rejected.extend(_temporary_dispatch_rejected_paths(value, f"{path}[{index}]"))
+        return rejected
+    if isinstance(payload, str):
+        lowered = payload.lower()
+        if any(marker in lowered for marker in _TEMPORARY_DISPATCH_FORBIDDEN_TEXT):
+            rejected.append(path)
+    return rejected
+
+
+_TEMPORARY_DISPATCH_FORBIDDEN_KEYS = {
+    "api_key",
+    "authorization",
+    "bearer",
+    "chain_of_thought",
+    "credential",
+    "hidden_tool_payload",
+    "password",
+    "provider_response",
+    "raw_organ_payload",
+    "raw_prompt",
+    "prompt",
+    "raw_response",
+    "reasoning",
+    "secret",
+    "thinking",
+    "token",
+    "tool_calls",
+}
+
+_TEMPORARY_DISPATCH_FORBIDDEN_TEXT = {
+    "bearer ",
+    "chain_of_thought",
+    "hidden_tool_payload",
+    "raw_prompt",
+    "raw_response",
+    "reasoning:",
+    "secret",
+}
+
+
 class AgentRuntime:
     def __init__(
         self,
@@ -201,6 +259,7 @@ class AgentRuntime:
         async_organ_scheduler: AsyncOrganScheduler | None = None,
         backpressure_controller: BackpressureController | None = None,
         organ_execution_config: OrganRuntimeExecutionConfig | None = None,
+        organ_dispatcher: OrganDispatcher | None = None,
     ) -> None:
         self.identity = identity or default_agent_identity()
         self.project_root = Path(project_root or Path.cwd()).resolve()
@@ -229,6 +288,7 @@ class AgentRuntime:
         self._async_organ_scheduler = async_organ_scheduler
         self._backpressure_controller = backpressure_controller
         self._organ_execution_config = organ_execution_config or OrganRuntimeExecutionConfig()
+        self._organ_dispatcher = organ_dispatcher
         self.context_builder = ContextBuilder()
         self.context_compressor = ContextCompressor()
         self.cognitive_cycle = CognitiveCycle()
@@ -281,6 +341,100 @@ class AgentRuntime:
             browser_readonly_fetcher=self.browser_fetcher,
         )
 
+    def _organ_dispatch_should_run(self) -> bool:
+        return bool(
+            self._organ_execution_config.enabled
+            and self._organ_execution_config.organ_dispatch_enabled
+        )
+
+    def _dispatch_organs_from_runtime(
+        self,
+        *,
+        envelope: MissionAuthorityEnvelope,
+        user_input: dict[str, Any],
+        evidence_refs: list[str],
+    ) -> OrganDispatchResult:
+        dispatch_inputs = self._organ_dispatch_inputs_from_user_input(
+            user_input=user_input,
+            evidence_refs=evidence_refs,
+        )
+        dispatcher = self._organ_dispatcher or OrganDispatcher()
+        return dispatcher.dispatch(
+            mission_id=envelope.id,
+            action_candidates=dispatch_inputs["action_candidates"],
+            proposal_artifacts=dispatch_inputs["proposal_artifacts"],
+            config=self._organ_execution_config,
+            authority=dispatch_inputs["authority"],
+            authority_envelope=envelope,
+            budget=dispatch_inputs["budget"],
+            available_evidence_refs=dispatch_inputs["available_evidence_refs"],
+            organ_contracts=dispatch_inputs["organ_contracts"],
+            browser_readonly_fetcher=self.browser_fetcher,
+        )
+
+    def _organ_dispatch_inputs_from_user_input(
+        self,
+        *,
+        user_input: dict[str, Any],
+        evidence_refs: list[str],
+    ) -> dict[str, Any]:
+        dispatch_block = user_input.get("organ_dispatch")
+        if not isinstance(dispatch_block, dict):
+            dispatch_block = {}
+        brain_result = dispatch_block.get("brain_cognition_result") or user_input.get("brain_cognition_result")
+        brain_proposals = self._proposal_artifacts_from_brain_result(brain_result)
+        if brain_proposals:
+            action_candidates = brain_proposals
+            proposal_artifacts = brain_proposals
+        else:
+            # TEMPORARY: this bridge exists only until BrainCognitionLoop is
+            # invoked directly by AgentRuntime.run(). It accepts explicit
+            # structured candidates only; it never parses free text.
+            action_candidates = self._extract_temporary_organ_candidates_from_user_input(dispatch_block)
+            proposal_artifacts = [
+                item for item in dispatch_block.get("proposal_artifacts", [])
+                if isinstance(item, dict)
+            ]
+        authority = dispatch_block.get("authority") if isinstance(dispatch_block.get("authority"), dict) else {}
+        budget = dispatch_block.get("budget") if isinstance(dispatch_block.get("budget"), dict) else {}
+        available = dispatch_block.get("available_evidence_refs")
+        organ_contracts = dispatch_block.get("organ_contracts")
+        return {
+            "action_candidates": action_candidates,
+            "proposal_artifacts": proposal_artifacts,
+            "authority": authority,
+            "budget": budget,
+            "available_evidence_refs": [str(ref) for ref in available] if isinstance(available, list) else list(evidence_refs),
+            "organ_contracts": organ_contracts if isinstance(organ_contracts, dict) else {},
+        }
+
+    @staticmethod
+    def _proposal_artifacts_from_brain_result(brain_result: Any) -> list[dict[str, Any]]:
+        if brain_result is None:
+            return []
+        proposals = getattr(brain_result, "proposal_artifacts", None)
+        if proposals is None and isinstance(brain_result, dict):
+            proposals = brain_result.get("proposal_artifacts")
+        if not isinstance(proposals, list):
+            return []
+        return [sanitize_context_payload(item) for item in proposals if isinstance(item, dict)]
+
+    @staticmethod
+    def _extract_temporary_organ_candidates_from_user_input(dispatch_block: dict[str, Any]) -> list[dict[str, Any]]:
+        candidates = dispatch_block.get("action_candidates")
+        if candidates is None:
+            candidates = dispatch_block.get("organ_action_candidates")
+        if not isinstance(candidates, list):
+            return []
+        safe_candidates: list[dict[str, Any]] = []
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            if _temporary_dispatch_rejected_paths(candidate):
+                continue
+            safe_candidates.append(sanitize_context_payload(candidate))
+        return safe_candidates
+
     def _assert_memory_not_authority_boundary(
         self,
         boundary_name: str,
@@ -324,6 +478,12 @@ class AgentRuntime:
         context = None
         context_cache_key = None
         llm_decision_cycle = None
+        organ_dispatch_result: OrganDispatchResult | None = None
+        memory_feedback_path = "NOT_STARTED"
+        memory_feedback_refs: list[str] = []
+        replan_ready = False
+        replan_packet: dict[str, Any] | None = None
+        automatic_replan_executed = False
         # Task 2.4-A Gap 2 fix: hoist local variables that may be bound in the
         # happy-path between different phases so the ``except Exception``
         # handler can unconditionally reference them when building the
@@ -974,6 +1134,44 @@ class AgentRuntime:
                 max_calls=execution_posture.direct_tool_call_budget if execution_posture is not None else max(0, envelope.max_actions - len(plan.steps)),
             )
             state = state.model_copy(update={"controlled_capability_results": controlled_capability_results})
+            if self._organ_dispatch_should_run():
+                state = state.transition(AgentPhase.ORGAN_DISPATCHING)
+                organ_dispatch_result = self._dispatch_organs_from_runtime(
+                    envelope=envelope,
+                    user_input=user_input or {},
+                    evidence_refs=evidence_refs or [],
+                )
+                dispatch_event_type = (
+                    AgentEventType.ORGAN_DISPATCH_SKIPPED
+                    if organ_dispatch_result.status in {OrganDispatchStatus.DISABLED, OrganDispatchStatus.NO_CANDIDATES}
+                    else AgentEventType.ORGAN_DISPATCH_COMPLETED
+                )
+                dispatch_event = event_bus.append(
+                    dispatch_event_type,
+                    "Agent runtime processed explicit organ dispatch opt-in.",
+                    phase_before=AgentPhase.EXECUTING,
+                    phase_after=AgentPhase.ORGAN_DISPATCHING,
+                    payload={
+                        "status": organ_dispatch_result.status.value,
+                        "candidate_count": len(organ_dispatch_result.candidate_results),
+                        "memory_feedback_path": "PREPARED"
+                        if organ_dispatch_result.status is not OrganDispatchStatus.DISABLED
+                        else "NOT_STARTED",
+                        "automatic_replan_executed": False,
+                    },
+                )
+                if organ_dispatch_result.status is not OrganDispatchStatus.DISABLED:
+                    memory_feedback_path = "PREPARED"
+                    memory_feedback_refs = [dispatch_event.id, organ_dispatch_result.trace.input_hash]
+                    replan_ready = True
+                    replan_packet = {
+                        "status": "PREPARED",
+                        "source": "organ_dispatch_result",
+                        "organ_dispatch_status": organ_dispatch_result.status.value,
+                        "candidate_count": len(organ_dispatch_result.candidate_results),
+                        "memory_feedback_path": memory_feedback_path,
+                        "automatic_replan_executed": False,
+                    }
             browser_cortex = self.browser_evidence_interpreter.interpret(
                 context,
                 event_bus.events(),
@@ -985,6 +1183,7 @@ class AgentRuntime:
                 evidence_chains.append(browser_cortex.evidence_chain)
             worker_result = self.worker_coordinator.run_mission_worker(context, event_bus, plan=plan)
 
+            artifact_review_phase_before = state.phase
             state = state.transition(AgentPhase.ARTIFACT_REVIEWING)
             artifact_findings = self.review_loop.review_worker_result(worker_result)
             control_findings = list(state.review_findings)
@@ -993,7 +1192,7 @@ class AgentRuntime:
             event_bus.append(
                 AgentEventType.ARTIFACTS_REVIEWED,
                 "Agent reviewed worker artifacts.",
-                phase_before=AgentPhase.EXECUTING,
+                phase_before=artifact_review_phase_before,
                 phase_after=AgentPhase.ARTIFACT_REVIEWING,
                 payload={"findings": [finding.code for finding in artifact_findings]},
             )
@@ -1080,6 +1279,12 @@ class AgentRuntime:
                     mission_result=mission_result,
                     mission_results=mission_results,
                     llm_decision_cycle=llm_decision_cycle,
+                    organ_dispatch_result=organ_dispatch_result,
+                    memory_feedback_path=memory_feedback_path,
+                    memory_feedback_refs=memory_feedback_refs,
+                    replan_ready=replan_ready,
+                    replan_packet=replan_packet,
+                    automatic_replan_executed=automatic_replan_executed,
                     escalation_reason="Repair pressure exceeded escalation threshold.",
                     active_plan=plan,
                 ))
@@ -1228,6 +1433,12 @@ class AgentRuntime:
                 mission_result=mission_result,
                 mission_results=mission_results,
                 llm_decision_cycle=llm_decision_cycle,
+                organ_dispatch_result=organ_dispatch_result,
+                memory_feedback_path=memory_feedback_path,
+                memory_feedback_refs=memory_feedback_refs,
+                replan_ready=replan_ready,
+                replan_packet=replan_packet,
+                automatic_replan_executed=automatic_replan_executed,
                 active_plan=plan,
             ))
         except Exception as exc:
@@ -1317,6 +1528,12 @@ class AgentRuntime:
                 project_path=fallback_project_path,
                 artifacts=fallback_artifacts,
                 llm_decision_cycle=llm_decision_cycle,
+                organ_dispatch_result=organ_dispatch_result,
+                memory_feedback_path=memory_feedback_path,
+                memory_feedback_refs=memory_feedback_refs,
+                replan_ready=replan_ready,
+                replan_packet=replan_packet,
+                automatic_replan_executed=automatic_replan_executed,
                 active_plan=fallback_active_plan,
                 escalation_reason=str(exc),
             ))

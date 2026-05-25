@@ -71,6 +71,7 @@ class AgentPhase(StrEnum):
     REPAIRING = "repairing"
     SUCCESS_EVALUATING = "success_evaluating"
     LEARNING_PROPOSING = "learning_proposing"
+    ORGAN_DISPATCHING = "organ_dispatching"
     COMPLETED = "completed"
     ESCALATED = "escalated"
     PAUSED = "paused"
@@ -283,6 +284,10 @@ class AgentEventType(StrEnum):
     ORGAN_ACTION_TIMEOUT = "organ_action_timeout"
     ORGAN_ACTION_FAILED = "organ_action_failed"
     ORGAN_ACTION_CANCELLED = "organ_action_cancelled"
+
+    # Organ-Dispatch (SENTINEL-POWER-ACTIVATION-01 wiring)
+    ORGAN_DISPATCH_COMPLETED = "organ_dispatch_completed"
+    ORGAN_DISPATCH_SKIPPED = "organ_dispatch_skipped"
 
     # Authority/KillSwitch (Req 12.5, 12.7)
     AUTHORITY_VIOLATION = "authority_violation"

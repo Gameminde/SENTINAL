@@ -162,6 +162,15 @@ from sentinel.agent.organs.runtime_execution import (
     render_organ_runtime_execution_result_as_untrusted_context,
     validate_organ_runtime_execution_payload,
 )
+from sentinel.agent.organs.organ_dispatch import (
+    OrganDispatcher,
+    OrganDispatchCandidateResult,
+    OrganDispatchCandidateStatus,
+    OrganDispatchResult,
+    OrganDispatchStatus,
+    OrganDispatchTrace,
+    render_organ_dispatch_result_as_untrusted_context,
+)
 
 __all__ = [
     "ApiOrganCandidate",
@@ -303,4 +312,11 @@ __all__ = [
     "validate_low_risk_finalgate_payload",
     "validate_organ_runtime_execution_payload",
     "validate_organ_proposal_payload",
+    "OrganDispatcher",
+    "OrganDispatchCandidateResult",
+    "OrganDispatchCandidateStatus",
+    "OrganDispatchResult",
+    "OrganDispatchStatus",
+    "OrganDispatchTrace",
+    "render_organ_dispatch_result_as_untrusted_context",
 ]
