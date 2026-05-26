@@ -24,10 +24,16 @@ channels, credentials, spend/trading, security testing, scheduler, and plugin
 fabric.
 ```
 
+Current pack status:
+
+```text
+SENTINEL_POWER_LAB_RUNTIME_V0 = implemented / locked
+```
+
 Next pack:
 
 ```text
-SENTINEL_POWER_LAB_RUNTIME_V0
+BROWSER_OPERATOR_AGENT_L4_L5_LIVE
 ```
 
 `CLOAKBROWSER_CONTROLLED_BACKEND_SPEC` remains important, but it moves under the
@@ -88,7 +94,7 @@ automatic_replan_execution = NOT_STARTED
 real_secret_storage = NOT_STARTED
 real_credential_use_by_organs = NOT_STARTED
 browser_login_session_credentials = NOT_STARTED
-next_phase = SENTINEL_POWER_LAB_RUNTIME_V0
+next_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE
 ```
 
 Not approved as broad default:

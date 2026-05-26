@@ -1,47 +1,49 @@
 # Current State Lock
 
-## Mission Authority And Credential Vault Foundation - LOCKED
+## Sentinel Power Lab Runtime V0 - LOCKED
 
-Recorded at: 2026-05-25
+Recorded at: 2026-05-26
 
 Branch: `main`
 
-This section supersedes `BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED` as the
-current implementation phase. The brain-native action feedback loop remains
-locked and is the previous runtime foundation.
+This section supersedes `MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED`
+as the current implementation phase. The authority and credential foundation
+remains locked and is the previous runtime foundation.
 
 ```text
-current_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
-previous_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
-next_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
+current_phase = SENTINEL_POWER_LAB_RUNTIME_V0_LOCKED
+previous_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
+next_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE
 ```
 
-### Authority And Credential Foundation Truth
+### Power Lab Runtime Truth
 
 ```text
-Mission authority grants foundation = CLOSED
-Credential refs/grants/proofs foundation = CLOSED
-Revocation/audit model = CLOSED
-Authority presets = CLOSED
-DelegatedActionGate credential proof metadata checks = CLOSED
-FinalGate credential proof metadata validation helper = CLOSED
-Real secret storage = NOT_STARTED
-Real credential use by organs = NOT_STARTED
-Browser login/session credentials = NOT_STARTED
-CloakBrowser backend = NOT_STARTED
-Durable credential audit persistence = NOT_STARTED
+CLI/operator shell = CLOSED
+JSON mission file loading = CLOSED
+AgentRuntime.run invocation from operator shell = CLOSED
+Run artifact directory = CLOSED
+Trace/result/Power Kernel status artifacts = CLOSED
+Default-off dangerous power = CLOSED
+Existing L2/L3 opt-in config path = CLOSED
+Secret-like mission rejection = CLOSED
+Dangerous action preflight rejection = CLOSED
+Live browser backend = NOT_STARTED
+Shell/code sandbox = NOT_STARTED
+Real credential storage/use = NOT_STARTED
+Continuous multi-agent orchestrator = NOT_STARTED
 ```
 
-### Implemented Foundation
+### Implemented Runtime Surface
 
 ```text
-sentinel/organs/credentials/foundation.py
-MissionAuthorityEnvelope.credential_grants metadata
-CredentialRef metadata hardening
-OrganRuntimeExecutionConfig credential policy/proof refs
-DelegatedActionGate credential_proof_required metadata check
-AuthorityPresetFactory:
-  - development_local
+sentinel/power_lab.py
+sentinel/cli.py
+sentinel/__main__.py
+python -m sentinel run --mission <file.json> --run-root <dir>
+project script: sentinel = sentinel.cli:main
+Power Lab presets:
+  - lab_local
   - browser_perception
   - operator_browser_l5_template
   - full_power_template
@@ -55,6 +57,8 @@ No real credential value storage.
 No credential value resolution.
 No browser login.
 No browser submit.
+No upload/download.
+No arbitrary browser JavaScript.
 No API mutation.
 No channel send.
 No desktop action.
@@ -63,20 +67,20 @@ No payment/spend/trading.
 No provider fallback.
 No AUTO routing.
 No provider/backend/model override.
-No credential grant can create root authority.
-No credential proof can approve future execution.
-No global enable credentials switch.
-Revocation wins over all grants.
-Expired grants block.
-Scope mismatch blocks.
+No memory/receipt/certificate can create authority.
+No global dangerous-power switch.
 ```
 
 ### Next Phase
 
-The next phase can be a CloakBrowser controlled backend specification because
-Sentinel now has metadata-only authority grants, credential references, access
-proofs, revocation semantics, audit receipts, and non-executing authority
-presets.
+The next phase should add the first visible live actuator:
+
+```text
+BROWSER_OPERATOR_AGENT_L4_L5_LIVE
+```
+
+Browser submit/login/payment/upload/download/arbitrary JavaScript remain blocked
+until separate authority contracts are implemented and tested.
 
 ```text
 next_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
