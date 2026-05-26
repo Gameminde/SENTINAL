@@ -29,9 +29,10 @@ If you are continuing development, start here. This README explains what the pro
 ## Current Snapshot - 2026-05-26
 
 Sentinel now has a real default-off internal action loop and a hardened control
-plane. The next credibility milestone is visible real-world power: a live
-browser read-only backend that can open a real page, capture evidence, and
-return receipts without submit/login/credential use.
+plane. The next credibility milestone is not just browser read-only. The next
+phase is to turn Sentinel into a runnable Power Kernel that controls many agents
+and many real actuators: browser, shell/code, API, desktop, channels,
+credentials, spend/trading, security testing, scheduler, and plugin fabric.
 
 Current public/local checkpoint after the latest repairs:
 
@@ -50,8 +51,8 @@ Current state lock:
 current_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
 latest_repair = COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCKED
 previous_runtime_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
-next_documented_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
-next_visible_power_milestone = BROWSER_READONLY_LIVE_BACKEND_V1
+next_documented_phase = SENTINEL_POWER_LAB_RUNTIME_V0
+next_visible_power_milestone = SENTINEL_OPERATOR_SHELL_WITH_REAL_RUN_ARTIFACTS
 ```
 
 What is real today:
@@ -112,13 +113,15 @@ sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md
 Recommended next build sequence:
 
 ```text
-1. CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
-2. BROWSER_READONLY_LIVE_BACKEND_V1
-3. BROWSER_L5_NAVIGATION_CLICK_TYPE_CONTROLLED
-4. CREDENTIAL_VAULT_REAL_STORAGE
-5. API_READONLY_AND_CONTROLLED_MUTATION
-6. SHELL_SANDBOX_ORGAN
-7. DESKTOP_SIDEcar_ORGAN
+1. SENTINEL_POWER_LAB_RUNTIME_V0
+2. BROWSER_OPERATOR_AGENT_L4_L5_LIVE
+3. SHELL_CODE_APP_BUILDER_SANDBOX_V0
+4. SKILL_PLUGIN_FABRIC_V0
+5. CREDENTIAL_VAULT_REAL_STORAGE_AND_SESSION_BROKER
+6. API_CHANNEL_DEVOPS_CONTROLLED_MUTATION
+7. DESKTOP_VISION_OCR_SIDECAR
+8. FINANCE_SPEND_TRADING_SPECIAL_AUTHORITY
+9. CONTINUOUS_MULTI_AGENT_MISSION_ORCHESTRATOR
 ```
 
 The doctrine:
@@ -218,6 +221,7 @@ Start with:
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 sentinel-control/docs/reviews/BRAIN_NATIVE_CANDIDATE_SOURCE_AND_MEMORY_FEEDBACK_LOCK_REPORT.md
 sentinel-control/docs/reviews/BRAIN_TO_ORGAN_RUNTIME_CLOSED_LOOP_LOCK_REPORT.md
+sentinel-control/docs/roadmaps/SENTINEL_POWER_KERNEL_AND_ACTUATOR_FABRIC_ROADMAP.md
 sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md
 sentinel-control/docs/specs/sentinel-real-model-execution-backend/requirements.md
 sentinel-control/docs/specs/sentinel-real-model-execution-backend/design.md

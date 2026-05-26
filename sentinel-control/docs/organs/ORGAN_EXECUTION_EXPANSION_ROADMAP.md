@@ -1,8 +1,37 @@
 # Organ Execution Expansion Roadmap
 
-Status: Mission authority and credential foundation locked; CloakBrowser spec next
+Status: superseded by the Power Kernel and Actuator Fabric roadmap
 
-Date: 2026-05-25
+Date: 2026-05-26
+
+## Strategic Update - 2026-05-26
+
+This roadmap remains as the organ-by-organ expansion record, but it is no
+longer the top-level strategy.
+
+The controlling roadmap is now:
+
+```text
+sentinel-control/docs/roadmaps/SENTINEL_POWER_KERNEL_AND_ACTUATOR_FABRIC_ROADMAP.md
+```
+
+Why:
+
+```text
+Browser read-only is not enough. Sentinel must become a controlled power kernel
+for many agents and many real actuators: browser, shell/code, API, desktop,
+channels, credentials, spend/trading, security testing, scheduler, and plugin
+fabric.
+```
+
+Next pack:
+
+```text
+SENTINEL_POWER_LAB_RUNTIME_V0
+```
+
+`CLOAKBROWSER_CONTROLLED_BACKEND_SPEC` remains important, but it moves under the
+larger Actuator Fabric plan instead of being treated as the whole next phase.
 
 ## Objective
 
@@ -59,7 +88,7 @@ automatic_replan_execution = NOT_STARTED
 real_secret_storage = NOT_STARTED
 real_credential_use_by_organs = NOT_STARTED
 browser_login_session_credentials = NOT_STARTED
-next_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
+next_phase = SENTINEL_POWER_LAB_RUNTIME_V0
 ```
 
 Not approved as broad default:
