@@ -1,8 +1,22 @@
 # SENTINAL
 
-SENTINAL is the GitHub workspace for the evolution from CueIdea/RedditPulse into Sentinel Control.
+**Sentinel Control is a maximum-power controlled agentic operating system.**
 
-The repository name is `SENTINAL`, but the product name used in the code and docs is **Sentinel Control**.
+The idea is simple and aggressive:
+
+```text
+Unleash intelligence.
+Control authority.
+Prove every action.
+```
+
+This repository is where Sentinel is being built from the old CueIdea /
+RedditPulse evidence engine into a real controlled-agent runtime: Brain,
+Memory, Authority, Organs, Receipts, FinalGate, and eventually live browser,
+API, desktop, shell sandbox, credentials, and plugin power.
+
+The repository name is `SENTINAL`, but the product name used in the code and
+docs is **Sentinel Control**.
 
 This repo contains **two apps plus one research lab**:
 
@@ -12,7 +26,111 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-05-25
+## Current Snapshot - 2026-05-26
+
+Sentinel now has a real default-off internal action loop and a hardened control
+plane. The next credibility milestone is visible real-world power: a live
+browser read-only backend that can open a real page, capture evidence, and
+return receipts without submit/login/credential use.
+
+Current public/local checkpoint after the latest repairs:
+
+```text
+remote = https://github.com/Gameminde/SENTINAL
+branch = main
+latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners and repair test truth
+audit_remediation_commit = a2137f0 runtime: remediate audit safety findings
+credential_foundation_commit = 23dd2bd runtime: add mission authority and credential foundation
+brain_native_feedback_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
+```
+
+Current state lock:
+
+```text
+current_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
+latest_repair = COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCKED
+previous_runtime_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
+next_documented_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
+next_visible_power_milestone = BROWSER_READONLY_LIVE_BACKEND_V1
+```
+
+What is real today:
+
+```text
+BrainCognitionLoop native proposal source = CLOSED / opt-in
+OrganDispatcher bridge = CLOSED / opt-in
+DelegatedActionGate = CLOSED
+L2 local artifact executor = CLOSED / opt-in
+L3 reversible workspace executor = CLOSED / opt-in
+Browser ReadOnly + Preparation + Semantic Extraction wrappers = CLOSED / opt-in
+Low-risk FinalGate receipts = CLOSED
+RoleLoopMemoryBridge feedback = CLOSED
+Replan-ready packet = CLOSED
+Mission authority grants foundation = CLOSED
+Credential refs/grants/proofs foundation = CLOSED / metadata-only
+Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
+AgentRuntime default-off = CLOSED
+```
+
+What is deliberately still not real:
+
+```text
+Live browser backend = NOT_STARTED
+Browser submit/login/upload/download/private session = NOT_STARTED
+Real credential storage or credential use by organs = NOT_STARTED
+API mutation = NOT_STARTED
+Channel send = NOT_STARTED
+Desktop action = NOT_STARTED
+Shell/process execution = NOT_STARTED
+Payment/spend/trading = NOT_STARTED
+Provider fallback or AUTO routing = NOT_APPROVED
+Durable memory/EventBus WAL = NOT_STARTED
+Automatic replan execution = NOT_STARTED
+```
+
+The honest power score right now:
+
+```text
+Control plane = strong
+Internal closed-loop runtime = real
+Local action power = real but limited
+Browser/web power = prepared, not live yet
+Next milestone = Sentinel can open a real web page and bring back evidence
+```
+
+Start here for the current truth:
+
+```text
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
+sentinel-control/docs/reviews/MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_REPORT.md
+sentinel-control/docs/reviews/BRAIN_NATIVE_CANDIDATE_SOURCE_AND_MEMORY_FEEDBACK_LOCK_REPORT.md
+sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md
+```
+
+Recommended next build sequence:
+
+```text
+1. CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
+2. BROWSER_READONLY_LIVE_BACKEND_V1
+3. BROWSER_L5_NAVIGATION_CLICK_TYPE_CONTROLLED
+4. CREDENTIAL_VAULT_REAL_STORAGE
+5. API_READONLY_AND_CONTROLLED_MUTATION
+6. SHELL_SANDBOX_ORGAN
+7. DESKTOP_SIDEcar_ORGAN
+```
+
+The doctrine:
+
+```text
+Sentinel should have dangerous powers.
+Those powers must enter through authority, gates, receipts, rollback posture,
+FinalGate, replay, and audit.
+Power is allowed. Unsafe authority is not.
+```
+
+## Archived Snapshot - 2026-05-25
 
 This repository is the full Sentinel working tree. It includes the legacy
 CueIdea/RedditPulse evidence product, the Sentinel Control runtime, and Agent
