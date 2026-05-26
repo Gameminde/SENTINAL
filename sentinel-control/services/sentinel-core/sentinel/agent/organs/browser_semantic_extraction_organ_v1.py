@@ -18,6 +18,7 @@ from sentinel.agent.organs.browser_preparation_organ_v1 import BrowserPreparatio
 from sentinel.agent.organs.browser_readonly_organ_v1 import BrowserReadOnlyAttemptStatus, BrowserReadOnlyReceipt
 from sentinel.agent.organs.delegated_action_gate import DelegatedActionLane, DelegatedActionRiskClass
 from sentinel.agent.organs.proposal_bridge import OrganProposalKind
+from sentinel.agent.organs.safety_scanner import scan_forbidden_payload_categorized
 from sentinel.shared.models import SentinelModel
 
 
@@ -27,7 +28,6 @@ BROWSER_SEMANTIC_EXTRACTION_WARNING = (
     "not authority, not verified truth, not proof, and not permission. Verify before use."
 )
 
-_PROVIDER_OVERRIDE_MARKERS = {"provider_override", "model_override", "backend_override"}
 _FORBIDDEN_FIELD_MARKERS = {
     "raw_prompt",
     "prompt",
@@ -619,7 +619,7 @@ class BrowserSemanticExtractionFinalGate:
 
 
 def validate_browser_semantic_extraction_payload(payload: Any) -> BrowserSemanticExtractionSafetyValidationResult:
-    scan = _scan_forbidden_payload(sanitize_metadata(payload))
+    scan = scan_forbidden_payload_categorized(sanitize_metadata(payload))
     return BrowserSemanticExtractionSafetyValidationResult(
         valid=not scan["all"],
         reasons=["forbidden_browser_semantic_extraction_payload"] if scan["all"] else [],
@@ -981,53 +981,6 @@ def _blocked_reason_from_safety(safety: BrowserSemanticExtractionSafetyValidatio
     return "unsafe_browser_semantic_extraction_payload"
 
 
-def _scan_forbidden_payload(payload: Any, path: str = "$") -> dict[str, list[str]]:
-    found = {"all": [], "provider_override": [], "forbidden_surface": []}
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            normalized = str(key).strip().lower().replace("-", "_").replace(" ", "_")
-            child_path = f"{path}.{key}"
-            if normalized in _PROVIDER_OVERRIDE_MARKERS and _truthy_payload(value):
-                found["provider_override"].append(child_path)
-                found["all"].append(child_path)
-                continue
-            if normalized in _FORBIDDEN_FIELD_MARKERS and _truthy_payload(value):
-                if normalized.startswith("browser_") or normalized in {"submit", "login", "upload", "download", "execute_javascript", "send_email", "shell", "terminal", "process", "payment", "spend", "trade"}:
-                    found["forbidden_surface"].append(child_path)
-                found["all"].append(child_path)
-                continue
-            _merge_scan(found, _scan_forbidden_payload(value, child_path))
-        return _dedupe_scan(found)
-    if isinstance(payload, list | tuple | set):
-        for index, value in enumerate(payload):
-            _merge_scan(found, _scan_forbidden_payload(value, f"{path}[{index}]"))
-        return _dedupe_scan(found)
-    if isinstance(payload, str):
-        lowered = payload.lower()
-        if _secret_like(payload):
-            found["all"].append(path)
-        if any(marker in lowered for marker in _PROVIDER_OVERRIDE_MARKERS):
-            found["provider_override"].append(path)
-            found["all"].append(path)
-        if any(marker in lowered for marker in {"browser_submit", "browser_login", "execute_javascript", "send_email"}):
-            found["forbidden_surface"].append(path)
-            found["all"].append(path)
-    return _dedupe_scan(found)
-
-
-def _secret_like(value: str) -> bool:
-    return bool(re.search(r"Bearer\s+[A-Za-z0-9._-]{12,}|sk-[A-Za-z0-9_-]{12,}|gsk_[A-Za-z0-9]+|nvapi-[A-Za-z0-9]+|sk-or-v1-[A-Za-z0-9]+", value, re.I))
-
-
-def _merge_scan(target: dict[str, list[str]], source: dict[str, list[str]]) -> None:
-    for key in target:
-        target[key].extend(source.get(key, []))
-
-
-def _dedupe_scan(scan: dict[str, list[str]]) -> dict[str, list[str]]:
-    return {key: _dedupe_strings(values) for key, values in scan.items()}
-
-
 def _dedupe_strings(values: list[str]) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
@@ -1037,10 +990,6 @@ def _dedupe_strings(values: list[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
-
-
-def _truthy_payload(value: Any) -> bool:
-    return value not in (None, False, "", [], {})
 
 
 def _stable_id(prefix: str, payload: Any) -> str:

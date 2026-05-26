@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -61,6 +60,7 @@ from sentinel.agent.organs.reversible_workspace_executor import (
     L3WorkspaceRequest,
     L3WorkspaceResult,
 )
+from sentinel.agent.organs.safety_scanner import scan_forbidden_payload_categorized
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.shared.models import SentinelModel
 
@@ -331,7 +331,7 @@ def execute_organ_runtime_request(
 
 
 def validate_organ_runtime_execution_payload(payload: Any) -> OrganRuntimeExecutionSafetyValidationResult:
-    scan = _scan_forbidden_payload(sanitize_metadata(payload))
+    scan = scan_forbidden_payload_categorized(sanitize_metadata(payload))
     return OrganRuntimeExecutionSafetyValidationResult(
         valid=not scan["all"],
         reasons=["forbidden_organ_runtime_execution_payload"] if scan["all"] else [],
@@ -1171,94 +1171,6 @@ def _contract_gate_result_id(receipt: Any) -> str | None:
     return str(getattr(receipt, "gate_result_id", "") or "") or None
 
 
-def _scan_forbidden_payload(payload: Any, path: str = "$") -> dict[str, list[str]]:
-    found = {"all": [], "provider_override": [], "forbidden_surface": []}
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            normalized = str(key).strip().lower().replace("-", "_").replace(" ", "_")
-            child_path = f"{path}.{key}"
-            if normalized in _SAFE_NEGATIVE_LIST_KEYS:
-                _merge_scan(found, _scan_negative_control_list(value, child_path))
-                continue
-            if normalized in _PROVIDER_OVERRIDE_KEYS and _truthy_payload(value):
-                found["provider_override"].append(child_path)
-                found["all"].append(child_path)
-                continue
-            if normalized in _FORBIDDEN_SURFACE_KEYS and _truthy_payload(value):
-                found["forbidden_surface"].append(child_path)
-                found["all"].append(child_path)
-                continue
-            if normalized in _FORBIDDEN_RUNTIME_KEYS and _truthy_payload(value):
-                found["all"].append(child_path)
-                continue
-            _merge_scan(found, _scan_forbidden_payload(value, child_path))
-        return _dedupe_scan(found)
-    if isinstance(payload, list | tuple | set):
-        for index, value in enumerate(payload):
-            _merge_scan(found, _scan_forbidden_payload(value, f"{path}[{index}]"))
-        return _dedupe_scan(found)
-    if isinstance(payload, str):
-        lowered = payload.lower()
-        if _SECRET_LIKE_PATTERN.search(payload):
-            found["all"].append(path)
-        if any(marker in lowered for marker in _PROVIDER_OVERRIDE_TEXT):
-            found["provider_override"].append(path)
-            found["all"].append(path)
-        if any(marker in lowered for marker in _FORBIDDEN_SURFACE_TEXT):
-            found["forbidden_surface"].append(path)
-            found["all"].append(path)
-        elif any(marker in lowered for marker in _FORBIDDEN_RUNTIME_TEXT):
-            found["all"].append(path)
-    return _dedupe_scan(found)
-
-
-def _scan_negative_control_list(payload: Any, path: str) -> dict[str, list[str]]:
-    found = {"all": [], "provider_override": [], "forbidden_surface": []}
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            normalized = str(key).strip().lower().replace("-", "_").replace(" ", "_")
-            child_path = f"{path}.{key}"
-            if normalized in _PROVIDER_OVERRIDE_KEYS and _truthy_payload(value):
-                found["provider_override"].append(child_path)
-                found["all"].append(child_path)
-            elif normalized in _FORBIDDEN_RUNTIME_KEYS and _truthy_payload(value):
-                found["all"].append(child_path)
-            else:
-                _merge_scan(found, _scan_negative_control_list(value, child_path))
-        return _dedupe_scan(found)
-    if isinstance(payload, list | tuple | set):
-        for index, value in enumerate(payload):
-            _merge_scan(found, _scan_negative_control_list(value, f"{path}[{index}]"))
-        return _dedupe_scan(found)
-    if isinstance(payload, str) and _SECRET_LIKE_PATTERN.search(payload):
-        found["all"].append(path)
-    return _dedupe_scan(found)
-
-
-def _merge_scan(target: dict[str, list[str]], source: dict[str, list[str]]) -> None:
-    for key in target:
-        target[key].extend(source.get(key, []))
-
-
-def _dedupe_scan(scan: dict[str, list[str]]) -> dict[str, list[str]]:
-    return {key: _dedupe_strings(values) for key, values in scan.items()}
-
-
-def _dedupe_strings(values: list[str]) -> list[str]:
-    seen: set[str] = set()
-    result: list[str] = []
-    for value in values:
-        if value in seen:
-            continue
-        seen.add(value)
-        result.append(value)
-    return result
-
-
-def _truthy_payload(value: Any) -> bool:
-    return value not in (None, False, "", [], {})
-
-
 def _assert_runtime_firewall(model: Any) -> None:
     if getattr(model, "authority_effect", "none") != "none":
         raise ValueError("Organ runtime execution cannot grant authority.")
@@ -1273,96 +1185,3 @@ def _assert_runtime_firewall(model: Any) -> None:
     }.items():
         if bool(getattr(model, field, False)):
             raise ValueError(f"Organ runtime execution cannot {message}.")
-
-
-_PROVIDER_OVERRIDE_KEYS = {"provider_override", "model_override", "backend_override"}
-
-_SAFE_NEGATIVE_LIST_KEYS = {
-    "forbidden_actions",
-    "forbidden_substeps",
-    "forbidden_action_classes",
-    "forbidden_organs",
-}
-
-_FORBIDDEN_SURFACE_KEYS = {
-    "api_call",
-    "browser_login",
-    "browser_submit",
-    "channel_send",
-    "desktop_action",
-    "download_file",
-    "external_network",
-    "network_call",
-    "payment",
-    "process",
-    "send_email",
-    "shell",
-    "spend",
-    "terminal",
-    "trade",
-    "upload_file",
-}
-
-_FORBIDDEN_RUNTIME_KEYS = {
-    "api_key",
-    "authorization",
-    "authority_expansion",
-    "bearer",
-    "chain_of_thought",
-    "credential",
-    "delegated_lane_creation",
-    "execute_checkpoint",
-    "execute_now",
-    "mission_envelope_expansion",
-    "organ_execution",
-    "password",
-    "provider_response",
-    "raw_prompt",
-    "prompt",
-    "raw_response",
-    "reasoning",
-    "restore_now",
-    "rollback_now",
-    "secret",
-    "thinking",
-    "token",
-    "tool_calls",
-}
-
-_PROVIDER_OVERRIDE_TEXT = {"backend_override", "model_override", "provider_override"}
-
-_FORBIDDEN_SURFACE_TEXT = {
-    "api_call",
-    "browser_login",
-    "browser_submit",
-    "channel_send",
-    "desktop_action",
-    "download_file",
-    "external_network",
-    "network_call",
-    "payment",
-    "process",
-    "send_email",
-    "shell/process",
-    "upload_file",
-}
-
-_FORBIDDEN_RUNTIME_TEXT = {
-    "authority_expansion",
-    "chain_of_thought",
-    "delegated_lane_creation",
-    "execute_checkpoint",
-    "execute_now",
-    "mission_envelope_expansion",
-    "organ_execution",
-    "raw_prompt",
-    "raw_response",
-    "restore_now",
-    "rollback_now",
-    "tool_calls",
-}
-
-_SECRET_LIKE_PATTERN = re.compile(
-    r"(Bearer\s+[A-Za-z0-9_\-]{12,}|gsk_[A-Za-z0-9]+|nvapi-[A-Za-z0-9]+|sk-or-v1-[A-Za-z0-9]+)",
-    re.IGNORECASE,
-)

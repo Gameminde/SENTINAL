@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -12,6 +11,7 @@ from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_h
 from sentinel.agent.organs.browser_readonly_organ_v1 import BrowserReadOnlyAttemptStatus, BrowserReadOnlyReceipt
 from sentinel.agent.organs.delegated_action_gate import DelegatedActionLane, DelegatedActionRiskClass
 from sentinel.agent.organs.proposal_bridge import OrganProposalKind
+from sentinel.agent.organs.safety_scanner import OrganSafetyScanCategory, scan_forbidden_payload_categorized
 from sentinel.shared.models import SentinelModel
 
 
@@ -35,7 +35,6 @@ _HARD_FORBIDDEN_ACTION_CLASSES = {
     "payment",
     "trade",
 }
-_PROVIDER_OVERRIDE_MARKERS = {"provider_override", "model_override", "backend_override"}
 _FORBIDDEN_FIELD_MARKERS = {
     "raw_prompt",
     "prompt",
@@ -666,57 +665,10 @@ class BrowserPreparationFinalGate:
 
 
 def validate_browser_preparation_payload(payload: Any) -> BrowserPreparationSafetyValidationResult:
-    rejected: list[str] = []
-    provider_overrides: list[str] = []
-    forbidden_surfaces: list[str] = []
-
-    def visit(value: Any, path: str) -> None:
-        if _path_is_policy_listing(path):
-            return
-        if isinstance(value, dict):
-            for key, item in value.items():
-                normalized_key = str(key).lower()
-                key_path = f"{path}.{key}" if path else str(key)
-                if normalized_key.endswith("_disabled"):
-                    visit(item, key_path)
-                    continue
-                if normalized_key in _PROVIDER_OVERRIDE_MARKERS:
-                    provider_overrides.append(key_path)
-                    rejected.append(key_path)
-                elif normalized_key in _FORBIDDEN_FIELD_MARKERS:
-                    forbidden_surfaces.append(key_path)
-                    rejected.append(key_path)
-                visit(item, key_path)
-        elif isinstance(value, list | tuple | set):
-            for index, item in enumerate(value):
-                visit(item, f"{path}[{index}]")
-        elif isinstance(value, str):
-            lowered = value.lower()
-            if "bearer " in lowered or re.search(r"\b(sk-[a-z0-9_-]{20,})\b", lowered, re.I):
-                rejected.append(path)
-                forbidden_surfaces.append(path)
-            if any(marker in lowered for marker in ("provider_override", "model_override", "backend_override")):
-                rejected.append(path)
-                provider_overrides.append(path)
-            dangerous_values = (
-                "raw_prompt",
-                "raw_response",
-                "chain_of_thought",
-                "execute_now",
-                "browser_submit",
-                "browser_login",
-                "upload_file",
-                "download_file",
-                "send_email",
-                "run_shell",
-                "api_key",
-                "authorization:",
-            )
-            if any(marker in lowered for marker in dangerous_values):
-                rejected.append(path)
-                forbidden_surfaces.append(path)
-
-    visit(payload, "")
+    scan = scan_forbidden_payload_categorized(payload)
+    rejected = scan[OrganSafetyScanCategory.ALL.value]
+    provider_overrides = scan[OrganSafetyScanCategory.PROVIDER_OVERRIDE.value]
+    forbidden_surfaces = _browser_forbidden_surface_paths(scan)
     reasons: list[str] = []
     if rejected:
         reasons.append("unsafe_browser_preparation_payload")
@@ -732,6 +684,19 @@ def validate_browser_preparation_payload(payload: Any) -> BrowserPreparationSafe
         forbidden_surface_paths=sorted(set(forbidden_surfaces)),
         payload_hash=stable_hash(sanitize_metadata(payload)),
     )
+
+
+def _browser_forbidden_surface_paths(scan: dict[str, list[str]]) -> list[str]:
+    paths: list[str] = []
+    for category in (
+        OrganSafetyScanCategory.FORBIDDEN_SURFACE,
+        OrganSafetyScanCategory.SECRET,
+        OrganSafetyScanCategory.EXTERNAL_ACTION,
+        OrganSafetyScanCategory.BROWSER_DANGEROUS,
+        OrganSafetyScanCategory.CREDENTIAL_DANGEROUS,
+    ):
+        paths.extend(scan[category.value])
+    return sorted(set(paths))
 
 
 def render_browser_preparation_receipt_as_untrusted_context(receipt: BrowserPreparationReceipt | dict[str, Any]) -> str:
@@ -1091,20 +1056,6 @@ def _step_hash(step: BrowserPreparationStep) -> str:
             }
         )
     )
-
-
-def _path_is_policy_listing(path: str) -> bool:
-    safe_fragments = (
-        ".forbidden_substeps",
-        ".forbidden_action_classes",
-        ".blocked_action_classes",
-        ".allowed_preparation_classes",
-        "forbidden_substeps",
-        "forbidden_action_classes",
-        "blocked_action_classes",
-        "allowed_preparation_classes",
-    )
-    return any(fragment in path for fragment in safe_fragments)
 
 
 def _blocked_reason_from_safety(safety: BrowserPreparationSafetyValidationResult) -> str:

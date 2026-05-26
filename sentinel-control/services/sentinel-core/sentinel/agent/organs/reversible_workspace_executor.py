@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -16,6 +15,7 @@ from sentinel.agent.organs.delegated_action_gate import (
     DelegatedActionRiskClass,
 )
 from sentinel.agent.organs.proposal_bridge import OrganProposalKind
+from sentinel.agent.organs.safety_scanner import scan_forbidden_payload_flat
 from sentinel.shared.models import SentinelModel
 
 
@@ -731,7 +731,7 @@ class L3ReversibleWorkspaceExecutor:
 
 
 def validate_l3_workspace_payload(payload: Any) -> L3WorkspaceSafetyValidationResult:
-    rejected_paths = _scan_forbidden_payload(payload)
+    rejected_paths = scan_forbidden_payload_flat(payload)
     sanitized = sanitize_metadata(payload)
     return L3WorkspaceSafetyValidationResult(
         valid=not rejected_paths,
@@ -1049,60 +1049,6 @@ def _forbidden_runtime_substep(value: str) -> bool:
     return any(marker in lowered for marker in _FORBIDDEN_RUNTIME_SUBSTEPS)
 
 
-def _scan_forbidden_payload(payload: Any, path: str = "$") -> list[str]:
-    rejected: list[str] = []
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            normalized = str(key).strip().lower()
-            child_path = f"{path}.{key}"
-            if normalized in _SAFE_NEGATIVE_LIST_KEYS:
-                rejected.extend(_scan_negative_control_list(value, child_path))
-                continue
-            if normalized in _FORBIDDEN_L3_KEYS and _truthy_payload(value):
-                rejected.append(child_path)
-                continue
-            rejected.extend(_scan_forbidden_payload(value, child_path))
-        return rejected
-    if isinstance(payload, list | tuple | set):
-        for index, value in enumerate(payload):
-            rejected.extend(_scan_forbidden_payload(value, f"{path}[{index}]"))
-        return rejected
-    if isinstance(payload, str) and _contains_forbidden_text(payload):
-        rejected.append(path)
-    return rejected
-
-
-def _scan_negative_control_list(payload: Any, path: str) -> list[str]:
-    rejected: list[str] = []
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            normalized = str(key).strip().lower()
-            child_path = f"{path}.{key}"
-            if normalized in _SECRET_FORBIDDEN_KEYS and _truthy_payload(value):
-                rejected.append(child_path)
-                continue
-            rejected.extend(_scan_negative_control_list(value, child_path))
-        return rejected
-    if isinstance(payload, list | tuple | set):
-        for index, value in enumerate(payload):
-            rejected.extend(_scan_negative_control_list(value, f"{path}[{index}]"))
-        return rejected
-    if isinstance(payload, str) and _SECRET_LIKE_PATTERN.search(payload):
-        rejected.append(path)
-    return rejected
-
-
-def _contains_forbidden_text(value: str) -> bool:
-    lowered = value.lower()
-    if _SECRET_LIKE_PATTERN.search(value):
-        return True
-    return any(marker in lowered for marker in _FORBIDDEN_L3_TEXT)
-
-
-def _truthy_payload(value: Any) -> bool:
-    return value not in (None, False, "", [], {})
-
-
 def _assert_no_authority_or_extra_execution(model: Any) -> None:
     if getattr(model, "authority_effect", "none") != "none":
         raise ValueError("L3 reversible workspace executor cannot grant authority.")
@@ -1153,97 +1099,6 @@ def _dedupe(values: list[str]) -> list[str]:
     return result
 
 
-_FORBIDDEN_L3_KEYS = {
-    "api_call",
-    "api_key",
-    "authorization",
-    "authority_expansion",
-    "backend_override",
-    "bearer",
-    "browser_login",
-    "browser_submit",
-    "chain_of_thought",
-    "credential",
-    "delegated_lane_creation",
-    "direct_action",
-    "download_file",
-    "execute_checkpoint",
-    "execute_now",
-    "external_network",
-    "mission_envelope_expansion",
-    "model_override",
-    "network_call",
-    "organ_execution",
-    "password",
-    "payment",
-    "process",
-    "provider_response",
-    "provider_override",
-    "raw_prompt",
-    "prompt",
-    "raw_response",
-    "reasoning",
-    "restore_now",
-    "rollback_now",
-    "secret",
-    "send_email",
-    "send_now",
-    "shell",
-    "spend",
-    "terminal",
-    "thinking",
-    "token",
-    "tool_calls",
-    "trade",
-    "upload_file",
-}
-
-_SAFE_NEGATIVE_LIST_KEYS = {
-    "forbidden_substeps",
-    "forbidden_actions",
-    "forbidden_action_classes",
-    "forbidden_organs",
-}
-
-_SECRET_FORBIDDEN_KEYS = {
-    "api_key",
-    "authorization",
-    "bearer",
-    "credential",
-    "password",
-    "secret",
-    "token",
-}
-
-_FORBIDDEN_L3_TEXT = {
-    "authority_expansion",
-    "backend_override",
-    "browser_login",
-    "browser_submit",
-    "chain_of_thought",
-    "credential access",
-    "delegated_lane_creation",
-    "direct_action",
-    "download_file",
-    "execute_checkpoint",
-    "execute_now",
-    "external_network",
-    "mission_envelope_expansion",
-    "model_override",
-    "network_call",
-    "organ_execution",
-    "provider_override",
-    "raw_prompt",
-    "raw_response",
-    "restore_now",
-    "rollback_now",
-    "send_email",
-    "send_now",
-    "shell/process",
-    "tool_calls",
-    "upload_file",
-}
-
 _FORBIDDEN_RUNTIME_SUBSTEPS = {
     "api",
     "browser_submit",
@@ -1286,8 +1141,3 @@ _EXECUTABLE_SUFFIXES = {
     ".sh",
     ".so",
 }
-
-_SECRET_LIKE_PATTERN = re.compile(
-    r"(Bearer\s+[A-Za-z0-9_\-]{12,}|gsk_[A-Za-z0-9]+|nvapi-[A-Za-z0-9]+|sk-or-v1-[A-Za-z0-9]+)",
-    re.IGNORECASE,
-)
