@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -14,10 +16,13 @@ from sentinel.agent.model_execution import (
     build_model_execution_receipt,
 )
 from sentinel.agent.model_execution.nvidia import (
+    NVIDIA_BACKEND_ID,
     NVIDIA_DEFAULT_MODEL_ID,
     NvidiaChatCompletionsProvider,
 )
-from tests.test_real_model_execution_backend import _request
+
+sys.path.append(str(Path(__file__).parent))
+from test_real_model_execution_backend import _request  # noqa: E402
 
 
 RAW_PROMPT = (
@@ -65,7 +70,8 @@ def _nvidia_request():
     return _request().model_copy(
         update={
             "provider_id": "nvidia",
-            "backend": "nvidia_openai_compatible_chat",
+            "backend_id": NVIDIA_BACKEND_ID,
+            "backend": NVIDIA_BACKEND_ID,
             "runtime": "chat_completions",
             "model_id": NVIDIA_DEFAULT_MODEL_ID,
             "prompt_text_in_memory_only": RAW_PROMPT,

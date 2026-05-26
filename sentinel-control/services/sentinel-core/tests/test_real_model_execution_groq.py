@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -13,8 +15,10 @@ from sentinel.agent.model_execution import (
     ProviderCredentialHandle,
     build_model_execution_receipt,
 )
-from sentinel.agent.model_execution.groq import GROQ_DEFAULT_MODEL_ID, GroqChatCompletionsProvider
-from tests.test_real_model_execution_backend import _request
+from sentinel.agent.model_execution.groq import GROQ_BACKEND_ID, GROQ_DEFAULT_MODEL_ID, GroqChatCompletionsProvider
+
+sys.path.append(str(Path(__file__).parent))
+from test_real_model_execution_backend import _request  # noqa: E402
 
 
 RAW_PROMPT = 'Return JSON only: {"decision":"continue","rationale":"ok","evidence_refs":[],"confidence":0.9}'
@@ -60,7 +64,8 @@ def _groq_request():
     return _request().model_copy(
         update={
             "provider_id": "groq",
-            "backend": "groq_openai_compatible_chat",
+            "backend_id": GROQ_BACKEND_ID,
+            "backend": GROQ_BACKEND_ID,
             "runtime": "chat_completions",
             "model_id": GROQ_DEFAULT_MODEL_ID,
             "prompt_text_in_memory_only": RAW_PROMPT,

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -16,12 +18,15 @@ from sentinel.agent.model_execution import (
     build_model_execution_receipt,
 )
 from sentinel.agent.model_execution.openrouter import (
+    OPENROUTER_BACKEND_ID,
     OPENROUTER_DEFAULT_MODEL_ID,
     OpenRouterChatCompletionsProvider,
 )
 from sentinel.agent.model_execution.receipts import build_model_execution_receipt
 from sentinel.agent.model_execution.redaction import text_hash
-from tests.test_real_model_execution_backend import _request
+
+sys.path.append(str(Path(__file__).parent))
+from test_real_model_execution_backend import _request  # noqa: E402
 
 
 RAW_PROMPT = "Return JSON for strawberry without leaking this raw prompt."
@@ -85,7 +90,8 @@ def _openrouter_request():
     request = _request().model_copy(
         update={
             "provider_id": "openrouter",
-            "backend": "openrouter_chat_completions",
+            "backend_id": OPENROUTER_BACKEND_ID,
+            "backend": OPENROUTER_BACKEND_ID,
             "runtime": "chat_completions",
             "model_id": OPENROUTER_DEFAULT_MODEL_ID,
             "prompt_text_in_memory_only": RAW_PROMPT,
@@ -254,7 +260,9 @@ def test_openrouter_http_error_diagnostic_is_sanitized(monkeypatch: pytest.Monke
     assert response.content["http_status"] == 400
     assert response.content["provider_error_type"] == "invalid_request_error"
     assert response.content["provider_error_code"] == "bad_request"
-    assert response.content["provider_error_message"] == "Provider rejected reasoning parameter"
+    assert response.content["provider_error_message_hash"] == text_hash("Provider rejected reasoning parameter")
+    assert response.content["provider_error_message_redacted"] is True
+    assert "Provider rejected reasoning parameter" not in response.model_dump_json()
     assert SECRET_VALUE not in response.model_dump_json()
 
 

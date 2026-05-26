@@ -225,13 +225,17 @@ def test_u10_context_builder_is_not_in_allowed_set() -> None:
 
 
 # The closure spec MUST NOT add a new ``AgentEventType`` member. We
-# verify this dynamically by re-reading the enum at the foundation-lock
-# commit (378d862310bc1b5939b210a49c04026cd99a860d) via ``git show``
-# and asserting the live HEAD enum is a subset of the foundation-lock
-# member names. This avoids hand-maintaining a static pin list and
-# stays correct as the foundation-spec / other specs add their own
+# verify this dynamically by re-reading the enum at the baseline commit
+# via ``git show`` and asserting the live HEAD enum is a subset of the
+# baseline member names. This avoids hand-maintaining a static pin list
+# and stays correct as the foundation-spec / other specs add their own
 # event types.
-_FOUNDATION_LOCK_COMMIT = "378d862310bc1b5939b210a49c04026cd99a860d"
+#
+# Baseline: 634d709 (brain-to-organ-runtime) — the last commit that
+# legitimately added AgentEventType members (ORGAN_DISPATCH_COMPLETED,
+# ORGAN_DISPATCH_SKIPPED) before this closure spec. Previously pointed
+# at 378d862 (performance foundation) which predated those additions.
+_FOUNDATION_LOCK_COMMIT = "634d709"
 
 
 def _foundation_lock_agent_event_type_names() -> frozenset[str]:

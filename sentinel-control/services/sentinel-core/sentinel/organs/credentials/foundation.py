@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -11,6 +10,7 @@ from pydantic import Field, model_validator
 
 from sentinel.organs.credentials.vault_policy import CredentialAccessSource
 from sentinel.shared.models import SentinelModel, new_id
+from sentinel.shared.safety_scanner import scan_forbidden_payload_flat
 
 
 def utc_now() -> datetime:
@@ -571,7 +571,7 @@ def validate_authority_credential_payload(
     *,
     source: str = "operator",
 ) -> AuthorityCredentialSafetyValidationResult:
-    rejected_paths = _scan_forbidden_payload(payload)
+    rejected_paths = scan_forbidden_payload_flat(payload)
     reasons: list[str] = []
     if rejected_paths:
         reasons.append("forbidden_authority_credential_payload")
@@ -682,26 +682,6 @@ def _contains_grant_creation(payload: Any) -> bool:
     return False
 
 
-def _scan_forbidden_payload(payload: Any, path: str = "$") -> list[str]:
-    rejected: list[str] = []
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            normalized = str(key).strip().lower()
-            child_path = f"{path}.{key}"
-            if normalized in _FORBIDDEN_KEYS and value not in (None, False, "", [], {}):
-                rejected.append(child_path)
-                continue
-            rejected.extend(_scan_forbidden_payload(value, child_path))
-        return rejected
-    if isinstance(payload, list | tuple | set):
-        for index, value in enumerate(payload):
-            rejected.extend(_scan_forbidden_payload(value, f"{path}[{index}]"))
-        return rejected
-    if isinstance(payload, str) and _SECRET_LIKE_TEXT.search(payload):
-        rejected.append(path)
-    return rejected
-
-
 def _sanitize_for_hash(payload: Any) -> Any:
     if hasattr(payload, "model_dump"):
         return _sanitize_for_hash(payload.model_dump(mode="json"))
@@ -717,37 +697,3 @@ def _sanitize_for_hash(payload: Any) -> Any:
 def _stable_hash(payload: Any) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
-_FORBIDDEN_KEYS = {
-    "api_key",
-    "authorization",
-    "backend_override",
-    "bearer",
-    "browser_login",
-    "browser_submit",
-    "chain_of_thought",
-    "credential_value",
-    "direct_action",
-    "execute_now",
-    "model_override",
-    "password",
-    "payment",
-    "provider_override",
-    "raw_prompt",
-    "raw_response",
-    "reasoning",
-    "secret",
-    "secret_value",
-    "send_email",
-    "shell",
-    "terminal",
-    "thinking",
-    "token",
-    "tool_calls",
-}
-
-_SECRET_LIKE_TEXT = re.compile(
-    r"(Bearer\s+[A-Za-z0-9_\-]{12,}|gsk_[A-Za-z0-9]+|nvapi-[A-Za-z0-9]+|sk-or-v1-[A-Za-z0-9]+|sk-[A-Za-z0-9]{16,})",
-    re.IGNORECASE,
-)

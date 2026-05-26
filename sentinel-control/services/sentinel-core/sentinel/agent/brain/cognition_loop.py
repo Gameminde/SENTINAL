@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -38,6 +37,7 @@ from sentinel.agent.llm.role_loop import (
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_hash
 from sentinel.shared.models import SentinelModel
+from sentinel.shared.safety_scanner import scan_forbidden_payload_flat
 
 
 def utc_now() -> datetime:
@@ -500,7 +500,7 @@ def render_brain_context_as_untrusted_data(result: BrainCognitionResult) -> str:
 
 
 def validate_brain_cognition_payload(payload: Any) -> BrainCognitionSafetyValidationResult:
-    rejected_paths = _scan_forbidden_payload(payload)
+    rejected_paths = scan_forbidden_payload_flat(payload)
     sanitized = sanitize_metadata(payload)
     return BrainCognitionSafetyValidationResult(
         valid=not rejected_paths,
@@ -720,37 +720,6 @@ def _recommendation(missing_evidence: list[str], contradiction_refs: list[str], 
     return "Proceed to organ proposal bridge as proposal-only design work."
 
 
-def _scan_forbidden_payload(payload: Any, path: str = "$") -> list[str]:
-    rejected: list[str] = []
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            normalized = str(key).strip().lower()
-            child_path = f"{path}.{key}"
-            if normalized in _FORBIDDEN_BRAIN_KEYS and _truthy_payload(value):
-                rejected.append(child_path)
-                continue
-            rejected.extend(_scan_forbidden_payload(value, child_path))
-        return rejected
-    if isinstance(payload, list | tuple | set):
-        for index, value in enumerate(payload):
-            rejected.extend(_scan_forbidden_payload(value, f"{path}[{index}]"))
-        return rejected
-    if isinstance(payload, str) and _contains_forbidden_text(payload):
-        rejected.append(path)
-    return rejected
-
-
-def _contains_forbidden_text(value: str) -> bool:
-    lowered = value.lower()
-    if _SECRET_LIKE_PATTERN.search(value):
-        return True
-    return any(marker in lowered for marker in _FORBIDDEN_BRAIN_TEXT)
-
-
-def _truthy_payload(value: Any) -> bool:
-    return value not in (None, False, "", [], {})
-
-
 def _assert_no_authority_or_execution(model: Any) -> None:
     if getattr(model, "authority_effect", "none") != "none":
         raise ValueError("Brain cognition cannot grant authority.")
@@ -787,70 +756,3 @@ def _dedupe(values: list[str]) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
-
-
-_FORBIDDEN_BRAIN_KEYS = {
-    "api_key",
-    "authorization",
-    "authority_expansion",
-    "backend_override",
-    "bearer",
-    "browser_submit",
-    "chain_of_thought",
-    "credential",
-    "delegated_lane_creation",
-    "direct_action",
-    "execute_checkpoint",
-    "execute_now",
-    "mission_envelope_expansion",
-    "model_override",
-    "organ_execution",
-    "password",
-    "payment",
-    "process",
-    "provider_response",
-    "provider_override",
-    "raw_prompt",
-    "prompt",
-    "raw_response",
-    "reasoning",
-    "restore_now",
-    "rollback_now",
-    "secret",
-    "send_email",
-    "shell",
-    "spend",
-    "terminal",
-    "thinking",
-    "token",
-    "tool_calls",
-    "trade",
-}
-
-_FORBIDDEN_BRAIN_TEXT = {
-    "authority_expansion",
-    "backend_override",
-    "browser_submit",
-    "chain_of_thought",
-    "credential access",
-    "delegated_lane_creation",
-    "direct_action",
-    "execute_checkpoint",
-    "execute_now",
-    "mission_envelope_expansion",
-    "model_override",
-    "organ_execution",
-    "provider_override",
-    "raw_prompt",
-    "raw_response",
-    "restore_now",
-    "rollback_now",
-    "send_email",
-    "shell/process",
-    "tool_calls",
-}
-
-_SECRET_LIKE_PATTERN = re.compile(
-    r"(Bearer\s+[A-Za-z0-9_\-]{12,}|gsk_[A-Za-z0-9]+|nvapi-[A-Za-z0-9]+|sk-or-v1-[A-Za-z0-9]+)",
-    re.IGNORECASE,
-)
