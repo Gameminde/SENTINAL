@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import ipaddress
+import queue
 import re
+import threading
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Callable
@@ -103,6 +105,10 @@ BrowserReadOnlyFetcher = Callable[[Any, str], BrowserFetchedPage]
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+class _BrowserReadOnlyFetchTimeout(Exception):
+    pass
 
 
 class BrowserReadOnlyAttemptStatus(StrEnum):
@@ -213,7 +219,7 @@ class BrowserReadOnlySafetyValidationResult(SentinelModel):
 
 
 class BrowserReadOnlyRequest(SentinelModel):
-    request_id: str = Field(default_factory=lambda: _stable_id("broreq", {"created_at": utc_now().isoformat()}))
+    request_id: str | None = None
     mission_id: str
     objective_summary: str
     requested_url: str
@@ -262,6 +268,8 @@ class BrowserReadOnlyRequest(SentinelModel):
             raise ValueError("Browser read-only requests are data, not instruction.")
         self.allowed_domains = sorted({_normalize_host(domain) for domain in self.allowed_domains})
         self.allowed_schemes = sorted({scheme.lower() for scheme in self.allowed_schemes})
+        if not self.request_id:
+            self.request_id = _browser_readonly_request_id(self)
         return self
 
 
@@ -475,7 +483,14 @@ class BrowserReadOnlyOrganV1:
                         redirect_chain=redirect_chain,
                         request_metadata=request_metadata,
                     )
-                page = self.fetcher(req, str(policy["normalized_url"]))
+                page = _fetch_page_with_timeout(
+                    self.fetcher,
+                    req,
+                    str(policy["normalized_url"]),
+                    timeout_seconds=_readonly_contract(req.contract).max_render_seconds
+                    if _readonly_contract(req.contract)
+                    else req.max_render_seconds,
+                )
                 response_metadata = _response_metadata(page)
                 if page.status_code in _REDIRECT_STATUSES:
                     location = page.headers.get("location") or page.headers.get("Location")
@@ -490,6 +505,8 @@ class BrowserReadOnlyOrganV1:
                     return _blocked_result(req, safety, "final_url_policy_mismatch", BrowserReadOnlyAttemptStatus.BLOCKED, policy=policy, redirect_chain=redirect_chain, request_metadata=request_metadata, response_metadata=response_metadata)
                 return self._observed(req, safety, page, policy, redirect_chain, request_metadata, response_metadata)
             return _blocked_result(req, safety, "redirect_limit_exceeded", BrowserReadOnlyAttemptStatus.BLOCKED, redirect_chain=redirect_chain, request_metadata=request_metadata, response_metadata=response_metadata)
+        except _BrowserReadOnlyFetchTimeout:
+            return _blocked_result(req, safety, "browser_readonly_fetch_timeout", BrowserReadOnlyAttemptStatus.FAILED, redirect_chain=redirect_chain, request_metadata=request_metadata, response_metadata=response_metadata)
         except KeyError as exc:
             return _blocked_result(req, safety, f"browser_fetch_failed:{str(exc)[:80]}", BrowserReadOnlyAttemptStatus.FAILED, redirect_chain=redirect_chain, request_metadata=request_metadata, response_metadata=response_metadata)
         except Exception as exc:
@@ -561,10 +578,11 @@ class BrowserReadOnlyOrganV1:
         if mime not in _DEFAULT_ALLOWED_MIME_TYPES:
             return _blocked_result(req, safety, "browser_mime_type_not_allowed", BrowserReadOnlyAttemptStatus.BLOCKED, policy=policy, redirect_chain=redirect_chain, request_metadata=request_metadata, response_metadata=response_metadata)
         body_bytes = page.body.encode("utf-8")
-        if len(body_bytes) > min(req.max_page_bytes, req.contract.max_page_bytes if isinstance(req.contract, L4BrowserReadOnlyExecutorContract) else req.max_page_bytes):
+        contract = _readonly_contract(req.contract)
+        if len(body_bytes) > min(req.max_page_bytes, contract.max_page_bytes if contract else req.max_page_bytes):
             return _blocked_result(req, safety, "browser_body_too_large", BrowserReadOnlyAttemptStatus.BLOCKED, policy=policy, redirect_chain=redirect_chain, request_metadata=request_metadata, response_metadata=response_metadata)
 
-        max_chars = min(req.max_extracted_text_bytes, req.contract.max_extracted_text_bytes if isinstance(req.contract, L4BrowserReadOnlyExecutorContract) else req.max_extracted_text_bytes)
+        max_chars = min(req.max_extracted_text_bytes, contract.max_extracted_text_bytes if contract else req.max_extracted_text_bytes)
         extraction = self.extractor.extract(final_url=page.final_url, content_type=page.content_type, body=page.body, max_chars=max_chars)
         prompt_flags = _detect_prompt_injection(page.body, extraction.text, extraction.title)
         quality_flags = sorted(set(extraction.source_quality_flags))
@@ -747,32 +765,42 @@ def _coerce_request(request: BrowserReadOnlyRequest | dict[str, Any]) -> Browser
     return BrowserReadOnlyRequest.model_validate(request)
 
 
+def _readonly_contract(value: L4BrowserReadOnlyExecutorContract | dict[str, Any] | None) -> L4BrowserReadOnlyExecutorContract | None:
+    if isinstance(value, L4BrowserReadOnlyExecutorContract):
+        return value
+    if isinstance(value, dict):
+        return L4BrowserReadOnlyExecutorContract.model_validate(value)
+    return None
+
+
+def _readonly_lane(value: DelegatedActionLane | dict[str, Any] | None) -> DelegatedActionLane | None:
+    if isinstance(value, DelegatedActionLane):
+        return value
+    if isinstance(value, dict):
+        return DelegatedActionLane.model_validate(value)
+    return None
+
+
 def _preflight_block_reason(req: BrowserReadOnlyRequest) -> str | None:
-    if req.contract is None:
+    contract = _readonly_contract(req.contract)
+    if contract is None:
         return "missing_l4_executor_contract"
-    if isinstance(req.contract, dict):
-        req.contract = L4BrowserReadOnlyExecutorContract.model_validate(req.contract)
-    if not isinstance(req.contract, L4BrowserReadOnlyExecutorContract):
-        return "missing_l4_executor_contract"
-    if req.contract.execution_enabled_for_l4_readonly is not True:
+    if contract.execution_enabled_for_l4_readonly is not True:
         return "l4_readonly_execution_contract_not_enabled"
-    if req.contract.mission_id != req.mission_id:
+    if contract.mission_id != req.mission_id:
         return "contract_mission_mismatch"
-    if not req.contract.lane_id or not req.contract.gate_result_id:
+    if not contract.lane_id or not contract.gate_result_id:
         return "contract_lane_or_gate_ref_missing"
-    if req.contract.receipt_required is not True:
+    if contract.receipt_required is not True:
         return "contract_receipt_required_false"
-    if req.contract.finalgate_posture_required is not True:
+    if contract.finalgate_posture_required is not True:
         return "contract_finalgate_posture_missing"
     if req.expires_at is not None and req.expires_at <= req.current_time:
         return "browser_readonly_request_expired"
-    if req.delegated_lane is None:
+    lane = _readonly_lane(req.delegated_lane)
+    if lane is None:
         return "missing_delegated_action_lane"
-    if isinstance(req.delegated_lane, dict):
-        req.delegated_lane = DelegatedActionLane.model_validate(req.delegated_lane)
-    if not isinstance(req.delegated_lane, DelegatedActionLane):
-        return "missing_delegated_action_lane"
-    return _lane_block_reason(req, req.delegated_lane, req.contract)
+    return _lane_block_reason(req, lane, contract)
 
 
 def _lane_block_reason(req: BrowserReadOnlyRequest, lane: DelegatedActionLane, contract: L4BrowserReadOnlyExecutorContract) -> str | None:
@@ -852,8 +880,8 @@ def _make_receipt(
     safe_summary: str,
     forbidden_surface_absent: bool = True,
 ) -> BrowserReadOnlyReceipt:
-    contract = req.contract if isinstance(req.contract, L4BrowserReadOnlyExecutorContract) else None
-    lane = req.delegated_lane if isinstance(req.delegated_lane, DelegatedActionLane) else None
+    contract = _readonly_contract(req.contract)
+    lane = _readonly_lane(req.delegated_lane)
     policy = policy or _classify_url(
         req.requested_url,
         allowed_domains=req.allowed_domains,
@@ -1108,6 +1136,53 @@ def _blocked_reason_from_safety(safety: BrowserReadOnlySafetyValidationResult) -
 
 def _stable_id(prefix: str, payload: Any) -> str:
     return f"{prefix}_{stable_hash(sanitize_metadata(payload))[:24]}"
+
+
+def _browser_readonly_request_id(req: BrowserReadOnlyRequest) -> str:
+    return _stable_id(
+        "broreq",
+        {
+            "mission_id": req.mission_id,
+            "objective_summary": req.objective_summary,
+            "requested_url": _normalize_url(req.requested_url),
+            "allowed_domains": sorted(req.allowed_domains),
+            "allowed_schemes": sorted(req.allowed_schemes),
+            "validity_scope": req.validity_scope,
+            "authority_refs": sorted(req.authority_refs),
+            "evidence_refs": sorted(req.evidence_refs),
+            "receipt_refs": sorted(req.receipt_refs),
+            "include_dom_snapshot": req.include_dom_snapshot,
+            "include_ax_snapshot": req.include_ax_snapshot,
+            "include_screenshot_metadata": req.include_screenshot_metadata,
+            "include_pdf_text_if_safe": req.include_pdf_text_if_safe,
+        },
+    )
+
+
+def _fetch_page_with_timeout(
+    fetcher: BrowserReadOnlyFetcher,
+    req: BrowserReadOnlyRequest,
+    normalized_url: str,
+    *,
+    timeout_seconds: float,
+) -> BrowserFetchedPage:
+    result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
+
+    def _run_fetcher() -> None:
+        try:
+            result_queue.put(("ok", fetcher(req, normalized_url)), block=False)
+        except Exception as exc:  # preserve fetcher failures for the caller
+            result_queue.put(("error", exc), block=False)
+
+    thread = threading.Thread(target=_run_fetcher, name="sentinel-browser-readonly-fetch", daemon=True)
+    thread.start()
+    try:
+        status, value = result_queue.get(timeout=max(timeout_seconds, 0.001))
+    except queue.Empty as exc:
+        raise _BrowserReadOnlyFetchTimeout() from exc
+    if status == "error":
+        raise value
+    return value
 
 
 def _optional_hash(payload: Any) -> str:

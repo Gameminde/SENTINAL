@@ -328,4 +328,7 @@ def test_role_loop_memory_bridge_does_not_inject_memory_into_prompts() -> None:
 def test_role_loop_memory_bridge_does_not_change_agent_runtime_default_behavior() -> None:
     runtime_params = signature(AgentRuntime.__init__).parameters
 
-    assert "memory_bridge" not in runtime_params
+    assert "memory_bridge" in runtime_params
+    assert runtime_params["memory_bridge"].default is None
+    runtime = AgentRuntime()
+    assert runtime._organ_execution_config.memory_feedback_enabled is False

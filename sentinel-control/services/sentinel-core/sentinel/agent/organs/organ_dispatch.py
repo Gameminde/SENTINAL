@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import Field, model_validator
+from pydantic import Field, ValidationError, model_validator
 
 from sentinel.agent.llm.proposals import DelegatedActionLevel
 from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_hash
@@ -880,7 +880,7 @@ def _build_l2_executor_contract(
             execution_enabled_for_l2=True,
             contract_version=str(contract_data.get("contract_version", "l2-dispatch-v1")),
         )
-    except Exception:
+    except (ValueError, ValidationError):
         return None
 
 
@@ -915,7 +915,7 @@ def _build_l3_executor_contract(
             execution_enabled_for_l3=True,
             contract_version=str(contract_data.get("contract_version", "l3-dispatch-v1")),
         )
-    except Exception:
+    except (ValueError, ValidationError):
         return None
 
 
@@ -962,7 +962,7 @@ def _build_browser_readonly_executor_contract(
             execution_enabled_for_l4_readonly=True,
             contract_version=str(contract_data.get("contract_version", "browser-readonly-l4-v1")),
         )
-    except Exception:
+    except (ValueError, ValidationError):
         return None
 
 
@@ -992,7 +992,7 @@ def _build_browser_preparation_executor_contract(
             execution_enabled_for_l4_preparation=True,
             contract_version=str(contract_data.get("contract_version", "browser-preparation-l4-v1")),
         )
-    except Exception:
+    except (ValueError, ValidationError):
         return None
 
 
@@ -1022,7 +1022,7 @@ def _build_browser_semantic_extraction_contract(
             execution_enabled_for_l4_semantic_extraction=True,
             contract_version=str(contract_data.get("contract_version", "browser-semantic-extraction-l4-v1")),
         )
-    except Exception:
+    except (ValueError, ValidationError):
         return None
 
 
@@ -1037,7 +1037,7 @@ def _browser_readonly_receipts(
         elif isinstance(item, dict):
             try:
                 receipts.append(BrowserReadOnlyReceipt.model_validate(item))
-            except Exception:
+            except ValidationError:
                 continue
     for result in prior_candidate_results:
         execution = result.execution_result
@@ -1058,7 +1058,7 @@ def _browser_preparation_receipts(
         elif isinstance(item, dict):
             try:
                 receipts.append(BrowserPreparationReceipt.model_validate(item))
-            except Exception:
+            except ValidationError:
                 continue
     for result in prior_candidate_results:
         execution = result.execution_result
@@ -1079,7 +1079,7 @@ def _browser_preparation_target_refs(
         elif isinstance(item, dict):
             try:
                 refs.append(BrowserPreparationTargetRef.model_validate(item))
-            except Exception:
+            except ValidationError:
                 continue
     if refs:
         return refs
@@ -1109,7 +1109,7 @@ def _browser_preparation_steps(
         elif isinstance(item, dict):
             try:
                 steps.append(BrowserPreparationStep.model_validate(item))
-            except Exception:
+            except ValidationError:
                 continue
     if steps:
         return steps

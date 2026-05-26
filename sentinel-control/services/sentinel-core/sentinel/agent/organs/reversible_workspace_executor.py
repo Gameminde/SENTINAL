@@ -881,7 +881,11 @@ def _resolve_target_path(request: L3WorkspaceRequest, contract: L3ExecutorContra
         rejected_paths.append("$.content")
 
     root_resolved = workspace_root.resolve(strict=False)
-    base_resolved = (root_resolved / allowed_subdir).resolve(strict=False)
+    raw_base = root_resolved / allowed_subdir
+    if _has_symlink_component(raw_base, target_fragment):
+        reasons.append("symlink_component")
+        rejected_paths.append("$.target_relative_path")
+    base_resolved = raw_base.resolve(strict=False)
     target_resolved = (base_resolved / target_fragment).resolve(strict=False)
     if not _path_is_inside(target_resolved, base_resolved):
         reasons.append("target_outside_approved_workspace")
@@ -1009,6 +1013,17 @@ def _safe_relative_path(path: Path, root: Path) -> str:
         return path.resolve(strict=False).relative_to(root.resolve(strict=False)).as_posix()
     except ValueError:
         return path.name
+
+
+def _has_symlink_component(base: Path, relative_target: Path) -> bool:
+    current = base
+    if current.exists() and current.is_symlink():
+        return True
+    for part in relative_target.parts[:-1]:
+        current = current / part
+        if current.exists() and current.is_symlink():
+            return True
+    return False
 
 
 def _minimal_path_metadata(request: L3WorkspaceRequest) -> dict[str, Any]:

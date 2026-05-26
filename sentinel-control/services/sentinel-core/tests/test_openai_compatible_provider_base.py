@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -23,7 +25,9 @@ from sentinel.agent.model_execution.openai_compatible import (
     OpenAICompatibleProviderConfig,
 )
 from sentinel.agent.model_execution.redaction import text_hash
-from tests.test_real_model_execution_backend import _request
+
+sys.path.append(str(Path(__file__).parent))
+from test_real_model_execution_backend import _request  # noqa: E402
 
 
 RAW_PROMPT = "catalog-base raw prompt should remain in memory only"

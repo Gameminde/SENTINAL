@@ -10,9 +10,9 @@ This module is the single home for the event-ledger primitives:
 * :class:`AgentEvent` — frozen pydantic model used as the ledger row type.
 * :class:`TraceIntegrityError` — raised by :class:`EventBus` on per-append
   integrity failure (Task 7 / Requirement 7).
-* :class:`EventBus` — the hash-chained truth ledger. ``append`` re-verifies
-  the full existing chain before each link, raising
-  :class:`TraceIntegrityError` on any mismatch (CP-7.1 Immediate Detection).
+* :class:`EventBus` — the hash-chained truth ledger. ``append`` uses an O(1)
+  tail-integrity fast path and falls back to full-chain audit only when the
+  private ledger list has been externally mutated.
 
 Layering rule
 -------------
@@ -347,10 +347,79 @@ class AgentEvent(SentinelModel):
 # ---------------------------------------------------------------------------
 
 
+class _TrackedEventList(list["AgentEvent"]):
+    """Private ledger list that marks external mutations dirty.
+
+    EventBus itself appends through ``append_untracked``. Direct private-list
+    mutations in tests or adversarial code mark the list dirty so the next
+    public append can run a full-chain audit without imposing O(n) work on
+    every normal append.
+    """
+
+    dirty: bool
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.dirty = False
+
+    def append_untracked(self, event: "AgentEvent") -> None:
+        super().append(event)
+
+    def mark_clean(self) -> None:
+        self.dirty = False
+
+    def _mark_dirty(self) -> None:
+        self.dirty = True
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        self._mark_dirty()
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key: Any) -> None:
+        self._mark_dirty()
+        super().__delitem__(key)
+
+    def append(self, value: Any) -> None:
+        self._mark_dirty()
+        super().append(value)
+
+    def extend(self, values: Any) -> None:
+        self._mark_dirty()
+        super().extend(values)
+
+    def insert(self, index: int, value: Any) -> None:
+        self._mark_dirty()
+        super().insert(index, value)
+
+    def pop(self, index: int = -1) -> Any:
+        self._mark_dirty()
+        return super().pop(index)
+
+    def clear(self) -> None:
+        self._mark_dirty()
+        super().clear()
+
+    def remove(self, value: Any) -> None:
+        self._mark_dirty()
+        super().remove(value)
+
+    def reverse(self) -> None:
+        self._mark_dirty()
+        super().reverse()
+
+    def sort(self, *args: Any, **kwargs: Any) -> None:
+        self._mark_dirty()
+        super().sort(*args, **kwargs)
+
+    def __iadd__(self, values: Any) -> "_TrackedEventList":
+        self._mark_dirty()
+        return super().__iadd__(values)
+
+
 class EventBus:
     def __init__(self, mission_id: str) -> None:
         self.mission_id = mission_id
-        self._events: list[AgentEvent] = []
+        self._events: _TrackedEventList = _TrackedEventList()
         self._last_hash: str | None = None
 
     def append(
@@ -365,14 +434,7 @@ class EventBus:
         parent_event_id: str | None = None,
         actor: str = "sentinel_agent",
     ) -> AgentEvent:
-        # Task 7 / Requirement 7 (F-A3.3) — per-append chain integrity check.
-        # Before a new event is linked via ``previous_hash = self._last_hash``,
-        # re-verify the current chain in full. Catches mid-run tampering
-        # (mutation of any prior event via ``bus._events[k] = event.model_copy(...)``
-        # or ``object.__setattr__`` bypassing pydantic freezing) immediately
-        # on the very next append, rather than only on the final
-        # ``verify_chain()`` call at return time.
-        self._assert_chain_integrity()
+        self._assert_append_integrity()
         sequence = len(self._events)
         event_data = {
             "id": new_id("aev"),
@@ -393,18 +455,59 @@ class EventBus:
         }
         event_hash = self._hash_payload(event_data)
         event = AgentEvent(**{**event_data, "event_hash": event_hash})
-        self._events.append(event)
+        self._events.append_untracked(event)
         self._last_hash = event_hash
         return event
 
-    def _assert_chain_integrity(self) -> None:
-        """Verify the current chain before linking a new event.
+    def _assert_append_integrity(self) -> None:
+        """Fast integrity gate before linking a new event.
 
-        Task 7 / Requirement 7 (CP-7.1 Immediate Detection). Raises
-        :class:`TraceIntegrityError` on mismatch rather than silently
-        re-anchoring to tampered state. The check is O(len(events)) — every
-        prior event's ``previous_hash`` and ``event_hash`` are re-verified so
-        that tampering at any index is caught by the very next append.
+        Normal appends verify only the tail anchor and tail hash. If the
+        private ledger list was externally mutated, the next append pays the
+        full-chain audit cost and refuses to append onto a tampered chain.
+        """
+        if self._events.dirty:
+            self._assert_chain_integrity()
+            self._events.mark_clean()
+            return
+        if not self._events:
+            if self._last_hash is not None:
+                raise TraceIntegrityError(
+                    "trace_integrity_error: EventBus tail anchor is set but "
+                    "no events are stored; refusing to append."
+                )
+            return
+        tail = self._events[-1]
+        if tail.sequence != len(self._events) - 1 or tail.logical_time != len(self._events) - 1:
+            raise TraceIntegrityError(
+                "trace_integrity_error: EventBus tail event has "
+                "non-monotonic sequence/logical_time."
+            )
+        expected_previous = self._events[-2].event_hash if len(self._events) > 1 else None
+        if tail.previous_hash != expected_previous:
+            raise TraceIntegrityError(
+                "trace_integrity_error: EventBus tail previous_hash does not "
+                "match prior event_hash."
+            )
+        event_data = tail.model_dump()
+        stored_hash = event_data.pop("event_hash")
+        if self._hash_payload(event_data) != stored_hash:
+            raise TraceIntegrityError(
+                "trace_integrity_error: EventBus tail stored event_hash does "
+                "not match recomputed hash; refusing to append."
+            )
+        if self._last_hash != stored_hash:
+            raise TraceIntegrityError(
+                "trace_integrity_error: EventBus tail anchor does not match "
+                "the chain's terminal event_hash."
+            )
+
+    def _assert_chain_integrity(self) -> None:
+        """Verify the current chain for audit or dirty-list recovery.
+
+        This O(len(events)) check is used by ``verify_chain`` semantics and by
+        ``append`` only when the private ledger list has been externally
+        mutated. Normal append traffic uses ``_assert_append_integrity``.
         """
         if not self._events:
             if self._last_hash is not None:

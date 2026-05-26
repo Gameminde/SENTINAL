@@ -502,16 +502,25 @@ def _budget_reasons(gate_input: DelegatedActionGateInput, candidate: BaseOrganCa
 
 
 def _budget_exhausted(budget: dict[str, Any], candidate: BaseOrganCandidate) -> bool:
-    if int(budget.get("remaining_action_count", 0) or 0) <= 0:
+    if _safe_int(budget.get("remaining_action_count"), default=0) <= 0:
         return True
-    if int(budget.get("remaining_retries", 0) or 0) < 0:
+    if _safe_int(budget.get("remaining_retries"), default=0) < 0:
         return True
-    if int(budget.get("remaining_tokens", 0) or 0) <= 0:
+    if _safe_int(budget.get("remaining_tokens"), default=0) <= 0:
         return True
     organ_units = budget.get("organ_budget_units") or {}
-    if isinstance(organ_units, dict) and int(organ_units.get(candidate.organ_kind.value, 1) or 0) <= 0:
+    if isinstance(organ_units, dict) and _safe_int(organ_units.get(candidate.organ_kind.value), default=1) <= 0:
         return True
     return False
+
+
+def _safe_int(value: Any, *, default: int) -> int:
+    if value in (None, ""):
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _organ_contract(gate_input: DelegatedActionGateInput, candidate: BaseOrganCandidate) -> dict[str, Any] | None:
