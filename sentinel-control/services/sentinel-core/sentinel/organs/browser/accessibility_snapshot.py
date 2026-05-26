@@ -118,7 +118,14 @@ class _RoleHtmlParser(HTMLParser):
             self.hidden_depth += 1
         role = _role_for(lowered, attributes)
         name_hint = _name_hint(lowered, attributes)
-        self.stack.append(_OpenElement(tag=lowered, role=role, depth=max(0, len(self.stack)), name_hint=name_hint))
+        element = _OpenElement(tag=lowered, role=role, depth=max(0, len(self.stack)), name_hint=name_hint)
+        if lowered in {"input", "img", "br", "hr", "meta", "link"}:
+            self._close_element(element)
+            return
+        self.stack.append(element)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
 
     def handle_endtag(self, tag: str) -> None:
         lowered = tag.lower()

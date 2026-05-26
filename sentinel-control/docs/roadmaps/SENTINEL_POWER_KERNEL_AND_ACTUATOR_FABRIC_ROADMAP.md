@@ -46,12 +46,15 @@ Already real:
 - mission authority and credential grant foundation;
 - canonical organ safety scanner;
 - audit remediation for several safety and determinism findings.
+- Power Lab operator shell and mission-file runner;
+- live Playwright-backed browser observation;
+- live limited browser interaction through a hash-bound observation and browser
+  FinalGate checks.
 
 Still not enough for real-world power:
 
-- no canonical operator shell/CLI that a user can run as Sentinel;
 - no multi-agent mission society orchestrator;
-- no live browser operator backend wired as an actuator fabric;
+- no persistent browser sessions or account/session continuity;
 - no shell/code/app-builder sandbox;
 - no real credential storage/resolution;
 - no controlled channel send;

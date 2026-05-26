@@ -1,34 +1,35 @@
 # Current State Lock
 
-## Sentinel Power Lab Runtime V0 - LOCKED
+## Browser Operator Agent L4/L5 Live - LOCKED
 
 Recorded at: 2026-05-26
 
 Branch: `main`
 
-This section supersedes `MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED`
-as the current implementation phase. The authority and credential foundation
-remains locked and is the previous runtime foundation.
+This section supersedes `SENTINEL_POWER_LAB_RUNTIME_V0_LOCKED` as the current
+implementation phase. Power Lab remains the operator shell; the new browser
+operator uses the existing governed Playwright browser substrate through that
+shell.
 
 ```text
-current_phase = SENTINEL_POWER_LAB_RUNTIME_V0_LOCKED
-previous_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
-next_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE
+current_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE_LOCKED
+previous_phase = SENTINEL_POWER_LAB_RUNTIME_V0_LOCKED
+next_phase = BROWSER_SESSION_MANAGER_L5_LIVE
 ```
 
-### Power Lab Runtime Truth
+### Browser Operator Live Truth
 
 ```text
-CLI/operator shell = CLOSED
-JSON mission file loading = CLOSED
-AgentRuntime.run invocation from operator shell = CLOSED
-Run artifact directory = CLOSED
-Trace/result/Power Kernel status artifacts = CLOSED
-Default-off dangerous power = CLOSED
-Existing L2/L3 opt-in config path = CLOSED
-Secret-like mission rejection = CLOSED
-Dangerous action preflight rejection = CLOSED
-Live browser backend = NOT_STARTED
+Live Playwright public observation = CLOSED
+Live L4 screenshot/DOM/AX evidence = CLOSED
+Live L5 limited type interaction = CLOSED
+Hash-bound observation before interaction = CLOSED
+Browser organ FinalGate checks = CLOSED
+CLI browser-observe = CLOSED
+CLI browser-act type = CLOSED
+Explicit submit/login/upload/download/JS/credential action routes = BLOCKED
+Persistent browser session = NOT_STARTED
+Credentialed browser session = NOT_STARTED
 Shell/code sandbox = NOT_STARTED
 Real credential storage/use = NOT_STARTED
 Continuous multi-agent orchestrator = NOT_STARTED
@@ -40,7 +41,10 @@ Continuous multi-agent orchestrator = NOT_STARTED
 sentinel/power_lab.py
 sentinel/cli.py
 sentinel/__main__.py
+sentinel/agent/organs/browser_operator_agent_l4_l5_live.py
 python -m sentinel run --mission <file.json> --run-root <dir>
+python -m sentinel browser-observe --mission <file.json> --url <https-url> --run-root <dir>
+python -m sentinel browser-act --mission <file.json> --url <https-url> --run-root <dir> --action type ...
 project script: sentinel = sentinel.cli:main
 Power Lab presets:
   - lab_local
@@ -56,7 +60,7 @@ No raw secret persistence.
 No real credential value storage.
 No credential value resolution.
 No browser login.
-No browser submit.
+No explicit browser submit route promoted.
 No upload/download.
 No arbitrary browser JavaScript.
 No API mutation.
@@ -71,12 +75,22 @@ No memory/receipt/certificate can create authority.
 No global dangerous-power switch.
 ```
 
-### Next Phase
-
-The next phase should add the first visible live actuator:
+Important L5 limitation:
 
 ```text
-BROWSER_OPERATOR_AGENT_L4_L5_LIVE
+Browser L5 live currently promotes limited interaction through the existing
+Playwright backend. The explicit submit/login/upload/download/JS/credential
+routes remain blocked. Persistent sessions, account login, and submit-grade
+workflows require separate special-authority packs.
+```
+
+### Next Phase
+
+The next phase should turn the browser from single-operation power into
+workflow power:
+
+```text
+BROWSER_SESSION_MANAGER_L5_LIVE
 ```
 
 Browser submit/login/payment/upload/download/arbitrary JavaScript remain blocked

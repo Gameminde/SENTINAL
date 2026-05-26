@@ -27,17 +27,19 @@ fabric.
 Current pack status:
 
 ```text
-SENTINEL_POWER_LAB_RUNTIME_V0 = implemented / locked
+BROWSER_OPERATOR_AGENT_L4_L5_LIVE = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_OPERATOR_AGENT_L4_L5_LIVE
+BROWSER_SESSION_MANAGER_L5_LIVE
 ```
 
-`CLOAKBROWSER_CONTROLLED_BACKEND_SPEC` remains important, but it moves under the
-larger Actuator Fabric plan instead of being treated as the whole next phase.
+`CLOAKBROWSER_CONTROLLED_BACKEND_SPEC` remains important, but Sentinel now has a
+first live browser operator shell using the existing Playwright substrate. The
+next browser step is session/workflow continuity rather than another read-only
+spec.
 
 ## Objective
 
@@ -82,11 +84,15 @@ Implemented and current:
 - credential revocation/audit metadata;
 - authority presets for local, browser perception, operator browser L5, and
   full-power template modes.
+- Power Lab CLI/operator shell;
+- live Playwright-backed browser observation;
+- live limited browser interaction through hash-bound observation and browser
+  FinalGate checks.
 
 Latest runtime lock:
 
 ```text
-current_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
+current_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -94,12 +100,15 @@ automatic_replan_execution = NOT_STARTED
 real_secret_storage = NOT_STARTED
 real_credential_use_by_organs = NOT_STARTED
 browser_login_session_credentials = NOT_STARTED
-next_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE
+persistent_browser_session = NOT_STARTED
+next_phase = BROWSER_SESSION_MANAGER_L5_LIVE
 ```
 
 Not approved as broad default:
 
 - browser action/API/channel/desktop/shell/network/credential execution;
+- browser submit/login/upload/download/private session/credentialed browser
+  execution;
 - L5/L6/L7 runtime expansion;
 - CloakBrowser controlled backend;
 - credential vault runtime;
