@@ -138,9 +138,9 @@ _PRESETS: dict[str, PowerLabPreset] = {
     ),
     "operator_browser_l5_template": PowerLabPreset(
         name="operator_browser_l5_template",
-        description="L5 browser operator template for governed live observe/click/type/fill/select/session workflows.",
+        description="L5 browser operator template for governed live observe/click/type/fill/select/session/trajectory workflows.",
         allowed_action_levels=["L5"],
-        allowed_organs=["browser_operator", "browser_session_manager"],
+        allowed_organs=["browser_operator", "browser_session_manager", "browser_trajectory_planner"],
     ),
     "full_power_template": PowerLabPreset(
         name="full_power_template",

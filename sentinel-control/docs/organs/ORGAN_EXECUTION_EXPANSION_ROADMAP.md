@@ -29,18 +29,21 @@ Current pack status:
 ```text
 BROWSER_OPERATOR_AGENT_L4_L5_LIVE = implemented / locked
 BROWSER_SESSION_MANAGER_L5_LIVE = implemented / locked
+BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5
+BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6
 ```
 
-Sentinel now has a first live browser operator shell and a persistent browser
-session manager. CloakBrowser is the primary backend adapter for the session
-manager, while Playwright remains a deterministic compatibility backend for
-tests and local development.
+Sentinel now has a first live browser operator shell, a persistent browser
+session manager, and a deterministic trajectory planner that ranks accessible
+targets from observed browser evidence and recovers when the first target
+misses. CloakBrowser is the primary backend adapter for the session manager,
+while Playwright remains a deterministic compatibility backend for tests and
+local development.
 
 ## Objective
 
@@ -91,12 +94,14 @@ Implemented and current:
   FinalGate checks;
 - CloakBrowser-backed browser session adapter;
 - persistent public browser session workflow with open/type/observe/close and
-  receipt artifacts.
+  receipt artifacts;
+- browser trajectory planner for target ranking and self-healing L5 interaction
+  attempts.
 
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_SESSION_MANAGER_L5_LIVE_LOCKED
+current_phase = BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -105,7 +110,9 @@ real_secret_storage = NOT_STARTED
 real_credential_use_by_organs = NOT_STARTED
 browser_login_session_credentials = NOT_STARTED
 persistent_browser_session = CLOSED
-next_phase = BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5
+browser_trajectory_planner = CLOSED
+self_healing_browser_target_recovery = CLOSED
+next_phase = BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6
 ```
 
 Not approved as broad default:

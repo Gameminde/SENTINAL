@@ -488,6 +488,12 @@ class BrowserSessionManagerL5Live:
         rec = receipt if isinstance(receipt, BrowserSessionReceipt) else BrowserSessionReceipt.model_validate(receipt)
         return render_browser_session_receipt_as_untrusted_context(rec)
 
+    def snapshot_for_session(self, *, mission_id: str, session_id: str, timeout_ms: int = 15_000) -> BrowserAccessibilitySnapshot | None:
+        session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            return None
+        return self._snapshot(session.page, timeout_ms)
+
     def close_all(self) -> None:
         for session_id in list(self._sessions):
             session = self._sessions.pop(session_id)

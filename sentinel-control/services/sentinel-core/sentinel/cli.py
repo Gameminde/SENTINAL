@@ -19,6 +19,12 @@ from sentinel.agent.organs.browser_session_manager_l5_live import (
     BrowserSessionManagerL5Live,
     BrowserSessionRequest,
 )
+from sentinel.agent.organs.browser_trajectory_planner_l5 import (
+    BrowserTrajectoryActionKind,
+    BrowserTrajectoryContract,
+    BrowserTrajectoryPlannerL5,
+    BrowserTrajectoryRequest,
+)
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
 from sentinel.power_lab import PowerLabMissionRejected, load_power_lab_mission_file, run_power_lab_mission
@@ -77,6 +83,20 @@ def build_parser() -> argparse.ArgumentParser:
     session_parser.add_argument("--target-name", required=True)
     session_parser.add_argument("--text", required=True)
     session_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
+
+    trajectory_parser = subparsers.add_parser(
+        "browser-trajectory-demo",
+        help="Run a governed browser trajectory with ranked target recovery in a persistent session.",
+    )
+    trajectory_parser.add_argument("--mission", required=True, help="Path to a structured mission authority file.")
+    trajectory_parser.add_argument("--url", required=True, help="HTTPS URL covered by the mission domain allowlist.")
+    trajectory_parser.add_argument("--run-root", required=True, help="Directory where trajectory evidence artifacts are written.")
+    trajectory_parser.add_argument("--engine", default="cloak", choices=["cloak", "playwright"])
+    trajectory_parser.add_argument("--fixture-html", default=None)
+    trajectory_parser.add_argument("--target-role", required=True)
+    trajectory_parser.add_argument("--target-hint", required=True)
+    trajectory_parser.add_argument("--text", required=True)
+    trajectory_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
     return parser
 
 
@@ -140,6 +160,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(
                 "sentinel browser_session_workflow "
+                f"mission_id={result['mission_id']} "
+                f"status={result['status']} "
+                f"engine={args.engine} "
+                f"run_dir={run_dir}"
+            )
+        return 0 if result["accepted"] else 2
+
+    if args.command == "browser-trajectory-demo":
+        try:
+            result, run_dir = _run_browser_trajectory_demo(args)
+        except PowerLabMissionRejected as exc:
+            print(f"sentinel: rejected: {exc}", file=sys.stderr)
+            return 2
+
+        if args.json:
+            print(json.dumps(result, sort_keys=True, default=str))
+        else:
+            print(
+                "sentinel browser_trajectory_workflow "
                 f"mission_id={result['mission_id']} "
                 f"status={result['status']} "
                 f"engine={args.engine} "
@@ -305,6 +344,88 @@ def _run_browser_session_demo(args: argparse.Namespace) -> tuple[dict[str, objec
         "authority_effect": "none",
     }
     (run_dir / "browser.session.result.json").write_text(
+        json.dumps(result, indent=2, sort_keys=True, default=str),
+        encoding="utf-8",
+    )
+    return result, run_dir
+
+
+def _run_browser_trajectory_demo(args: argparse.Namespace) -> tuple[dict[str, object], Path]:
+    mission_file = load_power_lab_mission_file(Path(args.mission))
+    run_dir = _create_browser_run_dir(Path(args.run_root), mission_file.mission.id)
+    fixtures = {args.url: args.fixture_html} if args.fixture_html is not None else None
+    manager = BrowserSessionManagerL5Live(
+        capture_root=run_dir,
+        engine=args.engine,
+        document_fixtures=fixtures,
+    )
+    session_contract = BrowserSessionContract(
+        mission_id=mission_file.mission.id,
+        allowed_domains=mission_file.mission.allowed_domains,
+        allowed_action_kinds=[BrowserSessionActionKind.TYPE],
+        max_steps=5,
+    )
+    opened = manager.open_session(
+        BrowserSessionRequest(
+            mission=mission_file.mission,
+            url=args.url,
+            contract=session_contract,
+            action_kind=BrowserSessionActionKind.OPEN,
+        )
+    )
+    trajectory_result = None
+    closed = None
+    if opened.accepted and opened.session_id:
+        snapshot = manager.snapshot_for_session(mission_id=mission_file.mission.id, session_id=opened.session_id)
+        if snapshot is None:
+            raise PowerLabMissionRejected("browser trajectory snapshot unavailable")
+        trajectory_contract = BrowserTrajectoryContract(
+            mission_id=mission_file.mission.id,
+            allowed_domains=mission_file.mission.allowed_domains,
+            allowed_action_kinds=[BrowserTrajectoryActionKind.TYPE],
+            max_recovery_attempts=3,
+        )
+        trajectory_result = BrowserTrajectoryPlannerL5().execute_with_recovery(
+            manager,
+            BrowserTrajectoryRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                session_id=opened.session_id,
+                contract=trajectory_contract,
+                source_snapshot=snapshot,
+                source_receipt_id=opened.receipt.receipt_id,
+                objective_summary=f"type value into {args.target_hint}",
+                desired_action_kind=BrowserTrajectoryActionKind.TYPE,
+                target_role_hint=args.target_role,
+                target_name_hint=args.target_hint,
+                text=args.text,
+            ),
+        )
+        closed = manager.close_session(
+            BrowserSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                contract=session_contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLOSE,
+            )
+        )
+    manager.close_all()
+    accepted = bool(opened.accepted and trajectory_result and trajectory_result.accepted and (closed is None or closed.accepted))
+    result: dict[str, object] = {
+        "type": "browser_trajectory_workflow",
+        "mission_id": mission_file.mission.id,
+        "accepted": accepted,
+        "status": "completed" if accepted else "blocked",
+        "session_id": opened.session_id,
+        "plan_hash": trajectory_result.plan.plan_hash if trajectory_result and trajectory_result.plan else None,
+        "trajectory_receipt_id": trajectory_result.receipt.receipt_id if trajectory_result else None,
+        "execution_receipt_id": trajectory_result.execution_receipt_id if trajectory_result else None,
+        "blocked_reasons": [item for item in [opened.reason if not opened.accepted else None, trajectory_result.reason if trajectory_result and not trajectory_result.accepted else None] if item],
+        "data_not_instruction": True,
+        "authority_effect": "none",
+    }
+    (run_dir / "browser.trajectory.result.json").write_text(
         json.dumps(result, indent=2, sort_keys=True, default=str),
         encoding="utf-8",
     )

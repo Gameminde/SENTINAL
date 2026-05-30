@@ -53,12 +53,15 @@ Already real:
 - CloakBrowser primary adapter for persistent browser sessions;
 - Playwright compatibility backend for deterministic browser-session tests;
 - persistent browser open/type/observe/close workflow with screenshot,
-  accessibility snapshot, form-state hash, and receipt artifacts.
+  accessibility snapshot, form-state hash, and receipt artifacts;
+- deterministic browser trajectory planning from accessibility evidence, with
+  self-healing target recovery for live L5 interactions.
 
 Still not enough for real-world power:
 
 - no multi-agent mission society orchestrator;
 - no account/session credential continuity;
+- no submit-grade special authority route;
 - no shell/code/app-builder sandbox;
 - no real credential storage/resolution;
 - no controlled channel send;
@@ -334,6 +337,7 @@ Deliverables:
 - screenshot/DOM/text evidence chain;
 - read-only live navigation;
 - L5 click/type/navigation with before/after evidence;
+- deterministic target ranking and recovery for accessible browser targets;
 - no arbitrary JS in first pass;
 - no submit/login/payment/upload/download until separately authorized.
 
@@ -341,7 +345,8 @@ Status:
 
 - `BROWSER_OPERATOR_AGENT_L4_L5_LIVE` = CLOSED;
 - `BROWSER_SESSION_MANAGER_L5_LIVE` = CLOSED;
-- `BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5` = NEXT.
+- `BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5` = CLOSED;
+- `BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6` = NEXT.
 
 Capability gain: high.
 
