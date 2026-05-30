@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import time
 from enum import StrEnum
 from pathlib import Path
@@ -284,6 +285,7 @@ class BrowserSessionManagerL5Live:
         engine: str = "cloak",
         document_fixtures: dict[str, str] | None = None,
         headless: bool = True,
+        accept_downloads: bool = False,
         viewport_width: int = 1280,
         viewport_height: int = 900,
     ) -> None:
@@ -291,7 +293,7 @@ class BrowserSessionManagerL5Live:
         self.capture_root.mkdir(parents=True, exist_ok=True)
         self.viewport_width = viewport_width
         self.viewport_height = viewport_height
-        self.backend = backend or _backend_for_engine(engine, document_fixtures=document_fixtures, headless=headless)
+        self.backend = backend or _backend_for_engine(engine, document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
         self._finalgate = BrowserSessionFinalGate()
         self._sessions: dict[str, _LiveBrowserSession] = {}
 
@@ -614,6 +616,91 @@ class BrowserSessionManagerL5Live:
             "step_index": session.step_index,
         }
 
+    def upload_file_quarantine_special_authority(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        target_role: str,
+        target_name: str | None,
+        local_upload_path: str | Path,
+        timeout_ms: int = 15_000,
+        capture_screenshot: bool = True,
+    ) -> dict[str, Any]:
+        session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            raise RuntimeError("browser_session_missing_or_closed")
+        upload_path = Path(local_upload_path).resolve()
+        before = self._snapshot(session.page, timeout_ms)
+        before_screenshot = self._write_screenshot(session, "upload_before", capture_screenshot, timeout_ms)
+        locator = self._role_locator(session.page, target_role, target_name, 0)
+        locator.set_input_files(str(upload_path), timeout=timeout_ms)
+        session.step_index += 1
+        after = self._snapshot(session.page, timeout_ms)
+        after_screenshot = self._write_screenshot(session, "upload_after", capture_screenshot, timeout_ms)
+        file_hash = _sha256_file(upload_path)
+        return {
+            "session_id": session.session_id,
+            "backend_kind": session.backend_kind,
+            "url_hash": stable_hash(session.page.url),
+            "profile_dir_hash": stable_hash(str(session.profile_dir)),
+            "before_snapshot_hash": before.snapshot_sha256,
+            "after_snapshot_hash": after.snapshot_sha256,
+            "screenshot_artifact_id": before_screenshot["artifact_id"],
+            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+            "file_hash": file_hash,
+            "file_size_bytes": upload_path.stat().st_size,
+            "safe_file_name": upload_path.name,
+            "step_index": session.step_index,
+        }
+
+    def download_file_quarantine_special_authority(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        target_role: str,
+        target_name: str | None,
+        quarantine_root: str | Path,
+        timeout_ms: int = 15_000,
+        capture_screenshot: bool = True,
+    ) -> dict[str, Any]:
+        session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            raise RuntimeError("browser_session_missing_or_closed")
+        root = Path(quarantine_root).resolve()
+        root.mkdir(parents=True, exist_ok=True)
+        before = self._snapshot(session.page, timeout_ms)
+        before_screenshot = self._write_screenshot(session, "download_before", capture_screenshot, timeout_ms)
+        locator = self._role_locator(session.page, target_role, target_name, 0)
+        with session.page.expect_download(timeout=timeout_ms) as download_info:
+            locator.click(timeout=timeout_ms)
+        download = download_info.value
+        suggested = _safe_file_name(str(download.suggested_filename or "download.bin"))
+        target = (root / suggested).resolve()
+        target.relative_to(root)
+        download.save_as(str(target))
+        session.step_index += 1
+        after = self._snapshot(session.page, timeout_ms)
+        after_screenshot = self._write_screenshot(session, "download_after", capture_screenshot, timeout_ms)
+        return {
+            "session_id": session.session_id,
+            "backend_kind": session.backend_kind,
+            "url_hash": stable_hash(session.page.url),
+            "profile_dir_hash": stable_hash(str(session.profile_dir)),
+            "before_snapshot_hash": before.snapshot_sha256,
+            "after_snapshot_hash": after.snapshot_sha256,
+            "screenshot_artifact_id": before_screenshot["artifact_id"],
+            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+            "file_hash": _sha256_file(target),
+            "file_size_bytes": target.stat().st_size,
+            "quarantine_path_metadata": {"root_hash": stable_hash(str(root)), "name": target.name},
+            "safe_file_name": target.name,
+            "step_index": session.step_index,
+        }
+
     def close_all(self) -> None:
         for session_id in list(self._sessions):
             session = self._sessions.pop(session_id)
@@ -776,12 +863,12 @@ def render_browser_session_receipt_as_untrusted_context(receipt: BrowserSessionR
     )
 
 
-def _backend_for_engine(engine: str, *, document_fixtures: dict[str, str] | None, headless: bool) -> BrowserSessionBackend:
+def _backend_for_engine(engine: str, *, document_fixtures: dict[str, str] | None, headless: bool, accept_downloads: bool = False) -> BrowserSessionBackend:
     normalized = engine.strip().lower()
     if normalized == "cloak":
-        return CloakBrowserSessionBackend(document_fixtures=document_fixtures, headless=headless)
+        return CloakBrowserSessionBackend(document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
     if normalized in {"playwright", "playwright_compat"}:
-        return PlaywrightSessionBackend(document_fixtures=document_fixtures, headless=headless)
+        return PlaywrightSessionBackend(document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
     raise ValueError(f"unknown browser session engine: {engine}")
 
 
@@ -807,3 +894,16 @@ _PROMOTED_SESSION_ACTIONS = {
     BrowserSessionActionKind.HOVER.value,
     BrowserSessionActionKind.WAIT_FOR_TEXT.value,
 }
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _safe_file_name(value: str) -> str:
+    safe = "".join(char if char.isalnum() or char in {".", "_", "-"} else "_" for char in value).strip("._")
+    return safe or "download.bin"

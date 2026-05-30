@@ -59,7 +59,9 @@ Already real:
 - special-authority browser form submit for non-sensitive forms with
   before/after evidence and sensitive-field blocking;
 - browser login credential session broker using scoped credential refs,
-  metadata-only proofs, and ephemeral credential value resolution.
+  metadata-only proofs, and ephemeral credential value resolution;
+- browser upload/download quarantine using approved upload roots, download
+  quarantine roots, and file hashes.
 
 Still not enough for real-world power:
 
@@ -344,8 +346,9 @@ Deliverables:
 - L6 non-sensitive form submit behind special authority;
 - L6 credential-backed login/session broker with raw credential durability
   blocked;
+- L6 upload/download quarantine with file hash receipts;
 - no arbitrary JS in first pass;
-- no payment/upload/download until separately authorized.
+- no payment or arbitrary JS until separately authorized.
 
 Status:
 
@@ -354,7 +357,8 @@ Status:
 - `BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5` = CLOSED;
 - `BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6` = CLOSED;
 - `BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6` = CLOSED;
-- `BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6` = NEXT.
+- `BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6` = CLOSED;
+- `BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6` = NEXT.
 
 Capability gain: high.
 

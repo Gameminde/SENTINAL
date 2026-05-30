@@ -60,12 +60,14 @@ class CloakBrowserSessionBackend:
         humanize: bool = True,
         stealth_args: bool = True,
         page_javascript_enabled: bool = True,
+        accept_downloads: bool = False,
     ) -> None:
         self.document_fixtures = document_fixtures or {}
         self.headless = headless
         self.humanize = humanize
         self.stealth_args = stealth_args
         self.page_javascript_enabled = page_javascript_enabled
+        self.accept_downloads = accept_downloads
 
     def open_context(
         self,
@@ -91,7 +93,7 @@ class CloakBrowserSessionBackend:
                 stealth_args=self.stealth_args,
                 humanize=self.humanize,
                 viewport={"width": viewport_width, "height": viewport_height},
-                accept_downloads=False,
+                accept_downloads=self.accept_downloads,
                 java_script_enabled=self.page_javascript_enabled,
             )
             page = context.new_page()
@@ -120,10 +122,12 @@ class PlaywrightSessionBackend:
         document_fixtures: dict[str, str] | None = None,
         headless: bool = True,
         page_javascript_enabled: bool = True,
+        accept_downloads: bool = False,
     ) -> None:
         self.document_fixtures = document_fixtures or {}
         self.headless = headless
         self.page_javascript_enabled = page_javascript_enabled
+        self.accept_downloads = accept_downloads
 
     def open_context(
         self,
@@ -144,7 +148,7 @@ class PlaywrightSessionBackend:
             playwright = sync_playwright().start()
             browser = playwright.chromium.launch(headless=self.headless)
             context = browser.new_context(
-                accept_downloads=False,
+                accept_downloads=self.accept_downloads,
                 java_script_enabled=self.page_javascript_enabled,
                 storage_state=None,
                 viewport={"width": viewport_width, "height": viewport_height},

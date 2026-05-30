@@ -32,12 +32,13 @@ BROWSER_SESSION_MANAGER_L5_LIVE = implemented / locked
 BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5 = implemented / locked
 BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6 = implemented / locked
 BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6 = implemented / locked
+BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
+BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -46,6 +47,8 @@ targets from observed browser evidence and recovers when the first target
 misses. It also has a separate L6 non-sensitive form-submit organ with
 before/after evidence and sensitive-field blocking, plus a credential-backed
 login broker using scoped credential refs and ephemeral value resolution.
+Upload/download now exists only through approved upload roots and download
+quarantine roots with file hashes.
 CloakBrowser is the primary backend adapter for the session manager, while
 Playwright remains a deterministic compatibility backend for tests and local
 development.
@@ -104,7 +107,8 @@ Implemented and current:
   attempts;
 - browser form-submit special authority for non-sensitive forms;
 - browser login credential session broker with credential proofs and no raw
-  credential durability.
+  credential durability;
+- browser upload/download quarantine with file hashes and root containment.
 
 Latest runtime lock:
 
@@ -121,8 +125,9 @@ browser_trajectory_planner = CLOSED
 self_healing_browser_target_recovery = CLOSED
 browser_form_submit_special_authority = CLOSED
 browser_login_session_credentials = CLOSED
+browser_download_upload_quarantine = CLOSED
 durable_credential_storage = NOT_STARTED
-next_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
+next_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
 ```
 
 Not approved as broad default:

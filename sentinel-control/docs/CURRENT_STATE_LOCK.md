@@ -1,20 +1,20 @@
 # Current State Lock
 
-## Browser Login Credential Session Broker L6 - LOCKED
+## Browser Download Upload Quarantine L6 - LOCKED
 
 Recorded at: 2026-05-31
 
 Branch: `main`
 
-This section supersedes `BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6_LOCKED` as
-the current implementation phase. Sentinel now has an explicit credential-backed
-login broker that uses scoped credential refs and ephemeral values without
-durable raw credential storage.
+This section supersedes `BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED` as
+the current implementation phase. Sentinel now has explicit upload/download
+quarantine controls for browser sessions: approved upload roots, download
+quarantine roots, file hashes, and before/after browser evidence.
 
 ```text
-current_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED
-previous_phase = BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6_LOCKED
-next_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
+current_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
+previous_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED
+next_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
 ```
 
 ### Browser Login Credential Live Truth
@@ -46,6 +46,11 @@ Credential-backed browser login broker = CLOSED
 Scoped credential proofs for login = CLOSED
 Ephemeral credential value resolution = CLOSED
 CLI browser-login-demo = CLOSED
+Browser upload quarantine = CLOSED
+Browser download quarantine = CLOSED
+Approved upload root containment = CLOSED
+Download quarantine root containment = CLOSED
+Downloaded/uploaded file hash receipts = CLOSED
 Generic submit/login/upload/download/JS/credential action routes = BLOCKED
 Generic L5 submit route = BLOCKED
 Raw credential persistence = NOT_STARTED
@@ -66,6 +71,7 @@ sentinel/agent/organs/browser_session_manager_l5_live.py
 sentinel/agent/organs/browser_trajectory_planner_l5.py
 sentinel/agent/organs/browser_form_submit_special_authority_l6.py
 sentinel/agent/organs/browser_login_credential_session_broker_l6.py
+sentinel/agent/organs/browser_download_upload_quarantine_l6.py
 sentinel/organs/browser/cloak_backend.py
 python -m sentinel run --mission <file.json> --run-root <dir>
 python -m sentinel browser-observe --mission <file.json> --url <https-url> --run-root <dir>
@@ -81,6 +87,7 @@ Power Lab presets:
   - operator_browser_l5_template
   - browser_form_submit_l6_template
   - browser_login_l6_template
+  - browser_file_quarantine_l6_template
   - full_power_template
 ```
 
@@ -94,7 +101,9 @@ No generic browser login.
 No raw browser credential persistence.
 No generic browser submit route promoted.
 No login/payment/credential/upload submit promoted.
-No upload/download.
+No generic upload/download.
+No upload outside approved root.
+No download outside quarantine root.
 No arbitrary browser JavaScript.
 No API mutation.
 No channel send.
@@ -116,24 +125,25 @@ wait-for-text in governed browser sessions, plus deterministic trajectory
 planning and recovery across observed targets. Browser L6 now promotes a
 separate non-sensitive form-submit organ with before/after evidence and a
 credential-backed login broker using scoped refs and ephemeral values. Payment,
-upload/download, arbitrary JavaScript, and raw credential persistence remain
-blocked.
+arbitrary JavaScript, and raw credential persistence remain blocked. Browser
+upload/download now exists only through quarantine-root authority and file hash
+receipts.
 ```
 
 ### Next Phase
 
-The next phase should promote download/upload handling through quarantine and
-evidence rules instead of ambient file access:
+The next phase should promote arbitrary JavaScript only through a sandboxed
+special-authority path:
 
 ```text
-BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
+BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
 ```
 
-Browser payment/upload/download/arbitrary JavaScript remain blocked until
-separate authority contracts are implemented and tested.
+Browser payment and arbitrary JavaScript remain blocked until separate
+authority contracts are implemented and tested.
 
 ```text
-next_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
+next_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
 ```
 
 ## Brain Native Action Feedback Loop - LOCKED

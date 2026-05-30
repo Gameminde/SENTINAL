@@ -156,6 +156,12 @@ _PRESETS: dict[str, PowerLabPreset] = {
         allowed_organs=["browser_login_credential_session_broker"],
         enables_credentials=True,
     ),
+    "browser_file_quarantine_l6_template": PowerLabPreset(
+        name="browser_file_quarantine_l6_template",
+        description="L6 browser upload/download template using approved upload roots and download quarantine roots.",
+        allowed_action_levels=["L6"],
+        allowed_organs=["browser_download_upload_quarantine"],
+    ),
     "full_power_template": PowerLabPreset(
         name="full_power_template",
         description="Non-executing special authority template requiring explicit future grants.",
