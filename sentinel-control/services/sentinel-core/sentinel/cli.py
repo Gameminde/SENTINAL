@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -29,6 +30,12 @@ from sentinel.agent.organs.browser_form_submit_special_authority_l6 import (
     BrowserFormSubmitContract,
     BrowserFormSubmitRequest,
     BrowserFormSubmitSpecialAuthorityL6,
+)
+from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
+    BrowserLoginCredentialSessionBrokerL6,
+    BrowserLoginCredentialSessionContract,
+    BrowserLoginCredentialSessionRequest,
+    EphemeralBrowserCredentialProvider,
 )
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
@@ -118,6 +125,24 @@ def build_parser() -> argparse.ArgumentParser:
     submit_parser.add_argument("--submit-role", default="button")
     submit_parser.add_argument("--submit-name", required=True)
     submit_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
+
+    login_parser = subparsers.add_parser(
+        "browser-login-demo",
+        help="Run one governed credential-backed browser login using env-sourced ephemeral credential values.",
+    )
+    login_parser.add_argument("--mission", required=True, help="Path to a structured mission authority file.")
+    login_parser.add_argument("--url", required=True, help="HTTPS URL covered by the mission domain allowlist.")
+    login_parser.add_argument("--run-root", required=True, help="Directory where login evidence artifacts are written.")
+    login_parser.add_argument("--engine", default="cloak", choices=["cloak", "playwright"])
+    login_parser.add_argument("--fixture-html", default=None)
+    login_parser.add_argument("--username-ref", required=True)
+    login_parser.add_argument("--password-ref", required=True)
+    login_parser.add_argument("--username-env", required=True)
+    login_parser.add_argument("--password-env", required=True)
+    login_parser.add_argument("--username-name", required=True)
+    login_parser.add_argument("--password-name", required=True)
+    login_parser.add_argument("--submit-name", required=True)
+    login_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
     return parser
 
 
@@ -219,6 +244,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(
                 "sentinel browser_submit_workflow "
+                f"mission_id={result['mission_id']} "
+                f"status={result['status']} "
+                f"engine={args.engine} "
+                f"run_dir={run_dir}"
+            )
+        return 0 if result["accepted"] else 2
+
+    if args.command == "browser-login-demo":
+        try:
+            result, run_dir = _run_browser_login_demo(args)
+        except PowerLabMissionRejected as exc:
+            print(f"sentinel: rejected: {exc}", file=sys.stderr)
+            return 2
+
+        if args.json:
+            print(json.dumps(result, sort_keys=True, default=str))
+        else:
+            print(
+                "sentinel browser_login_workflow "
                 f"mission_id={result['mission_id']} "
                 f"status={result['status']} "
                 f"engine={args.engine} "
@@ -565,6 +609,103 @@ def _run_browser_submit_demo(args: argparse.Namespace) -> tuple[dict[str, object
         "authority_effect": "none",
     }
     (run_dir / "browser.submit.result.json").write_text(
+        json.dumps(result, indent=2, sort_keys=True, default=str),
+        encoding="utf-8",
+    )
+    return result, run_dir
+
+
+def _run_browser_login_demo(args: argparse.Namespace) -> tuple[dict[str, object], Path]:
+    username_value = os.environ.get(args.username_env)
+    password_value = os.environ.get(args.password_env)
+    if username_value is None or password_value is None:
+        raise PowerLabMissionRejected("browser login demo requires username/password env vars")
+    mission_file = load_power_lab_mission_file(Path(args.mission))
+    run_dir = _create_browser_run_dir(Path(args.run_root), mission_file.mission.id)
+    fixtures = {args.url: args.fixture_html} if args.fixture_html is not None else None
+    manager = BrowserSessionManagerL5Live(
+        capture_root=run_dir,
+        engine=args.engine,
+        document_fixtures=fixtures,
+    )
+    session_contract = BrowserSessionContract(
+        mission_id=mission_file.mission.id,
+        allowed_domains=mission_file.mission.allowed_domains,
+        max_steps=5,
+    )
+    opened = manager.open_session(
+        BrowserSessionRequest(
+            mission=mission_file.mission,
+            url=args.url,
+            contract=session_contract,
+            action_kind=BrowserSessionActionKind.OPEN,
+        )
+    )
+    logged_in = None
+    closed = None
+    if opened.accepted and opened.session_id:
+        login_contract = BrowserLoginCredentialSessionContract(
+            mission_id=mission_file.mission.id,
+            allowed_domains=mission_file.mission.allowed_domains,
+            username_credential_ref_id=args.username_ref,
+            password_credential_ref_id=args.password_ref,
+            allow_login=True,
+        )
+        logged_in = BrowserLoginCredentialSessionBrokerL6().execute(
+            BrowserLoginCredentialSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                session_id=opened.session_id,
+                contract=login_contract,
+                username_target_role="textbox",
+                username_target_name=args.username_name,
+                password_target_role="textbox",
+                password_target_name=args.password_name,
+                submit_target_role="button",
+                submit_target_name=args.submit_name,
+            ),
+            session_manager=manager,
+            credential_provider=EphemeralBrowserCredentialProvider(
+                {
+                    args.username_ref: username_value,
+                    args.password_ref: password_value,
+                }
+            ),
+        )
+    if opened.accepted and opened.session_id:
+        closed = manager.close_session(
+            BrowserSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                contract=session_contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLOSE,
+            )
+        )
+    manager.close_all()
+    accepted = bool(opened.accepted and logged_in and logged_in.accepted and (closed is None or closed.accepted))
+    result: dict[str, object] = {
+        "type": "browser_login_workflow",
+        "mission_id": mission_file.mission.id,
+        "accepted": accepted,
+        "status": "completed" if accepted else "blocked",
+        "session_id": opened.session_id,
+        "open_receipt_id": opened.receipt.receipt_id,
+        "login_receipt_id": logged_in.receipt.receipt_id if logged_in else None,
+        "login_certificate_id": logged_in.finalgate_certificate.certificate_id if logged_in and logged_in.finalgate_certificate else None,
+        "credential_proof_ids": [proof.proof_id for proof in logged_in.credential_proofs] if logged_in else [],
+        "blocked_reasons": [
+            item
+            for item in [
+                opened.reason if not opened.accepted else None,
+                logged_in.reason if logged_in and not logged_in.accepted else None,
+            ]
+            if item
+        ],
+        "data_not_instruction": True,
+        "authority_effect": "none",
+    }
+    (run_dir / "browser.login.result.json").write_text(
         json.dumps(result, indent=2, sort_keys=True, default=str),
         encoding="utf-8",
     )

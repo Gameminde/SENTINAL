@@ -567,6 +567,53 @@ class BrowserSessionManagerL5Live:
             "step_index": session.step_index,
         }
 
+    def login_with_credentials_special_authority(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        username_target_role: str,
+        username_target_name: str | None,
+        username_value: str,
+        password_target_role: str,
+        password_target_name: str | None,
+        password_value: str,
+        submit_target_role: str,
+        submit_target_name: str | None,
+        timeout_ms: int = 15_000,
+        capture_screenshot: bool = True,
+    ) -> dict[str, Any]:
+        session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            raise RuntimeError("browser_session_missing_or_closed")
+        before = self._snapshot(session.page, timeout_ms)
+        before_screenshot = self._write_screenshot(session, "credential_before", capture_screenshot, timeout_ms)
+        self._role_locator(session.page, username_target_role, username_target_name, 0).fill(username_value, timeout=timeout_ms)
+        self._role_locator(session.page, password_target_role, password_target_name, 0).fill(password_value, timeout=timeout_ms)
+        self._role_locator(session.page, submit_target_role, submit_target_name, 0).click(timeout=timeout_ms)
+        try:
+            session.page.wait_for_load_state("domcontentloaded", timeout=min(timeout_ms, 5_000))
+        except Exception:
+            pass
+        session.step_index += 1
+        after = self._snapshot(session.page, timeout_ms)
+        after_screenshot = self._write_screenshot(session, "credential_after", capture_screenshot, timeout_ms)
+        form_state = self._form_state(session.page, timeout_ms)
+        return {
+            "session_id": session.session_id,
+            "backend_kind": session.backend_kind,
+            "url_hash": stable_hash(session.page.url),
+            "profile_dir_hash": stable_hash(str(session.profile_dir)),
+            "before_snapshot_hash": before.snapshot_sha256,
+            "after_snapshot_hash": after.snapshot_sha256,
+            "screenshot_artifact_id": before_screenshot["artifact_id"],
+            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+            "form_state_summary": form_state,
+            "form_state_summary_hash": stable_hash(form_state),
+            "step_index": session.step_index,
+        }
+
     def close_all(self) -> None:
         for session_id in list(self._sessions):
             session = self._sessions.pop(session_id)
@@ -607,10 +654,14 @@ class BrowserSessionManagerL5Live:
     def _locator(page: Any, req: BrowserSessionRequest) -> Any:
         nth = req.target_nth or 0
         if req.target_role:
-            if req.target_name:
-                return page.get_by_role(req.target_role, name=req.target_name, exact=True).nth(nth)
-            return page.get_by_role(req.target_role).nth(nth)
+            return BrowserSessionManagerL5Live._role_locator(page, req.target_role, req.target_name, nth)
         raise RuntimeError("browser_session_target_missing")
+
+    @staticmethod
+    def _role_locator(page: Any, role: str, name: str | None, nth: int) -> Any:
+        if name:
+            return page.get_by_role(role, name=name, exact=True).nth(nth)
+        return page.get_by_role(role).nth(nth)
 
     def _capture_receipt(self, req: BrowserSessionRequest, session: _LiveBrowserSession, *, action_kind: str, status: BrowserSessionStatus, safe_summary: str, execution_effect: str) -> BrowserSessionReceipt:
         snapshot = self._snapshot(session.page, req.timeout_ms)

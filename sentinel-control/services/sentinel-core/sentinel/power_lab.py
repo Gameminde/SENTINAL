@@ -149,6 +149,13 @@ _PRESETS: dict[str, PowerLabPreset] = {
         allowed_organs=["browser_form_submit_special_authority"],
         enables_browser_submit=True,
     ),
+    "browser_login_l6_template": PowerLabPreset(
+        name="browser_login_l6_template",
+        description="L6 browser login template using scoped credential refs and ephemeral value resolution; payment/upload/download stay disabled.",
+        allowed_action_levels=["L6"],
+        allowed_organs=["browser_login_credential_session_broker"],
+        enables_credentials=True,
+    ),
     "full_power_template": PowerLabPreset(
         name="full_power_template",
         description="Non-executing special authority template requiring explicit future grants.",

@@ -31,21 +31,24 @@ BROWSER_OPERATOR_AGENT_L4_L5_LIVE = implemented / locked
 BROWSER_SESSION_MANAGER_L5_LIVE = implemented / locked
 BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5 = implemented / locked
 BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6 = implemented / locked
+BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6
+BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
 session manager, and a deterministic trajectory planner that ranks accessible
 targets from observed browser evidence and recovers when the first target
 misses. It also has a separate L6 non-sensitive form-submit organ with
-before/after evidence and sensitive-field blocking. CloakBrowser is the primary
-backend adapter for the session manager, while Playwright remains a
-deterministic compatibility backend for tests and local development.
+before/after evidence and sensitive-field blocking, plus a credential-backed
+login broker using scoped credential refs and ephemeral value resolution.
+CloakBrowser is the primary backend adapter for the session manager, while
+Playwright remains a deterministic compatibility backend for tests and local
+development.
 
 ## Objective
 
@@ -99,12 +102,14 @@ Implemented and current:
   receipt artifacts;
 - browser trajectory planner for target ranking and self-healing L5 interaction
   attempts;
-- browser form-submit special authority for non-sensitive forms.
+- browser form-submit special authority for non-sensitive forms;
+- browser login credential session broker with credential proofs and no raw
+  credential durability.
 
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6_LOCKED
+current_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -115,8 +120,9 @@ persistent_browser_session = CLOSED
 browser_trajectory_planner = CLOSED
 self_healing_browser_target_recovery = CLOSED
 browser_form_submit_special_authority = CLOSED
-browser_login_session_credentials = NOT_STARTED
-next_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6
+browser_login_session_credentials = CLOSED
+durable_credential_storage = NOT_STARTED
+next_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
 ```
 
 Not approved as broad default:

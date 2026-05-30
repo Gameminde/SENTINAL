@@ -1,23 +1,23 @@
 # Current State Lock
 
-## Browser Form Submit Special Authority L6 - LOCKED
+## Browser Login Credential Session Broker L6 - LOCKED
 
 Recorded at: 2026-05-31
 
 Branch: `main`
 
-This section supersedes `BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5_LOCKED`
-as the current implementation phase. Sentinel now has an explicit
-special-authority form-submit organ instead of smuggling submit through generic
-click/type.
+This section supersedes `BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6_LOCKED` as
+the current implementation phase. Sentinel now has an explicit credential-backed
+login broker that uses scoped credential refs and ephemeral values without
+durable raw credential storage.
 
 ```text
-current_phase = BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6_LOCKED
-previous_phase = BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5_LOCKED
-next_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6
+current_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED
+previous_phase = BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6_LOCKED
+next_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
 ```
 
-### Browser Form Submit Live Truth
+### Browser Login Credential Live Truth
 
 ```text
 Primary CloakBrowser backend adapter = CLOSED
@@ -42,12 +42,16 @@ Browser organ FinalGate checks = CLOSED
 CLI browser-observe = CLOSED
 CLI browser-act type = CLOSED
 CLI browser-session-demo = CLOSED
+Credential-backed browser login broker = CLOSED
+Scoped credential proofs for login = CLOSED
+Ephemeral credential value resolution = CLOSED
+CLI browser-login-demo = CLOSED
 Generic submit/login/upload/download/JS/credential action routes = BLOCKED
 Generic L5 submit route = BLOCKED
-Credentialed browser session = NOT_STARTED
-Browser login/session credential broker = NOT_STARTED
+Raw credential persistence = NOT_STARTED
+Credential vault durable storage = NOT_STARTED
 Shell/code sandbox = NOT_STARTED
-Real credential storage/use = NOT_STARTED
+Durable credential storage = NOT_STARTED
 Continuous multi-agent orchestrator = NOT_STARTED
 ```
 
@@ -61,6 +65,7 @@ sentinel/agent/organs/browser_operator_agent_l4_l5_live.py
 sentinel/agent/organs/browser_session_manager_l5_live.py
 sentinel/agent/organs/browser_trajectory_planner_l5.py
 sentinel/agent/organs/browser_form_submit_special_authority_l6.py
+sentinel/agent/organs/browser_login_credential_session_broker_l6.py
 sentinel/organs/browser/cloak_backend.py
 python -m sentinel run --mission <file.json> --run-root <dir>
 python -m sentinel browser-observe --mission <file.json> --url <https-url> --run-root <dir>
@@ -68,11 +73,14 @@ python -m sentinel browser-act --mission <file.json> --url <https-url> --run-roo
 python -m sentinel browser-session-demo --mission <file.json> --url <https-url> --run-root <dir> --target-role textbox --target-name Email --text <value>
 python -m sentinel browser-trajectory-demo --mission <file.json> --url <https-url> --run-root <dir> --target-role textbox --target-hint Email --text <value>
 python -m sentinel browser-submit-demo --mission <file.json> --url <https-url> --run-root <dir> --input-name Email --text <value> --submit-name Send
+python -m sentinel browser-login-demo --mission <file.json> --url <https-url> --run-root <dir> --username-ref <ref> --password-ref <ref> --username-env <ENV> --password-env <ENV> --username-name Email --password-name Password --submit-name "Sign in"
 project script: sentinel = sentinel.cli:main
 Power Lab presets:
   - lab_local
   - browser_perception
   - operator_browser_l5_template
+  - browser_form_submit_l6_template
+  - browser_login_l6_template
   - full_power_template
 ```
 
@@ -81,8 +89,9 @@ Power Lab presets:
 ```text
 No raw secret persistence.
 No real credential value storage.
-No credential value resolution.
-No browser login.
+No durable credential value storage.
+No generic browser login.
+No raw browser credential persistence.
 No generic browser submit route promoted.
 No login/payment/credential/upload submit promoted.
 No upload/download.
@@ -105,25 +114,26 @@ Important L5 limitation:
 Browser L5 live currently promotes open/observe/click/type/fill/select/hover/
 wait-for-text in governed browser sessions, plus deterministic trajectory
 planning and recovery across observed targets. Browser L6 now promotes a
-separate non-sensitive form-submit organ with before/after evidence. Account
-login, payment, upload/download, arbitrary JavaScript, and credentialed
-workflows remain blocked.
+separate non-sensitive form-submit organ with before/after evidence and a
+credential-backed login broker using scoped refs and ephemeral values. Payment,
+upload/download, arbitrary JavaScript, and raw credential persistence remain
+blocked.
 ```
 
 ### Next Phase
 
-The next phase should promote account/session credential continuity explicitly,
-not through raw prompt values or browser memory:
+The next phase should promote download/upload handling through quarantine and
+evidence rules instead of ambient file access:
 
 ```text
-BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6
+BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
 ```
 
-Browser login/payment/upload/download/arbitrary JavaScript remain blocked until
+Browser payment/upload/download/arbitrary JavaScript remain blocked until
 separate authority contracts are implemented and tested.
 
 ```text
-next_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6
+next_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6
 ```
 
 ## Brain Native Action Feedback Loop - LOCKED

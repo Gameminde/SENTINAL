@@ -57,12 +57,14 @@ Already real:
 - deterministic browser trajectory planning from accessibility evidence, with
   self-healing target recovery for live L5 interactions;
 - special-authority browser form submit for non-sensitive forms with
-  before/after evidence and sensitive-field blocking.
+  before/after evidence and sensitive-field blocking;
+- browser login credential session broker using scoped credential refs,
+  metadata-only proofs, and ephemeral credential value resolution.
 
 Still not enough for real-world power:
 
 - no multi-agent mission society orchestrator;
-- no account/session credential continuity;
+- no durable account/session credential vault;
 - no shell/code/app-builder sandbox;
 - no real credential storage/resolution;
 - no controlled channel send;
@@ -340,8 +342,10 @@ Deliverables:
 - L5 click/type/navigation with before/after evidence;
 - deterministic target ranking and recovery for accessible browser targets;
 - L6 non-sensitive form submit behind special authority;
+- L6 credential-backed login/session broker with raw credential durability
+  blocked;
 - no arbitrary JS in first pass;
-- no login/payment/upload/download until separately authorized.
+- no payment/upload/download until separately authorized.
 
 Status:
 
@@ -349,7 +353,8 @@ Status:
 - `BROWSER_SESSION_MANAGER_L5_LIVE` = CLOSED;
 - `BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5` = CLOSED;
 - `BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6` = CLOSED;
-- `BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6` = NEXT.
+- `BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6` = CLOSED;
+- `BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6` = NEXT.
 
 Capability gain: high.
 
