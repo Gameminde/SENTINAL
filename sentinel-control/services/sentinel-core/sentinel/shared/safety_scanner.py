@@ -165,7 +165,12 @@ _FORBIDDEN_TEXT_BY_CATEGORY: dict[OrganSafetyScanCategory, set[str]] = {
         "execute_javascript",
         "upload_file",
     },
-    OrganSafetyScanCategory.CREDENTIAL_DANGEROUS: SHARED_CREDENTIAL_DANGEROUS_KEYS,
+    OrganSafetyScanCategory.CREDENTIAL_DANGEROUS: {
+        "credential_access",
+        "credential_use",
+        "har_body",
+        "raw_auth_headers",
+    },
 }
 
 

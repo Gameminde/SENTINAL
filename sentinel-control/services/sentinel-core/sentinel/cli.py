@@ -13,6 +13,12 @@ from sentinel.agent.organs.browser_operator_agent_l4_l5_live import (
     BrowserOperatorLiveContract,
     BrowserOperatorLiveRequest,
 )
+from sentinel.agent.organs.browser_session_manager_l5_live import (
+    BrowserSessionActionKind,
+    BrowserSessionContract,
+    BrowserSessionManagerL5Live,
+    BrowserSessionRequest,
+)
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
 from sentinel.power_lab import PowerLabMissionRejected, load_power_lab_mission_file, run_power_lab_mission
@@ -48,6 +54,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     act_parser = subparsers.add_parser("browser-act", help="Perform one governed limited browser interaction.")
     _add_browser_arguments(act_parser, action=True)
+
+    session_parser = subparsers.add_parser(
+        "browser-session-demo",
+        help="Run a governed persistent browser session workflow through CloakBrowser or the compatibility engine.",
+    )
+    session_parser.add_argument("--mission", required=True, help="Path to a structured mission authority file.")
+    session_parser.add_argument("--url", required=True, help="HTTPS URL covered by the mission domain allowlist.")
+    session_parser.add_argument("--run-root", required=True, help="Directory where session evidence artifacts are written.")
+    session_parser.add_argument(
+        "--engine",
+        default="cloak",
+        choices=["cloak", "playwright"],
+        help="Browser engine. CloakBrowser is primary; Playwright is a compatibility/test engine.",
+    )
+    session_parser.add_argument(
+        "--fixture-html",
+        default=None,
+        help="Development-only HTML fixture served through the selected browser engine.",
+    )
+    session_parser.add_argument("--target-role", required=True)
+    session_parser.add_argument("--target-name", required=True)
+    session_parser.add_argument("--text", required=True)
+    session_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
     return parser
 
 
@@ -98,6 +127,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"run_dir={run_dir}"
             )
         return 0 if result.accepted else 2
+
+    if args.command == "browser-session-demo":
+        try:
+            result, run_dir = _run_browser_session_demo(args)
+        except PowerLabMissionRejected as exc:
+            print(f"sentinel: rejected: {exc}", file=sys.stderr)
+            return 2
+
+        if args.json:
+            print(json.dumps(result, sort_keys=True, default=str))
+        else:
+            print(
+                "sentinel browser_session_workflow "
+                f"mission_id={result['mission_id']} "
+                f"status={result['status']} "
+                f"engine={args.engine} "
+                f"run_dir={run_dir}"
+            )
+        return 0 if result["accepted"] else 2
 
     parser.print_help()
     return 2
@@ -179,6 +227,85 @@ def _run_browser_command(args: argparse.Namespace) -> tuple[object, Path]:
         )
     (run_dir / "browser.operator.result.json").write_text(
         json.dumps(result.model_dump(mode="json"), indent=2, sort_keys=True, default=str),
+        encoding="utf-8",
+    )
+    return result, run_dir
+
+
+def _run_browser_session_demo(args: argparse.Namespace) -> tuple[dict[str, object], Path]:
+    mission_file = load_power_lab_mission_file(Path(args.mission))
+    run_dir = _create_browser_run_dir(Path(args.run_root), mission_file.mission.id)
+    fixtures = {args.url: args.fixture_html} if args.fixture_html is not None else None
+    manager = BrowserSessionManagerL5Live(
+        capture_root=run_dir,
+        engine=args.engine,
+        document_fixtures=fixtures,
+    )
+    contract = BrowserSessionContract(
+        mission_id=mission_file.mission.id,
+        allowed_domains=mission_file.mission.allowed_domains,
+        allowed_action_kinds=[BrowserSessionActionKind.TYPE],
+        max_steps=5,
+    )
+    opened = manager.open_session(
+        BrowserSessionRequest(
+            mission=mission_file.mission,
+            url=args.url,
+            contract=contract,
+            action_kind=BrowserSessionActionKind.OPEN,
+        )
+    )
+    typed = None
+    observed = None
+    closed = None
+    if opened.accepted:
+        typed = manager.interact(
+            BrowserSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.TYPE,
+                target_role=args.target_role,
+                target_name=args.target_name,
+                text=args.text,
+            )
+        )
+    if typed is not None and typed.accepted:
+        observed = manager.observe(
+            BrowserSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                contract=contract,
+                session_id=opened.session_id,
+            )
+        )
+    if opened.accepted:
+        closed = manager.close_session(
+            BrowserSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLOSE,
+            )
+        )
+    manager.close_all()
+    steps = [step for step in (opened, typed, observed, closed) if step is not None]
+    accepted = bool(steps) and all(step.accepted for step in steps)
+    result: dict[str, object] = {
+        "type": "browser_session_workflow",
+        "mission_id": mission_file.mission.id,
+        "accepted": accepted,
+        "status": "completed" if accepted else "blocked",
+        "session_id": opened.session_id,
+        "receipt_ids": [step.receipt.receipt_id for step in steps],
+        "blocked_reasons": [step.reason for step in steps if not step.accepted],
+        "data_not_instruction": True,
+        "authority_effect": "none",
+    }
+    (run_dir / "browser.session.result.json").write_text(
+        json.dumps(result, indent=2, sort_keys=True, default=str),
         encoding="utf-8",
     )
     return result, run_dir

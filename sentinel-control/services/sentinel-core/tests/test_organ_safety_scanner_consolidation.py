@@ -178,6 +178,17 @@ def test_safe_negative_control_keys_do_not_false_positive_when_benign() -> None:
     assert scan_forbidden_payload_flat(payload) == []
 
 
+def test_browser_session_action_terms_do_not_false_positive_but_session_key_still_blocks() -> None:
+    safe_payload = {
+        "mission_id": "mission_browser_session_live",
+        "allowed_tools": ["browser_session_l5_live"],
+        "allowed_actions": ["browser_session_open", "browser_session_observe", "browser_session_interact", "browser_session_close"],
+    }
+
+    assert scan_forbidden_payload_flat(safe_payload) == []
+    assert scan_forbidden_payload_flat({"session": {"cookie": "opaque-ref-only"}}) == ["$.session", "$.session.cookie"]
+
+
 def test_scanner_results_are_deterministic() -> None:
     payload = {"metadata": {"api_call": True, "provider_override": "auto", "token": "Bearer " + "A" * 16}}
 

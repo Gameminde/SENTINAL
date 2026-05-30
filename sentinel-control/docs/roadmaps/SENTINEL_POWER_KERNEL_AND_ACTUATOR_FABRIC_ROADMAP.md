@@ -49,12 +49,16 @@ Already real:
 - Power Lab operator shell and mission-file runner;
 - live Playwright-backed browser observation;
 - live limited browser interaction through a hash-bound observation and browser
-  FinalGate checks.
+  FinalGate checks;
+- CloakBrowser primary adapter for persistent browser sessions;
+- Playwright compatibility backend for deterministic browser-session tests;
+- persistent browser open/type/observe/close workflow with screenshot,
+  accessibility snapshot, form-state hash, and receipt artifacts.
 
 Still not enough for real-world power:
 
 - no multi-agent mission society orchestrator;
-- no persistent browser sessions or account/session continuity;
+- no account/session credential continuity;
 - no shell/code/app-builder sandbox;
 - no real credential storage/resolution;
 - no controlled channel send;
@@ -324,13 +328,20 @@ Goal: give Sentinel real browser eyes and controlled hands.
 
 Deliverables:
 
-- Playwright or equivalent backend behind Sentinel contracts;
-- persistent scoped browser sessions;
+- CloakBrowser primary backend and Playwright compatibility backend behind
+  Sentinel contracts;
+- persistent scoped browser sessions with hashed profile metadata;
 - screenshot/DOM/text evidence chain;
 - read-only live navigation;
 - L5 click/type/navigation with before/after evidence;
 - no arbitrary JS in first pass;
 - no submit/login/payment/upload/download until separately authorized.
+
+Status:
+
+- `BROWSER_OPERATOR_AGENT_L4_L5_LIVE` = CLOSED;
+- `BROWSER_SESSION_MANAGER_L5_LIVE` = CLOSED;
+- `BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5` = NEXT.
 
 Capability gain: high.
 
@@ -508,7 +519,19 @@ Create the first visible power:
 - before/after evidence for L5;
 - hard block submit/login/payment/upload/download/arbitrary JS in v0.
 
-### 3. `SHELL_CODE_APP_BUILDER_SANDBOX_V0`
+### 3. `BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5`
+
+Create the genius browser layer:
+
+- transform observations into ranked target/action trajectories;
+- maintain session memory across tabs/pages;
+- recover from missing selectors, navigation changes, and dynamic UIs;
+- compare screenshot/AX/DOM evidence before choosing an action;
+- run local benchmark missions against BrowserGym/WebArena-style tasks;
+- still keep submit/login/payment/upload/download/arbitrary JS behind later
+  special-authority packs.
+
+### 4. `SHELL_CODE_APP_BUILDER_SANDBOX_V0`
 
 Create the builder muscle:
 
@@ -538,7 +561,9 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 
 ## Non-Negotiables
 
-- No vendor runtime import into production.
+- No vendor runtime may become authority. Approved engines such as CloakBrowser
+  can be wrapped behind Sentinel-native adapters, contracts, receipts, and
+  kill switches.
 - No default-on dangerous power.
 - No model output as authority.
 - No memory, replay, receipt, or certificate as authority.
@@ -554,13 +579,14 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-SENTINEL_POWER_LAB_RUNTIME_V0
+BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5
 ```
 
 Reason:
 
 ```text
-Before adding more actuators, Sentinel needs an operator shell that can run real
-missions, select presets, write run artifacts, and make the existing closed
-loop visible outside tests.
+Sentinel now has a live browser shell and persistent browser sessions. The next
+step is not more read-only browsing; it is action-quality: trajectory planning,
+target recovery, benchmark-style browser tasks, and self-healing page
+navigation while keeping higher-risk submit/login/payment surfaces separate.
 ```

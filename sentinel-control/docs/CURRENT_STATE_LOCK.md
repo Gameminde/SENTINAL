@@ -1,34 +1,40 @@
 # Current State Lock
 
-## Browser Operator Agent L4/L5 Live - LOCKED
+## Browser Session Manager L5 Live - LOCKED
 
-Recorded at: 2026-05-26
+Recorded at: 2026-05-30
 
 Branch: `main`
 
-This section supersedes `SENTINEL_POWER_LAB_RUNTIME_V0_LOCKED` as the current
-implementation phase. Power Lab remains the operator shell; the new browser
-operator uses the existing governed Playwright browser substrate through that
-shell.
+This section supersedes `BROWSER_OPERATOR_AGENT_L4_L5_LIVE_LOCKED` as the
+current implementation phase. Sentinel now has a persistent browser-session
+organ with CloakBrowser as the primary backend adapter and a Playwright
+compatibility backend for deterministic local tests.
 
 ```text
-current_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE_LOCKED
-previous_phase = SENTINEL_POWER_LAB_RUNTIME_V0_LOCKED
-next_phase = BROWSER_SESSION_MANAGER_L5_LIVE
+current_phase = BROWSER_SESSION_MANAGER_L5_LIVE_LOCKED
+previous_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE_LOCKED
+next_phase = BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5
 ```
 
-### Browser Operator Live Truth
+### Browser Session Live Truth
 
 ```text
+Primary CloakBrowser backend adapter = CLOSED
+Playwright compatibility backend = CLOSED
 Live Playwright public observation = CLOSED
 Live L4 screenshot/DOM/AX evidence = CLOSED
 Live L5 limited type interaction = CLOSED
+Persistent browser session continuity = CLOSED
+Session open/type/observe/close workflow CLI = CLOSED
+Before/after screenshot and AX snapshot receipts = CLOSED
+Hashed form-state continuity = CLOSED
 Hash-bound observation before interaction = CLOSED
 Browser organ FinalGate checks = CLOSED
 CLI browser-observe = CLOSED
 CLI browser-act type = CLOSED
+CLI browser-session-demo = CLOSED
 Explicit submit/login/upload/download/JS/credential action routes = BLOCKED
-Persistent browser session = NOT_STARTED
 Credentialed browser session = NOT_STARTED
 Shell/code sandbox = NOT_STARTED
 Real credential storage/use = NOT_STARTED
@@ -42,9 +48,12 @@ sentinel/power_lab.py
 sentinel/cli.py
 sentinel/__main__.py
 sentinel/agent/organs/browser_operator_agent_l4_l5_live.py
+sentinel/agent/organs/browser_session_manager_l5_live.py
+sentinel/organs/browser/cloak_backend.py
 python -m sentinel run --mission <file.json> --run-root <dir>
 python -m sentinel browser-observe --mission <file.json> --url <https-url> --run-root <dir>
 python -m sentinel browser-act --mission <file.json> --url <https-url> --run-root <dir> --action type ...
+python -m sentinel browser-session-demo --mission <file.json> --url <https-url> --run-root <dir> --target-role textbox --target-name Email --text <value>
 project script: sentinel = sentinel.cli:main
 Power Lab presets:
   - lab_local
@@ -78,26 +87,25 @@ No global dangerous-power switch.
 Important L5 limitation:
 
 ```text
-Browser L5 live currently promotes limited interaction through the existing
-Playwright backend. The explicit submit/login/upload/download/JS/credential
-routes remain blocked. Persistent sessions, account login, and submit-grade
+Browser L5 live currently promotes open/observe/click/type/fill/select/hover/
+wait-for-text in governed browser sessions. The explicit submit/login/upload/
+download/JS/credential routes remain blocked. Account login and submit-grade
 workflows require separate special-authority packs.
 ```
 
 ### Next Phase
 
-The next phase should turn the browser from single-operation power into
-workflow power:
+The next phase should turn session power into higher agentic browser power:
 
 ```text
-BROWSER_SESSION_MANAGER_L5_LIVE
+BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5
 ```
 
 Browser submit/login/payment/upload/download/arbitrary JavaScript remain blocked
 until separate authority contracts are implemented and tested.
 
 ```text
-next_phase = CLOAKBROWSER_CONTROLLED_BACKEND_SPEC
+next_phase = BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5
 ```
 
 ## Brain Native Action Feedback Loop - LOCKED
