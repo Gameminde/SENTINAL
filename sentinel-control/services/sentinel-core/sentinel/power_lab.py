@@ -142,6 +142,13 @@ _PRESETS: dict[str, PowerLabPreset] = {
         allowed_action_levels=["L5"],
         allowed_organs=["browser_operator", "browser_session_manager", "browser_trajectory_planner"],
     ),
+    "browser_form_submit_l6_template": PowerLabPreset(
+        name="browser_form_submit_l6_template",
+        description="L6 browser form-submit template for explicit non-sensitive submit workflows; login/payment/credential submit stays disabled.",
+        allowed_action_levels=["L6"],
+        allowed_organs=["browser_form_submit_special_authority"],
+        enables_browser_submit=True,
+    ),
     "full_power_template": PowerLabPreset(
         name="full_power_template",
         description="Non-executing special authority template requiring explicit future grants.",

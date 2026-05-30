@@ -25,6 +25,11 @@ from sentinel.agent.organs.browser_trajectory_planner_l5 import (
     BrowserTrajectoryPlannerL5,
     BrowserTrajectoryRequest,
 )
+from sentinel.agent.organs.browser_form_submit_special_authority_l6 import (
+    BrowserFormSubmitContract,
+    BrowserFormSubmitRequest,
+    BrowserFormSubmitSpecialAuthorityL6,
+)
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
 from sentinel.power_lab import PowerLabMissionRejected, load_power_lab_mission_file, run_power_lab_mission
@@ -97,6 +102,22 @@ def build_parser() -> argparse.ArgumentParser:
     trajectory_parser.add_argument("--target-hint", required=True)
     trajectory_parser.add_argument("--text", required=True)
     trajectory_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
+
+    submit_parser = subparsers.add_parser(
+        "browser-submit-demo",
+        help="Run one governed special-authority browser form submit in a persistent session.",
+    )
+    submit_parser.add_argument("--mission", required=True, help="Path to a structured mission authority file.")
+    submit_parser.add_argument("--url", required=True, help="HTTPS URL covered by the mission domain allowlist.")
+    submit_parser.add_argument("--run-root", required=True, help="Directory where submit evidence artifacts are written.")
+    submit_parser.add_argument("--engine", default="cloak", choices=["cloak", "playwright"])
+    submit_parser.add_argument("--fixture-html", default=None)
+    submit_parser.add_argument("--input-role", default="textbox")
+    submit_parser.add_argument("--input-name", required=True)
+    submit_parser.add_argument("--text", required=True)
+    submit_parser.add_argument("--submit-role", default="button")
+    submit_parser.add_argument("--submit-name", required=True)
+    submit_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
     return parser
 
 
@@ -179,6 +200,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(
                 "sentinel browser_trajectory_workflow "
+                f"mission_id={result['mission_id']} "
+                f"status={result['status']} "
+                f"engine={args.engine} "
+                f"run_dir={run_dir}"
+            )
+        return 0 if result["accepted"] else 2
+
+    if args.command == "browser-submit-demo":
+        try:
+            result, run_dir = _run_browser_submit_demo(args)
+        except PowerLabMissionRejected as exc:
+            print(f"sentinel: rejected: {exc}", file=sys.stderr)
+            return 2
+
+        if args.json:
+            print(json.dumps(result, sort_keys=True, default=str))
+        else:
+            print(
+                "sentinel browser_submit_workflow "
                 f"mission_id={result['mission_id']} "
                 f"status={result['status']} "
                 f"engine={args.engine} "
@@ -426,6 +466,105 @@ def _run_browser_trajectory_demo(args: argparse.Namespace) -> tuple[dict[str, ob
         "authority_effect": "none",
     }
     (run_dir / "browser.trajectory.result.json").write_text(
+        json.dumps(result, indent=2, sort_keys=True, default=str),
+        encoding="utf-8",
+    )
+    return result, run_dir
+
+
+def _run_browser_submit_demo(args: argparse.Namespace) -> tuple[dict[str, object], Path]:
+    mission_file = load_power_lab_mission_file(Path(args.mission))
+    run_dir = _create_browser_run_dir(Path(args.run_root), mission_file.mission.id)
+    fixtures = {args.url: args.fixture_html} if args.fixture_html is not None else None
+    manager = BrowserSessionManagerL5Live(
+        capture_root=run_dir,
+        engine=args.engine,
+        document_fixtures=fixtures,
+    )
+    session_contract = BrowserSessionContract(
+        mission_id=mission_file.mission.id,
+        allowed_domains=mission_file.mission.allowed_domains,
+        allowed_action_kinds=[BrowserSessionActionKind.TYPE],
+        max_steps=5,
+    )
+    opened = manager.open_session(
+        BrowserSessionRequest(
+            mission=mission_file.mission,
+            url=args.url,
+            contract=session_contract,
+            action_kind=BrowserSessionActionKind.OPEN,
+        )
+    )
+    typed = None
+    submitted = None
+    closed = None
+    if opened.accepted and opened.session_id:
+        typed = manager.interact(
+            BrowserSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                contract=session_contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.TYPE,
+                target_role=args.input_role,
+                target_name=args.input_name,
+                text=args.text,
+            )
+        )
+    if typed is not None and typed.accepted and opened.session_id:
+        snapshot = manager.snapshot_for_session(mission_id=mission_file.mission.id, session_id=opened.session_id)
+        submit_contract = BrowserFormSubmitContract(
+            mission_id=mission_file.mission.id,
+            allowed_domains=mission_file.mission.allowed_domains,
+            allow_form_submit=True,
+        )
+        submitted = BrowserFormSubmitSpecialAuthorityL6().execute(
+            BrowserFormSubmitRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                session_id=opened.session_id,
+                contract=submit_contract,
+                target_role=args.submit_role,
+                target_name=args.submit_name,
+                source_snapshot_hash=snapshot.snapshot_sha256 if snapshot else None,
+            ),
+            session_manager=manager,
+        )
+    if opened.accepted and opened.session_id:
+        closed = manager.close_session(
+            BrowserSessionRequest(
+                mission=mission_file.mission,
+                url=args.url,
+                contract=session_contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLOSE,
+            )
+        )
+    manager.close_all()
+    accepted = bool(opened.accepted and typed and typed.accepted and submitted and submitted.accepted and (closed is None or closed.accepted))
+    result: dict[str, object] = {
+        "type": "browser_submit_workflow",
+        "mission_id": mission_file.mission.id,
+        "accepted": accepted,
+        "status": "completed" if accepted else "blocked",
+        "session_id": opened.session_id,
+        "open_receipt_id": opened.receipt.receipt_id,
+        "type_receipt_id": typed.receipt.receipt_id if typed else None,
+        "submit_receipt_id": submitted.receipt.receipt_id if submitted else None,
+        "submit_certificate_id": submitted.finalgate_certificate.certificate_id if submitted and submitted.finalgate_certificate else None,
+        "blocked_reasons": [
+            item
+            for item in [
+                opened.reason if not opened.accepted else None,
+                typed.reason if typed and not typed.accepted else None,
+                submitted.reason if submitted and not submitted.accepted else None,
+            ]
+            if item
+        ],
+        "data_not_instruction": True,
+        "authority_effect": "none",
+    }
+    (run_dir / "browser.submit.result.json").write_text(
         json.dumps(result, indent=2, sort_keys=True, default=str),
         encoding="utf-8",
     )

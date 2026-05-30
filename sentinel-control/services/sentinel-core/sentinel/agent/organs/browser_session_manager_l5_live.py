@@ -494,6 +494,79 @@ class BrowserSessionManagerL5Live:
             return None
         return self._snapshot(session.page, timeout_ms)
 
+    def sensitive_form_field_markers_for_session(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        markers: list[str],
+        timeout_ms: int = 15_000,
+    ) -> list[str]:
+        session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            return ["browser_session_missing_or_closed"]
+        lowered_markers = [marker.lower() for marker in markers]
+        findings: list[str] = []
+        fields = session.page.locator("input, textarea, select")
+        for index in range(fields.count()):
+            field = fields.nth(index)
+            values = [
+                field.get_attribute("type", timeout=timeout_ms) or "",
+                field.get_attribute("name", timeout=timeout_ms) or "",
+                field.get_attribute("placeholder", timeout=timeout_ms) or "",
+                field.get_attribute("aria-label", timeout=timeout_ms) or "",
+                field.get_attribute("autocomplete", timeout=timeout_ms) or "",
+            ]
+            text = " ".join(values).lower()
+            if any(marker in text for marker in lowered_markers):
+                findings.append(f"field[{index}]")
+        return findings
+
+    def submit_form_special_authority(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        target_role: str,
+        target_name: str | None,
+        target_nth: int = 0,
+        timeout_ms: int = 15_000,
+        capture_screenshot: bool = True,
+    ) -> dict[str, Any]:
+        session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            raise RuntimeError("browser_session_missing_or_closed")
+        before = self._snapshot(session.page, timeout_ms)
+        before_screenshot = self._write_screenshot(session, "submit_before", capture_screenshot, timeout_ms)
+        locator = (
+            session.page.get_by_role(target_role, name=target_name, exact=True).nth(target_nth)
+            if target_name
+            else session.page.get_by_role(target_role).nth(target_nth)
+        )
+        locator.click(timeout=timeout_ms)
+        try:
+            session.page.wait_for_load_state("domcontentloaded", timeout=min(timeout_ms, 5_000))
+        except Exception:
+            pass
+        session.step_index += 1
+        after = self._snapshot(session.page, timeout_ms)
+        after_screenshot = self._write_screenshot(session, "submit_after", capture_screenshot, timeout_ms)
+        form_state = self._form_state(session.page, timeout_ms)
+        return {
+            "session_id": session.session_id,
+            "backend_kind": session.backend_kind,
+            "url_hash": stable_hash(session.page.url),
+            "profile_dir_hash": stable_hash(str(session.profile_dir)),
+            "before_snapshot_hash": before.snapshot_sha256,
+            "after_snapshot_hash": after.snapshot_sha256,
+            "screenshot_artifact_id": before_screenshot["artifact_id"],
+            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+            "form_state_summary": form_state,
+            "form_state_summary_hash": stable_hash(form_state),
+            "step_index": session.step_index,
+        }
+
     def close_all(self) -> None:
         for session_id in list(self._sessions):
             session = self._sessions.pop(session_id)
