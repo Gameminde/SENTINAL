@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
-previous_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
-next_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
+current_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_LOCKED
+previous_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
+next_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7
 ```
 
 Strategic correction:
@@ -89,11 +89,11 @@ Revised browser organ roadmap:
     Account creation/onboarding under authority, with no fake identity and
     proof/handoff boundaries.
 
-14. BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 [NEXT]
+14. BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 [DONE]
     Complete replay timeline: screenshots, DOM, AX, network, console, traces,
     actions, receipts, and FinalGate decisions.
 
-15. BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7
+15. BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7 [NEXT]
     Late-stage extension/WebMCP/third-party browser tool bridge behind special
     authority, sandboxing, receipts, and strict provenance.
 
@@ -144,12 +144,13 @@ BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE = implemented / locked
 BROWSER_BOUNDARY_MANAGER_L6_L7 = implemented / locked
 BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7 = implemented / locked
 BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 = implemented / locked
+BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
+BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser

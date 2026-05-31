@@ -557,6 +557,44 @@ sentinel-control/services/sentinel-core/tests/test_browser_account_creation_spec
 sentinel-control/docs/reviews/BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_REPORT.md
 ```
 
+## Browser Observability And Replay Studio V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the account creation special authority pack as the
+current implementation phase. Sentinel now has a browser replay studio that
+turns screenshots, DOM, AX, network, console, action, receipt, and FinalGate
+evidence into a deterministic hash-only timeline for audit and replay.
+
+```text
+current_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_LOCKED
+previous_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
+next_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7
+```
+
+### Browser Replay Studio Truth
+
+```text
+ordered browser evidence timeline = CLOSED
+screenshots/DOM/AX/network/console/action/receipt/FinalGate refs = CLOSED
+timeline hash = CLOSED
+replay hash = CLOSED
+raw DOM/network/console/screenshot persistence = REJECTED
+receipt + FinalGate = CLOSED
+default runtime replay wiring = NOT_STARTED
+UI replay studio = NOT_STARTED
+```
+
+### Browser Replay Studio Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_observability_replay_studio_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_observability_replay_studio_v1.py
+sentinel-control/docs/reviews/BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
