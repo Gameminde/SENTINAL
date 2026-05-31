@@ -26,33 +26,38 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-05-26
+## Current Snapshot - 2026-05-31
 
-Sentinel now has a real default-off internal action loop and a hardened control
-plane. The next credibility milestone is not just browser read-only. The next
-phase is to turn Sentinel into a runnable Power Kernel that controls many agents
-and many real actuators: browser, shell/code, API, desktop, channels,
-credentials, spend/trading, security testing, scheduler, and plugin fabric.
+Sentinel is no longer just a controlled-agent design document. It now has a
+default-off power kernel with a Brain -> Gate -> Organ -> Receipt -> FinalGate
+loop, a live browser operator surface, and a growing browser special-authority
+stack.
 
-Current public/local checkpoint after the latest repairs:
+The project direction is maximum power under explicit authority: many agents,
+many organs, real browser control, real local execution, future shell/API/
+desktop/channel/spend/trading power, and no hidden authority path.
+
+Current public/local checkpoint:
 
 ```text
 remote = https://github.com/Gameminde/SENTINAL
 branch = main
+latest_browser_power_commit = 7e50f98 runtime: add browser js sandbox special authority l6
+browser_quarantine_commit = 62db3ef runtime: add browser download upload quarantine l6
+browser_login_commit = 5e337b5 runtime: add browser login credential session broker l6
+browser_submit_commit = ce05852 runtime: add browser form submit special authority l6
+browser_trajectory_commit = 31b897a runtime: add browser trajectory planner l5
 latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners and repair test truth
-audit_remediation_commit = a2137f0 runtime: remediate audit safety findings
-credential_foundation_commit = 23dd2bd runtime: add mission authority and credential foundation
-brain_native_feedback_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 ```
 
 Current state lock:
 
 ```text
-current_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION_LOCKED
-latest_repair = COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCKED
-previous_runtime_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
-next_documented_phase = BROWSER_OPERATOR_AGENT_L4_L5_LIVE
-latest_visible_power_milestone = SENTINEL_OPERATOR_SHELL_WITH_REAL_RUN_ARTIFACTS
+current_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
+previous_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
+next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+strategic_browser_refinement = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 ```
 
 What is real today:
@@ -64,6 +69,15 @@ DelegatedActionGate = CLOSED
 L2 local artifact executor = CLOSED / opt-in
 L3 reversible workspace executor = CLOSED / opt-in
 Browser ReadOnly + Preparation + Semantic Extraction wrappers = CLOSED / opt-in
+Live browser public observation = CLOSED
+Live screenshot / DOM / accessibility evidence = CLOSED
+Persistent browser session manager = CLOSED
+Live L5 type/click-style controlled interaction = CLOSED
+Browser trajectory planner and self-healing target recovery = CLOSED
+Special-authority non-sensitive form submit = CLOSED
+Credential-backed login broker using ephemeral credential provider = CLOSED
+Upload/download quarantine organs = CLOSED
+Browser JavaScript sandbox special authority = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -77,9 +91,10 @@ Power Lab operator shell = CLOSED
 What is deliberately still not real:
 
 ```text
-Live browser backend = NOT_STARTED
-Browser submit/login/upload/download/private session = NOT_STARTED
-Real credential storage or credential use by organs = NOT_STARTED
+Generic browser submit/login/upload/download/private session = NOT_STARTED
+Durable credential storage = NOT_STARTED
+Raw credential persistence = NOT_STARTED
+Generic arbitrary browser JavaScript = NOT_STARTED
 API mutation = NOT_STARTED
 Channel send = NOT_STARTED
 Desktop action = NOT_STARTED
@@ -95,9 +110,22 @@ The honest power score right now:
 ```text
 Control plane = strong
 Internal closed-loop runtime = real
-Local action power = real but limited
-Browser/web power = prepared, not live yet
-Next milestone = Sentinel can open a real web page and bring back evidence
+Local action power = real
+Browser/web power = live and expanding fast
+Credential/session power = brokered but not durably stored
+Next milestone = DevTools-grade browser backend harvest, then controlled L7 payment/spend
+North star = many controlled agents operating many real-world organs
+```
+
+Live browser commands already exposed:
+
+```text
+python -m sentinel browser-observe --mission <file.json> --url <https-url> --run-root <dir>
+python -m sentinel browser-act --mission <file.json> --url <https-url> --run-root <dir> --action type ...
+python -m sentinel browser-session-demo --mission <file.json> --url <https-url> --run-root <dir> --target-role textbox --target-name Email --text <value>
+python -m sentinel browser-trajectory-demo --mission <file.json> --url <https-url> --run-root <dir> --target-role textbox --target-hint Email --text <value>
+python -m sentinel browser-submit-demo --mission <file.json> --url <https-url> --run-root <dir> --input-name Email --text <value> --submit-name Send
+python -m sentinel browser-login-demo --mission <file.json> --url <https-url> --run-root <dir> --username-ref <ref> --password-ref <ref> --username-env <ENV> --password-env <ENV> --username-name Email --password-name Password --submit-name "Sign in"
 ```
 
 Start here for the current truth:
@@ -114,14 +142,17 @@ sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md
 Recommended next build sequence:
 
 ```text
-1. BROWSER_OPERATOR_AGENT_L4_L5_LIVE
-2. SHELL_CODE_APP_BUILDER_SANDBOX_V0
-3. SKILL_PLUGIN_FABRIC_V0
-4. CREDENTIAL_VAULT_REAL_STORAGE_AND_SESSION_BROKER
-5. API_CHANNEL_DEVOPS_CONTROLLED_MUTATION
-6. DESKTOP_VISION_OCR_SIDECAR
-7. FINANCE_SPEND_TRADING_SPECIAL_AUTHORITY
-8. CONTINUOUS_MULTI_AGENT_MISSION_ORCHESTRATOR
+1. CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+2. BROWSER_DEVTOOLS_BACKEND_ADAPTER_V1
+3. BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1
+4. BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+5. SHELL_CODE_APP_BUILDER_SANDBOX_V0
+6. SKILL_PLUGIN_FABRIC_V0
+7. CREDENTIAL_VAULT_REAL_STORAGE_AND_SESSION_BROKER
+8. API_CHANNEL_DEVOPS_CONTROLLED_MUTATION
+9. DESKTOP_VISION_OCR_SIDECAR
+10. FINANCE_SPEND_TRADING_SPECIAL_AUTHORITY
+11. CONTINUOUS_MULTI_AGENT_MISSION_ORCHESTRATOR
 ```
 
 The doctrine:
