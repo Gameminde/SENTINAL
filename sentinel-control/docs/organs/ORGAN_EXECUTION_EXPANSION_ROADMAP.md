@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_BOUNDARY_MANAGER_L6_L7_LOCKED
-previous_phase = BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE_LOCKED
-next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+current_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
+previous_phase = BROWSER_BOUNDARY_MANAGER_L6_L7_LOCKED
+next_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
 ```
 
 Strategic correction:
@@ -81,11 +81,11 @@ Revised browser organ roadmap:
     Auth wall, CAPTCHA, KYC, payment, and suspicious-flow checkpoints:
     pause/resume, continue-other-branches, receipts, and handoff boundaries.
 
-12. BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7 [NEXT]
+12. BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7 [DONE]
     Checkout/payment/spend with caps, merchant policy, explicit authority,
     receipts, and kill switch.
 
-13. BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
+13. BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 [NEXT]
     Account creation/onboarding under authority, with no fake identity and
     proof/handoff boundaries.
 
@@ -142,12 +142,13 @@ BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1 = implemented / locked
 BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1 = implemented / locked
 BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE = implemented / locked
 BROWSER_BOUNDARY_MANAGER_L6_L7 = implemented / locked
+BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -226,7 +227,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_BOUNDARY_MANAGER_L6_L7_LOCKED
+current_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -252,8 +253,9 @@ browser_performance_lighthouse = CLOSED
 browser_network_har_response_quarantine = CLOSED
 browser_benchmark_gauntlet = CLOSED
 browser_boundary_manager = CLOSED
-next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
-payment_spend_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_AFTER_DEVTOOLS_AND_ORCHESTRATION
+browser_payment_spend_special_authority_l7 = CLOSED
+next_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
+payment_spend_phase = CLOSED
 ```
 
 Not approved as broad default:

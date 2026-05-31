@@ -469,6 +469,50 @@ sentinel-control/services/sentinel-core/tests/test_browser_boundary_manager_l6_l
 sentinel-control/docs/reviews/BROWSER_BOUNDARY_MANAGER_L6_L7_REPORT.md
 ```
 
+## Browser Payment Spend Special Authority L7 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the boundary manager pack as the current
+implementation phase. Sentinel now has a browser payment/spend special
+authority organ with merchant policy, spend caps, spend authority refs,
+payment instrument refs, boundary checkpoint linkage, kill switch, backend
+protocol, receipts, and FinalGate.
+
+```text
+current_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
+previous_phase = BROWSER_BOUNDARY_MANAGER_L6_L7_LOCKED
+next_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
+```
+
+### Browser Payment Spend Truth
+
+```text
+merchant allowlist = CLOSED
+single spend cap = CLOSED
+total spend cap = CLOSED
+spend authority ref required = CLOSED
+payment instrument ref hash-only = CLOSED
+boundary checkpoint hash required = CLOSED
+kill switch block = CLOSED
+payment backend protocol = CLOSED
+payment receipt = CLOSED
+payment FinalGate = CLOSED
+raw card/payment credential payload = REJECTED
+default runtime payment wiring = NOT_STARTED
+real payment provider adapter = NOT_STARTED
+```
+
+### Browser Payment Spend Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_payment_spend_special_authority_l7.py
+sentinel-control/services/sentinel-core/tests/test_browser_payment_spend_special_authority_l7.py
+sentinel-control/docs/reviews/BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
