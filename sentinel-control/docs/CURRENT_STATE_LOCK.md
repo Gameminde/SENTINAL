@@ -428,6 +428,47 @@ sentinel-control/services/sentinel-core/tests/test_browser_benchmark_gauntlet_we
 sentinel-control/docs/reviews/BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE_REPORT.md
 ```
 
+## Browser Boundary Manager L6/L7 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the benchmark gauntlet pack as the current
+implementation phase. Sentinel now has a central browser boundary manager for
+auth walls, CAPTCHA, KYC, payment, and suspicious-flow checkpoints.
+
+```text
+current_phase = BROWSER_BOUNDARY_MANAGER_L6_L7_LOCKED
+previous_phase = BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE_LOCKED
+next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+```
+
+### Browser Boundary Manager Truth
+
+```text
+auth wall checkpoint = CLOSED
+CAPTCHA checkpoint = CLOSED
+KYC checkpoint = CLOSED
+payment checkpoint = CLOSED
+suspicious-flow checkpoint = CLOSED
+safe alternative branch refs = CLOSED
+raw boundary text non-durability = CLOSED
+boundary receipt = CLOSED
+boundary FinalGate = CLOSED
+authority continuation = NOT_GRANTED
+payment/spend execution = NOT_STARTED
+account creation execution = NOT_STARTED
+```
+
+### Browser Boundary Manager Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_boundary_manager_l6_l7.py
+sentinel-control/services/sentinel-core/tests/test_browser_boundary_manager_l6_l7.py
+sentinel-control/docs/reviews/BROWSER_BOUNDARY_MANAGER_L6_L7_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
