@@ -385,6 +385,49 @@ sentinel-control/services/sentinel-core/tests/test_browser_network_har_response_
 sentinel-control/docs/reviews/BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1_REPORT.md
 ```
 
+## Browser Benchmark Gauntlet Web Arena Style - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the HAR quarantine pack as the current implementation
+phase. Sentinel now has a browser benchmark gauntlet organ that scores
+multi-page workflows, broken selector recovery, authorized login, upload/
+download quarantine, JS sandbox, and failure recovery scenarios.
+
+```text
+current_phase = BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE_LOCKED
+previous_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1_LOCKED
+next_phase = BROWSER_BOUNDARY_MANAGER_L6_L7
+```
+
+### Browser Benchmark Gauntlet Truth
+
+```text
+multi-page workflow score = CLOSED
+broken selector recovery score = CLOSED
+authorized login score with proof refs = CLOSED
+upload/download quarantine score = CLOSED
+JS sandbox score = CLOSED
+failure recovery score = CLOSED
+missing scenario detection = CLOSED
+deterministic benchmark hash = CLOSED
+benchmark receipt = CLOSED
+benchmark FinalGate = CLOSED
+raw credential/tool payloads = REJECTED
+live external benchmark execution = NOT_STARTED
+AgentRuntime benchmark wiring = NOT_STARTED
+```
+
+### Browser Benchmark Gauntlet Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_benchmark_gauntlet_web_arena_style.py
+sentinel-control/services/sentinel-core/tests/test_browser_benchmark_gauntlet_web_arena_style.py
+sentinel-control/docs/reviews/BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
