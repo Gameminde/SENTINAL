@@ -259,6 +259,48 @@ sentinel-control/services/sentinel-core/tests/test_browser_devtools_input_parity
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_REPORT.md
 ```
 
+## Browser Visual Grounding OCR V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the DevTools input parity pack as the current
+implementation phase. Sentinel now has a browser visual grounding layer that
+turns screenshot hashes plus OCR detections into hash-bound visual targets,
+perception frames, injection flags, receipts, and FinalGate certificates.
+
+```text
+current_phase = BROWSER_VISUAL_GROUNDING_OCR_V1_LOCKED
+previous_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_LOCKED
+next_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1
+```
+
+### Browser Visual Grounding Truth
+
+```text
+OCR detection to visual region = CLOSED
+Bounding-box target refs = CLOSED
+Screenshot hash binding = CLOSED
+Injection flag preservation = CLOSED
+PerceptionFrame integration = CLOSED
+Hash-only OCR text durability = CLOSED
+Visual grounding receipt = CLOSED
+Visual grounding FinalGate = CLOSED
+Raw screenshot bytes in result = REJECTED
+Raw OCR text in result = REJECTED
+Live OCR engine dependency = NOT_STARTED
+AgentRuntime visual grounding wiring = NOT_STARTED
+```
+
+### Browser Visual Grounding Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_visual_grounding_ocr_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_visual_grounding_ocr_v1.py
+sentinel-control/docs/reviews/BROWSER_VISUAL_GROUNDING_OCR_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
