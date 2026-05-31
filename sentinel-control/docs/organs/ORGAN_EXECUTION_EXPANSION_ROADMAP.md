@@ -33,12 +33,13 @@ BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5 = implemented / locked
 BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6 = implemented / locked
 BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6 = implemented / locked
 BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6 = implemented / locked
+BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
+BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -49,6 +50,9 @@ before/after evidence and sensitive-field blocking, plus a credential-backed
 login broker using scoped credential refs and ephemeral value resolution.
 Upload/download now exists only through approved upload roots and download
 quarantine roots with file hashes.
+JavaScript exists only through a constrained sandbox that blocks network,
+storage, cookie, submit, and credential surfaces while storing hash-only
+script/result receipts.
 CloakBrowser is the primary backend adapter for the session manager, while
 Playwright remains a deterministic compatibility backend for tests and local
 development.
@@ -108,7 +112,8 @@ Implemented and current:
 - browser form-submit special authority for non-sensitive forms;
 - browser login credential session broker with credential proofs and no raw
   credential durability;
-- browser upload/download quarantine with file hashes and root containment.
+- browser upload/download quarantine with file hashes and root containment;
+- browser JavaScript sandbox special authority with hash-only receipts.
 
 Latest runtime lock:
 
@@ -126,8 +131,9 @@ self_healing_browser_target_recovery = CLOSED
 browser_form_submit_special_authority = CLOSED
 browser_login_session_credentials = CLOSED
 browser_download_upload_quarantine = CLOSED
+browser_js_sandbox_special_authority = CLOSED
 durable_credential_storage = NOT_STARTED
-next_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
+next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
 ```
 
 Not approved as broad default:

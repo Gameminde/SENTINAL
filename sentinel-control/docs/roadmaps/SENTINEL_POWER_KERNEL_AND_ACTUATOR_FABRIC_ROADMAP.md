@@ -61,7 +61,9 @@ Already real:
 - browser login credential session broker using scoped credential refs,
   metadata-only proofs, and ephemeral credential value resolution;
 - browser upload/download quarantine using approved upload roots, download
-  quarantine roots, and file hashes.
+  quarantine roots, and file hashes;
+- browser JavaScript sandbox special authority for bounded page-side DOM
+  operations with network/storage/cookie/submit/credential surfaces blocked.
 
 Still not enough for real-world power:
 
@@ -347,8 +349,8 @@ Deliverables:
 - L6 credential-backed login/session broker with raw credential durability
   blocked;
 - L6 upload/download quarantine with file hash receipts;
-- no arbitrary JS in first pass;
-- no payment or arbitrary JS until separately authorized.
+- L6 JavaScript sandbox with hash-only script/result receipts;
+- no payment until separately authorized.
 
 Status:
 
@@ -358,7 +360,8 @@ Status:
 - `BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6` = CLOSED;
 - `BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6` = CLOSED;
 - `BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6` = CLOSED;
-- `BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6` = NEXT.
+- `BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6` = CLOSED;
+- `BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7` = NEXT.
 
 Capability gain: high.
 

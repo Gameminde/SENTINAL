@@ -162,6 +162,12 @@ _PRESETS: dict[str, PowerLabPreset] = {
         allowed_action_levels=["L6"],
         allowed_organs=["browser_download_upload_quarantine"],
     ),
+    "browser_js_sandbox_l6_template": PowerLabPreset(
+        name="browser_js_sandbox_l6_template",
+        description="L6 browser JavaScript sandbox template for bounded DOM operations with network/storage/credential surfaces blocked.",
+        allowed_action_levels=["L6"],
+        allowed_organs=["browser_js_sandbox_special_authority"],
+    ),
     "full_power_template": PowerLabPreset(
         name="full_power_template",
         description="Non-executing special authority template requiring explicit future grants.",

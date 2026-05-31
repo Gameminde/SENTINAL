@@ -701,6 +701,39 @@ class BrowserSessionManagerL5Live:
             "step_index": session.step_index,
         }
 
+    def evaluate_js_sandbox_special_authority(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        script: str,
+        timeout_ms: int = 15_000,
+        capture_screenshot: bool = True,
+    ) -> dict[str, Any]:
+        session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            raise RuntimeError("browser_session_missing_or_closed")
+        before = self._snapshot(session.page, timeout_ms)
+        before_screenshot = self._write_screenshot(session, "js_before", capture_screenshot, timeout_ms)
+        result = session.page.evaluate(script)
+        session.step_index += 1
+        after = self._snapshot(session.page, timeout_ms)
+        after_screenshot = self._write_screenshot(session, "js_after", capture_screenshot, timeout_ms)
+        return {
+            "session_id": session.session_id,
+            "backend_kind": session.backend_kind,
+            "url_hash": stable_hash(session.page.url),
+            "profile_dir_hash": stable_hash(str(session.profile_dir)),
+            "before_snapshot_hash": before.snapshot_sha256,
+            "after_snapshot_hash": after.snapshot_sha256,
+            "screenshot_artifact_id": before_screenshot["artifact_id"],
+            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+            "result_hash": stable_hash(result),
+            "result_type": type(result).__name__,
+            "step_index": session.step_index,
+        }
+
     def close_all(self) -> None:
         for session_id in list(self._sessions):
             session = self._sessions.pop(session_id)

@@ -1,20 +1,20 @@
 # Current State Lock
 
-## Browser Download Upload Quarantine L6 - LOCKED
+## Browser JavaScript Sandbox Special Authority L6 - LOCKED
 
 Recorded at: 2026-05-31
 
 Branch: `main`
 
-This section supersedes `BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED` as
-the current implementation phase. Sentinel now has explicit upload/download
-quarantine controls for browser sessions: approved upload roots, download
-quarantine roots, file hashes, and before/after browser evidence.
+This section supersedes `BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED` as the
+current implementation phase. Sentinel now has page-side JavaScript execution
+through a constrained sandbox organ with hash-only script/result receipts and
+network/storage/cookie/submit/credential surfaces blocked.
 
 ```text
-current_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
-previous_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED
-next_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
+current_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
+previous_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
+next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
 ```
 
 ### Browser Login Credential Live Truth
@@ -51,6 +51,9 @@ Browser download quarantine = CLOSED
 Approved upload root containment = CLOSED
 Download quarantine root containment = CLOSED
 Downloaded/uploaded file hash receipts = CLOSED
+Browser JS sandbox special authority = CLOSED
+Hash-only JS script/result receipts = CLOSED
+JS network/storage/cookie/submit/credential blocking = CLOSED
 Generic submit/login/upload/download/JS/credential action routes = BLOCKED
 Generic L5 submit route = BLOCKED
 Raw credential persistence = NOT_STARTED
@@ -72,6 +75,7 @@ sentinel/agent/organs/browser_trajectory_planner_l5.py
 sentinel/agent/organs/browser_form_submit_special_authority_l6.py
 sentinel/agent/organs/browser_login_credential_session_broker_l6.py
 sentinel/agent/organs/browser_download_upload_quarantine_l6.py
+sentinel/agent/organs/browser_js_sandbox_special_authority_l6.py
 sentinel/organs/browser/cloak_backend.py
 python -m sentinel run --mission <file.json> --run-root <dir>
 python -m sentinel browser-observe --mission <file.json> --url <https-url> --run-root <dir>
@@ -88,6 +92,7 @@ Power Lab presets:
   - browser_form_submit_l6_template
   - browser_login_l6_template
   - browser_file_quarantine_l6_template
+  - browser_js_sandbox_l6_template
   - full_power_template
 ```
 
@@ -104,7 +109,8 @@ No login/payment/credential/upload submit promoted.
 No generic upload/download.
 No upload outside approved root.
 No download outside quarantine root.
-No arbitrary browser JavaScript.
+No generic arbitrary browser JavaScript.
+No JS network/storage/cookie/submit/credential surfaces.
 No API mutation.
 No channel send.
 No desktop action.
@@ -127,23 +133,23 @@ separate non-sensitive form-submit organ with before/after evidence and a
 credential-backed login broker using scoped refs and ephemeral values. Payment,
 arbitrary JavaScript, and raw credential persistence remain blocked. Browser
 upload/download now exists only through quarantine-root authority and file hash
-receipts.
+receipts. Browser JavaScript now exists only through a constrained sandbox
+organ that stores script/result hashes, not raw scripts or raw outputs.
 ```
 
 ### Next Phase
 
-The next phase should promote arbitrary JavaScript only through a sandboxed
-special-authority path:
+The next phase should promote payment/spend only through L7 special authority:
 
 ```text
-BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
+BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
 ```
 
-Browser payment and arbitrary JavaScript remain blocked until separate
-authority contracts are implemented and tested.
+Browser payment/spend/trading remain blocked until separate authority contracts
+are implemented and tested.
 
 ```text
-next_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6
+next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
 ```
 
 ## Brain Native Action Feedback Loop - LOCKED
