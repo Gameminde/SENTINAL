@@ -54,6 +54,47 @@ sentinel-control/docs/reviews/CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 ```
 
+## Browser DevTools Backend Adapter Foundation V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the Chrome DevTools MCP harvest audit as the current
+implementation phase. Sentinel now has the DevTools backend adapter boundary
+that future native CDP and MCP transports must pass through.
+
+```text
+current_phase = BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1_LOCKED
+previous_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
+next_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1
+```
+
+### DevTools Backend Foundation Truth
+
+```text
+BrowserDevToolsBackend protocol = CLOSED
+BrowserDevToolsContract = CLOSED
+BrowserDevToolsRequest = CLOSED
+BrowserDevToolsReceipt = CLOSED
+BrowserDevToolsFinalGate = CLOSED
+Missing backend fail-closed receipt = CLOSED
+Hash-only fake backend output = CLOSED
+Raw MCP tool as authority = REJECTED
+Extension/WebMCP/third-party execution = DEFERRED_TO_L7
+Live native CDP backend = NOT_STARTED
+Live MCP adapter backend = NOT_STARTED
+AgentRuntime DevTools wiring = NOT_STARTED
+```
+
+### DevTools Backend Foundation Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_devtools_backend_adapter_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_devtools_backend_adapter_foundation_v1.py
+sentinel-control/docs/reviews/BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
