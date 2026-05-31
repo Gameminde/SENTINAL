@@ -17,10 +17,47 @@ previous_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
 next_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
 ```
 
+## Chrome DevTools MCP Harvest Audit - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the previous next-phase pointer. Chrome DevTools MCP
+was audited as a public capability reference and mapped into Sentinel browser
+organ levels. No runtime browser power was added in this pack.
+
+```text
+current_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
+previous_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
+next_phase = BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1
+```
+
+### DevTools Harvest Truth
+
+```text
+Chrome DevTools MCP repository audit = CLOSED
+Tool reference audit = CLOSED
+43 MCP tools classified into Sentinel L4/L5/L6/L7 = CLOSED
+Hybrid native CDP + MCP-adapter strategy = CLOSED
+MCP as direct authority = REJECTED
+DevTools backend implementation = NOT_STARTED
+DevTools machine intelligence bundle = NOT_STARTED
+Multi-step browser orchestrator = NOT_STARTED
+Browser payment/spend L7 = NOT_STARTED_AFTER_DEVTOOLS_AND_ORCHESTRATION
+```
+
+### Harvest Artifacts
+
+```text
+sentinel-control/docs/reviews/CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK_REPORT.md
+sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
-BROWSER_ROADMAP_STATE_TRUTH_REPAIR = CURRENT_DOCS_UPDATE
+BROWSER_ROADMAP_STATE_TRUTH_REPAIR = LOCKED
 DevTools harvest/foundation now precedes payment/spend L7.
 BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 moves early because it turns browser
 tools into a mission-capable browser operator.

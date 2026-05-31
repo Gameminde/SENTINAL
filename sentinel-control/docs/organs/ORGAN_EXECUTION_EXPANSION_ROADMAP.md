@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
-previous_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
-next_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+current_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
+previous_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
+next_phase = BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1
 ```
 
 Strategic correction:
@@ -29,15 +29,15 @@ browser tools into a mission-capable browser operator.
 Revised browser organ roadmap:
 
 ```text
-0. BROWSER_ROADMAP_STATE_TRUTH_REPAIR
+0. BROWSER_ROADMAP_STATE_TRUTH_REPAIR [DONE]
    Docs truth repair: JS sandbox L6 locked; next = DevTools harvest/foundation.
 
-1. CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+1. CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK [DONE]
    Audit Chrome DevTools MCP and map each tool to Sentinel L4/L5/L6/L7.
    Decide native CDP, MCP adapter, or hybrid path. Docs-only, zero runtime
    power added.
 
-2. BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1
+2. BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1 [NEXT]
    Define Sentinel-native BrowserDevToolsBackend, BrowserDevToolsSession, and
    BrowserDevToolsReceipt. MCP/CDP can be backend transport, never authority.
    Missing backend fails closed.
@@ -131,12 +131,13 @@ BROWSER_FORM_SUBMIT_SPECIAL_AUTHORITY_L6 = implemented / locked
 BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6 = implemented / locked
 BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6 = implemented / locked
 BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6 = implemented / locked
+CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -215,7 +216,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
+current_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -230,7 +231,8 @@ browser_login_session_credentials = CLOSED
 browser_download_upload_quarantine = CLOSED
 browser_js_sandbox_special_authority = CLOSED
 durable_credential_storage = NOT_STARTED
-next_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+chrome_devtools_mcp_harvest_audit = CLOSED
+next_phase = BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1
 payment_spend_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_AFTER_DEVTOOLS_AND_ORCHESTRATION
 ```
 
