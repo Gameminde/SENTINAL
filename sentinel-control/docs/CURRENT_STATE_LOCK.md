@@ -177,6 +177,45 @@ sentinel-control/services/sentinel-core/tests/test_browser_multi_step_task_orche
 sentinel-control/docs/reviews/BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_REPORT.md
 ```
 
+## Browser Failure Recovery Engine V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the multi-step task orchestrator pack as the current
+implementation phase. Sentinel now has a browser failure recovery classifier
+and recovery-plan layer.
+
+```text
+current_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
+previous_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
+next_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
+```
+
+### Browser Failure Recovery Truth
+
+```text
+stale ref classification = CLOSED
+modal/dialog classification = CLOSED
+redirect/route classification = CLOSED
+SPA/console error classification = CLOSED
+disabled target classification = CLOSED
+boundary CAPTCHA/KYC/payment checkpoint = CLOSED
+ordered recovery plan = CLOSED
+recovery receipt = CLOSED
+recovery FinalGate = CLOSED
+live recovery execution = NOT_STARTED
+```
+
+### Browser Failure Recovery Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_failure_recovery_engine_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_failure_recovery_engine_v1.py
+sentinel-control/docs/reviews/BROWSER_FAILURE_RECOVERY_ENGINE_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text

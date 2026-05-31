@@ -53,9 +53,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
-previous_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_LOCKED
-next_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1
+current_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
+previous_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
+next_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -82,6 +82,7 @@ Browser JavaScript sandbox special authority = CLOSED
 Browser DevTools backend adapter foundation = CLOSED
 Browser DevTools machine intelligence evidence bundle = CLOSED
 Browser multi-step task orchestrator = CLOSED
+Browser failure recovery engine = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -140,6 +141,7 @@ sentinel-control/docs/reviews/CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1_REPORT.md
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_REPORT.md
 sentinel-control/docs/reviews/BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_REPORT.md
+sentinel-control/docs/reviews/BROWSER_FAILURE_RECOVERY_ENGINE_V1_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -156,8 +158,8 @@ Recommended next build sequence:
 2. BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1 - DONE
 3. BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1 - DONE
 4. BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 - DONE
-5. BROWSER_FAILURE_RECOVERY_ENGINE_V1 - NEXT
-6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
+5. BROWSER_FAILURE_RECOVERY_ENGINE_V1 - DONE
+6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6 - NEXT
 7. BROWSER_VISUAL_GROUNDING_OCR_V1
 8. BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1
 9. BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1

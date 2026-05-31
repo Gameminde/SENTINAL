@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
-previous_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_LOCKED
-next_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1
+current_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
+previous_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
+next_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
 ```
 
 Strategic correction:
@@ -52,12 +52,12 @@ Revised browser organ roadmap:
    act -> verify -> recover -> continue. This is the first real long-horizon
    browser operator brain.
 
-5. BROWSER_FAILURE_RECOVERY_ENGINE_V1 [NEXT]
+5. BROWSER_FAILURE_RECOVERY_ENGINE_V1 [DONE]
    Recovery across DOM, AX, screenshot, network, and console evidence:
    stale selectors, modals, dialogs, redirects, SPA errors, disabled buttons,
    and flow interruptions.
 
-6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
+6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6 [NEXT]
    Add missing operator actions: drag, press_key, click_at, handle_dialog, and
    fast fill_form. Every action produces receipts plus before/after evidence.
 
@@ -135,12 +135,13 @@ CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK = implemented / locked
 BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1 = implemented / locked
 BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1 = implemented / locked
 BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 = implemented / locked
+BROWSER_FAILURE_RECOVERY_ENGINE_V1 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_FAILURE_RECOVERY_ENGINE_V1
+BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -219,7 +220,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
+current_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -238,7 +239,8 @@ chrome_devtools_mcp_harvest_audit = CLOSED
 browser_devtools_backend_adapter_foundation = CLOSED
 browser_devtools_machine_intelligence = CLOSED
 browser_multi_step_task_orchestrator = CLOSED
-next_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1
+browser_failure_recovery_engine = CLOSED
+next_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
 payment_spend_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_AFTER_DEVTOOLS_AND_ORCHESTRATION
 ```
 
