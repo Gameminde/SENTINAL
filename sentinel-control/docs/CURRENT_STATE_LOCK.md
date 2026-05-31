@@ -95,6 +95,47 @@ sentinel-control/services/sentinel-core/tests/test_browser_devtools_backend_adap
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1_REPORT.md
 ```
 
+## Browser DevTools Machine Intelligence V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the backend adapter foundation as the current
+implementation phase. Sentinel now has structured DevTools machine
+intelligence models for page targets, AX refs, network metadata, console
+metadata, screenshot hashes, evidence bundles, receipts, and FinalGate.
+
+```text
+current_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_LOCKED
+previous_phase = BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1_LOCKED
+next_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1
+```
+
+### DevTools Machine Intelligence Truth
+
+```text
+Page target metadata = CLOSED
+AX snapshot V2 hashed refs = CLOSED
+Network ledger safe metadata = CLOSED
+Console ledger safe metadata = CLOSED
+Screenshot evidence hash metadata = CLOSED
+Evidence bundle hash = CLOSED
+Machine intelligence receipt = CLOSED
+Machine intelligence FinalGate = CLOSED
+Raw page/network/console/screenshot durability = REJECTED
+Live CDP/MCP backend = NOT_STARTED
+Multi-step browser orchestrator = NOT_STARTED
+```
+
+### Machine Intelligence Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_devtools_machine_intelligence_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_devtools_machine_intelligence_v1.py
+sentinel-control/docs/reviews/BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
