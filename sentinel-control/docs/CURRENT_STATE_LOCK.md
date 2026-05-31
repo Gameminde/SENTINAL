@@ -343,6 +343,48 @@ sentinel-control/services/sentinel-core/tests/test_browser_performance_lighthous
 sentinel-control/docs/reviews/BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_REPORT.md
 ```
 
+## Browser Network HAR Response Quarantine V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the performance pack as the current implementation
+phase. Sentinel now has a browser HAR quarantine organ that captures safe
+network request/response metadata, hashes URLs and headers, redacts auth
+headers, and quarantines response bodies only under explicit contract.
+
+```text
+current_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1_LOCKED
+previous_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_LOCKED
+next_phase = BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE
+```
+
+### Browser HAR Truth
+
+```text
+HAR metadata ledger = CLOSED
+URL hash metadata = CLOSED
+request/response header hash metadata = CLOSED
+auth/cookie header redaction = CLOSED
+response body quarantine contract = CLOSED
+body hash-only quarantine ref = CLOSED
+HAR receipt = CLOSED
+HAR FinalGate = CLOSED
+raw response body without quarantine authority = REJECTED
+raw auth header durability = REJECTED
+live CDP/MCP HAR collection = NOT_STARTED
+AgentRuntime HAR wiring = NOT_STARTED
+```
+
+### Browser HAR Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_network_har_response_quarantine_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_network_har_response_quarantine_v1.py
+sentinel-control/docs/reviews/BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text

@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_LOCKED
-previous_phase = BROWSER_VISUAL_GROUNDING_OCR_V1_LOCKED
-next_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1
+current_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1_LOCKED
+previous_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_LOCKED
+next_phase = BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE
 ```
 
 Strategic correction:
@@ -69,11 +69,11 @@ Revised browser organ roadmap:
    Traces, Lighthouse-style metrics, LCP/INP/CLS, and performance insights for
    future app-builder/code-agent workflows.
 
-9. BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1 [NEXT]
+9. BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1 [DONE]
    HAR-like evidence, request/response metadata, and response body quarantine
    only when explicitly allowed.
 
-10. BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE
+10. BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE [NEXT]
     Real scoring across multi-page workflows, broken selectors, authorized
     login, upload/download, JS sandbox, and recovery.
 
@@ -139,12 +139,13 @@ BROWSER_FAILURE_RECOVERY_ENGINE_V1 = implemented / locked
 BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6 = implemented / locked
 BROWSER_VISUAL_GROUNDING_OCR_V1 = implemented / locked
 BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1 = implemented / locked
+BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1
+BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -223,7 +224,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_LOCKED
+current_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -246,7 +247,8 @@ browser_failure_recovery_engine = CLOSED
 browser_devtools_input_parity = CLOSED
 browser_visual_grounding_ocr = CLOSED
 browser_performance_lighthouse = CLOSED
-next_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1
+browser_network_har_response_quarantine = CLOSED
+next_phase = BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE
 payment_spend_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_AFTER_DEVTOOLS_AND_ORCHESTRATION
 ```
 
