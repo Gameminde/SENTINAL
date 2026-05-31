@@ -638,6 +638,49 @@ sentinel-control/services/sentinel-core/tests/test_browser_controlled_extension_
 sentinel-control/docs/reviews/BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_REPORT.md
 ```
 
+## Browser Final Capability Lock - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the controlled extension/WebMCP bridge pack as the
+current implementation phase. The browser roadmap is now locked end to end:
+live observation, sessions, L5 action, trajectory planning, L6 special
+authority, DevTools intelligence, multi-step orchestration, recovery, visual
+grounding, performance, HAR quarantine, benchmarks, boundary management, L7
+spend/account/extension surfaces, and replay studio.
+
+```text
+current_phase = BROWSER_FINAL_CAPABILITY_LOCKED
+previous_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_LOCKED
+next_phase = POWER_ACTUATOR_FABRIC_NEXT_WAVE
+```
+
+### Browser Final Capability Truth
+
+```text
+Browser roadmap status = LOCKED
+Power surface contracts/receipts/FinalGate = CLOSED
+Live browser operator baseline = CLOSED
+Multi-step browser orchestration = CLOSED
+DevTools evidence intelligence = CLOSED
+Replay and audit timeline = CLOSED
+Special-authority L6/L7 browser surfaces = CLOSED
+Generic default-on dangerous execution = REJECTED
+default runtime dangerous wiring = NOT_STARTED
+raw credential persistence = NOT_STARTED
+Live extension adapter = NOT_STARTED
+Live MCP adapter = NOT_STARTED
+```
+
+### Browser Final Capability Artifacts
+
+```text
+sentinel-control/services/sentinel-core/tests/test_browser_final_capability_lock.py
+sentinel-control/docs/reviews/BROWSER_FINAL_CAPABILITY_LOCK_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text

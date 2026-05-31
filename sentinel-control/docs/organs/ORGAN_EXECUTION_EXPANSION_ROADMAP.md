@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_LOCKED
-previous_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_LOCKED
-next_phase = BROWSER_FINAL_CAPABILITY_LOCK
+current_phase = BROWSER_FINAL_CAPABILITY_LOCKED
+previous_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_LOCKED
+next_phase = POWER_ACTUATOR_FABRIC_NEXT_WAVE
 ```
 
 Strategic correction:
@@ -97,7 +97,7 @@ Revised browser organ roadmap:
     Late-stage extension/WebMCP/third-party browser tool bridge behind special
     authority, sandboxing, receipts, and strict provenance.
 
-16. BROWSER_FINAL_CAPABILITY_LOCK [NEXT]
+16. BROWSER_FINAL_CAPABILITY_LOCK [DONE]
     Final certification: Browser Organ elite.
 ```
 
@@ -146,12 +146,13 @@ BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7 = implemented / locked
 BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 = implemented / locked
 BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 = implemented / locked
 BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7 = implemented / locked
+BROWSER_FINAL_CAPABILITY_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_FINAL_CAPABILITY_LOCK
+POWER_ACTUATOR_FABRIC_NEXT_WAVE
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
