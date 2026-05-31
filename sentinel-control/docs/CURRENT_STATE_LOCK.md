@@ -136,6 +136,47 @@ sentinel-control/services/sentinel-core/tests/test_browser_devtools_machine_inte
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_REPORT.md
 ```
 
+## Browser Multi Step Task Orchestrator V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the DevTools machine intelligence pack as the current
+implementation phase. Sentinel now has the first browser task orchestration
+loop over DevTools evidence bundles and browser action backends.
+
+```text
+current_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
+previous_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_LOCKED
+next_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1
+```
+
+### Browser Orchestrator Truth
+
+```text
+observe/diagnose/plan/act/verify loop = CLOSED
+hash-only plan = CLOSED
+backend action protocol = CLOSED
+first recovery path = CLOSED
+recovery budget exhaustion = CLOSED
+orchestrator receipt = CLOSED
+orchestrator FinalGate = CLOSED
+payment/spend action = BLOCKED
+extension execution = BLOCKED
+WebMCP execution = BLOCKED
+AgentRuntime orchestrator wiring = NOT_STARTED
+live CDP/MCP backend invocation = NOT_STARTED
+```
+
+### Browser Orchestrator Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_multi_step_task_orchestrator_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_multi_step_task_orchestrator_v1.py
+sentinel-control/docs/reviews/BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text

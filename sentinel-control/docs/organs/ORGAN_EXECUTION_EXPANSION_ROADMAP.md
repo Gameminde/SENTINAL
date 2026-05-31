@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_LOCKED
-previous_phase = BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1_LOCKED
-next_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1
+current_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
+previous_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_LOCKED
+next_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1
 ```
 
 Strategic correction:
@@ -47,12 +47,12 @@ Revised browser organ roadmap:
    binding, NetworkLedger safe metadata, ConsoleLedger safe metadata, and
    screenshot/snapshot evidence bundles. No raw auth headers or raw secrets.
 
-4. BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 [NEXT]
+4. BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 [DONE]
    Use current powers plus DevTools signals for observe -> diagnose -> plan ->
    act -> verify -> recover -> continue. This is the first real long-horizon
    browser operator brain.
 
-5. BROWSER_FAILURE_RECOVERY_ENGINE_V1
+5. BROWSER_FAILURE_RECOVERY_ENGINE_V1 [NEXT]
    Recovery across DOM, AX, screenshot, network, and console evidence:
    stale selectors, modals, dialogs, redirects, SPA errors, disabled buttons,
    and flow interruptions.
@@ -134,12 +134,13 @@ BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6 = implemented / locked
 CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK = implemented / locked
 BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1 = implemented / locked
 BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1 = implemented / locked
+BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1
+BROWSER_FAILURE_RECOVERY_ENGINE_V1
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -218,7 +219,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_LOCKED
+current_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -236,7 +237,8 @@ durable_credential_storage = NOT_STARTED
 chrome_devtools_mcp_harvest_audit = CLOSED
 browser_devtools_backend_adapter_foundation = CLOSED
 browser_devtools_machine_intelligence = CLOSED
-next_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1
+browser_multi_step_task_orchestrator = CLOSED
+next_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1
 payment_spend_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_AFTER_DEVTOOLS_AND_ORCHESTRATION
 ```
 
