@@ -301,6 +301,48 @@ sentinel-control/services/sentinel-core/tests/test_browser_visual_grounding_ocr_
 sentinel-control/docs/reviews/BROWSER_VISUAL_GROUNDING_OCR_V1_REPORT.md
 ```
 
+## Browser Performance Lighthouse Organ V1 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the visual grounding pack as the current
+implementation phase. Sentinel now has a browser performance organ that turns
+DevTools/Lighthouse-style metrics and trace metadata into Web Vitals scores,
+insights, hash-only trace receipts, and FinalGate certificates.
+
+```text
+current_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_LOCKED
+previous_phase = BROWSER_VISUAL_GROUNDING_OCR_V1_LOCKED
+next_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1
+```
+
+### Browser Performance Truth
+
+```text
+LCP metric audit = CLOSED
+INP metric audit = CLOSED
+CLS metric audit = CLOSED
+performance score = CLOSED
+performance insights = CLOSED
+trace hash-only receipt = CLOSED
+metrics hash = CLOSED
+performance FinalGate = CLOSED
+raw trace bodies = REJECTED
+raw auth headers = REJECTED
+live Lighthouse/CDP invocation = NOT_STARTED
+AgentRuntime performance wiring = NOT_STARTED
+```
+
+### Browser Performance Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_performance_lighthouse_organ_v1.py
+sentinel-control/services/sentinel-core/tests/test_browser_performance_lighthouse_organ_v1.py
+sentinel-control/docs/reviews/BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text

@@ -53,9 +53,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_VISUAL_GROUNDING_OCR_V1_LOCKED
-previous_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_LOCKED
-next_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1
+current_phase = BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_LOCKED
+previous_phase = BROWSER_VISUAL_GROUNDING_OCR_V1_LOCKED
+next_phase = BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -85,6 +85,7 @@ Browser multi-step task orchestrator = CLOSED
 Browser failure recovery engine = CLOSED
 Browser DevTools input parity L5/L6 = CLOSED
 Browser visual grounding OCR = CLOSED
+Browser performance Lighthouse-style organ = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -146,6 +147,7 @@ sentinel-control/docs/reviews/BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_REPORT.md
 sentinel-control/docs/reviews/BROWSER_FAILURE_RECOVERY_ENGINE_V1_REPORT.md
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_REPORT.md
 sentinel-control/docs/reviews/BROWSER_VISUAL_GROUNDING_OCR_V1_REPORT.md
+sentinel-control/docs/reviews/BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -165,8 +167,8 @@ Recommended next build sequence:
 5. BROWSER_FAILURE_RECOVERY_ENGINE_V1 - DONE
 6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6 - DONE
 7. BROWSER_VISUAL_GROUNDING_OCR_V1 - DONE
-8. BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1 - NEXT
-9. BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1
+8. BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1 - DONE
+9. BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1 - NEXT
 10. BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE
 11. BROWSER_BOUNDARY_MANAGER_L6_L7
 12. BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
