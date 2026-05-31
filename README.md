@@ -53,9 +53,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_LOCKED
-previous_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
-next_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7
+current_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_LOCKED
+previous_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_LOCKED
+next_phase = BROWSER_FINAL_CAPABILITY_LOCK
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -92,6 +92,7 @@ Browser boundary manager L6/L7 = CLOSED
 Browser payment/spend special authority L7 = CLOSED
 Browser account creation special authority L7 = CLOSED
 Browser observability and replay studio = CLOSED
+Browser controlled extension/WebMCP bridge L7 = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED

@@ -595,6 +595,49 @@ sentinel-control/services/sentinel-core/tests/test_browser_observability_replay_
 sentinel-control/docs/reviews/BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_REPORT.md
 ```
 
+## Browser Controlled Extension And WebMCP Bridge L7 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the replay studio pack as the current implementation
+phase. Sentinel now has a controlled L7 bridge boundary for browser extensions,
+WebMCP, and third-party browser tools.
+
+```text
+current_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_LOCKED
+previous_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1_LOCKED
+next_phase = BROWSER_FINAL_CAPABILITY_LOCK
+```
+
+### Browser Extension/WebMCP Bridge Truth
+
+```text
+L7 authority ref required = CLOSED
+tool provenance required = CLOSED
+sandbox ref required = CLOSED
+allowed surface/origin/tool policy = CLOSED
+hash-only tool payload = CLOSED
+hash-only provider output = CLOSED
+bridge receipt = CLOSED
+bridge FinalGate = CLOSED
+raw tool payload = REJECTED
+direct WebMCP/tool authority = REJECTED
+raw CDP surface = REJECTED_IN_V1
+live extension adapter = NOT_STARTED
+live MCP adapter = NOT_STARTED
+default runtime bridge wiring = NOT_STARTED
+```
+
+### Browser Extension/WebMCP Bridge Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_controlled_extension_webmcp_bridge_l7.py
+sentinel-control/services/sentinel-core/tests/test_browser_controlled_extension_webmcp_bridge_l7.py
+sentinel-control/docs/reviews/BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text
