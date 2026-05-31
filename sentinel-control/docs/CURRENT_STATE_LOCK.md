@@ -216,6 +216,49 @@ sentinel-control/services/sentinel-core/tests/test_browser_failure_recovery_engi
 sentinel-control/docs/reviews/BROWSER_FAILURE_RECOVERY_ENGINE_V1_REPORT.md
 ```
 
+## Browser DevTools Input Parity L5/L6 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the failure recovery pack as the current
+implementation phase. Sentinel now has controlled DevTools-grade input parity
+contracts for fast form fill, press-key, drag, coordinate click, and dialog
+handling with before/after evidence hashes and receipt/FinalGate certification.
+
+```text
+current_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_LOCKED
+previous_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
+next_phase = BROWSER_VISUAL_GROUNDING_OCR_V1
+```
+
+### Browser Input Parity Truth
+
+```text
+fill_form action = CLOSED
+press_key action = CLOSED
+drag action = CLOSED
+click_at action with screenshot binding = CLOSED
+handle_dialog action = CLOSED
+input payload hash-only durability = CLOSED
+before/after evidence hash receipt = CLOSED
+input parity FinalGate = CLOSED
+payment/spend action = BLOCKED
+extension/WebMCP execution = BLOCKED
+raw field value durability = REJECTED
+live CDP/MCP backend invocation = NOT_STARTED
+AgentRuntime input parity wiring = NOT_STARTED
+```
+
+### Browser Input Parity Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_devtools_input_parity_l5_l6.py
+sentinel-control/services/sentinel-core/tests/test_browser_devtools_input_parity_l5_l6.py
+sentinel-control/docs/reviews/BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text

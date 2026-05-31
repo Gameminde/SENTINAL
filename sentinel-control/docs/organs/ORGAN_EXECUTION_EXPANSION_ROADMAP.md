@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
-previous_phase = BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1_LOCKED
-next_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
+current_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_LOCKED
+previous_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
+next_phase = BROWSER_VISUAL_GROUNDING_OCR_V1
 ```
 
 Strategic correction:
@@ -57,11 +57,11 @@ Revised browser organ roadmap:
    stale selectors, modals, dialogs, redirects, SPA errors, disabled buttons,
    and flow interruptions.
 
-6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6 [NEXT]
+6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6 [DONE]
    Add missing operator actions: drag, press_key, click_at, handle_dialog, and
    fast fill_form. Every action produces receipts plus before/after evidence.
 
-7. BROWSER_VISUAL_GROUNDING_OCR_V1
+7. BROWSER_VISUAL_GROUNDING_OCR_V1 [NEXT]
    Screenshot OCR, bounding boxes, and visual grounding for pages where DOM/AX
    is incomplete or misleading.
 
@@ -136,12 +136,13 @@ BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1 = implemented / locked
 BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1 = implemented / locked
 BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 = implemented / locked
 BROWSER_FAILURE_RECOVERY_ENGINE_V1 = implemented / locked
+BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
+BROWSER_VISUAL_GROUNDING_OCR_V1
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -220,7 +221,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_FAILURE_RECOVERY_ENGINE_V1_LOCKED
+current_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -240,7 +241,8 @@ browser_devtools_backend_adapter_foundation = CLOSED
 browser_devtools_machine_intelligence = CLOSED
 browser_multi_step_task_orchestrator = CLOSED
 browser_failure_recovery_engine = CLOSED
-next_phase = BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
+browser_devtools_input_parity = CLOSED
+next_phase = BROWSER_VISUAL_GROUNDING_OCR_V1
 payment_spend_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_AFTER_DEVTOOLS_AND_ORCHESTRATION
 ```
 
