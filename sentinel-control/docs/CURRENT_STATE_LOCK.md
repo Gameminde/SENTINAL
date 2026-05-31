@@ -513,6 +513,50 @@ sentinel-control/services/sentinel-core/tests/test_browser_payment_spend_special
 sentinel-control/docs/reviews/BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_REPORT.md
 ```
 
+## Browser Account Creation Special Authority L7 - LOCKED
+
+Recorded at: 2026-05-31
+
+Branch: `main`
+
+This section supersedes the payment/spend special authority pack as the current
+implementation phase. Sentinel now has a browser account creation/onboarding
+special authority organ with service policy, user approval refs, identity
+profile refs, credential session refs, terms acknowledgement refs, boundary
+checkpoint linkage, backend protocol, receipts, and FinalGate.
+
+```text
+current_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
+previous_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
+next_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
+```
+
+### Browser Account Creation Truth
+
+```text
+service allowlist = CLOSED
+user approval ref required = CLOSED
+identity profile ref hash-only = CLOSED
+credential session ref hash-only = CLOSED
+terms ack ref required = CLOSED
+boundary checkpoint hash required = CLOSED
+fake identity rejection = CLOSED
+account creation backend protocol = CLOSED
+account creation receipt = CLOSED
+account creation FinalGate = CLOSED
+raw password/tool payload = REJECTED
+default runtime account creation wiring = NOT_STARTED
+real account provider adapter = NOT_STARTED
+```
+
+### Browser Account Creation Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_account_creation_special_authority_l7.py
+sentinel-control/services/sentinel-core/tests/test_browser_account_creation_special_authority_l7.py
+sentinel-control/docs/reviews/BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_REPORT.md
+```
+
 ### Browser Roadmap Truth Repair
 
 ```text

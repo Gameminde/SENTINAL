@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
-previous_phase = BROWSER_BOUNDARY_MANAGER_L6_L7_LOCKED
-next_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
+current_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
+previous_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
+next_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
 ```
 
 Strategic correction:
@@ -85,11 +85,11 @@ Revised browser organ roadmap:
     Checkout/payment/spend with caps, merchant policy, explicit authority,
     receipts, and kill switch.
 
-13. BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 [NEXT]
+13. BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 [DONE]
     Account creation/onboarding under authority, with no fake identity and
     proof/handoff boundaries.
 
-14. BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
+14. BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 [NEXT]
     Complete replay timeline: screenshots, DOM, AX, network, console, traces,
     actions, receipts, and FinalGate decisions.
 
@@ -143,12 +143,13 @@ BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1 = implemented / locked
 BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE = implemented / locked
 BROWSER_BOUNDARY_MANAGER_L6_L7 = implemented / locked
 BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7 = implemented / locked
+BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
+BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -227,7 +228,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_LOCKED
+current_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -254,7 +255,8 @@ browser_network_har_response_quarantine = CLOSED
 browser_benchmark_gauntlet = CLOSED
 browser_boundary_manager = CLOSED
 browser_payment_spend_special_authority_l7 = CLOSED
-next_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
+browser_account_creation_special_authority_l7 = CLOSED
+next_phase = BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
 payment_spend_phase = CLOSED
 ```
 
