@@ -14,7 +14,18 @@ network/storage/cookie/submit/credential surfaces blocked.
 ```text
 current_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
 previous_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
-next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+next_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+```
+
+### Browser Roadmap Truth Repair
+
+```text
+BROWSER_ROADMAP_STATE_TRUTH_REPAIR = CURRENT_DOCS_UPDATE
+DevTools harvest/foundation now precedes payment/spend L7.
+BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 moves early because it turns browser
+tools into a mission-capable browser operator.
+Payment/spend remains on the roadmap, but after DevTools intelligence,
+multi-step orchestration, recovery, evidence, and boundary management.
 ```
 
 ### Browser Login Credential Live Truth
@@ -130,26 +141,28 @@ Browser L5 live currently promotes open/observe/click/type/fill/select/hover/
 wait-for-text in governed browser sessions, plus deterministic trajectory
 planning and recovery across observed targets. Browser L6 now promotes a
 separate non-sensitive form-submit organ with before/after evidence and a
-credential-backed login broker using scoped refs and ephemeral values. Payment,
-arbitrary JavaScript, and raw credential persistence remain blocked. Browser
-upload/download now exists only through quarantine-root authority and file hash
-receipts. Browser JavaScript now exists only through a constrained sandbox
-organ that stores script/result hashes, not raw scripts or raw outputs.
+credential-backed login broker using scoped refs and ephemeral values. Payment
+and raw credential persistence remain blocked. Browser upload/download now
+exists only through quarantine-root authority and file hash receipts. Browser
+JavaScript now exists only through a constrained sandbox organ that stores
+script/result hashes, not raw scripts or raw outputs.
 ```
 
 ### Next Phase
 
-The next phase should promote payment/spend only through L7 special authority:
+The next phase should harvest Chrome DevTools MCP and define the DevTools
+foundation before promoting payment/spend L7:
 
 ```text
-BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
 ```
 
-Browser payment/spend/trading remain blocked until separate authority contracts
-are implemented and tested.
+Browser payment/spend/trading remain blocked until DevTools intelligence,
+multi-step orchestration, recovery, boundary management, and separate L7
+authority contracts are implemented and tested.
 
 ```text
-next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+next_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
 ```
 
 ## Brain Native Action Feedback Loop - LOCKED

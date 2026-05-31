@@ -1,8 +1,105 @@
 # Organ Execution Expansion Roadmap
 
-Status: superseded by the Power Kernel and Actuator Fabric roadmap
+Status: active browser organ expansion record
 
-Date: 2026-05-26
+Date: 2026-05-31
+
+## Browser Roadmap State Truth Repair - 2026-05-31
+
+The browser roadmap is revised after the JavaScript sandbox L6 lock and the
+Chrome DevTools MCP review discussion.
+
+Current truth:
+
+```text
+current_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
+previous_phase = BROWSER_DOWNLOAD_UPLOAD_QUARANTINE_L6_LOCKED
+next_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+```
+
+Strategic correction:
+
+```text
+Payment/spend L7 is not the immediate next pack.
+DevTools-grade browser intelligence must come first.
+BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 moves up because it is what turns
+browser tools into a mission-capable browser operator.
+```
+
+Revised browser organ roadmap:
+
+```text
+0. BROWSER_ROADMAP_STATE_TRUTH_REPAIR
+   Docs truth repair: JS sandbox L6 locked; next = DevTools harvest/foundation.
+
+1. CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+   Audit Chrome DevTools MCP and map each tool to Sentinel L4/L5/L6/L7.
+   Decide native CDP, MCP adapter, or hybrid path. Docs-only, zero runtime
+   power added.
+
+2. BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1
+   Define Sentinel-native BrowserDevToolsBackend, BrowserDevToolsSession, and
+   BrowserDevToolsReceipt. MCP/CDP can be backend transport, never authority.
+   Missing backend fails closed.
+
+3. BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1
+   One large foundation pack: PageTargetManager, A11Y snapshot V2 with UID/ref
+   binding, NetworkLedger safe metadata, ConsoleLedger safe metadata, and
+   screenshot/snapshot evidence bundles. No raw auth headers or raw secrets.
+
+4. BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1
+   Use current powers plus DevTools signals for observe -> diagnose -> plan ->
+   act -> verify -> recover -> continue. This is the first real long-horizon
+   browser operator brain.
+
+5. BROWSER_FAILURE_RECOVERY_ENGINE_V1
+   Recovery across DOM, AX, screenshot, network, and console evidence:
+   stale selectors, modals, dialogs, redirects, SPA errors, disabled buttons,
+   and flow interruptions.
+
+6. BROWSER_DEVTOOLS_INPUT_PARITY_L5_L6
+   Add missing operator actions: drag, press_key, click_at, handle_dialog, and
+   fast fill_form. Every action produces receipts plus before/after evidence.
+
+7. BROWSER_VISUAL_GROUNDING_OCR_V1
+   Screenshot OCR, bounding boxes, and visual grounding for pages where DOM/AX
+   is incomplete or misleading.
+
+8. BROWSER_PERFORMANCE_LIGHTHOUSE_ORGAN_V1
+   Traces, Lighthouse-style metrics, LCP/INP/CLS, and performance insights for
+   future app-builder/code-agent workflows.
+
+9. BROWSER_NETWORK_HAR_RESPONSE_QUARANTINE_V1
+   HAR-like evidence, request/response metadata, and response body quarantine
+   only when explicitly allowed.
+
+10. BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE
+    Real scoring across multi-page workflows, broken selectors, authorized
+    login, upload/download, JS sandbox, and recovery.
+
+11. BROWSER_BOUNDARY_MANAGER_L6_L7
+    Auth wall, CAPTCHA, KYC, payment, and suspicious-flow checkpoints:
+    pause/resume, continue-other-branches, receipts, and handoff boundaries.
+
+12. BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+    Checkout/payment/spend with caps, merchant policy, explicit authority,
+    receipts, and kill switch.
+
+13. BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7
+    Account creation/onboarding under authority, with no fake identity and
+    proof/handoff boundaries.
+
+14. BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1
+    Complete replay timeline: screenshots, DOM, AX, network, console, traces,
+    actions, receipts, and FinalGate decisions.
+
+15. BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7
+    Late-stage extension/WebMCP/third-party browser tool bridge behind special
+    authority, sandboxing, receipts, and strict provenance.
+
+16. BROWSER_FINAL_CAPABILITY_LOCK
+    Final certification: Browser Organ elite.
+```
 
 ## Strategic Update - 2026-05-26
 
@@ -39,7 +136,7 @@ BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6 = implemented / locked
 Next pack:
 
 ```text
-BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -118,7 +215,7 @@ Implemented and current:
 Latest runtime lock:
 
 ```text
-current_phase = BROWSER_LOGIN_CREDENTIAL_SESSION_BROKER_L6_LOCKED
+current_phase = BROWSER_ARBITRARY_JS_SANDBOX_SPECIAL_AUTHORITY_L6_LOCKED
 latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and memory feedback
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 durable_memory_persistence = NOT_STARTED
@@ -133,15 +230,16 @@ browser_login_session_credentials = CLOSED
 browser_download_upload_quarantine = CLOSED
 browser_js_sandbox_special_authority = CLOSED
 durable_credential_storage = NOT_STARTED
-next_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7
+next_phase = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK
+payment_spend_phase = BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_AFTER_DEVTOOLS_AND_ORCHESTRATION
 ```
 
 Not approved as broad default:
 
-- browser action/API/channel/desktop/shell/network/credential execution;
-- browser submit/login/upload/download/private session/credentialed browser
-  execution;
-- L5/L6/L7 runtime expansion;
+- uncontracted browser/API/channel/desktop/shell/network/credential execution;
+- generic browser submit/login/upload/download/private session/credentialed
+  execution outside the named special-authority organs;
+- broad L5/L6/L7 runtime expansion outside explicit contracts;
 - credential vault runtime;
 - provider fallback;
 - AUTO routing;
