@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_LOCKED
-previous_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_LOCKED
-next_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH
+current_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_LOCKED
+previous_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_LOCKED
+next_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK
 ```
 
 Strategic correction:
@@ -155,10 +155,15 @@ Revised browser organ roadmap:
     Implement only the append-only signal graph, evidence blackboard, and
     perception neurons. No motor dispatch integration and no new browser power.
 
-24. BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH [NEXT]
+24. BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH [DONE]
     Implement planning, risk, recovery, verifier, memory recall, and motor
     proposal neurons. MotorProposalNeuron may emit proposal artifacts only and
     must not call browser organs or runtime execution directly.
+
+25. MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK [NEXT]
+    Integrate motor proposal artifacts into the existing Brain/AgentRuntime
+    proposal path. Motor neurons still do not execute; the Sentinel spine
+    performs all real browser movement.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -214,12 +219,13 @@ BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK = implemented / locked
 BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK = implemented / locked
 BROWSER_NEURAL_OPERATOR_CORTEX_SPEC = implemented / locked
 BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION = implemented / locked
+BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH
+MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser

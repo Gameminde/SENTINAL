@@ -54,9 +54,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_LOCKED
-previous_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_LOCKED
-next_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH
+current_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_LOCKED
+previous_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_LOCKED
+next_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -106,6 +106,7 @@ Browser final capability lock runtime truth repair = CLOSED / L5 session manager
 Browser runtime failure and concurrency hardening = CLOSED
 Browser Neural Operator Cortex spec = CLOSED
 Browser neural signal graph and perception neurons = CLOSED
+Browser neural planning/risk/recovery/motor proposal neurons = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -181,6 +182,7 @@ sentinel-control/docs/browser/BROWSER_NEURAL_OPERATOR_CORTEX_SPEC.md
 sentinel-control/docs/browser/BROWSER_NEURAL_OPERATOR_CORTEX_PROGRAM_ROADMAP.md
 sentinel-control/docs/reviews/BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_REPORT.md
 sentinel-control/docs/reviews/BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_REPORT.md
+sentinel-control/docs/reviews/BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -216,7 +218,8 @@ Recommended next build sequence:
 21. BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK - DONE
 22. BROWSER_NEURAL_OPERATOR_CORTEX_SPEC - DONE
 23. BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION - DONE
-24. BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH - NEXT
+24. BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH - DONE
+25. MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK - NEXT
 ```
 
 The doctrine:

@@ -1,5 +1,51 @@
 # Current State Lock
 
+## Browser Neural Cortex V0B Motor Proposal - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the V0A signal graph and perception lock. Sentinel now
+has browser neural planning, risk, verifier, recovery, memory recall, and motor
+proposal neurons. Motor proposal integration through AgentRuntime is not
+started in this lock.
+
+```text
+current_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_LOCKED
+previous_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_LOCKED
+next_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK
+```
+
+### Browser Neural Cortex V0B Truth
+
+```text
+IntentNeuron = CLOSED
+RiskBoundaryNeuron = CLOSED
+ActionPlannerNeuron = CLOSED
+VerifierNeuron = CLOSED
+FailureRecoveryNeuron = CLOSED
+MemoryRecallNeuron = CLOSED
+MotorProposalNeuron = CLOSED
+MotorProposalArtifact = CLOSED
+Motor proposal runtime dispatch integration = NOT_STARTED
+Browser squad = NOT_STARTED
+Direct neuron execution = FORBIDDEN
+Credential unlock by neuron = FORBIDDEN
+Authority creation by neuron = FORBIDDEN
+```
+
+### Browser Neural Cortex V0B Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/planning.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/risk.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/recovery.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/motor_proposal.py
+sentinel-control/services/sentinel-core/tests/test_browser_neural_cortex_v0b_motor_proposal.py
+sentinel-control/docs/reviews/BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_REPORT.md
+```
+
 ## Browser Neural Cortex V0A Signal Graph And Perception - LOCKED
 
 Recorded at: 2026-06-02

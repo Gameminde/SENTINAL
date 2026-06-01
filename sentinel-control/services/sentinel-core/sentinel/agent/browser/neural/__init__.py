@@ -16,13 +16,24 @@ from sentinel.agent.browser.neural.perception import (
     PageStateNeuron,
     TargetGroundingNeuron,
 )
+from sentinel.agent.browser.neural.planning import ActionPlannerNeuron, IntentNeuron, MemoryRecallNeuron
+from sentinel.agent.browser.neural.recovery import FailureRecoveryNeuron, VerifierNeuron
+from sentinel.agent.browser.neural.risk import RiskBoundaryNeuron
+from sentinel.agent.browser.neural.motor_proposal import MotorProposalArtifact, MotorProposalNeuron, MotorNeuronOutputEnvelope
 
 __all__ = [
     "BrowserEvidenceBlackboard",
     "BrowserObservationNeuron",
     "BrowserSignalGraph",
     "EvidenceAuditorNeuron",
+    "ActionPlannerNeuron",
+    "FailureRecoveryNeuron",
+    "IntentNeuron",
     "LegacyBrowserEvidenceInterpreterAdapter",
+    "MemoryRecallNeuron",
+    "MotorNeuronOutputEnvelope",
+    "MotorProposalArtifact",
+    "MotorProposalNeuron",
     "NeuronActivationRecord",
     "NeuronGraphEdge",
     "NeuronInputEnvelope",
@@ -31,5 +42,7 @@ __all__ = [
     "NeuronSafetyBoundary",
     "NeuronSignal",
     "PageStateNeuron",
+    "RiskBoundaryNeuron",
     "TargetGroundingNeuron",
+    "VerifierNeuron",
 ]
