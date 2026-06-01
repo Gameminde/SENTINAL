@@ -54,9 +54,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCKED
-previous_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
-next_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC
+current_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_LOCKED
+previous_phase = BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCKED
+next_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -104,6 +104,7 @@ Browser controlled extension/WebMCP bridge L7 = CLOSED
 Browser final capability lock = CLOSED
 Browser final capability lock runtime truth repair = CLOSED / L5 session manager and all implemented L6 browser special-authority organs promoted through AgentRuntime full-stack brain path
 Browser runtime failure and concurrency hardening = CLOSED
+Browser Neural Operator Cortex spec = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -175,6 +176,9 @@ sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK_REPOR
 sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK_REPORT.md
+sentinel-control/docs/browser/BROWSER_NEURAL_OPERATOR_CORTEX_SPEC.md
+sentinel-control/docs/browser/BROWSER_NEURAL_OPERATOR_CORTEX_PROGRAM_ROADMAP.md
+sentinel-control/docs/reviews/BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -208,7 +212,8 @@ Recommended next build sequence:
 19. BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK - DONE
 20. BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK - DONE
 21. BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK - DONE
-22. BROWSER_NEURAL_OPERATOR_CORTEX_SPEC - NEXT
+22. BROWSER_NEURAL_OPERATOR_CORTEX_SPEC - DONE
+23. BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION - NEXT
 ```
 
 The doctrine:

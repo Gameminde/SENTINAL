@@ -1,5 +1,45 @@
 # Current State Lock
 
+## Browser Neural Operator Cortex Spec - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the browser runtime hardening lock. Sentinel now has a
+specification and program roadmap for the Browser Neural Operator Cortex. No
+runtime code or new execution power is added by this lock.
+
+```text
+current_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_LOCKED
+previous_phase = BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCKED
+next_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION
+```
+
+### Browser Neural Operator Cortex Spec Truth
+
+```text
+Neuron Interface Standard V0 = SPECIFIED
+Browser Signal Graph / Evidence Blackboard = SPECIFIED
+MotorProposalNeuron contract = SPECIFIED
+Memory feedback contract = SPECIFIED
+Legacy BrowserEvidenceInterpreter harvest plan = SPECIFIED
+Browser Neural Cortex runtime code = NOT_STARTED
+Browser Multi-Agent Operator Squad = NOT_STARTED
+Global Neural Fabric = NOT_STARTED
+Direct neuron-to-organ execution = FORBIDDEN
+Credential unlock by neuron = FORBIDDEN
+Authority creation by neuron = FORBIDDEN
+```
+
+### Browser Neural Operator Cortex Spec Artifacts
+
+```text
+sentinel-control/docs/browser/BROWSER_NEURAL_OPERATOR_CORTEX_SPEC.md
+sentinel-control/docs/browser/BROWSER_NEURAL_OPERATOR_CORTEX_PROGRAM_ROADMAP.md
+sentinel-control/docs/reviews/BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_REPORT.md
+```
+
 ## Browser Runtime Failure And Concurrency Hardening - LOCKED
 
 Recorded at: 2026-06-02

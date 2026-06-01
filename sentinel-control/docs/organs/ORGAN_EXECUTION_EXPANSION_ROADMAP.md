@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
-previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
-next_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC
+current_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_LOCKED
+previous_phase = BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCKED
+next_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION
 ```
 
 Strategic correction:
@@ -145,11 +145,15 @@ Revised browser organ roadmap:
     before neural cortex or squad work. Failures now return governed results
     instead of escaping the Sentinel receipt/FinalGate-compatible path.
 
-22. BROWSER_NEURAL_OPERATOR_CORTEX_SPEC [NEXT]
+22. BROWSER_NEURAL_OPERATOR_CORTEX_SPEC [DONE]
     Define the Sentinel-native browser neural cortex: neuron interface,
     signal graph, evidence blackboard, motor proposal contract, memory feedback
     contract, and harvest plan for the existing legacy browser cortex.
     Neurons think, signal, and propose; they do not execute.
+
+23. BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION [NEXT]
+    Implement only the append-only signal graph, evidence blackboard, and
+    perception neurons. No motor dispatch integration and no new browser power.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -203,12 +207,13 @@ BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCK = implemented / locked
 BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK = implemented / locked
 BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK = implemented / locked
 BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK = implemented / locked
+BROWSER_NEURAL_OPERATOR_CORTEX_SPEC = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_NEURAL_OPERATOR_CORTEX_SPEC
+BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
