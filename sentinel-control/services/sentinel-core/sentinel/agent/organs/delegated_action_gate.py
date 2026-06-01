@@ -455,6 +455,10 @@ def _decision(
         if candidate.organ_kind is OrganProposalKind.BROWSER:
             return DelegatedActionGateDecision.ALLOWED
         return DelegatedActionGateDecision.NEEDS_USER_REVIEW
+    if candidate.action_level_candidate is DelegatedActionLevel.L5 and candidate.organ_kind is OrganProposalKind.BROWSER:
+        return DelegatedActionGateDecision.ALLOWED
+    if candidate.action_level_candidate is DelegatedActionLevel.L6 and candidate.organ_kind is OrganProposalKind.BROWSER:
+        return DelegatedActionGateDecision.ALLOWED
     if candidate.action_level_candidate in {DelegatedActionLevel.L5, DelegatedActionLevel.L6, DelegatedActionLevel.L7}:
         return DelegatedActionGateDecision.NEEDS_USER_REVIEW
     return DelegatedActionGateDecision.ALLOWED

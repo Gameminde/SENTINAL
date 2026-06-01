@@ -1,5 +1,69 @@
 # Current State Lock
 
+## Browser Runtime Unification L5/L6 Form Submit Dispatch - LOCKED
+
+Recorded at: 2026-06-01
+
+Branch: `main`
+
+This section corrects the browser capability truth after the audit finding:
+powerful browser organs existed, but the canonical runtime execution path had
+not promoted live L5 browser control or any L6 special-authority browser action.
+Sentinel now routes the existing live browser session manager through:
+
+```text
+OrganDispatcher
+-> DelegatedActionGate
+-> execute_organ_runtime_request
+-> BrowserSessionManagerL5Live
+-> BrowserSessionReceipt
+-> BrowserSessionFinalGateCertificate
+```
+
+and routes the first L6 special-authority browser action through:
+
+```text
+OrganDispatcher
+-> DelegatedActionGate
+-> execute_organ_runtime_request
+-> BrowserFormSubmitSpecialAuthorityL6
+-> BrowserFormSubmitReceipt
+-> BrowserFormSubmitFinalGateCertificate
+```
+
+```text
+current_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
+previous_phase = BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCKED
+next_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK
+```
+
+### Browser Runtime Unification Truth
+
+```text
+PowerLab operator_browser_l5_template executable config = CLOSED
+OrganRuntimeExecutionMode.BROWSER_LIVE_OPERATOR_ONLY = CLOSED
+OrganRuntimeExecutionMode.BROWSER_L5_L6_SPECIAL_AUTHORITY_ONLY = CLOSED
+browser_session_manager L5 through runtime_execution = CLOSED
+browser_session_manager L5 through OrganDispatcher = CLOSED
+browser_session_manager L5 through AgentRuntime.run explicit opt-in = CLOSED
+browser session open -> observe -> close preserved across runtime calls = CLOSED
+browser_form_submit_special_authority L6 through runtime_execution = CLOSED
+browser_form_submit_special_authority L6 through OrganDispatcher = CLOSED
+dispatcher session-id binding from prior browser receipts = CLOSED
+AgentRuntime default-off posture = CLOSED
+L6 login/file quarantine/JS through runtime = NOT_STARTED
+Generic browser submit/login/upload/download/credential use = NOT_STARTED
+```
+
+### Runtime Unification Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py
+sentinel-control/services/sentinel-core/tests/test_browser_runtime_unification_l5_l6_dispatch_lock.py
+sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK_REPORT.md
+```
+
 ## Browser JavaScript Sandbox Special Authority L6 - LOCKED
 
 Recorded at: 2026-05-31

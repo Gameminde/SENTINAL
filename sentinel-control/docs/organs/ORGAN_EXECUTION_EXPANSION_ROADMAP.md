@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_FINAL_CAPABILITY_LOCKED
-previous_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_LOCKED
-next_phase = POWER_ACTUATOR_FABRIC_NEXT_WAVE
+current_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
+previous_phase = BROWSER_FINAL_CAPABILITY_LOCKED
+next_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK
 ```
 
 Strategic correction:
@@ -99,6 +99,25 @@ Revised browser organ roadmap:
 
 16. BROWSER_FINAL_CAPABILITY_LOCK [DONE]
     Final certification: Browser Organ elite.
+
+17. BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK [DONE]
+    Correct the audit-discovered gap between existing browser organs and the
+    canonical Sentinel body. `operator_browser_l5_template` now creates an
+    executable default-off L5 runtime config, and `browser_session_manager`
+    routes through AgentRuntime.run / OrganDispatcher -> DelegatedActionGate ->
+    execute_organ_runtime_request -> BrowserSessionManagerL5Live -> receipt ->
+    BrowserSessionFinalGateCertificate. Runtime-preserved open -> observe ->
+    close is covered.
+
+18. BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCK [DONE]
+    Promote the first L6 special-authority browser organ through the same
+    canonical body. `browser_form_submit_l6_template` now creates an explicit
+    default-off runtime config, and non-sensitive form submit routes through
+    OrganDispatcher -> DelegatedActionGate -> execute_organ_runtime_request ->
+    BrowserFormSubmitSpecialAuthorityL6 -> receipt ->
+    BrowserFormSubmitFinalGateCertificate. Dispatcher sequences can bind submit
+    and close steps to prior browser session receipts. L6 login, file
+    quarantine, and JS sandbox runtime promotion remain next.
 ```
 
 ## Strategic Update - 2026-05-26

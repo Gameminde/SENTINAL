@@ -249,6 +249,61 @@ def build_power_lab_runtime_config(
             contract_version="power-lab-runtime-v0",
         )
 
+    if preset_model.name == "operator_browser_l5_template":
+        return OrganRuntimeExecutionConfig(
+            enabled=True,
+            organ_dispatch_enabled=True,
+            brain_native_candidate_source_enabled=enable_brain_native,
+            temporary_candidate_bridge_enabled=False,
+            memory_feedback_enabled=enable_memory_feedback,
+            mode=OrganRuntimeExecutionMode.BROWSER_LIVE_OPERATOR_ONLY,
+            allowed_action_levels=[DelegatedActionLevel.L5],
+            allowed_organs=["browser_session_manager"],
+            allow_l2=False,
+            allow_l3=False,
+            allow_browser_readonly=False,
+            allow_browser_preparation=False,
+            allow_browser_semantic_extraction=False,
+            allow_browser_live_operator=True,
+            browser_persist_sessions=True,
+            deny_external_actions=False,
+            deny_network=False,
+            deny_credentials=True,
+            deny_shell=True,
+            deny_browser=False,
+            deny_channel=True,
+            deny_api=True,
+            contract_version="power-lab-browser-l5-runtime-v1",
+        )
+
+    if preset_model.name == "browser_form_submit_l6_template":
+        return OrganRuntimeExecutionConfig(
+            enabled=True,
+            organ_dispatch_enabled=True,
+            brain_native_candidate_source_enabled=enable_brain_native,
+            temporary_candidate_bridge_enabled=False,
+            memory_feedback_enabled=enable_memory_feedback,
+            mode=OrganRuntimeExecutionMode.BROWSER_L5_L6_SPECIAL_AUTHORITY_ONLY,
+            allowed_action_levels=[DelegatedActionLevel.L5, DelegatedActionLevel.L6],
+            allowed_organs=["browser_session_manager", "browser_form_submit_special_authority"],
+            allow_l2=False,
+            allow_l3=False,
+            allow_browser_readonly=False,
+            allow_browser_preparation=False,
+            allow_browser_semantic_extraction=False,
+            allow_browser_live_operator=True,
+            allow_browser_special_authority=True,
+            browser_persist_sessions=True,
+            deny_external_actions=False,
+            deny_network=False,
+            deny_credentials=True,
+            deny_shell=True,
+            deny_browser=False,
+            deny_channel=True,
+            deny_api=True,
+            contract_version="power-lab-browser-form-submit-l6-runtime-v1",
+        )
+
     raise PowerLabMissionRejected(
         f"preset {preset_model.name!r} is a non-executing template in SENTINEL_POWER_LAB_RUNTIME_V0"
     )

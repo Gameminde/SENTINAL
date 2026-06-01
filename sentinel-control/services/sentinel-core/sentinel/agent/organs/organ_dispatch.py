@@ -42,9 +42,18 @@ from sentinel.agent.organs.browser_preparation_organ_v1 import (
     BrowserPreparationTargetRef,
     L4BrowserPreparationExecutorContract,
 )
+from sentinel.agent.organs.browser_form_submit_special_authority_l6 import (
+    BrowserFormSubmitContract,
+    BrowserFormSubmitRequest,
+)
 from sentinel.agent.organs.browser_semantic_extraction_organ_v1 import (
     BrowserSemanticExtractionRequest,
     L4BrowserSemanticExtractionContract,
+)
+from sentinel.agent.organs.browser_session_manager_l5_live import (
+    BrowserSessionActionKind,
+    BrowserSessionContract,
+    BrowserSessionRequest,
 )
 from sentinel.agent.organs.delegated_action_gate import (
     DelegatedActionGate,
@@ -464,6 +473,7 @@ class OrganDispatcher:
             runtime_organ_kind=runtime_organ_kind,
             organ_contracts=organ_contracts or {},
             prior_candidate_results=prior_candidate_results or [],
+            authority_envelope=authority_envelope,
         )
 
         if sub_request is None:
@@ -488,6 +498,8 @@ class OrganDispatcher:
             browser_readonly_request=sub_request if runtime_organ_kind == "browser_readonly" else None,
             browser_preparation_request=sub_request if runtime_organ_kind == "browser_preparation" else None,
             browser_semantic_extraction_request=sub_request if runtime_organ_kind == "browser_semantic_extraction" else None,
+            browser_session_request=sub_request if runtime_organ_kind == "browser_session_manager" else None,
+            browser_form_submit_request=sub_request if runtime_organ_kind == "browser_form_submit_special_authority" else None,
             metadata={
                 "source_candidate_id": candidate.candidate_id,
                 "source_proposal_id": candidate.source_proposal_id,
@@ -516,7 +528,8 @@ def _build_typed_sub_request(
     runtime_organ_kind: str,
     organ_contracts: dict[str, dict[str, Any]],
     prior_candidate_results: list[OrganDispatchCandidateResult],
-) -> L2LocalArtifactRequest | L3WorkspaceRequest | BrowserReadOnlyRequest | BrowserPreparationRequest | BrowserSemanticExtractionRequest | Any | None:
+    authority_envelope: MissionAuthorityEnvelope | None = None,
+) -> L2LocalArtifactRequest | L3WorkspaceRequest | BrowserReadOnlyRequest | BrowserPreparationRequest | BrowserSemanticExtractionRequest | BrowserSessionRequest | BrowserFormSubmitRequest | Any | None:
     """Build the correct typed sub-request from raw candidate data.
 
     The raw_candidate dict contains the brain's proposed parameters (target_path,
@@ -572,6 +585,26 @@ def _build_typed_sub_request(
             lane=lane,
             mission_id=mission_id,
             organ_contracts=organ_contracts,
+            prior_candidate_results=prior_candidate_results,
+        )
+
+    if runtime_organ_kind == "browser_session_manager":
+        return _build_browser_session_request(
+            raw_candidate=raw_candidate,
+            bridged_candidate=bridged_candidate,
+            mission_id=mission_id,
+            organ_contracts=organ_contracts,
+            authority_envelope=authority_envelope,
+            prior_candidate_results=prior_candidate_results,
+        )
+
+    if runtime_organ_kind == "browser_form_submit_special_authority":
+        return _build_browser_form_submit_request(
+            raw_candidate=raw_candidate,
+            bridged_candidate=bridged_candidate,
+            mission_id=mission_id,
+            organ_contracts=organ_contracts,
+            authority_envelope=authority_envelope,
             prior_candidate_results=prior_candidate_results,
         )
 
@@ -844,6 +877,154 @@ def _build_browser_semantic_extraction_request(
         contract=contract,
         delegated_lane=lane,
     )
+
+
+def _build_browser_session_request(
+    *,
+    raw_candidate: dict[str, Any],
+    bridged_candidate: BaseOrganCandidate,
+    mission_id: str,
+    organ_contracts: dict[str, dict[str, Any]],
+    authority_envelope: MissionAuthorityEnvelope | None,
+    prior_candidate_results: list[OrganDispatchCandidateResult],
+) -> BrowserSessionRequest | None:
+    if authority_envelope is None:
+        return None
+    url = raw_candidate.get("url") or raw_candidate.get("requested_url") or raw_candidate.get("target_url")
+    if not url:
+        return None
+    contract_data = (
+        organ_contracts.get("browser_session_manager")
+        or organ_contracts.get("browser")
+        or {}
+    )
+    allowed_domains = (
+        raw_candidate.get("allowed_domains")
+        or contract_data.get("allowed_domains")
+        or authority_envelope.allowed_domains
+        or []
+    )
+    action_kind = _browser_session_action_kind(raw_candidate.get("action_kind") or raw_candidate.get("browser_action_kind") or "open")
+    allowed_action_kinds = _browser_session_allowed_action_kinds(raw_candidate, contract_data, action_kind)
+    session_id = raw_candidate.get("session_id")
+    if not session_id and action_kind in {BrowserSessionActionKind.OBSERVE, BrowserSessionActionKind.CLOSE}:
+        session_id = _latest_browser_session_id(prior_candidate_results)
+    try:
+        contract = BrowserSessionContract(
+            mission_id=mission_id,
+            allowed_domains=[str(domain) for domain in allowed_domains],
+            allowed_action_kinds=allowed_action_kinds,
+            max_steps=int(contract_data.get("max_steps") or raw_candidate.get("max_steps") or 10),
+        )
+        return BrowserSessionRequest(
+            mission=authority_envelope,
+            url=str(url),
+            contract=contract,
+            session_id=session_id,
+            action_kind=action_kind,
+            target_role=raw_candidate.get("target_role"),
+            target_name=raw_candidate.get("target_name"),
+            target_nth=int(raw_candidate.get("target_nth") or 0),
+            text=raw_candidate.get("text"),
+            values=[str(value) for value in raw_candidate.get("values", [])],
+            timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
+            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+        )
+    except (TypeError, ValueError, ValidationError):
+        return None
+
+
+def _browser_session_action_kind(value: Any) -> BrowserSessionActionKind:
+    try:
+        return value if isinstance(value, BrowserSessionActionKind) else BrowserSessionActionKind(str(value))
+    except ValueError:
+        return BrowserSessionActionKind.OPEN
+
+
+def _browser_session_allowed_action_kinds(
+    raw_candidate: dict[str, Any],
+    contract_data: dict[str, Any],
+    action_kind: BrowserSessionActionKind,
+) -> list[BrowserSessionActionKind]:
+    raw_values = raw_candidate.get("allowed_action_kinds") or contract_data.get("allowed_action_kinds") or []
+    result: list[BrowserSessionActionKind] = []
+    for value in raw_values:
+        try:
+            result.append(value if isinstance(value, BrowserSessionActionKind) else BrowserSessionActionKind(str(value)))
+        except ValueError:
+            continue
+    if action_kind not in {BrowserSessionActionKind.OPEN, BrowserSessionActionKind.OBSERVE, BrowserSessionActionKind.CLOSE}:
+        result.append(action_kind)
+    return list(dict.fromkeys(result))
+
+
+def _build_browser_form_submit_request(
+    *,
+    raw_candidate: dict[str, Any],
+    bridged_candidate: BaseOrganCandidate,
+    mission_id: str,
+    organ_contracts: dict[str, dict[str, Any]],
+    authority_envelope: MissionAuthorityEnvelope | None,
+    prior_candidate_results: list[OrganDispatchCandidateResult],
+) -> BrowserFormSubmitRequest | None:
+    if authority_envelope is None:
+        return None
+    url = raw_candidate.get("url") or raw_candidate.get("requested_url") or raw_candidate.get("target_url")
+    if not url:
+        return None
+    contract_data = (
+        organ_contracts.get("browser_form_submit_special_authority")
+        or organ_contracts.get("browser")
+        or {}
+    )
+    allowed_domains = (
+        raw_candidate.get("allowed_domains")
+        or contract_data.get("allowed_domains")
+        or authority_envelope.allowed_domains
+        or []
+    )
+    session_id = raw_candidate.get("session_id") or _latest_browser_session_id(prior_candidate_results)
+    if not session_id:
+        return None
+    try:
+        contract = BrowserFormSubmitContract(
+            mission_id=mission_id,
+            allowed_domains=[str(domain) for domain in allowed_domains],
+            allow_form_submit=bool(raw_candidate.get("allow_form_submit") or contract_data.get("allow_form_submit")),
+        )
+        return BrowserFormSubmitRequest(
+            mission=authority_envelope,
+            url=str(url),
+            session_id=str(session_id),
+            contract=contract,
+            target_role=str(raw_candidate.get("target_role") or "button"),
+            target_name=raw_candidate.get("target_name"),
+            target_nth=int(raw_candidate.get("target_nth") or 0),
+            source_snapshot_hash=raw_candidate.get("source_snapshot_hash") or _latest_browser_snapshot_hash(prior_candidate_results),
+            operator_note=raw_candidate.get("operator_note"),
+            timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
+            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+        )
+    except (TypeError, ValueError, ValidationError):
+        return None
+
+
+def _latest_browser_session_id(prior_candidate_results: list[OrganDispatchCandidateResult]) -> str | None:
+    for result in reversed(prior_candidate_results):
+        receipt = result.execution_result.receipt if result.execution_result is not None else None
+        session_id = getattr(receipt, "session_id", None)
+        if session_id:
+            return str(session_id)
+    return None
+
+
+def _latest_browser_snapshot_hash(prior_candidate_results: list[OrganDispatchCandidateResult]) -> str | None:
+    for result in reversed(prior_candidate_results):
+        receipt = result.execution_result.receipt if result.execution_result is not None else None
+        snapshot_hash = getattr(receipt, "before_snapshot_hash", None) or getattr(receipt, "after_snapshot_hash", None)
+        if snapshot_hash:
+            return str(snapshot_hash)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -1216,7 +1397,13 @@ def _resolve_browser_organ_kind(
         or raw_candidate.get("organ_runtime_kind")
         or ""
     ).strip().lower()
-    if explicit_kind in {"browser_readonly", "browser_preparation", "browser_semantic_extraction"}:
+    if explicit_kind in {
+        "browser_readonly",
+        "browser_preparation",
+        "browser_semantic_extraction",
+        "browser_session_manager",
+        "browser_form_submit_special_authority",
+    }:
         return explicit_kind
 
     # Check if gate explicitly selected a backend

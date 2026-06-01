@@ -26,7 +26,7 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-05-31
+## Current Snapshot - 2026-06-01
 
 Sentinel is no longer just a controlled-agent design document. It now has a
 default-off power kernel with a Brain -> Gate -> Organ -> Receipt -> FinalGate
@@ -53,9 +53,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_FINAL_CAPABILITY_LOCKED
-previous_phase = BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7_LOCKED
-next_phase = POWER_ACTUATOR_FABRIC_NEXT_WAVE
+current_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
+previous_phase = BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCKED
+next_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -73,6 +73,9 @@ Browser ReadOnly + Preparation + Semantic Extraction wrappers = CLOSED / opt-in
 Live browser public observation = CLOSED
 Live screenshot / DOM / accessibility evidence = CLOSED
 Persistent browser session manager = CLOSED
+Persistent browser session manager through AgentRuntime/dispatcher = CLOSED / opt-in L5
+Runtime-preserved browser session open/observe/close = CLOSED / opt-in L5
+Non-sensitive Browser Form Submit through runtime/dispatcher = CLOSED / opt-in L6
 Live L5 type/click-style controlled interaction = CLOSED
 Browser trajectory planner and self-healing target recovery = CLOSED
 Special-authority non-sensitive form submit = CLOSED
@@ -94,6 +97,7 @@ Browser account creation special authority L7 = CLOSED
 Browser observability and replay studio = CLOSED
 Browser controlled extension/WebMCP bridge L7 = CLOSED
 Browser final capability lock = CLOSED
+Browser final capability lock runtime truth repair = PARTIAL / L5 session manager and L6 form submit closed, L6 login/file/JS dispatch next
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
