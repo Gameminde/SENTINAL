@@ -317,11 +317,11 @@ class OrganDispatcher:
                 total_candidates=len(action_candidates),
             )
 
-        # Build a lookup from source_proposal_id → raw dict for sub-request building.
-        # The bridge generates candidate_id/source_proposal_id from the raw proposal dicts.
-        # We index by position so we can correlate bridged candidates back to raw data.
-        raw_by_index: dict[int, dict[str, Any]] = {
-            i: raw for i, raw in enumerate(action_candidates)
+        # Build a lookup from source_proposal_id to raw dict for sub-request building.
+        # Do not correlate by list position: the bridge is allowed to filter or
+        # reorder candidates without changing the raw proposal identity.
+        raw_by_proposal_id: dict[str, dict[str, Any]] = {
+            str(raw.get("proposal_id") or "unknown_proposal"): raw for raw in action_candidates
         }
 
         # Step 2+3: For each candidate → Gate → Build sub-request → Execute
@@ -331,7 +331,7 @@ class OrganDispatcher:
         executed = 0
         execution_failed = 0
 
-        for candidate_index, candidate in enumerate(bridge_result.candidates):
+        for candidate in bridge_result.candidates:
             # Step 2: DelegatedActionGate.decide() — MANDATORY, no bypass
             gate_input = DelegatedActionGateInput(
                 mission_id=mission_id,
@@ -361,7 +361,7 @@ class OrganDispatcher:
             gate_allowed += 1
 
             # Get the raw dict for this candidate (for extracting typed params)
-            raw_candidate = raw_by_index.get(candidate_index, {})
+            raw_candidate = raw_by_proposal_id.get(candidate.source_proposal_id, {})
 
             # Step 3: execute_organ_runtime_request() — builds contract + receipt + FinalGate
             exec_result = self._execute_candidate(

@@ -490,6 +490,18 @@ class BrowserSessionManagerL5Live:
         rec = receipt if isinstance(receipt, BrowserSessionReceipt) else BrowserSessionReceipt.model_validate(receipt)
         return render_browser_session_receipt_as_untrusted_context(rec)
 
+    def produce_blocked_result(
+        self,
+        request: BrowserSessionRequest | dict[str, Any],
+        *,
+        reason: str,
+        action_kind: str | None = None,
+    ) -> BrowserSessionResult:
+        req = _coerce_request(request)
+        action = action_kind or _action_value(req.action_kind)
+        safety = BrowserSessionSafetyValidationResult(valid=False, reasons=[reason])
+        return self._blocked(req, safety, reason, action)
+
     def snapshot_for_session(self, *, mission_id: str, session_id: str, timeout_ms: int = 15_000) -> BrowserAccessibilitySnapshot | None:
         session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:

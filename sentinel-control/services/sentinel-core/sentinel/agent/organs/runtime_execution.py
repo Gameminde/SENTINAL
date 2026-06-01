@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from threading import RLock
 from typing import Any
 
 from pydantic import Field, model_validator
@@ -9,55 +10,73 @@ from pydantic import Field, model_validator
 from sentinel.agent.llm.proposals import DelegatedActionLevel
 from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_hash
 from sentinel.agent.organs.browser_preparation_organ_v1 import (
+    BrowserPreparationAttemptStatus,
     BrowserPreparationFinalGate,
     BrowserPreparationFinalGateCertificate,
     BrowserPreparationFinalGateDecision,
     BrowserPreparationOrganV1,
     BrowserPreparationRequest,
     BrowserPreparationResult,
+    BrowserPreparationSafetyValidationResult,
     L4BrowserPreparationExecutorContract,
 )
 from sentinel.agent.organs.browser_form_submit_special_authority_l6 import (
+    BrowserFormSubmitFinalGate,
     BrowserFormSubmitFinalGateCertificate,
     BrowserFormSubmitRequest,
     BrowserFormSubmitResult,
+    BrowserFormSubmitSafetyValidationResult,
+    BrowserFormSubmitStatus,
     BrowserFormSubmitSpecialAuthorityL6,
 )
 from sentinel.agent.organs.browser_download_upload_quarantine_l6 import (
+    BrowserFileQuarantineFinalGate,
     BrowserFileQuarantineFinalGateCertificate,
     BrowserFileQuarantineOrganL6,
     BrowserFileQuarantineRequest,
     BrowserFileQuarantineResult,
+    BrowserFileQuarantineSafetyValidationResult,
+    BrowserFileQuarantineStatus,
 )
 from sentinel.agent.organs.browser_js_sandbox_special_authority_l6 import (
+    BrowserJSSandboxFinalGate,
     BrowserJSSandboxFinalGateCertificate,
     BrowserJSSandboxOrganL6,
     BrowserJSSandboxRequest,
     BrowserJSSandboxResult,
+    BrowserJSSandboxSafetyValidationResult,
+    BrowserJSSandboxStatus,
 )
 from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
     BrowserLoginCredentialSessionBrokerL6,
+    BrowserLoginCredentialSessionFinalGate,
     BrowserLoginCredentialSessionFinalGateCertificate,
     BrowserLoginCredentialSessionRequest,
     BrowserLoginCredentialSessionResult,
+    BrowserLoginCredentialSessionSafetyValidationResult,
+    BrowserLoginCredentialSessionStatus,
     EphemeralBrowserCredentialProvider,
 )
 from sentinel.agent.organs.browser_readonly_organ_v1 import (
+    BrowserReadOnlyAttemptStatus,
     BrowserReadOnlyFinalGate,
     BrowserReadOnlyFinalGateCertificate,
     BrowserReadOnlyFinalGateDecision,
     BrowserReadOnlyOrganV1,
     BrowserReadOnlyRequest,
     BrowserReadOnlyResult,
+    BrowserReadOnlySafetyValidationResult,
     L4BrowserReadOnlyExecutorContract,
 )
 from sentinel.agent.organs.browser_semantic_extraction_organ_v1 import (
+    BrowserSemanticExtractionAttemptStatus,
     BrowserSemanticExtractionFinalGate,
     BrowserSemanticExtractionFinalGateCertificate,
     BrowserSemanticExtractionFinalGateDecision,
     BrowserSemanticExtractionOrganV1,
     BrowserSemanticExtractionRequest,
     BrowserSemanticExtractionResult,
+    BrowserSemanticExtractionSafetyValidationResult,
     L4BrowserSemanticExtractionContract,
 )
 from sentinel.agent.organs.browser_session_manager_l5_live import (
@@ -120,6 +139,7 @@ _ALLOWED_RUNTIME_EXECUTION_EFFECTS = frozenset(
 )
 
 _BROWSER_SESSION_MANAGERS: dict[str, BrowserSessionManagerL5Live] = {}
+_BROWSER_SESSION_MANAGERS_LOCK = RLock()
 
 
 def utc_now() -> datetime:
@@ -631,7 +651,15 @@ def _execute_browser_readonly(
             input_hash=input_hash,
             blocked_reason=readonly_reason,
         )
-    executor_result = BrowserReadOnlyOrganV1(fetcher=browser_readonly_fetcher).observe(readonly_request)
+    organ = BrowserReadOnlyOrganV1(fetcher=browser_readonly_fetcher)
+    try:
+        executor_result = organ.observe(readonly_request)
+    except Exception as exc:
+        executor_result = _browser_readonly_exception_result(
+            organ=organ,
+            request=readonly_request,
+            reason=_browser_executor_exception_reason("browser_readonly", exc),
+        )
     return _certify_browser_readonly_result(
         request=request,
         config=config,
@@ -675,7 +703,15 @@ def _execute_browser_preparation(
             input_hash=input_hash,
             blocked_reason=preparation_reason,
         )
-    executor_result = BrowserPreparationOrganV1().prepare(preparation_request)
+    organ = BrowserPreparationOrganV1()
+    try:
+        executor_result = organ.prepare(preparation_request)
+    except Exception as exc:
+        executor_result = _browser_preparation_exception_result(
+            organ=organ,
+            request=preparation_request,
+            reason=_browser_executor_exception_reason("browser_preparation", exc),
+        )
     return _certify_browser_preparation_result(
         request=request,
         config=config,
@@ -719,7 +755,15 @@ def _execute_browser_semantic_extraction(
             input_hash=input_hash,
             blocked_reason=semantic_reason,
         )
-    executor_result = BrowserSemanticExtractionOrganV1().observe(semantic_request)
+    organ = BrowserSemanticExtractionOrganV1()
+    try:
+        executor_result = organ.observe(semantic_request)
+    except Exception as exc:
+        executor_result = _browser_semantic_exception_result(
+            organ=organ,
+            request=semantic_request,
+            reason=_browser_executor_exception_reason("browser_semantic_extraction", exc),
+        )
     return _certify_browser_semantic_extraction_result(
         request=request,
         config=config,
@@ -773,12 +817,27 @@ def _execute_browser_session_manager(
             executor_result=executor_result,
             receipt=executor_result.receipt,
         )
+    except Exception as exc:
+        executor_result = manager.produce_blocked_result(
+            session_request,
+            reason=_browser_executor_exception_reason("browser_session_manager", exc),
+            action_kind=action,
+        )
+        return _certify_browser_session_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            executor_result=executor_result,
+            receipt=executor_result.receipt,
+        )
     finally:
         if not config.browser_persist_sessions:
             manager.close_all()
         elif action == BrowserSessionActionKind.CLOSE.value:
             manager.close_all()
-            _BROWSER_SESSION_MANAGERS.pop(manager_key, None)
+            with _BROWSER_SESSION_MANAGERS_LOCK:
+                _BROWSER_SESSION_MANAGERS.pop(manager_key, None)
 
 
 def _browser_session_manager_for_runtime(
@@ -793,20 +852,21 @@ def _browser_session_manager_for_runtime(
             "engine": config.browser_engine,
         }
     )
-    if config.browser_persist_sessions and key in _BROWSER_SESSION_MANAGERS:
-        return key, _BROWSER_SESSION_MANAGERS[key]
-    manager = BrowserSessionManagerL5Live(
-        capture_root=capture_root,
-        engine=config.browser_engine,
-        document_fixtures=dict(config.browser_document_fixtures),
-        headless=config.browser_headless,
-        accept_downloads=config.browser_accept_downloads,
-        viewport_width=config.browser_viewport_width,
-        viewport_height=config.browser_viewport_height,
-    )
-    if config.browser_persist_sessions:
-        _BROWSER_SESSION_MANAGERS[key] = manager
-    return key, manager
+    with _BROWSER_SESSION_MANAGERS_LOCK:
+        if config.browser_persist_sessions and key in _BROWSER_SESSION_MANAGERS:
+            return key, _BROWSER_SESSION_MANAGERS[key]
+        manager = BrowserSessionManagerL5Live(
+            capture_root=capture_root,
+            engine=config.browser_engine,
+            document_fixtures=dict(config.browser_document_fixtures),
+            headless=config.browser_headless,
+            accept_downloads=config.browser_accept_downloads,
+            viewport_width=config.browser_viewport_width,
+            viewport_height=config.browser_viewport_height,
+        )
+        if config.browser_persist_sessions:
+            _BROWSER_SESSION_MANAGERS[key] = manager
+        return key, manager
 
 
 def _execute_browser_form_submit(
@@ -833,8 +893,16 @@ def _execute_browser_form_submit(
             input_hash=input_hash,
             blocked_reason=submit_reason,
         )
-    _, manager = _browser_session_manager_for_runtime(request, config)
-    executor_result = BrowserFormSubmitSpecialAuthorityL6().execute(submit_request, session_manager=manager)
+    organ = BrowserFormSubmitSpecialAuthorityL6()
+    try:
+        _, manager = _browser_session_manager_for_runtime(request, config)
+        executor_result = organ.execute(submit_request, session_manager=manager)
+    except Exception as exc:
+        executor_result = _browser_form_submit_exception_result(
+            organ=organ,
+            request=submit_request,
+            reason=_browser_executor_exception_reason("browser_form_submit_special_authority", exc),
+        )
     return _certify_browser_form_submit_result(
         request=request,
         config=config,
@@ -869,17 +937,25 @@ def _execute_browser_login(
             input_hash=input_hash,
             blocked_reason=login_reason,
         )
-    _, manager = _browser_session_manager_for_runtime(request, config)
+    organ = BrowserLoginCredentialSessionBrokerL6()
     provider = (
         EphemeralBrowserCredentialProvider(dict(config.browser_ephemeral_credentials))
         if config.browser_ephemeral_credentials
         else None
     )
-    executor_result = BrowserLoginCredentialSessionBrokerL6().execute(
-        login_request,
-        session_manager=manager,
-        credential_provider=provider,
-    )
+    try:
+        _, manager = _browser_session_manager_for_runtime(request, config)
+        executor_result = organ.execute(
+            login_request,
+            session_manager=manager,
+            credential_provider=provider,
+        )
+    except Exception as exc:
+        executor_result = _browser_login_exception_result(
+            organ=organ,
+            request=login_request,
+            reason=_browser_executor_exception_reason("browser_login_credential_session_broker", exc),
+        )
     return _certify_browser_login_result(
         request=request,
         config=config,
@@ -914,8 +990,16 @@ def _execute_browser_file_quarantine(
             input_hash=input_hash,
             blocked_reason=file_reason,
         )
-    _, manager = _browser_session_manager_for_runtime(request, config)
-    executor_result = BrowserFileQuarantineOrganL6().execute(file_request, session_manager=manager)
+    organ = BrowserFileQuarantineOrganL6()
+    try:
+        _, manager = _browser_session_manager_for_runtime(request, config)
+        executor_result = organ.execute(file_request, session_manager=manager)
+    except Exception as exc:
+        executor_result = _browser_file_quarantine_exception_result(
+            organ=organ,
+            request=file_request,
+            reason=_browser_executor_exception_reason("browser_download_upload_quarantine", exc),
+        )
     return _certify_browser_file_quarantine_result(
         request=request,
         config=config,
@@ -950,8 +1034,16 @@ def _execute_browser_js_sandbox(
             input_hash=input_hash,
             blocked_reason=js_reason,
         )
-    _, manager = _browser_session_manager_for_runtime(request, config)
-    executor_result = BrowserJSSandboxOrganL6().execute(js_request, session_manager=manager)
+    organ = BrowserJSSandboxOrganL6()
+    try:
+        _, manager = _browser_session_manager_for_runtime(request, config)
+        executor_result = organ.execute(js_request, session_manager=manager)
+    except Exception as exc:
+        executor_result = _browser_js_sandbox_exception_result(
+            organ=organ,
+            request=js_request,
+            reason=_browser_executor_exception_reason("browser_js_sandbox_special_authority", exc),
+        )
     return _certify_browser_js_sandbox_result(
         request=request,
         config=config,
@@ -959,6 +1051,170 @@ def _execute_browser_js_sandbox(
         input_hash=input_hash,
         executor_result=executor_result,
         receipt=executor_result.receipt,
+    )
+
+
+def _browser_executor_exception_reason(organ_kind: str, exc: Exception) -> str:
+    return f"{organ_kind}_executor_exception:{type(exc).__name__}:{stable_hash(str(exc))[:12]}"
+
+
+def _browser_readonly_exception_result(
+    *,
+    organ: BrowserReadOnlyOrganV1,
+    request: BrowserReadOnlyRequest,
+    reason: str,
+) -> BrowserReadOnlyResult:
+    receipt = organ.produce_receipt(
+        request,
+        attempt_status=BrowserReadOnlyAttemptStatus.FAILED,
+        blocked_reason=reason,
+    )
+    safety = BrowserReadOnlySafetyValidationResult(valid=False, reasons=[reason])
+    return BrowserReadOnlyResult(
+        mission_id=request.mission_id,
+        accepted=False,
+        attempt_status=BrowserReadOnlyAttemptStatus.FAILED,
+        reason=reason,
+        receipt=receipt,
+        safe_summary="Browser read-only runtime exception captured as untrusted failed evidence.",
+        safety_validation=safety,
+    )
+
+
+def _browser_preparation_exception_result(
+    *,
+    organ: BrowserPreparationOrganV1,
+    request: BrowserPreparationRequest,
+    reason: str,
+) -> BrowserPreparationResult:
+    receipt = organ.produce_receipt(
+        request,
+        attempt_status=BrowserPreparationAttemptStatus.FAILED,
+        blocked_reason=reason,
+    )
+    safety = BrowserPreparationSafetyValidationResult(valid=False, reasons=[reason])
+    return BrowserPreparationResult(
+        mission_id=request.mission_id,
+        accepted=False,
+        attempt_status=BrowserPreparationAttemptStatus.FAILED,
+        reason=reason,
+        receipt=receipt,
+        safe_summary="Browser preparation runtime exception captured as untrusted failed preparation data.",
+        safety_validation=safety,
+    )
+
+
+def _browser_semantic_exception_result(
+    *,
+    organ: BrowserSemanticExtractionOrganV1,
+    request: BrowserSemanticExtractionRequest,
+    reason: str,
+) -> BrowserSemanticExtractionResult:
+    receipt = organ.produce_receipt(
+        request,
+        attempt_status=BrowserSemanticExtractionAttemptStatus.FAILED,
+        blocked_reason=reason,
+    )
+    safety = BrowserSemanticExtractionSafetyValidationResult(valid=False, reasons=[reason])
+    return BrowserSemanticExtractionResult(
+        mission_id=request.mission_id,
+        accepted=False,
+        attempt_status=BrowserSemanticExtractionAttemptStatus.FAILED,
+        reason=reason,
+        receipt=receipt,
+        evidence_cards=[],
+        evidence_bound_claims=[],
+        safe_summary="Browser semantic runtime exception captured as untrusted failed evidence data.",
+        safety_validation=safety,
+    )
+
+
+def _browser_form_submit_exception_result(
+    *,
+    organ: BrowserFormSubmitSpecialAuthorityL6,
+    request: BrowserFormSubmitRequest,
+    reason: str,
+) -> BrowserFormSubmitResult:
+    receipt = organ.produce_receipt(request, blocked_reason=reason)
+    certificate = BrowserFormSubmitFinalGate().certify(receipt)
+    receipt.finalgate_verified = certificate.certified
+    receipt.finalgate_certificate_id = certificate.certificate_id
+    return BrowserFormSubmitResult(
+        accepted=False,
+        status=BrowserFormSubmitStatus.BLOCKED,
+        reason=reason,
+        mission_id=request.mission.id,
+        session_id=request.session_id,
+        receipt=receipt,
+        finalgate_certificate=certificate,
+        safety_validation=BrowserFormSubmitSafetyValidationResult(valid=False, reasons=[reason]),
+    )
+
+
+def _browser_login_exception_result(
+    *,
+    organ: BrowserLoginCredentialSessionBrokerL6,
+    request: BrowserLoginCredentialSessionRequest,
+    reason: str,
+) -> BrowserLoginCredentialSessionResult:
+    receipt = organ.produce_receipt(request, blocked_reason=reason)
+    certificate = BrowserLoginCredentialSessionFinalGate().certify(receipt)
+    receipt.finalgate_verified = certificate.certified
+    receipt.finalgate_certificate_id = certificate.certificate_id
+    return BrowserLoginCredentialSessionResult(
+        accepted=False,
+        status=BrowserLoginCredentialSessionStatus.BLOCKED,
+        reason=reason,
+        mission_id=request.mission.id,
+        session_id=request.session_id,
+        receipt=receipt,
+        finalgate_certificate=certificate,
+        credential_proofs=[],
+        safety_validation=BrowserLoginCredentialSessionSafetyValidationResult(valid=False, reasons=[reason]),
+    )
+
+
+def _browser_file_quarantine_exception_result(
+    *,
+    organ: BrowserFileQuarantineOrganL6,
+    request: BrowserFileQuarantineRequest,
+    reason: str,
+) -> BrowserFileQuarantineResult:
+    receipt = organ.produce_receipt(request, blocked_reason=reason)
+    certificate = BrowserFileQuarantineFinalGate().certify(receipt)
+    receipt.finalgate_verified = certificate.certified
+    receipt.finalgate_certificate_id = certificate.certificate_id
+    return BrowserFileQuarantineResult(
+        accepted=False,
+        status=BrowserFileQuarantineStatus.BLOCKED,
+        reason=reason,
+        mission_id=request.mission.id,
+        session_id=request.session_id,
+        receipt=receipt,
+        finalgate_certificate=certificate,
+        safety_validation=BrowserFileQuarantineSafetyValidationResult(valid=False, reasons=[reason]),
+    )
+
+
+def _browser_js_sandbox_exception_result(
+    *,
+    organ: BrowserJSSandboxOrganL6,
+    request: BrowserJSSandboxRequest,
+    reason: str,
+) -> BrowserJSSandboxResult:
+    receipt = organ.produce_receipt(request, blocked_reason=reason)
+    certificate = BrowserJSSandboxFinalGate().certify(receipt)
+    receipt.finalgate_verified = certificate.certified
+    receipt.finalgate_certificate_id = certificate.certificate_id
+    return BrowserJSSandboxResult(
+        accepted=False,
+        status=BrowserJSSandboxStatus.BLOCKED,
+        reason=reason,
+        mission_id=request.mission.id,
+        session_id=request.session_id,
+        receipt=receipt,
+        finalgate_certificate=certificate,
+        safety_validation=BrowserJSSandboxSafetyValidationResult(valid=False, reasons=[reason]),
     )
 
 
@@ -1355,6 +1611,8 @@ def _browser_blocked_reason(
     certified: bool,
 ) -> str:
     if receipt_blocked_reason:
+        if receipt_blocked_reason.startswith(f"{organ_kind}_"):
+            return receipt_blocked_reason
         return f"{organ_kind}_{receipt_blocked_reason}"
     if result_reason:
         return f"{organ_kind}_{result_reason}"
@@ -1432,6 +1690,8 @@ def _mode_block_reason(request: OrganRuntimeExecutionRequest, config: OrganRunti
         return None
 
     if config.mode is OrganRuntimeExecutionMode.BROWSER_L5_L6_SPECIAL_AUTHORITY_ONLY:
+        if not config.browser_persist_sessions:
+            return "browser_persist_sessions_required_for_l5_l6_special_authority"
         if request.action_level not in {DelegatedActionLevel.L5, DelegatedActionLevel.L6}:
             return "action_level_not_allowed"
         if request.action_level is DelegatedActionLevel.L5 and not config.allow_browser_live_operator:

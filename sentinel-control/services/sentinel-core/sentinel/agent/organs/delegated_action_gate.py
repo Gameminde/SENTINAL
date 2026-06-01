@@ -459,12 +459,12 @@ def _decision(
         return DelegatedActionGateDecision.BLOCKED
     if DelegatedActionGateReason.ORGAN_CONTRACT_MISSING in reasons or DelegatedActionGateReason.RECEIPT_CONTRACT_MISSING in reasons:
         return DelegatedActionGateDecision.ORGAN_CONTRACT_MISSING
-    if DelegatedActionGateReason.BUDGET_EXHAUSTED in reasons:
-        return DelegatedActionGateDecision.BUDGET_EXHAUSTED
     if DelegatedActionGateReason.MISSING_ROOT_AUTHORITY in reasons or DelegatedActionGateReason.ACTION_LEVEL_NOT_ALLOWED in reasons or DelegatedActionGateReason.ORGAN_NOT_ALLOWED in reasons:
         return DelegatedActionGateDecision.AUTHORITY_EXTENSION_REQUIRED
     if DelegatedActionGateReason.CREDENTIAL_PROOF_MISSING in reasons or DelegatedActionGateReason.CREDENTIAL_PROOF_INVALID in reasons:
         return DelegatedActionGateDecision.AUTHORITY_EXTENSION_REQUIRED
+    if DelegatedActionGateReason.BUDGET_EXHAUSTED in reasons:
+        return DelegatedActionGateDecision.BUDGET_EXHAUSTED
     if DelegatedActionGateReason.MISSING_EVIDENCE in reasons:
         return DelegatedActionGateDecision.NEEDS_MORE_EVIDENCE
     if DelegatedActionGateReason.CONTRADICTION_PRESENT in reasons or DelegatedActionGateReason.RISK_TOO_HIGH in reasons:
