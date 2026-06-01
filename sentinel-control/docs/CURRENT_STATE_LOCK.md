@@ -1,5 +1,53 @@
 # Current State Lock
 
+## Browser Neural Cortex V0A Signal Graph And Perception - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the Browser Neural Operator Cortex spec lock. Sentinel
+now has the first browser neural implementation layer: append-only signal graph,
+evidence blackboard, and perception neurons. No motor proposal integration and
+no new execution power are added by this lock.
+
+```text
+current_phase = BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_LOCKED
+previous_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC_LOCKED
+next_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH
+```
+
+### Browser Neural Cortex V0A Truth
+
+```text
+Neuron safety boundary models = CLOSED
+Browser signal graph = CLOSED
+Browser evidence blackboard = CLOSED
+BrowserObservationNeuron = CLOSED
+PageStateNeuron = CLOSED
+TargetGroundingNeuron = CLOSED
+EvidenceAuditorNeuron = CLOSED
+LegacyBrowserEvidenceInterpreter adapter = CLOSED
+MotorProposalNeuron = NOT_STARTED
+Neural-to-dispatch integration = NOT_STARTED
+Browser squad = NOT_STARTED
+Direct neuron execution = FORBIDDEN
+Credential unlock by neuron = FORBIDDEN
+Authority creation by neuron = FORBIDDEN
+```
+
+### Browser Neural Cortex V0A Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/__init__.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/models.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/signal_graph.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/blackboard.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/perception.py
+sentinel-control/services/sentinel-core/tests/test_browser_neural_cortex_v0a_signal_graph.py
+sentinel-control/docs/reviews/BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION_REPORT.md
+```
+
 ## Browser Neural Operator Cortex Spec - LOCKED
 
 Recorded at: 2026-06-02
