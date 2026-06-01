@@ -1,5 +1,48 @@
 # Current State Lock
 
+## Browser Runtime Failure And Concurrency Hardening - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the AgentRuntime full browser stack lock. Sentinel now
+has governed browser failure paths and concurrency hardening before any Browser
+Neural Operator Cortex or multi-agent browser squad work begins.
+
+```text
+current_phase = BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCKED
+previous_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
+next_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC
+```
+
+### Browser Runtime Hardening Truth
+
+```text
+CR-1 browser session cache race = CLOSED
+CR-2 L5/L6 session continuity surprise = CLOSED
+CR-3 browser executor exception without governed runtime result = CLOSED
+LR-1 Gate priority inversion = CLOSED
+LR-6 raw candidate correlation by list index = CLOSED
+Browser Neural Operator Cortex = NOT_STARTED
+Browser Multi-Agent Operator Squad = NOT_STARTED
+Global Neural Fabric = NOT_STARTED
+Generic browser login/upload/download/private session = NOT_STARTED
+Generic arbitrary JavaScript outside sandbox contract = NOT_STARTED
+API/channel/shell/desktop/payment execution = NOT_STARTED
+```
+
+### Browser Runtime Hardening Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_session_manager_l5_live.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/delegated_action_gate.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py
+sentinel-control/services/sentinel-core/tests/test_browser_runtime_failure_and_concurrency_hardening_lock.py
+sentinel-control/docs/reviews/BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK_REPORT.md
+```
+
 ## Browser Runtime AgentRuntime Full Browser Stack - LOCKED
 
 Recorded at: 2026-06-01

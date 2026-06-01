@@ -43,6 +43,7 @@ Current public/local checkpoint:
 remote = https://github.com/Gameminde/SENTINAL
 branch = main
 latest_browser_power_commit = 7e50f98 runtime: add browser js sandbox special authority l6
+latest_browser_runtime_hardening_commit = e59b78a runtime: harden browser failure and concurrency paths
 browser_quarantine_commit = 62db3ef runtime: add browser download upload quarantine l6
 browser_login_commit = 5e337b5 runtime: add browser login credential session broker l6
 browser_submit_commit = ce05852 runtime: add browser form submit special authority l6
@@ -53,9 +54,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
-previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
-next_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
+current_phase = BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCKED
+previous_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
+next_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -102,6 +103,7 @@ Browser observability and replay studio = CLOSED
 Browser controlled extension/WebMCP bridge L7 = CLOSED
 Browser final capability lock = CLOSED
 Browser final capability lock runtime truth repair = CLOSED / L5 session manager and all implemented L6 browser special-authority organs promoted through AgentRuntime full-stack brain path
+Browser runtime failure and concurrency hardening = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -137,7 +139,7 @@ Internal closed-loop runtime = real
 Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = brokered but not durably stored
-Next milestone = DevTools-grade browser intelligence, then multi-step browser autonomy
+Next milestone = Browser Neural Operator Cortex, then controlled browser squad
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -172,6 +174,7 @@ sentinel-control/docs/reviews/BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_REPO
 sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK_REPORT.md
+sentinel-control/docs/reviews/BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -204,7 +207,8 @@ Recommended next build sequence:
 18. BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCK - DONE
 19. BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK - DONE
 20. BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK - DONE
-21. BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK - NEXT
+21. BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK - DONE
+22. BROWSER_NEURAL_OPERATOR_CORTEX_SPEC - NEXT
 ```
 
 The doctrine:

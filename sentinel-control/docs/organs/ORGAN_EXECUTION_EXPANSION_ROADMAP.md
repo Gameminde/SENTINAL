@@ -14,7 +14,7 @@ Current truth:
 ```text
 current_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
 previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
-next_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
+next_phase = BROWSER_NEURAL_OPERATOR_CORTEX_SPEC
 ```
 
 Strategic correction:
@@ -24,6 +24,9 @@ Payment/spend L7 is not the immediate next pack.
 DevTools-grade browser intelligence must come first.
 BROWSER_MULTI_STEP_TASK_ORCHESTRATOR_V1 moves up because it is what turns
 browser tools into a mission-capable browser operator.
+After runtime hardening, Browser Neural Operator Cortex comes before Browser
+Multi-Agent Operator Squad so parallel agents amplify a governed signal/motor
+layer rather than bypassing it.
 ```
 
 Revised browser organ roadmap:
@@ -135,6 +138,18 @@ Revised browser organ roadmap:
     AgentRuntime ORGAN_DISPATCHING -> OrganDispatcher -> Gate -> runtime
     execution -> receipt -> FinalGate -> memory feedback -> replan-ready
     packet. The temporary user_input bridge remains disabled by default.
+
+21. BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK [DONE]
+    Harden browser runtime session cache concurrency, L5/L6 session continuity,
+    governed exception paths, Gate decision priority, and candidate correlation
+    before neural cortex or squad work. Failures now return governed results
+    instead of escaping the Sentinel receipt/FinalGate-compatible path.
+
+22. BROWSER_NEURAL_OPERATOR_CORTEX_SPEC [NEXT]
+    Define the Sentinel-native browser neural cortex: neuron interface,
+    signal graph, evidence blackboard, motor proposal contract, memory feedback
+    contract, and harvest plan for the existing legacy browser cortex.
+    Neurons think, signal, and propose; they do not execute.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -187,12 +202,13 @@ BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK = implemented / locked
 BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCK = implemented / locked
 BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK = implemented / locked
 BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK = implemented / locked
+BROWSER_RUNTIME_FAILURE_AND_CONCURRENCY_HARDENING_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
+BROWSER_NEURAL_OPERATOR_CORTEX_SPEC
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
