@@ -1,5 +1,42 @@
 # Current State Lock
 
+## Browser Neural Memory Feedback - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the motor neuron dispatch lock. Sentinel now records
+browser neural signal refs and motor proposal refs into memory feedback and the
+replan packet as context only.
+
+```text
+current_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCKED
+previous_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCKED
+next_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION
+```
+
+### Browser Neural Memory Truth
+
+```text
+browser neural signal refs in memory context = CLOSED
+browser neural motor proposal refs in replan packet = CLOSED
+RoleLoopMemoryBridge remains real memory mechanism = CLOSED
+automatic_replan_executed = false
+durable receipt ledger = NOT_STARTED
+memory grants authority = FORBIDDEN
+memory unlocks credentials = FORBIDDEN
+confidence becomes permission = FORBIDDEN
+```
+
+### Browser Neural Memory Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/runtime.py
+sentinel-control/services/sentinel-core/tests/test_browser_neural_memory_feedback_lock.py
+sentinel-control/docs/reviews/BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK_REPORT.md
+```
+
 ## Motor Neuron To Organ Dispatch - LOCKED
 
 Recorded at: 2026-06-02

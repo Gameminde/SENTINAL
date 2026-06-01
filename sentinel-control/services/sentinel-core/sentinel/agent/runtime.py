@@ -530,7 +530,15 @@ class AgentRuntime:
         for proposal in getattr(brain_cognition_result, "proposal_artifacts", []) or []:
             if not isinstance(proposal, dict):
                 continue
-            proposal_id = str(proposal.get("proposal_id") or proposal.get("id") or stable_hash(proposal)[:16])
+            proposal_id = str(proposal.get("proposal_id") or proposal.get("proposal_artifact_id") or proposal.get("id") or stable_hash(proposal)[:16])
+            neural_signal_refs = self._browser_neural_signal_refs_from_proposal(proposal)
+            evidence_refs = [
+                *[str(ref) for ref in proposal.get("evidence_refs", [])],
+                *[str(ref) for ref in proposal.get("source_evidence_refs", [])],
+            ]
+            safe_summary = str(proposal.get("safe_summary") or "Brain proposal artifact observed as data.")
+            if neural_signal_refs:
+                safe_summary = f"{safe_summary} browser_neural_signal_refs={','.join(neural_signal_refs)}"
             items.append(
                 {
                     "source_class": "proposal_artifact",
@@ -540,9 +548,9 @@ class AgentRuntime:
                     "confidence": 0.5,
                     "variance": 0.5,
                     "validity_scope": validity_scope,
-                    "evidence_refs": [str(ref) for ref in proposal.get("evidence_refs", [])],
+                    "evidence_refs": sorted(set(evidence_refs)),
                     "receipt_refs": [str(ref) for ref in proposal.get("receipt_refs", [])],
-                    "safe_summary": str(proposal.get("safe_summary") or "Brain proposal artifact observed as data."),
+                    "safe_summary": safe_summary,
                 }
             )
 
@@ -616,10 +624,14 @@ class AgentRuntime:
             if isinstance(proposal, dict):
                 receipts.append(
                     {
-                        "proposal_id": str(proposal.get("proposal_id") or stable_hash(proposal)[:16]),
+                        "proposal_id": str(proposal.get("proposal_id") or proposal.get("proposal_artifact_id") or stable_hash(proposal)[:16]),
                         "proposal_hash": stable_hash(sanitize_context_payload(proposal)),
                         "receipt_refs": [str(ref) for ref in proposal.get("receipt_refs", [])],
-                        "evidence_refs": [str(ref) for ref in proposal.get("evidence_refs", [])],
+                        "evidence_refs": [
+                            *[str(ref) for ref in proposal.get("evidence_refs", [])],
+                            *[str(ref) for ref in proposal.get("source_evidence_refs", [])],
+                        ],
+                        "browser_neural_signal_refs": AgentRuntime._browser_neural_signal_refs_from_proposal(proposal),
                         "safe_summary": str(proposal.get("safe_summary") or "Proposal artifact observed."),
                     }
                 )
@@ -720,10 +732,25 @@ class AgentRuntime:
         finalgate_refs = [ref for ref in finalgate_refs if ref]
         proposals = getattr(brain_cognition_result, "proposal_artifacts", []) or []
         proposal_refs = [
-            str(proposal.get("proposal_id") or stable_hash(sanitize_context_payload(proposal))[:16])
+            str(proposal.get("proposal_id") or proposal.get("proposal_artifact_id") or stable_hash(sanitize_context_payload(proposal))[:16])
             for proposal in proposals
             if isinstance(proposal, dict)
         ]
+        browser_neural_signal_refs = sorted(
+            {
+                ref
+                for proposal in proposals
+                if isinstance(proposal, dict)
+                for ref in self._browser_neural_signal_refs_from_proposal(proposal)
+            }
+        )
+        browser_neural_motor_proposal_refs = sorted(
+            {
+                str(proposal.get("proposal_artifact_id") or proposal.get("source_motor_proposal_id"))
+                for proposal in proposals
+                if isinstance(proposal, dict) and (proposal.get("proposal_artifact_id") or proposal.get("source_motor_proposal_id"))
+            }
+        )
         brain_ref = None
         if brain_cognition_result is not None:
             brain_ref = stable_hash(
@@ -739,6 +766,8 @@ class AgentRuntime:
             "source": "brain_native_organ_dispatch_memory_feedback",
             "brain_result_ref": brain_ref,
             "proposal_artifact_refs": proposal_refs,
+            "browser_neural_signal_refs": browser_neural_signal_refs,
+            "browser_neural_motor_proposal_refs": browser_neural_motor_proposal_refs,
             "organ_dispatch_status": organ_dispatch_result.status.value,
             "organ_dispatch_result_ref": organ_dispatch_result.trace.input_hash,
             "receipt_refs": receipt_refs,
@@ -753,10 +782,20 @@ class AgentRuntime:
                 "mission_id": envelope.id,
                 "source_replan_packet": "brain_native_candidate_source_and_memory_feedback_lock",
                 "use_memory_feedback_refs": list(memory_feedback_refs),
+                "use_browser_neural_signal_refs": browser_neural_signal_refs,
                 "automatic_replan_executed": False,
             },
             "automatic_replan_executed": False,
         }
+
+    @staticmethod
+    def _browser_neural_signal_refs_from_proposal(proposal: dict[str, Any]) -> list[str]:
+        refs: list[str] = []
+        for key in ("source_signal_refs", "browser_neural_signal_refs", "neural_signal_refs"):
+            value = proposal.get(key)
+            if isinstance(value, list):
+                refs.extend(str(ref) for ref in value)
+        return sorted(set(refs))
 
     @staticmethod
     def _extract_temporary_organ_candidates_from_user_input(dispatch_block: dict[str, Any]) -> list[dict[str, Any]]:

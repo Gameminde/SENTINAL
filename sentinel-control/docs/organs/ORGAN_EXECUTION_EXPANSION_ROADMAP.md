@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCKED
-previous_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_LOCKED
-next_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK
+current_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCKED
+previous_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCKED
+next_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION
 ```
 
 Strategic correction:
@@ -165,10 +165,14 @@ Revised browser organ roadmap:
     proposal path. Motor neurons still do not execute; the Sentinel spine
     performs all real browser movement.
 
-26. BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK [NEXT]
+26. BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK [DONE]
     Feed neural signal refs, motor proposal refs, dispatch outcomes, receipts,
     FinalGate certificates, verifier outcomes, and recovery context into memory
     as context only.
+
+27. DURABLE_RECEIPT_LEDGER_FOUNDATION [NEXT]
+    Add a minimal append-only local ledger for neural browser trace replay
+    before any browser squad amplification.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -226,12 +230,13 @@ BROWSER_NEURAL_OPERATOR_CORTEX_SPEC = implemented / locked
 BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION = implemented / locked
 BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH = implemented / locked
 MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK = implemented / locked
+BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK
+DURABLE_RECEIPT_LEDGER_FOUNDATION
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
