@@ -54,9 +54,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION_LOCKED
-previous_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCKED
-next_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
+current_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCKED
+previous_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION_LOCKED
+next_phase = BROWSER_NEURAL_GAUNTLET_LOCK
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -110,6 +110,7 @@ Browser neural planning/risk/recovery/motor proposal neurons = CLOSED
 Motor neuron proposal to OrganDispatcher path = CLOSED / opt-in
 Browser neural memory feedback context = CLOSED
 Durable local browser neural receipt ledger foundation = CLOSED
+Browser neural multi-agent operator squad = CLOSED / cognitive role views only
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -189,6 +190,7 @@ sentinel-control/docs/reviews/BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_REPORT.md
 sentinel-control/docs/reviews/MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK_REPORT.md
 sentinel-control/docs/reviews/DURABLE_RECEIPT_LEDGER_FOUNDATION_REPORT.md
+sentinel-control/docs/reviews/BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -228,7 +230,8 @@ Recommended next build sequence:
 25. MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK - DONE
 26. BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK - DONE
 27. DURABLE_RECEIPT_LEDGER_FOUNDATION - DONE
-28. BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK - NEXT
+28. BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK - DONE
+29. BROWSER_NEURAL_GAUNTLET_LOCK - NEXT
 ```
 
 The doctrine:

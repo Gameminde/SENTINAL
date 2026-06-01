@@ -1,5 +1,45 @@
 # Current State Lock
 
+## Browser Multi-Agent Operator Squad - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the durable receipt ledger foundation lock. Sentinel now
+has a browser squad layer, but each role is a cognitive view over neural
+signals and ledger events. No role executes directly.
+
+```text
+current_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCKED
+previous_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION_LOCKED
+next_phase = BROWSER_NEURAL_GAUNTLET_LOCK
+```
+
+### Browser Squad Truth
+
+```text
+Scout role = CLOSED
+Planner role = CLOSED
+Operator role = CLOSED
+Verifier role = CLOSED
+Recovery role = CLOSED
+Boundary role = CLOSED
+EvidenceAuditor role = CLOSED
+squad output ledger recording = CLOSED
+sub-agent direct browser backend access = FORBIDDEN
+sub-agent direct credential access = FORBIDDEN
+sub-agent direct organ execution = FORBIDDEN
+```
+
+### Browser Squad Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/squad.py
+sentinel-control/services/sentinel-core/tests/test_browser_multi_agent_operator_squad_lock.py
+sentinel-control/docs/reviews/BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK_REPORT.md
+```
+
 ## Durable Receipt Ledger Foundation - LOCKED
 
 Recorded at: 2026-06-02

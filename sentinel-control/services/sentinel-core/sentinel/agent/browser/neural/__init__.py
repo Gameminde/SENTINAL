@@ -24,6 +24,12 @@ from sentinel.agent.browser.neural.perception import (
 from sentinel.agent.browser.neural.planning import ActionPlannerNeuron, IntentNeuron, MemoryRecallNeuron
 from sentinel.agent.browser.neural.recovery import FailureRecoveryNeuron, VerifierNeuron
 from sentinel.agent.browser.neural.risk import RiskBoundaryNeuron
+from sentinel.agent.browser.neural.squad import (
+    BrowserNeuralOperatorSquad,
+    BrowserSquadRole,
+    BrowserSquadRoleKind,
+    BrowserSquadRoleOutput,
+)
 from sentinel.agent.browser.neural.motor_proposal import (
     MotorProposalArtifact,
     MotorProposalNeuron,
@@ -38,6 +44,10 @@ __all__ = [
     "BrowserNeuralLedgerEvent",
     "BrowserNeuralLedgerIntegrityError",
     "BrowserNeuralReceiptLedger",
+    "BrowserNeuralOperatorSquad",
+    "BrowserSquadRole",
+    "BrowserSquadRoleKind",
+    "BrowserSquadRoleOutput",
     "EvidenceAuditorNeuron",
     "ActionPlannerNeuron",
     "FailureRecoveryNeuron",
