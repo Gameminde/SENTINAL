@@ -374,14 +374,34 @@ def render_gate_result_as_untrusted_context(result: DelegatedActionGateResult) -
 
 
 def validate_delegated_action_gate_payload(payload: Any) -> DelegatedActionGateSafetyValidationResult:
-    rejected_paths = scan_forbidden_payload_flat(payload)
     sanitized = sanitize_metadata(payload)
+    safety_payload = _gate_safety_payload(sanitized)
+    rejected_paths = scan_forbidden_payload_flat(safety_payload)
     return DelegatedActionGateSafetyValidationResult(
         valid=not rejected_paths,
         reasons=["forbidden_delegated_action_gate_payload"] if rejected_paths else [],
         rejected_paths=rejected_paths,
-        payload_hash=stable_hash(sanitized),
+        payload_hash=stable_hash(safety_payload),
     )
+
+
+def _gate_safety_payload(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        result: dict[str, Any] = {}
+        for key, value in payload.items():
+            if key == "allowed_substeps" and isinstance(value, list):
+                result[key] = {
+                    "allowed_substeps_hash": stable_hash(value),
+                    "raw_payload_omitted": True,
+                }
+            else:
+                result[key] = _gate_safety_payload(value)
+        return result
+    if isinstance(payload, list):
+        return [_gate_safety_payload(item) for item in payload]
+    if isinstance(payload, tuple):
+        return tuple(_gate_safety_payload(item) for item in payload)
+    return payload
 
 
 def _result(

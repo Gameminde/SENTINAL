@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
-previous_phase = BROWSER_FINAL_CAPABILITY_LOCKED
-next_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK
+current_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
+previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
+next_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK
 ```
 
 Strategic correction:
@@ -118,6 +118,15 @@ Revised browser organ roadmap:
     BrowserFormSubmitFinalGateCertificate. Dispatcher sequences can bind submit
     and close steps to prior browser session receipts. L6 login, file
     quarantine, and JS sandbox runtime promotion remain next.
+
+19. BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK [DONE]
+    Promote the remaining implemented L6 browser special-authority organs
+    through the same canonical body. Browser login uses only an ephemeral
+    in-memory credential provider, file transfer exists only through upload
+    roots and download quarantine roots, and page-side JavaScript exists only
+    through the constrained JS sandbox contract. Generic login, generic
+    upload/download, arbitrary JS, raw credential persistence, API/channel/
+    shell/desktop/payment execution remain not started.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -171,7 +180,7 @@ BROWSER_FINAL_CAPABILITY_LOCK = implemented / locked
 Next pack:
 
 ```text
-POWER_ACTUATOR_FABRIC_NEXT_WAVE
+BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser

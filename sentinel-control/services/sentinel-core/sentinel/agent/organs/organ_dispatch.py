@@ -46,6 +46,19 @@ from sentinel.agent.organs.browser_form_submit_special_authority_l6 import (
     BrowserFormSubmitContract,
     BrowserFormSubmitRequest,
 )
+from sentinel.agent.organs.browser_download_upload_quarantine_l6 import (
+    BrowserFileQuarantineActionKind,
+    BrowserFileQuarantineContract,
+    BrowserFileQuarantineRequest,
+)
+from sentinel.agent.organs.browser_js_sandbox_special_authority_l6 import (
+    BrowserJSSandboxContract,
+    BrowserJSSandboxRequest,
+)
+from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
+    BrowserLoginCredentialSessionContract,
+    BrowserLoginCredentialSessionRequest,
+)
 from sentinel.agent.organs.browser_semantic_extraction_organ_v1 import (
     BrowserSemanticExtractionRequest,
     L4BrowserSemanticExtractionContract,
@@ -500,6 +513,9 @@ class OrganDispatcher:
             browser_semantic_extraction_request=sub_request if runtime_organ_kind == "browser_semantic_extraction" else None,
             browser_session_request=sub_request if runtime_organ_kind == "browser_session_manager" else None,
             browser_form_submit_request=sub_request if runtime_organ_kind == "browser_form_submit_special_authority" else None,
+            browser_login_request=sub_request if runtime_organ_kind == "browser_login_credential_session_broker" else None,
+            browser_file_quarantine_request=sub_request if runtime_organ_kind == "browser_download_upload_quarantine" else None,
+            browser_js_sandbox_request=sub_request if runtime_organ_kind == "browser_js_sandbox_special_authority" else None,
             metadata={
                 "source_candidate_id": candidate.candidate_id,
                 "source_proposal_id": candidate.source_proposal_id,
@@ -529,7 +545,7 @@ def _build_typed_sub_request(
     organ_contracts: dict[str, dict[str, Any]],
     prior_candidate_results: list[OrganDispatchCandidateResult],
     authority_envelope: MissionAuthorityEnvelope | None = None,
-) -> L2LocalArtifactRequest | L3WorkspaceRequest | BrowserReadOnlyRequest | BrowserPreparationRequest | BrowserSemanticExtractionRequest | BrowserSessionRequest | BrowserFormSubmitRequest | Any | None:
+) -> L2LocalArtifactRequest | L3WorkspaceRequest | BrowserReadOnlyRequest | BrowserPreparationRequest | BrowserSemanticExtractionRequest | BrowserSessionRequest | BrowserFormSubmitRequest | BrowserLoginCredentialSessionRequest | BrowserFileQuarantineRequest | BrowserJSSandboxRequest | Any | None:
     """Build the correct typed sub-request from raw candidate data.
 
     The raw_candidate dict contains the brain's proposed parameters (target_path,
@@ -602,6 +618,33 @@ def _build_typed_sub_request(
         return _build_browser_form_submit_request(
             raw_candidate=raw_candidate,
             bridged_candidate=bridged_candidate,
+            mission_id=mission_id,
+            organ_contracts=organ_contracts,
+            authority_envelope=authority_envelope,
+            prior_candidate_results=prior_candidate_results,
+        )
+
+    if runtime_organ_kind == "browser_login_credential_session_broker":
+        return _build_browser_login_request(
+            raw_candidate=raw_candidate,
+            mission_id=mission_id,
+            organ_contracts=organ_contracts,
+            authority_envelope=authority_envelope,
+            prior_candidate_results=prior_candidate_results,
+        )
+
+    if runtime_organ_kind == "browser_download_upload_quarantine":
+        return _build_browser_file_quarantine_request(
+            raw_candidate=raw_candidate,
+            mission_id=mission_id,
+            organ_contracts=organ_contracts,
+            authority_envelope=authority_envelope,
+            prior_candidate_results=prior_candidate_results,
+        )
+
+    if runtime_organ_kind == "browser_js_sandbox_special_authority":
+        return _build_browser_js_sandbox_request(
+            raw_candidate=raw_candidate,
             mission_id=mission_id,
             organ_contracts=organ_contracts,
             authority_envelope=authority_envelope,
@@ -1027,6 +1070,157 @@ def _latest_browser_snapshot_hash(prior_candidate_results: list[OrganDispatchCan
     return None
 
 
+def _build_browser_login_request(
+    *,
+    raw_candidate: dict[str, Any],
+    mission_id: str,
+    organ_contracts: dict[str, dict[str, Any]],
+    authority_envelope: MissionAuthorityEnvelope | None,
+    prior_candidate_results: list[OrganDispatchCandidateResult],
+) -> BrowserLoginCredentialSessionRequest | None:
+    if authority_envelope is None:
+        return None
+    url = raw_candidate.get("url") or raw_candidate.get("requested_url") or raw_candidate.get("target_url")
+    session_id = raw_candidate.get("session_id") or _latest_browser_session_id(prior_candidate_results)
+    if not url or not session_id:
+        return None
+    contract_data = (
+        organ_contracts.get("browser_login_credential_session_broker")
+        or organ_contracts.get("browser")
+        or {}
+    )
+    allowed_domains = raw_candidate.get("allowed_domains") or contract_data.get("allowed_domains") or authority_envelope.allowed_domains or []
+    username_ref = raw_candidate.get("username_credential_ref_id") or contract_data.get("username_credential_ref_id")
+    password_ref = raw_candidate.get("password_credential_ref_id") or contract_data.get("password_credential_ref_id")
+    if not username_ref or not password_ref:
+        return None
+    try:
+        contract = BrowserLoginCredentialSessionContract(
+            mission_id=mission_id,
+            allowed_domains=[str(domain) for domain in allowed_domains],
+            username_credential_ref_id=str(username_ref),
+            password_credential_ref_id=str(password_ref),
+            allow_login=bool(raw_candidate.get("allow_login") or contract_data.get("allow_login")),
+        )
+        return BrowserLoginCredentialSessionRequest(
+            mission=authority_envelope,
+            url=str(url),
+            session_id=str(session_id),
+            contract=contract,
+            username_target_role=str(raw_candidate.get("username_target_role") or "textbox"),
+            username_target_name=raw_candidate.get("username_target_name"),
+            password_target_role=str(raw_candidate.get("password_target_role") or "textbox"),
+            password_target_name=raw_candidate.get("password_target_name"),
+            submit_target_role=str(raw_candidate.get("submit_target_role") or "button"),
+            submit_target_name=raw_candidate.get("submit_target_name"),
+            operator_note=raw_candidate.get("operator_note"),
+            timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
+            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+        )
+    except (TypeError, ValueError, ValidationError):
+        return None
+
+
+def _build_browser_file_quarantine_request(
+    *,
+    raw_candidate: dict[str, Any],
+    mission_id: str,
+    organ_contracts: dict[str, dict[str, Any]],
+    authority_envelope: MissionAuthorityEnvelope | None,
+    prior_candidate_results: list[OrganDispatchCandidateResult],
+) -> BrowserFileQuarantineRequest | None:
+    if authority_envelope is None:
+        return None
+    url = raw_candidate.get("url") or raw_candidate.get("requested_url") or raw_candidate.get("target_url")
+    session_id = raw_candidate.get("session_id") or _latest_browser_session_id(prior_candidate_results)
+    if not url or not session_id:
+        return None
+    contract_data = (
+        organ_contracts.get("browser_download_upload_quarantine")
+        or organ_contracts.get("browser")
+        or {}
+    )
+    allowed_domains = raw_candidate.get("allowed_domains") or contract_data.get("allowed_domains") or authority_envelope.allowed_domains or []
+    upload_root = raw_candidate.get("approved_upload_root") or contract_data.get("approved_upload_root")
+    quarantine_root = raw_candidate.get("approved_download_quarantine_root") or contract_data.get("approved_download_quarantine_root")
+    if not upload_root or not quarantine_root:
+        return None
+    try:
+        action_kind = _browser_file_action_kind(raw_candidate.get("file_action_kind") or raw_candidate.get("action_kind") or "download")
+        contract = BrowserFileQuarantineContract(
+            mission_id=mission_id,
+            allowed_domains=[str(domain) for domain in allowed_domains],
+            approved_upload_root=str(upload_root),
+            approved_download_quarantine_root=str(quarantine_root),
+            allow_upload=bool(raw_candidate.get("allow_upload") or contract_data.get("allow_upload")),
+            allow_download=bool(raw_candidate.get("allow_download") or contract_data.get("allow_download")),
+        )
+        return BrowserFileQuarantineRequest(
+            mission=authority_envelope,
+            url=str(url),
+            session_id=str(session_id),
+            contract=contract,
+            action_kind=action_kind,
+            target_role=str(raw_candidate.get("target_role") or ("button" if action_kind is BrowserFileQuarantineActionKind.UPLOAD else "link")),
+            target_name=raw_candidate.get("target_name"),
+            local_upload_path=raw_candidate.get("local_upload_path"),
+            operator_note=raw_candidate.get("operator_note"),
+            timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
+            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+        )
+    except (TypeError, ValueError, ValidationError):
+        return None
+
+
+def _build_browser_js_sandbox_request(
+    *,
+    raw_candidate: dict[str, Any],
+    mission_id: str,
+    organ_contracts: dict[str, dict[str, Any]],
+    authority_envelope: MissionAuthorityEnvelope | None,
+    prior_candidate_results: list[OrganDispatchCandidateResult],
+) -> BrowserJSSandboxRequest | None:
+    if authority_envelope is None:
+        return None
+    url = raw_candidate.get("url") or raw_candidate.get("requested_url") or raw_candidate.get("target_url")
+    session_id = raw_candidate.get("session_id") or _latest_browser_session_id(prior_candidate_results)
+    script = raw_candidate.get("script")
+    if not url or not session_id or not script:
+        return None
+    contract_data = (
+        organ_contracts.get("browser_js_sandbox_special_authority")
+        or organ_contracts.get("browser")
+        or {}
+    )
+    allowed_domains = raw_candidate.get("allowed_domains") or contract_data.get("allowed_domains") or authority_envelope.allowed_domains or []
+    try:
+        contract = BrowserJSSandboxContract(
+            mission_id=mission_id,
+            allowed_domains=[str(domain) for domain in allowed_domains],
+            allow_js_sandbox=bool(raw_candidate.get("allow_js_sandbox") or contract_data.get("allow_js_sandbox")),
+            max_script_bytes=int(raw_candidate.get("max_script_bytes") or contract_data.get("max_script_bytes") or 4_000),
+        )
+        return BrowserJSSandboxRequest(
+            mission=authority_envelope,
+            url=str(url),
+            session_id=str(session_id),
+            contract=contract,
+            script=str(script),
+            intent_summary=str(raw_candidate.get("intent_summary") or raw_candidate.get("safe_summary") or "Browser JS sandbox request."),
+            timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
+            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+        )
+    except (TypeError, ValueError, ValidationError):
+        return None
+
+
+def _browser_file_action_kind(value: Any) -> BrowserFileQuarantineActionKind:
+    try:
+        return value if isinstance(value, BrowserFileQuarantineActionKind) else BrowserFileQuarantineActionKind(str(value))
+    except ValueError:
+        return BrowserFileQuarantineActionKind.DOWNLOAD
+
+
 # ---------------------------------------------------------------------------
 # Executor contract builders
 # ---------------------------------------------------------------------------
@@ -1403,6 +1597,9 @@ def _resolve_browser_organ_kind(
         "browser_semantic_extraction",
         "browser_session_manager",
         "browser_form_submit_special_authority",
+        "browser_login_credential_session_broker",
+        "browser_download_upload_quarantine",
+        "browser_js_sandbox_special_authority",
     }:
         return explicit_kind
 

@@ -53,9 +53,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
-previous_phase = BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCKED
-next_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK
+current_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
+previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
+next_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -76,6 +76,9 @@ Persistent browser session manager = CLOSED
 Persistent browser session manager through AgentRuntime/dispatcher = CLOSED / opt-in L5
 Runtime-preserved browser session open/observe/close = CLOSED / opt-in L5
 Non-sensitive Browser Form Submit through runtime/dispatcher = CLOSED / opt-in L6
+Browser Login Credential Session through runtime/dispatcher = CLOSED / opt-in L6 with ephemeral provider
+Browser Upload/Download Quarantine through runtime/dispatcher = CLOSED / opt-in L6
+Browser JS Sandbox through runtime/dispatcher = CLOSED / opt-in L6
 Live L5 type/click-style controlled interaction = CLOSED
 Browser trajectory planner and self-healing target recovery = CLOSED
 Special-authority non-sensitive form submit = CLOSED
@@ -97,7 +100,7 @@ Browser account creation special authority L7 = CLOSED
 Browser observability and replay studio = CLOSED
 Browser controlled extension/WebMCP bridge L7 = CLOSED
 Browser final capability lock = CLOSED
-Browser final capability lock runtime truth repair = PARTIAL / L5 session manager and L6 form submit closed, L6 login/file/JS dispatch next
+Browser final capability lock runtime truth repair = PARTIAL / L5 session manager and all implemented L6 browser special-authority organs promoted, AgentRuntime full-stack brain path next
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -165,6 +168,8 @@ sentinel-control/docs/reviews/BROWSER_BENCHMARK_GAUNTLET_WEB_ARENA_STYLE_REPORT.
 sentinel-control/docs/reviews/BROWSER_BOUNDARY_MANAGER_L6_L7_REPORT.md
 sentinel-control/docs/reviews/BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7_REPORT.md
 sentinel-control/docs/reviews/BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_REPORT.md
+sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK_REPORT.md
+sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -190,9 +195,13 @@ Recommended next build sequence:
 11. BROWSER_BOUNDARY_MANAGER_L6_L7 - DONE
 12. BROWSER_PAYMENT_SPEND_SPECIAL_AUTHORITY_L7 - DONE
 13. BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 - DONE
-14. BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 - NEXT
-15. BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7
-16. BROWSER_FINAL_CAPABILITY_LOCK
+14. BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 - DONE
+15. BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7 - DONE
+16. BROWSER_FINAL_CAPABILITY_LOCK - DONE
+17. BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK - DONE
+18. BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCK - DONE
+19. BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK - DONE
+20. BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK - NEXT
 ```
 
 The doctrine:

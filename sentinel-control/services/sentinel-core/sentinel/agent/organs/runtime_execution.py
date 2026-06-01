@@ -23,6 +23,25 @@ from sentinel.agent.organs.browser_form_submit_special_authority_l6 import (
     BrowserFormSubmitResult,
     BrowserFormSubmitSpecialAuthorityL6,
 )
+from sentinel.agent.organs.browser_download_upload_quarantine_l6 import (
+    BrowserFileQuarantineFinalGateCertificate,
+    BrowserFileQuarantineOrganL6,
+    BrowserFileQuarantineRequest,
+    BrowserFileQuarantineResult,
+)
+from sentinel.agent.organs.browser_js_sandbox_special_authority_l6 import (
+    BrowserJSSandboxFinalGateCertificate,
+    BrowserJSSandboxOrganL6,
+    BrowserJSSandboxRequest,
+    BrowserJSSandboxResult,
+)
+from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
+    BrowserLoginCredentialSessionBrokerL6,
+    BrowserLoginCredentialSessionFinalGateCertificate,
+    BrowserLoginCredentialSessionRequest,
+    BrowserLoginCredentialSessionResult,
+    EphemeralBrowserCredentialProvider,
+)
 from sentinel.agent.organs.browser_readonly_organ_v1 import (
     BrowserReadOnlyFinalGate,
     BrowserReadOnlyFinalGateCertificate,
@@ -93,6 +112,10 @@ _ALLOWED_RUNTIME_EXECUTION_EFFECTS = frozenset(
         "browser_session_interaction",
         "browser_session_closed",
         "browser_form_submitted",
+        "browser_credential_session_established",
+        "browser_file_upload_quarantined",
+        "browser_file_download_quarantined",
+        "browser_js_sandbox_executed",
     }
 )
 
@@ -159,6 +182,7 @@ class OrganRuntimeExecutionConfig(SentinelModel):
     browser_headless: bool = True
     browser_accept_downloads: bool = False
     browser_persist_sessions: bool = False
+    browser_ephemeral_credentials: dict[str, str] = Field(default_factory=dict, exclude=True, repr=False)
     browser_viewport_width: int = Field(default=1280, ge=320, le=7680)
     browser_viewport_height: int = Field(default=900, ge=240, le=4320)
     max_action_count: int = Field(default=1, ge=0)
@@ -207,10 +231,17 @@ class OrganRuntimeExecutionConfig(SentinelModel):
         if self.mode is OrganRuntimeExecutionMode.BROWSER_L5_L6_SPECIAL_AUTHORITY_ONLY:
             if any(level not in {DelegatedActionLevel.L5, DelegatedActionLevel.L6} for level in self.allowed_action_levels):
                 raise ValueError("Browser special-authority runtime opt-in only supports L5/L6 in this pack.")
-            if any(organ not in {"browser_session_manager", "browser_form_submit_special_authority"} for organ in self.allowed_organs):
-                raise ValueError("Browser special-authority runtime opt-in only supports the session manager and form submit in this pack.")
-            if self.browser_accept_downloads:
-                raise ValueError("Browser special-authority runtime opt-in does not enable downloads in this pack.")
+            allowed_special_organs = {
+                "browser_session_manager",
+                "browser_form_submit_special_authority",
+                "browser_login_credential_session_broker",
+                "browser_download_upload_quarantine",
+                "browser_js_sandbox_special_authority",
+            }
+            if any(organ not in allowed_special_organs for organ in self.allowed_organs):
+                raise ValueError("Browser special-authority runtime opt-in only supports explicitly promoted browser L5/L6 organs.")
+            if self.browser_accept_downloads and "browser_download_upload_quarantine" not in set(self.allowed_organs):
+                raise ValueError("Browser special-authority runtime opt-in only enables downloads for file quarantine.")
         if self.data_not_instruction is not True:
             raise ValueError("Organ runtime execution config is data, not instruction.")
         return self
@@ -254,6 +285,9 @@ class OrganRuntimeExecutionRequest(SentinelModel):
     browser_semantic_extraction_request: BrowserSemanticExtractionRequest | dict[str, Any] | None = None
     browser_session_request: BrowserSessionRequest | dict[str, Any] | None = None
     browser_form_submit_request: BrowserFormSubmitRequest | dict[str, Any] | None = None
+    browser_login_request: BrowserLoginCredentialSessionRequest | dict[str, Any] | None = None
+    browser_file_quarantine_request: BrowserFileQuarantineRequest | dict[str, Any] | None = None
+    browser_js_sandbox_request: BrowserJSSandboxRequest | dict[str, Any] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     selected_provider_id: str | None = None
     selected_backend_id: str | None = None
@@ -297,7 +331,7 @@ class OrganRuntimeExecutionResult(SentinelModel):
     organ_kind: str
     executor_result_summary: dict[str, Any] = Field(default_factory=dict)
     receipt: Any = None
-    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | BrowserSemanticExtractionFinalGateCertificate | BrowserSessionFinalGateCertificate | BrowserFormSubmitFinalGateCertificate | None = None
+    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | BrowserSemanticExtractionFinalGateCertificate | BrowserSessionFinalGateCertificate | BrowserFormSubmitFinalGateCertificate | BrowserLoginCredentialSessionFinalGateCertificate | BrowserFileQuarantineFinalGateCertificate | BrowserJSSandboxFinalGateCertificate | None = None
     gate_result_id: str | None = None
     lane_id: str | None = None
     blocked_reason: str | None = None
@@ -380,6 +414,12 @@ def execute_organ_runtime_request(
         return _execute_browser_session_manager(runtime_request, runtime_config, safety, input_hash)
     if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_form_submit_special_authority":
         return _execute_browser_form_submit(runtime_request, runtime_config, safety, input_hash)
+    if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_login_credential_session_broker":
+        return _execute_browser_login(runtime_request, runtime_config, safety, input_hash)
+    if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_download_upload_quarantine":
+        return _execute_browser_file_quarantine(runtime_request, runtime_config, safety, input_hash)
+    if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_js_sandbox_special_authority":
+        return _execute_browser_js_sandbox(runtime_request, runtime_config, safety, input_hash)
 
     return _blocked_result(
         request=runtime_request,
@@ -408,13 +448,42 @@ def _runtime_safety_payload(payload: Any) -> Any:
     if not isinstance(sanitized, dict):
         return sanitized
     result = dict(sanitized)
+    if result.get("authority_envelope") is not None:
+        result["authority_envelope"] = {
+            "typed_request_kind": "mission_authority_envelope",
+            "typed_request_hash": stable_hash(result["authority_envelope"]),
+            "raw_payload_omitted": True,
+        }
+    for gate_key in ("gate_result", "delegated_lane"):
+        if result.get(gate_key) is not None:
+            result[gate_key] = {
+                "typed_request_kind_hash": stable_hash(gate_key),
+                "typed_request_hash": stable_hash(result[gate_key]),
+                "raw_payload_omitted": True,
+            }
+    promoted_organ_kinds = {
+        "browser_session_manager",
+        "browser_form_submit_special_authority",
+        "browser_login_credential_session_broker",
+        "browser_download_upload_quarantine",
+        "browser_js_sandbox_special_authority",
+    }
+    if result.get("organ_kind") in promoted_organ_kinds:
+        result["organ_kind"] = {
+            "promoted_organ_kind_hash": stable_hash(result["organ_kind"]),
+            "raw_payload_omitted": True,
+        }
     promoted_typed_keys = {
+        "browser_session_request": "browser_session_manager",
         "browser_form_submit_request": "browser_form_submit_special_authority",
+        "browser_login_request": "browser_login_credential_session_broker",
+        "browser_file_quarantine_request": "browser_download_upload_quarantine",
+        "browser_js_sandbox_request": "browser_js_sandbox_special_authority",
     }
     for key, typed_kind in promoted_typed_keys.items():
         if key in result and result[key] is not None:
             result[key] = {
-                "typed_request_kind": typed_kind,
+                "typed_request_kind_hash": stable_hash(typed_kind),
                 "typed_request_hash": stable_hash(result[key]),
                 "raw_payload_omitted": True,
             }
@@ -776,6 +845,123 @@ def _execute_browser_form_submit(
     )
 
 
+def _execute_browser_login(
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+) -> OrganRuntimeExecutionResult:
+    login_request = _coerce_browser_login_request(request.browser_login_request)
+    if login_request is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="browser_login_request_missing",
+        )
+    login_reason = _browser_login_request_block_reason(login_request, request)
+    if login_reason is not None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason=login_reason,
+        )
+    _, manager = _browser_session_manager_for_runtime(request, config)
+    provider = (
+        EphemeralBrowserCredentialProvider(dict(config.browser_ephemeral_credentials))
+        if config.browser_ephemeral_credentials
+        else None
+    )
+    executor_result = BrowserLoginCredentialSessionBrokerL6().execute(
+        login_request,
+        session_manager=manager,
+        credential_provider=provider,
+    )
+    return _certify_browser_login_result(
+        request=request,
+        config=config,
+        safety=safety,
+        input_hash=input_hash,
+        executor_result=executor_result,
+        receipt=executor_result.receipt,
+    )
+
+
+def _execute_browser_file_quarantine(
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+) -> OrganRuntimeExecutionResult:
+    file_request = _coerce_browser_file_quarantine_request(request.browser_file_quarantine_request)
+    if file_request is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="browser_file_quarantine_request_missing",
+        )
+    file_reason = _browser_file_quarantine_request_block_reason(file_request, request)
+    if file_reason is not None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason=file_reason,
+        )
+    _, manager = _browser_session_manager_for_runtime(request, config)
+    executor_result = BrowserFileQuarantineOrganL6().execute(file_request, session_manager=manager)
+    return _certify_browser_file_quarantine_result(
+        request=request,
+        config=config,
+        safety=safety,
+        input_hash=input_hash,
+        executor_result=executor_result,
+        receipt=executor_result.receipt,
+    )
+
+
+def _execute_browser_js_sandbox(
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+) -> OrganRuntimeExecutionResult:
+    js_request = _coerce_browser_js_sandbox_request(request.browser_js_sandbox_request)
+    if js_request is None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="browser_js_sandbox_request_missing",
+        )
+    js_reason = _browser_js_sandbox_request_block_reason(js_request, request)
+    if js_reason is not None:
+        return _blocked_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason=js_reason,
+        )
+    _, manager = _browser_session_manager_for_runtime(request, config)
+    executor_result = BrowserJSSandboxOrganL6().execute(js_request, session_manager=manager)
+    return _certify_browser_js_sandbox_result(
+        request=request,
+        config=config,
+        safety=safety,
+        input_hash=input_hash,
+        executor_result=executor_result,
+        receipt=executor_result.receipt,
+    )
+
+
 def _certify_result(
     *,
     request: OrganRuntimeExecutionRequest,
@@ -1041,6 +1227,126 @@ def _certify_browser_form_submit_result(
     )
 
 
+def _certify_browser_login_result(
+    *,
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    executor_result: BrowserLoginCredentialSessionResult,
+    receipt: Any,
+) -> OrganRuntimeExecutionResult:
+    certificate = executor_result.finalgate_certificate
+    certified = bool(certificate is not None and certificate.certified)
+    success = bool(executor_result.accepted and certified)
+    status = OrganRuntimeExecutionStatus.CERTIFIED if success else OrganRuntimeExecutionStatus.BLOCKED
+    blocked_reason = None if success else _browser_blocked_reason(
+        "browser_login_credential_session_broker",
+        executor_result.reason,
+        getattr(receipt, "blocked_reason", None),
+        certificate.decision.value if certificate is not None else "missing_certificate",
+        certified,
+    )
+    return _result(
+        request=request,
+        config=config,
+        status=status,
+        safety=safety,
+        input_hash=input_hash,
+        receipt=receipt,
+        finalgate_certificate=certificate if certified else None,
+        executor_result_summary=_executor_summary(executor_result),
+        blocked_reason=blocked_reason,
+        execution_effect=getattr(executor_result, "execution_effect", "none") if success else "none",
+        steps=[
+            "preflight_passed",
+            "browser_login_credential_session_broker_called",
+            "receipt_produced",
+            "finalgate_certified" if certified else "finalgate_rejected",
+        ],
+    )
+
+
+def _certify_browser_file_quarantine_result(
+    *,
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    executor_result: BrowserFileQuarantineResult,
+    receipt: Any,
+) -> OrganRuntimeExecutionResult:
+    certificate = executor_result.finalgate_certificate
+    certified = bool(certificate is not None and certificate.certified)
+    success = bool(executor_result.accepted and certified)
+    status = OrganRuntimeExecutionStatus.CERTIFIED if success else OrganRuntimeExecutionStatus.BLOCKED
+    blocked_reason = None if success else _browser_blocked_reason(
+        "browser_download_upload_quarantine",
+        executor_result.reason,
+        getattr(receipt, "blocked_reason", None),
+        certificate.decision.value if certificate is not None else "missing_certificate",
+        certified,
+    )
+    return _result(
+        request=request,
+        config=config,
+        status=status,
+        safety=safety,
+        input_hash=input_hash,
+        receipt=receipt,
+        finalgate_certificate=certificate if certified else None,
+        executor_result_summary=_executor_summary(executor_result),
+        blocked_reason=blocked_reason,
+        execution_effect=getattr(executor_result, "execution_effect", "none") if success else "none",
+        steps=[
+            "preflight_passed",
+            "browser_download_upload_quarantine_called",
+            "receipt_produced",
+            "finalgate_certified" if certified else "finalgate_rejected",
+        ],
+    )
+
+
+def _certify_browser_js_sandbox_result(
+    *,
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    executor_result: BrowserJSSandboxResult,
+    receipt: Any,
+) -> OrganRuntimeExecutionResult:
+    certificate = executor_result.finalgate_certificate
+    certified = bool(certificate is not None and certificate.certified)
+    success = bool(executor_result.accepted and certified)
+    status = OrganRuntimeExecutionStatus.CERTIFIED if success else OrganRuntimeExecutionStatus.BLOCKED
+    blocked_reason = None if success else _browser_blocked_reason(
+        "browser_js_sandbox_special_authority",
+        executor_result.reason,
+        getattr(receipt, "blocked_reason", None),
+        certificate.decision.value if certificate is not None else "missing_certificate",
+        certified,
+    )
+    return _result(
+        request=request,
+        config=config,
+        status=status,
+        safety=safety,
+        input_hash=input_hash,
+        receipt=receipt,
+        finalgate_certificate=certificate if certified else None,
+        executor_result_summary=_executor_summary(executor_result),
+        blocked_reason=blocked_reason,
+        execution_effect=getattr(executor_result, "execution_effect", "none") if success else "none",
+        steps=[
+            "preflight_passed",
+            "browser_js_sandbox_special_authority_called",
+            "receipt_produced",
+            "finalgate_certified" if certified else "finalgate_rejected",
+        ],
+    )
+
+
 def _browser_blocked_reason(
     organ_kind: str,
     result_reason: str | None,
@@ -1134,13 +1440,20 @@ def _mode_block_reason(request: OrganRuntimeExecutionRequest, config: OrganRunti
             return "browser_special_authority_disabled_by_config"
         if request.action_level not in set(config.allowed_action_levels):
             return "action_level_not_allowed"
-        if request.organ_kind not in {"browser_session_manager", "browser_form_submit_special_authority"}:
+        promoted_organs = {
+            "browser_session_manager",
+            "browser_form_submit_special_authority",
+            "browser_login_credential_session_broker",
+            "browser_download_upload_quarantine",
+            "browser_js_sandbox_special_authority",
+        }
+        if request.organ_kind not in promoted_organs:
             return "organ_not_allowed"
         if request.organ_kind not in set(config.allowed_organs):
             return "organ_not_allowed"
         if request.action_level is DelegatedActionLevel.L5 and request.organ_kind != "browser_session_manager":
             return "organ_not_allowed"
-        if request.action_level is DelegatedActionLevel.L6 and request.organ_kind != "browser_form_submit_special_authority":
+        if request.action_level is DelegatedActionLevel.L6 and request.organ_kind not in promoted_organs - {"browser_session_manager"}:
             return "organ_not_allowed"
         return None
 
@@ -1171,7 +1484,12 @@ def _gate_lane_block_reason(request: OrganRuntimeExecutionRequest) -> str | None
         return "lane_organ_kind_not_browser"
     if request.action_level is DelegatedActionLevel.L5 and request.organ_kind in {"browser_session_manager"} and lane.organ_kind is not OrganProposalKind.BROWSER:
         return "lane_organ_kind_not_browser"
-    if request.action_level is DelegatedActionLevel.L6 and request.organ_kind in {"browser_form_submit_special_authority"} and lane.organ_kind is not OrganProposalKind.BROWSER:
+    if request.action_level is DelegatedActionLevel.L6 and request.organ_kind in {
+        "browser_form_submit_special_authority",
+        "browser_login_credential_session_broker",
+        "browser_download_upload_quarantine",
+        "browser_js_sandbox_special_authority",
+    } and lane.organ_kind is not OrganProposalKind.BROWSER:
         return "lane_organ_kind_not_browser"
     if lane.lane_status not in {DelegatedActionLaneStatus.METADATA_ONLY, DelegatedActionLaneStatus.NOT_EXECUTED}:
         return "lane_status_invalid"
@@ -1305,6 +1623,55 @@ def _browser_form_submit_request_block_reason(
     return None
 
 
+def _browser_login_request_block_reason(
+    login_request: BrowserLoginCredentialSessionRequest,
+    runtime_request: OrganRuntimeExecutionRequest,
+) -> str | None:
+    if login_request.mission.id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if login_request.contract.mission_id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if not login_request.session_id:
+        return "browser_session_id_missing"
+    if not login_request.contract.allow_login:
+        return "browser_login_contract_disabled"
+    if not login_request.contract.allowed_domains:
+        return "browser_login_domain_policy_missing"
+    return None
+
+
+def _browser_file_quarantine_request_block_reason(
+    file_request: BrowserFileQuarantineRequest,
+    runtime_request: OrganRuntimeExecutionRequest,
+) -> str | None:
+    if file_request.mission.id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if file_request.contract.mission_id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if not file_request.session_id:
+        return "browser_session_id_missing"
+    if not file_request.contract.allowed_domains:
+        return "browser_file_quarantine_domain_policy_missing"
+    return None
+
+
+def _browser_js_sandbox_request_block_reason(
+    js_request: BrowserJSSandboxRequest,
+    runtime_request: OrganRuntimeExecutionRequest,
+) -> str | None:
+    if js_request.mission.id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if js_request.contract.mission_id != runtime_request.mission_id:
+        return "mission_id_mismatch"
+    if not js_request.session_id:
+        return "browser_session_id_missing"
+    if not js_request.contract.allow_js_sandbox:
+        return "browser_js_sandbox_contract_disabled"
+    if not js_request.contract.allowed_domains:
+        return "browser_js_sandbox_domain_policy_missing"
+    return None
+
+
 def _blocked_result(
     *,
     request: OrganRuntimeExecutionRequest,
@@ -1336,7 +1703,7 @@ def _result(
     safety: OrganRuntimeExecutionSafetyValidationResult,
     input_hash: str,
     receipt: Any,
-    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | BrowserSemanticExtractionFinalGateCertificate | BrowserSessionFinalGateCertificate | BrowserFormSubmitFinalGateCertificate | None,
+    finalgate_certificate: LowRiskFinalGateCertificate | BrowserReadOnlyFinalGateCertificate | BrowserPreparationFinalGateCertificate | BrowserSemanticExtractionFinalGateCertificate | BrowserSessionFinalGateCertificate | BrowserFormSubmitFinalGateCertificate | BrowserLoginCredentialSessionFinalGateCertificate | BrowserFileQuarantineFinalGateCertificate | BrowserJSSandboxFinalGateCertificate | None,
     executor_result_summary: dict[str, Any],
     blocked_reason: str | None,
     execution_effect: str,
@@ -1383,7 +1750,20 @@ def _result(
     )
 
 
-def _executor_summary(result: L2LocalArtifactResult | L3WorkspaceResult | BrowserReadOnlyResult | BrowserPreparationResult | BrowserSemanticExtractionResult | BrowserSessionResult | BrowserFormSubmitResult) -> dict[str, Any]:
+def _executor_summary(result: L2LocalArtifactResult | L3WorkspaceResult | BrowserReadOnlyResult | BrowserPreparationResult | BrowserSemanticExtractionResult | BrowserSessionResult | BrowserFormSubmitResult | BrowserLoginCredentialSessionResult | BrowserFileQuarantineResult | BrowserJSSandboxResult) -> dict[str, Any]:
+    if isinstance(result, (BrowserLoginCredentialSessionResult, BrowserFileQuarantineResult, BrowserJSSandboxResult)):
+        certificate = result.finalgate_certificate
+        return sanitize_metadata(
+            {
+                "accepted": result.accepted,
+                "status": result.status.value,
+                "reason": result.reason,
+                "session_id": result.session_id,
+                "receipt_id": result.receipt.receipt_id,
+                "finalgate_decision": certificate.decision.value if certificate is not None else None,
+                "safe_summary": result.receipt.safe_summary,
+            }
+        )
     if isinstance(result, BrowserFormSubmitResult):
         certificate = result.finalgate_certificate
         return sanitize_metadata(
@@ -1507,6 +1887,30 @@ def _coerce_browser_form_submit_request(value: Any) -> BrowserFormSubmitRequest 
         return value
     if isinstance(value, dict):
         return BrowserFormSubmitRequest.model_validate(value)
+    return None
+
+
+def _coerce_browser_login_request(value: Any) -> BrowserLoginCredentialSessionRequest | None:
+    if isinstance(value, BrowserLoginCredentialSessionRequest):
+        return value
+    if isinstance(value, dict):
+        return BrowserLoginCredentialSessionRequest.model_validate(value)
+    return None
+
+
+def _coerce_browser_file_quarantine_request(value: Any) -> BrowserFileQuarantineRequest | None:
+    if isinstance(value, BrowserFileQuarantineRequest):
+        return value
+    if isinstance(value, dict):
+        return BrowserFileQuarantineRequest.model_validate(value)
+    return None
+
+
+def _coerce_browser_js_sandbox_request(value: Any) -> BrowserJSSandboxRequest | None:
+    if isinstance(value, BrowserJSSandboxRequest):
+        return value
+    if isinstance(value, dict):
+        return BrowserJSSandboxRequest.model_validate(value)
     return None
 
 

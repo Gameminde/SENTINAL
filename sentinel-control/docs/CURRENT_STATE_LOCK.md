@@ -1,5 +1,62 @@
 # Current State Lock
 
+## Browser Runtime Unification L6 Login/File/JS Dispatch - LOCKED
+
+Recorded at: 2026-06-01
+
+Branch: `main`
+
+This section supersedes the L6 form-submit runtime unification lock. Sentinel
+now routes all currently implemented browser L5/L6 live operator organs through
+the canonical body:
+
+```text
+OrganDispatcher
+-> DelegatedActionGate
+-> execute_organ_runtime_request
+-> explicit browser organ
+-> receipt
+-> FinalGate certificate
+```
+
+```text
+current_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
+previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
+next_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK
+```
+
+### Browser Runtime Unification L6 Truth
+
+```text
+browser_session_manager L5 through runtime/dispatcher = CLOSED
+browser_form_submit_special_authority L6 through runtime/dispatcher = CLOSED
+browser_login_credential_session_broker L6 through runtime/dispatcher = CLOSED
+browser_download_upload_quarantine L6 through runtime/dispatcher = CLOSED
+browser_js_sandbox_special_authority L6 through runtime/dispatcher = CLOSED
+PowerLab browser_login_l6_template executable config = CLOSED
+PowerLab browser_file_quarantine_l6_template executable config = CLOSED
+PowerLab browser_js_sandbox_l6_template executable config = CLOSED
+Ephemeral credential provider values excluded from config serialization = CLOSED
+AgentRuntime default-off posture = CLOSED
+Generic browser login/upload/download/private session = NOT_STARTED
+Raw credential persistence = NOT_STARTED
+Durable credential vault secret storage = NOT_STARTED
+Arbitrary browser JavaScript outside sandbox contract = NOT_STARTED
+API/channel/shell/desktop/payment execution = NOT_STARTED
+```
+
+### Browser Runtime Unification L6 Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/proposal_bridge.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/delegated_action_gate.py
+sentinel-control/services/sentinel-core/sentinel/power_lab.py
+sentinel-control/services/sentinel-core/tests/test_browser_runtime_unification_l6_login_file_js_dispatch_lock.py
+sentinel-control/docs/reviews/BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK_REPORT.md
+```
+
 ## Browser Runtime Unification L5/L6 Form Submit Dispatch - LOCKED
 
 Recorded at: 2026-06-01

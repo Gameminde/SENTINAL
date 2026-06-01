@@ -244,7 +244,7 @@ def test_default_runtime_still_blocks_browser_l5_session_manager(tmp_path: Path)
     assert not (tmp_path / "browser-captures").exists()
 
 
-def test_browser_l6_high_risk_templates_remain_non_executing_except_form_submit() -> None:
+def test_browser_l6_runtime_templates_are_explicit_and_default_off_for_unrelated_surfaces() -> None:
     from sentinel.power_lab import PowerLabMissionRejected, build_power_lab_runtime_config
 
     submit_config = build_power_lab_runtime_config("browser_form_submit_l6_template", enable_organ_dispatch=True)
@@ -252,18 +252,28 @@ def test_browser_l6_high_risk_templates_remain_non_executing_except_form_submit(
     assert "browser_form_submit_special_authority" in submit_config.allowed_organs
     assert submit_config.deny_credentials is True
 
-    for preset in [
-        "browser_login_l6_template",
-        "browser_file_quarantine_l6_template",
-        "browser_js_sandbox_l6_template",
-        "full_power_template",
-    ]:
-        try:
-            build_power_lab_runtime_config(preset, enable_organ_dispatch=True)
-        except PowerLabMissionRejected as exc:
-            assert "non-executing template" in str(exc)
-        else:  # pragma: no cover - defensive clarity
-            raise AssertionError(f"{preset} unexpectedly became executable")
+    login_config = build_power_lab_runtime_config("browser_login_l6_template", enable_organ_dispatch=True)
+    assert login_config.mode is OrganRuntimeExecutionMode.BROWSER_L5_L6_SPECIAL_AUTHORITY_ONLY
+    assert "browser_login_credential_session_broker" in login_config.allowed_organs
+    assert login_config.browser_ephemeral_credentials == {}
+    assert login_config.deny_credentials is False
+
+    file_config = build_power_lab_runtime_config("browser_file_quarantine_l6_template", enable_organ_dispatch=True)
+    assert "browser_download_upload_quarantine" in file_config.allowed_organs
+    assert file_config.browser_accept_downloads is True
+    assert file_config.deny_credentials is True
+
+    js_config = build_power_lab_runtime_config("browser_js_sandbox_l6_template", enable_organ_dispatch=True)
+    assert "browser_js_sandbox_special_authority" in js_config.allowed_organs
+    assert js_config.deny_shell is True
+    assert js_config.deny_api is True
+
+    try:
+        build_power_lab_runtime_config("full_power_template", enable_organ_dispatch=True)
+    except PowerLabMissionRejected as exc:
+        assert "non-executing template" in str(exc)
+    else:  # pragma: no cover - defensive clarity
+        raise AssertionError("full_power_template unexpectedly became executable")
 
 
 def test_browser_live_runtime_blocks_l6_submit_login_credential_surfaces(tmp_path: Path) -> None:

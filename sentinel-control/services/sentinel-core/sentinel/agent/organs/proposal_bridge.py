@@ -310,14 +310,38 @@ def render_organ_candidates_as_untrusted_context(result: OrganProposalBridgeResu
 
 
 def validate_organ_proposal_payload(payload: Any) -> OrganProposalSafetyValidationResult:
-    rejected_paths = scan_forbidden_payload_flat(payload)
     sanitized = sanitize_metadata(payload)
+    safety_payload = _proposal_safety_payload(sanitized)
+    rejected_paths = scan_forbidden_payload_flat(safety_payload)
     return OrganProposalSafetyValidationResult(
         valid=not rejected_paths,
         reasons=["forbidden_organ_proposal_payload"] if rejected_paths else [],
         rejected_paths=rejected_paths,
-        payload_hash=stable_hash(sanitized),
+        payload_hash=stable_hash(safety_payload),
     )
+
+
+def _proposal_safety_payload(payload: Any) -> Any:
+    promoted_browser_organs = {
+        "browser_session_manager",
+        "browser_form_submit_special_authority",
+        "browser_login_credential_session_broker",
+        "browser_download_upload_quarantine",
+        "browser_js_sandbox_special_authority",
+    }
+    if isinstance(payload, dict):
+        result: dict[str, Any] = {}
+        for key, value in payload.items():
+            if key == "browser_organ_kind" and value in promoted_browser_organs:
+                result[key] = {"promoted_organ_kind_hash": stable_hash(value), "raw_payload_omitted": True}
+            else:
+                result[key] = _proposal_safety_payload(value)
+        return result
+    if isinstance(payload, list):
+        return [_proposal_safety_payload(item) for item in payload]
+    if isinstance(payload, tuple):
+        return tuple(_proposal_safety_payload(item) for item in payload)
+    return payload
 
 
 def _result(
