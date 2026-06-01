@@ -1,5 +1,42 @@
 # Current State Lock
 
+## Durable Receipt Ledger Foundation - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the browser neural memory feedback lock. Sentinel now
+has a minimal local append-only ledger foundation for browser neural traces.
+This is not a production ledger service.
+
+```text
+current_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION_LOCKED
+previous_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCKED
+next_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
+```
+
+### Durable Receipt Ledger Truth
+
+```text
+append-only JSONL browser neural ledger = CLOSED
+hash chain integrity verification = CLOSED
+tamper detection = CLOSED
+signal/proposal/receipt refs replay = CLOSED
+raw credential/browser private data redaction = CLOSED
+production ledger service = NOT_STARTED
+browser squad = NOT_STARTED
+global neural fabric = NOT_STARTED
+```
+
+### Durable Receipt Ledger Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/ledger.py
+sentinel-control/services/sentinel-core/tests/test_durable_receipt_ledger_foundation.py
+sentinel-control/docs/reviews/DURABLE_RECEIPT_LEDGER_FOUNDATION_REPORT.md
+```
+
 ## Browser Neural Memory Feedback - LOCKED
 
 Recorded at: 2026-06-02

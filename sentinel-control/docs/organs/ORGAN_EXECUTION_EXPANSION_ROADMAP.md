@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCKED
-previous_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCKED
-next_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION
+current_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION_LOCKED
+previous_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCKED
+next_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
 ```
 
 Strategic correction:
@@ -170,9 +170,13 @@ Revised browser organ roadmap:
     FinalGate certificates, verifier outcomes, and recovery context into memory
     as context only.
 
-27. DURABLE_RECEIPT_LEDGER_FOUNDATION [NEXT]
+27. DURABLE_RECEIPT_LEDGER_FOUNDATION [DONE]
     Add a minimal append-only local ledger for neural browser trace replay
     before any browser squad amplification.
+
+28. BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK [NEXT]
+    Build the browser squad on top of the neural signal graph and ledger.
+    Roles are views over neurons/signals; no sub-agent executes directly.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -231,12 +235,13 @@ BROWSER_NEURAL_CORTEX_V0A_SIGNAL_GRAPH_AND_PERCEPTION = implemented / locked
 BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_TO_DISPATCH = implemented / locked
 MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK = implemented / locked
 BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK = implemented / locked
+DURABLE_RECEIPT_LEDGER_FOUNDATION = implemented / locked
 ```
 
 Next pack:
 
 ```text
-DURABLE_RECEIPT_LEDGER_FOUNDATION
+BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
