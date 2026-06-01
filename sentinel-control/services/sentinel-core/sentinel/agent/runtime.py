@@ -24,6 +24,7 @@ from sentinel.agent.browser import (
     BrowserRenderer,
     DnsResolver,
 )
+from sentinel.agent.browser.neural import motor_proposal_artifact_to_browser_step_candidate
 from sentinel.agent.capability_selector import CapabilitySelector
 from sentinel.agent.cognitive_cycle import CognitiveCycle
 from sentinel.agent.controlled_capability import LocalControlledCapabilityRunner
@@ -426,8 +427,7 @@ class AgentRuntime:
             "organ_contracts": organ_contracts if isinstance(organ_contracts, dict) else {},
         }
 
-    @staticmethod
-    def _proposal_artifacts_from_brain_result(brain_result: Any) -> list[dict[str, Any]]:
+    def _proposal_artifacts_from_brain_result(self, brain_result: Any) -> list[dict[str, Any]]:
         if brain_result is None:
             return []
         proposals = getattr(brain_result, "proposal_artifacts", None)
@@ -438,7 +438,20 @@ class AgentRuntime:
         safety = getattr(brain_result, "safety_validation", None)
         if safety is not None and getattr(safety, "valid", True) is not True:
             return []
-        return [sanitize_context_payload(item) for item in proposals if isinstance(item, dict)]
+        extracted: list[dict[str, Any]] = []
+        for item in proposals:
+            if not isinstance(item, dict):
+                continue
+            if item.get("artifact_kind"):
+                extracted.append(sanitize_context_payload(item))
+                continue
+            if item.get("proposal_artifact_id") and item.get("dispatch_required") is True:
+                if not self._organ_execution_config.browser_neural_motor_proposal_source_enabled:
+                    continue
+                converted = motor_proposal_artifact_to_browser_step_candidate(item)
+                if converted is not None:
+                    extracted.append(sanitize_context_payload(converted))
+        return extracted
 
     def _run_native_brain_cognition(
         self,

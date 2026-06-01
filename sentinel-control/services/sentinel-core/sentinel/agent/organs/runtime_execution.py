@@ -176,6 +176,7 @@ class OrganRuntimeExecutionConfig(SentinelModel):
     # proposal source only when explicitly enabled; the previous structured
     # user_input bridge is now a test/transition fallback, also explicit.
     brain_native_candidate_source_enabled: bool = False
+    browser_neural_motor_proposal_source_enabled: bool = False
     temporary_candidate_bridge_enabled: bool = False
     memory_feedback_enabled: bool = False
     mode: OrganRuntimeExecutionMode = OrganRuntimeExecutionMode.DISABLED

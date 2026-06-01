@@ -1,5 +1,47 @@
 # Current State Lock
 
+## Motor Neuron To Organ Dispatch - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the Browser Neural Cortex V0B motor proposal lock.
+Sentinel now routes browser neural motor proposal artifacts into the existing
+AgentRuntime proposal path when explicitly enabled. Motor neurons still do not
+execute; the Sentinel spine moves the browser.
+
+```text
+current_phase = MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCKED
+previous_phase = BROWSER_NEURAL_CORTEX_V0B_MOTOR_PROPOSAL_LOCKED
+next_phase = BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK
+```
+
+### Motor Neuron Dispatch Truth
+
+```text
+browser_neural_motor_proposal_source_enabled default = false
+default-off motor proposal ignore path = CLOSED
+motor proposal opt-in conversion = CLOSED
+AgentRuntime dispatch path = CLOSED
+DelegatedActionGate still required = CLOSED
+receipt + FinalGate still required = CLOSED
+memory feedback / replan packet through existing path = CLOSED
+direct neuron execution = FORBIDDEN
+direct neuron credential unlock = FORBIDDEN
+direct neuron authority creation = FORBIDDEN
+```
+
+### Motor Neuron Dispatch Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/motor_proposal.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py
+sentinel-control/services/sentinel-core/sentinel/agent/runtime.py
+sentinel-control/services/sentinel-core/tests/test_motor_neuron_to_organ_dispatch_lock.py
+sentinel-control/docs/reviews/MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK_REPORT.md
+```
+
 ## Browser Neural Cortex V0B Motor Proposal - LOCKED
 
 Recorded at: 2026-06-02

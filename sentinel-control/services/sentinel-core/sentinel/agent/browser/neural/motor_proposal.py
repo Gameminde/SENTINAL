@@ -19,6 +19,12 @@ class MotorProposalArtifact(SentinelModel):
     risk_flags: list[str] = Field(default_factory=list)
     expected_receipt_type: str
     verification_plan: dict[str, object] = Field(default_factory=dict)
+    url: str | None = None
+    action_kind: str = "open"
+    allowed_domains: list[str] = Field(default_factory=list)
+    target_role: str | None = None
+    target_name: str | None = None
+    text: str | None = None
     dispatch_required: bool = True
     can_execute: bool = False
     data_not_instruction: bool = True
@@ -45,6 +51,12 @@ class MotorProposalArtifact(SentinelModel):
                 "risk_flags": self.risk_flags,
                 "expected_receipt_type": self.expected_receipt_type,
                 "verification_plan": self.verification_plan,
+                "url": self.url,
+                "action_kind": self.action_kind,
+                "allowed_domains": self.allowed_domains,
+                "target_role": self.target_role,
+                "target_name": self.target_name,
+                "text": self.text,
             }
         )
         if self.artifact_hash != expected:
@@ -77,6 +89,12 @@ class MotorProposalNeuron(_BaseBrowserNeuron):
             "risk_flags": risk_flags,
             "expected_receipt_type": "BrowserSessionReceipt",
             "verification_plan": {"expected": "receipt_and_finalgate_required"},
+            "url": None,
+            "action_kind": "open",
+            "allowed_domains": [],
+            "target_role": None,
+            "target_name": None,
+            "text": None,
         }
         proposal = MotorProposalArtifact(**proposal_payload, artifact_hash=stable_neural_hash(proposal_payload))
         signal = _make_signal(
@@ -103,3 +121,51 @@ class MotorProposalNeuron(_BaseBrowserNeuron):
             signals=[signal],
             proposal_artifacts=[proposal],
         )
+
+
+def motor_proposal_artifact_to_browser_step_candidate(
+    artifact: MotorProposalArtifact | dict[str, object],
+) -> dict[str, object] | None:
+    if not isinstance(artifact, MotorProposalArtifact):
+        try:
+            artifact = MotorProposalArtifact.model_validate(artifact)
+        except Exception:
+            return None
+    if not artifact.dispatch_required or artifact.can_execute:
+        return None
+    if artifact.authority_effect != "none" or artifact.execution_effect != "none":
+        return None
+    if artifact.organ_kind != "browser_session_manager":
+        return None
+    if artifact.action_level != "L5":
+        return None
+    if not artifact.url:
+        return None
+    return {
+        "proposal_id": artifact.proposal_artifact_id,
+        "source_role_id": "browser_neural_motor",
+        "artifact_kind": "browser_step_candidate",
+        "action_level_candidate": artifact.action_level,
+        "authority_class": "needs_gate",
+        "risk_class": "high" if artifact.risk_flags else "medium",
+        "budget_estimate": {"action_count": 1},
+        "evidence_refs": list(artifact.source_evidence_refs),
+        "receipt_refs": [],
+        "expected_outcome": artifact.expected_receipt_type,
+        "rollback_posture": "browser receipt and FinalGate required",
+        "user_review_required": False,
+        "safe_summary": "Browser neural motor proposal converted to browser step candidate.",
+        "browser_organ_kind": artifact.organ_kind,
+        "url": artifact.url,
+        "action_kind": artifact.action_kind,
+        "allowed_domains": list(artifact.allowed_domains),
+        "target_role": artifact.target_role,
+        "target_name": artifact.target_name,
+        "text": artifact.text,
+        "source_motor_proposal_id": artifact.proposal_artifact_id,
+        "source_signal_refs": list(artifact.source_signal_refs),
+        "verification_plan": dict(artifact.verification_plan),
+        "data_not_instruction": True,
+        "authority_effect": "none",
+        "execution_effect": "none",
+    }
