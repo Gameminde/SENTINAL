@@ -40,6 +40,15 @@ from sentinel.shared.models import SentinelModel
 from sentinel.shared.safety_scanner import scan_forbidden_payload_flat
 
 
+_PROMOTED_BROWSER_ORGAN_KINDS = {
+    "browser_session_manager",
+    "browser_form_submit_special_authority",
+    "browser_login_credential_session_broker",
+    "browser_download_upload_quarantine",
+    "browser_js_sandbox_special_authority",
+}
+
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -500,14 +509,34 @@ def render_brain_context_as_untrusted_data(result: BrainCognitionResult) -> str:
 
 
 def validate_brain_cognition_payload(payload: Any) -> BrainCognitionSafetyValidationResult:
-    rejected_paths = scan_forbidden_payload_flat(payload)
-    sanitized = sanitize_metadata(payload)
+    safety_payload = _brain_cognition_safety_payload(payload)
+    rejected_paths = scan_forbidden_payload_flat(safety_payload)
+    sanitized = sanitize_metadata(safety_payload)
     return BrainCognitionSafetyValidationResult(
         valid=not rejected_paths,
         reasons=["forbidden_brain_cognition_payload"] if rejected_paths else [],
         rejected_paths=rejected_paths,
         payload_hash=stable_hash(sanitized),
     )
+
+
+def _brain_cognition_safety_payload(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        safe: dict[str, Any] = {}
+        for key, value in payload.items():
+            if key == "browser_organ_kind" and value in _PROMOTED_BROWSER_ORGAN_KINDS:
+                safe[key] = {
+                    "promoted_browser_organ_kind": True,
+                    "value_hash": stable_hash(str(value)),
+                }
+                continue
+            safe[key] = _brain_cognition_safety_payload(value)
+        return safe
+    if isinstance(payload, list):
+        return [_brain_cognition_safety_payload(item) for item in payload]
+    if isinstance(payload, tuple):
+        return tuple(_brain_cognition_safety_payload(item) for item in payload)
+    return payload
 
 
 def _rejected_result(

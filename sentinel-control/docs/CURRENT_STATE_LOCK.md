@@ -1,5 +1,47 @@
 # Current State Lock
 
+## Browser Runtime AgentRuntime Full Browser Stack - LOCKED
+
+Recorded at: 2026-06-01
+
+Branch: `main`
+
+This section supersedes the L6 login/file/JS dispatch lock. Sentinel now
+proves the promoted browser L5/L6 stack through `AgentRuntime.run()` using
+native Brain proposal artifacts, not only direct runtime calls or standalone
+dispatcher tests.
+
+```text
+current_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
+previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
+next_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
+```
+
+### AgentRuntime Full Browser Stack Truth
+
+```text
+Brain-native browser L5/L6 proposal source = CLOSED
+AgentRuntime open -> login -> close = CLOSED
+AgentRuntime open -> download quarantine -> JS sandbox -> close = CLOSED
+RoleLoopMemoryBridge feedback after browser dispatch = CLOSED
+Replan-ready packet after browser dispatch = CLOSED
+Temporary user_input candidate bridge disabled by default = CLOSED
+Raw credential values in AgentRunResult = REJECTED
+Automatic replan execution = NOT_STARTED
+Durable credential value storage = NOT_STARTED
+Generic browser login/upload/download/private session = NOT_STARTED
+Generic arbitrary JavaScript outside sandbox contract = NOT_STARTED
+API/channel/shell/desktop/payment execution = NOT_STARTED
+```
+
+### AgentRuntime Full Browser Stack Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/brain/cognition_loop.py
+sentinel-control/services/sentinel-core/tests/test_browser_runtime_agentruntime_full_browser_stack_lock.py
+sentinel-control/docs/reviews/BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK_REPORT.md
+```
+
 ## Browser Runtime Unification L6 Login/File/JS Dispatch - LOCKED
 
 Recorded at: 2026-06-01

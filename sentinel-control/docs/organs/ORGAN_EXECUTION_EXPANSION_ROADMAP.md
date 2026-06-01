@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
-previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCKED
-next_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK
+current_phase = BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCKED
+previous_phase = BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCKED
+next_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
 ```
 
 Strategic correction:
@@ -127,6 +127,14 @@ Revised browser organ roadmap:
     through the constrained JS sandbox contract. Generic login, generic
     upload/download, arbitrary JS, raw credential persistence, API/channel/
     shell/desktop/payment execution remain not started.
+
+20. BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK [DONE]
+    Prove the promoted browser L5/L6 stack through `AgentRuntime.run()` using
+    native Brain proposal artifacts. Open -> login -> close and open ->
+    download quarantine -> JS sandbox -> close both route through Brain ->
+    AgentRuntime ORGAN_DISPATCHING -> OrganDispatcher -> Gate -> runtime
+    execution -> receipt -> FinalGate -> memory feedback -> replan-ready
+    packet. The temporary user_input bridge remains disabled by default.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -175,12 +183,16 @@ BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7 = implemented / locked
 BROWSER_OBSERVABILITY_AND_REPLAY_STUDIO_V1 = implemented / locked
 BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7 = implemented / locked
 BROWSER_FINAL_CAPABILITY_LOCK = implemented / locked
+BROWSER_RUNTIME_UNIFICATION_L5_DISPATCH_LOCK = implemented / locked
+BROWSER_RUNTIME_UNIFICATION_L6_FORM_SUBMIT_DISPATCH_LOCK = implemented / locked
+BROWSER_RUNTIME_UNIFICATION_L6_LOGIN_FILE_JS_DISPATCH_LOCK = implemented / locked
+BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_RUNTIME_AGENTRUNTIME_FULL_BROWSER_STACK_LOCK
+BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
