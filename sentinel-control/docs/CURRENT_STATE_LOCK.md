@@ -1,5 +1,43 @@
 # Current State Lock
 
+## Browser Neural Gauntlet - LOCKED
+
+Recorded at: 2026-06-02
+
+Branch: `main`
+
+This section supersedes the browser multi-agent operator squad lock. Sentinel
+now has a focused Browser Neural Operator Cortex wave through gauntlet
+coverage. The global neural fabric and additional live actuators remain not
+started.
+
+```text
+current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
+previous_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCKED
+next_phase = external audit / next Browser live backend decision
+```
+
+### Browser Neural Gauntlet Truth
+
+```text
+browser neural gauntlet cases = CLOSED
+gauntlet replay ledger events = CLOSED
+auth/payment/captcha boundary checks = CLOSED
+memory-not-authority regression = CLOSED
+global neural fabric = NOT_STARTED
+payment/account live execution = NOT_STARTED
+shell/API/channel/desktop execution = NOT_STARTED
+```
+
+### Browser Neural Gauntlet Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/gauntlet.py
+sentinel-control/services/sentinel-core/tests/test_browser_neural_gauntlet_lock.py
+sentinel-control/docs/reviews/BROWSER_NEURAL_GAUNTLET_LOCK_REPORT.md
+sentinel-control/docs/reviews/BROWSER_NEURAL_OPERATOR_CORTEX_FINAL_AUDIT_REPORT.md
+```
+
 ## Browser Multi-Agent Operator Squad - LOCKED
 
 Recorded at: 2026-06-02

@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCKED
-previous_phase = DURABLE_RECEIPT_LEDGER_FOUNDATION_LOCKED
-next_phase = BROWSER_NEURAL_GAUNTLET_LOCK
+current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
+previous_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCKED
+next_phase = external audit / next Browser live backend decision
 ```
 
 Strategic correction:
@@ -178,7 +178,7 @@ Revised browser organ roadmap:
     Build the browser squad on top of the neural signal graph and ledger.
     Roles are views over neurons/signals; no sub-agent executes directly.
 
-29. BROWSER_NEURAL_GAUNTLET_LOCK [NEXT]
+29. BROWSER_NEURAL_GAUNTLET_LOCK [DONE]
     Stress the full neural browser path with recovery, boundary, memory,
     invented evidence, and replay scenarios.
 ```
@@ -241,12 +241,13 @@ MOTOR_NEURON_TO_ORGAN_DISPATCH_LOCK = implemented / locked
 BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK = implemented / locked
 DURABLE_RECEIPT_LEDGER_FOUNDATION = implemented / locked
 BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK = implemented / locked
+BROWSER_NEURAL_GAUNTLET_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_NEURAL_GAUNTLET_LOCK
+external audit / next Browser live backend decision
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser

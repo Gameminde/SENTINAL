@@ -14,6 +14,12 @@ from sentinel.agent.browser.neural.ledger import (
     BrowserNeuralLedgerIntegrityError,
     BrowserNeuralReceiptLedger,
 )
+from sentinel.agent.browser.neural.gauntlet import (
+    BrowserNeuralGauntlet,
+    BrowserNeuralGauntletCase,
+    BrowserNeuralGauntletCaseResult,
+    BrowserNeuralGauntletReport,
+)
 from sentinel.agent.browser.neural.perception import (
     BrowserObservationNeuron,
     EvidenceAuditorNeuron,
@@ -44,6 +50,10 @@ __all__ = [
     "BrowserNeuralLedgerEvent",
     "BrowserNeuralLedgerIntegrityError",
     "BrowserNeuralReceiptLedger",
+    "BrowserNeuralGauntlet",
+    "BrowserNeuralGauntletCase",
+    "BrowserNeuralGauntletCaseResult",
+    "BrowserNeuralGauntletReport",
     "BrowserNeuralOperatorSquad",
     "BrowserSquadRole",
     "BrowserSquadRoleKind",
