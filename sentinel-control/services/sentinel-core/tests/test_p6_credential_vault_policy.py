@@ -66,6 +66,9 @@ def test_redaction_removes_secret_like_values_from_trace_payload():
     payload = {
         "Authorization": "Bearer sk-live-123456",
         "nested": {"api_key": "secret_value"},
+        "groq": "gsk_unit_test_provider_key",
+        "nvidia": "nvapi-unit-test-provider-key",
+        "openrouter": "sk-or-v1-unit-test-provider-key",
         "safe": "credential_ref:credref_123",
     }
 
@@ -73,6 +76,9 @@ def test_redaction_removes_secret_like_values_from_trace_payload():
 
     assert "sk-live" not in str(redacted)
     assert "secret_value" not in str(redacted)
+    assert "gsk_unit_test_provider_key" not in str(redacted)
+    assert "nvapi-unit-test-provider-key" not in str(redacted)
+    assert "sk-or-v1-unit-test-provider-key" not in str(redacted)
     assert redacted["safe"] == "credential_ref:credref_123"
 
 
@@ -129,6 +135,12 @@ def test_policy_allows_reference_only_for_matching_scoped_grant():
     assert decision.secret_value is None
 
 
+def test_scoped_credential_grant_inactive_at_exact_expiration_boundary():
+    expires_at = datetime.now(UTC)
+
+    assert grant(expires_at=expires_at).is_active(expires_at) is False
+
+
 def test_policy_blocks_wrong_organ_action_expired_and_revoked_grants():
     expired = grant(expires_at=datetime.now(UTC) - timedelta(seconds=1))
     revoked = revoke_credential_grant(grant(), reason="rotated")
@@ -159,6 +171,63 @@ def test_policy_blocks_wrong_organ_action_expired_and_revoked_grants():
     assert "action_class_mismatch" in wrong.reasons
     assert "grant_expired" in expired_decision.reasons
     assert "grant_revoked" in revoked_decision.reasons
+
+
+def test_policy_blocks_grant_at_exact_expiration_boundary():
+    expires_at = datetime.now(UTC)
+
+    decision = CredentialVaultPolicy().evaluate(
+        grant(expires_at=expires_at),
+        requesting_organ="external_api_organ",
+        action_class="read_only_api",
+        source=CredentialAccessSource.ORGAN_RUNTIME,
+        trace_refs=["trace_policy"],
+        at_time=expires_at,
+    )
+
+    assert decision.reference_allowed is False
+    assert "grant_expired" in decision.reasons
+
+
+def test_policy_blocks_expired_or_revoked_credential_ref_even_when_grant_active():
+    expired_ref = credential_ref(expires_at=datetime.now(UTC) - timedelta(seconds=1))
+    revoked_ref = credential_ref(revoked_at=datetime.now(UTC))
+
+    expired_decision = CredentialVaultPolicy().evaluate(
+        grant(credential_ref=expired_ref),
+        requesting_organ="external_api_organ",
+        action_class="read_only_api",
+        source=CredentialAccessSource.ORGAN_RUNTIME,
+        trace_refs=["trace_policy"],
+    )
+    revoked_decision = CredentialVaultPolicy().evaluate(
+        grant(credential_ref=revoked_ref),
+        requesting_organ="external_api_organ",
+        action_class="read_only_api",
+        source=CredentialAccessSource.ORGAN_RUNTIME,
+        trace_refs=["trace_policy"],
+    )
+
+    assert expired_decision.reference_allowed is False
+    assert "credential_ref_expired" in expired_decision.reasons
+    assert revoked_decision.reference_allowed is False
+    assert "credential_ref_revoked" in revoked_decision.reasons
+
+
+def test_policy_blocks_credential_ref_at_exact_expiration_boundary():
+    expires_at = datetime.now(UTC)
+
+    decision = CredentialVaultPolicy().evaluate(
+        grant(credential_ref=credential_ref(expires_at=expires_at)),
+        requesting_organ="external_api_organ",
+        action_class="read_only_api",
+        source=CredentialAccessSource.ORGAN_RUNTIME,
+        trace_refs=["trace_policy"],
+        at_time=expires_at,
+    )
+
+    assert decision.reference_allowed is False
+    assert "credential_ref_expired" in decision.reasons
 
 
 def test_policy_receipt_is_deterministic_and_redacted():

@@ -33,4 +33,4 @@ class ScopedCredentialGrant(SentinelModel):
         return self
 
     def is_active(self, at_time: datetime) -> bool:
-        return not self.revoked and at_time <= self.expires_at
+        return not self.revoked and at_time < self.expires_at

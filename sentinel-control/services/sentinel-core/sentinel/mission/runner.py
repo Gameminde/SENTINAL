@@ -200,6 +200,15 @@ class MissionRunner:
                         output = self._execute_browser_operator_route(envelope, routed_action)
                     else:
                         output = definition.executor.execute(routed_action, project_dir, artifact_index, timeline=timeline)
+                except MissionRevokedException:
+                    revoked = True
+                    timeline.emit(
+                        MissionTraceEventType.MISSION_REVOKED,
+                        "Mission authority revoked during action execution; remaining plan steps suppressed.",
+                        action_id=routed_action.id,
+                        result={"step_id": step.id, "reason": "mission_revoked"},
+                    )
+                    break
                 except Exception as exc:
                     timeline.emit(
                         MissionTraceEventType.ACTION_BLOCKED,
@@ -331,6 +340,8 @@ class MissionRunner:
                 action, envelope, capture_root=capture_root
             )
         except BrowserOperatorRouteRejected:
+            raise
+        except MissionRevokedException:
             raise
         except Exception as original_exc:
             raise BrowserOperatorRouteRejected(

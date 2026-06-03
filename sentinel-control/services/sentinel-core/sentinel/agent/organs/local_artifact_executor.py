@@ -292,17 +292,63 @@ class L2LocalArtifactExecutor:
                 reasons=validation.reasons,
             )
 
-        assert contract is not None
-        assert path_plan is not None
+        if contract is None or path_plan is None or path_plan.target_path is None:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["execution_precondition_missing"]),
+                path_metadata=path_plan.path_metadata if path_plan is not None else _minimal_path_metadata(request),
+                reasons=["execution_precondition_missing"],
+            )
+
         target_path = path_plan.target_path
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        target_path.write_text(request.content, encoding="utf-8")
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["workspace_parent_unavailable"]),
+                path_metadata=path_plan.path_metadata,
+                reasons=["workspace_parent_unavailable"],
+            )
+
+        final_path_plan = _resolve_target_path(request, contract)
+        if final_path_plan.reasons or final_path_plan.target_path is None:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["path_changed_before_mutation", *final_path_plan.reasons]),
+                path_metadata=final_path_plan.path_metadata or path_plan.path_metadata,
+                reasons=["path_changed_before_mutation", *final_path_plan.reasons],
+            )
+        target_path = final_path_plan.target_path
+        write_mode = "w" if contract.allow_overwrite else "x"
+        try:
+            with target_path.open(write_mode, encoding="utf-8") as handle:
+                handle.write(request.content)
+        except FileExistsError:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["overwrite_forbidden"]),
+                path_metadata=final_path_plan.path_metadata,
+                reasons=["overwrite_forbidden"],
+            )
+        except OSError:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["artifact_write_failed"]),
+                path_metadata=final_path_plan.path_metadata,
+                reasons=["artifact_write_failed"],
+            )
         artifact_hash = _file_hash(target_path)
         receipt = self.produce_receipt(
             request=request,
             contract=contract,
             attempt_status=L2LocalArtifactAttemptStatus.CREATED,
-            path_metadata=path_plan.path_metadata,
+            path_metadata=final_path_plan.path_metadata,
             artifact_hash=artifact_hash,
             rejection_reason=None,
             rollback_receipt_id=None,
@@ -613,6 +659,19 @@ def validate_l2_local_artifact_payload(payload: Any) -> L2LocalArtifactSafetyVal
         reasons=["forbidden_l2_payload"] if rejected_paths else [],
         rejected_paths=rejected_paths,
         payload_hash=stable_hash(sanitized),
+    )
+
+
+def _extend_validation(
+    validation: L2LocalArtifactSafetyValidationResult,
+    reasons: list[str],
+    rejected_paths: list[str] | None = None,
+) -> L2LocalArtifactSafetyValidationResult:
+    return L2LocalArtifactSafetyValidationResult(
+        valid=False,
+        reasons=_dedupe([*validation.reasons, *reasons]),
+        rejected_paths=_dedupe([*validation.rejected_paths, *(rejected_paths or [])]),
+        payload_hash=validation.payload_hash,
     )
 
 

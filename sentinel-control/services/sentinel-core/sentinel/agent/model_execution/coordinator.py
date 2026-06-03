@@ -167,6 +167,13 @@ class ModelExecutionCoordinator:
                 budget_summary=budget_summary,
                 message="Pack A does not accept fake success or real provider success without Wave 8.",
             )
+        if response.provider_id != request.provider_id or response.model_id != request.model_id:
+            return ModelExecutionOutcome(
+                outcome_class=ModelExecutionOutcomeClass.DISABLED_BACKEND,
+                success=False,
+                provider_called=True,
+                message="provider response identity mismatch",
+            )
         allowed_refs: set[str] = set()
         for key in ("frame_receipt_refs", "frame_evidence_refs"):
             values = request.request_metadata.get(key)
@@ -203,11 +210,13 @@ class ModelExecutionCoordinator:
         )
 
     def _resolve_credential(self, provider_id: str) -> ProviderCredentialHandle | None:
-        resolved = self._credential_resolver.resolve(provider_id=provider_id, required_scopes=["model:read"])
+        required_scopes = ["model:read"]
+        resolved = self._credential_resolver.resolve(provider_id=provider_id, required_scopes=required_scopes)
         if isinstance(resolved, CredentialResolution):
-            return resolved.credential if resolved.outcome_class is ModelExecutionOutcomeClass.SUCCESS_VALIDATED else None
+            credential = resolved.credential if resolved.outcome_class is ModelExecutionOutcomeClass.SUCCESS_VALIDATED else None
+            return credential if _credential_has_required_scopes(credential, required_scopes) else None
         if isinstance(resolved, ProviderCredentialHandle):
-            return resolved
+            return resolved if _credential_has_required_scopes(resolved, required_scopes) else None
         return None
 
     def _catalog_gate(self, request: RealModelRequest) -> ModelExecutionOutcome | None:
@@ -227,3 +236,9 @@ class ModelExecutionCoordinator:
         if backend is None or not backend.supports_model(request.model_id):
             return ModelExecutionOutcome(outcome_class=ModelExecutionOutcomeClass.DISABLED_BACKEND, success=False)
         return None
+
+
+def _credential_has_required_scopes(credential: ProviderCredentialHandle | None, required_scopes: list[str]) -> bool:
+    if credential is None:
+        return False
+    return set(required_scopes).issubset(set(credential.scopes))

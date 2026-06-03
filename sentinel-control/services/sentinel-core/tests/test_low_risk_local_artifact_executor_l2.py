@@ -25,6 +25,7 @@ from sentinel.agent.organs.local_artifact_executor import (
     L2LocalArtifactRollbackReceipt,
     render_l2_execution_receipt_as_untrusted_context,
 )
+from sentinel.agent.organs import local_artifact_executor as l2_module
 from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionMode
 from sentinel.agent.organs.proposal_bridge import OrganProposalKind
 from sentinel.agent.runtime import AgentRuntime
@@ -163,6 +164,39 @@ def test_l2_blocks_symlink_escape(tmp_path: Path) -> None:
     result = _execute(tmp_path, target_relative_path="link/escape.md")
 
     assert result.attempt_status is L2LocalArtifactAttemptStatus.BLOCKED
+    assert not (outside / "escape.md").exists()
+
+
+def test_l2_blocks_symlink_swap_after_validation_before_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = tmp_path / "generated_root"
+    subdir = root / "artifacts"
+    outside = tmp_path / "outside"
+    (subdir / "race").mkdir(parents=True)
+    outside.mkdir()
+    try:
+        probe = subdir / "probe"
+        probe.symlink_to(outside, target_is_directory=True)
+        probe.unlink()
+    except OSError:
+        pytest.skip("Symlink creation is unavailable in this Windows environment.")
+
+    original_resolve = l2_module._resolve_target_path
+    calls = {"count": 0}
+
+    def racing_resolve(request: L2LocalArtifactRequest, contract: L2ExecutorContract):
+        calls["count"] += 1
+        if calls["count"] == 3:
+            race_dir = subdir / "race"
+            race_dir.rmdir()
+            race_dir.symlink_to(outside, target_is_directory=True)
+        return original_resolve(request, contract)
+
+    monkeypatch.setattr(l2_module, "_resolve_target_path", racing_resolve)
+
+    result = _execute(tmp_path, target_relative_path="race/escape.md", content="should not escape")
+
+    assert result.attempt_status is L2LocalArtifactAttemptStatus.BLOCKED
+    assert "path_changed_before_mutation" in result.receipt.rejection_reason
     assert not (outside / "escape.md").exists()
 
 

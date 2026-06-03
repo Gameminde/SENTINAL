@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
@@ -134,6 +134,7 @@ class CredentialGrant(SentinelModel):
     allowed_action_levels: list[str] = Field(default_factory=list)
     domain_scope: list[str] = Field(default_factory=list)
     action_scope: list[str] = Field(default_factory=list)
+    issued_at: datetime = Field(default_factory=utc_now)
     expires_at: datetime | None = None
     ttl_seconds: int | None = Field(default=None, ge=0)
     max_use_count: int = Field(default=1, ge=0)
@@ -175,7 +176,9 @@ class CredentialGrant(SentinelModel):
 
     def is_expired(self, current_time: datetime | None = None) -> bool:
         now = current_time or utc_now()
-        return self.expires_at is not None and now > self.expires_at
+        if self.expires_at is not None and now >= self.expires_at:
+            return True
+        return self.ttl_seconds is not None and now >= self.issued_at + timedelta(seconds=self.ttl_seconds)
 
     def is_revoked(self) -> bool:
         return self.status is CredentialGrantStatus.REVOKED or self.revoked_at is not None
@@ -557,6 +560,7 @@ def evaluate_credential_access(
         evidence_refs=[*grant.evidence_refs, *request.evidence_refs],
         receipt_refs=[*grant.receipt_refs, *request.receipt_refs],
     )
+    grant.used_count += 1
     return _audit_receipt(
         request=request,
         grant=grant,
@@ -645,7 +649,7 @@ def _scope_matches(*, request: CredentialAccessRequest, grant: CredentialGrant) 
         return False
     if request.action not in set(grant.action_scope):
         return False
-    if request.domain and grant.domain_scope and request.domain not in set(grant.domain_scope):
+    if grant.domain_scope and (not request.domain or request.domain not in set(grant.domain_scope)):
         return False
     return True
 

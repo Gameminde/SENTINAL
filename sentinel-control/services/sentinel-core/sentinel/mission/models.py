@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from sentinel.shared.enums import (
     ConfidenceLevel,
@@ -18,6 +18,7 @@ from sentinel.shared.enums import (
     SensitivityLevel,
 )
 from sentinel.shared.models import SentinelModel, new_id
+from sentinel.shared.safety_scanner import OrganSafetyScanCategory, scan_forbidden_payload_categorized
 
 
 def utc_now() -> datetime:
@@ -54,6 +55,74 @@ class MissionAuthorityEnvelope(SentinelModel):
     created_at: datetime = Field(default_factory=utc_now)
     expires_at: datetime | None = None
     revoked_at: datetime | None = None
+
+    @field_validator("browser_v3_authority_grants", mode="before")
+    @classmethod
+    def _browser_v3_grants_are_secret_free_metadata(cls, value: Any) -> list[dict[str, Any]]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("browser_v3_authority_grants must be a list of metadata dictionaries.")
+        normalized: list[dict[str, Any]] = []
+        for index, item in enumerate(value):
+            if hasattr(item, "model_dump") and callable(item.model_dump):
+                item = item.model_dump(mode="python")
+            if not isinstance(item, dict):
+                raise ValueError("browser_v3_authority_grants entries must be metadata dictionaries.")
+            scan = scan_forbidden_payload_categorized(item, path=f"$.browser_v3_authority_grants[{index}]")
+            browser_dangerous = [
+                path for path in scan[OrganSafetyScanCategory.BROWSER_DANGEROUS.value]
+                if not (path.endswith(".authority_class") or path.endswith(".id"))
+            ]
+            external_action = [
+                path for path in scan[OrganSafetyScanCategory.EXTERNAL_ACTION.value]
+                if ".blocked_flow_types[" not in path
+            ]
+            credential_dangerous = [
+                path for path in scan[OrganSafetyScanCategory.CREDENTIAL_DANGEROUS.value]
+                if not (path.endswith(".authority_class") or path.endswith(".id"))
+            ]
+            rejected = [
+                *scan[OrganSafetyScanCategory.SECRET.value],
+                *scan[OrganSafetyScanCategory.PROVIDER_OVERRIDE.value],
+                *scan[OrganSafetyScanCategory.AUTHORITY_EXPANSION.value],
+                *external_action,
+                *credential_dangerous,
+                *scan[OrganSafetyScanCategory.UNSAFE_PAYLOAD.value],
+                *browser_dangerous,
+            ]
+            if rejected:
+                raise ValueError("browser_v3_authority_grants entries must not contain secrets, provider overrides, authority expansion, external actions, or runtime payloads.")
+            normalized.append(dict(item))
+        return normalized
+
+    @field_validator("credential_grants", mode="before")
+    @classmethod
+    def _credential_grants_are_secret_free_metadata(cls, value: Any) -> list[Any]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("credential_grants must be a list of metadata dictionaries.")
+        normalized: list[Any] = []
+        for index, item in enumerate(value):
+            original = item
+            if hasattr(item, "model_dump") and callable(item.model_dump):
+                item = item.model_dump(mode="python")
+            if not isinstance(item, dict):
+                raise ValueError("credential_grants entries must be metadata dictionaries.")
+            scan = scan_forbidden_payload_categorized(item, path=f"$.credential_grants[{index}]")
+            rejected = [
+                *scan[OrganSafetyScanCategory.SECRET.value],
+                *scan[OrganSafetyScanCategory.PROVIDER_OVERRIDE.value],
+                *scan[OrganSafetyScanCategory.AUTHORITY_EXPANSION.value],
+                *scan[OrganSafetyScanCategory.EXTERNAL_ACTION.value],
+                *scan[OrganSafetyScanCategory.CREDENTIAL_DANGEROUS.value],
+                *scan[OrganSafetyScanCategory.UNSAFE_PAYLOAD.value],
+            ]
+            if rejected:
+                raise ValueError("credential_grants entries must not contain secrets, authority overrides, or execution payloads.")
+            normalized.append(original)
+        return normalized
 
     def resolved_expires_at(self) -> datetime:
         return self.expires_at or self.created_at + timedelta(minutes=self.max_duration_minutes)

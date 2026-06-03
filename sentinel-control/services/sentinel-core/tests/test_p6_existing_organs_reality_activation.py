@@ -99,7 +99,10 @@ def test_desktop_workspace_operator_real_files_are_root_scoped(tmp_path):
     listed = operator.list_dir("reports")
 
     assert (tmp_path / "reports" / "out.txt").read_text(encoding="utf-8") == "hello"
-    assert read_receipt.output_summary["content"] == "hello"
+    assert "content" not in read_receipt.output_summary
+    assert read_receipt.output_summary["bytes"] == len("hello".encode("utf-8"))
+    assert read_receipt.output_summary["content_hash"]
+    assert "hello" not in str(read_receipt.model_dump())
     assert listed.output_summary["entries"] == ["out.txt"]
     assert write_receipt.action == "desktop_workspace_write_file"
     with pytest.raises(ValueError, match="workspace escape"):

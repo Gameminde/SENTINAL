@@ -74,6 +74,8 @@ def test_workspace_l6_file_ops_emit_path_proofs_receipts_and_rollback(tmp_path):
     assert read.receipt.output_summary["content_hash"] == read.content_hash
     assert listed.receipt.output_summary["entries"] == ["out.txt"]
     assert written.receipt.path_containment_proof_ref.startswith("pathproof_")
+    assert written.receipt.path_containment_proof_hash
+    assert written.receipt.workspace_root == str(tmp_path.resolve())
     assert written.receipt.rollback_ref is not None
     assert written.receipt.receipt_hash == written.receipt.expected_hash()
 
@@ -141,6 +143,7 @@ def test_finalgate_rejects_missing_rollback_missing_path_proof_and_authority_exp
 
     missing_rollback = good.model_copy(update={"rollback_ref": None})
     missing_path_proof = good.model_copy(update={"path_containment_proof_ref": ""})
+    forged_path_proof_hash = good.model_copy(update={"path_containment_proof_hash": "forged"})
     expanded = good.model_copy(update={"authority_expansion": True})
     tampered_cost = good.model_copy(update={"cost_trace": good.cost_trace.model_copy(update={"bytes_written": 999})})
 
@@ -148,6 +151,8 @@ def test_finalgate_rejects_missing_rollback_missing_path_proof_and_authority_exp
     assert "rollback ref missing" in finalgate.verify(missing_rollback).failures
     assert finalgate.verify(missing_path_proof).passed is False
     assert "path containment proof missing" in finalgate.verify(missing_path_proof).failures
+    assert finalgate.verify(forged_path_proof_hash).passed is False
+    assert "path containment proof hash mismatch" in finalgate.verify(forged_path_proof_hash).failures
     assert finalgate.verify(expanded).passed is False
     assert "authority expansion detected" in finalgate.verify(expanded).failures
     assert finalgate.verify(tampered_cost).passed is False
@@ -199,7 +204,24 @@ def test_workspace_l6_receipt_rejects_host_control_surfaces(tmp_path):
             authority_refs=["root"],
             evidence_refs=["fixture"],
             trace_refs=["trace"],
+            workspace_root=str(tmp_path),
             path_containment_proof_ref="pathproof_1",
             rollback_ref="rollback_1",
             live_host_control_enabled=True,
+        )
+
+
+def test_workspace_l6_receipt_rejects_forged_outside_root_proof(tmp_path):
+    with pytest.raises(ValueError, match="outside workspace root"):
+        DesktopWorkspaceL6Receipt(
+            mission_id="mission_desktop_l6",
+            action="desktop_workspace_read_file_l6",
+            relative_path="../escape.txt",
+            resolved_path=str(tmp_path.parent / "escape.txt"),
+            output_summary={"bytes": 1},
+            authority_refs=["root"],
+            evidence_refs=["fixture"],
+            trace_refs=["trace"],
+            workspace_root=str(tmp_path),
+            path_containment_proof_ref="pathproof_forged",
         )

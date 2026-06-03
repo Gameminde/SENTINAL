@@ -158,6 +158,20 @@ def test_openai_compatible_usage_mapping_and_raw_payload_redaction(
     assert "unit_resp_1" not in dumped
 
 
+def test_openai_compatible_rejects_provider_returned_model_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIT_PROVIDER_KEY", SECRET_VALUE)
+    payload = _payload()
+    payload["model"] = "other/model"
+    monkeypatch.setattr("httpx.Client", RecordingHttpxClient(payload))
+
+    response = _provider().execute(_compatible_request(), timeout=_timeout(), credential=_credential())
+
+    assert response.error_class == ModelExecutionOutcomeClass.DISABLED_BACKEND.value
+    assert response.content["rejected_reason"] == "provider_model_mismatch"
+
+
 def test_openai_compatible_timeout_profile_and_errors_are_profile_driven(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

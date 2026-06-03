@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import platform
 import random
+import shutil
 import tempfile
 import time
 from datetime import UTC, datetime
@@ -74,6 +75,8 @@ pytestmark = pytest.mark.slow
 # Windows for CI stability; the canonical budget remains the lock contract.
 _IS_WINDOWS = platform.system() == "Windows"
 _PERSIST_PLATFORM_MULTIPLIER = 5.0 if _IS_WINDOWS else 1.0
+_MIN_RECEIPT_INDEX_FREE_MB = 256
+_MIN_ARTIFACT_STORE_FREE_MB = 180
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +136,16 @@ def _make_performance_receipt(
         raw_secret_leakage=False,
         created_at=datetime.now(UTC),
     )
+
+
+def _skip_if_low_disk(root: str | Path, *, required_mb: int, label: str) -> None:
+    """Skip full-scale perf setup when the host lacks enough temp disk."""
+    free_mb = shutil.disk_usage(root).free / (1024 * 1024)
+    if free_mb < required_mb:
+        pytest.skip(
+            f"{label} requires at least {required_mb} MB free temp disk; "
+            f"only {free_mb:.1f} MB available."
+        )
 
 
 def _print_percentiles(
@@ -244,6 +257,11 @@ def test_receipt_index_query_p95_full_scale_100k() -> None:
     mission_ids = [f"mission-{i}" for i in range(mission_count)]
 
     with tempfile.TemporaryDirectory() as tmp:
+        _skip_if_low_disk(
+            tmp,
+            required_mb=_MIN_RECEIPT_INDEX_FREE_MB,
+            label="ReceiptIndex 100k benchmark",
+        )
         event_bus = EventBus(mission_id="bench-receipt-index")
         cold_store = ColdReceiptStore(root=tmp, event_bus=event_bus)
 
@@ -289,7 +307,8 @@ def test_receipt_index_query_p95_full_scale_100k() -> None:
                     )
                 conn.execute("COMMIT")
             except Exception:
-                conn.execute("ROLLBACK")
+                if conn.in_transaction:
+                    conn.execute("ROLLBACK")
                 raise
             setup_ms = (time.perf_counter_ns() - setup_start) / 1_000_000
             print(f"[Setup] Done in {setup_ms:.0f} ms")
@@ -344,6 +363,11 @@ def test_artifact_get_p95_full_scale_10k() -> None:
     total_artifacts = 10_000
 
     with tempfile.TemporaryDirectory() as tmp:
+        _skip_if_low_disk(
+            tmp,
+            required_mb=_MIN_ARTIFACT_STORE_FREE_MB,
+            label="ArtifactRefStore 10k benchmark",
+        )
         event_bus = EventBus(mission_id="bench-artifact-store")
         store = ArtifactRefStore(Path(tmp), event_bus=event_bus)
 

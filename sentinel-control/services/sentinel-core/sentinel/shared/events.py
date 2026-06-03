@@ -30,19 +30,78 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_serializer, field_validator
 
 from sentinel.shared.models import SentinelModel, new_id
 
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+class FrozenDict(dict):
+    """JSON-compatible immutable dict used for event payloads."""
+
+    def _immutable(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("AgentEvent payload is immutable.")
+
+    __setitem__ = _immutable
+    __delitem__ = _immutable
+    clear = _immutable
+    pop = _immutable
+    popitem = _immutable
+    setdefault = _immutable
+    update = _immutable
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> FrozenDict:
+        return self
+
+
+class FrozenList(list):
+    """JSON-compatible immutable list used for nested event payload values."""
+
+    def _immutable(self, *args: Any, **kwargs: Any) -> None:
+        raise TypeError("AgentEvent payload is immutable.")
+
+    __setitem__ = _immutable
+    __delitem__ = _immutable
+    append = _immutable
+    extend = _immutable
+    insert = _immutable
+    pop = _immutable
+    remove = _immutable
+    clear = _immutable
+    reverse = _immutable
+    sort = _immutable
+    __iadd__ = _immutable
+    __imul__ = _immutable
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> FrozenList:
+        return self
+
+
+def _freeze_nested(value: Any) -> Any:
+    if isinstance(value, (FrozenDict, FrozenList)):
+        return value
+    if isinstance(value, dict):
+        return FrozenDict({str(key): _freeze_nested(item) for key, item in value.items()})
+    if isinstance(value, list | tuple | set):
+        return FrozenList([_freeze_nested(item) for item in value])
+    return value
+
+
+def _thaw_nested(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _thaw_nested(item) for key, item in value.items()}
+    if isinstance(value, list | tuple | set):
+        return [_thaw_nested(item) for item in value]
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -322,7 +381,7 @@ class TraceIntegrityError(RuntimeError):
 
 
 class AgentEvent(SentinelModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, arbitrary_types_allowed=True)
 
     id: str = Field(default_factory=lambda: new_id("aev"))
     mission_id: str
@@ -333,12 +392,30 @@ class AgentEvent(SentinelModel):
     phase_after: AgentPhase | None = None
     actor: str = "sentinel_agent"
     summary: str
-    payload: dict[str, Any] = Field(default_factory=dict)
-    trace_refs: list[str] = Field(default_factory=list)
+    payload: Any = Field(default_factory=dict)
+    trace_refs: tuple[str, ...] = Field(default_factory=tuple)
     parent_event_id: str | None = None
     previous_hash: str | None = None
     event_hash: str
     created_at: datetime = Field(default_factory=utc_now)
+
+    @field_validator("payload", mode="before")
+    @classmethod
+    def _freeze_payload(cls, value: Any) -> Any:
+        if value is None:
+            value = {}
+        if not isinstance(value, Mapping):
+            raise ValueError("AgentEvent payload must be a mapping.")
+        return _freeze_nested(value)
+
+    @field_serializer("payload")
+    def _serialize_payload(self, value: Any) -> dict[str, Any]:
+        return _thaw_nested(value)
+
+    @field_validator("trace_refs", mode="before")
+    @classmethod
+    def _freeze_trace_refs(cls, value: Any) -> tuple[str, ...]:
+        return tuple(str(item) for item in (value or []))
 
 
 # ---------------------------------------------------------------------------
@@ -453,8 +530,11 @@ class EventBus:
             "event_hash": "",
             "created_at": datetime.now(UTC),
         }
-        event_hash = self._hash_payload(event_data)
-        event = AgentEvent(**{**event_data, "event_hash": event_hash})
+        event = AgentEvent(**event_data)
+        hash_payload = event.model_dump()
+        hash_payload.pop("event_hash", None)
+        event_hash = self._hash_payload(hash_payload)
+        event = event.model_copy(update={"event_hash": event_hash})
         self._events.append_untracked(event)
         self._last_hash = event_hash
         return event
@@ -569,8 +649,8 @@ class EventBus:
         return True
 
     @staticmethod
-    def _hash_payload(payload: dict[str, Any]) -> str:
-        serializable = dict(payload)
+    def _hash_payload(payload: Mapping[str, Any]) -> str:
+        serializable = _thaw_nested(payload)
         serializable.pop("event_hash", None)
         canonical = json.dumps(serializable, sort_keys=True, default=str, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

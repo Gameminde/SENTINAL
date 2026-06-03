@@ -31,7 +31,7 @@ class ModelProviderRegistry:
         provider = self._providers.get(provider_id)
         if provider is None:
             raise LookupError(f"unknown provider: {provider_id}")
-        if not bool(getattr(provider, "enabled", False)):
+        if getattr(provider, "enabled", False) is not True:
             raise PermissionError(f"provider is disabled: {provider_id}")
         supported = tuple(getattr(provider, "supported_models", ()))
         if supported and model_id not in supported:

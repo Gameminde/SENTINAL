@@ -25,6 +25,7 @@ from sentinel.agent.organs.reversible_workspace_executor import (
     L3WorkspaceResult,
     render_l3_execution_receipt_as_untrusted_context,
 )
+from sentinel.agent.organs import reversible_workspace_executor as l3_module
 from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionMode
 from sentinel.agent.runtime import AgentRuntime
 from sentinel.agent.model_execution.redaction import text_hash
@@ -300,6 +301,26 @@ def test_l3_blocks_symlink_escape(tmp_path: Path) -> None:
 
     assert result.attempt_status is L3WorkspaceAttemptStatus.BLOCKED
     assert outside_file.read_text(encoding="utf-8") == "outside\n"
+
+
+def test_l3_blocks_snapshot_change_after_validation_before_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path, before_hash = _workspace_file(tmp_path, content="before\n")
+    original_before_snapshot = l3_module._before_snapshot
+    calls = {"count": 0}
+
+    def racing_before_snapshot(request: L3WorkspaceRequest, contract: L3ExecutorContract, path_plan: Any):
+        calls["count"] += 1
+        if calls["count"] == 3:
+            path.write_text("raced\n", encoding="utf-8")
+        return original_before_snapshot(request, contract, path_plan)
+
+    monkeypatch.setattr(l3_module, "_before_snapshot", racing_before_snapshot)
+
+    result = _execute(tmp_path, before_hash=before_hash, content="after\n")
+
+    assert result.attempt_status is L3WorkspaceAttemptStatus.BLOCKED
+    assert "path_or_snapshot_changed_before_mutation" in result.receipt.rejection_reason
+    assert path.read_text(encoding="utf-8") == "raced\n"
 
 
 def test_l3_blocks_absolute_sensitive_path(tmp_path: Path) -> None:

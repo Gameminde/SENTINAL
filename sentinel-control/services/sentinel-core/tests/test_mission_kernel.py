@@ -21,6 +21,7 @@ from sentinel.mission import (
     MissionTraceTimeline,
     SafeMissionExecutors,
 )
+from sentinel.mission.exceptions import MissionRevokedException
 from sentinel.mission.models import utc_now
 from sentinel.shared.enums import (
     ConfidenceLevel,
@@ -179,6 +180,24 @@ def test_runner_converts_executor_exception_into_failed_mission_trace(tmp_path):
     assert MissionTraceEventType.ACTION_BLOCKED in event_types
     assert MissionTraceEventType.MISSION_FAILED in event_types
     assert any(event.result.get("error") == "simulated executor failure" for event in result.trace_events)
+
+
+def test_runner_preserves_executor_revocation_as_revoked_mission(tmp_path):
+    runner = MissionRunner(project_root=tmp_path)
+    definition = runner.registry.get(MissionType.GTM)
+
+    def revoke_execute(*args, **kwargs):
+        raise MissionRevokedException("mission_revoked: executor observed kill switch")
+
+    definition.executor.execute = revoke_execute
+    result = runner.run_gtm_mission(envelope(), idea="Executor revocation", evidence_refs=["ev_1"])
+    event_types = [event.event_type for event in result.trace_events]
+
+    assert result.success is False
+    assert result.state.status == MissionStatus.REVOKED
+    assert result.blocked_actions == []
+    assert MissionTraceEventType.MISSION_REVOKED in event_types
+    assert MissionTraceEventType.ACTION_BLOCKED not in event_types
 
 
 def test_in_scope_reversible_action_auto_executes(tmp_path):

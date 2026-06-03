@@ -49,7 +49,9 @@ class EnvironmentCredentialResolver:
         if not isinstance(env_var, str) or not os.environ.get(env_var):
             return CredentialResolution(outcome_class=ModelExecutionOutcomeClass.MISSING_CREDENTIAL)
         scopes = config.get("scopes")
-        scope_list = [str(scope) for scope in scopes] if isinstance(scopes, list) else required_scopes
+        scope_list = [str(scope) for scope in scopes] if isinstance(scopes, list) else [*required_scopes]
+        if not set(required_scopes).issubset(set(scope_list)):
+            return CredentialResolution(outcome_class=ModelExecutionOutcomeClass.MISSING_CREDENTIAL)
         return CredentialResolution(
             outcome_class=ModelExecutionOutcomeClass.SUCCESS_VALIDATED,
             credential=ProviderCredentialHandle.from_env(provider_id=provider_id, env_var_name=env_var, scopes=scope_list),

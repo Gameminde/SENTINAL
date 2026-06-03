@@ -354,25 +354,78 @@ class L3ReversibleWorkspaceExecutor:
                 reasons=validation.reasons,
             )
 
-        assert contract is not None
-        assert path_plan is not None
-        assert before_snapshot is not None
-        target_path = path_plan.target_path
-        assert target_path is not None
-
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        tombstone = None
-        if request.action_kind is L3WorkspaceActionKind.CREATE_TOMBSTONED_CLEANUP_MARKER:
-            tombstone = _write_tombstone_marker(
+        if contract is None or path_plan is None or path_plan.target_path is None or before_snapshot is None:
+            return self._blocked_result(
                 request=request,
                 contract=contract,
-                path_plan=path_plan,
+                validation=_extend_validation(validation, ["execution_precondition_missing"]),
+                path_metadata=path_plan.path_metadata if path_plan is not None else _minimal_path_metadata(request),
                 before_snapshot=before_snapshot,
+                reasons=["execution_precondition_missing"],
             )
-            after_content = target_path.read_text(encoding="utf-8")
-        else:
-            after_content = _mutated_content(request, before_snapshot.safe_content)
-            target_path.write_text(after_content, encoding="utf-8")
+
+        final_path_plan = _resolve_target_path(request, contract)
+        final_before_snapshot = (
+            _before_snapshot(request, contract, final_path_plan)
+            if final_path_plan.target_path is not None
+            else None
+        )
+        if (
+            final_path_plan.reasons
+            or final_path_plan.target_path is None
+            or final_before_snapshot is None
+            or final_before_snapshot.before_hash != request.before_hash
+            or final_before_snapshot.before_hash != before_snapshot.before_hash
+        ):
+            reasons = ["path_or_snapshot_changed_before_mutation", *final_path_plan.reasons]
+            if final_before_snapshot is None:
+                reasons.append("before_hash_cannot_be_captured")
+            elif final_before_snapshot.before_hash != request.before_hash:
+                reasons.append("before_hash_mismatch")
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, reasons, final_path_plan.rejected_paths),
+                path_metadata=final_path_plan.path_metadata or path_plan.path_metadata,
+                before_snapshot=final_before_snapshot or before_snapshot,
+                reasons=reasons,
+            )
+
+        target_path = final_path_plan.target_path
+        before_snapshot = final_before_snapshot
+        try:
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["workspace_parent_unavailable"]),
+                path_metadata=final_path_plan.path_metadata,
+                before_snapshot=before_snapshot,
+                reasons=["workspace_parent_unavailable"],
+            )
+        tombstone = None
+        try:
+            if request.action_kind is L3WorkspaceActionKind.CREATE_TOMBSTONED_CLEANUP_MARKER:
+                tombstone = _write_tombstone_marker(
+                    request=request,
+                    contract=contract,
+                    path_plan=final_path_plan,
+                    before_snapshot=before_snapshot,
+                )
+                after_content = target_path.read_text(encoding="utf-8")
+            else:
+                after_content = _mutated_content(request, before_snapshot.safe_content)
+                target_path.write_text(after_content, encoding="utf-8")
+        except (OSError, UnicodeDecodeError, ValueError):
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["workspace_mutation_failed"]),
+                path_metadata=final_path_plan.path_metadata,
+                before_snapshot=before_snapshot,
+                reasons=["workspace_mutation_failed"],
+            )
 
         after_hash = _file_hash(target_path)
         after_snapshot = L3WorkspaceAfterSnapshot(
@@ -380,14 +433,14 @@ class L3ReversibleWorkspaceExecutor:
                 "l3_after",
                 {
                     "mission_id": request.mission_id,
-                    "target": path_plan.path_metadata,
+                    "target": final_path_plan.path_metadata,
                     "after_hash": after_hash,
                 },
             ),
             mission_id=request.mission_id,
             lane_id=contract.lane_id,
             gate_result_id=contract.gate_result_id,
-            path_metadata=path_plan.path_metadata,
+            path_metadata=final_path_plan.path_metadata,
             after_hash=after_hash,
             after_size_bytes=len(after_content.encode("utf-8")),
             created_at=request.current_time,
@@ -396,7 +449,7 @@ class L3ReversibleWorkspaceExecutor:
             request=request,
             contract=contract,
             attempt_status=L3WorkspaceAttemptStatus.MUTATED,
-            path_metadata=path_plan.path_metadata,
+            path_metadata=final_path_plan.path_metadata,
             before_hash=before_snapshot.before_hash,
             after_hash=after_snapshot.after_hash,
             rejection_reason=None,
@@ -738,6 +791,19 @@ def validate_l3_workspace_payload(payload: Any) -> L3WorkspaceSafetyValidationRe
         reasons=["forbidden_l3_payload"] if rejected_paths else [],
         rejected_paths=rejected_paths,
         payload_hash=stable_hash(sanitized),
+    )
+
+
+def _extend_validation(
+    validation: L3WorkspaceSafetyValidationResult,
+    reasons: list[str],
+    rejected_paths: list[str] | None = None,
+) -> L3WorkspaceSafetyValidationResult:
+    return L3WorkspaceSafetyValidationResult(
+        valid=False,
+        reasons=_dedupe([*validation.reasons, *reasons]),
+        rejected_paths=_dedupe([*validation.rejected_paths, *(rejected_paths or [])]),
+        payload_hash=validation.payload_hash,
     )
 
 

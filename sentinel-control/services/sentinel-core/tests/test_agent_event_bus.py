@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from sentinel.agent import AgentEventType, AgentPhase, EventBus, audit_agent_trace
 
 
@@ -42,8 +44,39 @@ def test_event_bus_append_isolates_payload_from_caller_mutation():
     trace_refs.append("trace_2")
 
     assert event.payload == {"nested": {"value": "original"}}
-    assert event.trace_refs == ["trace_1"]
+    assert event.trace_refs == ("trace_1",)
     assert bus.verify_chain() is True
+
+
+def test_event_bus_returned_event_payload_cannot_be_mutated_to_bypass_chain():
+    bus = EventBus("mission_001")
+    first = bus.append(AgentEventType.AGENT_INITIALIZED, "Initialized.", payload={"nested": {"value": "original"}})
+    bus.append(AgentEventType.CONTEXT_BUILT, "Context built.")
+
+    with pytest.raises(TypeError):
+        first.payload["nested"]["value"] = "mutated"
+
+    bus.append(AgentEventType.AGENT_BLOCKED, "After attempted payload mutation.")
+    assert bus.verify_chain() is True
+
+
+def test_event_bus_returned_event_top_level_payload_cannot_be_mutated_to_bypass_chain():
+    bus = EventBus("mission_001")
+    first = bus.append(AgentEventType.AGENT_INITIALIZED, "Initialized.", payload={"value": "original"})
+    bus.append(AgentEventType.CONTEXT_BUILT, "Context built.")
+
+    with pytest.raises(TypeError):
+        first.payload["value"] = "mutated"
+
+    bus.append(AgentEventType.AGENT_BLOCKED, "After attempted payload mutation.")
+    assert bus.verify_chain() is True
+
+
+def test_event_bus_rejects_non_mapping_payload():
+    bus = EventBus("mission_001")
+
+    with pytest.raises(ValueError, match="payload must be a mapping"):
+        bus.append(AgentEventType.AGENT_INITIALIZED, "Initialized.", payload=["not", "mapping"])  # type: ignore[arg-type]
 
 
 def test_event_bus_chain_detects_internal_tampering():

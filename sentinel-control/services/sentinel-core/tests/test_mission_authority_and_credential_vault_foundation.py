@@ -178,6 +178,24 @@ def test_expired_grant_blocks_access() -> None:
     assert receipt.secret_accessed is False
 
 
+def test_grant_blocks_access_at_exact_expiration_boundary() -> None:
+    grant = _credential_grant(expires_at=NOW)
+
+    receipt = evaluate_credential_access(_access_request(), [grant], current_time=NOW)
+
+    assert receipt.decision.value == "blocked_expired"
+    assert receipt.secret_accessed is False
+
+
+def test_ttl_grant_blocks_access_after_issued_ttl_window() -> None:
+    grant = _credential_grant(expires_at=None, issued_at=NOW - timedelta(seconds=61), ttl_seconds=60)
+
+    receipt = evaluate_credential_access(_access_request(), [grant], current_time=NOW)
+
+    assert receipt.decision.value == "blocked_expired"
+    assert receipt.secret_accessed is False
+
+
 def test_revoked_grant_blocks_access() -> None:
     grant = _credential_grant(status=CredentialGrantStatus.REVOKED, revoked_at=NOW)
     receipt = evaluate_credential_access(_access_request(), [grant], current_time=NOW)
@@ -190,6 +208,27 @@ def test_scope_mismatch_blocks_access() -> None:
     receipt = evaluate_credential_access(_access_request(domain="example.com"), [grant], current_time=NOW)
     assert receipt.decision.value == "blocked_scope_mismatch"
     assert receipt.secret_accessed is False
+
+
+def test_domain_scoped_grant_requires_request_domain() -> None:
+    grant = _credential_grant(domain_scope=["example.com"])
+
+    receipt = evaluate_credential_access(_access_request(domain=None), [grant], current_time=NOW)
+
+    assert receipt.decision.value == "blocked_scope_mismatch"
+    assert receipt.secret_accessed is False
+
+
+def test_successful_credential_access_consumes_grant_use_count() -> None:
+    grant = _credential_grant(max_use_count=1, used_count=0)
+
+    first = evaluate_credential_access(_access_request(), [grant], current_time=NOW)
+    second = evaluate_credential_access(_access_request(), [grant], current_time=NOW)
+
+    assert first.decision.value == "allowed_metadata_only"
+    assert grant.used_count == 1
+    assert second.decision.value == "blocked_use_count"
+    assert second.secret_accessed is False
 
 
 def test_credential_access_proof_cannot_grant_authority() -> None:
@@ -330,6 +369,66 @@ def test_mission_authority_envelope_accepts_credential_grants_as_metadata_only()
     )
     assert envelope.credential_grants[0].credential_ref_id == grant.credential_ref_id
     assert envelope.credential_grants[0].authority_effect == "none"
+
+
+def test_mission_authority_envelope_rejects_arbitrary_or_secret_credential_grants() -> None:
+    base = {
+        "user_id": "user",
+        "mission_title": "Credential foundation",
+        "mission_objective": "Test unsafe credential grant metadata.",
+    }
+
+    with pytest.raises(ValueError, match="metadata dictionaries"):
+        MissionAuthorityEnvelope(**base, credential_grants=[object()])
+
+    with pytest.raises(ValueError, match="must not contain secrets"):
+        MissionAuthorityEnvelope(**base, credential_grants=[{"secret_value": "sk-unit-test-secret-1234567890"}])
+
+    with pytest.raises(ValueError, match="must not contain secrets"):
+        MissionAuthorityEnvelope(**base, credential_grants=[{"provider_override": "other-provider"}])
+
+
+def test_mission_authority_envelope_browser_v3_grants_allow_browser_classes_but_reject_secret_payloads() -> None:
+    base = {
+        "user_id": "user",
+        "mission_title": "Browser authority foundation",
+        "mission_objective": "Test browser authority grant metadata.",
+    }
+    envelope = MissionAuthorityEnvelope(
+        **base,
+        browser_v3_authority_grants=[
+            {"id": "grant_download", "authority_class": "browser_download_quarantine", "allowed_domains": ["example.com"]},
+            {"id": "grant_upload", "authority_class": "browser_upload_authorized", "allowed_domains": ["example.com"]},
+        ],
+    )
+
+    assert len(envelope.browser_v3_authority_grants) == 2
+
+    with pytest.raises(ValueError, match="browser_v3_authority_grants entries"):
+        MissionAuthorityEnvelope(
+            **base,
+            browser_v3_authority_grants=[
+                {
+                    "id": "grant_bad",
+                    "authority_class": "browser_download_quarantine",
+                    "allowed_domains": ["example.com"],
+                    "secret_value": "sk-unit-test-secret-1234567890",
+                }
+            ],
+        )
+
+    with pytest.raises(ValueError, match="browser_v3_authority_grants entries"):
+        MissionAuthorityEnvelope(
+            **base,
+            browser_v3_authority_grants=[
+                {
+                    "id": "grant_bad",
+                    "authority_class": "browser_upload_authorized",
+                    "allowed_domains": ["example.com"],
+                    "provider_override": "other-provider",
+                }
+            ],
+        )
 
 
 def test_credential_revocation_and_audit_receipt_are_metadata_only() -> None:

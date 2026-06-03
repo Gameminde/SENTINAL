@@ -60,8 +60,12 @@ class CredentialVaultPolicy:
             reasons.append("action_class_mismatch")
         if grant.revoked:
             reasons.append("grant_revoked")
-        if now > grant.expires_at:
+        if now >= grant.expires_at:
             reasons.append("grant_expired")
+        if grant.credential_ref.revoked_at is not None:
+            reasons.append("credential_ref_revoked")
+        if grant.credential_ref.expires_at is not None and now >= grant.credential_ref.expires_at:
+            reasons.append("credential_ref_expired")
         reference_allowed = not reasons and source == CredentialAccessSource.ORGAN_RUNTIME
         return CredentialPolicyDecision(
             credential_ref_id=grant.credential_ref.id,

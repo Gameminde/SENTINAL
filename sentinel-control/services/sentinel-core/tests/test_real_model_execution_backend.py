@@ -146,6 +146,15 @@ def test_provider_registry_rejects_unknown_disabled_and_fake_providers() -> None
         registry.register(RecordingProvider(provider_id="fake", is_fake_provider=True))
 
 
+def test_provider_registry_rejects_string_false_enabled_provider() -> None:
+    registry = ModelProviderRegistry()
+    provider = RecordingProvider(enabled="false")  # type: ignore[arg-type]
+    registry.register(provider)
+
+    with pytest.raises(PermissionError):
+        registry.get_enabled(provider.provider_id, model_id="deepseek-v4-pro")
+
+
 def test_user_model_contract_requires_provider_backend_model_identity() -> None:
     with pytest.raises(ValidationError):
         UserModelContract(
@@ -257,6 +266,38 @@ def test_missing_credential_does_not_call_provider_and_does_not_fake_response(mo
     assert outcome.outcome_class is ModelExecutionOutcomeClass.MISSING_CREDENTIAL
     assert outcome.success is False
     assert outcome.result is None
+    assert provider.calls == 0
+
+
+def test_environment_credential_resolver_requires_requested_scopes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SENTINEL_TEST_MODEL_KEY", SECRET_VALUE)
+    resolver = EnvironmentCredentialResolver(
+        {"deepseek": {"env_var": "SENTINEL_TEST_MODEL_KEY", "scopes": ["model:write"]}}
+    )
+
+    resolved = resolver.resolve(provider_id="deepseek", required_scopes=["model:read"])
+
+    assert resolved.outcome_class is ModelExecutionOutcomeClass.MISSING_CREDENTIAL
+    assert resolved.credential is None
+
+
+def test_coordinator_rejects_credential_handle_missing_required_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SENTINEL_TEST_MODEL_KEY", SECRET_VALUE)
+    provider = RecordingProvider()
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    resolver = StaticCredentialResolver(
+        ProviderCredentialHandle.from_env(
+            provider_id="deepseek",
+            env_var_name="SENTINEL_TEST_MODEL_KEY",
+            scopes=["model:write"],
+        )
+    )
+    coordinator = ModelExecutionCoordinator(registry=registry, credential_resolver=resolver)
+
+    outcome = coordinator.execute(request=_request())
+
+    assert outcome.outcome_class is ModelExecutionOutcomeClass.MISSING_CREDENTIAL
     assert provider.calls == 0
 
 
@@ -461,6 +502,35 @@ def test_coordinator_validates_provider_response_and_builds_safe_receipt() -> No
     dumped = outcome.receipt.model_dump_json()
     assert RAW_PROMPT not in dumped
     assert SECRET_VALUE not in dumped
+
+
+def test_coordinator_rejects_provider_response_identity_mismatch() -> None:
+    provider_response = ProviderModelResponse(
+        provider_id="deepseek",
+        model_id="silently-overridden-model",
+        content={"decision": "continue", "rationale": "identity mismatch", "evidence_refs": ["evidence_1"]},
+        input_tokens=100,
+        output_tokens=20,
+    )
+    provider = RecordingProvider(response=provider_response)
+    registry = ModelProviderRegistry()
+    registry.register(provider)
+    resolver = StaticCredentialResolver(
+        ProviderCredentialHandle.from_env(
+            provider_id="deepseek",
+            env_var_name="SENTINEL_TEST_MODEL_KEY",
+            scopes=["model:read"],
+        )
+    )
+    coordinator = ModelExecutionCoordinator(registry=registry, credential_resolver=resolver)
+
+    outcome = coordinator.execute(request=_request())
+
+    assert provider.calls == 1
+    assert outcome.success is False
+    assert outcome.outcome_class is ModelExecutionOutcomeClass.DISABLED_BACKEND
+    assert outcome.result is None
+    assert outcome.receipt is None
 
 
 def test_action_budget_blocks_oversized_model_request_before_provider_call() -> None:

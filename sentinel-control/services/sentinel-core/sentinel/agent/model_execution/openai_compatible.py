@@ -155,9 +155,16 @@ class OpenAICompatibleChatProvider(RealModelProvider):
 
         usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
         response_id = payload.get("id")
+        response_model = payload.get("model")
+        if response_model is not None and str(response_model) != request.model_id:
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.DISABLED_BACKEND,
+                diagnostic={"rejected_reason": "provider_model_mismatch"},
+            )
         return ProviderModelResponse(
             provider_id=self.provider_id,
-            model_id=str(payload.get("model") or request.model_id),
+            model_id=request.model_id,
             response_id=text_hash(str(response_id)) if response_id else None,
             content=parsed_content,
             refusal=bool(message.get("refusal")),

@@ -255,7 +255,15 @@ class DesktopWorkspaceOperator:
 
     def read_file(self, relative_path: str) -> RealityActivationReceipt:
         path = self._resolve(relative_path)
-        return self._receipt("desktop_workspace_read_file", {"path": str(path), "content": path.read_text(encoding="utf-8")})
+        content = path.read_text(encoding="utf-8")
+        return self._receipt(
+            "desktop_workspace_read_file",
+            {
+                "path": str(path),
+                "bytes": len(content.encode("utf-8")),
+                "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            },
+        )
 
     def write_file(self, relative_path: str, content: str) -> RealityActivationReceipt:
         path = self._resolve(relative_path)

@@ -54,6 +54,18 @@ def _is_within_root(path: Path, root: Path) -> bool:
         return False
 
 
+def _path_containment_proof_hash(*, workspace_root: str, resolved_path: str, relative_path: str) -> str:
+    root = Path(workspace_root).resolve()
+    resolved = Path(resolved_path).resolve()
+    return _hash_payload(
+        {
+            "workspace_root": str(root),
+            "resolved_path": str(resolved),
+            "relative_path": relative_path,
+        }
+    )
+
+
 class DesktopWorkspaceAuthority(SentinelModel):
     mission_id: str
     root_authority_id: str
@@ -186,7 +198,9 @@ class DesktopWorkspaceL6Receipt(SentinelModel):
     authority_refs: list[str]
     evidence_refs: list[str]
     trace_refs: list[str] = Field(default_factory=list)
+    workspace_root: str
     path_containment_proof_ref: str
+    path_containment_proof_hash: str = ""
     rollback_ref: str | None = None
     source_binding_refs: list[str] = Field(default_factory=list)
     cost_trace: WorkspaceCostTrace | None = None
@@ -215,6 +229,21 @@ class DesktopWorkspaceL6Receipt(SentinelModel):
             raise ValueError("DesktopWorkspaceL6Receipt requires trace refs.")
         if not self.path_containment_proof_ref:
             raise ValueError("DesktopWorkspaceL6Receipt requires path containment proof ref.")
+        root = Path(self.workspace_root).resolve()
+        resolved = Path(self.resolved_path).resolve()
+        if not _is_within_root(resolved, root):
+            raise ValueError("DesktopWorkspaceL6Receipt resolved path is outside workspace root.")
+        expected_proof_hash = _path_containment_proof_hash(
+            workspace_root=str(root),
+            resolved_path=str(resolved),
+            relative_path=self.relative_path,
+        )
+        if self.path_containment_proof_hash and self.path_containment_proof_hash != expected_proof_hash:
+            raise ValueError("DesktopWorkspaceL6Receipt path containment proof hash mismatch.")
+        if not self.path_containment_proof_hash:
+            self.path_containment_proof_hash = expected_proof_hash
+        self.workspace_root = str(root)
+        self.resolved_path = str(resolved)
         if self.external_mutation:
             raise ValueError("Desktop Workspace L6 cannot perform external mutation.")
         if self.live_host_control_enabled or self.shell_process_execution_started or self.screenshot_clipboard_live:
@@ -238,7 +267,9 @@ class DesktopWorkspaceL6Receipt(SentinelModel):
                 "authority_refs": self.authority_refs,
                 "evidence_refs": self.evidence_refs,
                 "trace_refs": self.trace_refs,
+                "workspace_root": self.workspace_root,
                 "path_containment_proof_ref": self.path_containment_proof_ref,
+                "path_containment_proof_hash": self.path_containment_proof_hash,
                 "rollback_ref": self.rollback_ref,
                 "source_binding_refs": self.source_binding_refs,
                 "cost_trace": self.cost_trace.model_dump() if self.cost_trace else None,
@@ -421,7 +452,9 @@ class WorkspaceOperationAdapter:
             authority_refs=[self.authority.root_authority_id, self.authority.policy_hash],
             evidence_refs=self.authority.evidence_refs,
             trace_refs=[f"desktop_workspace_l6:{action}"],
+            workspace_root=str(self.root),
             path_containment_proof_ref=proof.id,
+            path_containment_proof_hash=proof.proof_hash,
             rollback_ref=rollback_ref,
             source_binding_refs=self.authority.source_binding_refs,
             cost_trace=WorkspaceCostTrace(
@@ -566,6 +599,15 @@ class DesktopWorkspaceL6FinalGate:
             failures.append("authority expansion detected")
         if not receipt.path_containment_proof_ref:
             failures.append("path containment proof missing")
+        expected_proof_hash = _path_containment_proof_hash(
+            workspace_root=receipt.workspace_root,
+            resolved_path=receipt.resolved_path,
+            relative_path=receipt.relative_path,
+        )
+        if receipt.path_containment_proof_hash != expected_proof_hash:
+            failures.append("path containment proof hash mismatch")
+        if not _is_within_root(Path(receipt.resolved_path).resolve(), Path(receipt.workspace_root).resolve()):
+            failures.append("path containment proof outside workspace root")
         if receipt.action in {"desktop_workspace_write_file_l6", "desktop_workspace_create_folder_l6"} and not receipt.rollback_ref:
             failures.append("rollback ref missing")
         if receipt.live_host_control_enabled:
@@ -589,7 +631,9 @@ class WorkspaceReceiptAdapter(SentinelModel):
             "action",
             "relative_path",
             "resolved_path",
+            "workspace_root",
             "path_containment_proof_ref",
+            "path_containment_proof_hash",
             "rollback_ref",
             "receipt_hash",
         ]

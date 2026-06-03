@@ -170,22 +170,17 @@ def test_mission_revoked_exception_is_not_wrapped(tmp_path: Path) -> None:
     mission is being revoked, not rejected by policy. The private
     executor lets it propagate to the outer handler unchanged.
 
-    Note: ``MissionRevokedException`` inherits from ``RuntimeError``
-    (not ``BrowserOperatorRouteRejected``), so our narrow ``except
-    Exception`` wrap WOULD rewrap it. This test documents the current
-    behavior explicitly so any future refactor that adds pass-through
-    makes a conscious choice.
+    The exception identity is preserved so the outer mission runner can
+    classify the run as revoked rather than as an ordinary route failure.
     """
     original = MissionRevokedException("mission_revoked: test")
     runner = MissionRunner(
         project_root=tmp_path, browser_operator_route=_CrashingRoute(original)
     )
 
-    with pytest.raises(BrowserOperatorRouteRejected) as excinfo:
+    with pytest.raises(MissionRevokedException) as excinfo:
         runner._execute_browser_operator_route(_envelope(), _ActionStub())
-    # The cause preserves the revocation signal for the outer handler
-    # to inspect if it chooses.
-    assert excinfo.value.__cause__ is original
+    assert excinfo.value is original
 
 
 # ---------------------------------------------------------------------------
