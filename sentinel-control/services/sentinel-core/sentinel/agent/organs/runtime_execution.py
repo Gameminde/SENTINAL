@@ -81,10 +81,14 @@ from sentinel.agent.organs.browser_semantic_extraction_organ_v1 import (
 )
 from sentinel.agent.organs.browser_session_manager_l5_live import (
     BrowserSessionActionKind,
+    BrowserSessionFinalGate,
     BrowserSessionFinalGateCertificate,
     BrowserSessionManagerL5Live,
+    BrowserSessionReceipt,
     BrowserSessionRequest,
     BrowserSessionResult,
+    BrowserSessionSafetyValidationResult,
+    BrowserSessionStatus,
 )
 from sentinel.agent.organs.delegated_action_gate import (
     DelegatedActionGateDecision,
@@ -144,6 +148,26 @@ _BROWSER_SESSION_MANAGERS_LOCK = RLock()
 
 def utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+def close_browser_runtime_sessions_for_config(
+    *,
+    mission_id: str,
+    config: OrganRuntimeExecutionConfig,
+) -> None:
+    """Close persistent browser sessions owned by one runtime config.
+
+    Dispatcher-managed browser stacks are batch-scoped. If a batch opens a
+    session and later proposals fail before an explicit close step, this guard
+    prevents orphan Playwright/Cloak contexts from leaking into later tests or
+    missions. Direct execute_organ_runtime_request callers still keep explicit
+    persist-session semantics across calls.
+    """
+    key = _browser_session_manager_key(mission_id=mission_id, config=config)
+    with _BROWSER_SESSION_MANAGERS_LOCK:
+        manager = _BROWSER_SESSION_MANAGERS.pop(key, None)
+    if manager is not None:
+        manager.close_all()
 
 
 class OrganRuntimeExecutionMode(StrEnum):
@@ -413,6 +437,15 @@ def execute_organ_runtime_request(
 
     preflight_reason = _preflight_block_reason(runtime_request, runtime_config)
     if preflight_reason is not None:
+        browser_blocked = _browser_preflight_blocked_result(
+            request=runtime_request,
+            config=runtime_config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason=preflight_reason,
+        )
+        if browser_blocked is not None:
+            return browser_blocked
         return _blocked_result(
             request=runtime_request,
             config=runtime_config,
@@ -792,12 +825,19 @@ def _execute_browser_session_manager(
         )
     session_reason = _browser_session_request_block_reason(session_request, request)
     if session_reason is not None:
-        return _blocked_result(
+        _, manager = _browser_session_manager_for_runtime(request, config)
+        executor_result = manager.produce_blocked_result(
+            session_request,
+            reason=session_reason,
+            action_kind=_browser_session_action_value(session_request.action_kind),
+        )
+        return _certify_browser_session_result(
             request=request,
             config=config,
             safety=safety,
             input_hash=input_hash,
-            blocked_reason=session_reason,
+            executor_result=executor_result,
+            receipt=executor_result.receipt,
         )
     action = _browser_session_action_value(session_request.action_kind)
     manager_key, manager = _browser_session_manager_for_runtime(request, config)
@@ -846,13 +886,7 @@ def _browser_session_manager_for_runtime(
     config: OrganRuntimeExecutionConfig,
 ) -> tuple[str, BrowserSessionManagerL5Live]:
     capture_root = config.browser_capture_root or ".sentinel/browser_runtime"
-    key = stable_hash(
-        {
-            "mission_id": request.mission_id,
-            "capture_root": capture_root,
-            "engine": config.browser_engine,
-        }
-    )
+    key = _browser_session_manager_key(mission_id=request.mission_id, config=config)
     with _BROWSER_SESSION_MANAGERS_LOCK:
         if config.browser_persist_sessions and key in _BROWSER_SESSION_MANAGERS:
             return key, _BROWSER_SESSION_MANAGERS[key]
@@ -868,6 +902,20 @@ def _browser_session_manager_for_runtime(
         if config.browser_persist_sessions:
             _BROWSER_SESSION_MANAGERS[key] = manager
         return key, manager
+
+
+def _browser_session_manager_key(
+    *,
+    mission_id: str,
+    config: OrganRuntimeExecutionConfig,
+) -> str:
+    return stable_hash(
+        {
+            "mission_id": mission_id,
+            "capture_root": config.browser_capture_root or ".sentinel/browser_runtime",
+            "engine": config.browser_engine,
+        }
+    )
 
 
 def _execute_browser_form_submit(
@@ -887,12 +935,19 @@ def _execute_browser_form_submit(
         )
     submit_reason = _browser_form_submit_request_block_reason(submit_request, request)
     if submit_reason is not None:
-        return _blocked_result(
+        organ = BrowserFormSubmitSpecialAuthorityL6()
+        executor_result = _browser_form_submit_exception_result(
+            organ=organ,
+            request=submit_request,
+            reason=submit_reason,
+        )
+        return _certify_browser_form_submit_result(
             request=request,
             config=config,
             safety=safety,
             input_hash=input_hash,
-            blocked_reason=submit_reason,
+            executor_result=executor_result,
+            receipt=executor_result.receipt,
         )
     organ = BrowserFormSubmitSpecialAuthorityL6()
     try:
@@ -931,12 +986,19 @@ def _execute_browser_login(
         )
     login_reason = _browser_login_request_block_reason(login_request, request)
     if login_reason is not None:
-        return _blocked_result(
+        organ = BrowserLoginCredentialSessionBrokerL6()
+        executor_result = _browser_login_exception_result(
+            organ=organ,
+            request=login_request,
+            reason=login_reason,
+        )
+        return _certify_browser_login_result(
             request=request,
             config=config,
             safety=safety,
             input_hash=input_hash,
-            blocked_reason=login_reason,
+            executor_result=executor_result,
+            receipt=executor_result.receipt,
         )
     organ = BrowserLoginCredentialSessionBrokerL6()
     provider = (
@@ -984,12 +1046,19 @@ def _execute_browser_file_quarantine(
         )
     file_reason = _browser_file_quarantine_request_block_reason(file_request, request)
     if file_reason is not None:
-        return _blocked_result(
+        organ = BrowserFileQuarantineOrganL6()
+        executor_result = _browser_file_quarantine_exception_result(
+            organ=organ,
+            request=file_request,
+            reason=file_reason,
+        )
+        return _certify_browser_file_quarantine_result(
             request=request,
             config=config,
             safety=safety,
             input_hash=input_hash,
-            blocked_reason=file_reason,
+            executor_result=executor_result,
+            receipt=executor_result.receipt,
         )
     organ = BrowserFileQuarantineOrganL6()
     try:
@@ -1028,12 +1097,19 @@ def _execute_browser_js_sandbox(
         )
     js_reason = _browser_js_sandbox_request_block_reason(js_request, request)
     if js_reason is not None:
-        return _blocked_result(
+        organ = BrowserJSSandboxOrganL6()
+        executor_result = _browser_js_sandbox_exception_result(
+            organ=organ,
+            request=js_request,
+            reason=js_reason,
+        )
+        return _certify_browser_js_sandbox_result(
             request=request,
             config=config,
             safety=safety,
             input_hash=input_hash,
-            blocked_reason=js_reason,
+            executor_result=executor_result,
+            receipt=executor_result.receipt,
         )
     organ = BrowserJSSandboxOrganL6()
     try:
@@ -1057,6 +1133,82 @@ def _execute_browser_js_sandbox(
 
 def _browser_executor_exception_reason(organ_kind: str, exc: Exception) -> str:
     return f"{organ_kind}_executor_exception:{type(exc).__name__}:{stable_hash(str(exc))[:12]}"
+
+
+def _browser_preflight_blocked_result(
+    *,
+    request: OrganRuntimeExecutionRequest,
+    config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    blocked_reason: str,
+) -> OrganRuntimeExecutionResult | None:
+    if request.action_level is DelegatedActionLevel.L5 and request.organ_kind == "browser_session_manager":
+        session_request = _coerce_browser_session_request(request.browser_session_request)
+        if session_request is None:
+            return None
+        action = _browser_session_action_value(session_request.action_kind)
+        receipt = BrowserSessionReceipt(
+            mission_id=session_request.mission.id,
+            request_id=session_request.request_id,
+            session_id=session_request.session_id,
+            backend_kind=config.browser_engine,
+            action_kind=action,
+            status=BrowserSessionStatus.BLOCKED,
+            url_hash=stable_hash(session_request.url),
+            blocked_reason=blocked_reason,
+            safe_summary=f"Browser session runtime preflight blocked: {blocked_reason}.",
+        )
+        certificate = BrowserSessionFinalGate().certify(receipt)
+        receipt.finalgate_verified = certificate.certified
+        receipt.finalgate_certificate_id = certificate.certificate_id
+        executor_result = BrowserSessionResult(
+            accepted=False,
+            status=BrowserSessionStatus.BLOCKED,
+            reason=blocked_reason,
+            mission_id=session_request.mission.id,
+            session_id=session_request.session_id,
+            receipt=receipt,
+            finalgate_certificate=certificate,
+            safety_validation=BrowserSessionSafetyValidationResult(valid=False, reasons=[blocked_reason]),
+        )
+        return _certify_browser_session_result(
+            request=request,
+            config=config,
+            safety=safety,
+            input_hash=input_hash,
+            executor_result=executor_result,
+            receipt=receipt,
+        )
+    if request.action_level is DelegatedActionLevel.L6 and request.organ_kind == "browser_form_submit_special_authority":
+        submit_request = _coerce_browser_form_submit_request(request.browser_form_submit_request)
+        if submit_request is None:
+            return None
+        organ = BrowserFormSubmitSpecialAuthorityL6()
+        executor_result = _browser_form_submit_exception_result(organ=organ, request=submit_request, reason=blocked_reason)
+        return _certify_browser_form_submit_result(request=request, config=config, safety=safety, input_hash=input_hash, executor_result=executor_result, receipt=executor_result.receipt)
+    if request.action_level is DelegatedActionLevel.L6 and request.organ_kind == "browser_login_credential_session_broker":
+        login_request = _coerce_browser_login_request(request.browser_login_request)
+        if login_request is None:
+            return None
+        organ = BrowserLoginCredentialSessionBrokerL6()
+        executor_result = _browser_login_exception_result(organ=organ, request=login_request, reason=blocked_reason)
+        return _certify_browser_login_result(request=request, config=config, safety=safety, input_hash=input_hash, executor_result=executor_result, receipt=executor_result.receipt)
+    if request.action_level is DelegatedActionLevel.L6 and request.organ_kind == "browser_download_upload_quarantine":
+        file_request = _coerce_browser_file_quarantine_request(request.browser_file_quarantine_request)
+        if file_request is None:
+            return None
+        organ = BrowserFileQuarantineOrganL6()
+        executor_result = _browser_file_quarantine_exception_result(organ=organ, request=file_request, reason=blocked_reason)
+        return _certify_browser_file_quarantine_result(request=request, config=config, safety=safety, input_hash=input_hash, executor_result=executor_result, receipt=executor_result.receipt)
+    if request.action_level is DelegatedActionLevel.L6 and request.organ_kind == "browser_js_sandbox_special_authority":
+        js_request = _coerce_browser_js_sandbox_request(request.browser_js_sandbox_request)
+        if js_request is None:
+            return None
+        organ = BrowserJSSandboxOrganL6()
+        executor_result = _browser_js_sandbox_exception_result(organ=organ, request=js_request, reason=blocked_reason)
+        return _certify_browser_js_sandbox_result(request=request, config=config, safety=safety, input_hash=input_hash, executor_result=executor_result, receipt=executor_result.receipt)
+    return None
 
 
 def _browser_readonly_exception_result(
@@ -1612,11 +1764,18 @@ def _browser_blocked_reason(
     certified: bool,
 ) -> str:
     if receipt_blocked_reason:
-        if receipt_blocked_reason.startswith(f"{organ_kind}_"):
+        if receipt_blocked_reason in {
+            "organ_execution_disabled",
+            "organ_not_allowed",
+            "action_level_not_allowed",
+            "browser_persist_sessions_required_for_l5_l6_special_authority",
+        }:
+            return receipt_blocked_reason
+        if receipt_blocked_reason.startswith("browser_"):
             return receipt_blocked_reason
         return f"{organ_kind}_{receipt_blocked_reason}"
     if result_reason:
-        return f"{organ_kind}_{result_reason}"
+        return result_reason
     if certified:
         return f"{organ_kind}_certified_non_success"
     return f"finalgate_{finalgate_decision}"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from enum import StrEnum
 from typing import Any
 from urllib.parse import urlparse
@@ -34,6 +35,25 @@ FORBIDDEN_JS_MARKERS = (
     "password",
     "secret",
     "token",
+)
+
+FORBIDDEN_JS_PATTERNS = (
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\.\s*fetch\s*(?:\(|`)", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\[\s*['\"`]fetch['\"`]\s*\]", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\.\s*xmlhttprequest\b", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\[\s*['\"`]xmlhttprequest['\"`]\s*\]", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\.\s*websocket\b", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\[\s*['\"`]websocket['\"`]\s*\]", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\.\s*navigator\s*\.\s*sendbeacon\b", re.IGNORECASE),
+    re.compile(r"\bdocument\s*\[\s*['\"`]cookie['\"`]\s*\]", re.IGNORECASE),
+    re.compile(r"\b(?:localstorage|sessionstorage)\s*\[", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\.\s*(?:localstorage|sessionstorage)\b", re.IGNORECASE),
+    re.compile(r"\b(?:globalthis|window|self|this)\s*\[\s*['\"`](?:localstorage|sessionstorage)['\"`]\s*\]", re.IGNORECASE),
+    re.compile(r"\b(?:eval|function)\s*(?:\(|`)", re.IGNORECASE),
+    re.compile(r"\bconstructor\s*\.\s*constructor\b", re.IGNORECASE),
+    re.compile(r"\[\s*['\"`]constructor['\"`]\s*\]\s*\[\s*['\"`]constructor['\"`]\s*\]", re.IGNORECASE),
+    re.compile(r"\bimport\s*(?:\(|`)", re.IGNORECASE),
+    re.compile(r"\bsubmit\s*\(", re.IGNORECASE),
 )
 
 
@@ -271,7 +291,7 @@ class BrowserJSSandboxOrganL6:
         lowered_script = req.script.lower()
         if len(req.script.encode("utf-8")) > req.contract.max_script_bytes:
             reasons.append("script_too_large")
-        if any(marker in lowered_script for marker in FORBIDDEN_JS_MARKERS):
+        if _contains_forbidden_js_surface(req.script, lowered_script):
             reasons.append("forbidden_js_surface")
         if req.contract.mission_id != req.mission.id:
             reasons.append("contract_mission_mismatch")
@@ -323,3 +343,10 @@ class BrowserJSSandboxOrganL6:
 
 def _coerce_request(request: BrowserJSSandboxRequest | dict[str, Any]) -> BrowserJSSandboxRequest:
     return request if isinstance(request, BrowserJSSandboxRequest) else BrowserJSSandboxRequest.model_validate(request)
+
+
+def _contains_forbidden_js_surface(script: str, lowered_script: str | None = None) -> bool:
+    lowered = lowered_script if lowered_script is not None else script.lower()
+    return any(marker in lowered for marker in FORBIDDEN_JS_MARKERS) or any(
+        pattern.search(script) for pattern in FORBIDDEN_JS_PATTERNS
+    )

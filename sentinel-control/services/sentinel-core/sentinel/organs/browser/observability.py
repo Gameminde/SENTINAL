@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from sentinel.organs.browser.models import (
     BrowserConsoleRecord,
@@ -77,12 +77,20 @@ def minimal_browser_network_ledger(
     )
 
 
-def hash_browser_network_ledger_payload(payload: dict) -> str:
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+def _jsonable(value):
+    if isinstance(value, Mapping):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, tuple | list):
+        return [_jsonable(item) for item in value]
+    return value
+
+
+def hash_browser_network_ledger_payload(payload: Mapping) -> str:
+    canonical = json.dumps(_jsonable(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def verify_browser_network_ledger_hash(ledger: dict, expected_hash: str | None) -> bool:
+def verify_browser_network_ledger_hash(ledger: Mapping, expected_hash: str | None) -> bool:
     if not expected_hash:
         return False
     payload = {key: value for key, value in ledger.items() if key != "ledger_sha256"}

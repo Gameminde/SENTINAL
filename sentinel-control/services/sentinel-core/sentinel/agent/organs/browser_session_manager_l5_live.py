@@ -5,6 +5,7 @@ import hashlib
 import time
 from enum import StrEnum
 from pathlib import Path
+from threading import RLock
 from typing import Any
 from urllib.parse import urlparse
 
@@ -254,6 +255,7 @@ class _LiveBrowserSession:
         self.engine_session = engine_session
         self.step_index = 0
         self.closed = False
+        self.lock = RLock()
 
     @property
     def page(self) -> Any:
@@ -268,8 +270,11 @@ class _LiveBrowserSession:
         return self.engine_session.profile_dir
 
     def close(self) -> None:
-        self.engine_session.close()
-        self.closed = True
+        with self.lock:
+            try:
+                self.engine_session.close()
+            finally:
+                self.closed = True
 
 
 class BrowserSessionManagerL5Live:
@@ -296,6 +301,7 @@ class BrowserSessionManagerL5Live:
         self.backend = backend or _backend_for_engine(engine, document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
         self._finalgate = BrowserSessionFinalGate()
         self._sessions: dict[str, _LiveBrowserSession] = {}
+        self._sessions_lock = RLock()
 
     def open_session(self, request: BrowserSessionRequest | dict[str, Any]) -> BrowserSessionResult:
         req = _coerce_request(request)
@@ -312,7 +318,8 @@ class BrowserSessionManagerL5Live:
                 viewport_height=self.viewport_height,
             )
             session = _LiveBrowserSession(session_id=session_id, mission_id=req.mission.id, url=req.url, engine_session=engine_session)
-            self._sessions[session.session_id] = session
+            with self._sessions_lock:
+                self._sessions[session.session_id] = session
             receipt = self._capture_receipt(
                 req,
                 session,
@@ -379,37 +386,38 @@ class BrowserSessionManagerL5Live:
         if session is None:
             return self._blocked(req, safety, "browser_session_missing_or_closed", action)
         try:
-            before = self._snapshot(session.page, req.timeout_ms)
-            before_screenshot = self._write_screenshot(session, "before", req.capture_screenshot, req.timeout_ms)
-            self._execute_step(session.page, req, req.timeout_ms)
-            session.step_index += 1
-            after = self._snapshot(session.page, req.timeout_ms)
-            after_screenshot = self._write_screenshot(session, "after", req.capture_screenshot, req.timeout_ms)
-            form_state = self._form_state(session.page, req.timeout_ms)
-            receipt = BrowserSessionReceipt(
-                mission_id=req.mission.id,
-                request_id=req.request_id,
-                session_id=session.session_id,
-                backend_kind=session.backend_kind,
-                action_kind=action,
-                status=BrowserSessionStatus.EXECUTED,
-                url_hash=stable_hash(session.page.url),
-                profile_dir_hash=stable_hash(str(session.profile_dir)),
-                before_snapshot_hash=before.snapshot_sha256,
-                after_snapshot_hash=after.snapshot_sha256,
-                screenshot_artifact_id=before_screenshot["artifact_id"],
-                after_screenshot_artifact_id=after_screenshot["artifact_id"],
-                artifact_paths=[path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
-                form_state_summary=form_state,
-                form_state_summary_hash=stable_hash(form_state),
-                typed_text_hash=stable_hash(req.text or "") if action in {BrowserSessionActionKind.TYPE.value, BrowserSessionActionKind.FILL.value} else None,
-                step_index=session.step_index,
-                finalgate_verified=True,
-                safe_summary="Live browser session interaction executed in an existing persistent-context session.",
-                execution_effect="browser_session_interaction",
-            )
-            certificate = self._certify_receipt(receipt)
-            self._write_receipt(session, receipt)
+            with session.lock:
+                before = self._snapshot(session.page, req.timeout_ms)
+                before_screenshot = self._write_screenshot(session, "before", req.capture_screenshot, req.timeout_ms)
+                self._execute_step(session.page, req, req.timeout_ms)
+                session.step_index += 1
+                after = self._snapshot(session.page, req.timeout_ms)
+                after_screenshot = self._write_screenshot(session, "after", req.capture_screenshot, req.timeout_ms)
+                form_state = self._form_state(session.page, req.timeout_ms)
+                receipt = BrowserSessionReceipt(
+                    mission_id=req.mission.id,
+                    request_id=req.request_id,
+                    session_id=session.session_id,
+                    backend_kind=session.backend_kind,
+                    action_kind=action,
+                    status=BrowserSessionStatus.EXECUTED,
+                    url_hash=stable_hash(session.page.url),
+                    profile_dir_hash=stable_hash(str(session.profile_dir)),
+                    before_snapshot_hash=before.snapshot_sha256,
+                    after_snapshot_hash=after.snapshot_sha256,
+                    screenshot_artifact_id=before_screenshot["artifact_id"],
+                    after_screenshot_artifact_id=after_screenshot["artifact_id"],
+                    artifact_paths=[path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+                    form_state_summary=form_state,
+                    form_state_summary_hash=stable_hash(form_state),
+                    typed_text_hash=stable_hash(req.text or "") if action in {BrowserSessionActionKind.TYPE.value, BrowserSessionActionKind.FILL.value} else None,
+                    step_index=session.step_index,
+                    finalgate_verified=True,
+                    safe_summary="Live browser session interaction executed in an existing persistent-context session.",
+                    execution_effect="browser_session_interaction",
+                )
+                certificate = self._certify_receipt(receipt)
+                self._write_receipt(session, receipt)
             return BrowserSessionResult(
                 accepted=True,
                 status=BrowserSessionStatus.EXECUTED,
@@ -433,7 +441,8 @@ class BrowserSessionManagerL5Live:
         if session is None:
             return self._blocked(req, safety, "browser_session_missing_or_closed", BrowserSessionActionKind.CLOSE.value)
         session.close()
-        self._sessions.pop(session.session_id, None)
+        with self._sessions_lock:
+            self._sessions.pop(session.session_id, None)
         receipt = BrowserSessionReceipt(
             mission_id=req.mission.id,
             request_id=req.request_id,
@@ -503,10 +512,12 @@ class BrowserSessionManagerL5Live:
         return self._blocked(req, safety, reason, action)
 
     def snapshot_for_session(self, *, mission_id: str, session_id: str, timeout_ms: int = 15_000) -> BrowserAccessibilitySnapshot | None:
-        session = self._sessions.get(session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:
             return None
-        return self._snapshot(session.page, timeout_ms)
+        with session.lock:
+            return self._snapshot(session.page, timeout_ms)
 
     def sensitive_form_field_markers_for_session(
         self,
@@ -516,25 +527,27 @@ class BrowserSessionManagerL5Live:
         markers: list[str],
         timeout_ms: int = 15_000,
     ) -> list[str]:
-        session = self._sessions.get(session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:
             return ["browser_session_missing_or_closed"]
-        lowered_markers = [marker.lower() for marker in markers]
-        findings: list[str] = []
-        fields = session.page.locator("input, textarea, select")
-        for index in range(fields.count()):
-            field = fields.nth(index)
-            values = [
-                field.get_attribute("type", timeout=timeout_ms) or "",
-                field.get_attribute("name", timeout=timeout_ms) or "",
-                field.get_attribute("placeholder", timeout=timeout_ms) or "",
-                field.get_attribute("aria-label", timeout=timeout_ms) or "",
-                field.get_attribute("autocomplete", timeout=timeout_ms) or "",
-            ]
-            text = " ".join(values).lower()
-            if any(marker in text for marker in lowered_markers):
-                findings.append(f"field[{index}]")
-        return findings
+        with session.lock:
+            lowered_markers = [marker.lower() for marker in markers]
+            findings: list[str] = []
+            fields = session.page.locator("input, textarea, select")
+            for index in range(fields.count()):
+                field = fields.nth(index)
+                values = [
+                    field.get_attribute("type", timeout=timeout_ms) or "",
+                    field.get_attribute("name", timeout=timeout_ms) or "",
+                    field.get_attribute("placeholder", timeout=timeout_ms) or "",
+                    field.get_attribute("aria-label", timeout=timeout_ms) or "",
+                    field.get_attribute("autocomplete", timeout=timeout_ms) or "",
+                ]
+                text = " ".join(values).lower()
+                if any(marker in text for marker in lowered_markers):
+                    findings.append(f"field[{index}]")
+            return findings
 
     def submit_form_special_authority(
         self,
@@ -547,39 +560,41 @@ class BrowserSessionManagerL5Live:
         timeout_ms: int = 15_000,
         capture_screenshot: bool = True,
     ) -> dict[str, Any]:
-        session = self._sessions.get(session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:
             raise RuntimeError("browser_session_missing_or_closed")
-        before = self._snapshot(session.page, timeout_ms)
-        before_screenshot = self._write_screenshot(session, "submit_before", capture_screenshot, timeout_ms)
-        locator = (
-            session.page.get_by_role(target_role, name=target_name, exact=True).nth(target_nth)
-            if target_name
-            else session.page.get_by_role(target_role).nth(target_nth)
-        )
-        locator.click(timeout=timeout_ms)
-        try:
-            session.page.wait_for_load_state("domcontentloaded", timeout=min(timeout_ms, 5_000))
-        except Exception:
-            pass
-        session.step_index += 1
-        after = self._snapshot(session.page, timeout_ms)
-        after_screenshot = self._write_screenshot(session, "submit_after", capture_screenshot, timeout_ms)
-        form_state = self._form_state(session.page, timeout_ms)
-        return {
-            "session_id": session.session_id,
-            "backend_kind": session.backend_kind,
-            "url_hash": stable_hash(session.page.url),
-            "profile_dir_hash": stable_hash(str(session.profile_dir)),
-            "before_snapshot_hash": before.snapshot_sha256,
-            "after_snapshot_hash": after.snapshot_sha256,
-            "screenshot_artifact_id": before_screenshot["artifact_id"],
-            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
-            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
-            "form_state_summary": form_state,
-            "form_state_summary_hash": stable_hash(form_state),
-            "step_index": session.step_index,
-        }
+        with session.lock:
+            before = self._snapshot(session.page, timeout_ms)
+            before_screenshot = self._write_screenshot(session, "submit_before", capture_screenshot, timeout_ms)
+            locator = (
+                session.page.get_by_role(target_role, name=target_name, exact=True).nth(target_nth)
+                if target_name
+                else session.page.get_by_role(target_role).nth(target_nth)
+            )
+            locator.click(timeout=timeout_ms)
+            try:
+                session.page.wait_for_load_state("domcontentloaded", timeout=min(timeout_ms, 5_000))
+            except Exception:
+                pass
+            session.step_index += 1
+            after = self._snapshot(session.page, timeout_ms)
+            after_screenshot = self._write_screenshot(session, "submit_after", capture_screenshot, timeout_ms)
+            form_state = self._form_state(session.page, timeout_ms)
+            return {
+                "session_id": session.session_id,
+                "backend_kind": session.backend_kind,
+                "url_hash": stable_hash(session.page.url),
+                "profile_dir_hash": stable_hash(str(session.profile_dir)),
+                "before_snapshot_hash": before.snapshot_sha256,
+                "after_snapshot_hash": after.snapshot_sha256,
+                "screenshot_artifact_id": before_screenshot["artifact_id"],
+                "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+                "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+                "form_state_summary": form_state,
+                "form_state_summary_hash": stable_hash(form_state),
+                "step_index": session.step_index,
+            }
 
     def login_with_credentials_special_authority(
         self,
@@ -597,36 +612,38 @@ class BrowserSessionManagerL5Live:
         timeout_ms: int = 15_000,
         capture_screenshot: bool = True,
     ) -> dict[str, Any]:
-        session = self._sessions.get(session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:
             raise RuntimeError("browser_session_missing_or_closed")
-        before = self._snapshot(session.page, timeout_ms)
-        before_screenshot = self._write_screenshot(session, "credential_before", capture_screenshot, timeout_ms)
-        self._role_locator(session.page, username_target_role, username_target_name, 0).fill(username_value, timeout=timeout_ms)
-        self._role_locator(session.page, password_target_role, password_target_name, 0).fill(password_value, timeout=timeout_ms)
-        self._role_locator(session.page, submit_target_role, submit_target_name, 0).click(timeout=timeout_ms)
-        try:
-            session.page.wait_for_load_state("domcontentloaded", timeout=min(timeout_ms, 5_000))
-        except Exception:
-            pass
-        session.step_index += 1
-        after = self._snapshot(session.page, timeout_ms)
-        after_screenshot = self._write_screenshot(session, "credential_after", capture_screenshot, timeout_ms)
-        form_state = self._form_state(session.page, timeout_ms)
-        return {
-            "session_id": session.session_id,
-            "backend_kind": session.backend_kind,
-            "url_hash": stable_hash(session.page.url),
-            "profile_dir_hash": stable_hash(str(session.profile_dir)),
-            "before_snapshot_hash": before.snapshot_sha256,
-            "after_snapshot_hash": after.snapshot_sha256,
-            "screenshot_artifact_id": before_screenshot["artifact_id"],
-            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
-            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
-            "form_state_summary": form_state,
-            "form_state_summary_hash": stable_hash(form_state),
-            "step_index": session.step_index,
-        }
+        with session.lock:
+            before = self._snapshot(session.page, timeout_ms)
+            before_screenshot = self._write_screenshot(session, "credential_before", capture_screenshot, timeout_ms)
+            self._role_locator(session.page, username_target_role, username_target_name, 0).fill(username_value, timeout=timeout_ms)
+            self._role_locator(session.page, password_target_role, password_target_name, 0).fill(password_value, timeout=timeout_ms)
+            self._role_locator(session.page, submit_target_role, submit_target_name, 0).click(timeout=timeout_ms)
+            try:
+                session.page.wait_for_load_state("domcontentloaded", timeout=min(timeout_ms, 5_000))
+            except Exception:
+                pass
+            session.step_index += 1
+            after = self._snapshot(session.page, timeout_ms)
+            after_screenshot = self._write_screenshot(session, "credential_after", capture_screenshot, timeout_ms)
+            form_state = self._form_state(session.page, timeout_ms)
+            return {
+                "session_id": session.session_id,
+                "backend_kind": session.backend_kind,
+                "url_hash": stable_hash(session.page.url),
+                "profile_dir_hash": stable_hash(str(session.profile_dir)),
+                "before_snapshot_hash": before.snapshot_sha256,
+                "after_snapshot_hash": after.snapshot_sha256,
+                "screenshot_artifact_id": before_screenshot["artifact_id"],
+                "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+                "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+                "form_state_summary": form_state,
+                "form_state_summary_hash": stable_hash(form_state),
+                "step_index": session.step_index,
+            }
 
     def upload_file_quarantine_special_authority(
         self,
@@ -639,33 +656,35 @@ class BrowserSessionManagerL5Live:
         timeout_ms: int = 15_000,
         capture_screenshot: bool = True,
     ) -> dict[str, Any]:
-        session = self._sessions.get(session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:
             raise RuntimeError("browser_session_missing_or_closed")
-        upload_path = Path(local_upload_path).resolve()
-        before = self._snapshot(session.page, timeout_ms)
-        before_screenshot = self._write_screenshot(session, "upload_before", capture_screenshot, timeout_ms)
-        locator = self._role_locator(session.page, target_role, target_name, 0)
-        locator.set_input_files(str(upload_path), timeout=timeout_ms)
-        session.step_index += 1
-        after = self._snapshot(session.page, timeout_ms)
-        after_screenshot = self._write_screenshot(session, "upload_after", capture_screenshot, timeout_ms)
-        file_hash = _sha256_file(upload_path)
-        return {
-            "session_id": session.session_id,
-            "backend_kind": session.backend_kind,
-            "url_hash": stable_hash(session.page.url),
-            "profile_dir_hash": stable_hash(str(session.profile_dir)),
-            "before_snapshot_hash": before.snapshot_sha256,
-            "after_snapshot_hash": after.snapshot_sha256,
-            "screenshot_artifact_id": before_screenshot["artifact_id"],
-            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
-            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
-            "file_hash": file_hash,
-            "file_size_bytes": upload_path.stat().st_size,
-            "safe_file_name": upload_path.name,
-            "step_index": session.step_index,
-        }
+        with session.lock:
+            upload_path = Path(local_upload_path).resolve()
+            before = self._snapshot(session.page, timeout_ms)
+            before_screenshot = self._write_screenshot(session, "upload_before", capture_screenshot, timeout_ms)
+            locator = self._role_locator(session.page, target_role, target_name, 0)
+            locator.set_input_files(str(upload_path), timeout=timeout_ms)
+            session.step_index += 1
+            after = self._snapshot(session.page, timeout_ms)
+            after_screenshot = self._write_screenshot(session, "upload_after", capture_screenshot, timeout_ms)
+            file_hash = _sha256_file(upload_path)
+            return {
+                "session_id": session.session_id,
+                "backend_kind": session.backend_kind,
+                "url_hash": stable_hash(session.page.url),
+                "profile_dir_hash": stable_hash(str(session.profile_dir)),
+                "before_snapshot_hash": before.snapshot_sha256,
+                "after_snapshot_hash": after.snapshot_sha256,
+                "screenshot_artifact_id": before_screenshot["artifact_id"],
+                "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+                "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+                "file_hash": file_hash,
+                "file_size_bytes": upload_path.stat().st_size,
+                "safe_file_name": upload_path.name,
+                "step_index": session.step_index,
+            }
 
     def download_file_quarantine_special_authority(
         self,
@@ -675,43 +694,63 @@ class BrowserSessionManagerL5Live:
         target_role: str,
         target_name: str | None,
         quarantine_root: str | Path,
+        max_file_bytes: int = 10_000_000,
+        forbid_executables: bool = True,
         timeout_ms: int = 15_000,
         capture_screenshot: bool = True,
     ) -> dict[str, Any]:
-        session = self._sessions.get(session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:
             raise RuntimeError("browser_session_missing_or_closed")
-        root = Path(quarantine_root).resolve()
-        root.mkdir(parents=True, exist_ok=True)
-        before = self._snapshot(session.page, timeout_ms)
-        before_screenshot = self._write_screenshot(session, "download_before", capture_screenshot, timeout_ms)
-        locator = self._role_locator(session.page, target_role, target_name, 0)
-        with session.page.expect_download(timeout=timeout_ms) as download_info:
-            locator.click(timeout=timeout_ms)
-        download = download_info.value
-        suggested = _safe_file_name(str(download.suggested_filename or "download.bin"))
-        target = (root / suggested).resolve()
-        target.relative_to(root)
-        download.save_as(str(target))
-        session.step_index += 1
-        after = self._snapshot(session.page, timeout_ms)
-        after_screenshot = self._write_screenshot(session, "download_after", capture_screenshot, timeout_ms)
-        return {
-            "session_id": session.session_id,
-            "backend_kind": session.backend_kind,
-            "url_hash": stable_hash(session.page.url),
-            "profile_dir_hash": stable_hash(str(session.profile_dir)),
-            "before_snapshot_hash": before.snapshot_sha256,
-            "after_snapshot_hash": after.snapshot_sha256,
-            "screenshot_artifact_id": before_screenshot["artifact_id"],
-            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
-            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
-            "file_hash": _sha256_file(target),
-            "file_size_bytes": target.stat().st_size,
-            "quarantine_path_metadata": {"root_hash": stable_hash(str(root)), "name": target.name},
-            "safe_file_name": target.name,
-            "step_index": session.step_index,
-        }
+        with session.lock:
+            root = Path(quarantine_root).resolve()
+            root.mkdir(parents=True, exist_ok=True)
+            before = self._snapshot(session.page, timeout_ms)
+            before_screenshot = self._write_screenshot(session, "download_before", capture_screenshot, timeout_ms)
+            locator = self._role_locator(session.page, target_role, target_name, 0)
+            with session.page.expect_download(timeout=timeout_ms) as download_info:
+                locator.click(timeout=timeout_ms)
+            download = download_info.value
+            suggested = _safe_file_name(str(download.suggested_filename or "download.bin"))
+            target = (root / suggested).resolve()
+            target.relative_to(root)
+            if target.exists():
+                raise RuntimeError("download_quarantine_target_already_exists")
+            if forbid_executables and target.suffix.lower() in _BLOCKED_DOWNLOAD_EXTENSIONS:
+                raise RuntimeError("download_executable_extension_blocked")
+            tmp_target = (root / f".{target.name}.{stable_hash(str(time.time()))[:12]}.part").resolve()
+            tmp_target.relative_to(root)
+            try:
+                download.save_as(str(tmp_target))
+                file_size = tmp_target.stat().st_size
+                if file_size > max_file_bytes:
+                    raise RuntimeError("download_file_too_large")
+                tmp_target.replace(target)
+            except Exception:
+                try:
+                    tmp_target.unlink(missing_ok=True)
+                finally:
+                    raise
+            session.step_index += 1
+            after = self._snapshot(session.page, timeout_ms)
+            after_screenshot = self._write_screenshot(session, "download_after", capture_screenshot, timeout_ms)
+            return {
+                "session_id": session.session_id,
+                "backend_kind": session.backend_kind,
+                "url_hash": stable_hash(session.page.url),
+                "profile_dir_hash": stable_hash(str(session.profile_dir)),
+                "before_snapshot_hash": before.snapshot_sha256,
+                "after_snapshot_hash": after.snapshot_sha256,
+                "screenshot_artifact_id": before_screenshot["artifact_id"],
+                "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+                "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+                "file_hash": _sha256_file(target),
+                "file_size_bytes": target.stat().st_size,
+                "quarantine_path_metadata": {"root_hash": stable_hash(str(root)), "name": target.name},
+                "safe_file_name": target.name,
+                "step_index": session.step_index,
+            }
 
     def evaluate_js_sandbox_special_authority(
         self,
@@ -722,33 +761,36 @@ class BrowserSessionManagerL5Live:
         timeout_ms: int = 15_000,
         capture_screenshot: bool = True,
     ) -> dict[str, Any]:
-        session = self._sessions.get(session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
         if session is None or session.closed or session.mission_id != mission_id:
             raise RuntimeError("browser_session_missing_or_closed")
-        before = self._snapshot(session.page, timeout_ms)
-        before_screenshot = self._write_screenshot(session, "js_before", capture_screenshot, timeout_ms)
-        result = session.page.evaluate(script)
-        session.step_index += 1
-        after = self._snapshot(session.page, timeout_ms)
-        after_screenshot = self._write_screenshot(session, "js_after", capture_screenshot, timeout_ms)
-        return {
-            "session_id": session.session_id,
-            "backend_kind": session.backend_kind,
-            "url_hash": stable_hash(session.page.url),
-            "profile_dir_hash": stable_hash(str(session.profile_dir)),
-            "before_snapshot_hash": before.snapshot_sha256,
-            "after_snapshot_hash": after.snapshot_sha256,
-            "screenshot_artifact_id": before_screenshot["artifact_id"],
-            "after_screenshot_artifact_id": after_screenshot["artifact_id"],
-            "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
-            "result_hash": stable_hash(result),
-            "result_type": type(result).__name__,
-            "step_index": session.step_index,
-        }
+        with session.lock:
+            before = self._snapshot(session.page, timeout_ms)
+            before_screenshot = self._write_screenshot(session, "js_before", capture_screenshot, timeout_ms)
+            result = session.page.evaluate(script)
+            session.step_index += 1
+            after = self._snapshot(session.page, timeout_ms)
+            after_screenshot = self._write_screenshot(session, "js_after", capture_screenshot, timeout_ms)
+            return {
+                "session_id": session.session_id,
+                "backend_kind": session.backend_kind,
+                "url_hash": stable_hash(session.page.url),
+                "profile_dir_hash": stable_hash(str(session.profile_dir)),
+                "before_snapshot_hash": before.snapshot_sha256,
+                "after_snapshot_hash": after.snapshot_sha256,
+                "screenshot_artifact_id": before_screenshot["artifact_id"],
+                "after_screenshot_artifact_id": after_screenshot["artifact_id"],
+                "artifact_paths": [path for path in (before_screenshot["path"], after_screenshot["path"]) if path],
+                "result_hash": stable_hash(result),
+                "result_type": type(result).__name__,
+                "step_index": session.step_index,
+            }
 
     def close_all(self) -> None:
-        for session_id in list(self._sessions):
-            session = self._sessions.pop(session_id)
+        with self._sessions_lock:
+            sessions = [self._sessions.pop(session_id) for session_id in list(self._sessions)]
+        for session in sessions:
             try:
                 session.close()
             except Exception:
@@ -757,7 +799,8 @@ class BrowserSessionManagerL5Live:
     def _session(self, req: BrowserSessionRequest) -> _LiveBrowserSession | None:
         if not req.session_id:
             return None
-        session = self._sessions.get(req.session_id)
+        with self._sessions_lock:
+            session = self._sessions.get(req.session_id)
         if session is None or session.closed or session.mission_id != req.mission.id:
             return None
         return session
@@ -939,6 +982,9 @@ _PROMOTED_SESSION_ACTIONS = {
     BrowserSessionActionKind.HOVER.value,
     BrowserSessionActionKind.WAIT_FOR_TEXT.value,
 }
+
+
+_BLOCKED_DOWNLOAD_EXTENSIONS = frozenset({".exe", ".bat", ".cmd", ".ps1", ".sh", ".js", ".vbs"})
 
 
 def _sha256_file(path: Path) -> str:

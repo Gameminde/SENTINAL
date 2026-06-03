@@ -294,6 +294,40 @@ def test_upload_authorized_accepted_with_full_authority_and_proof(tmp_path):
     assert v3_check(bus.events()).passed is True
 
 
+def test_upload_authorized_rejects_backend_final_url_outside_grant(tmp_path):
+    snap = snapshot()
+    bus = EventBus(MISSION_ID)
+    sbox = sandbox(tmp_path)
+    artifact = source_artifact(sbox, bus)
+    plan, plan_trace_id, snapshot_trace_id, upload_ref = create_plan(bus, snap)
+
+    result = BrowserUploadAuthorizedExecutor(
+        backend=FakeUploadBackend(snap, after_url="https://evil.example/upload/thanks")
+    ).execute(
+        BrowserUploadAuthorizedRequest(
+            mission_id=MISSION_ID,
+            authority_grant_id="grant_upload",
+            context_pack_id="cpk_upload01",
+            compiled_intent_trace_id="compiled_trace",
+            plan=plan,
+            plan_trace_event_id=plan_trace_id or "",
+            before_snapshot_trace_event_id=snapshot_trace_id,
+            final_url="https://example.com/upload",
+            upload_ref_id=upload_ref,
+            source_artifact=artifact,
+            expected_effect="upload confirmation appears",
+            allow_cross_origin=True,
+        ),
+        authority_grant=grant(artifact_id=artifact.id, allow_cross_origin=True),
+        event_bus=bus,
+        artifact_capture=sbox,
+    )
+
+    assert result.accepted is False
+    assert result.reason == "browser_upload_backend_url_outside_authority"
+    assert all("evil.example" not in error for error in result.errors)
+
+
 def test_controlled_runner_rejects_upload_without_v3_authority(tmp_path):
     snap = snapshot()
     bus = EventBus(MISSION_ID)

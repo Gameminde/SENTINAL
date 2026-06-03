@@ -294,6 +294,8 @@ class BrowserFileQuarantineOrganL6:
             target_role=req.target_role,
             target_name=req.target_name,
             quarantine_root=req.contract.approved_download_quarantine_root,
+            max_file_bytes=req.contract.max_file_bytes,
+            forbid_executables=req.contract.forbid_executables,
             timeout_ms=req.timeout_ms,
             capture_screenshot=req.capture_screenshot,
         )

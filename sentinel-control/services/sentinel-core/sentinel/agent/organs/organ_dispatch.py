@@ -98,6 +98,7 @@ from sentinel.agent.organs.runtime_execution import (
     OrganRuntimeExecutionRequest,
     OrganRuntimeExecutionResult,
     OrganRuntimeExecutionStatus,
+    close_browser_runtime_sessions_for_config,
     execute_organ_runtime_request,
 )
 from sentinel.mission.models import MissionAuthorityEnvelope
@@ -364,16 +365,23 @@ class OrganDispatcher:
             raw_candidate = raw_by_proposal_id.get(candidate.source_proposal_id, {})
 
             # Step 3: execute_organ_runtime_request() — builds contract + receipt + FinalGate
-            exec_result = self._execute_candidate(
-                candidate=candidate,
-                raw_candidate=raw_candidate,
-                gate_result=gate_result,
-                config=runtime_config,
-                authority_envelope=authority_envelope,
-                organ_contracts=resolved_organ_contracts,
-                browser_readonly_fetcher=browser_readonly_fetcher,
-                prior_candidate_results=candidate_results,
-            )
+            try:
+                exec_result = self._execute_candidate(
+                    candidate=candidate,
+                    raw_candidate=raw_candidate,
+                    gate_result=gate_result,
+                    config=runtime_config,
+                    authority_envelope=authority_envelope,
+                    organ_contracts=resolved_organ_contracts,
+                    browser_readonly_fetcher=browser_readonly_fetcher,
+                    prior_candidate_results=candidate_results,
+                )
+            except Exception:
+                close_browser_runtime_sessions_for_config(
+                    mission_id=mission_id,
+                    config=runtime_config,
+                )
+                raise
 
             if exec_result.status in {
                 OrganRuntimeExecutionStatus.EXECUTED,
@@ -433,7 +441,7 @@ class OrganDispatcher:
             input_hash=input_hash,
         )
 
-        return OrganDispatchResult(
+        result = OrganDispatchResult(
             mission_id=mission_id,
             status=status,
             candidate_results=candidate_results,
@@ -441,6 +449,11 @@ class OrganDispatcher:
             trace=trace,
             safe_summary=trace.safe_summary,
         )
+        close_browser_runtime_sessions_for_config(
+            mission_id=mission_id,
+            config=runtime_config,
+        )
+        return result
 
     def _execute_candidate(
         self,
@@ -948,6 +961,8 @@ def _build_browser_session_request(
         or []
     )
     action_kind = _browser_session_action_kind(raw_candidate.get("action_kind") or raw_candidate.get("browser_action_kind") or "open")
+    if action_kind is None:
+        return None
     allowed_action_kinds = _browser_session_allowed_action_kinds(raw_candidate, contract_data, action_kind)
     session_id = raw_candidate.get("session_id")
     if not session_id and action_kind in {BrowserSessionActionKind.OBSERVE, BrowserSessionActionKind.CLOSE}:
@@ -971,17 +986,17 @@ def _build_browser_session_request(
             text=raw_candidate.get("text"),
             values=[str(value) for value in raw_candidate.get("values", [])],
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
         )
     except (TypeError, ValueError, ValidationError):
         return None
 
 
-def _browser_session_action_kind(value: Any) -> BrowserSessionActionKind:
+def _browser_session_action_kind(value: Any) -> BrowserSessionActionKind | None:
     try:
         return value if isinstance(value, BrowserSessionActionKind) else BrowserSessionActionKind(str(value))
     except ValueError:
-        return BrowserSessionActionKind.OPEN
+        return None
 
 
 def _browser_session_allowed_action_kinds(
@@ -1033,7 +1048,7 @@ def _build_browser_form_submit_request(
         contract = BrowserFormSubmitContract(
             mission_id=mission_id,
             allowed_domains=[str(domain) for domain in allowed_domains],
-            allow_form_submit=bool(raw_candidate.get("allow_form_submit") or contract_data.get("allow_form_submit")),
+            allow_form_submit=_strict_bool(raw_candidate.get("allow_form_submit", contract_data.get("allow_form_submit", False))),
         )
         return BrowserFormSubmitRequest(
             mission=authority_envelope,
@@ -1046,7 +1061,7 @@ def _build_browser_form_submit_request(
             source_snapshot_hash=raw_candidate.get("source_snapshot_hash") or _latest_browser_snapshot_hash(prior_candidate_results),
             operator_note=raw_candidate.get("operator_note"),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1100,7 +1115,7 @@ def _build_browser_login_request(
             allowed_domains=[str(domain) for domain in allowed_domains],
             username_credential_ref_id=str(username_ref),
             password_credential_ref_id=str(password_ref),
-            allow_login=bool(raw_candidate.get("allow_login") or contract_data.get("allow_login")),
+            allow_login=_strict_bool(raw_candidate.get("allow_login", contract_data.get("allow_login", False))),
         )
         return BrowserLoginCredentialSessionRequest(
             mission=authority_envelope,
@@ -1115,7 +1130,7 @@ def _build_browser_login_request(
             submit_target_name=raw_candidate.get("submit_target_name"),
             operator_note=raw_candidate.get("operator_note"),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1147,13 +1162,15 @@ def _build_browser_file_quarantine_request(
         return None
     try:
         action_kind = _browser_file_action_kind(raw_candidate.get("file_action_kind") or raw_candidate.get("action_kind") or "download")
+        if action_kind is None:
+            return None
         contract = BrowserFileQuarantineContract(
             mission_id=mission_id,
             allowed_domains=[str(domain) for domain in allowed_domains],
             approved_upload_root=str(upload_root),
             approved_download_quarantine_root=str(quarantine_root),
-            allow_upload=bool(raw_candidate.get("allow_upload") or contract_data.get("allow_upload")),
-            allow_download=bool(raw_candidate.get("allow_download") or contract_data.get("allow_download")),
+            allow_upload=_strict_bool(raw_candidate.get("allow_upload", contract_data.get("allow_upload", False))),
+            allow_download=_strict_bool(raw_candidate.get("allow_download", contract_data.get("allow_download", False))),
         )
         return BrowserFileQuarantineRequest(
             mission=authority_envelope,
@@ -1166,7 +1183,7 @@ def _build_browser_file_quarantine_request(
             local_upload_path=raw_candidate.get("local_upload_path"),
             operator_note=raw_candidate.get("operator_note"),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1197,7 +1214,7 @@ def _build_browser_js_sandbox_request(
         contract = BrowserJSSandboxContract(
             mission_id=mission_id,
             allowed_domains=[str(domain) for domain in allowed_domains],
-            allow_js_sandbox=bool(raw_candidate.get("allow_js_sandbox") or contract_data.get("allow_js_sandbox")),
+            allow_js_sandbox=_strict_bool(raw_candidate.get("allow_js_sandbox", contract_data.get("allow_js_sandbox", False))),
             max_script_bytes=int(raw_candidate.get("max_script_bytes") or contract_data.get("max_script_bytes") or 4_000),
         )
         return BrowserJSSandboxRequest(
@@ -1208,17 +1225,33 @@ def _build_browser_js_sandbox_request(
             script=str(script),
             intent_summary=str(raw_candidate.get("intent_summary") or raw_candidate.get("safe_summary") or "Browser JS sandbox request."),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
         )
     except (TypeError, ValueError, ValidationError):
         return None
 
 
-def _browser_file_action_kind(value: Any) -> BrowserFileQuarantineActionKind:
+def _browser_file_action_kind(value: Any) -> BrowserFileQuarantineActionKind | None:
     try:
         return value if isinstance(value, BrowserFileQuarantineActionKind) else BrowserFileQuarantineActionKind(str(value))
     except ValueError:
-        return BrowserFileQuarantineActionKind.DOWNLOAD
+        return None
+
+
+def _strict_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, int) and value in {0, 1}:
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "off", ""}:
+            return False
+    raise ValueError("invalid_boolean_flag")
 
 
 # ---------------------------------------------------------------------------
@@ -1247,8 +1280,8 @@ def _build_l2_executor_contract(
             allowed_workspace_root=str(contract_data.get("allowed_workspace_root", "")),
             allowed_artifact_subdir=str(contract_data.get("allowed_artifact_subdir", "generated")),
             max_artifact_bytes=int(contract_data.get("max_artifact_bytes", 100_000)),
-            allow_overwrite=bool(contract_data.get("allow_overwrite", False)),
-            allow_rollback_cleanup=bool(contract_data.get("allow_rollback_cleanup", False)),
+            allow_overwrite=_strict_bool(contract_data.get("allow_overwrite", False)),
+            allow_rollback_cleanup=_strict_bool(contract_data.get("allow_rollback_cleanup", False)),
             receipt_required=True,
             tombstone_required_for_cleanup=True,
             finalgate_posture_required=True,
@@ -1280,8 +1313,8 @@ def _build_l3_executor_contract(
             allowed_workspace_subdir=str(contract_data.get("allowed_workspace_subdir", "")),
             max_file_bytes=int(contract_data.get("max_file_bytes", 500_000)),
             max_patch_bytes=int(contract_data.get("max_patch_bytes", 100_000)),
-            allow_overwrite=bool(contract_data.get("allow_overwrite", True)),
-            allow_delete=bool(contract_data.get("allow_delete", False)),
+            allow_overwrite=_strict_bool(contract_data.get("allow_overwrite", True)),
+            allow_delete=_strict_bool(contract_data.get("allow_delete", False)),
             tombstone_required_for_delete=True,
             rollback_required=True,
             rollback_must_be_tested_before_mutation=True,

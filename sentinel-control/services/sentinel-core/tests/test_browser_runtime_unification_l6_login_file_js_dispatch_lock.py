@@ -671,3 +671,194 @@ def test_dispatcher_routes_open_login_close_through_runtime_without_secret_persi
     dumped = result.model_dump_json()
     assert USERNAME_VALUE not in dumped
     assert PASSWORD_VALUE not in dumped
+
+
+def test_dispatcher_string_false_does_not_enable_l6_login_js_or_download(tmp_path: Path) -> None:
+    common = {
+        "source_role_id": "planner",
+        "artifact_kind": "browser_step_candidate",
+        "risk_class": "high",
+        "budget_estimate": {"action_count": 1},
+        "evidence_refs": ["ev_browser_l6"],
+        "rollback_posture": "browser evidence",
+        "user_review_required": False,
+        "allowed_domains": ["example.com"],
+    }
+    candidates = [
+        {
+            **common,
+            "proposal_id": "proposal_false_open",
+            "action_level_candidate": "L5",
+            "authority_class": "needs_gate",
+            "expected_outcome": "Open browser session.",
+            "safe_summary": "Open browser session.",
+            "browser_organ_kind": "browser_session_manager",
+            "url": URL,
+            "action_kind": "open",
+        },
+        {
+            **common,
+            "proposal_id": "proposal_false_login",
+            "action_level_candidate": "L6",
+            "authority_class": "special_authority",
+            "expected_outcome": "Login should remain disabled.",
+            "safe_summary": "String false must not enable login.",
+            "browser_organ_kind": "browser_login_credential_session_broker",
+            "url": URL,
+            "username_credential_ref_id": USER_REF,
+            "password_credential_ref_id": PASS_REF,
+            "username_target_name": "Email",
+            "password_target_name": "Password",
+            "submit_target_name": "Sign in",
+            "allow_login": "false",
+        },
+        {
+            **common,
+            "proposal_id": "proposal_false_download",
+            "action_level_candidate": "L6",
+            "authority_class": "special_authority",
+            "expected_outcome": "Download should remain disabled.",
+            "safe_summary": "String false must not enable download.",
+            "browser_organ_kind": "browser_download_upload_quarantine",
+            "url": URL,
+            "file_action_kind": "download",
+            "target_role": "link",
+            "target_name": "Download report",
+            "approved_upload_root": str(tmp_path / "uploads"),
+            "approved_download_quarantine_root": str(tmp_path / "downloads"),
+            "allow_download": "false",
+        },
+        {
+            **common,
+            "proposal_id": "proposal_false_js",
+            "action_level_candidate": "L6",
+            "authority_class": "special_authority",
+            "expected_outcome": "JS should remain disabled.",
+            "safe_summary": "String false must not enable JS.",
+            "browser_organ_kind": "browser_js_sandbox_special_authority",
+            "url": URL,
+            "script": "() => document.title",
+            "intent_summary": "Read page title.",
+            "allow_js_sandbox": "false",
+        },
+    ]
+
+    result = OrganDispatcher().dispatch(
+        mission_id=MISSION_ID,
+        action_candidates=candidates,
+        proposal_artifacts=candidates,
+        config=_runtime_config(tmp_path, browser_document_fixtures={URL: LOGIN_HTML}),
+        authority={
+            "root_authority_present": True,
+            "allowed_action_levels": ["L5", "L6"],
+            "allowed_organs": ["browser"],
+            "max_risk": "high",
+            "special_authority": True,
+            "user_review_granted": True,
+        },
+        authority_envelope=_mission(),
+        budget={"remaining_action_count": 10, "remaining_retries": 1, "remaining_tokens": 1000},
+        available_evidence_refs=["ev_browser_l6"],
+        organ_contracts={
+            "browser": {
+                "available": True,
+                "allowed_action_levels": ["L5", "L6"],
+                "required_receipt_fields": ["receipt_id", "finalgate_verified"],
+                "allowed_substeps": [
+                    "browser_session_open",
+                    "browser_login_credential_session",
+                    "browser_file_download_quarantine",
+                    "browser_js_sandbox_special_authority",
+                ],
+                "forbidden_substeps": ["payment"],
+            },
+        },
+    )
+
+    blocked_reasons = [
+        item.execution_result.blocked_reason
+        for item in result.candidate_results
+        if item.execution_result is not None and item.execution_result.blocked_reason
+    ]
+
+    assert "browser_login_contract_disabled" in blocked_reasons
+    assert "browser_download_upload_quarantine_contract_does_not_allow_download" in blocked_reasons
+    assert "browser_js_sandbox_contract_disabled" in blocked_reasons
+
+
+def test_dispatcher_invalid_file_action_kind_fails_closed(tmp_path: Path) -> None:
+    candidates = [
+        {
+            "proposal_id": "proposal_open_invalid_file",
+            "source_role_id": "planner",
+            "artifact_kind": "browser_step_candidate",
+            "action_level_candidate": "L5",
+            "authority_class": "needs_gate",
+            "risk_class": "high",
+            "budget_estimate": {"action_count": 1},
+            "evidence_refs": ["ev_browser_l6"],
+            "expected_outcome": "Open browser session.",
+            "rollback_posture": "close session",
+            "user_review_required": False,
+            "safe_summary": "Open browser session.",
+            "browser_organ_kind": "browser_session_manager",
+            "url": URL,
+            "action_kind": "open",
+            "allowed_domains": ["example.com"],
+        },
+        {
+            "proposal_id": "proposal_invalid_file_action",
+            "source_role_id": "planner",
+            "artifact_kind": "browser_step_candidate",
+            "action_level_candidate": "L6",
+            "authority_class": "special_authority",
+            "risk_class": "high",
+            "budget_estimate": {"action_count": 1},
+            "evidence_refs": ["ev_browser_l6"],
+            "expected_outcome": "Invalid file action must not downgrade to download.",
+            "rollback_posture": "blocked",
+            "user_review_required": False,
+            "safe_summary": "Invalid file action.",
+            "browser_organ_kind": "browser_download_upload_quarantine",
+            "url": URL,
+            "file_action_kind": "teleport",
+            "target_role": "link",
+            "target_name": "Download report",
+            "approved_upload_root": str(tmp_path / "uploads"),
+            "approved_download_quarantine_root": str(tmp_path / "downloads"),
+            "allow_download": True,
+            "allowed_domains": ["example.com"],
+        },
+    ]
+
+    result = OrganDispatcher().dispatch(
+        mission_id=MISSION_ID,
+        action_candidates=candidates,
+        proposal_artifacts=candidates,
+        config=_runtime_config(tmp_path),
+        authority={
+            "root_authority_present": True,
+            "allowed_action_levels": ["L5", "L6"],
+            "allowed_organs": ["browser"],
+            "max_risk": "high",
+            "special_authority": True,
+            "user_review_granted": True,
+        },
+        authority_envelope=_mission(),
+        budget={"remaining_action_count": 10, "remaining_retries": 1, "remaining_tokens": 1000},
+        available_evidence_refs=["ev_browser_l6"],
+        organ_contracts={
+            "browser": {
+                "available": True,
+                "allowed_action_levels": ["L5", "L6"],
+                "required_receipt_fields": ["receipt_id", "finalgate_verified"],
+                "allowed_substeps": ["browser_session_open", "browser_file_download_quarantine"],
+                "forbidden_substeps": ["payment"],
+            },
+        },
+    )
+
+    execution_results = [item.execution_result for item in result.candidate_results if item.execution_result is not None]
+    assert execution_results[0].organ_kind == "browser_session_manager"
+    assert execution_results[1].organ_kind == "browser"
+    assert execution_results[1].blocked_reason == "failed_to_build_sub_request_for_browser_download_upload_quarantine"

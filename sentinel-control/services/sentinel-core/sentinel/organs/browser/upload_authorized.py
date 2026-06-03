@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 from collections.abc import Callable
 from urllib.parse import urlparse
@@ -172,6 +173,20 @@ class BrowserUploadAuthorizedExecutor:
                 request,
                 "browser_upload_cross_origin_result",
                 [f"before:{backend_result.final_url_before}", f"after:{backend_result.final_url_after}"],
+                event_bus,
+                policy_trace_id,
+                phase,
+            )
+        backend_urls = [
+            backend_result.final_url_before,
+            backend_result.final_url_after,
+            backend_result.after_page.final_url if backend_result.after_page is not None else "",
+        ]
+        if any(url and not browser_v3_grant_allows_url(authority_grant, url) for url in backend_urls):
+            return self._rejected(
+                request,
+                "browser_upload_backend_url_outside_authority",
+                [f"url_hash:{_safe_url_hash(url)}" for url in backend_urls if url],
                 event_bus,
                 policy_trace_id,
                 phase,
@@ -478,6 +493,10 @@ def _same_origin(left: str, right: str) -> bool:
 def _normalize_origin(value: str) -> tuple[str, str, int | None]:
     parsed = urlparse(value)
     return parsed.scheme.lower(), (parsed.hostname or "").lower(), parsed.port
+
+
+def _safe_url_hash(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8", errors="ignore")).hexdigest()[:16]
 
 
 def _collapse(value: str) -> str:

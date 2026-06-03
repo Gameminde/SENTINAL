@@ -15,9 +15,11 @@ def test_browser_final_capability_lock_docs_mark_roadmap_complete() -> None:
     current = _read("sentinel-control/docs/CURRENT_STATE_LOCK.md")
     roadmap = _read("sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md")
 
-    assert "current_phase = BROWSER_FINAL_CAPABILITY_LOCKED" in readme
+    assert "current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED" in readme
+    assert "current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED" in current
+    assert "current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED" in roadmap
     assert "current_phase = BROWSER_FINAL_CAPABILITY_LOCKED" in current
-    assert "current_phase = BROWSER_FINAL_CAPABILITY_LOCKED" in roadmap
+    assert "BROWSER_FINAL_CAPABILITY_LOCK = implemented / locked" in roadmap
     assert "BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7 [DONE]" in roadmap
     assert "16. BROWSER_FINAL_CAPABILITY_LOCK [DONE]" in roadmap
 
@@ -54,23 +56,32 @@ def test_browser_final_capability_lock_imports_all_browser_power_surfaces() -> N
     assert BrowserExtensionBridgeOrganL7.organ_id == "browser_controlled_extension_webmcp_bridge_l7"
 
 
-def test_browser_final_capability_lock_keeps_high_power_organs_out_of_default_runtime_execution() -> None:
+def test_browser_final_capability_lock_keeps_high_power_organs_default_off_and_special_authority_only() -> None:
     runtime_execution = _read("sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py")
     runtime = _read("sentinel-control/services/sentinel-core/sentinel/agent/runtime.py")
 
-    forbidden_runtime_organs = [
+    opt_in_special_authority_organs = [
         "BrowserFormSubmitSpecialAuthorityL6",
         "BrowserLoginCredentialSessionBrokerL6",
         "BrowserFileQuarantineOrganL6",
         "BrowserJSSandboxOrganL6",
+    ]
+    for name in opt_in_special_authority_organs:
+        assert name in runtime_execution
+        assert name not in runtime
+
+    contract_only_l7_organs = [
         "BrowserPaymentSpendOrganL7",
         "BrowserAccountCreationOrganL7",
         "BrowserExtensionBridgeOrganL7",
     ]
-    for name in forbidden_runtime_organs:
+    for name in contract_only_l7_organs:
         assert name not in runtime_execution
         assert name not in runtime
+    assert "BROWSER_L5_L6_SPECIAL_AUTHORITY_ONLY" in runtime_execution
+    assert "browser_persist_sessions_required_for_l5_l6_special_authority" in runtime_execution
     assert "organ_dispatch_enabled: bool = False" in runtime_execution
+    assert "enabled: bool = False" in runtime_execution
 
 
 def test_browser_final_capability_lock_report_records_remaining_live_adapter_gaps() -> None:

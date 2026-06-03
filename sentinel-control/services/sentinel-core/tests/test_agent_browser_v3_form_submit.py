@@ -31,11 +31,20 @@ from sentinel.agent.tool_call_protocol import CanonicalToolCall
 from sentinel.capabilities import default_tool_registry
 from sentinel.capabilities.risk import ToolSideEffect
 from sentinel.mission import MissionAuthorityEnvelope
+from sentinel.organs.browser.controlled_runner import _bool_arg
 from sentinel.shared.enums import MissionMode, MissionType
 
 
 MISSION_ID = "mission_browser_v3_form_submit"
 PNG_BYTES = b"\x89PNG\r\n\x1a\nfake"
+
+
+def test_controlled_runner_boolean_arguments_do_not_treat_false_strings_as_true() -> None:
+    assert _bool_arg("false", default=False) is False
+    assert _bool_arg("false", default=True) is False
+    assert _bool_arg("true", default=False) is True
+    assert _bool_arg("not-a-bool", default=False) is False
+    assert _bool_arg("not-a-bool", default=True) is True
 
 
 def grant(**overrides) -> BrowserV3AuthorityGrant:
@@ -281,6 +290,38 @@ def test_form_submit_accepted_with_full_authority_and_proof(tmp_path):
     assert result.artifact_ids
     assert bus.events()[-1].event_type == AgentEventType.BROWSER_FORM_SUBMIT_EXECUTED
     assert v3_check(bus.events()).passed is True
+
+
+def test_form_submit_rejects_backend_final_url_outside_grant(tmp_path):
+    snap = snapshot()
+    bus = EventBus(MISSION_ID)
+    plan, plan_trace_id, snapshot_trace_id, textbox, button = create_plan(bus, snap)
+
+    result = BrowserFormSubmitExecutor(
+        backend=FakeFormSubmitBackend(snap, after_url="https://evil.example/form/thanks")
+    ).execute(
+        BrowserFormSubmitRequest(
+            mission_id=MISSION_ID,
+            authority_grant_id="grant_form_submit",
+            context_pack_id="cpk_formsubmit01",
+            compiled_intent_trace_id="compiled_trace",
+            plan=plan,
+            plan_trace_event_id=plan_trace_id or "",
+            before_snapshot_trace_event_id=snapshot_trace_id,
+            final_url="https://example.com/form",
+            form_ref_id=textbox,
+            submit_ref_id=button,
+            expected_effect="confirmation text appears",
+            allow_cross_origin=True,
+        ),
+        authority_grant=grant(allow_cross_origin=True),
+        event_bus=bus,
+        artifact_capture=sandbox(tmp_path),
+    )
+
+    assert result.accepted is False
+    assert result.reason == "browser_form_submit_backend_url_outside_authority"
+    assert all("evil.example" not in error for error in result.errors)
 
 
 def test_controlled_runner_rejects_form_submit_without_v3_authority(tmp_path):

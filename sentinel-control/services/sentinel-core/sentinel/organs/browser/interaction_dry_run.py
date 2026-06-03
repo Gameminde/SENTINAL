@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pydantic import ValidationError
@@ -222,12 +222,20 @@ class BrowserInteractionDryRunPlanner:
         )
 
 
-def hash_browser_interaction_plan_payload(payload: dict[str, Any]) -> str:
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, tuple | list):
+        return [_jsonable(item) for item in value]
+    return value
+
+
+def hash_browser_interaction_plan_payload(payload: Mapping[str, Any]) -> str:
+    canonical = json.dumps(_jsonable(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def verify_browser_interaction_plan_hash(plan: dict[str, Any], expected_hash: str | None) -> bool:
+def verify_browser_interaction_plan_hash(plan: Mapping[str, Any], expected_hash: str | None) -> bool:
     if not expected_hash:
         return False
     payload = {key: value for key, value in plan.items() if key != "plan_sha256"}

@@ -167,6 +167,39 @@ def test_l6_js_sandbox_blocks_network_storage_cookie_submit_and_credentials(tmp_
         manager.close_all()
 
 
+def test_l6_js_sandbox_blocks_obfuscated_network_and_constructor_bypass(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_js_sandbox_special_authority_l6 import BrowserJSSandboxOrganL6, BrowserJSSandboxRequest
+
+    bad_scripts = [
+        "() => globalThis['fetch']('/x')",
+        "() => window[`fetch`]('/x')",
+        "() => this['XMLHttpRequest']",
+        "() => document['cookie']",
+        "() => globalThis['localStorage'].getItem('x')",
+        "() => ({}).constructor.constructor('return 7')()",
+    ]
+    manager, session_id = _open_session(tmp_path)
+    try:
+        for script in bad_scripts:
+            result = BrowserJSSandboxOrganL6().execute(
+                BrowserJSSandboxRequest(
+                    mission=_mission(),
+                    url=URL,
+                    session_id=session_id,
+                    contract=_contract(),
+                    script=script,
+                    intent_summary="bounded inspection",
+                ),
+                session_manager=manager,
+            )
+
+            assert result.accepted is False
+            assert result.reason == "forbidden_js_surface"
+            assert result.execution_effect == "none"
+    finally:
+        manager.close_all()
+
+
 def test_l6_js_sandbox_requires_special_authority(tmp_path: Path) -> None:
     from sentinel.agent.organs.browser_js_sandbox_special_authority_l6 import BrowserJSSandboxOrganL6, BrowserJSSandboxRequest
 
