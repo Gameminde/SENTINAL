@@ -87,6 +87,8 @@ class NeuronSignal(SentinelModel):
             raise ValueError("neuron_signal_must_be_data_not_instruction")
         if self.authority_effect != "none" or self.execution_effect != "none":
             raise ValueError("neuron_signal_cannot_have_authority_or_execution_effect")
+        if stable_neural_hash(self.safe_payload) != self.payload_hash:
+            raise ValueError("neuron_signal_payload_hash_mismatch")
         expected = stable_neural_hash(
             {
                 "signal_id": self.signal_id,
@@ -116,6 +118,21 @@ class NeuronGraphEdge(SentinelModel):
     target_signal_hash: str
     edge_hash: str
 
+    @model_validator(mode="after")
+    def _edge_hash_is_bound(self) -> "NeuronGraphEdge":
+        expected = stable_neural_hash(
+            {
+                "mission_id": self.mission_id,
+                "source_signal_id": self.source_signal_id,
+                "target_signal_id": self.target_signal_id,
+                "source_signal_hash": self.source_signal_hash,
+                "target_signal_hash": self.target_signal_hash,
+            }
+        )
+        if self.edge_hash != expected:
+            raise ValueError("neuron_graph_edge_hash_mismatch")
+        return self
+
 
 class NeuronInputEnvelope(SentinelModel):
     mission_id: str
@@ -127,6 +144,14 @@ class NeuronInputEnvelope(SentinelModel):
     authority_effect: str = "none"
     execution_effect: str = "none"
 
+    @model_validator(mode="after")
+    def _input_envelope_is_data_only(self) -> "NeuronInputEnvelope":
+        if not self.data_not_instruction:
+            raise ValueError("neuron_envelope_must_be_data_not_instruction")
+        if self.authority_effect != "none" or self.execution_effect != "none":
+            raise ValueError("neuron_envelope_cannot_have_authority_or_execution_effect")
+        return self
+
 
 class NeuronOutputEnvelope(SentinelModel):
     mission_id: str
@@ -137,6 +162,14 @@ class NeuronOutputEnvelope(SentinelModel):
     data_not_instruction: bool = True
     authority_effect: str = "none"
     execution_effect: str = "none"
+
+    @model_validator(mode="after")
+    def _output_envelope_is_data_only(self) -> "NeuronOutputEnvelope":
+        if not self.data_not_instruction:
+            raise ValueError("neuron_envelope_must_be_data_not_instruction")
+        if self.authority_effect != "none" or self.execution_effect != "none":
+            raise ValueError("neuron_envelope_cannot_have_authority_or_execution_effect")
+        return self
 
 
 class NeuronActivationRecord(SentinelModel):
@@ -151,6 +184,14 @@ class NeuronActivationRecord(SentinelModel):
     authority_effect: str = "none"
     execution_effect: str = "none"
 
+    @model_validator(mode="after")
+    def _activation_record_is_data_only(self) -> "NeuronActivationRecord":
+        if not self.data_not_instruction:
+            raise ValueError("neuron_activation_record_must_be_data_not_instruction")
+        if self.authority_effect != "none" or self.execution_effect != "none":
+            raise ValueError("neuron_activation_record_cannot_have_authority_or_execution_effect")
+        return self
+
 
 class BrowserSignalGraph(SentinelModel):
     mission_id: str
@@ -159,6 +200,28 @@ class BrowserSignalGraph(SentinelModel):
     data_not_instruction: bool = True
     authority_effect: str = "none"
     execution_effect: str = "none"
+
+    @model_validator(mode="after")
+    def _graph_is_data_only(self) -> "BrowserSignalGraph":
+        if not self.data_not_instruction:
+            raise ValueError("signal_graph_must_be_data_not_instruction")
+        if self.authority_effect != "none" or self.execution_effect != "none":
+            raise ValueError("signal_graph_cannot_have_authority_or_execution_effect")
+        by_id = {signal.signal_id: signal for signal in self.signals}
+        for edge in self.edges:
+            source = by_id.get(edge.source_signal_id)
+            if source is None:
+                raise ValueError("signal_graph_edge_missing_source")
+            target = by_id.get(edge.target_signal_id)
+            if target is None:
+                raise ValueError("signal_graph_edge_missing_target")
+            if edge.mission_id != self.mission_id or source.mission_id != self.mission_id or target.mission_id != self.mission_id:
+                raise ValueError("signal_graph_edge_mission_mismatch")
+            if edge.source_signal_hash != source.signal_hash:
+                raise ValueError("signal_graph_edge_source_hash_mismatch")
+            if edge.target_signal_hash != target.signal_hash:
+                raise ValueError("signal_graph_edge_target_hash_mismatch")
+        return self
 
     @property
     def signal_count(self) -> int:

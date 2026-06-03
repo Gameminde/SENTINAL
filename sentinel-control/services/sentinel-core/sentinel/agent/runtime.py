@@ -443,14 +443,14 @@ class AgentRuntime:
             if not isinstance(item, dict):
                 continue
             if item.get("artifact_kind"):
-                extracted.append(sanitize_context_payload(item))
+                extracted.append(sanitize_context_payload(self._normalize_browser_neural_refs_in_proposal(item)))
                 continue
             if item.get("proposal_artifact_id") and item.get("dispatch_required") is True:
                 if not self._organ_execution_config.browser_neural_motor_proposal_source_enabled:
                     continue
                 converted = motor_proposal_artifact_to_browser_step_candidate(item)
                 if converted is not None:
-                    extracted.append(sanitize_context_payload(converted))
+                    extracted.append(sanitize_context_payload(self._normalize_browser_neural_refs_in_proposal(converted)))
         return extracted
 
     def _run_native_brain_cognition(
@@ -472,10 +472,23 @@ class AgentRuntime:
             return None, "PARTIAL"
 
         brain_loop = self._brain_cognition_loop or BrainCognitionLoop()
-        result = brain_loop.run(raw_input)
+        result = self._sanitize_brain_cognition_result_for_runtime(brain_loop.run(raw_input))
         if self._proposal_artifacts_from_brain_result(result):
             return result, "CLOSED"
         return result, "PARTIAL"
+
+    @classmethod
+    def _sanitize_brain_cognition_result_for_runtime(cls, result: BrainCognitionResult) -> BrainCognitionResult:
+        proposals: list[dict[str, Any]] = []
+        changed = False
+        for proposal in result.proposal_artifacts:
+            if not isinstance(proposal, dict):
+                proposals.append(proposal)
+                continue
+            normalized = cls._normalize_browser_neural_refs_in_proposal(proposal)
+            changed = changed or normalized != proposal
+            proposals.append(normalized)
+        return result.model_copy(update={"proposal_artifacts": proposals}) if changed else result
 
     def _write_memory_feedback_from_dispatch(
         self,
@@ -794,8 +807,26 @@ class AgentRuntime:
         for key in ("source_signal_refs", "browser_neural_signal_refs", "neural_signal_refs"):
             value = proposal.get(key)
             if isinstance(value, list):
-                refs.extend(str(ref) for ref in value)
+                refs.extend(AgentRuntime._safe_browser_neural_signal_ref(str(ref)) for ref in value)
         return sorted(set(refs))
+
+    @classmethod
+    def _normalize_browser_neural_refs_in_proposal(cls, proposal: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(proposal)
+        for key in ("source_signal_refs", "browser_neural_signal_refs", "neural_signal_refs"):
+            value = normalized.get(key)
+            if isinstance(value, list):
+                normalized[key] = [cls._safe_browser_neural_signal_ref(str(ref)) for ref in value]
+        return normalized
+
+    @staticmethod
+    def _safe_browser_neural_signal_ref(ref: str) -> str:
+        allowed = ref.startswith("nsig_") and 5 <= len(ref) <= 128 and all(
+            char.isalnum() or char in {"_", "-"} for char in ref
+        )
+        if allowed:
+            return ref
+        return f"nsig_ref_hash_{stable_hash(ref)[:16]}"
 
     @staticmethod
     def _extract_temporary_organ_candidates_from_user_input(dispatch_block: dict[str, Any]) -> list[dict[str, Any]]:

@@ -108,6 +108,14 @@ def test_neural_motor_proposal_disabled_by_default(tmp_path: Path) -> None:
     assert result.organ_dispatch_result.trace.executed_count == 0
 
 
+def test_neural_motor_proposal_rejects_invalid_or_dangerous_action_kind() -> None:
+    from sentinel.agent.browser.neural import motor_proposal_artifact_to_browser_step_candidate
+
+    assert motor_proposal_artifact_to_browser_step_candidate(_motor_proposal("mprop_submit", "submit")) is None
+    assert motor_proposal_artifact_to_browser_step_candidate(_motor_proposal("mprop_js", "evaluate_js")) is None
+    assert motor_proposal_artifact_to_browser_step_candidate(_motor_proposal("mprop_unknown", "teleport")) is None
+
+
 def test_neural_motor_proposal_enters_dispatcher_gate_runtime_when_enabled(tmp_path: Path) -> None:
     result = AgentRuntime(project_root=tmp_path / "project", organ_execution_config=_config(tmp_path, neural_enabled=True)).run(
         _runtime_mission(),

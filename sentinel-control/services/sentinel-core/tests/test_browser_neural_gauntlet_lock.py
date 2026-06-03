@@ -29,7 +29,9 @@ def test_gauntlet_run_records_replayable_ledger_events(tmp_path) -> None:
     report = BrowserNeuralGauntlet.default().run(ledger=ledger, workflow_id="wf_gauntlet", run_id="run_1")
 
     assert report.case_count >= 11
-    assert report.passed_count == report.case_count
+    assert report.contract_invariant_passed_count == report.case_count
+    assert report.passed_count == 0
+    assert all(result.execution_path_proven is False for result in report.case_results)
     replay = ledger.replay()
     assert len(replay) == report.case_count
     assert {event.event_type for event in replay} == {"browser_neural_gauntlet_case"}
@@ -55,3 +57,20 @@ def test_gauntlet_report_does_not_claim_global_fabric_or_live_payment() -> None:
     assert report.global_neural_fabric_complete is False
     assert report.live_payment_execution_complete is False
     assert report.browser_neural_cortex_runtime_advisory_only is True
+
+
+def test_gauntlet_pass_requires_stage_evidence_not_expected_path_only() -> None:
+    from sentinel.agent.browser.neural.gauntlet import BrowserNeuralGauntlet
+
+    gauntlet = BrowserNeuralGauntlet.default()
+    first = gauntlet.cases[0]
+    report = gauntlet.run(
+        stage_evidence_refs_by_case={
+            first.case_id: [f"stage_ev_{index}" for index, _ in enumerate(first.expected_path)]
+        }
+    )
+
+    by_id = {result.case_id: result for result in report.case_results}
+    assert by_id[first.case_id].passed is True
+    assert by_id[first.case_id].execution_path_proven is True
+    assert report.passed_count == 1

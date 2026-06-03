@@ -41,6 +41,8 @@ def _sanitize(value: Any, *, key: str = "$", risk_flags: set[str]) -> Any:
     if any(marker in key_l for marker in _SECRETISH_KEYS):
         risk_flags.add("secret_like_payload_suppressed")
         return "[REDACTED]"
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
     if isinstance(value, str):
         findings = scan_secret_like_text(value, path=key)
         if findings:

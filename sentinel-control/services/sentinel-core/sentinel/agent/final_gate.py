@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -598,7 +598,7 @@ class CoreFinalGate:
     @staticmethod
     def _model_execution_budget_contract(result: AgentRunResult) -> CoreGateCheck:
         cycle = result.llm_decision_cycle
-        if not isinstance(cycle, dict):
+        if not isinstance(cycle, Mapping):
             return CoreGateCheck(
                 name="model_execution_budget_contract",
                 kind=CoreGateCheckKind.BUDGET,
@@ -606,7 +606,7 @@ class CoreFinalGate:
                 message="Run has no model execution budget metadata.",
             )
         model_execution = cycle.get("model_execution")
-        if not isinstance(model_execution, dict):
+        if not isinstance(model_execution, Mapping):
             return CoreGateCheck(
                 name="model_execution_budget_contract",
                 kind=CoreGateCheckKind.BUDGET,
@@ -623,7 +623,7 @@ class CoreFinalGate:
                 message="Model execution budget summary is not present for this run.",
             )
         errors: list[str] = []
-        if not isinstance(summary, dict):
+        if not isinstance(summary, Mapping):
             errors.append("model_execution_budget_summary_invalid")
         else:
             rendered = str(summary).lower()
@@ -644,10 +644,10 @@ class CoreFinalGate:
         if model_execution.get("outcome_class") == "BUDGET_REJECTED":
             if model_execution.get("success") is True:
                 errors.append("budget_rejected_marked_success")
-            decision = summary.get("decision") if isinstance(summary, dict) else None
+            decision = summary.get("decision") if isinstance(summary, Mapping) else None
             if model_execution.get("provider_called") is True and not str(decision or "").startswith("actual_"):
                 errors.append("budget_rejected_after_provider_call")
-            if isinstance(summary, dict) and summary.get("compliant") is not False:
+            if isinstance(summary, Mapping) and summary.get("compliant") is not False:
                 errors.append("budget_rejected_missing_noncompliant_summary")
         return CoreGateCheck(
             name="model_execution_budget_contract",
@@ -990,7 +990,7 @@ class CoreFinalGate:
         result_receipt_id_list = [
             str(item.get("receipt", {}).get("id"))
             for item in result.controlled_capability_results
-            if item.get("accepted") and isinstance(item.get("receipt"), dict)
+            if item.get("accepted") and isinstance(item.get("receipt"), Mapping)
         ]
         duplicate_result_receipts = sorted(
             receipt_id
@@ -1015,7 +1015,7 @@ class CoreFinalGate:
                     errors.append(f"rejected_controlled_result_reason_mismatch_{index}")
                 continue
             receipt = item.get("receipt")
-            if not isinstance(receipt, dict):
+            if not isinstance(receipt, Mapping):
                 errors.append(f"missing_receipt_{index}")
                 continue
             receipt_id = str(receipt.get("id") or "")
@@ -1169,7 +1169,7 @@ class CoreFinalGate:
                 if not isinstance(payload.get("accessibility_ref_ids"), list):
                     errors.append(f"browser_snapshot_invalid_accessibility_ref_ids_{event_id}")
                 screenshot_metadata = payload.get("screenshot_metadata")
-                if payload.get("screenshot_artifact_id") and not isinstance(screenshot_metadata, dict):
+                if payload.get("screenshot_artifact_id") and not isinstance(screenshot_metadata, Mapping):
                     errors.append(f"browser_snapshot_invalid_screenshot_metadata_{event_id}")
                 elif payload.get("screenshot_artifact_id"):
                     if not isinstance(screenshot_metadata.get("normalized"), bool):
@@ -1180,7 +1180,7 @@ class CoreFinalGate:
                         errors.append(f"browser_snapshot_missing_screenshot_content_type_{event_id}")
                 pdf_metadata = payload.get("pdf_metadata")
                 if payload.get("pdf_artifact_id"):
-                    if not isinstance(pdf_metadata, dict):
+                    if not isinstance(pdf_metadata, Mapping):
                         errors.append(f"browser_snapshot_invalid_pdf_metadata_{event_id}")
                     else:
                         if pdf_metadata.get("content_type") != "application/pdf":
@@ -1194,14 +1194,14 @@ class CoreFinalGate:
                     errors.append(f"browser_snapshot_element_screenshots_invalid_{event_id}")
                     element_screenshots = []
                 for item_index, item in enumerate(element_screenshots):
-                    if not isinstance(item, dict):
+                    if not isinstance(item, Mapping):
                         errors.append(f"browser_snapshot_element_screenshot_invalid_{event_id}_{item_index}")
                         continue
                     artifact_pairs.append((str(item.get("artifact_id") or ""), item.get("artifact_sha256")))
                     if not item.get("ref_id"):
                         errors.append(f"browser_snapshot_element_screenshot_missing_ref_{event_id}_{item_index}")
                     item_meta = item.get("screenshot_metadata")
-                    if not isinstance(item_meta, dict):
+                    if not isinstance(item_meta, Mapping):
                         errors.append(f"browser_snapshot_element_screenshot_metadata_invalid_{event_id}_{item_index}")
                     elif not isinstance(item_meta.get("normalized"), bool):
                         errors.append(f"browser_snapshot_element_screenshot_normalized_invalid_{event_id}_{item_index}")
@@ -1209,7 +1209,7 @@ class CoreFinalGate:
                 network_ledger_sha256 = payload.get("network_ledger_sha256")
                 if not network_ledger_sha256:
                     errors.append(f"browser_snapshot_missing_network_ledger_hash_{event_id}")
-                if not isinstance(network_ledger, dict):
+                if not isinstance(network_ledger, Mapping):
                     errors.append(f"browser_snapshot_missing_network_ledger_{event_id}")
                 elif not verify_browser_network_ledger_hash(network_ledger, str(network_ledger_sha256 or "")):
                     errors.append(f"browser_snapshot_network_ledger_hash_mismatch_{event_id}")
@@ -1232,7 +1232,7 @@ class CoreFinalGate:
                         errors.append(f"browser_snapshot_invalid_{field_name}_{event_id}")
                 if not isinstance(payload.get("network_ledger_truncated"), bool):
                     errors.append(f"browser_snapshot_invalid_network_ledger_truncated_{event_id}")
-                if not isinstance(payload.get("browser_health"), dict):
+                if not isinstance(payload.get("browser_health"), Mapping):
                     errors.append(f"browser_snapshot_invalid_browser_health_{event_id}")
             elif event.event_type == AgentEventType.BROWSER_INTERACTION_EXECUTED:
                 artifact_pairs.append((str(payload.get("after_snapshot_artifact_id") or ""), payload.get("after_snapshot_artifact_sha256")))
@@ -1247,7 +1247,7 @@ class CoreFinalGate:
                 network_ledger_sha256 = payload.get("network_ledger_sha256")
                 if not network_ledger_sha256:
                     errors.append(f"browser_interaction_missing_network_ledger_hash_{event_id}")
-                if not isinstance(network_ledger, dict):
+                if not isinstance(network_ledger, Mapping):
                     errors.append(f"browser_interaction_missing_network_ledger_{event_id}")
                 elif not verify_browser_network_ledger_hash(network_ledger, str(network_ledger_sha256 or "")):
                     errors.append(f"browser_interaction_network_ledger_hash_mismatch_{event_id}")
@@ -1273,7 +1273,7 @@ class CoreFinalGate:
                 network_ledger_sha256 = payload.get("network_ledger_sha256")
                 if not network_ledger_sha256:
                     errors.append(f"browser_form_submit_missing_network_ledger_hash_{event_id}")
-                if not isinstance(network_ledger, dict):
+                if not isinstance(network_ledger, Mapping):
                     errors.append(f"browser_form_submit_missing_network_ledger_{event_id}")
                 elif not verify_browser_network_ledger_hash(network_ledger, str(network_ledger_sha256 or "")):
                     errors.append(f"browser_form_submit_network_ledger_hash_mismatch_{event_id}")
@@ -1326,7 +1326,7 @@ class CoreFinalGate:
                 network_ledger_sha256 = payload.get("network_ledger_sha256")
                 if not network_ledger_sha256:
                     errors.append(f"browser_upload_missing_network_ledger_hash_{event_id}")
-                if not isinstance(network_ledger, dict):
+                if not isinstance(network_ledger, Mapping):
                     errors.append(f"browser_upload_missing_network_ledger_{event_id}")
                 elif not verify_browser_network_ledger_hash(network_ledger, str(network_ledger_sha256 or "")):
                     errors.append(f"browser_upload_network_ledger_hash_mismatch_{event_id}")
@@ -1422,7 +1422,7 @@ class CoreFinalGate:
                 if value
             }
             for element_item in event.payload.get("element_screenshot_artifacts") or []:
-                if isinstance(element_item, dict) and element_item.get("artifact_id"):
+                if isinstance(element_item, Mapping) and element_item.get("artifact_id"):
                     event_artifact_ids.add(str(element_item.get("artifact_id")))
             if not set(item.get("artifact_ids") or []).issubset(event_artifact_ids):
                 errors.append(f"browser_result_artifact_mismatch_{index}")
@@ -1483,7 +1483,7 @@ class CoreFinalGate:
             plan_sha256 = payload.get("plan_sha256")
             if not payload.get("dry_run_only"):
                 errors.append(f"browser_interaction_plan_not_dry_run_{event_id}")
-            if not isinstance(plan, dict):
+            if not isinstance(plan, Mapping):
                 errors.append(f"browser_interaction_plan_missing_payload_{event_id}")
                 continue
             if plan.get("dry_run_only") is not True:
@@ -1520,7 +1520,7 @@ class CoreFinalGate:
             if not isinstance(plan_steps, list):
                 errors.append(f"browser_interaction_plan_steps_invalid_{event_id}")
                 plan_steps = []
-            step_intents = [str(step.get("intent", "")).lower() for step in plan_steps if isinstance(step, dict)]
+            step_intents = [str(step.get("intent", "")).lower() for step in plan_steps if isinstance(step, Mapping)]
             for intent in [*intents, *step_intents]:
                 if intent in P3G_FORBIDDEN_INTERACTION_NAMES:
                     errors.append(f"browser_interaction_plan_forbidden_intent_{event_id}_{intent}")
@@ -1570,7 +1570,7 @@ class CoreFinalGate:
                 errors.append(f"browser_interaction_execution_plan_order_invalid_{event_id}")
             elif plan_event.id not in event.trace_refs:
                 errors.append(f"browser_interaction_execution_missing_plan_trace_ref_{event_id}")
-            if not isinstance(plan, dict):
+            if not isinstance(plan, Mapping):
                 errors.append(f"browser_interaction_execution_plan_payload_missing_{event_id}")
             elif not verify_browser_interaction_plan_hash(plan, plan_sha256):
                 errors.append(f"browser_interaction_execution_plan_hash_invalid_{event_id}")
@@ -1627,7 +1627,7 @@ class CoreFinalGate:
 
             network_ledger = payload.get("network_ledger")
             network_ledger_sha256 = str(payload.get("network_ledger_sha256") or "")
-            if not isinstance(network_ledger, dict):
+            if not isinstance(network_ledger, Mapping):
                 errors.append(f"browser_interaction_execution_network_ledger_missing_{event_id}")
             elif not verify_browser_network_ledger_hash(network_ledger, network_ledger_sha256):
                 errors.append(f"browser_interaction_execution_network_ledger_hash_invalid_{event_id}")
@@ -2032,7 +2032,7 @@ class CoreFinalGate:
             if event.event_type == AgentEventType.BROWSER_CDP_AX_TREE_CAPTURED:
                 tree = payload.get("tree")
                 expected_hash = payload.get("tree_sha256")
-                if not isinstance(tree, dict):
+                if not isinstance(tree, Mapping):
                     errors.append(f"browser_v25_ax_tree_missing_{event_id}")
                     continue
                 if not verify_cdp_ax_tree_hash(tree, str(expected_hash or "")):
@@ -2047,7 +2047,7 @@ class CoreFinalGate:
             elif event.event_type == AgentEventType.BROWSER_DOM_SNAPSHOT_CAPTURED:
                 snapshot = payload.get("snapshot")
                 expected_hash = payload.get("snapshot_sha256")
-                if not isinstance(snapshot, dict):
+                if not isinstance(snapshot, Mapping):
                     errors.append(f"browser_v25_dom_snapshot_missing_{event_id}")
                     continue
                 if not verify_dom_snapshot_hash(snapshot, str(expected_hash or "")):
@@ -2060,7 +2060,7 @@ class CoreFinalGate:
             elif event.event_type == AgentEventType.BROWSER_UI_OBSERVATION_CAPTURED:
                 observation_set = payload.get("observation_set")
                 expected_hash = payload.get("observation_sha256")
-                if not isinstance(observation_set, dict):
+                if not isinstance(observation_set, Mapping):
                     errors.append(f"browser_v25_ui_observation_missing_{event_id}")
                     continue
                 if not verify_ui_observation_hash(observation_set, str(expected_hash or "")):
@@ -2076,7 +2076,7 @@ class CoreFinalGate:
             elif event.event_type == AgentEventType.BROWSER_VISUAL_OBSERVATION_CAPTURED:
                 observation = payload.get("observation")
                 expected_hash = payload.get("observation_sha256")
-                if not isinstance(observation, dict):
+                if not isinstance(observation, Mapping):
                     errors.append(f"browser_v25_visual_observation_missing_{event_id}")
                     continue
                 if not verify_visual_observation_hash(observation, str(expected_hash or "")):
@@ -2245,7 +2245,7 @@ class CoreFinalGate:
                 errors.append(f"browser_v3_form_submit_missing_receipt_{event_id}")
             plan = payload.get("plan")
             plan_sha256 = payload.get("plan_sha256")
-            if not isinstance(plan, dict):
+            if not isinstance(plan, Mapping):
                 errors.append(f"browser_v3_form_submit_missing_plan_{event_id}")
             elif not verify_browser_interaction_plan_hash(plan, str(plan_sha256 or "")):
                 errors.append(f"browser_v3_form_submit_plan_hash_mismatch_{event_id}")
@@ -2266,7 +2266,7 @@ class CoreFinalGate:
 
             network_ledger = payload.get("network_ledger")
             network_ledger_sha256 = payload.get("network_ledger_sha256")
-            if not isinstance(network_ledger, dict):
+            if not isinstance(network_ledger, Mapping):
                 errors.append(f"browser_v3_form_submit_missing_network_ledger_{event_id}")
             elif not verify_browser_network_ledger_hash(network_ledger, str(network_ledger_sha256 or "")):
                 errors.append(f"browser_v3_form_submit_network_ledger_hash_mismatch_{event_id}")
@@ -2461,7 +2461,7 @@ class CoreFinalGate:
                 errors.append(f"browser_v3_upload_missing_receipt_{event_id}")
             plan = payload.get("plan")
             plan_sha256 = payload.get("plan_sha256")
-            if not isinstance(plan, dict):
+            if not isinstance(plan, Mapping):
                 errors.append(f"browser_v3_upload_missing_plan_{event_id}")
             elif not verify_browser_interaction_plan_hash(plan, str(plan_sha256 or "")):
                 errors.append(f"browser_v3_upload_plan_hash_mismatch_{event_id}")
@@ -2480,7 +2480,7 @@ class CoreFinalGate:
 
             network_ledger = payload.get("network_ledger")
             network_ledger_sha256 = payload.get("network_ledger_sha256")
-            if not isinstance(network_ledger, dict):
+            if not isinstance(network_ledger, Mapping):
                 errors.append(f"browser_v3_upload_missing_network_ledger_{event_id}")
             elif not verify_browser_network_ledger_hash(network_ledger, str(network_ledger_sha256 or "")):
                 errors.append(f"browser_v3_upload_network_ledger_hash_mismatch_{event_id}")
@@ -2994,7 +2994,7 @@ def _check_no_credential_payload(payload: dict[str, Any], errors: list[str], cod
     forbidden = ("password", "secret", "token", "credential_value", "cookie_value")
 
     def visit(value: Any) -> bool:
-        if isinstance(value, dict):
+        if isinstance(value, Mapping):
             for key, item in value.items():
                 if any(marker in str(key).lower() for marker in forbidden):
                     return True

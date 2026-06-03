@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from sentinel.agent.browser.neural.ledger import BrowserNeuralReceiptLedger
 from sentinel.agent.browser.neural.models import NeuronKind
@@ -36,6 +36,25 @@ class BrowserSquadRole(SentinelModel):
     can_grant_authority: bool = False
     can_approve_future_execution: bool = False
 
+    @model_validator(mode="after")
+    def _role_is_view_only(self) -> "BrowserSquadRole":
+        if not self.data_not_instruction:
+            raise ValueError("browser_squad_role_must_be_data_not_instruction")
+        if self.authority_effect != "none" or self.execution_effect != "none":
+            raise ValueError("browser_squad_role_cannot_enable_execution_or_authority")
+        if any(
+            (
+                self.can_execute,
+                self.can_call_organ_directly,
+                self.can_call_runtime_execution,
+                self.can_access_credentials,
+                self.can_grant_authority,
+                self.can_approve_future_execution,
+            )
+        ):
+            raise ValueError("browser_squad_role_cannot_enable_execution_or_authority")
+        return self
+
 
 class BrowserSquadRoleOutput(SentinelModel):
     output_id: str = Field(default_factory=lambda: new_id("bsout"))
@@ -56,6 +75,25 @@ class BrowserSquadRoleOutput(SentinelModel):
     can_grant_authority: bool = False
     can_approve_future_execution: bool = False
 
+    @model_validator(mode="after")
+    def _output_is_context_only(self) -> "BrowserSquadRoleOutput":
+        if not self.data_not_instruction:
+            raise ValueError("browser_squad_output_must_be_data_not_instruction")
+        if self.authority_effect != "none" or self.execution_effect != "none":
+            raise ValueError("browser_squad_output_cannot_enable_execution_or_authority")
+        if any(
+            (
+                self.can_execute,
+                self.can_call_organ_directly,
+                self.can_call_runtime_execution,
+                self.can_access_credentials,
+                self.can_grant_authority,
+                self.can_approve_future_execution,
+            )
+        ):
+            raise ValueError("browser_squad_output_cannot_enable_execution_or_authority")
+        return self
+
 
 class BrowserNeuralOperatorSquad(SentinelModel):
     mission_id: str
@@ -64,6 +102,14 @@ class BrowserNeuralOperatorSquad(SentinelModel):
     data_not_instruction: bool = True
     authority_effect: str = "none"
     execution_effect: str = "none"
+
+    @model_validator(mode="after")
+    def _squad_is_context_only(self) -> "BrowserNeuralOperatorSquad":
+        if not self.data_not_instruction:
+            raise ValueError("browser_squad_must_be_data_not_instruction")
+        if self.authority_effect != "none" or self.execution_effect != "none":
+            raise ValueError("browser_squad_cannot_enable_execution_or_authority")
+        return self
 
     @classmethod
     def default(cls, *, mission_id: str, authority_envelope_id: str) -> "BrowserNeuralOperatorSquad":

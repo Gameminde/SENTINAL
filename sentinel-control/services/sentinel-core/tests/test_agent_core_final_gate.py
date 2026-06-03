@@ -914,7 +914,7 @@ def test_core_final_gate_rejects_controlled_execution_missing_policy_or_capture_
         evidence_refs=["ev_wtp"],
     )
     unsafe_trace = [
-        event.model_copy(update={"trace_refs": []})
+        event.model_copy(update={"trace_refs": ()})
         if event.event_type == AgentEventType.CONTROLLED_CAPABILITY_EXECUTED
         else event
         for event in result.trace

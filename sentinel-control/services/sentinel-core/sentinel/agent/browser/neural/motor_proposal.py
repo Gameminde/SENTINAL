@@ -7,6 +7,19 @@ from sentinel.agent.browser.neural.perception import _BaseBrowserNeuron, _make_s
 from sentinel.shared.models import SentinelModel, new_id
 
 
+_ALLOWED_BROWSER_SESSION_ACTION_KINDS = {
+    "open",
+    "observe",
+    "click",
+    "type",
+    "fill",
+    "select",
+    "hover",
+    "wait_for_text",
+    "close",
+}
+
+
 class MotorProposalArtifact(SentinelModel):
     proposal_artifact_id: str = Field(default_factory=lambda: new_id("mprop"))
     mission_id: str
@@ -34,6 +47,8 @@ class MotorProposalArtifact(SentinelModel):
 
     @model_validator(mode="after")
     def _proposal_is_not_execution(self) -> "MotorProposalArtifact":
+        if not self.data_not_instruction:
+            raise ValueError("motor_proposal_must_be_data_not_instruction")
         if not self.dispatch_required or self.can_execute:
             raise ValueError("motor_proposal_must_require_dispatch_and_cannot_execute")
         if self.authority_effect != "none" or self.execution_effect != "none":
@@ -131,6 +146,8 @@ def motor_proposal_artifact_to_browser_step_candidate(
             artifact = MotorProposalArtifact.model_validate(artifact)
         except Exception:
             return None
+    if not artifact.data_not_instruction:
+        return None
     if not artifact.dispatch_required or artifact.can_execute:
         return None
     if artifact.authority_effect != "none" or artifact.execution_effect != "none":
@@ -140,6 +157,8 @@ def motor_proposal_artifact_to_browser_step_candidate(
     if artifact.action_level != "L5":
         return None
     if not artifact.url:
+        return None
+    if artifact.action_kind not in _ALLOWED_BROWSER_SESSION_ACTION_KINDS:
         return None
     return {
         "proposal_id": artifact.proposal_artifact_id,

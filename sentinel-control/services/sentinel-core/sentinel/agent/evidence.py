@@ -589,7 +589,7 @@ class EvidenceChainReviewer:
             if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0.0 <= float(confidence) <= 1.0:
                 errors.append(f"malformed_evidence_chain_event_{index}")
                 continue
-            if not isinstance(event.payload.get("evidence_ref_ids"), list) or not isinstance(event.payload.get("contradiction_ids"), list):
+            if not isinstance(event.payload.get("evidence_ref_ids"), (list, tuple)) or not isinstance(event.payload.get("contradiction_ids"), (list, tuple)):
                 errors.append(f"malformed_evidence_chain_event_{index}")
                 continue
             positions.setdefault(decision_type, index)

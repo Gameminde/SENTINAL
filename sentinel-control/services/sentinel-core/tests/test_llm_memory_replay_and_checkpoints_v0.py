@@ -22,6 +22,7 @@ from sentinel.agent.llm import (
     MemoryReplayEvent,
     MemoryReplayEventKind,
     MemoryReplayEventStatus,
+    MemoryReplayTimeline,
     MemorySourceClass,
     MissionCheckpoint,
     MissionCheckpointBuilder,
@@ -364,6 +365,30 @@ def test_memory_replay_preserves_missing_evidence() -> None:
 
 def test_memory_replay_timeline_hash_is_deterministic() -> None:
     assert _build_replay().timeline.timeline_hash == _build_replay().timeline.timeline_hash
+
+
+def test_memory_replay_event_hash_is_verified_on_deserialization() -> None:
+    payload = _build_replay().timeline.events[0].model_dump(mode="python")
+    payload["event_hash"] = "forged_event_hash"
+
+    with pytest.raises(ValidationError):
+        MemoryReplayEvent(**payload)
+
+
+def test_memory_replay_timeline_rejects_broken_previous_hash_chain() -> None:
+    payload = _build_replay().timeline.model_dump(mode="python")
+    payload["events"][1]["previous_event_hash"] = "forged_previous_hash"
+
+    with pytest.raises(ValidationError):
+        MemoryReplayTimeline(**payload)
+
+
+def test_memory_replay_timeline_hash_is_verified_on_deserialization() -> None:
+    payload = _build_replay().timeline.model_dump(mode="python")
+    payload["timeline_hash"] = "forged_timeline_hash"
+
+    with pytest.raises(ValidationError):
+        MemoryReplayTimeline(**payload)
 
 
 def test_memory_replay_rejects_raw_prompt_response_reasoning_or_key() -> None:

@@ -112,6 +112,8 @@ class MemoryReplayEvent(SentinelModel):
         _assert_no_authority_or_execution(self)
         if self.data_not_instruction is not True:
             raise ValueError("Replay events are data, not instructions.")
+        if self.event_hash != _memory_replay_event_hash(self):
+            raise ValueError("Memory replay event hash mismatch.")
         return self
 
 
@@ -143,6 +145,23 @@ class MemoryReplayTimeline(SentinelModel):
         _assert_no_authority_or_execution(self)
         if self.data_not_instruction is not True:
             raise ValueError("Replay timelines are data, not instructions.")
+        expected_previous_hash: str | None = None
+        for expected_index, event in enumerate(self.events):
+            if event.mission_id != self.mission_id:
+                raise ValueError("Memory replay event mission mismatch.")
+            if event.loop_id != self.loop_id:
+                raise ValueError("Memory replay event loop mismatch.")
+            if event.sequence_index != expected_index:
+                raise ValueError("Memory replay event sequence mismatch.")
+            if event.previous_event_hash != expected_previous_hash:
+                raise ValueError("Memory replay previous hash mismatch.")
+            expected_previous_hash = event.event_hash
+        if self.timeline_hash != _memory_replay_timeline_hash(
+            mission_id=self.mission_id,
+            loop_id=self.loop_id,
+            events=self.events,
+        ):
+            raise ValueError("Memory replay timeline hash mismatch.")
         return self
 
     def to_untrusted_context_block(self) -> str:
@@ -837,16 +856,7 @@ def _timeline(
             for ref in event.checkpoint_refs
         ]
     )
-    timeline_hash = stable_hash(
-        sanitize_metadata(
-            {
-                "mission_id": mission_id,
-                "loop_id": loop_id,
-                "event_hashes": [event.event_hash for event in sequenced],
-                "previous_hashes": [event.previous_event_hash for event in sequenced],
-            }
-        )
-    )
+    timeline_hash = _memory_replay_timeline_hash(mission_id=mission_id, loop_id=loop_id, events=sequenced)
     return MemoryReplayTimeline(
         mission_id=mission_id,
         loop_id=loop_id,
@@ -892,27 +902,26 @@ def _event(
     output_hash: str | None = None,
     event_status: MemoryReplayEventStatus = MemoryReplayEventStatus.RECORDED,
 ) -> MemoryReplayEvent:
-    payload = sanitize_metadata(
-        {
-            "mission_id": mission_id,
-            "loop_id": loop_id,
-            "event_kind": event_kind.value,
-            "event_status": event_status.value,
-            "created_at": created_at.isoformat(),
-            "observed_at": observed_at.isoformat() if observed_at else None,
-            "source_refs": source_refs or [],
-            "evidence_refs": evidence_refs or [],
-            "receipt_refs": receipt_refs or [],
-            "memory_entry_refs": memory_entry_refs or [],
-            "proposal_refs": proposal_refs or [],
-            "contradiction_refs": contradiction_refs or [],
-            "checkpoint_refs": checkpoint_refs or [],
-            "safe_summary": safe_summary,
-            "input_hash": input_hash,
-            "output_hash": output_hash,
-        }
+    event_hash = stable_hash(
+        _memory_replay_event_hash_payload(
+            mission_id=mission_id,
+            loop_id=loop_id,
+            event_kind=event_kind,
+            event_status=event_status,
+            created_at=created_at,
+            observed_at=observed_at,
+            source_refs=source_refs or [],
+            evidence_refs=evidence_refs or [],
+            receipt_refs=receipt_refs or [],
+            memory_entry_refs=memory_entry_refs or [],
+            proposal_refs=proposal_refs or [],
+            contradiction_refs=contradiction_refs or [],
+            checkpoint_refs=checkpoint_refs or [],
+            safe_summary=safe_summary,
+            input_hash=input_hash,
+            output_hash=output_hash,
+        )
     )
-    event_hash = stable_hash(payload)
     return MemoryReplayEvent(
         event_id=f"replay_event_{event_hash[:16]}",
         mission_id=mission_id,
@@ -932,6 +941,88 @@ def _event(
         input_hash=input_hash,
         output_hash=output_hash,
         event_hash=event_hash,
+    )
+
+
+def _memory_replay_event_hash(event: MemoryReplayEvent) -> str:
+    return stable_hash(
+        _memory_replay_event_hash_payload(
+            mission_id=event.mission_id,
+            loop_id=event.loop_id,
+            event_kind=event.event_kind,
+            event_status=event.event_status,
+            created_at=event.created_at,
+            observed_at=event.observed_at,
+            source_refs=event.source_refs,
+            evidence_refs=event.evidence_refs,
+            receipt_refs=event.receipt_refs,
+            memory_entry_refs=event.memory_entry_refs,
+            proposal_refs=event.proposal_refs,
+            contradiction_refs=event.contradiction_refs,
+            checkpoint_refs=event.checkpoint_refs,
+            safe_summary=event.safe_summary,
+            input_hash=event.input_hash,
+            output_hash=event.output_hash,
+        )
+    )
+
+
+def _memory_replay_event_hash_payload(
+    *,
+    mission_id: str,
+    loop_id: str | None,
+    event_kind: MemoryReplayEventKind,
+    event_status: MemoryReplayEventStatus,
+    created_at: datetime,
+    observed_at: datetime | None,
+    source_refs: list[str],
+    evidence_refs: list[str],
+    receipt_refs: list[str],
+    memory_entry_refs: list[str],
+    proposal_refs: list[str],
+    contradiction_refs: list[str],
+    checkpoint_refs: list[str],
+    safe_summary: str,
+    input_hash: str | None,
+    output_hash: str | None,
+) -> dict[str, Any]:
+    return sanitize_metadata(
+        {
+            "mission_id": mission_id,
+            "loop_id": loop_id,
+            "event_kind": event_kind.value,
+            "event_status": event_status.value,
+            "created_at": created_at.isoformat(),
+            "observed_at": observed_at.isoformat() if observed_at else None,
+            "source_refs": source_refs,
+            "evidence_refs": evidence_refs,
+            "receipt_refs": receipt_refs,
+            "memory_entry_refs": memory_entry_refs,
+            "proposal_refs": proposal_refs,
+            "contradiction_refs": contradiction_refs,
+            "checkpoint_refs": checkpoint_refs,
+            "safe_summary": safe_summary,
+            "input_hash": input_hash,
+            "output_hash": output_hash,
+        }
+    )
+
+
+def _memory_replay_timeline_hash(
+    *,
+    mission_id: str,
+    loop_id: str | None,
+    events: list[MemoryReplayEvent],
+) -> str:
+    return stable_hash(
+        sanitize_metadata(
+            {
+                "mission_id": mission_id,
+                "loop_id": loop_id,
+                "event_hashes": [event.event_hash for event in events],
+                "previous_hashes": [event.previous_event_hash for event in events],
+            }
+        )
     )
 
 
