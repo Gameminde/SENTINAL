@@ -26,7 +26,7 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-06-01
+## Current Snapshot - 2026-06-04
 
 Sentinel is no longer just a controlled-agent design document. It now has a
 default-off power kernel with a Brain -> Gate -> Organ -> Receipt -> FinalGate
@@ -44,6 +44,7 @@ remote = https://github.com/Gameminde/SENTINAL
 branch = main
 latest_browser_power_commit = 7e50f98 runtime: add browser js sandbox special authority l6
 latest_browser_runtime_hardening_commit = e59b78a runtime: harden browser failure and concurrency paths
+latest_browser_neural_audit_remediation_commit = 292bf1e runtime: remediate browser neural audit findings
 browser_quarantine_commit = 62db3ef runtime: add browser download upload quarantine l6
 browser_login_commit = 5e337b5 runtime: add browser login credential session broker l6
 browser_submit_commit = ce05852 runtime: add browser form submit special authority l6
@@ -54,9 +55,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
-previous_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCKED
-next_phase = external audit / next Browser live backend decision
+current_phase = BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCKED
+previous_runtime_phase = BROWSER_NEURAL_AUDIT_REMEDIATION_LOCKED
+previous_capability_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
+next_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -147,7 +149,7 @@ Internal closed-loop runtime = real
 Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = brokered but not durably stored
-Next milestone = Browser Neural Operator Cortex, then controlled browser squad
+Next milestone = Browser Operating Subsystem hardened live backend
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -194,6 +196,8 @@ sentinel-control/docs/reviews/DURABLE_RECEIPT_LEDGER_FOUNDATION_REPORT.md
 sentinel-control/docs/reviews/BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_NEURAL_GAUNTLET_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_NEURAL_OPERATOR_CORTEX_FINAL_AUDIT_REPORT.md
+sentinel-control/docs/reviews/BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -235,6 +239,9 @@ Recommended next build sequence:
 27. DURABLE_RECEIPT_LEDGER_FOUNDATION - DONE
 28. BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK - DONE
 29. BROWSER_NEURAL_GAUNTLET_LOCK - DONE
+30. BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK - DONE
+31. BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK - DONE
+32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK - NEXT
 ```
 
 The doctrine:

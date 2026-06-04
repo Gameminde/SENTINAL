@@ -1,5 +1,61 @@
 # Current State Lock
 
+## Browser Operating Subsystem State Reconciliation - LOCKED
+
+Recorded at: 2026-06-04
+
+Baseline HEAD inspected:
+
+```text
+292bf1e runtime: remediate browser neural audit findings
+```
+
+This section supersedes the Browser Neural Gauntlet section as the current
+browser operating-subsystem truth. It does not add new runtime power. It
+classifies the browser stack so closed packs are not confused with generic
+default-on browser capability.
+
+```text
+current_phase = BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCKED
+previous_runtime_phase = BROWSER_NEURAL_AUDIT_REMEDIATION_LOCKED
+previous_capability_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
+next_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK
+recommendation = GO / scoped to browser live-backend hardening
+```
+
+### Browser Operating Subsystem Truth
+
+```text
+Browser L4 readonly/preparation/semantic = LIVE_RUNTIME
+Browser L5 session manager = LIVE_RUNTIME
+Browser L6 form submit = LIVE_RUNTIME / non-sensitive special authority only
+Browser L6 login broker = RUNTIME_GOVERNED_BUT_BACKEND_THIN / ephemeral credentials only
+Browser L6 upload/download quarantine = LIVE_RUNTIME / quarantine only
+Browser L6 JS sandbox = LIVE_RUNTIME / sandbox only
+Browser neural signal graph/perception = CONTRACT_TEST_LOCKED
+MotorProposalNeuron to dispatcher = LIVE_RUNTIME / opt-in
+Browser neural memory feedback = LIVE_RUNTIME / context only
+Durable browser neural receipt ledger = CONTRACT_TEST_LOCKED / local JSONL foundation
+Browser multi-agent operator squad = CONTRACT_TEST_LOCKED / cognitive role views only
+Browser neural gauntlet = CONTRACT_TEST_LOCKED / test gauntlet
+DevTools/CDP/MCP backend = CONTRACT_TEST_LOCKED / fake/protocol backend, no live transport
+Visual grounding/OCR = CONTRACT_TEST_LOCKED
+Network/console/performance intelligence = CONTRACT_TEST_LOCKED
+Replay studio = CONTRACT_TEST_LOCKED
+Long mission orchestrator = CONTRACT_TEST_LOCKED / fake action backend
+Failure recovery engine = CONTRACT_TEST_LOCKED
+```
+
+### Browser Operating Subsystem Artifacts
+
+```text
+sentinel-control/docs/reviews/BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py
+sentinel-control/services/sentinel-core/sentinel/agent/browser/neural/
+```
+
 ## Browser Neural Gauntlet - LOCKED
 
 Recorded at: 2026-06-02

@@ -12,9 +12,10 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
-previous_phase = BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCKED
-next_phase = external audit / next Browser live backend decision
+current_phase = BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCKED
+previous_runtime_phase = BROWSER_NEURAL_AUDIT_REMEDIATION_LOCKED
+previous_capability_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
+next_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK
 ```
 
 Strategic correction:
@@ -181,6 +182,25 @@ Revised browser organ roadmap:
 29. BROWSER_NEURAL_GAUNTLET_LOCK [DONE]
     Stress the full neural browser path with recovery, boundary, memory,
     invented evidence, and replay scenarios.
+
+30. BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK [DONE]
+    Repair strict authority boolean parsing, L2/L3 post-write proofs, L3
+    rollback proof, credential grant atomic use, download quarantine policy
+    non-weakening, session sanitizer, pre-context secret sweep, and motor
+    proposal drop diagnostics.
+
+31. BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK [DONE]
+    Classify every browser subsystem component after `292bf1e` as live runtime,
+    backend-thin, contract/test locked, docs-only, not started, or stale
+    roadmap entry. Recommendation: GO for the hardened live-backend wave.
+
+32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK [NEXT]
+    Wire backend-thin browser intelligence into hardened live backend paths:
+    DevTools/CDP transport behind Sentinel backend contracts, real session graph
+    for the orchestrator, live visual/network/console/performance evidence
+    integration, replay continuity, and recovery loop integration. No generic
+    credentials, payment/account execution, API/channel/shell/desktop, provider
+    fallback/AUTO, or uncontrolled MCP/WebMCP.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -242,12 +262,14 @@ BROWSER_NEURAL_MEMORY_FEEDBACK_LOCK = implemented / locked
 DURABLE_RECEIPT_LEDGER_FOUNDATION = implemented / locked
 BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK = implemented / locked
 BROWSER_NEURAL_GAUNTLET_LOCK = implemented / locked
+BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK = implemented / locked
+BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-external audit / next Browser live backend decision
+BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
