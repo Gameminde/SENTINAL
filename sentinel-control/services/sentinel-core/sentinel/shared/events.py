@@ -510,6 +510,7 @@ class EventBus:
         trace_refs: list[str] | None = None,
         parent_event_id: str | None = None,
         actor: str = "sentinel_agent",
+        copy_payload: bool = True,
     ) -> AgentEvent:
         self._assert_append_integrity()
         sequence = len(self._events)
@@ -523,18 +524,18 @@ class EventBus:
             "phase_after": phase_after,
             "actor": actor,
             "summary": summary,
-            "payload": deepcopy(payload) if payload is not None else {},
+            "payload": deepcopy(payload) if payload is not None and copy_payload else (payload or {}),
             "trace_refs": list(trace_refs) if trace_refs is not None else [],
             "parent_event_id": parent_event_id,
             "previous_hash": self._last_hash,
             "event_hash": "",
             "created_at": datetime.now(UTC),
         }
-        event = AgentEvent(**event_data)
-        hash_payload = event.model_dump()
+        hash_payload = dict(event_data)
         hash_payload.pop("event_hash", None)
-        event_hash = self._hash_payload(hash_payload)
-        event = event.model_copy(update={"event_hash": event_hash})
+        event_hash = self._hash_unfrozen_payload(hash_payload)
+        event_data["event_hash"] = event_hash
+        event = AgentEvent(**event_data)
         self._events.append_untracked(event)
         self._last_hash = event_hash
         return event
@@ -653,6 +654,11 @@ class EventBus:
         serializable = _thaw_nested(payload)
         serializable.pop("event_hash", None)
         canonical = json.dumps(serializable, sort_keys=True, default=str, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _hash_unfrozen_payload(payload: Mapping[str, Any]) -> str:
+        canonical = json.dumps(payload, sort_keys=True, default=str, separators=(",", ":"))
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 

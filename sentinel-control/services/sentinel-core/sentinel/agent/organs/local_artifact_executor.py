@@ -343,7 +343,25 @@ class L2LocalArtifactExecutor:
                 path_metadata=final_path_plan.path_metadata,
                 reasons=["artifact_write_failed"],
             )
-        artifact_hash = _file_hash(target_path)
+        expected_artifact_hash = text_hash(request.content)
+        try:
+            artifact_hash = _readback_text_hash(target_path)
+        except OSError:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["artifact_write_readback_failed"]),
+                path_metadata=final_path_plan.path_metadata,
+                reasons=["artifact_write_readback_failed"],
+            )
+        if artifact_hash != expected_artifact_hash:
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["artifact_write_verification_failed"]),
+                path_metadata=final_path_plan.path_metadata,
+                reasons=["artifact_write_verification_failed"],
+            )
         receipt = self.produce_receipt(
             request=request,
             contract=contract,
@@ -867,6 +885,10 @@ def _minimal_path_metadata(request: L2LocalArtifactRequest) -> dict[str, Any]:
 
 def _file_hash(path: Path) -> str:
     return text_hash(path.read_text(encoding="utf-8"))
+
+
+def _readback_text_hash(path: Path) -> str:
+    return _file_hash(path)
 
 
 def _deterministic_id(prefix: str, payload: Any) -> str:

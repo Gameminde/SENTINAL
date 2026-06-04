@@ -20,6 +20,35 @@ class OrganSafetyScanCategory(StrEnum):
 OrganSafetyScanResult = dict[str, list[str]]
 
 
+def parse_authority_bool(value: Any, *, field_name: str) -> bool:
+    """Parse authority-bearing booleans.
+
+    Authority flags must be real Python bool literals only. Strings, ints,
+    None, and containers are rejected because they can smuggle accidental
+    opt-in across model/JSON boundaries.
+    """
+
+    if type(value) is bool:
+        return value
+    raise ValueError(f"authority_boolean_must_be_literal:{field_name}")
+
+
+def parse_evidence_bool(value: Any, *, field_name: str, default: bool) -> bool:
+    """Parse evidence-shaping booleans that do not unlock capability."""
+
+    if value is None:
+        return default
+    if type(value) is bool:
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "off", ""}:
+            return False
+    raise ValueError(f"evidence_boolean_invalid:{field_name}")
+
+
 SHARED_SECRET_LIKE_PATTERN = re.compile(
     r"(Bearer\s+[A-Za-z0-9_\-]{12,}|gsk_[A-Za-z0-9]+|nvapi-[A-Za-z0-9]+|sk-or-v1-[A-Za-z0-9]+|sk-[A-Za-z0-9_\-]{16,})",
     re.IGNORECASE,

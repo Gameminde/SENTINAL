@@ -277,6 +277,22 @@ class _LiveBrowserSession:
                 self.closed = True
 
 
+class BrowserSessionSanitizer:
+    """Best-effort session sanitizer; never returns raw browser state."""
+
+    def sanitize(self, *, session: _LiveBrowserSession | None, reason: str) -> dict[str, Any]:
+        page = getattr(session, "page", None)
+        context = getattr(page, "context", None)
+        if context is not None:
+            clear_cookies = getattr(context, "clear_cookies", None)
+            if callable(clear_cookies):
+                clear_cookies()
+            clear_permissions = getattr(context, "clear_permissions", None)
+            if callable(clear_permissions):
+                clear_permissions()
+        return {"sanitized": True, "reason": reason, "session_ref": stable_hash(getattr(session, "session_id", "none"))}
+
+
 class BrowserSessionManagerL5Live:
     """Stateful public-browser session manager; CloakBrowser is the primary engine."""
 
@@ -293,12 +309,14 @@ class BrowserSessionManagerL5Live:
         accept_downloads: bool = False,
         viewport_width: int = 1280,
         viewport_height: int = 900,
+        session_sanitizer: Any | None = None,
     ) -> None:
         self.capture_root = Path(capture_root).resolve()
         self.capture_root.mkdir(parents=True, exist_ok=True)
         self.viewport_width = viewport_width
         self.viewport_height = viewport_height
         self.backend = backend or _backend_for_engine(engine, document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
+        self._session_sanitizer = session_sanitizer or BrowserSessionSanitizer()
         self._finalgate = BrowserSessionFinalGate()
         self._sessions: dict[str, _LiveBrowserSession] = {}
         self._sessions_lock = RLock()
@@ -440,9 +458,12 @@ class BrowserSessionManagerL5Live:
         session = self._session(req)
         if session is None:
             return self._blocked(req, safety, "browser_session_missing_or_closed", BrowserSessionActionKind.CLOSE.value)
-        session.close()
-        with self._sessions_lock:
-            self._sessions.pop(session.session_id, None)
+        try:
+            self._sanitize_session(session=session, reason="close")
+        finally:
+            session.close()
+            with self._sessions_lock:
+                self._sessions.pop(session.session_id, None)
         receipt = BrowserSessionReceipt(
             mission_id=req.mission.id,
             request_id=req.request_id,
@@ -792,6 +813,7 @@ class BrowserSessionManagerL5Live:
             sessions = [self._sessions.pop(session_id) for session_id in list(self._sessions)]
         for session in sessions:
             try:
+                self._sanitize_session(session=session, reason="close_all")
                 session.close()
             except Exception:
                 pass
@@ -889,6 +911,12 @@ class BrowserSessionManagerL5Live:
         path = self._session_dir(session_id) / f"{int(time.time() * 1000)}_{receipt.action_kind}_receipt.json"
         path.write_text(json.dumps(receipt.model_dump(mode="json"), indent=2, sort_keys=True, default=str), encoding="utf-8")
 
+    def _sanitize_session(self, *, session: _LiveBrowserSession | None, reason: str) -> None:
+        try:
+            self._session_sanitizer.sanitize(session=session, reason=reason)
+        except Exception:
+            pass
+
     def _certify_receipt(self, receipt: BrowserSessionReceipt) -> BrowserSessionFinalGateCertificate:
         certificate = self._finalgate.certify(receipt)
         receipt.finalgate_verified = certificate.certified
@@ -927,6 +955,7 @@ class BrowserSessionManagerL5Live:
         return states
 
     def _blocked(self, req: BrowserSessionRequest, safety: BrowserSessionSafetyValidationResult, reason: str, action_kind: str) -> BrowserSessionResult:
+        self._sanitize_session(session=self._session(req), reason="failure")
         receipt = BrowserSessionReceipt(
             mission_id=req.mission.id,
             request_id=req.request_id,

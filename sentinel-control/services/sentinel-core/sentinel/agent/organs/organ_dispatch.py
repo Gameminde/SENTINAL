@@ -101,6 +101,7 @@ from sentinel.agent.organs.runtime_execution import (
     close_browser_runtime_sessions_for_config,
     execute_organ_runtime_request,
 )
+from sentinel.agent.organs.safety_scanner import parse_authority_bool, parse_evidence_bool
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.shared.models import SentinelModel
 
@@ -986,7 +987,7 @@ def _build_browser_session_request(
             text=raw_candidate.get("text"),
             values=[str(value) for value in raw_candidate.get("values", [])],
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_evidence_bool(raw_candidate.get("capture_screenshot", True), "capture_screenshot", default=True),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1048,7 +1049,7 @@ def _build_browser_form_submit_request(
         contract = BrowserFormSubmitContract(
             mission_id=mission_id,
             allowed_domains=[str(domain) for domain in allowed_domains],
-            allow_form_submit=_strict_bool(raw_candidate.get("allow_form_submit", contract_data.get("allow_form_submit", False))),
+            allow_form_submit=_authority_bool(raw_candidate.get("allow_form_submit", contract_data.get("allow_form_submit", False)), "allow_form_submit"),
         )
         return BrowserFormSubmitRequest(
             mission=authority_envelope,
@@ -1061,7 +1062,7 @@ def _build_browser_form_submit_request(
             source_snapshot_hash=raw_candidate.get("source_snapshot_hash") or _latest_browser_snapshot_hash(prior_candidate_results),
             operator_note=raw_candidate.get("operator_note"),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_evidence_bool(raw_candidate.get("capture_screenshot", True), "capture_screenshot", default=True),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1115,7 +1116,7 @@ def _build_browser_login_request(
             allowed_domains=[str(domain) for domain in allowed_domains],
             username_credential_ref_id=str(username_ref),
             password_credential_ref_id=str(password_ref),
-            allow_login=_strict_bool(raw_candidate.get("allow_login", contract_data.get("allow_login", False))),
+            allow_login=_authority_bool(raw_candidate.get("allow_login", contract_data.get("allow_login", False)), "allow_login"),
         )
         return BrowserLoginCredentialSessionRequest(
             mission=authority_envelope,
@@ -1130,7 +1131,7 @@ def _build_browser_login_request(
             submit_target_name=raw_candidate.get("submit_target_name"),
             operator_note=raw_candidate.get("operator_note"),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_evidence_bool(raw_candidate.get("capture_screenshot", True), "capture_screenshot", default=True),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1169,8 +1170,11 @@ def _build_browser_file_quarantine_request(
             allowed_domains=[str(domain) for domain in allowed_domains],
             approved_upload_root=str(upload_root),
             approved_download_quarantine_root=str(quarantine_root),
-            allow_upload=_strict_bool(raw_candidate.get("allow_upload", contract_data.get("allow_upload", False))),
-            allow_download=_strict_bool(raw_candidate.get("allow_download", contract_data.get("allow_download", False))),
+            allow_upload=_authority_bool(raw_candidate.get("allow_upload", contract_data.get("allow_upload", False)), "allow_upload"),
+            allow_download=_authority_bool(raw_candidate.get("allow_download", contract_data.get("allow_download", False)), "allow_download"),
+            max_file_bytes=int(contract_data.get("max_file_bytes") or 10_000_000),
+            policy_max_file_bytes=int(contract_data.get("policy_max_file_bytes") or 10_000_000),
+            candidate_max_file_bytes=_candidate_limit(raw_candidate.get("max_file_bytes") or raw_candidate.get("candidate_max_file_bytes")),
         )
         return BrowserFileQuarantineRequest(
             mission=authority_envelope,
@@ -1183,7 +1187,7 @@ def _build_browser_file_quarantine_request(
             local_upload_path=raw_candidate.get("local_upload_path"),
             operator_note=raw_candidate.get("operator_note"),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_evidence_bool(raw_candidate.get("capture_screenshot", True), "capture_screenshot", default=True),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1214,7 +1218,7 @@ def _build_browser_js_sandbox_request(
         contract = BrowserJSSandboxContract(
             mission_id=mission_id,
             allowed_domains=[str(domain) for domain in allowed_domains],
-            allow_js_sandbox=_strict_bool(raw_candidate.get("allow_js_sandbox", contract_data.get("allow_js_sandbox", False))),
+            allow_js_sandbox=_authority_bool(raw_candidate.get("allow_js_sandbox", contract_data.get("allow_js_sandbox", False)), "allow_js_sandbox"),
             max_script_bytes=int(raw_candidate.get("max_script_bytes") or contract_data.get("max_script_bytes") or 4_000),
         )
         return BrowserJSSandboxRequest(
@@ -1225,7 +1229,7 @@ def _build_browser_js_sandbox_request(
             script=str(script),
             intent_summary=str(raw_candidate.get("intent_summary") or raw_candidate.get("safe_summary") or "Browser JS sandbox request."),
             timeout_ms=int(raw_candidate.get("timeout_ms") or 15_000),
-            capture_screenshot=_strict_bool(raw_candidate.get("capture_screenshot", True)),
+            capture_screenshot=_evidence_bool(raw_candidate.get("capture_screenshot", True), "capture_screenshot", default=True),
         )
     except (TypeError, ValueError, ValidationError):
         return None
@@ -1238,20 +1242,21 @@ def _browser_file_action_kind(value: Any) -> BrowserFileQuarantineActionKind | N
         return None
 
 
-def _strict_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
+def _authority_bool(value: Any, field_name: str) -> bool:
+    return parse_authority_bool(value, field_name=field_name)
+
+
+def _evidence_bool(value: Any, field_name: str, *, default: bool) -> bool:
+    return parse_evidence_bool(value, field_name=field_name, default=default)
+
+
+def _candidate_limit(value: Any) -> int | None:
     if value is None:
-        return False
-    if isinstance(value, int) and value in {0, 1}:
-        return bool(value)
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"true", "1", "yes", "y", "on"}:
-            return True
-        if normalized in {"false", "0", "no", "n", "off", ""}:
-            return False
-    raise ValueError("invalid_boolean_flag")
+        return None
+    limit = int(value)
+    if limit <= 0:
+        raise ValueError("candidate_limit_must_be_positive")
+    return limit
 
 
 # ---------------------------------------------------------------------------
@@ -1280,8 +1285,8 @@ def _build_l2_executor_contract(
             allowed_workspace_root=str(contract_data.get("allowed_workspace_root", "")),
             allowed_artifact_subdir=str(contract_data.get("allowed_artifact_subdir", "generated")),
             max_artifact_bytes=int(contract_data.get("max_artifact_bytes", 100_000)),
-            allow_overwrite=_strict_bool(contract_data.get("allow_overwrite", False)),
-            allow_rollback_cleanup=_strict_bool(contract_data.get("allow_rollback_cleanup", False)),
+            allow_overwrite=_authority_bool(contract_data.get("allow_overwrite", False), "allow_overwrite"),
+            allow_rollback_cleanup=_authority_bool(contract_data.get("allow_rollback_cleanup", False), "allow_rollback_cleanup"),
             receipt_required=True,
             tombstone_required_for_cleanup=True,
             finalgate_posture_required=True,
@@ -1313,8 +1318,8 @@ def _build_l3_executor_contract(
             allowed_workspace_subdir=str(contract_data.get("allowed_workspace_subdir", "")),
             max_file_bytes=int(contract_data.get("max_file_bytes", 500_000)),
             max_patch_bytes=int(contract_data.get("max_patch_bytes", 100_000)),
-            allow_overwrite=_strict_bool(contract_data.get("allow_overwrite", True)),
-            allow_delete=_strict_bool(contract_data.get("allow_delete", False)),
+            allow_overwrite=_authority_bool(contract_data.get("allow_overwrite", True), "allow_overwrite"),
+            allow_delete=_authority_bool(contract_data.get("allow_delete", False), "allow_delete"),
             tombstone_required_for_delete=True,
             rollback_required=True,
             rollback_must_be_tested_before_mutation=True,

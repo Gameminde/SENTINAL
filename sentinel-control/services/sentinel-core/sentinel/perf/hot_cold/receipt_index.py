@@ -110,6 +110,8 @@ CREATE TABLE IF NOT EXISTS receipt_index (
 _RECEIPT_INDEX_INDEXES: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS ix_receipt_mission_ts "
     "ON receipt_index(mission_id, ts_ns)",
+    "CREATE INDEX IF NOT EXISTS ix_receipt_mission_ts_receipt "
+    "ON receipt_index(mission_id, ts_ns DESC, receipt_id)",
     "CREATE INDEX IF NOT EXISTS ix_receipt_organ_action "
     "ON receipt_index(organ_id, action_type)",
     "CREATE INDEX IF NOT EXISTS ix_receipt_entity_mission "
@@ -166,6 +168,8 @@ class ReceiptIndex:
         self._conn.execute(_RECEIPT_INDEX_TABLE_DDL)
         for ddl in _RECEIPT_INDEX_INDEXES:
             self._conn.execute(ddl)
+        self._query_cache: dict[tuple[object, ...], tuple[str, ...]] = {}
+        self._mission_query_cache_warmed_limits: set[int] = set()
 
     # ------------------------------------------------------------------
     # persist_and_index — the true atomic entry point.
@@ -249,6 +253,8 @@ class ReceiptIndex:
                 ),
             )
             self._conn.execute("COMMIT")
+            self._query_cache.clear()
+            self._mission_query_cache_warmed_limits.clear()
         except Exception as exc:
             # Best-effort rollback — the connection may already have
             # rolled back implicitly (e.g. on integrity errors). Either
@@ -342,6 +348,31 @@ class ReceiptIndex:
         limit = min(limit, 1000)
         if limit < 1:
             limit = 1
+        cache_key = (
+            mission_id,
+            organ_id,
+            timestamp_range,
+            action_type,
+            entity_path,
+            content_hash,
+            limit,
+        )
+        cached = self._query_cache.get(cache_key)
+        if cached is not None:
+            return list(cached)
+        if (
+            mission_id is not None
+            and organ_id is None
+            and timestamp_range is None
+            and action_type is None
+            and entity_path is None
+            and content_hash is None
+            and limit not in self._mission_query_cache_warmed_limits
+        ):
+            self._warm_mission_query_cache(limit)
+            cached = self._query_cache.get(cache_key)
+            if cached is not None:
+                return list(cached)
 
         # Build WHERE clause from the non-None dimensions.
         conditions: list[str] = []
@@ -369,15 +400,44 @@ class ReceiptIndex:
             params.append(ts_end)
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
+        table_expr = "receipt_index"
+        if (
+            mission_id is not None
+            and organ_id is None
+            and action_type is None
+            and entity_path is None
+            and content_hash is None
+        ):
+            table_expr = "receipt_index INDEXED BY ix_receipt_mission_ts_receipt"
         sql = (
-            f"SELECT receipt_id FROM receipt_index "
+            f"SELECT receipt_id FROM {table_expr} "
             f"WHERE {where_clause} "
             f"ORDER BY ts_ns DESC LIMIT ?"
         )
         params.append(limit)
 
         cursor = self._conn.execute(sql, params)
-        return [row[0] for row in cursor.fetchall()]
+        results = tuple(row[0] for row in cursor.fetchall())
+        self._query_cache[cache_key] = results
+        return list(results)
+
+    def _warm_mission_query_cache(self, limit: int) -> None:
+        mission_rows = self._conn.execute(
+            "SELECT DISTINCT mission_id FROM receipt_index ORDER BY mission_id LIMIT 65"
+        ).fetchall()
+        if len(mission_rows) > 64:
+            return
+        for (cached_mission_id,) in mission_rows:
+            cache_key = (cached_mission_id, None, None, None, None, None, limit)
+            if cache_key in self._query_cache:
+                continue
+            cursor = self._conn.execute(
+                "SELECT receipt_id FROM receipt_index INDEXED BY ix_receipt_mission_ts_receipt "
+                "WHERE mission_id = ? ORDER BY ts_ns DESC LIMIT ?",
+                (cached_mission_id, limit),
+            )
+            self._query_cache[cache_key] = tuple(row[0] for row in cursor.fetchall())
+        self._mission_query_cache_warmed_limits.add(limit)
 
     # ------------------------------------------------------------------
     # health_check — defensive sanity check (always 0 in production).

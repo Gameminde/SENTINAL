@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from sentinel.agent import AgentEventType, ArtifactCaptureSandbox, EventBus
 from sentinel.agent.browser import (
     BrowserAccessibilitySnapshotBuilder,
@@ -31,7 +33,7 @@ from sentinel.agent.tool_call_protocol import CanonicalToolCall
 from sentinel.capabilities import default_tool_registry
 from sentinel.capabilities.risk import ToolSideEffect
 from sentinel.mission import MissionAuthorityEnvelope
-from sentinel.organs.browser.controlled_runner import _bool_arg
+from sentinel.organs.browser.controlled_runner import parse_browser_authority_bool_arg, parse_browser_evidence_bool_arg
 from sentinel.shared.enums import MissionMode, MissionType
 
 
@@ -40,11 +42,14 @@ PNG_BYTES = b"\x89PNG\r\n\x1a\nfake"
 
 
 def test_controlled_runner_boolean_arguments_do_not_treat_false_strings_as_true() -> None:
-    assert _bool_arg("false", default=False) is False
-    assert _bool_arg("false", default=True) is False
-    assert _bool_arg("true", default=False) is True
-    assert _bool_arg("not-a-bool", default=False) is False
-    assert _bool_arg("not-a-bool", default=True) is True
+    assert parse_browser_evidence_bool_arg("false", field_name="capture_screenshot", default=False) is False
+    assert parse_browser_evidence_bool_arg("false", field_name="capture_screenshot", default=True) is False
+    assert parse_browser_evidence_bool_arg("true", field_name="capture_screenshot", default=False) is True
+    assert parse_browser_evidence_bool_arg(None, field_name="capture_screenshot", default=True) is True
+    with pytest.raises(ValueError, match="authority_boolean_must_be_literal"):
+        parse_browser_authority_bool_arg("false", field_name="allow_cross_origin", default=False)
+    with pytest.raises(ValueError, match="authority_boolean_must_be_literal"):
+        parse_browser_authority_bool_arg(1, field_name="allow_cross_origin", default=False)
 
 
 def grant(**overrides) -> BrowserV3AuthorityGrant:

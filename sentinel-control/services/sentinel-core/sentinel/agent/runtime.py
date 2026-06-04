@@ -826,7 +826,7 @@ class AgentRuntime:
         )
         if allowed:
             return ref
-        return f"nsig_ref_hash_{stable_hash(ref)[:16]}"
+        return f"nsig_ref_hash_{stable_hash(ref)[:32]}"
 
     @staticmethod
     def _extract_temporary_organ_candidates_from_user_input(dispatch_block: dict[str, Any]) -> list[dict[str, Any]]:

@@ -58,6 +58,7 @@ from sentinel.organs.browser.v3_advanced_authorities import (
 )
 from sentinel.organs.browser.v3_authority import BrowserV3AuthorityClass, find_browser_v3_authority_grant
 from sentinel.shared.events import AgentEventType, AgentPhase, EventBus
+from sentinel.shared.safety_scanner import parse_authority_bool, parse_evidence_bool
 
 
 class BrowserControlledCapabilityRunner:
@@ -150,6 +151,15 @@ class BrowserControlledCapabilityRunner:
                 policy_status=policy_decision.status,
                 policy_trace_id=policy_decision.trace_event_id,
             )
+        authority_bool_error = _authority_bool_error(call.action, call.arguments)
+        if authority_bool_error:
+            return self._rejected(
+                call,
+                reason=authority_bool_error,
+                event_bus=event_bus,
+                policy_status=policy_decision.status,
+                policy_trace_id=policy_decision.trace_event_id,
+            )
 
         sandbox = ArtifactCaptureSandbox(mission_id=envelope.id, capture_root=self.capture_root)
         url = str(call.arguments.get("url") or call.target or "")
@@ -231,7 +241,7 @@ class BrowserControlledCapabilityRunner:
                     max_chars=int(call.arguments.get("max_chars") or 100_000),
                     max_html_chars=int(call.arguments.get("max_html_chars") or 200_000),
                     max_screenshot_bytes=int(call.arguments.get("max_screenshot_bytes") or 2_000_000),
-                    capture_screenshot=_bool_arg(call.arguments.get("capture_screenshot"), default=True),
+                    capture_screenshot=parse_browser_evidence_bool_arg(call.arguments.get("capture_screenshot"), field_name="capture_screenshot", default=True),
                     timeout_ms=int(call.arguments.get("timeout_ms") or 15_000),
                 ),
                 event_bus=event_bus,
@@ -320,8 +330,8 @@ class BrowserControlledCapabilityRunner:
                     expected_effect=str(call.arguments.get("expected_effect") or ""),
                     submit_kind=str(call.arguments.get("submit_kind") or "submit"),
                     flow_type=str(call.arguments.get("flow_type") or "generic"),
-                    allow_cross_origin=_bool_arg(call.arguments.get("allow_cross_origin"), default=False),
-                    capture_screenshot=_bool_arg(call.arguments.get("capture_screenshot"), default=True),
+                    allow_cross_origin=parse_browser_authority_bool_arg(call.arguments.get("allow_cross_origin"), field_name="allow_cross_origin", default=False),
+                    capture_screenshot=parse_browser_evidence_bool_arg(call.arguments.get("capture_screenshot"), field_name="capture_screenshot", default=True),
                 ),
                 authority_grant=authority_grant,
                 event_bus=event_bus,
@@ -388,9 +398,9 @@ class BrowserControlledCapabilityRunner:
                     allowed_mime_types=[str(item) for item in (call.arguments.get("allowed_mime_types") or [])],
                     max_bytes=int(call.arguments.get("max_bytes") or authority_grant.max_bytes or 50_000_000),
                     quarantine_subdir=str(call.arguments.get("quarantine_subdir") or authority_grant.quarantine_path),
-                    allow_cross_origin=_bool_arg(call.arguments.get("allow_cross_origin"), default=False),
-                    require_https=_bool_arg(call.arguments.get("require_https"), default=True),
-                    require_dns_resolution=_bool_arg(call.arguments.get("require_dns_resolution"), default=False),
+                    allow_cross_origin=parse_browser_authority_bool_arg(call.arguments.get("allow_cross_origin"), field_name="allow_cross_origin", default=False),
+                    require_https=parse_browser_authority_bool_arg(call.arguments.get("require_https"), field_name="require_https", default=True),
+                    require_dns_resolution=parse_browser_authority_bool_arg(call.arguments.get("require_dns_resolution"), field_name="require_dns_resolution", default=False),
                     max_redirects=int(call.arguments.get("max_redirects") or 3),
                 ),
                 authority_grant=authority_grant,
@@ -491,8 +501,8 @@ class BrowserControlledCapabilityRunner:
                     expected_effect=str(call.arguments.get("expected_effect") or ""),
                     field_name_hash=str(call.arguments.get("field_name_hash") or "") or None,
                     flow_type=str(call.arguments.get("flow_type") or "artifact_upload"),
-                    allow_cross_origin=_bool_arg(call.arguments.get("allow_cross_origin"), default=False),
-                    capture_screenshot=_bool_arg(call.arguments.get("capture_screenshot"), default=True),
+                    allow_cross_origin=parse_browser_authority_bool_arg(call.arguments.get("allow_cross_origin"), field_name="allow_cross_origin", default=False),
+                    capture_screenshot=parse_browser_evidence_bool_arg(call.arguments.get("capture_screenshot"), field_name="capture_screenshot", default=True),
                 ),
                 authority_grant=authority_grant,
                 event_bus=event_bus,
@@ -549,7 +559,7 @@ class BrowserControlledCapabilityRunner:
                     allowed_domains=[str(item) for item in (call.arguments.get("allowed_domains") or envelope.allowed_domains)],
                     session_id=str(call.arguments.get("session_id") or "") or None,
                     profile_id=str(call.arguments.get("profile_id") or "") or None,
-                    storage_enabled=_bool_arg(call.arguments.get("storage_enabled"), default=False),
+                    storage_enabled=parse_browser_authority_bool_arg(call.arguments.get("storage_enabled"), field_name="storage_enabled", default=False),
                     expected_effect=str(call.arguments.get("expected_effect") or "private browser session boundary"),
                 ),
                 authority_grant=authority_grant,
@@ -641,7 +651,7 @@ class BrowserControlledCapabilityRunner:
                     context_pack_id=str(call.arguments.get("context_pack_id") or ""),
                     compiled_intent_trace_id=str(call.arguments.get("compiled_intent_trace_id") or ""),
                     source_url=str(call.arguments.get("source_url") or call.target or ""),
-                    capture_bodies=_bool_arg(call.arguments.get("capture_bodies"), default=True),
+                    capture_bodies=parse_browser_authority_bool_arg(call.arguments.get("capture_bodies"), field_name="capture_bodies", default=True),
                     allowed_mime_types=[str(item) for item in (call.arguments.get("allowed_mime_types") or authority_grant.allowed_mime_types)],
                     max_bytes=int(call.arguments.get("max_bytes") or authority_grant.max_bytes or 10_000_000),
                     max_records=int(call.arguments.get("max_records") or authority_grant.max_records or 500),
@@ -685,7 +695,7 @@ class BrowserControlledCapabilityRunner:
                     before_snapshot_trace_event_id=str(call.arguments.get("before_snapshot_trace_event_id") or ""),
                     login_ref_id=str(call.arguments.get("login_ref_id") or ""),
                     expected_effect=str(call.arguments.get("expected_effect") or "account session authenticated"),
-                    allow_cross_origin=_bool_arg(call.arguments.get("allow_cross_origin"), default=False),
+                    allow_cross_origin=parse_browser_authority_bool_arg(call.arguments.get("allow_cross_origin"), field_name="allow_cross_origin", default=False),
                     timeout_ms=int(call.arguments.get("timeout_ms") or 30_000),
                 ),
                 authority_grant=authority_grant,
@@ -716,10 +726,10 @@ class BrowserControlledCapabilityRunner:
                 max_html_chars=int(call.arguments.get("max_html_chars") or 200_000),
                 max_screenshot_bytes=int(call.arguments.get("max_screenshot_bytes") or 2_000_000),
                 max_screenshot_side=int(call.arguments.get("max_screenshot_side") or 4_000),
-                capture_screenshot=_bool_arg(call.arguments.get("capture_screenshot"), default=True),
-                capture_pdf=_bool_arg(call.arguments.get("capture_pdf"), default=False),
+                capture_screenshot=parse_browser_evidence_bool_arg(call.arguments.get("capture_screenshot"), field_name="capture_screenshot", default=True),
+                capture_pdf=parse_browser_evidence_bool_arg(call.arguments.get("capture_pdf"), field_name="capture_pdf", default=False),
                 max_pdf_bytes=int(call.arguments.get("max_pdf_bytes") or 10_000_000),
-                capture_element_screenshots=_bool_arg(call.arguments.get("capture_element_screenshots"), default=False),
+                capture_element_screenshots=parse_browser_evidence_bool_arg(call.arguments.get("capture_element_screenshots"), field_name="capture_element_screenshots", default=False),
                 element_screenshot_ref_ids=[str(ref_id) for ref_id in (call.arguments.get("element_screenshot_ref_ids") or [])],
                 max_element_screenshots=int(call.arguments.get("max_element_screenshots") or 8),
                 max_element_screenshot_bytes=int(call.arguments.get("max_element_screenshot_bytes") or 1_000_000),
@@ -830,17 +840,32 @@ class BrowserControlledCapabilityRunner:
         )
 
 
-def _bool_arg(value: object, *, default: bool) -> bool:
+_AUTHORITY_BOOL_FIELDS_BY_ACTION: dict[str, set[str]] = {
+    "browser_form_submit": {"allow_cross_origin"},
+    "browser_download_quarantine": {"allow_cross_origin", "require_https", "require_dns_resolution"},
+    "browser_upload_authorized": {"allow_cross_origin"},
+    "browser_private_session": {"storage_enabled"},
+    "browser_har_body_capture": {"capture_bodies"},
+    "browser_login_authority": {"allow_cross_origin"},
+}
+
+
+def _authority_bool_error(action: str, arguments: dict[str, object]) -> str | None:
+    for field_name in _AUTHORITY_BOOL_FIELDS_BY_ACTION.get(action, set()):
+        if field_name not in arguments:
+            continue
+        try:
+            parse_browser_authority_bool_arg(arguments.get(field_name), field_name=field_name, default=False)
+        except ValueError:
+            return f"authority_boolean_must_be_literal:{field_name}"
+    return None
+
+
+def parse_browser_authority_bool_arg(value: object, *, field_name: str, default: bool) -> bool:
     if value is None:
         return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int) and value in {0, 1}:
-        return bool(value)
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"true", "1", "yes", "y", "on"}:
-            return True
-        if normalized in {"false", "0", "no", "n", "off", ""}:
-            return False
-    return default
+    return parse_authority_bool(value, field_name=field_name)
+
+
+def parse_browser_evidence_bool_arg(value: object, *, field_name: str, default: bool) -> bool:
+    return parse_evidence_bool(value, field_name=field_name, default=default)

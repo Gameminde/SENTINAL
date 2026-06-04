@@ -254,6 +254,8 @@ class L3WorkspaceRollbackReceipt(SentinelModel):
     tombstone: L3WorkspaceTombstone | None = None
     failure_reason: str | None = None
     rollback_reason: str
+    rollback_attempted: bool = False
+    rollback_success: bool = False
     created_at: datetime = Field(default_factory=utc_now)
     executor_id: str = L3_EXECUTOR_ID
     safe_summary: str
@@ -288,6 +290,8 @@ class L3WorkspaceResult(SentinelModel):
     receipt: L3WorkspaceReceipt
     safety_validation: L3WorkspaceSafetyValidationResult
     rollback_available: bool = False
+    rollback_attempted: bool = False
+    rollback_success: bool = False
     safe_summary: str
     authority_effect: str = "none"
     execution_effect: str = "none"
@@ -427,7 +431,33 @@ class L3ReversibleWorkspaceExecutor:
                 reasons=["workspace_mutation_failed"],
             )
 
-        after_hash = _file_hash(target_path)
+        expected_after_hash = text_hash(after_content)
+        try:
+            after_hash = _readback_text_hash(target_path)
+        except OSError:
+            rollback_attempted, rollback_success = _attempt_safe_restore(target_path, before_snapshot)
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["workspace_write_readback_failed"]),
+                path_metadata=final_path_plan.path_metadata,
+                before_snapshot=before_snapshot,
+                reasons=["workspace_write_readback_failed"],
+                rollback_attempted=rollback_attempted,
+                rollback_success=rollback_success,
+            )
+        if after_hash != expected_after_hash:
+            rollback_attempted, rollback_success = _attempt_safe_restore(target_path, before_snapshot)
+            return self._blocked_result(
+                request=request,
+                contract=contract,
+                validation=_extend_validation(validation, ["workspace_write_verification_failed"]),
+                path_metadata=final_path_plan.path_metadata,
+                before_snapshot=before_snapshot,
+                reasons=["workspace_write_verification_failed"],
+                rollback_attempted=rollback_attempted,
+                rollback_success=rollback_success,
+            )
         after_snapshot = L3WorkspaceAfterSnapshot(
             snapshot_id=_deterministic_id(
                 "l3_after",
@@ -470,6 +500,8 @@ class L3ReversibleWorkspaceExecutor:
             receipt=receipt,
             safety_validation=validation,
             rollback_available=True,
+            rollback_attempted=False,
+            rollback_success=False,
             safe_summary="L3 reversible workspace mutation completed inside the approved workspace.",
             execution_effect="reversible_workspace_mutation",
         )
@@ -517,6 +549,7 @@ class L3ReversibleWorkspaceExecutor:
                 rollback_id=rollback_id,
                 rollback_reason=rollback_reason,
                 failure_reason=f"rollback_write_failed:{exc.__class__.__name__}",
+                rollback_attempted=True,
             )
         if restored_hash != result.before_hash:
             return _rollback_unavailable(
@@ -524,6 +557,7 @@ class L3ReversibleWorkspaceExecutor:
                 rollback_id=rollback_id,
                 rollback_reason=rollback_reason,
                 failure_reason="rollback_hash_mismatch",
+                rollback_attempted=True,
             )
         return L3WorkspaceRollbackReceipt(
             rollback_receipt_id=rollback_id,
@@ -537,6 +571,8 @@ class L3ReversibleWorkspaceExecutor:
             path_metadata=receipt.path_metadata,
             tombstone=result.tombstone,
             rollback_reason=rollback_reason,
+            rollback_attempted=True,
+            rollback_success=True,
             safe_summary="L3 rollback restored the previous workspace text state.",
         )
 
@@ -697,6 +733,8 @@ class L3ReversibleWorkspaceExecutor:
         path_metadata: dict[str, Any],
         before_snapshot: L3WorkspaceBeforeSnapshot | None,
         reasons: list[str],
+        rollback_attempted: bool = False,
+        rollback_success: bool = False,
     ) -> L3WorkspaceResult:
         receipt = self.produce_receipt(
             request=request,
@@ -723,6 +761,8 @@ class L3ReversibleWorkspaceExecutor:
             receipt=receipt,
             safety_validation=validation,
             rollback_available=False,
+            rollback_attempted=rollback_attempted,
+            rollback_success=rollback_success,
             safe_summary="L3 reversible workspace attempt blocked before mutation.",
             execution_effect="none",
         )
@@ -1103,6 +1143,19 @@ def _file_hash(path: Path) -> str:
     return text_hash(path.read_text(encoding="utf-8"))
 
 
+def _readback_text_hash(path: Path) -> str:
+    return _file_hash(path)
+
+
+def _attempt_safe_restore(target_path: Path, before_snapshot: L3WorkspaceBeforeSnapshot) -> tuple[bool, bool]:
+    try:
+        target_path.write_text(before_snapshot.safe_content, encoding="utf-8")
+        restored_hash = _readback_text_hash(target_path)
+    except OSError:
+        return True, False
+    return True, restored_hash == before_snapshot.before_hash
+
+
 def _patch_bytes(request: L3WorkspaceRequest) -> int:
     return len(request.content.encode("utf-8")) + len(
         json.dumps(sanitize_metadata(request.metadata_patch), sort_keys=True, default=str).encode("utf-8")
@@ -1153,6 +1206,7 @@ def _rollback_unavailable(
     rollback_id: str,
     rollback_reason: str,
     failure_reason: str,
+    rollback_attempted: bool = False,
 ) -> L3WorkspaceRollbackReceipt:
     return L3WorkspaceRollbackReceipt(
         rollback_receipt_id=rollback_id,
@@ -1165,6 +1219,8 @@ def _rollback_unavailable(
         path_metadata=receipt.path_metadata,
         failure_reason=failure_reason,
         rollback_reason=rollback_reason,
+        rollback_attempted=rollback_attempted,
+        rollback_success=False,
         safe_summary="L3 rollback unavailable; current workspace state preserved.",
     )
 

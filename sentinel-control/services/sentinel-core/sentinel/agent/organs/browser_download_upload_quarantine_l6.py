@@ -40,6 +40,8 @@ class BrowserFileQuarantineContract(SentinelModel):
     allow_upload: bool = False
     allow_download: bool = False
     max_file_bytes: int = Field(default=10_000_000, ge=1)
+    policy_max_file_bytes: int = Field(default=10_000_000, ge=1)
+    candidate_max_file_bytes: int | None = Field(default=None, ge=1)
     receipt_required: bool = True
     finalgate_required: bool = True
     forbid_executables: bool = True
@@ -60,8 +62,17 @@ class BrowserFileQuarantineContract(SentinelModel):
             raise ValueError("Browser file quarantine contract cannot grant authority or execute by itself.")
         if self.can_grant_authority or self.can_approve_future_execution:
             raise ValueError("Browser file quarantine contract cannot grant future authority.")
+        if self.forbid_executables is not True:
+            raise ValueError("forbid_executables_cannot_be_disabled")
         self.allowed_domains = sorted({domain.strip().lower() for domain in self.allowed_domains if domain.strip()})
         return self
+
+    @property
+    def effective_max_file_bytes(self) -> int:
+        limits = [self.policy_max_file_bytes, self.max_file_bytes]
+        if self.candidate_max_file_bytes is not None:
+            limits.append(self.candidate_max_file_bytes)
+        return min(limits)
 
 
 class BrowserFileQuarantineRequest(SentinelModel):
@@ -294,7 +305,7 @@ class BrowserFileQuarantineOrganL6:
             target_role=req.target_role,
             target_name=req.target_name,
             quarantine_root=req.contract.approved_download_quarantine_root,
-            max_file_bytes=req.contract.max_file_bytes,
+            max_file_bytes=req.contract.effective_max_file_bytes,
             forbid_executables=req.contract.forbid_executables,
             timeout_ms=req.timeout_ms,
             capture_screenshot=req.capture_screenshot,
@@ -347,7 +358,7 @@ def _validate_upload_path(req: BrowserFileQuarantineRequest) -> list[str]:
     if not path.is_file():
         reasons.append("upload_path_not_file")
         return reasons
-    if path.stat().st_size > req.contract.max_file_bytes:
+    if path.stat().st_size > req.contract.effective_max_file_bytes:
         reasons.append("upload_file_too_large")
     if req.contract.forbid_executables and path.suffix.lower() in {".exe", ".bat", ".cmd", ".ps1", ".sh", ".js", ".vbs"}:
         reasons.append("upload_executable_extension_blocked")

@@ -23,7 +23,7 @@ from pydantic import ConfigDict, Field
 
 from sentinel.perf.measure.performance_trace import PerformanceSeverity, PerformanceTrace
 from sentinel.shared.events import AgentEventType, EventBus
-from sentinel.shared.models import SentinelModel
+from sentinel.shared.models import SentinelModel, new_id
 
 
 class MissionPerformanceAggregate(SentinelModel):
@@ -289,22 +289,29 @@ class LatencyProfiler:
         counters: dict[str, int],
     ) -> PerformanceTrace:
         """Construct a ``PerformanceTrace`` from timing data and caller counters."""
-        return PerformanceTrace(
+        if error:
+            if not isinstance(error_category, str) or not error_category.strip():
+                raise ValueError("PerformanceTrace.error=True requires a non-empty error_category.")
+        elif error_category is not None:
+            raise ValueError("PerformanceTrace.error=False requires error_category to be None.")
+
+        return PerformanceTrace.model_construct(
+            id=new_id("ptrace"),
             action_id=action_id,
             mission_id=mission_id,
             organ_id=organ_id,
             action_type=action_type,
-            queue_wait_ms=counters.get("queue_wait_ms", 0),
+            queue_wait_ms=_non_negative_counter(counters, "queue_wait_ms"),
             wall_ms=wall_ms,
-            cpu_ms=counters.get("cpu_ms", 0),
-            bytes_in=counters.get("bytes_in", 0),
-            bytes_out=counters.get("bytes_out", 0),
-            tokens_in=counters.get("tokens_in", 0),
-            tokens_out=counters.get("tokens_out", 0),
-            cache_hit=counters.get("cache_hit", 0),
-            cache_miss=counters.get("cache_miss", 0),
-            organ_latency_ms=counters.get("organ_latency_ms", 0),
-            model_prefill_decode_ms=counters.get("model_prefill_decode_ms", 0),
+            cpu_ms=_non_negative_counter(counters, "cpu_ms"),
+            bytes_in=_non_negative_counter(counters, "bytes_in"),
+            bytes_out=_non_negative_counter(counters, "bytes_out"),
+            tokens_in=_non_negative_counter(counters, "tokens_in"),
+            tokens_out=_non_negative_counter(counters, "tokens_out"),
+            cache_hit=_non_negative_counter(counters, "cache_hit"),
+            cache_miss=_non_negative_counter(counters, "cache_miss"),
+            organ_latency_ms=_non_negative_counter(counters, "organ_latency_ms"),
+            model_prefill_decode_ms=_non_negative_counter(counters, "model_prefill_decode_ms"),
             error=error,
             error_category=error_category,
             severity=severity,
@@ -316,8 +323,40 @@ class LatencyProfiler:
         self._event_bus.append(
             AgentEventType.PERFORMANCE_TRACE_EMITTED,
             f"PerformanceTrace emitted for action {trace.action_id}",
-            payload={"trace": trace.model_dump(mode="json")},
+            payload={"trace": _trace_payload(trace)},
+            copy_payload=False,
         )
+
+
+def _non_negative_counter(counters: dict[str, int], key: str) -> int:
+    value = counters.get(key, 0)
+    if type(value) is not int or value < 0:
+        raise ValueError(f"PerformanceTrace counter {key} must be a non-negative int.")
+    return value
+
+
+def _trace_payload(trace: PerformanceTrace) -> dict[str, object]:
+    return {
+        "id": trace.id,
+        "action_id": trace.action_id,
+        "mission_id": trace.mission_id,
+        "organ_id": trace.organ_id,
+        "action_type": trace.action_type,
+        "queue_wait_ms": trace.queue_wait_ms,
+        "wall_ms": trace.wall_ms,
+        "cpu_ms": trace.cpu_ms,
+        "bytes_in": trace.bytes_in,
+        "bytes_out": trace.bytes_out,
+        "tokens_in": trace.tokens_in,
+        "tokens_out": trace.tokens_out,
+        "cache_hit": trace.cache_hit,
+        "cache_miss": trace.cache_miss,
+        "organ_latency_ms": trace.organ_latency_ms,
+        "model_prefill_decode_ms": trace.model_prefill_decode_ms,
+        "error": trace.error,
+        "error_category": trace.error_category,
+        "severity": trace.severity.value,
+    }
 
 
 __all__ = ["LatencyProfiler", "MissionPerformanceAggregate"]

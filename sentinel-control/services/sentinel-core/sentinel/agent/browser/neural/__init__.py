@@ -37,9 +37,11 @@ from sentinel.agent.browser.neural.squad import (
     BrowserSquadRoleOutput,
 )
 from sentinel.agent.browser.neural.motor_proposal import (
+    MotorProposalDispatchDiagnostic,
     MotorProposalArtifact,
     MotorProposalNeuron,
     MotorNeuronOutputEnvelope,
+    diagnose_motor_proposal_artifact,
     motor_proposal_artifact_to_browser_step_candidate,
 )
 
@@ -66,7 +68,9 @@ __all__ = [
     "MemoryRecallNeuron",
     "MotorNeuronOutputEnvelope",
     "MotorProposalArtifact",
+    "MotorProposalDispatchDiagnostic",
     "MotorProposalNeuron",
+    "diagnose_motor_proposal_artifact",
     "motor_proposal_artifact_to_browser_step_candidate",
     "NeuronActivationRecord",
     "NeuronGraphEdge",

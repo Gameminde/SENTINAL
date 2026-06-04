@@ -40,6 +40,75 @@ def hash_context_pack_payload(payload: dict[str, Any]) -> str:
     return _canonical_hash(stable_payload)
 
 
+_CONTEXT_SECRET_KEY_MARKERS = {
+    "api_key",
+    "authorization",
+    "bearer",
+    "client_secret",
+    "cookie",
+    "credential",
+    "credential_value",
+    "password",
+    "secret",
+    "session_token",
+    "token",
+}
+
+_CONTEXT_SECRET_VALUE_RE = re.compile(
+    r"(Bearer\s+[A-Za-z0-9_\-]{8,}|sk-[A-Za-z0-9_\-]{8,}|gsk_[A-Za-z0-9_\-]{8,}|"
+    r"[A-Z0-9_]*(API_KEY|TOKEN|SECRET|PASSWORD|COOKIE|SESSION)[A-Z0-9_]*\s*=\s*\S+)",
+    re.IGNORECASE,
+)
+
+
+class ContextSecretSweepResult(SentinelModel):
+    accepted: bool
+    findings: list[str] = Field(default_factory=list)
+    sanitized_payload: Any = None
+    data_not_instruction: bool = True
+
+
+def sweep_context_payload_for_secrets(payload: Any) -> ContextSecretSweepResult:
+    sanitized, findings = _sweep_context_secret_value(payload, "$", secret_key=False)
+    return ContextSecretSweepResult(
+        accepted=not findings,
+        findings=sorted(set(findings)),
+        sanitized_payload=sanitized,
+    )
+
+
+def _sweep_context_secret_value(value: Any, path: str, *, secret_key: bool) -> tuple[Any, list[str]]:
+    if isinstance(value, dict):
+        sanitized: dict[Any, Any] = {}
+        findings: list[str] = []
+        for key, item in value.items():
+            key_text = str(key).lower()
+            child_secret_key = secret_key or key_text in _CONTEXT_SECRET_KEY_MARKERS
+            child, child_findings = _sweep_context_secret_value(
+                item,
+                f"{path}.{key}" if path else str(key),
+                secret_key=child_secret_key,
+            )
+            sanitized[key] = child
+            findings.extend(child_findings)
+        return sanitized, findings
+    if isinstance(value, list):
+        sanitized_items: list[Any] = []
+        findings: list[str] = []
+        for index, item in enumerate(value):
+            child, child_findings = _sweep_context_secret_value(item, f"{path}[{index}]", secret_key=secret_key)
+            sanitized_items.append(child)
+            findings.extend(child_findings)
+        return sanitized_items, findings
+    if isinstance(value, tuple):
+        child, findings = _sweep_context_secret_value(list(value), path, secret_key=secret_key)
+        return tuple(child), findings
+    if isinstance(value, str):
+        if secret_key or _CONTEXT_SECRET_VALUE_RE.search(value):
+            return "[REDACTED]", [path]
+    return value, []
+
+
 class ContextPackAutonomy(StrEnum):
     RECOMMEND = "recommend"
     EXECUTE = "execute"
@@ -195,6 +264,9 @@ class ContextPack(SentinelModel):
         if not CONTEXT_PACK_ID_RE.match(self.context_pack_id):
             raise ValueError("invalid_context_pack_id")
         payload = self.model_dump(mode="json")
+        sweep = sweep_context_payload_for_secrets(payload)
+        if not sweep.accepted:
+            raise ValueError("context_pack_secret_like_payload")
         expected_hash = hash_context_pack_payload(payload)
         if not self.context_pack_sha256:
             object.__setattr__(self, "context_pack_sha256", expected_hash)

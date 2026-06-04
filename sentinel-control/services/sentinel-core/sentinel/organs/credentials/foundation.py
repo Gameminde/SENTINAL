@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from threading import RLock
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
@@ -11,6 +12,9 @@ from pydantic import Field, model_validator
 from sentinel.organs.credentials.vault_policy import CredentialAccessSource
 from sentinel.shared.models import SentinelModel, new_id
 from sentinel.shared.safety_scanner import scan_forbidden_payload_flat
+
+
+_CREDENTIAL_GRANT_USE_LOCK = RLock()
 
 
 def utc_now() -> datetime:
@@ -519,48 +523,48 @@ def evaluate_credential_access(
             decision=CredentialAccessDecision.BLOCKED_MISSING_GRANT,
             reasons=["credential_grant_missing"],
         )
-    if grant.is_revoked():
-        return _audit_receipt(
-            request=request,
-            grant=grant,
-            decision=CredentialAccessDecision.BLOCKED_REVOKED,
-            reasons=["credential_grant_revoked"],
+    with _CREDENTIAL_GRANT_USE_LOCK:
+        if grant.is_revoked():
+            return _audit_receipt(
+                request=request,
+                grant=grant,
+                decision=CredentialAccessDecision.BLOCKED_REVOKED,
+                reasons=["credential_grant_revoked"],
+            )
+        if grant.is_expired(now):
+            return _audit_receipt(
+                request=request,
+                grant=grant,
+                decision=CredentialAccessDecision.BLOCKED_EXPIRED,
+                reasons=["credential_grant_expired"],
+            )
+        if not _scope_matches(request=request, grant=grant):
+            return _audit_receipt(
+                request=request,
+                grant=grant,
+                decision=CredentialAccessDecision.BLOCKED_SCOPE_MISMATCH,
+                reasons=["credential_grant_scope_mismatch"],
+            )
+        if grant.used_count >= grant.max_use_count:
+            return _audit_receipt(
+                request=request,
+                grant=grant,
+                decision=CredentialAccessDecision.BLOCKED_USE_COUNT,
+                reasons=["credential_grant_use_count_exhausted"],
+            )
+        proof = CredentialAccessProof(
+            credential_ref_id=request.credential_ref_id,
+            mission_id=request.mission_id,
+            organ_kind=request.organ_kind,
+            action_level=request.action_level,
+            action_scope=[request.action],
+            domain_scope=[request.domain] if request.domain else [],
+            grant_id=grant.grant_id,
+            request_id=request.request_id,
+            evidence_refs=[*grant.evidence_refs, *request.evidence_refs],
+            receipt_refs=[*grant.receipt_refs, *request.receipt_refs],
         )
-    if grant.is_expired(now):
-        return _audit_receipt(
-            request=request,
-            grant=grant,
-            decision=CredentialAccessDecision.BLOCKED_EXPIRED,
-            reasons=["credential_grant_expired"],
-        )
-    if grant.used_count >= grant.max_use_count:
-        return _audit_receipt(
-            request=request,
-            grant=grant,
-            decision=CredentialAccessDecision.BLOCKED_USE_COUNT,
-            reasons=["credential_grant_use_count_exhausted"],
-        )
-    if not _scope_matches(request=request, grant=grant):
-        return _audit_receipt(
-            request=request,
-            grant=grant,
-            decision=CredentialAccessDecision.BLOCKED_SCOPE_MISMATCH,
-            reasons=["credential_grant_scope_mismatch"],
-        )
-
-    proof = CredentialAccessProof(
-        credential_ref_id=request.credential_ref_id,
-        mission_id=request.mission_id,
-        organ_kind=request.organ_kind,
-        action_level=request.action_level,
-        action_scope=[request.action],
-        domain_scope=[request.domain] if request.domain else [],
-        grant_id=grant.grant_id,
-        request_id=request.request_id,
-        evidence_refs=[*grant.evidence_refs, *request.evidence_refs],
-        receipt_refs=[*grant.receipt_refs, *request.receipt_refs],
-    )
-    grant.used_count += 1
+        grant.used_count += 1
     return _audit_receipt(
         request=request,
         grant=grant,

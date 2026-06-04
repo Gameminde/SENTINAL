@@ -19,6 +19,23 @@ _ALLOWED_BROWSER_SESSION_ACTION_KINDS = {
     "close",
 }
 
+_KNOWN_GATED_BROWSER_ACTION_KINDS = {
+    "download",
+    "evaluate_js",
+    "file_upload",
+    "form_submit",
+    "login",
+    "submit",
+    "upload",
+}
+
+
+class MotorProposalDispatchDiagnostic(SentinelModel):
+    accepted: bool
+    drop_reason: str | None = None
+    action_kind: str | None = None
+    data_not_instruction: bool = True
+
 
 class MotorProposalArtifact(SentinelModel):
     proposal_artifact_id: str = Field(default_factory=lambda: new_id("mprop"))
@@ -141,25 +158,11 @@ class MotorProposalNeuron(_BaseBrowserNeuron):
 def motor_proposal_artifact_to_browser_step_candidate(
     artifact: MotorProposalArtifact | dict[str, object],
 ) -> dict[str, object] | None:
+    diagnostic = diagnose_motor_proposal_artifact(artifact)
+    if not diagnostic.accepted:
+        return None
     if not isinstance(artifact, MotorProposalArtifact):
-        try:
-            artifact = MotorProposalArtifact.model_validate(artifact)
-        except Exception:
-            return None
-    if not artifact.data_not_instruction:
-        return None
-    if not artifact.dispatch_required or artifact.can_execute:
-        return None
-    if artifact.authority_effect != "none" or artifact.execution_effect != "none":
-        return None
-    if artifact.organ_kind != "browser_session_manager":
-        return None
-    if artifact.action_level != "L5":
-        return None
-    if not artifact.url:
-        return None
-    if artifact.action_kind not in _ALLOWED_BROWSER_SESSION_ACTION_KINDS:
-        return None
+        artifact = MotorProposalArtifact.model_validate(artifact)
     return {
         "proposal_id": artifact.proposal_artifact_id,
         "source_role_id": "browser_neural_motor",
@@ -188,3 +191,29 @@ def motor_proposal_artifact_to_browser_step_candidate(
         "authority_effect": "none",
         "execution_effect": "none",
     }
+
+
+def diagnose_motor_proposal_artifact(
+    artifact: MotorProposalArtifact | dict[str, object],
+) -> MotorProposalDispatchDiagnostic:
+    if not isinstance(artifact, MotorProposalArtifact):
+        try:
+            artifact = MotorProposalArtifact.model_validate(artifact)
+        except Exception:
+            return MotorProposalDispatchDiagnostic(accepted=False, drop_reason="invalid_motor_proposal_artifact")
+    if not artifact.data_not_instruction:
+        return MotorProposalDispatchDiagnostic(accepted=False, drop_reason="motor_proposal_not_data", action_kind=artifact.action_kind)
+    if not artifact.dispatch_required or artifact.can_execute:
+        return MotorProposalDispatchDiagnostic(accepted=False, drop_reason="motor_proposal_execution_capable", action_kind=artifact.action_kind)
+    if artifact.authority_effect != "none" or artifact.execution_effect != "none":
+        return MotorProposalDispatchDiagnostic(accepted=False, drop_reason="motor_proposal_authority_effect", action_kind=artifact.action_kind)
+    if artifact.organ_kind != "browser_session_manager":
+        return MotorProposalDispatchDiagnostic(accepted=False, drop_reason="unsupported_motor_organ_kind", action_kind=artifact.action_kind)
+    if artifact.action_level != "L5":
+        return MotorProposalDispatchDiagnostic(accepted=False, drop_reason="unsupported_motor_action_level", action_kind=artifact.action_kind)
+    if not artifact.url:
+        return MotorProposalDispatchDiagnostic(accepted=False, drop_reason="missing_browser_url", action_kind=artifact.action_kind)
+    if artifact.action_kind not in _ALLOWED_BROWSER_SESSION_ACTION_KINDS:
+        reason = "known_browser_action_gated" if artifact.action_kind in _KNOWN_GATED_BROWSER_ACTION_KINDS else "unknown_browser_action_kind"
+        return MotorProposalDispatchDiagnostic(accepted=False, drop_reason=reason, action_kind=artifact.action_kind)
+    return MotorProposalDispatchDiagnostic(accepted=True, action_kind=artifact.action_kind)

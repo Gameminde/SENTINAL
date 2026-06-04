@@ -781,9 +781,9 @@ def test_dispatcher_string_false_does_not_enable_l6_login_js_or_download(tmp_pat
         if item.execution_result is not None and item.execution_result.blocked_reason
     ]
 
-    assert "browser_login_contract_disabled" in blocked_reasons
-    assert "browser_download_upload_quarantine_contract_does_not_allow_download" in blocked_reasons
-    assert "browser_js_sandbox_contract_disabled" in blocked_reasons
+    assert "failed_to_build_sub_request_for_browser_login_credential_session_broker" in blocked_reasons
+    assert "failed_to_build_sub_request_for_browser_download_upload_quarantine" in blocked_reasons
+    assert "failed_to_build_sub_request_for_browser_js_sandbox_special_authority" in blocked_reasons
 
 
 def test_dispatcher_invalid_file_action_kind_fails_closed(tmp_path: Path) -> None:

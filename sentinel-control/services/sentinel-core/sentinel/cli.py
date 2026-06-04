@@ -7,6 +7,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Sequence
+from urllib.parse import urlsplit
 
 from sentinel.agent.organs.browser_operator_agent_l4_l5_live import (
     BrowserOperatorAgentL4L5Live,
@@ -313,6 +314,7 @@ def _run_browser_command(args: argparse.Namespace) -> tuple[object, Path]:
         capture_root=run_dir,
         renderer=PlaywrightReadOnlyRenderer(document_fixtures=fixtures),
         interaction_backend=PlaywrightLimitedInteractionBackend(document_fixtures=fixtures),
+        resolver=_fixture_public_dns_resolver(args.url) if args.fixture_html is not None else None,
     )
     if args.command == "browser-observe":
         contract = BrowserOperatorLiveContract(
@@ -432,6 +434,24 @@ def _run_browser_session_demo(args: argparse.Namespace) -> tuple[dict[str, objec
         encoding="utf-8",
     )
     return result, run_dir
+
+
+def _fixture_public_dns_resolver(url: str):
+    """Return a deterministic public resolver for development-only HTML fixtures.
+
+    Fixture mode fulfills the document from memory and does not contact the
+    origin. The resolver keeps URL guard behavior deterministic without making
+    a real DNS call.
+    """
+
+    fixture_host = (urlsplit(url).hostname or "").lower()
+
+    def resolve(host: str) -> list[str]:
+        if host.lower() != fixture_host:
+            return []
+        return ["93.184.216.34"]
+
+    return resolve
 
 
 def _run_browser_trajectory_demo(args: argparse.Namespace) -> tuple[dict[str, object], Path]:

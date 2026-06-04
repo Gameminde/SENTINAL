@@ -238,13 +238,13 @@ def test_organ_dispatch_closes_persistent_browser_session_cache_when_candidate_e
     assert key not in runtime_execution_module._BROWSER_SESSION_MANAGERS
 
 
-def test_organ_dispatch_l2_l3_contract_booleans_are_strict_not_truthy_strings(tmp_path: Path) -> None:
+def test_organ_dispatch_l2_l3_contract_booleans_reject_strings(tmp_path: Path) -> None:
     from sentinel.agent.organs.organ_dispatch import (
         _build_l2_executor_contract,
         _build_l3_executor_contract,
     )
 
-    l2_contract = _build_l2_executor_contract(
+    assert _build_l2_executor_contract(
         lane=None,
         mission_id=MISSION_ID,
         organ_contracts={
@@ -255,12 +255,25 @@ def test_organ_dispatch_l2_l3_contract_booleans_are_strict_not_truthy_strings(tm
                 "allow_rollback_cleanup": "false",
             }
         },
+    ) is None
+
+    l2_contract = _build_l2_executor_contract(
+        lane=None,
+        mission_id=MISSION_ID,
+        organ_contracts={
+            "local_artifact": {
+                "allowed_workspace_root": str(tmp_path),
+                "allowed_artifact_subdir": "generated",
+                "allow_overwrite": False,
+                "allow_rollback_cleanup": False,
+            }
+        },
     )
     assert l2_contract is not None
     assert l2_contract.allow_overwrite is False
     assert l2_contract.allow_rollback_cleanup is False
 
-    l3_contract = _build_l3_executor_contract(
+    assert _build_l3_executor_contract(
         lane=None,
         mission_id=MISSION_ID,
         organ_contracts={
@@ -269,6 +282,19 @@ def test_organ_dispatch_l2_l3_contract_booleans_are_strict_not_truthy_strings(tm
                 "allowed_workspace_subdir": ".",
                 "allow_overwrite": "false",
                 "allow_delete": "false",
+            }
+        },
+    ) is None
+
+    l3_contract = _build_l3_executor_contract(
+        lane=None,
+        mission_id=MISSION_ID,
+        organ_contracts={
+            "reversible_workspace": {
+                "allowed_workspace_root": str(tmp_path),
+                "allowed_workspace_subdir": ".",
+                "allow_overwrite": False,
+                "allow_delete": False,
             }
         },
     )
