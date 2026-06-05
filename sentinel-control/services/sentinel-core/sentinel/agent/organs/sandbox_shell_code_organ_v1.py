@@ -270,6 +270,7 @@ class ShellCodeSandboxOrganV1:
             receipt = _build_receipt(
                 request,
                 before_manifest,
+                output_max_bytes=min(request.output_max_bytes, active_contract.max_output_bytes),
                 started_at=started_at,
                 ended_at=_utc_now(),
                 exit_code=completed.returncode,
@@ -282,6 +283,7 @@ class ShellCodeSandboxOrganV1:
             receipt = _build_receipt(
                 request,
                 before_manifest,
+                output_max_bytes=min(request.output_max_bytes, active_contract.max_output_bytes),
                 started_at=started_at,
                 ended_at=_utc_now(),
                 exit_code=None,
@@ -314,12 +316,13 @@ def build_shell_code_power_executor(*, project_root: str | Path) -> Any:
     organ = ShellCodeSandboxOrganV1()
 
     def _executor(step: Any, _context: dict[str, Any]) -> PowerStepResult:
-        if str(getattr(step, "actuator_family", "")) not in {"shell_sandbox", "PowerActuatorFamily.SHELL_SANDBOX"}:
+        admission_reason = _power_step_admission_block_reason(step)
+        if admission_reason:
             return PowerStepResult(
                 step_id=step.step_id,
                 status=PowerStepStatus.BLOCKED,
-                blocked_reason="unsupported_actuator_family",
-                safe_summary="Shell/code executor can only run shell_sandbox steps.",
+                blocked_reason=admission_reason,
+                safe_summary=f"Shell/code power step blocked: {admission_reason}.",
             )
         request_payload = dict(getattr(step, "request", {}) or {})
         request = ShellCodeSandboxRequest(
@@ -344,6 +347,20 @@ def build_shell_code_power_executor(*, project_root: str | Path) -> Any:
         )
 
     return _executor
+
+
+def _power_step_admission_block_reason(step: Any) -> str | None:
+    if _enum_value(getattr(step, "actuator_family", "")) != "shell_sandbox":
+        return "unsupported_actuator_family"
+    if str(getattr(step, "organ_kind", "")) != "sandbox_shell_code":
+        return "unsupported_organ_kind"
+    if str(getattr(step, "action_kind", "")) != "run_command":
+        return "unsupported_action_kind"
+    return None
+
+
+def _enum_value(value: Any) -> str:
+    return str(getattr(value, "value", value))
 
 
 def _command_block_reason(command: list[str], contract: ShellCodeSandboxContract) -> str | None:
@@ -415,6 +432,7 @@ def _build_receipt(
     request: ShellCodeSandboxRequest,
     before_manifest: dict[str, dict[str, Any]],
     *,
+    output_max_bytes: int,
     started_at: datetime,
     ended_at: datetime,
     exit_code: int | None,
@@ -424,8 +442,8 @@ def _build_receipt(
 ) -> ShellCodeSandboxReceipt:
     after_manifest = _tree_manifest(request.resolved_project_root)
     created, modified, deleted = _diff_manifests(before_manifest, after_manifest)
-    stdout_excerpt, stdout_truncated = _safe_excerpt(stdout, request.output_max_bytes)
-    stderr_excerpt, stderr_truncated = _safe_excerpt(stderr, request.output_max_bytes)
+    stdout_excerpt, stdout_truncated = _safe_excerpt(stdout, output_max_bytes)
+    stderr_excerpt, stderr_truncated = _safe_excerpt(stderr, output_max_bytes)
     return ShellCodeSandboxReceipt(
         mission_id=request.mission_id,
         command_hash=_stable_hash(request.command),

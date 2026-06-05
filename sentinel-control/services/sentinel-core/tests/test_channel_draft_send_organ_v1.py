@@ -72,6 +72,26 @@ def test_channel_send_requires_explicit_authority_and_sender() -> None:
     assert no_sender.blocked_reason == "channel_sender_missing"
 
 
+def test_channel_rejects_receipt_or_memory_as_send_authority_ref() -> None:
+    import pytest
+
+    from sentinel.agent.organs.channel_draft_send_organ_v1 import ChannelDraftSendRequest
+
+    for ref in ["receipt:abc", "finalgate:abc", "memory:abc", "replan:abc"]:
+        with pytest.raises(ValueError):
+            ChannelDraftSendRequest(
+                mission_id="mission_channel_bad_auth_ref",
+                mode="send",
+                channel="email",
+                subject="Hello",
+                body="Body",
+                recipients=["founder@example.com"],
+                recipient_provenance={"founder@example.com": "user_supplied_contact"},
+                send_authority_ref=ref,
+                evidence_refs=["ev_channel"],
+            )
+
+
 def test_channel_send_with_authority_calls_injected_sender_and_hashes_recipients() -> None:
     from sentinel.agent.organs.channel_draft_send_organ_v1 import (
         ChannelDraftSendContract,
@@ -245,3 +265,53 @@ def test_channel_power_runtime_executor_adapter() -> None:
     assert result.status == "completed"
     assert result.step_results[0].receipt_refs
     assert result.step_results[0].finalgate_certificate_refs
+
+
+def test_channel_power_executor_blocks_mislabeled_step_before_sender() -> None:
+    from sentinel.agent.organs.channel_draft_send_organ_v1 import (
+        ChannelDraftSendContract,
+        ChannelSendTransportReceipt,
+        build_channel_power_executor,
+    )
+    from sentinel.power.runtime import (
+        PowerActuatorCapabilityLevel,
+        PowerActuatorFamily,
+        PowerMissionStep,
+        PowerStepStatus,
+    )
+
+    called = False
+
+    def sender(_request):
+        nonlocal called
+        called = True
+        return ChannelSendTransportReceipt(delivery_ref="must_not_happen")
+
+    executor = build_channel_power_executor(
+        contract=ChannelDraftSendContract(allowed_channels=["email"], send_authorized=True),
+        sender=sender,
+    )
+    result = executor(
+        PowerMissionStep(
+            step_id="channel_mislabeled",
+            actuator_family=PowerActuatorFamily.WORKSPACE,
+            capability_level=PowerActuatorCapabilityLevel.L3,
+            organ_kind="channel_draft_send",
+            action_kind="send",
+            request={
+                "mode": "send",
+                "channel": "email",
+                "subject": "Hello",
+                "body": "Body",
+                "recipients": ["founder@example.com"],
+                "recipient_provenance": {"founder@example.com": "user_supplied_contact"},
+                "send_authority_ref": "auth_channel_send_1",
+                "evidence_refs": ["ev_channel"],
+            },
+        ),
+        {"mission_id": "mission_channel_mislabeled"},
+    )
+
+    assert result.status is PowerStepStatus.BLOCKED
+    assert result.blocked_reason == "unsupported_actuator_family"
+    assert called is False

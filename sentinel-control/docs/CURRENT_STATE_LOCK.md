@@ -1,5 +1,54 @@
 # Current State Lock
 
+## Power Actuator Fabric Wave 1 - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the Power Fabric Orchestration Demo lock as the current
+top-level truth. Sentinel has completed Wave 1 of the Power Actuator Fabric:
+spec, default-off runtime, sandbox shell/code organ, external API organ,
+channel draft/send organ, orchestration demo, and self-audit remediation.
+
+```text
+current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
+previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+```
+
+### Wave 1 Truth
+
+```text
+Power Actuator Fabric Wave 1 spec = CLOSED
+Sentinel PowerRuntime V0 = CLOSED
+Sandbox Shell/Code Organ V1 = CLOSED
+External API Read/Write Organ V1 = CLOSED
+Channel Draft/Send Organ V1 = CLOSED
+Power Fabric Orchestration Demo = CLOSED
+Wave 1 self-audit/remediation = CLOSED
+adapter admission guards = CLOSED
+shell output cap non-weakening = CLOSED
+external API auth/cookie/token header-name blocking = CLOSED
+receipt/memory-as-authority-ref rejection = CLOSED
+docs overclaim repair = CLOSED
+shell OS/container isolation = DEFERRED
+real channel connector = NOT_STARTED
+durable credential vault = NOT_STARTED
+unbounded API mutation = NOT_STARTED
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Wave 1 Artifacts
+
+```text
+sentinel-control/docs/actuators/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC.md
+sentinel-control/services/sentinel-core/sentinel/power/runtime.py
+sentinel-control/services/sentinel-core/sentinel/power/demo.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/sandbox_shell_code_organ_v1.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/external_api_read_write_organ_v1.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/channel_draft_send_organ_v1.py
+sentinel-control/docs/reviews/POWER_ACTUATOR_FABRIC_WAVE_1_SELF_AUDIT_REMEDIATION_REPORT.md
+```
+
 ## Power Fabric Orchestration Demo - LOCKED
 
 Recorded at: 2026-06-05

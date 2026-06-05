@@ -8,9 +8,9 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-05
 
 ```text
-current_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
-previous_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
-next_phase = POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
+current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
+previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
 ```
 
 Wave 1 is no longer a browser-only continuation. Browser is now one actuator
@@ -40,6 +40,7 @@ sentinel-control/docs/reviews/SANDBOX_SHELL_CODE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/EXTERNAL_API_READ_WRITE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/CHANNEL_DRAFT_SEND_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/POWER_FABRIC_ORCHESTRATION_DEMO_REPORT.md
+sentinel-control/docs/reviews/POWER_ACTUATOR_FABRIC_WAVE_1_SELF_AUDIT_REMEDIATION_REPORT.md
 ```
 
 ## Strategic Correction
@@ -127,7 +128,9 @@ SANDBOX_SHELL_CODE_ORGAN_V1 = CLOSED
 EXTERNAL_API_READ_WRITE_ORGAN_V1 = CLOSED
 CHANNEL_DRAFT_SEND_ORGAN_V1 = CLOSED
 POWER_FABRIC_ORCHESTRATION_DEMO = CLOSED
-POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION = NEXT
+POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION = CLOSED
+POWER_ACTUATOR_FABRIC_WAVE_1 = LOCKED
+MISSION_DAEMON_AND_OPERATOR_SHELL_V0 = NEXT
 ```
 
 ## Target Architecture
@@ -651,15 +654,14 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
+MISSION_DAEMON_AND_OPERATOR_SHELL_V0
 ```
 
 Reason:
 
 ```text
-Sentinel now has Wave 1 actuator fabric pieces and a contained orchestration
-demo. Before starting a daemon/operator shell or broader live connectors, the
-fabric needs one hard audit pass for bypasses, authority drift, memory/receipt
-authority confusion, raw secret persistence, shell/API/channel/browser leakage,
-provider fallback/AUTO routing, and documentation overclaim.
+Sentinel now has a locked Wave 1 actuator fabric. The next step is not another
+raw actuator; it is making the system runnable as a small operator shell with
+mission intake, status, run directories, and PowerRuntime invocation while
+keeping all dangerous powers scoped to the existing contracts.
 ```

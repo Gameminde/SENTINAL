@@ -148,6 +148,36 @@ def test_shell_code_sandbox_timeout_produces_safe_failed_receipt(tmp_path: Path,
     assert result.finalgate_certificate.passed is True
 
 
+def test_shell_code_sandbox_contract_output_cap_cannot_be_weakened(tmp_path: Path, monkeypatch) -> None:
+    import subprocess
+
+    from sentinel.agent.organs.sandbox_shell_code_organ_v1 import (
+        ShellCodeSandboxContract,
+        ShellCodeSandboxOrganV1,
+        ShellCodeSandboxRequest,
+    )
+
+    def loud_run(*_args, **_kwargs):
+        return subprocess.CompletedProcess(args=["python", "--version"], returncode=0, stdout=b"x" * 1000, stderr=b"")
+
+    monkeypatch.setattr(subprocess, "run", loud_run)
+
+    result = ShellCodeSandboxOrganV1().execute(
+        ShellCodeSandboxRequest(
+            mission_id="mission_shell_output_cap",
+            project_root=tmp_path,
+            cwd=".",
+            command=["python", "--version"],
+            output_max_bytes=2048,
+        ),
+        contract=ShellCodeSandboxContract(max_output_bytes=256),
+    )
+
+    assert result.receipt is not None
+    assert len(result.receipt.stdout_excerpt.encode("utf-8")) == 256
+    assert result.receipt.output_truncated is True
+
+
 def test_shell_code_sandbox_kill_switch_blocks_before_execution(tmp_path: Path) -> None:
     from sentinel.agent.organs.sandbox_shell_code_organ_v1 import (
         ShellCodeSandboxOrganV1,
@@ -218,3 +248,40 @@ def test_shell_code_sandbox_power_runtime_executor_adapter(tmp_path: Path) -> No
     assert result.status == "completed"
     assert result.step_results[0].receipt_refs
     assert result.step_results[0].finalgate_certificate_refs
+
+
+def test_shell_code_power_executor_blocks_mislabeled_step_before_subprocess(tmp_path: Path, monkeypatch) -> None:
+    import subprocess
+
+    from sentinel.agent.organs.sandbox_shell_code_organ_v1 import build_shell_code_power_executor
+    from sentinel.power.runtime import (
+        PowerActuatorCapabilityLevel,
+        PowerActuatorFamily,
+        PowerMissionStep,
+        PowerStepStatus,
+    )
+
+    called = False
+
+    def run(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("mislabeled step must not reach subprocess")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    executor = build_shell_code_power_executor(project_root=tmp_path)
+    result = executor(
+        PowerMissionStep(
+            step_id="shell_mislabeled",
+            actuator_family=PowerActuatorFamily.WORKSPACE,
+            capability_level=PowerActuatorCapabilityLevel.L3,
+            organ_kind="sandbox_shell_code",
+            action_kind="run_command",
+            request={"cwd": ".", "command": ["python", "--version"]},
+        ),
+        {"mission_id": "mission_shell_mislabeled"},
+    )
+
+    assert result.status is PowerStepStatus.BLOCKED
+    assert result.blocked_reason == "unsupported_actuator_family"
+    assert called is False

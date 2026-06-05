@@ -57,6 +57,10 @@ class ExternalAPIRequest(SentinelModel):
             raise ValueError("external API request cannot grant authority")
         if self.data_not_instruction is not True:
             raise ValueError("external API request must remain data-not-instruction")
+        if _contains_forbidden_header_name(self.headers):
+            raise ValueError("external API request contains forbidden auth/cookie/token header metadata")
+        if _authority_ref_looks_like_receipt_or_memory(self.mutation_authority_ref):
+            raise ValueError("external API mutation authority ref cannot come from receipt, FinalGate, or memory refs")
         scan = scan_forbidden_payload_categorized(
             {
                 "headers": self.headers,
@@ -310,6 +314,14 @@ def build_external_api_power_executor(
     organ = ExternalAPIOrganV1(transport=transport, rate_ledger=rate_ledger)
 
     def _executor(step: Any, context: dict[str, Any]) -> PowerStepResult:
+        admission_reason = _power_step_admission_block_reason(step)
+        if admission_reason:
+            return PowerStepResult(
+                step_id=step.step_id,
+                status=PowerStepStatus.BLOCKED,
+                blocked_reason=admission_reason,
+                safe_summary=f"External API power step blocked: {admission_reason}.",
+            )
         request_payload = dict(getattr(step, "request", {}) or {})
         request = ExternalAPIRequest(
             mission_id=str(context.get("mission_id") or "mission_unknown"),
@@ -334,6 +346,20 @@ def build_external_api_power_executor(
         )
 
     return _executor
+
+
+def _power_step_admission_block_reason(step: Any) -> str | None:
+    if _enum_value(getattr(step, "actuator_family", "")) != "external_api":
+        return "unsupported_actuator_family"
+    if str(getattr(step, "organ_kind", "")) != "external_api":
+        return "unsupported_organ_kind"
+    if str(getattr(step, "action_kind", "")) != "request":
+        return "unsupported_action_kind"
+    return None
+
+
+def _enum_value(value: Any) -> str:
+    return str(getattr(value, "value", value))
 
 
 def _build_receipt(
@@ -375,11 +401,42 @@ def _build_receipt(
 def _safe_non_auth_headers(headers: dict[str, str]) -> dict[str, str]:
     safe: dict[str, str] = {}
     for key, value in headers.items():
-        normalized = key.strip().lower()
-        if normalized in {"authorization", "cookie", "x-api-key", "api-key"}:
+        if _is_forbidden_header_name(key):
             continue
         safe[str(key)] = str(value)
     return safe
+
+
+def _contains_forbidden_header_name(headers: dict[str, str]) -> bool:
+    return any(_is_forbidden_header_name(key) for key in headers)
+
+
+def _authority_ref_looks_like_receipt_or_memory(value: str | None) -> bool:
+    if not value:
+        return False
+    lowered = value.strip().lower()
+    return lowered.startswith(("receipt", "finalgate", "final_gate", "certificate", "memory", "replan", "timeline"))
+
+
+def _is_forbidden_header_name(key: str) -> bool:
+    normalized = key.strip().lower().replace("_", "-")
+    if normalized in {
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "api-key",
+        "x-auth-token",
+        "x-api-token",
+        "api-token",
+        "access-token",
+        "refresh-token",
+        "session",
+        "session-token",
+    }:
+        return True
+    return any(marker in normalized for marker in ("authorization", "cookie", "api-key", "api-token", "auth-token", "session-token"))
 
 
 def _domain_allowed(host: str, allowed_domains: list[str]) -> bool:

@@ -105,18 +105,61 @@ def test_external_api_mutation_requires_explicit_authority() -> None:
     assert allowed.receipt.mutation_authority_ref == "auth_api_mutation_1"
 
 
+def test_external_api_rejects_receipt_or_memory_as_mutation_authority_ref() -> None:
+    import pytest
+
+    from sentinel.agent.organs.external_api_read_write_organ_v1 import ExternalAPIRequest
+
+    for ref in ["receipt:abc", "finalgate:abc", "memory:abc", "replan:abc"]:
+        with pytest.raises(ValueError):
+            ExternalAPIRequest(
+                mission_id="mission_api_bad_auth_ref",
+                method="POST",
+                url="https://api.example.com/v1/items",
+                mutation_authority_ref=ref,
+            )
+
+
 def test_external_api_rejects_raw_auth_cookie_token_headers() -> None:
     import pytest
 
     from sentinel.agent.organs.external_api_read_write_organ_v1 import ExternalAPIRequest
 
-    with pytest.raises(ValueError):
+    for header in ["Authorization", "Proxy-Authorization", "Cookie", "Set-Cookie", "X-Api-Token", "X-API-Key"]:
+        with pytest.raises(ValueError):
+            ExternalAPIRequest(
+                mission_id="mission_api_header",
+                method="GET",
+                url="https://api.example.com/v1/items",
+                headers={header: "metadata-only forbidden"},
+            )
+
+
+def test_external_api_allows_credential_ref_as_metadata_only_without_raw_secret() -> None:
+    from sentinel.agent.organs.external_api_read_write_organ_v1 import (
+        ExternalAPIContract,
+        ExternalAPIOrganV1,
+        ExternalAPIRequest,
+        ExternalAPITransportResponse,
+    )
+
+    result = ExternalAPIOrganV1(
+        transport=lambda _request: ExternalAPITransportResponse(status_code=200, body=b"{}")
+    ).execute(
         ExternalAPIRequest(
-            mission_id="mission_api_header",
+            mission_id="mission_api_credential_ref",
             method="GET",
-            url="https://api.example.com/v1/items",
-            headers={"Authorization": "Be" + "arer " + "secret-value-1234567890"},
-        )
+            url="https://api.example.com/items",
+            credential_ref_id="cred_ref_public_metadata",
+        ),
+        contract=ExternalAPIContract(allowed_domains=["api.example.com"], allowed_methods=["GET"]),
+    )
+
+    assert result.receipt is not None
+    assert result.receipt.credential_ref_id == "cred_ref_public_metadata"
+    assert result.finalgate_certificate is not None
+    assert result.finalgate_certificate.passed is True
+    assert "Authorization" not in str(result.model_dump(mode="json"))
 
 
 def test_external_api_rate_limit_blocks_after_budget() -> None:
@@ -223,3 +266,43 @@ def test_external_api_power_runtime_executor_adapter() -> None:
     assert result.status == "completed"
     assert result.step_results[0].receipt_refs
     assert result.step_results[0].finalgate_certificate_refs
+
+
+def test_external_api_power_executor_blocks_mislabeled_step_before_transport() -> None:
+    from sentinel.agent.organs.external_api_read_write_organ_v1 import (
+        ExternalAPIContract,
+        build_external_api_power_executor,
+    )
+    from sentinel.power.runtime import (
+        PowerActuatorCapabilityLevel,
+        PowerActuatorFamily,
+        PowerMissionStep,
+        PowerStepStatus,
+    )
+
+    called = False
+
+    def transport(_request):
+        nonlocal called
+        called = True
+        raise AssertionError("mislabeled step must not reach transport")
+
+    executor = build_external_api_power_executor(
+        contract=ExternalAPIContract(allowed_domains=["api.example.com"], allowed_methods=["GET"]),
+        transport=transport,
+    )
+    result = executor(
+        PowerMissionStep(
+            step_id="api_mislabeled",
+            actuator_family=PowerActuatorFamily.WORKSPACE,
+            capability_level=PowerActuatorCapabilityLevel.L3,
+            organ_kind="external_api",
+            action_kind="request",
+            request={"method": "GET", "url": "https://api.example.com/items"},
+        ),
+        {"mission_id": "mission_api_mislabeled"},
+    )
+
+    assert result.status is PowerStepStatus.BLOCKED
+    assert result.blocked_reason == "unsupported_actuator_family"
+    assert called is False

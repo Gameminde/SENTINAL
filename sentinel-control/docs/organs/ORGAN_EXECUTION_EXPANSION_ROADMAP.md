@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
-previous_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
-next_phase = POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
+current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
+previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
 ```
 
 Strategic correction:
@@ -201,7 +201,7 @@ Revised browser organ roadmap:
     credentials, payment/account execution, API/channel/shell/desktop, provider
     fallback/AUTO, or uncontrolled MCP/WebMCP.
 
-33. BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK [NEXT]
+33. BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK [DEFERRED / SUPERSEDED BY POWER FABRIC WAVE 1]
     Promote the hardened live backend paths through explicit AgentRuntime and
     OrganDispatcher opt-in: DevTools live metadata, native CDP hash-only
     collection, visual grounding, replay timeline, and failure recovery requests.
@@ -239,11 +239,16 @@ Revised browser organ roadmap:
     channel-style steps with receipts, FinalGate refs, memory refs, and a
     timeline. Use fakes where needed; do not add new ambient authority.
 
-40. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION [NEXT]
+40. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION [DONE]
     Audit the Wave 1 actuator fabric for direct bypasses, authority drift,
     memory/receipt authority confusion, raw secret persistence, shell/API/
     channel/browser leakage, provider fallback/AUTO, and docs overclaim before
     moving to the daemon/operator shell layer.
+
+41. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 [NEXT]
+    Make Sentinel runnable as a small local operating shell: mission intake,
+    local run directory, daemon loop skeleton, operator chat surface, status
+    stream, and PowerRuntime invocation. No new dangerous actuator family.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -335,7 +340,8 @@ The hardened live backend lock added direct hash-only DevTools/CDP metadata,
 visual grounding, replay, orchestrator, and recovery bridges over governed live
 sessions. The Power Actuator Fabric Wave 1 spec now treats browser as one
 actuator family alongside shell sandbox, code execution, external API, channel,
-workspace, and credential refs. The next pack builds the shared PowerRuntime V0.
+workspace, and credential refs. PowerRuntime V0 and the first Wave 1 actuators
+are now implemented; the next pack audits/remediates the integrated fabric.
 
 ## Objective
 
@@ -1118,15 +1124,15 @@ Most dangerous future organ:
 
 Highest-value next implementation:
 
-- `POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION`, because browser, shell
-  sandbox, external API, channel, workspace, and the PowerRuntime now have a
-  first cross-actuator demo and need one integrated bypass/authority/secret
-  audit before the daemon/operator shell layer.
+- `MISSION_DAEMON_AND_OPERATOR_SHELL_V0`, because browser, shell sandbox,
+  external API, channel, workspace, and the PowerRuntime now have a first
+  locked Wave 1 fabric. The next value is making Sentinel runnable as an
+  operating shell without adding a new dangerous actuator family.
 
 Recommended next pack:
 
 ```text
-POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
+MISSION_DAEMON_AND_OPERATOR_SHELL_V0
 ```
 
 Parallel hardening recommendation:

@@ -45,7 +45,7 @@ branch = main
 latest_browser_power_commit = 7e50f98 runtime: add browser js sandbox special authority l6
 latest_browser_runtime_hardening_commit = e59b78a runtime: harden browser failure and concurrency paths
 latest_browser_neural_audit_remediation_commit = 292bf1e runtime: remediate browser neural audit findings
-latest_browser_operating_subsystem_hardening = pending local commit: runtime: harden browser operating subsystem live backend
+latest_browser_operating_subsystem_hardening_commit = 26025a7 runtime: add browser operating subsystem hardened live backend
 browser_quarantine_commit = 62db3ef runtime: add browser download upload quarantine l6
 browser_login_commit = 5e337b5 runtime: add browser login credential session broker l6
 browser_submit_commit = ce05852 runtime: add browser form submit special authority l6
@@ -56,9 +56,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
-previous_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
-next_phase = POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
+current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
+previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -121,7 +121,8 @@ Sentinel Power Runtime V0 = CLOSED / default-off injected actuator orchestration
 Sandbox Shell/Code Organ V1 = CLOSED / allowlisted dev commands only
 External API Read/Write Organ V1 = CLOSED / domain-method scoped, mutation authority required
 Channel Draft/Send Organ V1 = CLOSED / draft-only default, send requires explicit authority
-Power Fabric Orchestration Demo = CLOSED / browser/API/shell/workspace/channel steps under PowerRuntime
+Power Fabric Orchestration Demo = CLOSED / fixture-backed browser/API plus shell/workspace/channel draft steps under PowerRuntime
+Power Actuator Fabric Wave 1 self-audit/remediation = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -141,7 +142,7 @@ Raw credential persistence = NOT_STARTED
 Generic arbitrary browser JavaScript = NOT_STARTED
 AgentRuntime promotion for hardened DevTools/visual/replay/recovery backend paths = NOT_STARTED
 Unbounded API mutation = NOT_STARTED
-Unapproved channel send = NOT_STARTED
+Unapproved channel send = BLOCKED
 Desktop action = NOT_STARTED
 Unrestricted shell/process execution = NOT_STARTED
 Payment/spend/trading = NOT_STARTED
@@ -157,8 +158,8 @@ Control plane = strong
 Internal closed-loop runtime = real
 Local action power = real
 Browser/web power = live and expanding fast
-Credential/session power = brokered but not durably stored
-Next milestone = Power Fabric Orchestration Demo
+Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
+Next milestone = Power Actuator Fabric Wave 1 self-audit/remediation
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -215,6 +216,7 @@ sentinel-control/docs/reviews/SANDBOX_SHELL_CODE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/EXTERNAL_API_READ_WRITE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/CHANNEL_DRAFT_SEND_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/POWER_FABRIC_ORCHESTRATION_DEMO_REPORT.md
+sentinel-control/docs/reviews/POWER_ACTUATOR_FABRIC_WAVE_1_SELF_AUDIT_REMEDIATION_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -265,7 +267,8 @@ Recommended next build sequence:
 36. EXTERNAL_API_READ_WRITE_ORGAN_V1 - DONE
 37. CHANNEL_DRAFT_SEND_ORGAN_V1 - DONE
 38. POWER_FABRIC_ORCHESTRATION_DEMO - DONE
-39. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION - NEXT
+39. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION - DONE
+40. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 - NEXT
 ```
 
 The doctrine:
@@ -277,7 +280,11 @@ FinalGate, replay, and audit.
 Power is allowed. Unsafe authority is not.
 ```
 
-## Archived Snapshot - 2026-05-25
+## Archived Historical Snapshot - 2026-05-25
+
+The following section is historical evidence from an older runtime lock. It is
+not the current project truth; the current state is the 2026-06-04 snapshot
+above and `sentinel-control/docs/CURRENT_STATE_LOCK.md`.
 
 This repository is the full Sentinel working tree. It includes the legacy
 CueIdea/RedditPulse evidence product, the Sentinel Control runtime, and Agent

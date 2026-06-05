@@ -60,6 +60,8 @@ class ChannelDraftSendRequest(SentinelModel):
             raise ValueError("channel request must remain data-not-instruction")
         if not self.evidence_refs:
             raise ValueError("channel request requires evidence refs")
+        if _authority_ref_looks_like_receipt_or_memory(self.send_authority_ref):
+            raise ValueError("channel send authority ref cannot come from receipt, FinalGate, or memory refs")
         for path, value in {
             "$.subject": self.subject or "",
             "$.body": self.body,
@@ -310,6 +312,14 @@ def build_channel_power_executor(
     organ = ChannelDraftSendOrganV1(sender=sender, rate_ledger=rate_ledger)
 
     def _executor(step: Any, context: dict[str, Any]) -> PowerStepResult:
+        admission_reason = _power_step_admission_block_reason(step)
+        if admission_reason:
+            return PowerStepResult(
+                step_id=step.step_id,
+                status=PowerStepStatus.BLOCKED,
+                blocked_reason=admission_reason,
+                safe_summary=f"Channel power step blocked: {admission_reason}.",
+            )
         payload = dict(getattr(step, "request", {}) or {})
         request = ChannelDraftSendRequest(
             mission_id=str(context.get("mission_id") or "mission_unknown"),
@@ -337,6 +347,20 @@ def build_channel_power_executor(
         )
 
     return _executor
+
+
+def _power_step_admission_block_reason(step: Any) -> str | None:
+    if _enum_value(getattr(step, "actuator_family", "")) != "channel":
+        return "unsupported_actuator_family"
+    if str(getattr(step, "organ_kind", "")) != "channel_draft_send":
+        return "unsupported_organ_kind"
+    if str(getattr(step, "action_kind", "")) not in {"draft", "send"}:
+        return "unsupported_action_kind"
+    return None
+
+
+def _enum_value(value: Any) -> str:
+    return str(getattr(value, "value", value))
 
 
 def _build_receipt(
@@ -367,6 +391,13 @@ def _build_receipt(
         send_authority_ref=request.send_authority_ref,
         compliance_reasons=compliance_reasons or ["channel_compliance_clear"],
     )
+
+
+def _authority_ref_looks_like_receipt_or_memory(value: str | None) -> bool:
+    if not value:
+        return False
+    lowered = value.strip().lower()
+    return lowered.startswith(("receipt", "finalgate", "final_gate", "certificate", "memory", "replan", "timeline"))
 
 
 def _compliance_reasons(request: ChannelDraftSendRequest) -> list[str]:

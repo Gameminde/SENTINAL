@@ -12,7 +12,6 @@ from sentinel.power.runtime import (
     PowerStepStatus,
     SentinelPowerRuntimeV0,
 )
-from sentinel.power.demo import run_power_fabric_orchestration_demo
 
 __all__ = [
     "PowerActuatorCapabilityLevel",
@@ -29,3 +28,11 @@ __all__ = [
     "SentinelPowerRuntimeV0",
     "run_power_fabric_orchestration_demo",
 ]
+
+
+def __getattr__(name: str):
+    if name == "run_power_fabric_orchestration_demo":
+        from sentinel.power.demo import run_power_fabric_orchestration_demo
+
+        return run_power_fabric_orchestration_demo
+    raise AttributeError(name)
