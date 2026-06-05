@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
-previous_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1_LOCKED
-next_phase = POWER_FABRIC_ORCHESTRATION_DEMO
+current_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+previous_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
+next_phase = POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
 ```
 
 Strategic correction:
@@ -234,10 +234,16 @@ Revised browser organ roadmap:
     with explicit recipient policy, authority, compliance guard, rate limit,
     receipt, and FinalGate.
 
-39. POWER_FABRIC_ORCHESTRATION_DEMO [NEXT]
+39. POWER_FABRIC_ORCHESTRATION_DEMO [DONE]
     Demonstrate the PowerRuntime coordinating browser/API/shell/workspace/
     channel-style steps with receipts, FinalGate refs, memory refs, and a
     timeline. Use fakes where needed; do not add new ambient authority.
+
+40. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION [NEXT]
+    Audit the Wave 1 actuator fabric for direct bypasses, authority drift,
+    memory/receipt authority confusion, raw secret persistence, shell/API/
+    channel/browser leakage, provider fallback/AUTO, and docs overclaim before
+    moving to the daemon/operator shell layer.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -308,7 +314,7 @@ POWER_ACTUATOR_FABRIC_WAVE_1_SPEC = implemented / locked
 Next pack:
 
 ```text
-POWER_FABRIC_ORCHESTRATION_DEMO
+POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -1112,14 +1118,15 @@ Most dangerous future organ:
 
 Highest-value next implementation:
 
-- `API_READONLY_SPEC`, followed by an API Read-Only Organ that treats all
-  external API responses as untrusted evidence data and never exposes raw auth
-  headers.
+- `POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION`, because browser, shell
+  sandbox, external API, channel, workspace, and the PowerRuntime now have a
+  first cross-actuator demo and need one integrated bypass/authority/secret
+  audit before the daemon/operator shell layer.
 
 Recommended next pack:
 
 ```text
-API_READONLY_SPEC
+POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
 ```
 
 Parallel hardening recommendation:

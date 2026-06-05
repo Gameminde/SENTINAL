@@ -1,5 +1,50 @@
 # Current State Lock
 
+## Power Fabric Orchestration Demo - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the Channel Draft Send Organ V1 lock as the current
+top-level truth. Sentinel now has a contained multi-actuator demo where
+PowerRuntime coordinates browser/API/shell/workspace/channel-style steps with
+receipt refs, FinalGate refs, memory refs, and a hash-chain timeline.
+
+```text
+current_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+previous_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
+next_phase = POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
+```
+
+### Power Fabric Demo Truth
+
+```text
+Power fabric demo module = CLOSED
+browser fixture observation step = CLOSED
+external API fixture transport step = CLOSED
+shell sandbox python --version step = CLOSED
+workspace report artifact step = CLOSED
+channel draft step = CLOSED
+dependency sequencing = CLOSED
+receipt refs aggregation = CLOSED
+FinalGate refs aggregation = CLOSED
+memory feedback refs aggregation = CLOSED
+timeline hash-chain verification = CLOSED
+real network = NOT_USED
+real sender = NOT_USED
+raw fixture API body durability = BLOCKED
+raw recipient durability = BLOCKED
+new authority path = NOT_CREATED
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Power Fabric Demo Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/power/demo.py
+sentinel-control/services/sentinel-core/tests/test_power_fabric_orchestration_demo.py
+sentinel-control/docs/reviews/POWER_FABRIC_ORCHESTRATION_DEMO_REPORT.md
+```
+
 ## Channel Draft Send Organ V1 - LOCKED
 
 Recorded at: 2026-06-05

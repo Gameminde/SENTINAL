@@ -8,9 +8,9 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-05
 
 ```text
-current_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
-previous_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1_LOCKED
-next_phase = POWER_FABRIC_ORCHESTRATION_DEMO
+current_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+previous_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
+next_phase = POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
 ```
 
 Wave 1 is no longer a browser-only continuation. Browser is now one actuator
@@ -39,6 +39,7 @@ sentinel-control/docs/reviews/SENTINEL_POWER_RUNTIME_V0_REPORT.md
 sentinel-control/docs/reviews/SANDBOX_SHELL_CODE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/EXTERNAL_API_READ_WRITE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/CHANNEL_DRAFT_SEND_ORGAN_V1_REPORT.md
+sentinel-control/docs/reviews/POWER_FABRIC_ORCHESTRATION_DEMO_REPORT.md
 ```
 
 ## Strategic Correction
@@ -100,6 +101,9 @@ Already real:
   quarantine roots, and file hashes;
 - browser JavaScript sandbox special authority for bounded page-side DOM
   operations with network/storage/cookie/submit/credential surfaces blocked.
+- PowerRuntime orchestration demo coordinating browser/API/shell/workspace/
+  channel-style steps with receipt refs, FinalGate refs, memory refs, and a
+  verified timeline.
 
 Still not enough for real-world power:
 
@@ -113,6 +117,18 @@ Still not enough for real-world power:
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
 - no continuous mission loop.
+
+Wave 1 current completion:
+
+```text
+POWER_ACTUATOR_FABRIC_WAVE_1_SPEC = CLOSED
+SENTINEL_POWER_RUNTIME_V0 = CLOSED
+SANDBOX_SHELL_CODE_ORGAN_V1 = CLOSED
+EXTERNAL_API_READ_WRITE_ORGAN_V1 = CLOSED
+CHANNEL_DRAFT_SEND_ORGAN_V1 = CLOSED
+POWER_FABRIC_ORCHESTRATION_DEMO = CLOSED
+POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION = NEXT
+```
 
 ## Target Architecture
 
@@ -635,14 +651,15 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-BROWSER_TRAJECTORY_PLANNER_AND_SELF_HEALING_L5
+POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
 ```
 
 Reason:
 
 ```text
-Sentinel now has a live browser shell and persistent browser sessions. The next
-step is not more read-only browsing; it is action-quality: trajectory planning,
-target recovery, benchmark-style browser tasks, and self-healing page
-navigation while keeping higher-risk submit/login/payment surfaces separate.
+Sentinel now has Wave 1 actuator fabric pieces and a contained orchestration
+demo. Before starting a daemon/operator shell or broader live connectors, the
+fabric needs one hard audit pass for bypasses, authority drift, memory/receipt
+authority confusion, raw secret persistence, shell/API/channel/browser leakage,
+provider fallback/AUTO routing, and documentation overclaim.
 ```

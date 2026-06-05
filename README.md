@@ -56,9 +56,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
-previous_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1_LOCKED
-next_phase = POWER_FABRIC_ORCHESTRATION_DEMO
+current_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+previous_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
+next_phase = POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -121,6 +121,7 @@ Sentinel Power Runtime V0 = CLOSED / default-off injected actuator orchestration
 Sandbox Shell/Code Organ V1 = CLOSED / allowlisted dev commands only
 External API Read/Write Organ V1 = CLOSED / domain-method scoped, mutation authority required
 Channel Draft/Send Organ V1 = CLOSED / draft-only default, send requires explicit authority
+Power Fabric Orchestration Demo = CLOSED / browser/API/shell/workspace/channel steps under PowerRuntime
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -213,6 +214,7 @@ sentinel-control/docs/reviews/SENTINEL_POWER_RUNTIME_V0_REPORT.md
 sentinel-control/docs/reviews/SANDBOX_SHELL_CODE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/EXTERNAL_API_READ_WRITE_ORGAN_V1_REPORT.md
 sentinel-control/docs/reviews/CHANNEL_DRAFT_SEND_ORGAN_V1_REPORT.md
+sentinel-control/docs/reviews/POWER_FABRIC_ORCHESTRATION_DEMO_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -262,7 +264,8 @@ Recommended next build sequence:
 35. SANDBOX_SHELL_CODE_ORGAN_V1 - DONE
 36. EXTERNAL_API_READ_WRITE_ORGAN_V1 - DONE
 37. CHANNEL_DRAFT_SEND_ORGAN_V1 - DONE
-38. POWER_FABRIC_ORCHESTRATION_DEMO - NEXT
+38. POWER_FABRIC_ORCHESTRATION_DEMO - DONE
+39. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION - NEXT
 ```
 
 The doctrine:

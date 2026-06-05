@@ -12,6 +12,7 @@ from sentinel.power.runtime import (
     PowerStepStatus,
     SentinelPowerRuntimeV0,
 )
+from sentinel.power.demo import run_power_fabric_orchestration_demo
 
 __all__ = [
     "PowerActuatorCapabilityLevel",
@@ -26,4 +27,5 @@ __all__ = [
     "PowerStepResult",
     "PowerStepStatus",
     "SentinelPowerRuntimeV0",
+    "run_power_fabric_orchestration_demo",
 ]
