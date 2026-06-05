@@ -56,9 +56,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
-previous_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
-next_phase = SENTINEL_POWER_RUNTIME_V0
+current_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
+previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
+next_phase = SANDBOX_SHELL_CODE_ORGAN_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -117,6 +117,7 @@ Browser neural gauntlet = CLOSED
 Browser operating subsystem state reconciliation = CLOSED
 Browser operating subsystem hardened live backend = CLOSED / direct live backend paths
 Power Actuator Fabric Wave 1 spec = CLOSED / AgentLab-harvested execution spec
+Sentinel Power Runtime V0 = CLOSED / default-off injected actuator orchestration
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -153,7 +154,7 @@ Internal closed-loop runtime = real
 Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = brokered but not durably stored
-Next milestone = Sentinel Power Runtime V0
+Next milestone = Sandbox Shell/Code Organ V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -205,6 +206,7 @@ sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_L
 sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK_REPORT.md
 sentinel-control/docs/actuators/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC.md
 sentinel-control/docs/reviews/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_REPORT.md
+sentinel-control/docs/reviews/SENTINEL_POWER_RUNTIME_V0_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -250,7 +252,8 @@ Recommended next build sequence:
 31. BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK - DONE
 32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK - DONE
 33. POWER_ACTUATOR_FABRIC_WAVE_1_SPEC - DONE
-34. SENTINEL_POWER_RUNTIME_V0 - NEXT
+34. SENTINEL_POWER_RUNTIME_V0 - DONE
+35. SANDBOX_SHELL_CODE_ORGAN_V1 - NEXT
 ```
 
 The doctrine:

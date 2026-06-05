@@ -1,5 +1,55 @@
 # Current State Lock
 
+## Sentinel Power Runtime V0 - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the Power Actuator Fabric Wave 1 Spec as the current
+top-level truth. Sentinel now has a default-off multi-step actuator
+orchestration layer. It coordinates typed power steps, but it does not execute
+any actuator unless an executor is explicitly injected.
+
+```text
+current_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
+previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
+next_phase = SANDBOX_SHELL_CODE_ORGAN_V1
+```
+
+### Power Runtime V0 Truth
+
+```text
+PowerMissionPlan = CLOSED
+PowerMissionStep = CLOSED
+PowerMissionGraph = CLOSED
+PowerMissionTimeline = CLOSED / hash-chain verified
+PowerStepResult = CLOSED
+PowerRuntimeConfig = CLOSED / default-off
+PowerRuntimeResult = CLOSED
+dependency ordering = CLOSED
+unknown dependency block = CLOSED
+cycle detection = CLOSED
+retry budget = CLOSED
+kill switch pre-step abort = CLOSED
+receipt refs aggregation = CLOSED
+FinalGate refs aggregation = CLOSED
+memory feedback refs aggregation = CLOSED
+direct actuator execution = FORBIDDEN unless executor injected
+shell/code organ = NOT_STARTED / next pack
+external API organ = NOT_STARTED
+channel organ = NOT_STARTED
+durable credential vault = NOT_STARTED
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Power Runtime V0 Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/power/runtime.py
+sentinel-control/services/sentinel-core/sentinel/power/__init__.py
+sentinel-control/services/sentinel-core/tests/test_sentinel_power_runtime_v0.py
+sentinel-control/docs/reviews/SENTINEL_POWER_RUNTIME_V0_REPORT.md
+```
+
 ## Power Actuator Fabric Wave 1 Spec - LOCKED
 
 Recorded at: 2026-06-05

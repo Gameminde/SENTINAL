@@ -8,9 +8,9 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-05
 
 ```text
-current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
-previous_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
-next_phase = SENTINEL_POWER_RUNTIME_V0
+current_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
+previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
+next_phase = SANDBOX_SHELL_CODE_ORGAN_V1
 ```
 
 Wave 1 is no longer a browser-only continuation. Browser is now one actuator
@@ -35,6 +35,7 @@ Canonical spec:
 
 ```text
 sentinel-control/docs/actuators/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC.md
+sentinel-control/docs/reviews/SENTINEL_POWER_RUNTIME_V0_REPORT.md
 ```
 
 ## Strategic Correction
