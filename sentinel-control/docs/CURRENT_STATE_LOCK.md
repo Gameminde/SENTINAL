@@ -1,5 +1,52 @@
 # Current State Lock
 
+## External API Read Write Organ V1 - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the Sandbox Shell Code Organ V1 lock as the current
+top-level truth. Sentinel now has a governed external API actuator. It is not
+an ambient API bridge: every request is domain/method-scoped and mutation
+requires explicit authority metadata.
+
+```text
+current_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1_LOCKED
+previous_phase = SANDBOX_SHELL_CODE_ORGAN_V1_LOCKED
+next_phase = CHANNEL_DRAFT_SEND_ORGAN_V1
+```
+
+### External API Truth
+
+```text
+ExternalAPIRequest = CLOSED
+ExternalAPIContract = CLOSED
+ExternalAPIReceipt = CLOSED
+ExternalAPIFinalGateCertificate = CLOSED
+ExternalAPIOrganV1 = CLOSED
+ExternalAPIRateLimitLedger = CLOSED
+PowerRuntime API executor adapter = CLOSED
+domain allowlist = CLOSED
+method allowlist = CLOSED
+GET/HEAD read path = CLOSED
+mutation authority required = CLOSED
+raw Authorization/Cookie/API-key headers = BLOCKED
+credential_ref_id = metadata-only
+response body persistence = hash-only by default
+response body quarantine = hash ref only
+unbounded API mutation = NOT_STARTED
+durable credential vault = NOT_STARTED
+channel/shell/desktop/payment bridge = NOT_STARTED
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### External API Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/external_api_read_write_organ_v1.py
+sentinel-control/services/sentinel-core/tests/test_external_api_read_write_organ_v1.py
+sentinel-control/docs/reviews/EXTERNAL_API_READ_WRITE_ORGAN_V1_REPORT.md
+```
+
 ## Sandbox Shell Code Organ V1 - LOCKED
 
 Recorded at: 2026-06-05
