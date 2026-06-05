@@ -1,5 +1,55 @@
 # Current State Lock
 
+## Power Actuator Fabric Wave 1 Spec - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the Browser Operating Subsystem Hardened Live Backend
+section as the current top-level truth. Sentinel is moving from browser-only
+subsystem hardening into a multi-actuator operating fabric.
+
+```text
+current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
+previous_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
+next_phase = SENTINEL_POWER_RUNTIME_V0
+```
+
+### Wave 1 Spec Truth
+
+```text
+PowerActuatorContract = SPEC_DEFINED
+PowerActuatorRequest = SPEC_DEFINED
+PowerActuatorReceipt = SPEC_DEFINED
+PowerActuatorFinalGateCertificate = SPEC_DEFINED
+PowerActuatorRiskProfile = SPEC_DEFINED
+PowerActuatorCapabilityLevel = SPEC_DEFINED
+PowerActuatorPromotionState = SPEC_DEFINED
+PowerActuatorKillSwitchBinding = SPEC_DEFINED
+PowerActuatorRollbackPolicy = SPEC_DEFINED
+browser actuator family = SPEC_MAPPED_TO_EXISTING_BROWSER_STACK
+shell_sandbox actuator family = SPEC_DEFINED / implementation next wave
+code_execution actuator family = SPEC_DEFINED / through sandbox only
+external_api actuator family = SPEC_DEFINED / implementation later in Wave 1
+channel actuator family = SPEC_DEFINED / implementation later in Wave 1
+workspace actuator family = SPEC_MAPPED_TO_L2_L3
+credential_ref actuator family = SPEC_DEFINED / metadata-only, no durable vault
+vendor runtime import = REJECTED
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Wave 1 Spec Artifacts
+
+```text
+sentinel-control/docs/actuators/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC.md
+sentinel-control/docs/reviews/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_REPORT.md
+agent-lab/audits/SUPERPOWER_EXTRACTION_TABLE.md
+agent-lab/audits/SENTINEL_SUPER_AGENT_BLUEPRINT.md
+agent-lab/audits/CAPABILITY_MATRIX.md
+agent-lab/sentinel_integration_notes/openclaw_to_sentinel.md
+agent-lab/sentinel_integration_notes/jarvis_to_sentinel.md
+agent-lab/sentinel_integration_notes/openjarvis_to_sentinel.md
+```
+
 ## Browser Operating Subsystem Hardened Live Backend - LOCKED
 
 Recorded at: 2026-06-05

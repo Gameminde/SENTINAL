@@ -5,6 +5,38 @@ Date: 2026-05-26
 Status: canonical strategic roadmap for moving Sentinel from controlled internal
 runtime to real-world controlled automation.
 
+## Current Execution Truth - 2026-06-05
+
+```text
+current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
+previous_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
+next_phase = SENTINEL_POWER_RUNTIME_V0
+```
+
+Wave 1 is no longer a browser-only continuation. Browser is now one actuator
+family inside the fabric. AgentLab is the extraction forge: OpenClaw, JARVIS,
+OpenJarvis, Hermes, AgentMemory, TradingAgents, Chrome DevTools, and
+CloakBrowser patterns are harvested conceptually and rewritten as
+Sentinel-native contracts.
+
+Wave 1 actuator families:
+
+```text
+browser
+shell_sandbox
+code_execution
+external_api
+channel
+workspace
+credential_ref
+```
+
+Canonical spec:
+
+```text
+sentinel-control/docs/actuators/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC.md
+```
+
 ## Strategic Correction
 
 Sentinel is not meant to become another single agent that can browse, summarize,

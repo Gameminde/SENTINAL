@@ -12,10 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
-previous_runtime_phase = BROWSER_NEURAL_AUDIT_REMEDIATION_LOCKED
-previous_capability_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
-next_phase = BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK
+current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
+previous_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
+next_phase = SENTINEL_POWER_RUNTIME_V0
 ```
 
 Strategic correction:
@@ -208,6 +207,17 @@ Revised browser organ roadmap:
     collection, visual grounding, replay timeline, and failure recovery requests.
     Preserve default-off behavior, Gate, receipts, FinalGate, memory feedback,
     replan-ready packets, and fail-closed backend absence.
+
+34. POWER_ACTUATOR_FABRIC_WAVE_1_SPEC [DONE]
+    Define the multi-actuator fabric spec from AgentLab power harvest patterns:
+    browser, shell sandbox, code execution, external API, channel, workspace,
+    and credential refs.
+
+35. SENTINEL_POWER_RUNTIME_V0 [NEXT]
+    Add the first mission power runtime layer with PowerMissionPlan,
+    PowerMissionStep, PowerMissionGraph, timeline, dependency ordering, retry
+    budget, kill switch checks, receipt refs, FinalGate refs, and memory
+    feedback refs.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -272,12 +282,13 @@ BROWSER_NEURAL_GAUNTLET_LOCK = implemented / locked
 BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK = implemented / locked
 BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK = implemented / locked
 BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK = implemented / locked
+POWER_ACTUATOR_FABRIC_WAVE_1_SPEC = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK
+SENTINEL_POWER_RUNTIME_V0
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -296,8 +307,9 @@ Playwright remains a deterministic compatibility backend for tests and local
 development.
 The hardened live backend lock added direct hash-only DevTools/CDP metadata,
 visual grounding, replay, orchestrator, and recovery bridges over governed live
-sessions. The next pack promotes those bridges into explicit AgentRuntime /
-OrganDispatcher opt-in paths.
+sessions. The Power Actuator Fabric Wave 1 spec now treats browser as one
+actuator family alongside shell sandbox, code execution, external API, channel,
+workspace, and credential refs. The next pack builds the shared PowerRuntime V0.
 
 ## Objective
 
