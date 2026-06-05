@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
-previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
-next_phase = SANDBOX_SHELL_CODE_ORGAN_V1
+current_phase = SANDBOX_SHELL_CODE_ORGAN_V1_LOCKED
+previous_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
+next_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1
 ```
 
 Strategic correction:
@@ -219,10 +219,15 @@ Revised browser organ roadmap:
     budget, kill switch checks, receipt refs, FinalGate refs, and memory
     feedback refs.
 
-36. SANDBOX_SHELL_CODE_ORGAN_V1 [NEXT]
+36. SANDBOX_SHELL_CODE_ORGAN_V1 [DONE]
     Add the first shell/code actuator behind the Power Runtime: allowlisted
     dev commands only, scoped cwd containment, timeout, output cap, env scrub,
     command receipt, artifact hashes, kill switch, and FinalGate.
+
+37. EXTERNAL_API_READ_WRITE_ORGAN_V1 [NEXT]
+    Add the first external API actuator: GET/HEAD read-only by default,
+    mutation only under explicit authority, domain/method allowlists, rate
+    ledger, response quarantine, credential refs only, receipt, and FinalGate.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -293,7 +298,7 @@ POWER_ACTUATOR_FABRIC_WAVE_1_SPEC = implemented / locked
 Next pack:
 
 ```text
-SANDBOX_SHELL_CODE_ORGAN_V1
+EXTERNAL_API_READ_WRITE_ORGAN_V1
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser

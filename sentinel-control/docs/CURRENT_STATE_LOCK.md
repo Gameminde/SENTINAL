@@ -1,5 +1,56 @@
 # Current State Lock
 
+## Sandbox Shell Code Organ V1 - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the Sentinel Power Runtime V0 lock as the current
+top-level truth. Sentinel now has its first real shell/code actuator, but only
+inside an allowlisted sandbox contract. It does not create a generic host shell.
+
+```text
+current_phase = SANDBOX_SHELL_CODE_ORGAN_V1_LOCKED
+previous_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
+next_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1
+```
+
+### Sandbox Shell Code Truth
+
+```text
+ShellCodeSandboxRequest = CLOSED
+ShellCodeSandboxContract = CLOSED
+ShellCodeSandboxReceipt = CLOSED
+ShellCodeSandboxFinalGateCertificate = CLOSED
+ShellCodeSandboxOrganV1 = CLOSED
+PowerRuntime shell executor adapter = CLOSED
+allowed python -m pytest = CLOSED
+allowed python -m compileall = CLOSED
+allowed npm test = CLOSED
+allowed npm run build = CLOSED
+allowed node --version = CLOSED
+allowed python --version = CLOSED
+shell=True = FORBIDDEN
+unallowlisted commands = BLOCKED
+shell metacharacters = BLOCKED
+cwd escape = BLOCKED
+secret-like env/command = BLOCKED
+stdout/stderr persistence = hash + redacted excerpt only
+file diff receipt = CLOSED
+kill switch pre-execution block = CLOSED
+unrestricted host shell = NOT_STARTED
+credential use = NOT_STARTED
+API/channel/desktop/payment execution = NOT_STARTED
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Sandbox Shell Code Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/sandbox_shell_code_organ_v1.py
+sentinel-control/services/sentinel-core/tests/test_sandbox_shell_code_organ_v1.py
+sentinel-control/docs/reviews/SANDBOX_SHELL_CODE_ORGAN_V1_REPORT.md
+```
+
 ## Sentinel Power Runtime V0 - LOCKED
 
 Recorded at: 2026-06-05

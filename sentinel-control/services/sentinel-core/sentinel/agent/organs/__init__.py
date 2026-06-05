@@ -174,6 +174,17 @@ from sentinel.agent.organs.browser_js_sandbox_special_authority_l6 import (
     BrowserJSSandboxSafetyValidationResult,
     BrowserJSSandboxStatus,
 )
+from sentinel.agent.organs.sandbox_shell_code_organ_v1 import (
+    ShellCodeSandboxContract,
+    ShellCodeSandboxFinalGate,
+    ShellCodeSandboxFinalGateCertificate,
+    ShellCodeSandboxOrganV1,
+    ShellCodeSandboxReceipt,
+    ShellCodeSandboxRequest,
+    ShellCodeSandboxResult,
+    ShellCodeSandboxStatus,
+    build_shell_code_power_executor,
+)
 from sentinel.agent.organs.browser_devtools_backend_adapter_v1 import (
     BrowserDevToolsAdapter,
     BrowserDevToolsBackendPayload,
@@ -601,6 +612,15 @@ __all__ = [
     "BrowserJSSandboxResult",
     "BrowserJSSandboxSafetyValidationResult",
     "BrowserJSSandboxStatus",
+    "ShellCodeSandboxContract",
+    "ShellCodeSandboxFinalGate",
+    "ShellCodeSandboxFinalGateCertificate",
+    "ShellCodeSandboxOrganV1",
+    "ShellCodeSandboxReceipt",
+    "ShellCodeSandboxRequest",
+    "ShellCodeSandboxResult",
+    "ShellCodeSandboxStatus",
+    "build_shell_code_power_executor",
     "BrowserDevToolsAdapter",
     "BrowserDevToolsBackendPayload",
     "BrowserDevToolsCapability",

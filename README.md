@@ -56,9 +56,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
-previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_LOCKED
-next_phase = SANDBOX_SHELL_CODE_ORGAN_V1
+current_phase = SANDBOX_SHELL_CODE_ORGAN_V1_LOCKED
+previous_phase = SENTINEL_POWER_RUNTIME_V0_LOCKED
+next_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -118,6 +118,7 @@ Browser operating subsystem state reconciliation = CLOSED
 Browser operating subsystem hardened live backend = CLOSED / direct live backend paths
 Power Actuator Fabric Wave 1 spec = CLOSED / AgentLab-harvested execution spec
 Sentinel Power Runtime V0 = CLOSED / default-off injected actuator orchestration
+Sandbox Shell/Code Organ V1 = CLOSED / allowlisted dev commands only
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -139,7 +140,7 @@ AgentRuntime promotion for hardened DevTools/visual/replay/recovery backend path
 API mutation = NOT_STARTED
 Channel send = NOT_STARTED
 Desktop action = NOT_STARTED
-Shell/process execution = NOT_STARTED
+Unrestricted shell/process execution = NOT_STARTED
 Payment/spend/trading = NOT_STARTED
 Provider fallback or AUTO routing = NOT_APPROVED
 Durable memory/EventBus WAL = NOT_STARTED
@@ -154,7 +155,7 @@ Internal closed-loop runtime = real
 Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = brokered but not durably stored
-Next milestone = Sandbox Shell/Code Organ V1
+Next milestone = External API Read/Write Organ V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -207,6 +208,7 @@ sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_
 sentinel-control/docs/actuators/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC.md
 sentinel-control/docs/reviews/POWER_ACTUATOR_FABRIC_WAVE_1_SPEC_REPORT.md
 sentinel-control/docs/reviews/SENTINEL_POWER_RUNTIME_V0_REPORT.md
+sentinel-control/docs/reviews/SANDBOX_SHELL_CODE_ORGAN_V1_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -253,7 +255,8 @@ Recommended next build sequence:
 32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK - DONE
 33. POWER_ACTUATOR_FABRIC_WAVE_1_SPEC - DONE
 34. SENTINEL_POWER_RUNTIME_V0 - DONE
-35. SANDBOX_SHELL_CODE_ORGAN_V1 - NEXT
+35. SANDBOX_SHELL_CODE_ORGAN_V1 - DONE
+36. EXTERNAL_API_READ_WRITE_ORGAN_V1 - NEXT
 ```
 
 The doctrine:
