@@ -12,10 +12,10 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCKED
+current_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
 previous_runtime_phase = BROWSER_NEURAL_AUDIT_REMEDIATION_LOCKED
 previous_capability_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
-next_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK
+next_phase = BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK
 ```
 
 Strategic correction:
@@ -194,13 +194,20 @@ Revised browser organ roadmap:
     backend-thin, contract/test locked, docs-only, not started, or stale
     roadmap entry. Recommendation: GO for the hardened live-backend wave.
 
-32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK [NEXT]
+32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK [DONE]
     Wire backend-thin browser intelligence into hardened live backend paths:
     DevTools/CDP transport behind Sentinel backend contracts, real session graph
     for the orchestrator, live visual/network/console/performance evidence
     integration, replay continuity, and recovery loop integration. No generic
     credentials, payment/account execution, API/channel/shell/desktop, provider
     fallback/AUTO, or uncontrolled MCP/WebMCP.
+
+33. BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK [NEXT]
+    Promote the hardened live backend paths through explicit AgentRuntime and
+    OrganDispatcher opt-in: DevTools live metadata, native CDP hash-only
+    collection, visual grounding, replay timeline, and failure recovery requests.
+    Preserve default-off behavior, Gate, receipts, FinalGate, memory feedback,
+    replan-ready packets, and fail-closed backend absence.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -264,12 +271,13 @@ BROWSER_MULTI_AGENT_OPERATOR_SQUAD_LOCK = implemented / locked
 BROWSER_NEURAL_GAUNTLET_LOCK = implemented / locked
 BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK = implemented / locked
 BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK = implemented / locked
+BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK = implemented / locked
 ```
 
 Next pack:
 
 ```text
-BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK
+BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser
@@ -286,6 +294,10 @@ script/result receipts.
 CloakBrowser is the primary backend adapter for the session manager, while
 Playwright remains a deterministic compatibility backend for tests and local
 development.
+The hardened live backend lock added direct hash-only DevTools/CDP metadata,
+visual grounding, replay, orchestrator, and recovery bridges over governed live
+sessions. The next pack promotes those bridges into explicit AgentRuntime /
+OrganDispatcher opt-in paths.
 
 ## Objective
 

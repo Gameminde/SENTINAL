@@ -540,6 +540,114 @@ class BrowserSessionManagerL5Live:
         with session.lock:
             return self._snapshot(session.page, timeout_ms)
 
+    def devtools_metadata_for_session(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        capability: str,
+        timeout_ms: int = 15_000,
+    ) -> dict[str, Any] | None:
+        """Return hash-only DevTools metadata for a live governed session."""
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            return None
+        normalized_capability = capability.strip().lower()
+        with session.lock:
+            snapshot = self._snapshot(session.page, timeout_ms)
+            network_events = list(getattr(session.engine_session, "network_events", None) or [])
+            console_messages = list(getattr(session.engine_session, "console_messages", None) or [])
+            network_failure_count = sum(1 for event in network_events if event.get("error"))
+            console_error_count = sum(
+                1 for message in console_messages if str(message.get("type", "")).lower() in {"error", "warning"}
+            )
+            screenshot_hash = None
+            if normalized_capability == "take_screenshot":
+                screenshot_hash = hashlib.sha256(
+                    session.page.screenshot(type="png", full_page=True, timeout=timeout_ms)
+                ).hexdigest()
+            network_ledger_hash = None
+            if normalized_capability == "network_ledger":
+                network_ledger_hash = stable_hash(
+                    {
+                        "events": network_events,
+                        "event_count": len(network_events),
+                        "failure_count": network_failure_count,
+                        "source": "live_session",
+                    }
+                )
+            console_ledger_hash = None
+            if normalized_capability == "console_ledger":
+                console_ledger_hash = stable_hash(
+                    {
+                        "messages": console_messages,
+                        "message_count": len(console_messages),
+                        "error_count": console_error_count,
+                        "source": "live_session",
+                    }
+                )
+            performance_trace_hash = None
+            if normalized_capability in {"performance_trace", "lighthouse_audit"}:
+                performance_trace_hash = stable_hash(
+                    {
+                        "source": "live_session",
+                        "step_index": session.step_index,
+                        "network_event_count": len(network_events),
+                        "console_message_count": len(console_messages),
+                    }
+                )
+            try:
+                title_hash = stable_hash(session.page.title(timeout=timeout_ms))
+            except Exception:
+                title_hash = None
+            return {
+                "backend_kind": session.backend_kind,
+                "page_target_count": 1,
+                "snapshot_hash": snapshot.snapshot_sha256,
+                "screenshot_hash": screenshot_hash,
+                "network_ledger_hash": network_ledger_hash,
+                "console_ledger_hash": console_ledger_hash,
+                "performance_trace_hash": performance_trace_hash,
+                "safe_metadata": {
+                    "source_backend_kind": session.backend_kind,
+                    "session_ref": stable_hash(session.session_id),
+                    "url_hash": stable_hash(session.page.url),
+                    "title_hash": title_hash,
+                    "step_index": session.step_index,
+                    "network_event_count": len(network_events),
+                    "network_failure_count": network_failure_count,
+                    "console_message_count": len(console_messages),
+                    "console_error_count": console_error_count,
+                },
+            }
+
+    def visual_grounding_source_for_session(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        timeout_ms: int = 15_000,
+    ) -> dict[str, Any] | None:
+        """Capture transient screenshot bytes for a visual grounding request."""
+        with self._sessions_lock:
+            session = self._sessions.get(session_id)
+        if session is None or session.closed or session.mission_id != mission_id:
+            return None
+        with session.lock:
+            screenshot_bytes = session.page.screenshot(type="png", full_page=True, timeout=timeout_ms)
+            viewport = getattr(session.page, "viewport_size", None) or {}
+            return {
+                "screenshot_bytes": screenshot_bytes,
+                "screenshot_hash": hashlib.sha256(screenshot_bytes).hexdigest(),
+                "viewport": {
+                    "width": int(viewport.get("width", self.viewport_width)) if isinstance(viewport, dict) else self.viewport_width,
+                    "height": int(viewport.get("height", self.viewport_height)) if isinstance(viewport, dict) else self.viewport_height,
+                },
+                "session_ref": stable_hash(session.session_id),
+                "backend_kind": session.backend_kind,
+            }
+
     def sensitive_form_field_markers_for_session(
         self,
         *,

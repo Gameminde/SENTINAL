@@ -288,6 +288,33 @@ def render_browser_failure_recovery_receipt_as_untrusted_context(receipt: Browse
     return f"{BROWSER_FAILURE_RECOVERY_WARNING}\n{payload}"
 
 
+def browser_failure_recovery_request_from_live_devtools_metadata(
+    *,
+    mission: MissionAuthorityEnvelope,
+    url: str,
+    contract: BrowserFailureRecoveryContract,
+    evidence_bundle_hash: str,
+    devtools_metadata: dict[str, Any],
+) -> BrowserFailureRecoveryRequest:
+    """Build a recovery request from hash-only live browser DevTools metadata."""
+    safe_metadata = devtools_metadata.get("safe_metadata") if isinstance(devtools_metadata, dict) else None
+    if not isinstance(safe_metadata, dict):
+        safe_metadata = {}
+    signals = {
+        "source": "live_browser_session_devtools_metadata",
+        "metadata_hash": stable_hash(devtools_metadata),
+        "console_error_count": _safe_int(safe_metadata.get("console_error_count")),
+        "network_failure_count": _safe_int(safe_metadata.get("network_failure_count")),
+    }
+    return BrowserFailureRecoveryRequest(
+        mission=mission,
+        url=url,
+        contract=contract,
+        evidence_bundle_hash=evidence_bundle_hash,
+        failure_signals=signals,
+    )
+
+
 def _classify(signals: dict[str, Any]) -> list[BrowserFailureRecoveryKind]:
     kinds: list[BrowserFailureRecoveryKind] = []
     if signals.get("stale_ref"):
@@ -364,6 +391,13 @@ def _non_raw_signal_view(signals: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in signals.items() if key not in {"console_text", "network_body", "dom_text"}}
 
 
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _hostname(url: str) -> str:
     return (urlparse(url).hostname or "").lower()
 
@@ -384,5 +418,6 @@ __all__ = [
     "BrowserFailureRecoveryResult",
     "BrowserFailureRecoveryStatus",
     "BrowserFailureRecoveryStep",
+    "browser_failure_recovery_request_from_live_devtools_metadata",
     "render_browser_failure_recovery_receipt_as_untrusted_context",
 ]

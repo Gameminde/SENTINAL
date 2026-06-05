@@ -197,6 +197,124 @@ class BrowserDevToolsFakeBackend:
         )
 
 
+class BrowserSessionDevToolsBackend:
+    """DevTools metadata bridge over an existing governed L5 browser session."""
+
+    backend_kind = "browser_session_live"
+
+    def __init__(self, *, session_manager: Any, session_id: str | None, timeout_ms: int = 15_000) -> None:
+        self.session_manager = session_manager
+        self.session_id = session_id
+        self.timeout_ms = timeout_ms
+
+    def collect(self, request: BrowserDevToolsRequest) -> BrowserDevToolsBackendPayload:
+        if not self.session_id:
+            raise RuntimeError("browser_session_missing_or_closed")
+        metadata_for_session = getattr(self.session_manager, "devtools_metadata_for_session", None)
+        if not callable(metadata_for_session):
+            raise RuntimeError("browser_session_devtools_metadata_unavailable")
+        metadata = metadata_for_session(
+            mission_id=request.mission.id,
+            session_id=self.session_id,
+            capability=request.capability.value,
+            timeout_ms=self.timeout_ms,
+        )
+        if not isinstance(metadata, dict):
+            raise RuntimeError("browser_session_missing_or_closed")
+        safe_metadata = metadata.get("safe_metadata")
+        if not isinstance(safe_metadata, dict):
+            safe_metadata = {}
+        payload = {
+            "backend_kind": self.backend_kind,
+            "capability": request.capability.value,
+            "page_target_count": int(metadata.get("page_target_count") or 0),
+            "snapshot_hash": metadata.get("snapshot_hash"),
+            "screenshot_hash": metadata.get("screenshot_hash"),
+            "network_ledger_hash": metadata.get("network_ledger_hash"),
+            "console_ledger_hash": metadata.get("console_ledger_hash"),
+            "performance_trace_hash": metadata.get("performance_trace_hash"),
+            "safe_metadata": safe_metadata,
+        }
+        if scan_forbidden_payload_categorized(payload)["all"]:
+            raise RuntimeError("browser_session_devtools_metadata_unsafe")
+        return BrowserDevToolsBackendPayload(
+            backend_kind=self.backend_kind,
+            capability=request.capability,
+            output_hash=stable_hash(payload),
+            page_target_count=payload["page_target_count"],
+            snapshot_hash=payload["snapshot_hash"],
+            screenshot_hash=payload["screenshot_hash"],
+            network_ledger_hash=payload["network_ledger_hash"],
+            console_ledger_hash=payload["console_ledger_hash"],
+            performance_trace_hash=payload["performance_trace_hash"],
+            safe_metadata=safe_metadata,
+        )
+
+
+class BrowserNativeCdpBackend:
+    """Hash-only native CDP transport behind the Sentinel DevTools boundary."""
+
+    backend_kind = "native_cdp"
+
+    def __init__(self, *, cdp_session: Any, target_ref: str | None = None) -> None:
+        self.cdp_session = cdp_session
+        self.target_ref = target_ref
+
+    def collect(self, request: BrowserDevToolsRequest) -> BrowserDevToolsBackendPayload:
+        send = getattr(self.cdp_session, "send", None)
+        if not callable(send):
+            raise RuntimeError("native_cdp_session_unavailable")
+        command_plan = _cdp_command_plan(request.capability)
+        if not command_plan:
+            raise RuntimeError("native_cdp_capability_not_promoted")
+        command_summaries: list[dict[str, Any]] = []
+        page_target_count = 0
+        for command, params in command_plan:
+            response = send(command, params)
+            response_hash = stable_hash(response)
+            domain = command.split(".", 1)[0]
+            field_count = len(response) if isinstance(response, dict) else 0
+            if command == "Target.getTargets" and isinstance(response, dict):
+                target_infos = response.get("targetInfos")
+                page_target_count = len(target_infos) if isinstance(target_infos, list) else 0
+            command_summaries.append(
+                {
+                    "command": command,
+                    "domain": domain,
+                    "field_count": field_count,
+                    "response_hash": response_hash,
+                }
+            )
+        payload = {
+            "backend_kind": self.backend_kind,
+            "capability": request.capability.value,
+            "command_summaries": command_summaries,
+            "target_ref_hash": stable_hash(self.target_ref) if self.target_ref else None,
+        }
+        output_hash = stable_hash(payload)
+        safe_metadata = {
+            "command_count": len(command_summaries),
+            "domains": sorted({summary["domain"] for summary in command_summaries}),
+            "target_ref": stable_hash(self.target_ref) if self.target_ref else None,
+        }
+        if scan_forbidden_payload_categorized({"payload": payload, "safe_metadata": safe_metadata})["all"]:
+            raise RuntimeError("native_cdp_payload_unsafe")
+        return BrowserDevToolsBackendPayload(
+            backend_kind=self.backend_kind,
+            capability=request.capability,
+            output_hash=output_hash,
+            page_target_count=page_target_count,
+            snapshot_hash=output_hash if request.capability in {BrowserDevToolsCapability.LIST_PAGES, BrowserDevToolsCapability.TAKE_SNAPSHOT} else None,
+            screenshot_hash=output_hash if request.capability == BrowserDevToolsCapability.TAKE_SCREENSHOT else None,
+            network_ledger_hash=output_hash if request.capability == BrowserDevToolsCapability.NETWORK_LEDGER else None,
+            console_ledger_hash=output_hash if request.capability == BrowserDevToolsCapability.CONSOLE_LEDGER else None,
+            performance_trace_hash=output_hash
+            if request.capability in {BrowserDevToolsCapability.PERFORMANCE_TRACE, BrowserDevToolsCapability.LIGHTHOUSE_AUDIT}
+            else None,
+            safe_metadata=safe_metadata,
+        )
+
+
 class BrowserDevToolsReceipt(SentinelModel):
     receipt_id: str = Field(default_factory=lambda: new_id("bdtrec"))
     mission_id: str
@@ -246,6 +364,7 @@ class BrowserDevToolsResult(SentinelModel):
     reason: str
     mission_id: str
     receipt: BrowserDevToolsReceipt
+    backend_payload: BrowserDevToolsBackendPayload | None = None
     finalgate_certificate: BrowserDevToolsFinalGateCertificate | None = None
     authority_effect: str = "none"
     execution_effect: str = "none"
@@ -330,6 +449,7 @@ class BrowserDevToolsAdapter:
             reason="browser_devtools_metadata_collected" if certificate.certified else "browser_devtools_finalgate_rejected",
             mission_id=req.mission.id,
             receipt=receipt,
+            backend_payload=payload if certificate.certified else None,
             finalgate_certificate=certificate,
             execution_effect=receipt.execution_effect if certificate.certified else "none",
         )
@@ -396,6 +516,26 @@ def _safe_pages(pages: list[dict[str, str]]) -> list[dict[str, str]]:
     return safe
 
 
+def _cdp_command_plan(capability: BrowserDevToolsCapability) -> list[tuple[str, dict[str, Any]]]:
+    if capability == BrowserDevToolsCapability.CAPABILITY_PROBE:
+        return [("Browser.getVersion", {})]
+    if capability == BrowserDevToolsCapability.LIST_PAGES:
+        return [("Target.getTargets", {})]
+    if capability == BrowserDevToolsCapability.TAKE_SNAPSHOT:
+        return [("DOMSnapshot.captureSnapshot", {"computedStyles": []})]
+    if capability == BrowserDevToolsCapability.TAKE_SCREENSHOT:
+        return [("Page.captureScreenshot", {"format": "png", "fromSurface": True})]
+    if capability == BrowserDevToolsCapability.NETWORK_LEDGER:
+        return [("Network.enable", {})]
+    if capability == BrowserDevToolsCapability.CONSOLE_LEDGER:
+        return [("Runtime.enable", {}), ("Log.enable", {})]
+    if capability in {BrowserDevToolsCapability.PERFORMANCE_TRACE, BrowserDevToolsCapability.LIGHTHOUSE_AUDIT}:
+        return [("Performance.enable", {}), ("Performance.getMetrics", {})]
+    if capability == BrowserDevToolsCapability.HEAP_SUMMARY:
+        return [("Runtime.getHeapUsage", {})]
+    return []
+
+
 __all__ = [
     "BROWSER_DEVTOOLS_RECEIPT_WARNING",
     "BrowserDevToolsAdapter",
@@ -411,5 +551,7 @@ __all__ = [
     "BrowserDevToolsRequest",
     "BrowserDevToolsResult",
     "BrowserDevToolsStatus",
+    "BrowserNativeCdpBackend",
+    "BrowserSessionDevToolsBackend",
     "render_browser_devtools_receipt_as_untrusted_context",
 ]

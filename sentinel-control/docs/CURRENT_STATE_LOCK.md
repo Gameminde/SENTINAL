@@ -1,5 +1,54 @@
 # Current State Lock
 
+## Browser Operating Subsystem Hardened Live Backend - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the Browser Operating Subsystem State Reconciliation
+section as the current browser operating-subsystem truth. Sentinel now has
+direct governed live backend bridges for DevTools-style session metadata,
+native CDP hash-only collection, visual grounding from live screenshots,
+orchestrator-to-session actions, replay timeline conversion, and recovery
+requests from live browser metadata.
+
+```text
+current_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
+previous_phase = BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCKED
+next_phase = BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK
+recommendation = GO / scoped to explicit runtime opt-in promotion
+```
+
+### Hardened Live Backend Truth
+
+```text
+BrowserSessionDevToolsBackend = CLOSED
+BrowserNativeCdpBackend = CLOSED / hash-only limited CDP command plan
+Live browser network/console/performance metadata = CLOSED
+Visual grounding live screenshot request bridge = CLOSED
+Long mission orchestrator live L5 session backend = CLOSED
+Replay studio live result event bridge = CLOSED
+Failure recovery request from live DevTools metadata = CLOSED
+AgentRuntime promotion for new backend paths = NOT_STARTED
+Live MCP adapter = NOT_STARTED
+Raw CDP firehose / response body capture = NOT_STARTED
+Generic browser login/payment/API/channel/shell/desktop = NOT_STARTED
+Provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Hardened Live Backend Artifacts
+
+```text
+sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_devtools_backend_adapter_v1.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_session_manager_l5_live.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_multi_step_task_orchestrator_v1.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_observability_replay_studio_v1.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_visual_grounding_ocr_v1.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_failure_recovery_engine_v1.py
+sentinel-control/services/sentinel-core/sentinel/organs/browser/cloak_backend.py
+sentinel-control/services/sentinel-core/tests/test_browser_operating_subsystem_hardened_live_backend_lock.py
+```
+
 ## Browser Operating Subsystem State Reconciliation - LOCKED
 
 Recorded at: 2026-06-04

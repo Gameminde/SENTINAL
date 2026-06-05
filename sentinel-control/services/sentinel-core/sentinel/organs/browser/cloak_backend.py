@@ -17,6 +17,8 @@ class BrowserEngineSession:
     page: Any
     profile_dir: Path
     owner: Any | None = None
+    network_events: list[dict[str, Any]] | None = None
+    console_messages: list[dict[str, Any]] | None = None
 
     def close(self) -> None:
         try:
@@ -97,6 +99,9 @@ class CloakBrowserSessionBackend:
                 java_script_enabled=self.page_javascript_enabled,
             )
             page = context.new_page()
+            network_events: list[dict[str, Any]] = []
+            console_messages: list[dict[str, Any]] = []
+            _install_metadata_listeners(page, network_events, console_messages)
             _install_fixture_route(page, self.document_fixtures, url)
             _goto_document(page, url, timeout_ms)
             return BrowserEngineSession(
@@ -104,6 +109,8 @@ class CloakBrowserSessionBackend:
                 context=context,
                 page=page,
                 profile_dir=profile_dir,
+                network_events=network_events,
+                console_messages=console_messages,
             )
         except BrowserSessionEngineError:
             raise
@@ -154,6 +161,9 @@ class PlaywrightSessionBackend:
                 viewport={"width": viewport_width, "height": viewport_height},
             )
             page = context.new_page()
+            network_events: list[dict[str, Any]] = []
+            console_messages: list[dict[str, Any]] = []
+            _install_metadata_listeners(page, network_events, console_messages)
             _install_fixture_route(page, self.document_fixtures, url)
             _goto_document(page, url, timeout_ms)
             return BrowserEngineSession(
@@ -162,6 +172,8 @@ class PlaywrightSessionBackend:
                 page=page,
                 profile_dir=profile_dir,
                 owner=_PlaywrightOwner(browser=browser, playwright=playwright),
+                network_events=network_events,
+                console_messages=console_messages,
             )
         except BrowserSessionEngineError:
             raise
@@ -185,6 +197,59 @@ def _install_fixture_route(page: Any, document_fixtures: dict[str, str], initial
     if not document_fixtures:
         return
     page.route("**/*", lambda route, request: _route_request(route, request, initial_url, document_fixtures))
+
+
+def _install_metadata_listeners(
+    page: Any,
+    network_events: list[dict[str, Any]],
+    console_messages: list[dict[str, Any]],
+) -> None:
+    on = getattr(page, "on", None)
+    if not callable(on):
+        return
+
+    def _request_finished(request: Any) -> None:
+        try:
+            response = request.response()
+            network_events.append(
+                {
+                    "url_host": (urlparse(str(getattr(request, "url", ""))).hostname or "").lower(),
+                    "method": str(getattr(request, "method", "GET")).upper(),
+                    "resource_type": str(getattr(request, "resource_type", "")),
+                    "status": int(getattr(response, "status", 0) or 0) if response is not None else 0,
+                }
+            )
+        except Exception:
+            network_events.append({"status": 0, "error": "request_finished_metadata_failed"})
+
+    def _request_failed(request: Any) -> None:
+        try:
+            network_events.append(
+                {
+                    "url_host": (urlparse(str(getattr(request, "url", ""))).hostname or "").lower(),
+                    "method": str(getattr(request, "method", "GET")).upper(),
+                    "resource_type": str(getattr(request, "resource_type", "")),
+                    "status": 0,
+                    "error": "request_failed",
+                }
+            )
+        except Exception:
+            network_events.append({"status": 0, "error": "request_failed_metadata_failed"})
+
+    def _console(message: Any) -> None:
+        try:
+            console_messages.append(
+                {
+                    "type": str(getattr(message, "type", "")),
+                    "text_hash": _stable_text_hash(str(getattr(message, "text", ""))),
+                }
+            )
+        except Exception:
+            console_messages.append({"type": "unknown", "text_hash": _stable_text_hash("console_metadata_failed")})
+
+    on("requestfinished", _request_finished)
+    on("requestfailed", _request_failed)
+    on("console", _console)
 
 
 def _route_request(route: Any, route_request: Any, initial_url: str, document_fixtures: dict[str, str]) -> None:
@@ -223,3 +288,9 @@ def _same_origin(left: str, right: str) -> bool:
         (right_parsed.hostname or "").lower(),
         right_parsed.port,
     )
+
+
+def _stable_text_hash(value: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()

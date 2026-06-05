@@ -376,6 +376,46 @@ def render_browser_visual_grounding_receipt_as_untrusted_context(receipt: Browse
     return f"{BROWSER_VISUAL_GROUNDING_WARNING}\n{payload}"
 
 
+def browser_visual_grounding_request_from_live_session(
+    *,
+    session_manager: Any,
+    mission: MissionAuthorityEnvelope,
+    url: str,
+    session_id: str | None,
+    contract: BrowserVisualGroundingContract,
+    ocr_detections: list[dict[str, Any]] | None = None,
+    timeout_ms: int = 15_000,
+) -> BrowserVisualGroundingRequest:
+    if not session_id:
+        raise ValueError("browser_session_missing_or_closed")
+    source_for_session = getattr(session_manager, "visual_grounding_source_for_session", None)
+    if not callable(source_for_session):
+        raise ValueError("browser_visual_grounding_live_source_unavailable")
+    source = source_for_session(mission_id=mission.id, session_id=session_id, timeout_ms=timeout_ms)
+    if not isinstance(source, dict):
+        raise ValueError("browser_session_missing_or_closed")
+    screenshot_bytes = source.get("screenshot_bytes")
+    if not isinstance(screenshot_bytes, bytes):
+        raise ValueError("browser_visual_grounding_live_screenshot_missing")
+    screenshot_hash = str(source.get("screenshot_hash") or "")
+    if not screenshot_hash:
+        raise ValueError("browser_visual_grounding_live_screenshot_hash_missing")
+    return BrowserVisualGroundingRequest(
+        mission=mission,
+        url=url,
+        contract=contract,
+        screenshot_hash=screenshot_hash,
+        screenshot_bytes=screenshot_bytes,
+        viewport=source.get("viewport") if isinstance(source.get("viewport"), dict) else {},
+        ocr_detections=list(ocr_detections or []),
+        control_metadata={
+            "source": "live_browser_session",
+            "session_ref": source.get("session_ref"),
+            "backend_kind": source.get("backend_kind"),
+        },
+    )
+
+
 def _validate_grounding_request(request: BrowserVisualGroundingRequest) -> str | None:
     if request.contract.require_screenshot_hash and not request.screenshot_hash:
         return "visual_grounding_screenshot_hash_required"
@@ -441,5 +481,6 @@ __all__ = [
     "BrowserVisualGroundingResult",
     "BrowserVisualGroundingStatus",
     "BrowserVisualGroundingTarget",
+    "browser_visual_grounding_request_from_live_session",
     "render_browser_visual_grounding_receipt_as_untrusted_context",
 ]

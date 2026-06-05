@@ -45,6 +45,7 @@ branch = main
 latest_browser_power_commit = 7e50f98 runtime: add browser js sandbox special authority l6
 latest_browser_runtime_hardening_commit = e59b78a runtime: harden browser failure and concurrency paths
 latest_browser_neural_audit_remediation_commit = 292bf1e runtime: remediate browser neural audit findings
+latest_browser_operating_subsystem_hardening = pending local commit: runtime: harden browser operating subsystem live backend
 browser_quarantine_commit = 62db3ef runtime: add browser download upload quarantine l6
 browser_login_commit = 5e337b5 runtime: add browser login credential session broker l6
 browser_submit_commit = ce05852 runtime: add browser form submit special authority l6
@@ -55,10 +56,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCKED
+current_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCKED
 previous_runtime_phase = BROWSER_NEURAL_AUDIT_REMEDIATION_LOCKED
 previous_capability_phase = BROWSER_NEURAL_GAUNTLET_LOCKED
-next_phase = BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK
+next_phase = BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -114,6 +115,8 @@ Browser neural memory feedback context = CLOSED
 Durable local browser neural receipt ledger foundation = CLOSED
 Browser neural multi-agent operator squad = CLOSED / cognitive role views only
 Browser neural gauntlet = CLOSED
+Browser operating subsystem state reconciliation = CLOSED
+Browser operating subsystem hardened live backend = CLOSED / direct live backend paths
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -131,6 +134,7 @@ Generic browser submit/login/upload/download/private session = NOT_STARTED
 Durable credential storage = NOT_STARTED
 Raw credential persistence = NOT_STARTED
 Generic arbitrary browser JavaScript = NOT_STARTED
+AgentRuntime promotion for hardened DevTools/visual/replay/recovery backend paths = NOT_STARTED
 API mutation = NOT_STARTED
 Channel send = NOT_STARTED
 Desktop action = NOT_STARTED
@@ -149,7 +153,7 @@ Internal closed-loop runtime = real
 Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = brokered but not durably stored
-Next milestone = Browser Operating Subsystem hardened live backend
+Next milestone = Browser Operating Subsystem live backend runtime promotion
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -198,6 +202,7 @@ sentinel-control/docs/reviews/BROWSER_NEURAL_GAUNTLET_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_NEURAL_OPERATOR_CORTEX_FINAL_AUDIT_REPORT.md
 sentinel-control/docs/reviews/BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK_REPORT.md
 sentinel-control/docs/organs/BROWSER_DEVTOOLS_MCP_HARVEST_MATRIX.md
 sentinel-control/docs/reviews/COGNITION_MEMORY_SCANNER_CONSOLIDATION_LOCK_REPORT.md
 sentinel-control/docs/reviews/TEST_SUITE_TRUTH_REPAIR_LOCK_REPORT.md
@@ -241,7 +246,8 @@ Recommended next build sequence:
 29. BROWSER_NEURAL_GAUNTLET_LOCK - DONE
 30. BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK - DONE
 31. BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK - DONE
-32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK - NEXT
+32. BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK - DONE
+33. BROWSER_OPERATING_SUBSYSTEM_LIVE_BACKEND_RUNTIME_PROMOTION_LOCK - NEXT
 ```
 
 The doctrine:

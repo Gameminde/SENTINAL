@@ -522,6 +522,88 @@ def _hostname(url: str) -> str:
     return (urlparse(url).hostname or "").lower()
 
 
+def browser_live_results_to_replay_events(
+    *,
+    url: str,
+    session_result: Any | None = None,
+    orchestrator_result: Any | None = None,
+    start_sequence: int = 1,
+) -> list[dict[str, Any]]:
+    """Convert live browser results into hash-only replay events."""
+    events: list[dict[str, Any]] = []
+    sequence = start_sequence
+    for result in (session_result, orchestrator_result):
+        if result is None:
+            continue
+        receipt = getattr(result, "receipt", None)
+        certificate = getattr(result, "finalgate_certificate", None)
+        if receipt is not None:
+            action_kind = _string_or_none(getattr(receipt, "action_kind", None))
+            if action_kind:
+                events.append(
+                    {
+                        "sequence": sequence,
+                        "kind": BrowserReplayEventKind.ACTION.value,
+                        "url": url,
+                        "action_kind": action_kind,
+                        "receipt_id": getattr(receipt, "receipt_id", None),
+                        "evidence_hash": _receipt_evidence_hash(receipt),
+                    }
+                )
+                sequence += 1
+            events.append(
+                {
+                    "sequence": sequence,
+                    "kind": BrowserReplayEventKind.RECEIPT.value,
+                    "url": url,
+                    "receipt_id": getattr(receipt, "receipt_id", None),
+                    "receipt_hash": stable_hash(receipt.model_dump(mode="json") if hasattr(receipt, "model_dump") else str(receipt)),
+                    "action_kind": action_kind,
+                    "status": _value(getattr(receipt, "status", None)),
+                    "evidence_hash": _receipt_evidence_hash(receipt),
+                }
+            )
+            sequence += 1
+        if certificate is not None:
+            events.append(
+                {
+                    "sequence": sequence,
+                    "kind": BrowserReplayEventKind.FINALGATE.value,
+                    "url": url,
+                    "certificate_id": getattr(certificate, "certificate_id", None),
+                    "receipt_id": getattr(certificate, "receipt_id", None),
+                    "certificate_hash": stable_hash(certificate.model_dump(mode="json") if hasattr(certificate, "model_dump") else str(certificate)),
+                    "decision": _value(getattr(certificate, "decision", None)),
+                    "certified": bool(getattr(certificate, "certified", False)),
+                }
+            )
+            sequence += 1
+    return events
+
+
+def _receipt_evidence_hash(receipt: Any) -> str | None:
+    for attr in (
+        "after_snapshot_hash",
+        "before_snapshot_hash",
+        "timeline_hash",
+        "plan_hash",
+        "verification_hash",
+        "evidence_bundle_hash",
+        "output_hash",
+        "snapshot_hash",
+    ):
+        value = getattr(receipt, attr, None)
+        if value:
+            return str(value)
+    return stable_hash(receipt.model_dump(mode="json") if hasattr(receipt, "model_dump") else str(receipt))
+
+
+def _value(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value.value if hasattr(value, "value") else value)
+
+
 __all__ = [
     "BROWSER_REPLAY_STUDIO_WARNING",
     "BrowserReplayEventKind",
@@ -536,5 +618,6 @@ __all__ = [
     "BrowserReplayStudioStatus",
     "BrowserReplayTimeline",
     "BrowserReplayTimelineItem",
+    "browser_live_results_to_replay_events",
     "render_browser_replay_studio_receipt_as_untrusted_context",
 ]

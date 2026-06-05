@@ -170,6 +170,75 @@ class BrowserOrchestratorFakeActionBackend:
         )
 
 
+class BrowserSessionOrchestratorActionBackend:
+    """Execute orchestrator steps through the governed L5 session manager."""
+
+    def __init__(
+        self,
+        *,
+        session_manager: Any,
+        mission: MissionAuthorityEnvelope,
+        url: str,
+        session_id: str | None,
+        session_contract: Any,
+        text_by_hash: dict[str, str] | None = None,
+        timeout_ms: int = 15_000,
+    ) -> None:
+        self.session_manager = session_manager
+        self.mission = mission
+        self.url = url
+        self.session_id = session_id
+        self.session_contract = session_contract
+        self.text_by_hash = dict(text_by_hash or {})
+        self.timeout_ms = timeout_ms
+        self.action_attempts = 0
+        self.last_session_result: Any | None = None
+
+    def execute_step(self, step: BrowserOrchestratorPlanStep) -> BrowserOrchestratorBackendActionResult:
+        self.action_attempts += 1
+        action_kind = _session_action_kind(step.action_kind)
+        if action_kind is None:
+            return BrowserOrchestratorBackendActionResult(
+                accepted=False,
+                reason="browser_orchestrator_action_not_promoted_to_session_backend",
+            )
+        if action_kind in {"type", "fill", "wait_for_text"}:
+            text = self.text_by_hash.get(step.text_hash or "")
+            if not text:
+                return BrowserOrchestratorBackendActionResult(accepted=False, reason="browser_orchestrator_text_not_bound")
+        else:
+            text = None
+        if not self.session_id:
+            return BrowserOrchestratorBackendActionResult(accepted=False, reason="browser_session_missing_or_closed")
+        try:
+            from sentinel.agent.organs.browser_session_manager_l5_live import BrowserSessionRequest
+
+            session_result = self.session_manager.interact(
+                BrowserSessionRequest(
+                    mission=self.mission,
+                    url=self.url,
+                    contract=self.session_contract,
+                    session_id=self.session_id,
+                    action_kind=action_kind,
+                    target_role=step.target_role,
+                    text=text,
+                    timeout_ms=self.timeout_ms,
+                )
+            )
+        except Exception as exc:
+            return BrowserOrchestratorBackendActionResult(
+                accepted=False,
+                reason=f"browser_session_orchestrator_backend_failed:{type(exc).__name__}",
+            )
+        self.last_session_result = session_result
+        receipt = getattr(session_result, "receipt", None)
+        return BrowserOrchestratorBackendActionResult(
+            accepted=bool(getattr(session_result, "accepted", False)),
+            reason=str(getattr(session_result, "reason", "browser_session_orchestrator_backend_result")),
+            after_evidence_hash=getattr(receipt, "after_snapshot_hash", None) or getattr(receipt, "before_snapshot_hash", None),
+        )
+
+
 class BrowserOrchestratorReceipt(SentinelModel):
     receipt_id: str = Field(default_factory=lambda: new_id("borchrec"))
     mission_id: str
@@ -465,6 +534,16 @@ def _hostname(url: str) -> str:
     return (urlparse(url).hostname or "").lower()
 
 
+def _session_action_kind(action_kind: BrowserOrchestratorActionKind) -> str | None:
+    if action_kind is BrowserOrchestratorActionKind.TYPE:
+        return "type"
+    if action_kind is BrowserOrchestratorActionKind.CLICK:
+        return "click"
+    if action_kind is BrowserOrchestratorActionKind.WAIT_FOR_TEXT:
+        return "wait_for_text"
+    return None
+
+
 __all__ = [
     "BROWSER_ORCHESTRATOR_RECEIPT_WARNING",
     "BrowserMultiStepTaskOrchestratorV1",
@@ -483,5 +562,6 @@ __all__ = [
     "BrowserOrchestratorRequest",
     "BrowserOrchestratorResult",
     "BrowserOrchestratorStatus",
+    "BrowserSessionOrchestratorActionBackend",
     "render_browser_orchestrator_receipt_as_untrusted_context",
 ]
