@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1_LOCKED
-previous_phase = SANDBOX_SHELL_CODE_ORGAN_V1_LOCKED
-next_phase = CHANNEL_DRAFT_SEND_ORGAN_V1
+current_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
+previous_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1_LOCKED
+next_phase = POWER_FABRIC_ORCHESTRATION_DEMO
 ```
 
 Strategic correction:
@@ -229,10 +229,15 @@ Revised browser organ roadmap:
     mutation only under explicit authority, domain/method allowlists, rate
     ledger, response quarantine, credential refs only, receipt, and FinalGate.
 
-38. CHANNEL_DRAFT_SEND_ORGAN_V1 [NEXT]
+38. CHANNEL_DRAFT_SEND_ORGAN_V1 [DONE]
     Add the first channel actuator with draft-only by default and send only
     with explicit recipient policy, authority, compliance guard, rate limit,
     receipt, and FinalGate.
+
+39. POWER_FABRIC_ORCHESTRATION_DEMO [NEXT]
+    Demonstrate the PowerRuntime coordinating browser/API/shell/workspace/
+    channel-style steps with receipts, FinalGate refs, memory refs, and a
+    timeline. Use fakes where needed; do not add new ambient authority.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -303,7 +308,7 @@ POWER_ACTUATOR_FABRIC_WAVE_1_SPEC = implemented / locked
 Next pack:
 
 ```text
-CHANNEL_DRAFT_SEND_ORGAN_V1
+POWER_FABRIC_ORCHESTRATION_DEMO
 ```
 
 Sentinel now has a first live browser operator shell, a persistent browser

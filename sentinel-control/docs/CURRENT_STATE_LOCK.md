@@ -1,5 +1,52 @@
 # Current State Lock
 
+## Channel Draft Send Organ V1 - LOCKED
+
+Recorded at: 2026-06-05
+
+This section supersedes the External API Read Write Organ V1 lock as the
+current top-level truth. Sentinel now has a governed channel actuator with a
+draft/send split. It does not add a real SMTP/Gmail/Slack/Discord connector.
+
+```text
+current_phase = CHANNEL_DRAFT_SEND_ORGAN_V1_LOCKED
+previous_phase = EXTERNAL_API_READ_WRITE_ORGAN_V1_LOCKED
+next_phase = POWER_FABRIC_ORCHESTRATION_DEMO
+```
+
+### Channel Truth
+
+```text
+ChannelDraftSendRequest = CLOSED
+ChannelDraftSendContract = CLOSED
+ChannelDraftSendReceipt = CLOSED
+ChannelDraftSendFinalGateCertificate = CLOSED
+ChannelDraftSendOrganV1 = CLOSED
+ChannelRateLimitLedger = CLOSED
+PowerRuntime channel executor adapter = CLOSED
+draft-only default = CLOSED
+send authority required = CLOSED
+recipient provenance required = CLOSED
+compliance guard = CLOSED
+rate limit = CLOSED
+injected sender only = CLOSED
+recipient durability = hash-only
+body durability = hash-only
+unapproved channel send = BLOCKED
+real provider connector = NOT_STARTED
+credential use = NOT_STARTED
+payment/API/shell/desktop bridge = NOT_STARTED
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Channel Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/channel_draft_send_organ_v1.py
+sentinel-control/services/sentinel-core/tests/test_channel_draft_send_organ_v1.py
+sentinel-control/docs/reviews/CHANNEL_DRAFT_SEND_ORGAN_V1_REPORT.md
+```
+
 ## External API Read Write Organ V1 - LOCKED
 
 Recorded at: 2026-06-05
