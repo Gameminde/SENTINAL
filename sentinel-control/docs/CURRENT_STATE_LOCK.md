@@ -1,5 +1,52 @@
 # Current State Lock
 
+## Competitive Gap Delta Lock - LOCKED
+
+Recorded at: 2026-06-06
+
+This section supersedes the Power Actuator Fabric Wave 1 lock as the current
+top-level truth. It adds no runtime power. It updates the company-level audit
+after Wave 1 and changes the primary measurement from safety-only to product
+power under provable authority.
+
+```text
+current_phase = COMPETITIVE_GAP_DELTA_LOCKED
+previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
+next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+recommendation = GO / scoped to operator shell and mission daemon
+```
+
+### Competitive Gap Delta Truth
+
+```text
+baseline_audit = SENTINEL_EXHAUSTIVE_COMPANY_LEVEL_AUDIT.md
+updated_audit = sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_COMPANY_LEVEL_AUDIT_UPDATED_AFTER_WAVE_1.md
+delta_report = sentinel-control/docs/reviews/COMPETITIVE_GAP_DELTA_LOCK_REPORT.md
+measurement_doctrine = product power under provable authority
+Power Actuator Fabric Wave 1 = LOCKED
+Sandbox Shell/Code Organ V1 = PARTIALLY_PRODUCTIZED / allowlisted only
+External API Read/Write Organ V1 = PARTIALLY_PRODUCTIZED / scoped only
+Channel Draft/Send Organ V1 = PARTIALLY_PRODUCTIZED / no real connector
+mission daemon/operator shell = NOT_STARTED / next
+persistent semantic memory = STILL_VALID_P1
+real channel adapters = STILL_VALID_P1
+hardware-aware local/cost routing = STILL_VALID_P1
+skill fabric = STILL_VALID_P1
+desktop sidecar = STILL_VALID_P2
+durable credential vault = STILL_VALID_P1
+provider fallback/AUTO routing = NOT_APPROVED
+```
+
+### Competitive Gap Delta Artifacts
+
+```text
+sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_COMPANY_LEVEL_AUDIT_UPDATED_AFTER_WAVE_1.md
+sentinel-control/docs/reviews/COMPETITIVE_GAP_DELTA_LOCK_REPORT.md
+README.md
+sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md
+sentinel-control/docs/roadmaps/SENTINEL_POWER_KERNEL_AND_ACTUATOR_FABRIC_ROADMAP.md
+```
+
 ## Power Actuator Fabric Wave 1 - LOCKED
 
 Recorded at: 2026-06-05

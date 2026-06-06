@@ -12,9 +12,17 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+current_phase = COMPETITIVE_GAP_DELTA_LOCKED
+previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
 next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+```
+
+Competitive/product-power correction:
+
+```text
+COMPETITIVE_GAP_DELTA_LOCK = DONE
+updated_audit = sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_COMPANY_LEVEL_AUDIT_UPDATED_AFTER_WAVE_1.md
+measurement_doctrine = product power under provable authority
 ```
 
 Strategic correction:
@@ -245,7 +253,13 @@ Revised browser organ roadmap:
     channel/browser leakage, provider fallback/AUTO, and docs overclaim before
     moving to the daemon/operator shell layer.
 
-41. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 [NEXT]
+41. COMPETITIVE_GAP_DELTA_LOCK [DONE]
+    Update the company-level audit after Power Actuator Fabric Wave 1. Reclassify
+    audit findings as already fixed, partially fixed, still valid P1/P2, stale,
+    or requiring external verification. This is docs-only and sets product
+    power under provable authority as the reference measure.
+
+42. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 [NEXT]
     Make Sentinel runnable as a small local operating shell: mission intake,
     local run directory, daemon loop skeleton, operator chat surface, status
     stream, and PowerRuntime invocation. No new dangerous actuator family.

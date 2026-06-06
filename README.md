@@ -26,7 +26,7 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-06-04
+## Current Snapshot - 2026-06-06
 
 Sentinel is no longer just a controlled-agent design document. It now has a
 default-off power kernel with a Brain -> Gate -> Organ -> Receipt -> FinalGate
@@ -56,8 +56,8 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+current_phase = COMPETITIVE_GAP_DELTA_LOCKED
+previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
 next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
@@ -123,6 +123,7 @@ External API Read/Write Organ V1 = CLOSED / domain-method scoped, mutation autho
 Channel Draft/Send Organ V1 = CLOSED / draft-only default, send requires explicit authority
 Power Fabric Orchestration Demo = CLOSED / fixture-backed browser/API plus shell/workspace/channel draft steps under PowerRuntime
 Power Actuator Fabric Wave 1 self-audit/remediation = CLOSED
+Competitive Gap Delta Lock = CLOSED / updated company-level audit after Wave 1
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -159,8 +160,16 @@ Internal closed-loop runtime = real
 Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
-Next milestone = Power Actuator Fabric Wave 1 self-audit/remediation
+Product-visible power = improving, but still below the control plane
+Next milestone = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
 North star = many controlled agents operating many real-world organs
+```
+
+Measurement doctrine:
+
+```text
+Stop measuring Sentinel only by safety.
+Measure Sentinel by product power under provable authority.
 ```
 
 Live browser commands already exposed:
@@ -178,6 +187,8 @@ Start here for the current truth:
 
 ```text
 sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_COMPANY_LEVEL_AUDIT_UPDATED_AFTER_WAVE_1.md
+sentinel-control/docs/reviews/COMPETITIVE_GAP_DELTA_LOCK_REPORT.md
 sentinel-control/docs/reviews/CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK_REPORT.md
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_BACKEND_ADAPTER_FOUNDATION_V1_REPORT.md
 sentinel-control/docs/reviews/BROWSER_DEVTOOLS_MACHINE_INTELLIGENCE_V1_REPORT.md
@@ -268,7 +279,8 @@ Recommended next build sequence:
 37. CHANNEL_DRAFT_SEND_ORGAN_V1 - DONE
 38. POWER_FABRIC_ORCHESTRATION_DEMO - DONE
 39. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION - DONE
-40. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 - NEXT
+40. COMPETITIVE_GAP_DELTA_LOCK - DONE
+41. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 - NEXT
 ```
 
 The doctrine:

@@ -5,12 +5,20 @@ Date: 2026-05-26
 Status: canonical strategic roadmap for moving Sentinel from controlled internal
 runtime to real-world controlled automation.
 
-## Current Execution Truth - 2026-06-05
+## Current Execution Truth - 2026-06-06
 
 ```text
-current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
+current_phase = COMPETITIVE_GAP_DELTA_LOCKED
+previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
 next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+```
+
+The company-level audit has been updated after Wave 1:
+
+```text
+updated_audit = sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_COMPANY_LEVEL_AUDIT_UPDATED_AFTER_WAVE_1.md
+delta_report = sentinel-control/docs/reviews/COMPETITIVE_GAP_DELTA_LOCK_REPORT.md
+measurement_doctrine = product power under provable authority
 ```
 
 Wave 1 is no longer a browser-only continuation. Browser is now one actuator
@@ -130,6 +138,7 @@ CHANNEL_DRAFT_SEND_ORGAN_V1 = CLOSED
 POWER_FABRIC_ORCHESTRATION_DEMO = CLOSED
 POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION = CLOSED
 POWER_ACTUATOR_FABRIC_WAVE_1 = LOCKED
+COMPETITIVE_GAP_DELTA_LOCK = CLOSED
 MISSION_DAEMON_AND_OPERATOR_SHELL_V0 = NEXT
 ```
 
