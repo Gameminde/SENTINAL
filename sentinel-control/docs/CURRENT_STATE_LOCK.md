@@ -1,5 +1,66 @@
 # Current State Lock
 
+## Sentinel LLM Live Operator Cockpit And Mission Kernel V0 - LOCKED
+
+Recorded at: 2026-06-06
+
+This section supersedes the Competitive Gap Delta Lock as the current
+top-level truth. It turns the old "mission daemon/operator shell" direction
+into the product-correct implementation: an LLM-backed live cockpit over an
+internal mission kernel. The user talks naturally. The LLM proposes structured
+operator artifacts. Sentinel validates, stores, queues, governs, executes
+through existing runtimes, records receipts/FinalGate/memory refs, and replays
+the timeline without re-executing actions.
+
+```text
+current_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+previous_phase = COMPETITIVE_GAP_DELTA_LOCKED
+next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+measurement_doctrine = product power under provable authority
+```
+
+### LLM Live Operator Truth
+
+```text
+LLM live operator cockpit = CLOSED
+Explicit UserModelContract required for LLM mode = CLOSED
+Deterministic test mode = CLOSED / non-product
+Operator prompt frame = CLOSED
+Structured LLM output validator = CLOSED
+LLM conversation adapter = CLOSED / explicit contract and injected client path
+Mission kernel/store/queue = CLOSED
+Conversation-to-mission flow = CLOSED
+Pause/resume/kill from conversation = CLOSED
+Timeline/replay from conversation = CLOSED
+PowerRuntime invocation from conversational mission = CLOSED
+AgentRuntime bridge = CLOSED / default-off controlled bridge only
+Product gauntlet = CLOSED
+Raw prompt persistence = BLOCKED
+Raw provider response persistence = BLOCKED
+Raw reasoning persistence = BLOCKED
+Provider fallback/AUTO routing = NOT_APPROVED
+Web dashboard = NOT_STARTED
+Voice runtime = NOT_STARTED
+Persistent semantic memory retrieval = NOT_STARTED / next
+Real channel adapters = NOT_STARTED
+Durable credential vault = NOT_STARTED
+Production daemon service = NOT_STARTED
+```
+
+### LLM Live Operator Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/
+sentinel-control/services/sentinel-core/sentinel/cli.py
+sentinel-control/services/sentinel-core/tests/test_llm_live_operator_*_v0.py
+sentinel-control/services/sentinel-core/tests/test_operator_deterministic_test_mode_v0.py
+sentinel-control/docs/operator/SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_SPEC.md
+sentinel-control/docs/operator/LLM_LIVE_OPERATOR_COCKPIT_QUICKSTART.md
+sentinel-control/docs/reviews/SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_SPEC_REPORT.md
+sentinel-control/examples/missions/llm_live_cockpit_business_demo.mission.json
+sentinel-control/examples/transcripts/llm_live_operator_business_launch_transcript.md
+```
+
 ## Competitive Gap Delta Lock - LOCKED
 
 Recorded at: 2026-06-06
@@ -12,7 +73,8 @@ power under provable authority.
 ```text
 current_phase = COMPETITIVE_GAP_DELTA_LOCKED
 previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+historical_next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+superseded_by = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
 recommendation = GO / scoped to operator shell and mission daemon
 ```
 
@@ -27,7 +89,7 @@ Power Actuator Fabric Wave 1 = LOCKED
 Sandbox Shell/Code Organ V1 = PARTIALLY_PRODUCTIZED / allowlisted only
 External API Read/Write Organ V1 = PARTIALLY_PRODUCTIZED / scoped only
 Channel Draft/Send Organ V1 = PARTIALLY_PRODUCTIZED / no real connector
-mission daemon/operator shell = NOT_STARTED / next
+mission daemon/operator shell = SUPERSEDED_BY_LLM_LIVE_COCKPIT / internal mission kernel closed
 persistent semantic memory = STILL_VALID_P1
 real channel adapters = STILL_VALID_P1
 hardware-aware local/cost routing = STILL_VALID_P1
@@ -59,7 +121,8 @@ channel draft/send organ, orchestration demo, and self-audit remediation.
 ```text
 current_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
 previous_phase = POWER_FABRIC_ORCHESTRATION_DEMO_LOCKED
-next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+historical_next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+superseded_by = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
 ```
 
 ### Wave 1 Truth

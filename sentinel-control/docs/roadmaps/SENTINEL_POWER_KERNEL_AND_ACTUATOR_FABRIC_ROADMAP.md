@@ -10,7 +10,8 @@ runtime to real-world controlled automation.
 ```text
 current_phase = COMPETITIVE_GAP_DELTA_LOCKED
 previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+active_implementation_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
 ```
 
 The company-level audit has been updated after Wave 1:
@@ -113,19 +114,23 @@ Already real:
 - PowerRuntime orchestration demo coordinating browser/API/shell/workspace/
   channel-style steps with receipt refs, FinalGate refs, memory refs, and a
   verified timeline.
+- LLM live operator cockpit with explicit UserModelContract product mode,
+  deterministic test mode, structured output validation, internal mission
+  kernel, pause/resume/kill, timeline, replay, PowerRuntime bridge, and
+  default-off AgentRuntime bridge.
 
 Still not enough for real-world power:
 
-- no multi-agent mission society orchestrator;
+- no production multi-agent mission society orchestrator;
 - no durable account/session credential vault;
-- no shell/code/app-builder sandbox;
 - no real credential storage/resolution;
-- no controlled channel send;
-- no controlled API mutation;
+- no real channel connector;
+- no unbounded API mutation;
 - no desktop/vision/OCR sidecar;
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
-- no continuous mission loop.
+- no production daemon service;
+- no persistent semantic memory retrieval.
 
 Wave 1 current completion:
 
@@ -139,7 +144,8 @@ POWER_FABRIC_ORCHESTRATION_DEMO = CLOSED
 POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION = CLOSED
 POWER_ACTUATOR_FABRIC_WAVE_1 = LOCKED
 COMPETITIVE_GAP_DELTA_LOCK = CLOSED
-MISSION_DAEMON_AND_OPERATOR_SHELL_V0 = NEXT
+SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 = CLOSED
+PERSISTENT_SEMANTIC_MEMORY_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -663,14 +669,14 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+PERSISTENT_SEMANTIC_MEMORY_V1
 ```
 
 Reason:
 
 ```text
-Sentinel now has a locked Wave 1 actuator fabric. The next step is not another
-raw actuator; it is making the system runnable as a small operator shell with
-mission intake, status, run directories, and PowerRuntime invocation while
-keeping all dangerous powers scoped to the existing contracts.
+Sentinel now has a locked Wave 1 actuator fabric and an LLM-backed live
+operator cockpit. The next step is durable semantic recall: receipt-linked
+mission memory, user preferences, entities, decisions, and evidence retrieval
+for the cockpit, while memory remains context and never authority.
 ```

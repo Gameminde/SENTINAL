@@ -31,7 +31,9 @@ If you are continuing development, start here. This README explains what the pro
 Sentinel is no longer just a controlled-agent design document. It now has a
 default-off power kernel with a Brain -> Gate -> Organ -> Receipt -> FinalGate
 loop, a live browser operator surface, and a growing browser special-authority
-stack.
+stack. It also now has the first LLM-backed live operator cockpit and internal
+mission kernel, so the primary product surface is conversation -> mission draft
+-> authority summary -> governed runtime, not mission-file administration.
 
 The project direction is maximum power under explicit authority: many agents,
 many organs, real browser control, real local execution, future shell/API/
@@ -46,6 +48,7 @@ latest_browser_power_commit = 7e50f98 runtime: add browser js sandbox special au
 latest_browser_runtime_hardening_commit = e59b78a runtime: harden browser failure and concurrency paths
 latest_browser_neural_audit_remediation_commit = 292bf1e runtime: remediate browser neural audit findings
 latest_browser_operating_subsystem_hardening_commit = 26025a7 runtime: add browser operating subsystem hardened live backend
+latest_llm_live_operator_cockpit_cli_commit = 8975ba7 runtime: add llm live operator cockpit cli
 browser_quarantine_commit = 62db3ef runtime: add browser download upload quarantine l6
 browser_login_commit = 5e337b5 runtime: add browser login credential session broker l6
 browser_submit_commit = ce05852 runtime: add browser form submit special authority l6
@@ -58,7 +61,8 @@ Current state lock:
 ```text
 current_phase = COMPETITIVE_GAP_DELTA_LOCKED
 previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+active_implementation_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -124,6 +128,16 @@ Channel Draft/Send Organ V1 = CLOSED / draft-only default, send requires explici
 Power Fabric Orchestration Demo = CLOSED / fixture-backed browser/API plus shell/workspace/channel draft steps under PowerRuntime
 Power Actuator Fabric Wave 1 self-audit/remediation = CLOSED
 Competitive Gap Delta Lock = CLOSED / updated company-level audit after Wave 1
+LLM live operator cockpit = CLOSED / explicit UserModelContract product mode
+Deterministic operator test mode = CLOSED / non-product smoke mode only
+LLM operator prompt frame and structured output validator = CLOSED
+Internal mission kernel/store/queue = CLOSED
+Conversation-to-mission flow = CLOSED
+Pause/resume/kill from conversation = CLOSED
+Timeline/replay from conversation = CLOSED
+PowerRuntime invocation from conversational mission = CLOSED
+AgentRuntime bridge = CLOSED / default-off controlled bridge only
+Product cockpit gauntlet = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
 Replan-ready packet = CLOSED
@@ -150,6 +164,12 @@ Payment/spend/trading = NOT_STARTED
 Provider fallback or AUTO routing = NOT_APPROVED
 Durable memory/EventBus WAL = NOT_STARTED
 Automatic replan execution = NOT_STARTED
+Web dashboard = NOT_STARTED
+Voice runtime = NOT_STARTED
+Persistent semantic memory retrieval = NOT_STARTED / next
+Real Telegram/Slack/Gmail connectors = NOT_STARTED
+Production daemon service = NOT_STARTED
+Raw prompt/provider response/reasoning persistence = BLOCKED
 ```
 
 The honest power score right now:
@@ -161,7 +181,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+Next milestone = PERSISTENT_SEMANTIC_MEMORY_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -182,6 +202,19 @@ python -m sentinel browser-trajectory-demo --mission <file.json> --url <https-ur
 python -m sentinel browser-submit-demo --mission <file.json> --url <https-url> --run-root <dir> --input-name Email --text <value> --submit-name Send
 python -m sentinel browser-login-demo --mission <file.json> --url <https-url> --run-root <dir> --username-ref <ref> --password-ref <ref> --username-env <ENV> --password-env <ENV> --username-name Email --password-name Password --submit-name "Sign in"
 ```
+
+Live operator cockpit:
+
+```text
+python -m sentinel cockpit --run-root <dir> --model-contract <UserModelContract.json>
+python -m sentinel chat --run-root <dir> --model-contract <UserModelContract.json>
+
+# Test/smoke only, not product LLM mode:
+python -m sentinel cockpit --run-root <dir> --deterministic-test-mode
+```
+
+The LLM thinks and speaks. Sentinel governs and executes. Receipts prove.
+FinalGate certifies. Memory remains context.
 
 Start here for the current truth:
 
@@ -280,7 +313,8 @@ Recommended next build sequence:
 38. POWER_FABRIC_ORCHESTRATION_DEMO - DONE
 39. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION - DONE
 40. COMPETITIVE_GAP_DELTA_LOCK - DONE
-41. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 - NEXT
+41. SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 - DONE
+42. PERSISTENT_SEMANTIC_MEMORY_V1 - NEXT
 ```
 
 The doctrine:

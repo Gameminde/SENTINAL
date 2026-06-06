@@ -14,7 +14,8 @@ Current truth:
 ```text
 current_phase = COMPETITIVE_GAP_DELTA_LOCKED
 previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-next_phase = MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+active_implementation_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
 ```
 
 Competitive/product-power correction:
@@ -259,10 +260,18 @@ Revised browser organ roadmap:
     or requiring external verification. This is docs-only and sets product
     power under provable authority as the reference measure.
 
-42. MISSION_DAEMON_AND_OPERATOR_SHELL_V0 [NEXT]
-    Make Sentinel runnable as a small local operating shell: mission intake,
-    local run directory, daemon loop skeleton, operator chat surface, status
-    stream, and PowerRuntime invocation. No new dangerous actuator family.
+42. SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 [DONE]
+    Replace the old mission-daemon/operator-shell product target with the real
+    product surface: LLM-backed conversation -> MissionDraft -> authority
+    summary -> explicit confirmation -> MissionKernel -> PowerRuntime/
+    AgentRuntime bridge -> receipts/FinalGate/memory refs -> timeline/replay.
+    Deterministic mode exists only for tests; LLM mode requires an explicit
+    UserModelContract and does not fallback/AUTO route.
+
+43. PERSISTENT_SEMANTIC_MEMORY_V1 [NEXT]
+    Add durable semantic recall linked to receipts and mission timelines so the
+    live cockpit can remember prior missions, user preferences, entities,
+    decisions, and evidence without turning memory into authority.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -328,6 +337,7 @@ BROWSER_NEURAL_AUDIT_REMEDIATION_LOCK = implemented / locked
 BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK = implemented / locked
 BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK = implemented / locked
 POWER_ACTUATOR_FABRIC_WAVE_1_SPEC = implemented / locked
+SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 = implemented / locked
 ```
 
 Next pack:
@@ -355,7 +365,9 @@ visual grounding, replay, orchestrator, and recovery bridges over governed live
 sessions. The Power Actuator Fabric Wave 1 spec now treats browser as one
 actuator family alongside shell sandbox, code execution, external API, channel,
 workspace, and credential refs. PowerRuntime V0 and the first Wave 1 actuators
-are now implemented; the next pack audits/remediates the integrated fabric.
+are implemented. The LLM live operator cockpit now makes that kernel usable
+through a conversational product surface with an internal mission kernel,
+timeline, replay, and controlled runtime bridges.
 
 ## Objective
 
@@ -1138,15 +1150,16 @@ Most dangerous future organ:
 
 Highest-value next implementation:
 
-- `MISSION_DAEMON_AND_OPERATOR_SHELL_V0`, because browser, shell sandbox,
-  external API, channel, workspace, and the PowerRuntime now have a first
-  locked Wave 1 fabric. The next value is making Sentinel runnable as an
-  operating shell without adding a new dangerous actuator family.
+- `PERSISTENT_SEMANTIC_MEMORY_V1`, because browser, shell sandbox, external
+  API, channel, workspace, PowerRuntime, and the LLM live cockpit now have a
+  first locked product-power spine. The next value is durable recall linked to
+  mission evidence, receipts, and user preferences without turning memory into
+  authority.
 
 Recommended next pack:
 
 ```text
-MISSION_DAEMON_AND_OPERATOR_SHELL_V0
+PERSISTENT_SEMANTIC_MEMORY_V1
 ```
 
 Parallel hardening recommendation:
