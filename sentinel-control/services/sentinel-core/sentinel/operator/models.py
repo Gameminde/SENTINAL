@@ -350,7 +350,11 @@ class OperatorTurnResult(SentinelModel):
             ],
             "authority_summary": self.authority_summary.model_dump(mode="json") if self.authority_summary else None,
             "start_proposal": self.start_proposal.model_dump(mode="json") if self.start_proposal else None,
-            "mission_record": self.mission_record,
+            "mission_record": (
+                self.mission_record.safe_model_dump()
+                if hasattr(self.mission_record, "safe_model_dump")
+                else self.mission_record
+            ),
             "metadata": self.metadata,
             "data_not_authority": self.data_not_authority,
             "authority_effect": self.authority_effect,

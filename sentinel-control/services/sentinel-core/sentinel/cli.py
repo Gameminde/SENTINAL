@@ -38,6 +38,10 @@ from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
     BrowserLoginCredentialSessionRequest,
     EphemeralBrowserCredentialProvider,
 )
+from sentinel.agent.model_contract import UserModelContract
+from sentinel.operator.cockpit import LLMLiveOperatorCockpit
+from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
+from sentinel.operator.replay import MissionReplayBuilder
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
 from sentinel.power_lab import PowerLabMissionRejected, load_power_lab_mission_file, run_power_lab_mission
@@ -67,6 +71,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicitly enable memory feedback when organ dispatch is enabled.",
     )
     run_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
+
+    for cockpit_command in ("cockpit", "chat"):
+        cockpit_parser = subparsers.add_parser(
+            cockpit_command,
+            help="Start the LLM live operator cockpit. Alias: chat.",
+        )
+        cockpit_parser.add_argument("--run-root", required=True, help="Directory where local cockpit mission state is written.")
+        cockpit_parser.add_argument(
+            "--model-contract",
+            default=None,
+            help="Explicit UserModelContract JSON for product LLM mode. Required unless deterministic test mode is set.",
+        )
+        cockpit_parser.add_argument(
+            "--deterministic-test-mode",
+            action="store_true",
+            help="Use deterministic offline test mode; not a product LLM mode.",
+        )
+        cockpit_parser.add_argument("--once", default=None, help="Process one user message and exit.")
+        cockpit_parser.add_argument("--script", default=None, help="Read newline-delimited user messages from a text file.")
+        cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
     _add_browser_arguments(observe_parser, action=False)
@@ -176,6 +200,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         return 0
 
+    if args.command in {"cockpit", "chat"}:
+        return _run_cockpit_command(args)
+
     if args.command in {"browser-observe", "browser-act"}:
         try:
             result, run_dir = _run_browser_command(args)
@@ -273,6 +300,109 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser.print_help()
     return 2
+
+
+def _run_cockpit_command(args: argparse.Namespace) -> int:
+    if not args.deterministic_test_mode and args.model_contract is None:
+        print("sentinel cockpit: --model-contract is required for llm_operator_mode", file=sys.stderr)
+        return 2
+
+    mode = OperatorMode.DETERMINISTIC_TEST if args.deterministic_test_mode else OperatorMode.LLM_OPERATOR
+    user_model_contract = _load_user_model_contract(Path(args.model_contract)) if args.model_contract else None
+    cockpit = LLMLiveOperatorCockpit(
+        run_root=Path(args.run_root),
+        mode=mode,
+        user_model_contract=user_model_contract,
+    )
+    turns: list[dict[str, object]] = []
+
+    if args.once is None and args.script is None and not args.json:
+        print("Sentinel: Bonjour, je suis la. Qu'est-ce que tu veux faire ?")
+
+    for line in _cockpit_input_lines(args):
+        normalized = line.strip().lower()
+        if not normalized:
+            continue
+        if normalized in {"/exit", "exit", "quit"}:
+            break
+        if normalized in {"/timeline", "timeline", "show timeline", "montre la timeline"}:
+            turn = _cockpit_timeline_turn(cockpit)
+        elif normalized in {"/replay", "replay", "what happened?", "qu'est-ce qui s'est passe ?"}:
+            turn = _cockpit_replay_turn(cockpit)
+        else:
+            turn = cockpit.handle(line)
+        safe_turn = turn.safe_model_dump()
+        turns.append(safe_turn)
+        if not args.json:
+            print(f"Sentinel: {safe_turn['reply']}")
+
+    if args.json:
+        print(json.dumps(turns, sort_keys=True, default=str))
+    return 0
+
+
+def _cockpit_input_lines(args: argparse.Namespace):
+    if args.once is not None:
+        yield args.once
+        return
+    if args.script is not None:
+        yield from Path(args.script).read_text(encoding="utf-8").splitlines()
+        return
+    while True:  # pragma: no cover - interactive loop is covered through --once/--script.
+        try:
+            yield input("> ")
+        except EOFError:
+            return
+
+
+def _cockpit_timeline_turn(cockpit: LLMLiveOperatorCockpit) -> OperatorTurnResult:
+    mission_id = cockpit.active_mission_id
+    if mission_id is None:
+        return OperatorTurnResult(
+            session_id=cockpit.session.session_id,
+            state=cockpit.session.state,
+            reply="Aucune mission active pour la timeline.",
+        )
+    events = cockpit.kernel.store.load_events(mission_id)
+    lines = [f"{event.sequence}:{event.event_type}:{event.safe_summary}" for event in events]
+    return OperatorTurnResult(
+        session_id=cockpit.session.session_id,
+        state=cockpit.session.state,
+        reply="\n".join(lines) if lines else "Timeline vide.",
+        mission_record=cockpit.kernel.store.load_record(mission_id),
+        metadata={"timeline": [event.model_dump(mode="json") for event in events]},
+    )
+
+
+def _cockpit_replay_turn(cockpit: LLMLiveOperatorCockpit) -> OperatorTurnResult:
+    mission_id = cockpit.active_mission_id
+    if mission_id is None:
+        return OperatorTurnResult(
+            session_id=cockpit.session.session_id,
+            state=cockpit.session.state,
+            reply="Aucune mission active a rejouer.",
+        )
+    replay = MissionReplayBuilder(cockpit.kernel.store).build(mission_id)
+    summary = replay.safe_summary_text()
+    return OperatorTurnResult(
+        session_id=cockpit.session.session_id,
+        state=OperatorConversationState.MISSION_RUNNING,
+        reply=f"Replay\n{summary}\n{replay.terminal_explanation}",
+        mission_record=cockpit.kernel.store.load_record(mission_id),
+        metadata={
+            "replay_summary": {
+                "tampered": replay.tampered,
+                "evidence_only": True,
+                "receipt_ref_count": len(replay.receipt_refs),
+                "finalgate_ref_count": len(replay.finalgate_certificate_refs),
+                "memory_ref_count": len(replay.memory_feedback_refs),
+            }
+        },
+    )
+
+
+def _load_user_model_contract(path: Path) -> UserModelContract:
+    return UserModelContract.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
 def _add_browser_arguments(parser: argparse.ArgumentParser, *, action: bool) -> None:
