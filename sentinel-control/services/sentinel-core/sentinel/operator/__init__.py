@@ -8,6 +8,9 @@ from sentinel.operator.models import (
     OperatorMessage,
     OperatorMessageRole,
     OperatorMode,
+    OperatorConversationSession,
+    OperatorConversationState,
+    OperatorTurnResult,
 )
 
 __all__ = [
@@ -20,4 +23,7 @@ __all__ = [
     "OperatorMessage",
     "OperatorMessageRole",
     "OperatorMode",
+    "OperatorConversationSession",
+    "OperatorConversationState",
+    "OperatorTurnResult",
 ]

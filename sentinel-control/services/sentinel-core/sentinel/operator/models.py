@@ -284,3 +284,76 @@ class OperatorLLMDecisionResult(SentinelModel):
             "can_grant_authority": self.can_grant_authority,
             "can_execute": self.can_execute,
         }
+
+
+class OperatorConversationSession(SentinelModel):
+    session_id: str = Field(default_factory=lambda: new_id("opsession"))
+    mode: OperatorMode
+    state: OperatorConversationState = OperatorConversationState.IDLE
+    current_draft: MissionDraft | None = None
+    current_authority_summary: MissionAuthoritySummary | None = None
+    active_mission_id: str | None = None
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _session_is_state_only(self) -> OperatorConversationSession:
+        assert_data_not_authority(
+            context="operator_conversation_session",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+
+class OperatorTurnResult(SentinelModel):
+    session_id: str
+    state: OperatorConversationState
+    reply: str
+    intent: OperatorIntent | None = None
+    mission_draft: MissionDraft | None = None
+    clarification_questions: list[MissionClarificationQuestion] = Field(default_factory=list)
+    authority_summary: MissionAuthoritySummary | None = None
+    start_proposal: MissionStartProposal | None = None
+    mission_record: Any | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _turn_result_is_data(self) -> OperatorTurnResult:
+        assert_data_not_authority(
+            context="operator_turn_result",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        reject_operator_control_payload(self.metadata, context="operator_turn_result")
+        return self
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "session_id": self.session_id,
+            "state": self.state.value,
+            "reply": redact_operator_text(self.reply),
+            "intent": self.intent.model_dump(mode="json") if self.intent else None,
+            "mission_draft": self.mission_draft.model_dump(mode="json") if self.mission_draft else None,
+            "clarification_questions": [
+                question.model_dump(mode="json") for question in self.clarification_questions
+            ],
+            "authority_summary": self.authority_summary.model_dump(mode="json") if self.authority_summary else None,
+            "start_proposal": self.start_proposal.model_dump(mode="json") if self.start_proposal else None,
+            "mission_record": self.mission_record,
+            "metadata": self.metadata,
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
