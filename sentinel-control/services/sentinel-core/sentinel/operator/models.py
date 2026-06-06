@@ -357,3 +357,87 @@ class OperatorTurnResult(SentinelModel):
             "can_grant_authority": self.can_grant_authority,
             "can_execute": self.can_execute,
         }
+
+
+class MissionRecord(SentinelModel):
+    mission_id: str = Field(default_factory=lambda: new_id("mission"))
+    session_id: str
+    draft: MissionDraft
+    authority_summary: MissionAuthoritySummary | None = None
+    status: OperatorMissionStatus = OperatorMissionStatus.DRAFT
+    run_dir: str
+    receipt_refs: list[str] = Field(default_factory=list)
+    finalgate_certificate_refs: list[str] = Field(default_factory=list)
+    memory_feedback_refs: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _record_is_kernel_state_only(self) -> MissionRecord:
+        assert_data_not_authority(
+            context="mission_record",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        draft = self.draft.model_dump(mode="json")
+        draft["title"] = redact_operator_text(str(draft.get("title", "")))
+        draft["objective"] = redact_operator_text(str(draft.get("objective", "")))
+        draft["constraints"] = [redact_operator_text(str(item)) for item in draft.get("constraints", [])]
+        authority = self.authority_summary.model_dump(mode="json") if self.authority_summary else None
+        return {
+            "mission_id": self.mission_id,
+            "session_id": self.session_id,
+            "draft": draft,
+            "authority_summary": authority,
+            "status": self.status.value,
+            "run_dir": self.run_dir,
+            "receipt_refs": self.receipt_refs,
+            "finalgate_certificate_refs": self.finalgate_certificate_refs,
+            "memory_feedback_refs": self.memory_feedback_refs,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+
+class MissionEvent(SentinelModel):
+    event_id: str = Field(default_factory=lambda: new_id("mission_event"))
+    mission_id: str
+    sequence: int = Field(ge=0)
+    event_type: str
+    safe_summary: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    receipt_refs: list[str] = Field(default_factory=list)
+    finalgate_certificate_refs: list[str] = Field(default_factory=list)
+    memory_feedback_refs: list[str] = Field(default_factory=list)
+    previous_hash: str | None = None
+    event_hash: str
+    created_at: datetime = Field(default_factory=utc_now)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _event_is_kernel_data(self) -> MissionEvent:
+        assert_data_not_authority(
+            context="mission_event",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        reject_operator_control_payload(self.metadata, context="mission_event")
+        return self
