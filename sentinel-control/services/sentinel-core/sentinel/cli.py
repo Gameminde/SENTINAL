@@ -40,6 +40,7 @@ from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
 )
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
+from sentinel.operator.model_client import OperatorCatalogModelClient
 from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
 from sentinel.operator.replay import MissionReplayBuilder
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
@@ -309,10 +310,16 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
 
     mode = OperatorMode.DETERMINISTIC_TEST if args.deterministic_test_mode else OperatorMode.LLM_OPERATOR
     user_model_contract = _load_user_model_contract(Path(args.model_contract)) if args.model_contract else None
+    model_client = (
+        OperatorCatalogModelClient(user_model_contract=user_model_contract)
+        if user_model_contract is not None and mode is OperatorMode.LLM_OPERATOR
+        else None
+    )
     cockpit = LLMLiveOperatorCockpit(
         run_root=Path(args.run_root),
         mode=mode,
         user_model_contract=user_model_contract,
+        model_client=model_client,
     )
     turns: list[dict[str, object]] = []
 
@@ -325,7 +332,11 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             continue
         if normalized in {"/exit", "exit", "quit"}:
             break
-        if normalized in {"/timeline", "timeline", "show timeline", "montre la timeline"}:
+        if normalized in {"/help", "help"}:
+            turn = _cockpit_help_turn(cockpit)
+        elif normalized in {"/missions", "missions"}:
+            turn = _cockpit_missions_turn(cockpit)
+        elif normalized in {"/timeline", "timeline", "show timeline", "montre la timeline"}:
             turn = _cockpit_timeline_turn(cockpit)
         elif normalized in {"/replay", "replay", "what happened?", "qu'est-ce qui s'est passe ?"}:
             turn = _cockpit_replay_turn(cockpit)
@@ -339,6 +350,33 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(turns, sort_keys=True, default=str))
     return 0
+
+
+def _cockpit_help_turn(cockpit: LLMLiveOperatorCockpit) -> OperatorTurnResult:
+    return OperatorTurnResult(
+        session_id=cockpit.session.session_id,
+        state=cockpit.session.state,
+        reply=(
+            "Commands: /status, /timeline, /replay, /pause, /resume, "
+            "/kill, /missions, /exit. Natural language mission requests are "
+            "converted into drafts before Sentinel can start governed work."
+        ),
+    )
+
+
+def _cockpit_missions_turn(cockpit: LLMLiveOperatorCockpit) -> OperatorTurnResult:
+    records = cockpit.kernel.list_missions()
+    if not records:
+        reply = "Missions: none."
+    else:
+        lines = [f"{record.mission_id}: {record.status.value}: {record.draft.title}" for record in records]
+        reply = "Missions\n" + "\n".join(lines)
+    return OperatorTurnResult(
+        session_id=cockpit.session.session_id,
+        state=cockpit.session.state,
+        reply=reply,
+        metadata={"mission_count": len(records)},
+    )
 
 
 def _cockpit_input_lines(args: argparse.Namespace):

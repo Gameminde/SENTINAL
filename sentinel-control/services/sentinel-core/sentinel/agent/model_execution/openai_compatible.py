@@ -87,15 +87,18 @@ class OpenAICompatibleChatProvider(RealModelProvider):
                 ModelExecutionOutcomeClass.DISABLED_BACKEND,
                 diagnostic={"rejected_reason": "unsupported_model"},
             )
-        api_key = os.environ.get(self.credential_env or "")
-        if not api_key:
-            return self._error_response(request, ModelExecutionOutcomeClass.MISSING_CREDENTIAL)
+        headers = {"Content-Type": "application/json"}
+        if self.credential_env:
+            api_key = os.environ.get(self.credential_env)
+            if not api_key:
+                return self._error_response(request, ModelExecutionOutcomeClass.MISSING_CREDENTIAL)
+            headers["Authorization"] = f"Bearer {api_key}"
 
         try:
             with httpx.Client(timeout=_httpx_timeout(timeout)) as client:
                 response = client.post(
                     f"{self.base_url}/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    headers=headers,
                     json=self._request_body(request),
                 )
                 response.raise_for_status()
