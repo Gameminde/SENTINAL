@@ -1,0 +1,24 @@
+{
+  "kind": "power_runtime_demo_seed",
+  "version": 1,
+  "title": "Power fabric demo seed",
+  "description": "A safe example seed for the operator PowerRuntime bridge.",
+  "plan_shape": {
+    "mission_id": "<created by MissionKernel>",
+    "steps": [
+      {
+        "step_id": "write_report",
+        "actuator_family": "workspace",
+        "capability_level": "L3",
+        "organ_kind": "reversible_workspace",
+        "action_kind": "write"
+      }
+    ]
+  },
+  "boundaries": [
+    "No new actuator family",
+    "No direct organ calls from cockpit",
+    "Injected executor required",
+    "Receipts, FinalGate refs, and memory refs are persisted when returned by PowerRuntime"
+  ]
+}

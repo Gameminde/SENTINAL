@@ -1,0 +1,30 @@
+{
+  "kind": "operator_conversation_seed",
+  "version": 1,
+  "title": "LLM live cockpit business launch demo",
+  "primary_surface": "python -m sentinel cockpit",
+  "user_utterances": [
+    "Sentinel t'es la ?",
+    "Je veux lancer un business de formation IA.",
+    "Marche cible: freelancers and small agencies. Budget: 500 euros. Autonomie: recherche, analyse, rapport, drafts. Pas de paiement ni envoi reel sans confirmation.",
+    "Oui commence",
+    "Qu'est-ce que tu fais ?",
+    "Montre la timeline.",
+    "Replay."
+  ],
+  "authority_boundaries": {
+    "allowed": [
+      "research",
+      "draft",
+      "create_report"
+    ],
+    "forbidden": [
+      "payment",
+      "real_channel_send",
+      "generic_login",
+      "credential_unlock",
+      "provider_override"
+    ]
+  },
+  "notes": "This file is a safe conversation seed, not a direct executable mission authority envelope."
+}
