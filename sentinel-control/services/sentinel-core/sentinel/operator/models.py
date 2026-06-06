@@ -260,3 +260,27 @@ class OperatorLLMDecisionResult(SentinelModel):
         )
         reject_operator_control_payload(self.metadata, context="operator_llm_decision_result")
         return self
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "result_id": self.result_id,
+            "mode": self.mode.value,
+            "reply": redact_operator_text(self.reply),
+            "intent": self.intent.model_dump(mode="json") if self.intent else None,
+            "mission_draft": self.mission_draft.model_dump(mode="json") if self.mission_draft else None,
+            "clarification_questions": [
+                question.model_dump(mode="json") for question in self.clarification_questions
+            ],
+            "authority_summary": self.authority_summary.model_dump(mode="json") if self.authority_summary else None,
+            "start_proposal": self.start_proposal.model_dump(mode="json") if self.start_proposal else None,
+            "metadata": self.metadata,
+            "provider_id": self.provider_id,
+            "backend_id": self.backend_id,
+            "model_id": self.model_id,
+            "provider_response_hash": self.provider_response_hash,
+            "reasoning_hash": self.reasoning_hash,
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
