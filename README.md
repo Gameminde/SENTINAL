@@ -34,6 +34,9 @@ loop, a live browser operator surface, and a growing browser special-authority
 stack. It also now has the first LLM-backed live operator cockpit and internal
 mission kernel, so the primary product surface is conversation -> mission draft
 -> authority summary -> governed runtime, not mission-file administration.
+That cockpit has now been externally audited and hardened for LLM authority
+boundaries, terminal mission lifecycle, timeline tamper visibility, and
+local/Ollama endpoint safety before persistent memory is attached.
 
 The project direction is maximum power under explicit authority: many agents,
 many organs, real browser control, real local execution, future shell/API/
@@ -49,6 +52,7 @@ latest_browser_runtime_hardening_commit = e59b78a runtime: harden browser failur
 latest_browser_neural_audit_remediation_commit = 292bf1e runtime: remediate browser neural audit findings
 latest_browser_operating_subsystem_hardening_commit = 26025a7 runtime: add browser operating subsystem hardened live backend
 latest_llm_live_operator_cockpit_commit = 714d1aa runtime: remediate llm live operator cockpit audit findings
+latest_llm_live_operator_external_audit = sentinel-control/docs/reviews/LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCK_REPORT.md
 browser_quarantine_commit = 62db3ef runtime: add browser download upload quarantine l6
 browser_login_commit = 5e337b5 runtime: add browser login credential session broker l6
 browser_submit_commit = ce05852 runtime: add browser form submit special authority l6
@@ -59,9 +63,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = COMPETITIVE_GAP_DELTA_LOCKED
-previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-active_implementation_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+current_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+previous_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+active_implementation_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
 next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6

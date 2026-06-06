@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.operator.conversation import OperatorConversationEngine
-from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
 from sentinel.operator.models import (
     OperatorConversationSession,
     OperatorConversationState,
@@ -93,17 +93,23 @@ class LLMLiveOperatorCockpit:
         if mission_id is None:
             return self._needs_mission_selection()
         if command == "pause":
-            record = self.kernel.pause(mission_id)
+            target = self.kernel.pause
             state = OperatorConversationState.MISSION_PAUSED
             reply = "Mission paused."
         elif command == "resume":
-            record = self.kernel.resume(mission_id)
+            target = self.kernel.resume
             state = OperatorConversationState.MISSION_QUEUED
             reply = "Mission resumed."
         else:
-            record = self.kernel.kill(mission_id)
+            target = self.kernel.kill
             state = OperatorConversationState.MISSION_KILLED
             reply = "Mission killed."
+        try:
+            record = target(mission_id)
+        except MissionLifecycleError as exc:
+            record = self.kernel.store.load_record(mission_id)
+            state = _state_for_record_status(record.status, fallback=self.session.state)
+            reply = f"Mission cannot change state: {exc}"
         self.session.state = state
         return OperatorTurnResult(session_id=self.session.session_id, state=state, reply=reply, mission_record=record)
 
@@ -134,3 +140,25 @@ class LLMLiveOperatorCockpit:
             reply="Which mission should I use? Multiple active missions need disambiguation.",
             intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="mission disambiguation"),
         )
+
+
+def _state_for_record_status(
+    status: OperatorMissionStatus,
+    *,
+    fallback: OperatorConversationState,
+) -> OperatorConversationState:
+    if status is OperatorMissionStatus.KILLED:
+        return OperatorConversationState.MISSION_KILLED
+    if status is OperatorMissionStatus.PAUSED:
+        return OperatorConversationState.MISSION_PAUSED
+    if status is OperatorMissionStatus.COMPLETED:
+        return OperatorConversationState.MISSION_COMPLETED
+    if status is OperatorMissionStatus.FAILED:
+        return OperatorConversationState.MISSION_FAILED
+    if status is OperatorMissionStatus.BLOCKED:
+        return OperatorConversationState.MISSION_BLOCKED
+    if status is OperatorMissionStatus.QUEUED:
+        return OperatorConversationState.MISSION_QUEUED
+    if status is OperatorMissionStatus.RUNNING:
+        return OperatorConversationState.MISSION_RUNNING
+    return fallback

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import ipaddress
 from typing import Any
+from urllib.parse import urlparse
 
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution.catalog import ProviderCatalog, ProviderFamily
@@ -43,6 +45,8 @@ class OperatorCatalogModelClient:
         backend = next((candidate for candidate in entry.backends if candidate.backend_id == request.backend_id), None)
         if backend is None or not backend.supports_model(request.model_id):
             return _blocked("DISABLED_BACKEND")
+        if _is_local_backend(entry, backend) and not _is_loopback_endpoint(backend.endpoint_template):
+            return _blocked("LOCAL_ENDPOINT_NOT_LOOPBACK")
         if backend.family not in {
             ProviderFamily.OPENAI_COMPATIBLE_CHAT,
             ProviderFamily.LOCAL_OPENAI_COMPATIBLE,
@@ -99,6 +103,30 @@ def _base_url_from_endpoint(endpoint: str) -> str:
     if normalized.endswith(suffix):
         return normalized[: -len(suffix)]
     return normalized
+
+
+def _is_local_backend(entry: Any, backend: Any) -> bool:
+    return (
+        backend.family is ProviderFamily.LOCAL_OPENAI_COMPATIBLE
+        or bool(getattr(entry.capability_flags, "local_runtime", False))
+        or entry.credential_policy.credential_source_type == "local_none"
+    )
+
+
+def _is_loopback_endpoint(endpoint: str) -> bool:
+    parsed = urlparse(endpoint)
+    if parsed.scheme not in {"http", "https"}:
+        return False
+    host = parsed.hostname
+    if host is None:
+        return False
+    normalized = host.lower().strip("[]")
+    if normalized == "localhost" or normalized.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
 
 
 def _blocked(reason: str, *, provider_response_hash: str | None = None) -> dict[str, Any]:

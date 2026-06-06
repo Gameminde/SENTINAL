@@ -6,6 +6,7 @@ from sentinel.operator.models import OperatorMissionStatus
 from sentinel.power.runtime import (
     PowerActuatorExecutor,
     PowerMissionPlan,
+    PowerMissionTimeline,
     PowerRuntimeConfig,
     PowerRuntimeResult,
     PowerRuntimeStatus,
@@ -28,6 +29,9 @@ class OperatorPowerRuntimeBridge:
     ) -> PowerRuntimeResult:
         if plan.mission_id != mission_id:
             raise ValueError("power plan mission_id must match operator mission_id")
+        terminal_reason = self._kernel.terminal_block_reason(mission_id)
+        if terminal_reason is not None:
+            return self._blocked_terminal_result(mission_id, terminal_reason)
         result = self._runtime.run(
             plan,
             config=PowerRuntimeConfig(enabled=True),
@@ -46,6 +50,27 @@ class OperatorPowerRuntimeBridge:
             metadata={"power_runtime_status": result.status.value},
         )
         return result
+
+    def _blocked_terminal_result(self, mission_id: str, terminal_reason: str) -> PowerRuntimeResult:
+        reason = "operator_mission_terminal"
+        timeline = PowerMissionTimeline(mission_id=mission_id)
+        timeline.record(
+            "runtime_blocked",
+            "Operator mission is terminal; PowerRuntime was not invoked.",
+            blocked_reason=reason,
+        )
+        self._kernel.store.append_event(
+            mission_id,
+            event_type="power_runtime_blocked",
+            safe_summary="PowerRuntime blocked because operator mission is terminal.",
+            metadata={"drop_reason": "mission_closed", "mission_state": terminal_reason.rsplit(":", 1)[-1]},
+        )
+        return PowerRuntimeResult(
+            mission_id=mission_id,
+            status=PowerRuntimeStatus.BLOCKED,
+            timeline=timeline,
+            blocked_reason=reason,
+        )
 
 
 def _operator_status(status: PowerRuntimeStatus) -> OperatorMissionStatus:

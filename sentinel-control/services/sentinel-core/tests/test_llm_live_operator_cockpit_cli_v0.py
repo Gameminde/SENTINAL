@@ -7,7 +7,9 @@ from typing import Any
 import httpx
 import pytest
 
-from sentinel.cli import main
+from sentinel.cli import _cockpit_timeline_turn, main
+from sentinel.operator.cockpit import LLMLiveOperatorCockpit
+from sentinel.operator.models import OperatorMode
 
 
 def test_cockpit_cli_greeting(tmp_path: Path, capsys) -> None:
@@ -76,6 +78,26 @@ def test_cockpit_cli_timeline(tmp_path: Path, capsys) -> None:
     output = capsys.readouterr().out
     assert code == 0
     assert "mission_created" in output
+
+
+def test_cockpit_timeline_reports_tampered_event_stream(tmp_path: Path) -> None:
+    cockpit = LLMLiveOperatorCockpit(
+        run_root=tmp_path / "runs",
+        mode=OperatorMode.DETERMINISTIC_TEST,
+    )
+    cockpit.handle("Je veux lancer un business")
+    cockpit.handle("oui commence")
+    mission_id = cockpit.active_mission_id
+    events_path = tmp_path / "runs" / mission_id / "events.jsonl"
+    events_path.write_text(
+        events_path.read_text(encoding="utf-8").replace("Mission queued.", "Tampered."),
+        encoding="utf-8",
+    )
+
+    turn = _cockpit_timeline_turn(cockpit)
+
+    assert "tampered" in turn.reply.lower()
+    assert turn.metadata["timeline_summary"]["tampered"] is True
 
 
 def test_cockpit_cli_replay(tmp_path: Path, capsys) -> None:

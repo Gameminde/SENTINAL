@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from sentinel.operator.models import (
     MissionAuthoritySummary,
+    MissionClarificationQuestion,
     MissionDraft,
     MissionStartProposal,
     OperatorIntent,
@@ -15,6 +16,8 @@ from sentinel.operator.models import (
     OperatorMessage,
     OperatorMessageRole,
     OperatorMode,
+    OperatorConversationState,
+    OperatorTurnResult,
 )
 from sentinel.operator.redaction import redact_operator_text
 
@@ -38,6 +41,67 @@ def test_operator_message_safe_serialization() -> None:
     assert "unit_test_secret_token" not in rendered
     assert dumped["content_hash"]
     assert "content" not in dumped
+
+
+def test_turn_result_safe_dump_redacts_mission_draft_text() -> None:
+    draft = MissionDraft(
+        title="Bearer secret_token_123456789",
+        objective="API_KEY=secretvalue123456789",
+        constraints=["cookie=sessionid_secret_123456789"],
+    )
+    turn = OperatorTurnResult(
+        session_id="session_models",
+        state=OperatorConversationState.DRAFTING_MISSION,
+        reply="Draft ready",
+        mission_draft=draft,
+    )
+
+    rendered = json.dumps(turn.safe_model_dump(), sort_keys=True)
+    assert "secret_token" not in rendered
+    assert "secretvalue" not in rendered
+    assert "sessionid_secret" not in rendered
+
+
+def test_llm_decision_safe_dump_redacts_all_structured_text() -> None:
+    authority = MissionAuthoritySummary(
+        mission_id="mission_models",
+        allowed_actions=["research"],
+        forbidden_actions=["payment"],
+        summary="Do not leak Authorization: Bearer authority_secret_123456789",
+    )
+    decision = OperatorLLMDecisionResult(
+        mode=OperatorMode.LLM_OPERATOR,
+        reply="I saw cookie=sessionid_reply_123456789",
+        intent=OperatorIntent(
+            kind=OperatorIntentKind.DRAFT_MISSION,
+            text="Use Bearer intent_secret_123456789",
+        ),
+        mission_draft=MissionDraft(
+            title="Bearer draft_secret_123456789",
+            objective="API_KEY=draftvalue123456789",
+        ),
+        clarification_questions=[
+            MissionClarificationQuestion(
+                prompt="What about Bearer question_secret_123456789?",
+                field_name="API_KEY=fieldvalue123456789",
+            )
+        ],
+        authority_summary=authority,
+        start_proposal=MissionStartProposal(
+            mission_draft_id="draft_models",
+            authority_summary=authority,
+        ),
+    )
+
+    rendered = json.dumps(decision.safe_model_dump(), sort_keys=True)
+
+    assert "Bearer" not in rendered
+    assert "API_KEY" not in rendered
+    assert "cookie=sessionid" not in rendered
+    assert "authority_secret" not in rendered
+    assert "intent_secret" not in rendered
+    assert "draft_secret" not in rendered
+    assert "question_secret" not in rendered
 
 
 def test_mission_draft_is_not_executable() -> None:

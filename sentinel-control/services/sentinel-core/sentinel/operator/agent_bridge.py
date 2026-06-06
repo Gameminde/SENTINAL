@@ -34,6 +34,18 @@ class OperatorAgentRuntimeBridge:
         envelope: MissionAuthorityEnvelope,
         user_input: dict[str, Any],
     ) -> OperatorAgentRuntimeBridgeResult:
+        terminal_reason = self._kernel.terminal_block_reason(mission_id)
+        if terminal_reason is not None:
+            self._kernel.store.append_event(
+                mission_id,
+                event_type="agentruntime_blocked",
+                safe_summary="AgentRuntime bridge blocked because operator mission is terminal.",
+                metadata={"drop_reason": "mission_closed", "mission_state": terminal_reason.rsplit(":", 1)[-1]},
+            )
+            return OperatorAgentRuntimeBridgeResult(
+                status="blocked",
+                blocked_reason="operator_mission_terminal",
+            )
         if self._runtime is None:
             self._kernel.update_status(mission_id, OperatorMissionStatus.BLOCKED, "AgentRuntime bridge blocked: missing runtime.")
             self._kernel.store.append_event(

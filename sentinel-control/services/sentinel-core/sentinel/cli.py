@@ -402,13 +402,20 @@ def _cockpit_timeline_turn(cockpit: LLMLiveOperatorCockpit) -> OperatorTurnResul
             reply="Aucune mission active pour la timeline.",
         )
     events = cockpit.kernel.store.load_events(mission_id)
+    tampered = not cockpit.kernel.store.verify_timeline(mission_id)
     lines = [f"{event.sequence}:{event.event_type}:{event.safe_summary}" for event in events]
+    reply = "\n".join(lines) if lines else "Timeline vide."
+    if tampered:
+        reply = "Timeline integrity warning: event stream tampered.\n" + reply
     return OperatorTurnResult(
         session_id=cockpit.session.session_id,
         state=cockpit.session.state,
-        reply="\n".join(lines) if lines else "Timeline vide.",
+        reply=reply,
         mission_record=cockpit.kernel.store.load_record(mission_id),
-        metadata={"timeline": [event.model_dump(mode="json") for event in events]},
+        metadata={
+            "timeline_summary": {"tampered": tampered},
+            "timeline": [event.model_dump(mode="json") for event in events],
+        },
     )
 
 

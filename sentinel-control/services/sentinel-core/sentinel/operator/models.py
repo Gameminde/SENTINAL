@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import text_hash
-from sentinel.operator.redaction import redact_operator_text
+from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority, reject_operator_control_payload
 from sentinel.shared.models import SentinelModel, new_id
 
@@ -266,14 +266,16 @@ class OperatorLLMDecisionResult(SentinelModel):
             "result_id": self.result_id,
             "mode": self.mode.value,
             "reply": redact_operator_text(self.reply),
-            "intent": self.intent.model_dump(mode="json") if self.intent else None,
-            "mission_draft": self.mission_draft.model_dump(mode="json") if self.mission_draft else None,
+            "intent": _safe_intent_dump(self.intent) if self.intent else None,
+            "mission_draft": _safe_mission_draft_dump(self.mission_draft) if self.mission_draft else None,
             "clarification_questions": [
-                question.model_dump(mode="json") for question in self.clarification_questions
+                _safe_clarification_question_dump(question) for question in self.clarification_questions
             ],
-            "authority_summary": self.authority_summary.model_dump(mode="json") if self.authority_summary else None,
-            "start_proposal": self.start_proposal.model_dump(mode="json") if self.start_proposal else None,
-            "metadata": self.metadata,
+            "authority_summary": _safe_authority_summary_dump(self.authority_summary)
+            if self.authority_summary
+            else None,
+            "start_proposal": _safe_start_proposal_dump(self.start_proposal) if self.start_proposal else None,
+            "metadata": redact_operator_value(self.metadata),
             "provider_id": self.provider_id,
             "backend_id": self.backend_id,
             "model_id": self.model_id,
@@ -343,19 +345,21 @@ class OperatorTurnResult(SentinelModel):
             "session_id": self.session_id,
             "state": self.state.value,
             "reply": redact_operator_text(self.reply),
-            "intent": self.intent.model_dump(mode="json") if self.intent else None,
-            "mission_draft": self.mission_draft.model_dump(mode="json") if self.mission_draft else None,
+            "intent": _safe_intent_dump(self.intent) if self.intent else None,
+            "mission_draft": _safe_mission_draft_dump(self.mission_draft) if self.mission_draft else None,
             "clarification_questions": [
-                question.model_dump(mode="json") for question in self.clarification_questions
+                _safe_clarification_question_dump(question) for question in self.clarification_questions
             ],
-            "authority_summary": self.authority_summary.model_dump(mode="json") if self.authority_summary else None,
-            "start_proposal": self.start_proposal.model_dump(mode="json") if self.start_proposal else None,
+            "authority_summary": _safe_authority_summary_dump(self.authority_summary)
+            if self.authority_summary
+            else None,
+            "start_proposal": _safe_start_proposal_dump(self.start_proposal) if self.start_proposal else None,
             "mission_record": (
                 self.mission_record.safe_model_dump()
                 if hasattr(self.mission_record, "safe_model_dump")
                 else self.mission_record
             ),
-            "metadata": self.metadata,
+            "metadata": redact_operator_value(self.metadata),
             "data_not_authority": self.data_not_authority,
             "authority_effect": self.authority_effect,
             "can_grant_authority": self.can_grant_authority,
@@ -392,11 +396,8 @@ class MissionRecord(SentinelModel):
         return self
 
     def safe_model_dump(self) -> dict[str, Any]:
-        draft = self.draft.model_dump(mode="json")
-        draft["title"] = redact_operator_text(str(draft.get("title", "")))
-        draft["objective"] = redact_operator_text(str(draft.get("objective", "")))
-        draft["constraints"] = [redact_operator_text(str(item)) for item in draft.get("constraints", [])]
-        authority = self.authority_summary.model_dump(mode="json") if self.authority_summary else None
+        draft = _safe_mission_draft_dump(self.draft)
+        authority = _safe_authority_summary_dump(self.authority_summary) if self.authority_summary else None
         return {
             "mission_id": self.mission_id,
             "session_id": self.session_id,
@@ -414,6 +415,58 @@ class MissionRecord(SentinelModel):
             "can_grant_authority": self.can_grant_authority,
             "can_execute": self.can_execute,
         }
+
+
+def _safe_mission_draft_dump(draft: MissionDraft) -> dict[str, Any]:
+    payload = draft.model_dump(mode="json")
+    payload["title"] = redact_operator_text(str(payload.get("title", "")))
+    payload["objective"] = redact_operator_text(str(payload.get("objective", "")))
+    payload["constraints"] = [redact_operator_text(str(item)) for item in payload.get("constraints", [])]
+    payload["expected_artifacts"] = [
+        redact_operator_text(str(item)) for item in payload.get("expected_artifacts", [])
+    ]
+    if payload.get("target_audience") is not None:
+        payload["target_audience"] = redact_operator_text(str(payload["target_audience"]))
+    if payload.get("budget_summary") is not None:
+        payload["budget_summary"] = redact_operator_text(str(payload["budget_summary"]))
+    if payload.get("autonomy_summary") is not None:
+        payload["autonomy_summary"] = redact_operator_text(str(payload["autonomy_summary"]))
+    payload["metadata"] = redact_operator_value(payload.get("metadata", {}))
+    return payload
+
+
+def _safe_intent_dump(intent: OperatorIntent) -> dict[str, Any]:
+    payload = intent.model_dump(mode="json")
+    payload["text"] = redact_operator_text(str(payload.get("text", "")))
+    payload["metadata"] = redact_operator_value(payload.get("metadata", {}))
+    return payload
+
+
+def _safe_clarification_question_dump(question: MissionClarificationQuestion) -> dict[str, Any]:
+    payload = question.model_dump(mode="json")
+    payload["prompt"] = redact_operator_text(str(payload.get("prompt", "")))
+    payload["field_name"] = redact_operator_text(str(payload.get("field_name", "")))
+    return payload
+
+
+def _safe_authority_summary_dump(summary: MissionAuthoritySummary) -> dict[str, Any]:
+    payload = summary.model_dump(mode="json")
+    payload["allowed_actions"] = [
+        redact_operator_text(str(item)) for item in payload.get("allowed_actions", [])
+    ]
+    payload["forbidden_actions"] = [
+        redact_operator_text(str(item)) for item in payload.get("forbidden_actions", [])
+    ]
+    payload["summary"] = redact_operator_text(str(payload.get("summary", "")))
+    payload["metadata"] = redact_operator_value(payload.get("metadata", {}))
+    return payload
+
+
+def _safe_start_proposal_dump(proposal: MissionStartProposal) -> dict[str, Any]:
+    payload = proposal.model_dump(mode="json")
+    payload["authority_summary"] = _safe_authority_summary_dump(proposal.authority_summary)
+    payload["metadata"] = redact_operator_value(payload.get("metadata", {}))
+    return payload
 
 
 class MissionEvent(SentinelModel):

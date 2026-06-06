@@ -12,9 +12,9 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = COMPETITIVE_GAP_DELTA_LOCKED
-previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-active_implementation_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+current_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+previous_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+active_implementation_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
 next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
 ```
 
@@ -268,7 +268,13 @@ Revised browser organ roadmap:
     Deterministic mode exists only for tests; LLM mode requires an explicit
     UserModelContract and does not fallback/AUTO route.
 
-43. PERSISTENT_SEMANTIC_MEMORY_V1 [NEXT]
+43. LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCK [DONE]
+    Audit and harden the LLM live cockpit before adding persistent memory.
+    Close LLM-output-as-authority, direct organ bypass, provider fallback/AUTO,
+    raw prompt/provider persistence, terminal mission resurrection, timeline
+    tamper visibility, and local/Ollama endpoint safety defects.
+
+44. PERSISTENT_SEMANTIC_MEMORY_V1 [NEXT]
     Add durable semantic recall linked to receipts and mission timelines so the
     live cockpit can remember prior missions, user preferences, entities,
     decisions, and evidence without turning memory into authority.
@@ -338,6 +344,7 @@ BROWSER_OPERATING_SUBSYSTEM_STATE_RECONCILIATION_LOCK = implemented / locked
 BROWSER_OPERATING_SUBSYSTEM_HARDENED_LIVE_BACKEND_LOCK = implemented / locked
 POWER_ACTUATOR_FABRIC_WAVE_1_SPEC = implemented / locked
 SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 = implemented / locked
+LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCK = implemented / locked
 ```
 
 Next pack:

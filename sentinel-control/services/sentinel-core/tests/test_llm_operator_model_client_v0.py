@@ -13,6 +13,16 @@ from sentinel.agent.model_contract import (
     UserModelContract,
 )
 from sentinel.agent.model_cost import ModelCostProfile
+from sentinel.agent.model_execution.catalog import (
+    ProviderBackendProfile,
+    ProviderCapabilityFlags,
+    ProviderCatalog,
+    ProviderCatalogEntry,
+    ProviderCatalogStatus,
+    ProviderCredentialPolicy,
+    ProviderFamily,
+    ProviderRealTestStatus,
+)
 from sentinel.operator.llm_adapter import OperatorLLMConversationAdapter
 from sentinel.operator.llm_frame import OperatorConversationFrame
 from sentinel.operator.model_client import OperatorCatalogModelClient
@@ -109,6 +119,27 @@ def test_catalog_model_client_rejects_unsupported_model_without_fallback(
     assert recorder.calls == []
 
 
+def test_catalog_model_client_rejects_local_backend_non_loopback_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recorder = RecordingHttpxClient(_provider_payload(_valid_output()))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="localbad", backend_id="localbad_chat", model="llama3.2")
+
+    result = OperatorLLMConversationAdapter(
+        mode=OperatorMode.LLM_OPERATOR,
+        user_model_contract=contract,
+        model_client=OperatorCatalogModelClient(
+            user_model_contract=contract,
+            provider_catalog=_local_catalog(endpoint="https://example.com/v1/chat/completions"),
+        ),
+    ).complete(_frame())
+
+    assert result.mission_draft is None
+    assert result.metadata["blocked_reason"] == "LOCAL_ENDPOINT_NOT_LOOPBACK"
+    assert recorder.calls == []
+
+
 def _frame() -> OperatorConversationFrame:
     return OperatorConversationFrame.build(
         session_id="session_model_client",
@@ -176,3 +207,32 @@ def _valid_output() -> dict[str, object]:
             "summary": "Research and drafting only; no external send or payment.",
         },
     }
+
+
+def _local_catalog(*, endpoint: str) -> ProviderCatalog:
+    return ProviderCatalog(
+        entries=[
+            ProviderCatalogEntry(
+                provider_id="localbad",
+                display_name="Local Bad",
+                family=ProviderFamily.LOCAL_OPENAI_COMPATIBLE,
+                status=ProviderCatalogStatus.LOCAL_ONLY,
+                backends=[
+                    ProviderBackendProfile(
+                        backend_id="localbad_chat",
+                        family=ProviderFamily.LOCAL_OPENAI_COMPATIBLE,
+                        endpoint_template=endpoint,
+                        runtime="local",
+                        supported_models=["llama3.2"],
+                    )
+                ],
+                credential_policy=ProviderCredentialPolicy(
+                    credential_env_var=None,
+                    credential_source_type="local_none",
+                    required_for_real_call=False,
+                ),
+                capability_flags=ProviderCapabilityFlags(chat=True, local_runtime=True),
+                real_test_status=ProviderRealTestStatus(),
+            )
+        ]
+    )

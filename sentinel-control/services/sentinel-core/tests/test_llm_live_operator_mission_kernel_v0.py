@@ -121,6 +121,28 @@ def test_kernel_pause_resume_kill_persisted(tmp_path: Path) -> None:
     assert kernel.store.load_record(record.mission_id).status is OperatorMissionStatus.KILLED
 
 
+def test_kernel_killed_mission_cannot_resume(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path)
+    record = kernel.create_mission(session_id="session_kernel", draft=_draft())
+
+    kernel.kill(record.mission_id)
+
+    with pytest.raises(ValueError):
+        kernel.resume(record.mission_id)
+    assert kernel.store.load_record(record.mission_id).status is OperatorMissionStatus.KILLED
+
+
+def test_kernel_terminal_mission_cannot_be_requeued(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path)
+    record = kernel.create_mission(session_id="session_kernel", draft=_draft())
+
+    kernel.update_status(record.mission_id, OperatorMissionStatus.COMPLETED, "Done.")
+
+    with pytest.raises(ValueError):
+        kernel.enqueue(record.mission_id)
+    assert kernel.store.load_record(record.mission_id).status is OperatorMissionStatus.COMPLETED
+
+
 def test_kernel_records_failure_without_raw_exception_leak(tmp_path: Path) -> None:
     kernel = MissionKernel(run_root=tmp_path)
     record = kernel.create_mission(session_id="session_kernel", draft=_draft())
@@ -157,3 +179,20 @@ def test_kernel_no_raw_prompt_or_provider_response_persistence(tmp_path: Path) -
             safe_summary="unsafe",
             metadata={"raw_prompt": "do not persist", "provider_response": "raw"},
         )
+
+
+def test_kernel_redacts_secret_like_event_metadata(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path)
+    record = kernel.create_mission(session_id="session_kernel", draft=_draft())
+
+    kernel.store.append_event(
+        record.mission_id,
+        event_type="metadata_redaction",
+        safe_summary="Metadata recorded.",
+        metadata={"note": "Authorization: Bearer event_secret_123456789"},
+    )
+    rendered = (tmp_path / record.mission_id / "events.jsonl").read_text(encoding="utf-8")
+
+    assert "Bearer" not in rendered
+    assert "event_secret" not in rendered
+    assert "[REDACTED_SECRET]" in rendered

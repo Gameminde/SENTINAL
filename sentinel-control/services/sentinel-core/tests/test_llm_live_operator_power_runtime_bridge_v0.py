@@ -118,6 +118,23 @@ def test_cockpit_mission_kill_switch_aborts_power_plan(tmp_path: Path) -> None:
     assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.KILLED
 
 
+def test_cockpit_mission_power_bridge_does_not_run_killed_mission(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    kernel.kill(mission_id)
+    calls: list[str] = []
+
+    def executor(step, _context):
+        calls.append(step.step_id)
+        return PowerStepResult(step_id=step.step_id, status=PowerStepStatus.SUCCEEDED, safe_summary="should not run")
+
+    result = OperatorPowerRuntimeBridge(kernel).run(mission_id, _plan(mission_id), actuator_executor=executor)
+
+    assert calls == []
+    assert result.status is PowerRuntimeStatus.BLOCKED
+    assert result.blocked_reason == "operator_mission_terminal"
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.KILLED
+
+
 def test_cockpit_memory_refs_context_only_not_authority(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
 

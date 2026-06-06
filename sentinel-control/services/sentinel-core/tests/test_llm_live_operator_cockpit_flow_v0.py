@@ -85,6 +85,18 @@ def test_cockpit_pause_resume_kill_without_manual_id(tmp_path: Path) -> None:
     assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.KILLED
 
 
+def test_cockpit_killed_mission_cannot_resume(tmp_path: Path) -> None:
+    cockpit = _started_cockpit(tmp_path)
+    mission_id = cockpit.active_mission_id
+    cockpit.handle("kill")
+
+    result = cockpit.handle("resume")
+
+    assert result.state is OperatorConversationState.MISSION_KILLED
+    assert "cannot" in result.reply.lower()
+    assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.KILLED
+
+
 def test_cockpit_status_without_manual_id(tmp_path: Path) -> None:
     cockpit = _started_cockpit(tmp_path)
 

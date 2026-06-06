@@ -79,6 +79,23 @@ def test_operator_agent_bridge_default_off_without_runtime_config(tmp_path: Path
     assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
 
 
+def test_operator_agent_bridge_does_not_run_killed_mission(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    kernel.kill(mission_id)
+    runtime = RecordingRuntime()
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_envelope(),
+        user_input={},
+    )
+
+    assert runtime.calls == []
+    assert result.status == "blocked"
+    assert result.blocked_reason == "operator_mission_terminal"
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.KILLED
+
+
 def test_operator_agent_bridge_records_finalgate_memory_refs(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
 

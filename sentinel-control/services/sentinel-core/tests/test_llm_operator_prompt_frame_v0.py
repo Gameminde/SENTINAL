@@ -113,3 +113,26 @@ def test_raw_prompt_text_not_persisted() -> None:
     assert "raw_prompt" not in dumped_text
     assert "Create a launch plan." not in dumped_text
     assert dumped["prompt_hash"]
+
+
+def test_prompt_frame_redacts_secret_like_current_draft() -> None:
+    draft = MissionDraft(
+        title="Draft with Authorization: Bearer secret_token_123456789",
+        objective="Use API_KEY=secretvalue123456789 in the plan",
+        constraints=["cookie=sessionid_secret_123456789"],
+    )
+
+    frame = OperatorConversationFrame.build(
+        session_id="session_prompt",
+        user_message=OperatorMessage(
+            session_id="session_prompt",
+            role=OperatorMessageRole.USER,
+            content="Continue",
+        ),
+        current_draft=draft,
+    )
+
+    rendered = json.dumps(frame.prompt_payload(), sort_keys=True)
+    assert "secret_token" not in rendered
+    assert "secretvalue" not in rendered
+    assert "sessionid_secret" not in rendered

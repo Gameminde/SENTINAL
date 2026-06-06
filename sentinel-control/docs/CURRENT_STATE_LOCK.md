@@ -1,5 +1,50 @@
 # Current State Lock
 
+## LLM Live Operator Cockpit External Audit Lock - LOCKED
+
+Recorded at: 2026-06-06
+
+This section supersedes the LLM Live Operator Cockpit V0 lock as the current
+top-level truth. It adds no new actuator family. It externally audits and
+hardens the cockpit/kernel boundary before persistent semantic memory is added.
+
+```text
+current_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+previous_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+measurement_doctrine = product power under provable authority
+```
+
+### External Cockpit Audit Truth
+
+```text
+LLM output cannot become authority = CLOSED
+No direct organ execution from cockpit = CLOSED
+No provider fallback/AUTO = CLOSED
+No raw prompt/provider/reasoning persistence = CLOSED
+No provider/backend/model override = CLOSED
+Mission store tamper detection = CLOSED
+Pause/resume/kill correctness = CLOSED
+PowerRuntime bridge boundaries = CLOSED
+AgentRuntime bridge default-off = CLOSED
+Ollama/local provider path safety = CLOSED
+Conversation injection resistance = CLOSED
+Cockpit draft/structured text redaction = CLOSED
+Terminal mission resurrection = CLOSED
+Timeline tamper visibility = CLOSED
+New actuator families = NOT_STARTED
+```
+
+### External Cockpit Audit Artifacts
+
+```text
+sentinel-control/docs/reviews/LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCK_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/
+sentinel-control/services/sentinel-core/sentinel/cli.py
+sentinel-control/services/sentinel-core/tests/test_llm_live_operator_*_v0.py
+sentinel-control/services/sentinel-core/tests/test_llm_operator_*_v0.py
+```
+
 ## Sentinel LLM Live Operator Cockpit And Mission Kernel V0 - LOCKED
 
 Recorded at: 2026-06-06

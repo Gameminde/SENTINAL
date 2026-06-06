@@ -6,6 +6,7 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.models import MissionDraft, OperatorMessage
+from sentinel.operator.redaction import redact_operator_text
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel, new_id
 from sentinel.shared.safety_scanner import (
@@ -70,10 +71,12 @@ class OperatorConversationFrame(SentinelModel):
         draft_summary = (
             {
                 "draft_id": current_draft.draft_id,
-                "title": current_draft.title,
-                "objective": current_draft.objective,
-                "constraints": list(current_draft.constraints),
-                "expected_artifacts": list(current_draft.expected_artifacts),
+                "title": redact_operator_text(current_draft.title),
+                "objective": redact_operator_text(current_draft.objective),
+                "constraints": [redact_operator_text(str(item)) for item in current_draft.constraints],
+                "expected_artifacts": [
+                    redact_operator_text(str(item)) for item in current_draft.expected_artifacts
+                ],
             }
             if current_draft is not None
             else None

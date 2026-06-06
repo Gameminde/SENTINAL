@@ -6,7 +6,7 @@ from typing import Any
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.models import MissionEvent, MissionRecord, OperatorMissionStatus, utc_now
-from sentinel.operator.redaction import redact_operator_text
+from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import reject_operator_control_payload
 
 
@@ -53,7 +53,7 @@ class MissionRunStore:
         finalgate_certificate_refs: list[str] | None = None,
         memory_feedback_refs: list[str] | None = None,
     ) -> MissionEvent:
-        metadata = metadata or {}
+        metadata = redact_operator_value(metadata or {})
         reject_operator_control_payload(metadata, context="mission_event")
         events = self.load_events(mission_id)
         previous_hash = events[-1].event_hash if events else None
