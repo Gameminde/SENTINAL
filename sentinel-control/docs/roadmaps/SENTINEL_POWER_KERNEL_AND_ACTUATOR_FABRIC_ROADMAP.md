@@ -5,14 +5,25 @@ Date: 2026-05-26
 Status: canonical strategic roadmap for moving Sentinel from controlled internal
 runtime to real-world controlled automation.
 
-## Current Execution Truth - 2026-06-06
+## Current Execution Truth - 2026-06-07
 
 ```text
-current_phase = COMPETITIVE_GAP_DELTA_LOCKED
-previous_phase = POWER_ACTUATOR_FABRIC_WAVE_1_LOCKED
-active_implementation_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
+current_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
+previous_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+active_implementation_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
 next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+roadmap_doctrine = product power under provable authority
 ```
+
+Canonical roadmap:
+
+```text
+sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
+```
+
+This actuator-fabric roadmap remains the historical and architectural record
+for the power kernel. The master roadmap owns the current cross-system build
+sequence.
 
 The company-level audit has been updated after Wave 1:
 

@@ -1,5 +1,47 @@
 # Current State Lock
 
+## Sentinel Exhaustive Self-Audit And Master Roadmap Lock - LOCKED
+
+Recorded at: 2026-06-07
+
+This section is the canonical current state. It supersedes the LLM Live
+Operator Cockpit External Audit Lock as top-level planning truth. The pack is
+docs-only: it audited Sentinel source, synthesized the refreshed Agent Lab
+evidence, and created the official anti-drift roadmap to completion.
+
+```text
+current_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
+previous_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Canonical Truth Artifacts
+
+```text
+sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_SELF_AUDIT_2026_06_06.md
+sentinel-control/docs/reviews/SENTINEL_AGENT_LAB_SYNTHESIS_FOR_MASTER_ROADMAP_2026_06_06.md
+sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
+sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCK_REPORT.md
+```
+
+### Lock Truth
+
+```text
+exhaustive Sentinel source audit = CLOSED
+Agent Lab synthesis refresh = CLOSED
+canonical master roadmap = CLOSED
+runtime code changed = false
+new execution surface added = false
+vendor runtime integrated = false
+provider fallback/AUTO = NOT_APPROVED
+persistent semantic memory = NOT_STARTED / next
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## LLM Live Operator Cockpit External Audit Lock - LOCKED
 
 Recorded at: 2026-06-06

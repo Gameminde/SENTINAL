@@ -19,6 +19,35 @@ This lab is separate from `sentinel-control` by design.
 
 ## Current Scope
 
+### June 6, 2026 Refresh
+
+Agent Lab has been refreshed against current upstream source before Sentinel's
+next power wave.
+
+- Hermes Agent, OpenJarvis, and JARVIS source-only snapshots were
+  fast-forwarded to current official upstream heads.
+- The historical OpenClaw Baseten specimen remains pinned; the active official
+  `openclaw/openclaw` project is now tracked as a separate current specimen
+  because it has diverged by more than 5,000 commits.
+- gptme, Letta, UI-TARS Desktop, DeerFlow, Webwright, and Microsoft Agent
+  Framework were admitted as new source-only power specimens.
+- Agent Zero and oh-my-pi were also admitted after a power-focused GitHub
+  discovery pass.
+
+Current synthesis:
+
+```text
+Sentinel leads on authority, receipts, FinalGate, and memory-not-authority.
+Competitors lead on durable workflows, persistent memory, multi-agent workers,
+desktop/voice reach, channels, skills, and long-running product operation.
+```
+
+Current reports:
+
+- `audits/TRENDING_AGENT_ADMISSION_MATRIX_2026_06_06.md`
+- `audits/final/2026-06-06_agent_lab_vendor_refresh_delta_report.md`
+- `audits/final/2026-06-06_sentinel_competitive_power_delta_and_roadmap.md`
+
 Sprint A created the research workspace, audit docs, benchmark plan, and Sentinel integration notes.
 
 Sprint B1 cloned OpenClaw source for static audit only. No dependencies were installed and no runtime was executed.
@@ -45,14 +74,24 @@ Sprint B3 added a fake-only OpenClaw runtime benchmark harness. It uses controll
 
 ## Source Snapshot
 
-Checked on April 24, 2026:
+Original baseline checked on April 24-26, 2026; refresh checked on June 6,
+2026:
 
 - OpenClaw: https://github.com/basetenlabs/openclaw-baseten
+- OpenClaw official-current: https://github.com/openclaw/openclaw
 - Hermes Agent: https://github.com/nousresearch/hermes-agent
 - OpenJarvis: https://github.com/open-jarvis/OpenJarvis
 - JARVIS: https://github.com/vierisid/jarvis
 - AgentMemory: https://github.com/rohitg00/agentmemory
 - OpenClaw marketplace risk reference: https://www.theverge.com/news/874011/openclaw-ai-skill-clawhub-extensions-security-nightmare
+- gptme: https://github.com/gptme/gptme
+- Letta: https://github.com/letta-ai/letta
+- UI-TARS Desktop: https://github.com/bytedance/UI-TARS-desktop
+- DeerFlow: https://github.com/bytedance/deer-flow
+- Webwright: https://github.com/microsoft/Webwright
+- Microsoft Agent Framework: https://github.com/microsoft/agent-framework
+- Agent Zero: https://github.com/agent0ai/agent-zero
+- oh-my-pi: https://github.com/can1357/oh-my-pi
 
 ## Layout
 
@@ -66,10 +105,19 @@ Checked on April 24, 2026:
 
 | Vendor | Local Source | Status |
 | --- | --- | --- |
-| OpenClaw | `vendors/openclaw/source` when restored locally; ignored in fresh clones | Static audit and read-only scanner completed from prior source snapshot |
-| Hermes Agent | none | Not cloned |
-| OpenJarvis | none | Not cloned |
-| JARVIS | none | Not cloned |
+| OpenClaw historical Baseten specimen | `vendors/openclaw/source`; ignored in fresh clones | Pinned historical snapshot |
+| OpenClaw official-current | `vendors/openclaw-official/source`; ignored in fresh clones | New current source-only specimen at `e974d988` |
+| Hermes Agent | `vendors/hermes-agent/source`; ignored in fresh clones | Refreshed source-only at `ebed881d` |
+| OpenJarvis | `vendors/openjarvis/source`; ignored in fresh clones | Refreshed source-only at `bb904804` |
+| JARVIS | `vendors/jarvis/source`; ignored in fresh clones | Refreshed source-only at `20bf2b79` |
+| gptme | `vendors/gptme/source`; ignored in fresh clones | New source-only power specimen |
+| Letta | `vendors/letta/source`; ignored in fresh clones | New source-only memory specimen |
+| UI-TARS Desktop | `vendors/ui-tars-desktop/source`; ignored in fresh clones | New source-only computer-use specimen |
+| DeerFlow | `vendors/deer-flow/source`; ignored in fresh clones | New source-only super-agent harness specimen |
+| Webwright | `vendors/webwright/source`; ignored in fresh clones | New source-only long-horizon browser specimen |
+| Microsoft Agent Framework | `vendors/microsoft-agent-framework/source`; ignored in fresh clones | New source-only durable workflow specimen |
+| Agent Zero | `vendors/agent-zero/source`; ignored in fresh clones | New source-only desktop/full-system specimen at `f9d8167a` |
+| oh-my-pi | `vendors/oh-my-pi/source`; ignored in fresh clones | New source-only high-performance agent harness specimen at `4ae58e1a` |
 | AgentMemory | `vendors/agentmemory/source`; ignored in fresh clones | Static memory audit completed from local source snapshot |
 
 ## OpenClaw Sprint B2 Artifacts

@@ -23,7 +23,29 @@ Notes:
 
 ## Current Status
 
-OpenClaw, Hermes Agent, OpenJarvis, JARVIS, TradingAgents, and AgentMemory are approved for source clone only. No install or runtime execution is approved.
+Every project listed in the refresh table below, plus TradingAgents and
+AgentMemory, is approved for source clone only. No install or runtime execution
+is approved.
+
+## Refresh Status - 2026-06-06
+
+The following source-only snapshots were refreshed or admitted. No dependency
+was installed and no vendor runtime was executed.
+
+| Project | Official Repository | Snapshot | Decision |
+| --- | --- | --- | --- |
+| Hermes Agent | https://github.com/nousresearch/hermes-agent | `ebed881d46c4d39a7723a0bdbb70b53429f65e26` | refreshed source-only |
+| OpenJarvis | https://github.com/open-jarvis/OpenJarvis | `bb904804302dd7a6f81698b49bf38dd22f06e3de` | refreshed source-only |
+| JARVIS | https://github.com/vierisid/jarvis | `20bf2b79657002fa2668a2ecf4ff5c6611d9bd4b` | refreshed source-only |
+| gptme | https://github.com/gptme/gptme | `7355b1820342a43cda846cd88cee291b77b6f2dc` | admitted source-only |
+| Letta | https://github.com/letta-ai/letta | `1131535716e8a31c9a437f8695e25ac98f203a24` | admitted source-only |
+| UI-TARS Desktop | https://github.com/bytedance/UI-TARS-desktop | `e9f3387288da4af2ad99972da2ac916cdabce093` | admitted source-only |
+| DeerFlow | https://github.com/bytedance/deer-flow | `9a5de8d6a5a75c9f277a79d36b90407e3029a1ba` | admitted source-only |
+| Webwright | https://github.com/microsoft/Webwright | `4a46f282ec37f27d6003cc498a977939d62d9015` | admitted source-only |
+| Microsoft Agent Framework | https://github.com/microsoft/agent-framework | `fa9e08657618a6cf50818f7069ee4af3d5c725e6` | admitted source-only |
+| OpenClaw official-current | https://github.com/openclaw/openclaw | `e974d988113c657af324ceb3878158e717dd5994` | admitted source-only; historical Baseten specimen retained separately |
+| Agent Zero | https://github.com/agent0ai/agent-zero | `f9d8167a0004632ea7d8b37f585f392c39865919` | admitted source-only |
+| oh-my-pi | https://github.com/can1357/oh-my-pi | `4ae58e1abcaf1b3dbcded5e71afd5aacf794f944` | admitted source-only |
 
 ## OpenClaw
 

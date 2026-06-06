@@ -8,6 +8,34 @@ Build a controlled research lab for agent runtimes. The lab studies capabilities
 
 Keep this workspace separate from `sentinel-control`.
 
+## 2026-06-06 Strategic Refresh
+
+The previous forensic reports remain historical baselines, but they are no
+longer sufficient as current competitive truth.
+
+Refreshed doctrine:
+
+```text
+measure product power under provable authority
+control is a release condition, not the only score
+contract-only is not live power
+vendor source is a specimen, never a runtime dependency
+```
+
+Current work products:
+
+- `audits/TRENDING_AGENT_ADMISSION_MATRIX_2026_06_06.md`
+- `audits/final/2026-06-06_agent_lab_vendor_refresh_delta_report.md`
+- `audits/final/2026-06-06_sentinel_competitive_power_delta_and_roadmap.md`
+
+The immediate Sentinel recommendation remains `PERSISTENT_SEMANTIC_MEMORY_V1`,
+followed by durable automatic replan/workflow execution and a real
+authority-inheriting worker fleet. The next operating-layer step is a
+production mission daemon with a proactive scheduler whose triggers can
+propose work but never create authority. A model-amplifying execution harness
+then improves completion power through better edit anchors, typed workers,
+analysis kernels, and tool ergonomics without changing the selected LLM.
+
 Sentinel remains focused on:
 
 1. GTM Pack quality.

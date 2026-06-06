@@ -1,0 +1,780 @@
+# Sentinel Master Roadmap To Completion
+
+Canonical lock date: 2026-06-07
+Baseline HEAD: `987e2ee7f8f930fa38f10c0da66056a6db275141`
+
+This is the official anti-drift roadmap. Historical phase reports remain valid
+evidence for their scoped locks, but they do not override this document's
+current phase, maturity taxonomy, or build sequence.
+
+## 1. Executive North Star
+
+```text
+Sentinel is not an IDE.
+Sentinel is not just a browser agent.
+Sentinel is not just a chatbot.
+Sentinel is an agentic operating system for controlled real-world power.
+```
+
+The product experience is simple:
+
+```text
+the human talks naturally through chat, voice, app, or channel
+-> the LLM understands, reasons, and proposes
+-> Sentinel creates and governs missions
+-> controlled workers and organs act
+-> receipts prove each effect
+-> FinalGate certifies terminal truth
+-> durable memory and replay preserve useful context
+```
+
+The target is not the safest inactive agent. The target is the most capable
+agentic operating system whose power remains inspectable, stoppable, and
+provable.
+
+## 2. Current State Truth
+
+Current state:
+
+```text
+current_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
+previous_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+Real now:
+
+```text
+LLM-backed live operator cockpit with explicit UserModelContract
+local MissionKernel/store/queue with pause/resume/kill and replay
+Brain and AgentRuntime closed-loop paths
+MissionAuthorityEnvelope, Gate, receipts, FinalGate, memory feedback
+PowerRuntime V0
+live governed browser L4/L5 and scoped L6 special-authority paths
+real scoped workspace writes
+real allowlisted shell/code subprocess path
+real scoped external API path
+injected-authority channel send path
+```
+
+Not product-complete:
+
+```text
+persistent semantic memory
+restartable durable workflow and automatic replan
+real authority-inheriting worker fleet
+production daemon and proactive scheduler
+model-amplifying harness
+executable governed skill fabric
+hardware-aware local/cloud cost router
+real channel connectors
+live desktop sidecar
+voice
+durable credential vault
+real account/payment/trading/security/device power
+platform app/cloud
+```
+
+Maturity rule:
+
+```text
+contract-only != live
+fake or injected backend != product connector
+replan-ready packet != automatic replan
+agent society plan != worker fleet
+channel organ != channel reach
+desktop workspace != desktop sidecar
+memory feedback != persistent semantic memory
+CLOSED must always state its runtime maturity
+```
+
+## 3. Competitive Truth
+
+Sentinel leads on authority, receipts, FinalGate, memory-not-authority, and
+controlled execution boundaries.
+
+The strongest competitor mechanisms show where Sentinel must grow:
+
+| Power Gap | Mechanism References | Sentinel Rewrite |
+| --- | --- | --- |
+| Persistent semantic memory | Hermes, Letta, AgentMemory, OpenJarvis | Provenance-linked durable recall with contradiction, expiry, and utility scoring |
+| Durable workflow/replan | Microsoft Agent Framework, JARVIS | Checkpointed restartable Sentinel mission workflow |
+| Worker fleet | Hermes, DeerFlow, OpenJarvis | Narrow child authority, worker budgets, merge contracts |
+| Background operation | gptme, Hermes, JARVIS, Agent Zero | Production daemon, leases, proposal-only scheduler |
+| Model amplification | oh-my-pi, gptme | Hash-anchored edits, analysis kernels, typed workers, tool-output economy |
+| Skills/procedures | OpenClaw, Hermes, DeerFlow, Webwright | Signed/quarantined Sentinel procedures |
+| Local/hardware/cost routing | OpenJarvis, gptme, JARVIS | Explicit route candidates and route receipts |
+| Channels | OpenClaw, Hermes, JARVIS | Sentinel-native scoped adapters |
+| Desktop/visual | UI-TARS, JARVIS, Agent Zero | Permissioned sidecar and visual grounding |
+| Voice | JARVIS | Realtime cockpit transport, never authority |
+
+Vendor source remains a specimen. No vendor runtime, bridge, dependency, or
+copied code enters Sentinel.
+
+## 4. Final Sentinel Architecture
+
+```text
+LLM = intelligence / dialogue / strategy
+Sentinel Kernel = authority / runtime / proof / receipts
+Mission Kernel = queue / workflow / state / replan
+Organs = controlled muscles
+Memory = durable context, never authority
+Workers = controlled parallel execution
+Cockpit = chat / voice / app / channel surface
+Ledger = proof / replay / audit
+```
+
+Final logical layers:
+
+1. **Cockpit and reach**
+   - chat, app, voice, channels, operator cloud.
+2. **Mission and worker operating layer**
+   - mission state, durable workflow, scheduler, workers, replan.
+3. **Intelligence layer**
+   - explicit LLM contracts, Brain, model routing, amplification harness.
+4. **Authority and proof kernel**
+   - envelopes, grants, Gate, budgets, revocation, receipts, FinalGate.
+5. **Organ fabric**
+   - browser, workspace, shell/code, APIs, channels, desktop, credentials,
+     account, payment/trading, security, devices.
+6. **Durable context and ledger**
+   - semantic memory, evidence provenance, checkpoints, replay, audit.
+
+No layer may create a second authority path.
+
+## 5. Master Build Sequence
+
+```text
+0. MASTER_ROADMAP_TO_COMPLETION_LOCK
+1. PERSISTENT_SEMANTIC_MEMORY_V1
+2. DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+3. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+4. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+5. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+6. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+7. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+8. REAL_CHANNEL_ADAPTERS_V1
+9. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+10. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+11. DURABLE_CREDENTIAL_VAULT_AND_SESSION_BROKER_V1
+12. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+13. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+14. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+15. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
+16. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
+17. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
+18. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
+```
+
+Sequence law:
+
+```text
+continuity before parallelism
+parallelism before proactive operation
+durable operation before broad reach
+credential durability before account/payment power
+special authority before dangerous real-world power
+release certification after complete product gauntlets
+```
+
+## 6. Detailed Phase Specs
+
+### Phase 0 - Master Roadmap To Completion Lock
+
+Purpose:
+
+- freeze truth taxonomy, architecture doctrine, and sequence;
+- prevent historical docs from becoming current instructions;
+- make product-power metrics mandatory.
+
+Exit:
+
+- self-audit, Agent Lab synthesis, master roadmap, and state truth committed.
+
+### Phase 1 - Persistent Semantic Memory V1
+
+Purpose:
+
+- give cockpit, Brain, workflow, and future workers useful cross-session
+  continuity.
+
+Core deliverables:
+
+- durable lexical/FTS and semantic retrieval;
+- entity, mission, user, and procedure memory namespaces;
+- provenance, receipt/evidence links, contradiction, expiry, deletion;
+- safe pre-context retrieval and memory utility gauntlet.
+
+Exit:
+
+- durable recall improves mission outcomes without granting authority.
+
+### Phase 2 - Durable Mission Workflow And Automatic Replan V1
+
+Purpose:
+
+- turn bounded runs and replan-ready packets into restartable governed
+  workflows.
+
+Core deliverables:
+
+- versioned workflow graph and checkpoints;
+- idempotent step state and resume validation;
+- automatic replan through the existing authority chain;
+- retry, recovery, rollback, pause, kill, expiry, and revocation semantics.
+
+Exit:
+
+- a mission can crash, resume, replan, and finish with complete proof.
+
+### Phase 3 - Mission Worker Fleet And Authority Inheritance V1
+
+Purpose:
+
+- convert advisory society plans into controlled parallel execution.
+
+Core deliverables:
+
+- child authority envelope derived as a strict subset;
+- per-worker budget, deadline, tools, paths, domains, and result contract;
+- isolated workspace/evidence context;
+- aggregator/merge/reject path with receipts and FinalGate.
+
+Exit:
+
+- workers reduce mission time without authority expansion or proof loss.
+
+### Phase 4 - Production Mission Daemon And Proactive Scheduler V1
+
+Purpose:
+
+- make Sentinel continuously available and restart-safe.
+
+Core deliverables:
+
+- durable queue, leases, heartbeat, crash recovery, and dead-letter state;
+- proposal-only cron/event triggers;
+- operator handoff, pause, kill, status, and notifications;
+- revocation and expiry recheck before every resumed step.
+
+Exit:
+
+- Sentinel can work in the background without creating ambient authority.
+
+### Phase 5 - Model Amplification Execution Harness V1
+
+Purpose:
+
+- increase success rate of every explicitly selected model.
+
+Core deliverables:
+
+- hash-anchored/content-addressed edits;
+- mission-scoped persistent analysis kernels;
+- structured minimized tool output;
+- LSP/debugger evidence behind explicit grants;
+- typed isolated worker outputs and conflict handling.
+
+Exit:
+
+- measurable mission completion improvement without provider fallback/AUTO.
+
+### Phase 6 - Governed Skill And Procedure Fabric V1
+
+Purpose:
+
+- convert repeated successful work into reusable governed procedures.
+
+Core deliverables:
+
+- procedure manifest, provenance, version, declared authority/side effects;
+- static scan, quarantine, sandbox evaluation, scorecard, approval, promotion;
+- receipt-bound execution, rollback posture, revocation;
+- compiled browser trajectories as typed procedures.
+
+Exit:
+
+- a promoted procedure can improve completion while remaining revocable and
+  authority-bound.
+
+### Phase 7 - Local Model Hardware And Cost Router V1
+
+Purpose:
+
+- route explicit candidates by quality, cost, latency, energy, privacy, and
+  hardware fit.
+
+Core deliverables:
+
+- hardware/runtime discovery;
+- Ollama, llama.cpp, vLLM, SGLang, and explicit API candidate contracts;
+- route simulation and route receipts;
+- quality floor, budget cap, and operator policy.
+
+Exit:
+
+- routing is explicit, explainable, and never hidden fallback/AUTO.
+
+### Phase 8 - Real Channel Adapters V1
+
+Purpose:
+
+- give Sentinel real user reach.
+
+Core deliverables:
+
+- one production-quality adapter first;
+- inbound untrusted-data handling;
+- outbound recipient/scope/rate/approval gates;
+- durable session link, receipts, replay, and kill path.
+
+Exit:
+
+- one real channel supports controlled inbound and outbound mission flow.
+
+### Phase 9 - Permissioned Desktop Sidecar And Visual Grounding V1
+
+Purpose:
+
+- add governed host awareness and action.
+
+Core deliverables:
+
+- enrolled device-local sidecar;
+- screenshot/OCR/target identity and sanitizer;
+- app/window/action allowlists;
+- before/after evidence, kill switch, and rollback where possible.
+
+Exit:
+
+- selected desktop tasks work without ambient host authority.
+
+### Phase 10 - Realtime Voice And Ambient Operator V1
+
+Purpose:
+
+- make Sentinel naturally available without turning voice into authority.
+
+Core deliverables:
+
+- streaming speech, semantic VAD, barge-in, and session budgets;
+- spoken status, clarification, pause, resume, and kill;
+- explicit confirmation binding for authority-sensitive decisions.
+
+Exit:
+
+- voice controls the cockpit; it never bypasses Sentinel validation.
+
+### Phase 11 - Durable Credential Vault And Session Broker V1
+
+Purpose:
+
+- safely resolve real credentials for approved organs.
+
+Core deliverables:
+
+- encrypted-at-rest vault backend and credential refs;
+- mission/organ/action/domain scope, TTL, max use, revocation;
+- audited ephemeral resolution, no raw value in receipts/logs/memory;
+- browser/API/channel session broker and sanitizer.
+
+Exit:
+
+- a scoped organ can use a credential without durable raw-value leakage.
+
+### Phase 12 - Account Creation And Login Special Authority V1
+
+Purpose:
+
+- support authorized onboarding/login without fake identity or ambient access.
+
+Core deliverables:
+
+- identity/account scope and evidence requirements;
+- handoff boundaries for CAPTCHA/KYC/terms;
+- provider-specific controlled adapters;
+- post-action verification and session revocation.
+
+Exit:
+
+- approved account/login workflows complete with exact receipts and handoffs.
+
+### Phase 13 - Payment Spend Trading Special Authority V1
+
+Purpose:
+
+- enable bounded financial action.
+
+Core deliverables:
+
+- merchant/broker allowlists, caps, loss policy, double confirmation;
+- simulation/dry-run and independent pre-execution verification;
+- provider adapters, kill switch, reconciliation, and immutable receipts.
+
+Exit:
+
+- approved bounded financial tasks complete without general spending authority.
+
+### Phase 14 - Security Testing Special Authority V1
+
+Purpose:
+
+- enable authorized defensive testing.
+
+Core deliverables:
+
+- proof of target authorization and scope;
+- rate, method, data, and time bounds;
+- safe test environment and evidence quarantine;
+- stop conditions, reporting, and disclosure workflow.
+
+Exit:
+
+- scoped defensive testing runs only against explicitly authorized targets.
+
+### Phase 15 - Electronics Device Control And IoT Organ V1
+
+Purpose:
+
+- extend Sentinel to physical devices with safety interlocks.
+
+Core deliverables:
+
+- device enrollment, capability manifest, protocol adapters;
+- physical state model, command limits, emergency stop;
+- simulation, before/after sensor evidence, and audit.
+
+Exit:
+
+- selected devices can be controlled without ambient network/device authority.
+
+### Phase 16 - Business Automation Playbooks And Marketplace V1
+
+Purpose:
+
+- package complete business outcomes, not isolated tools.
+
+Core deliverables:
+
+- governed playbook composition over promoted procedures;
+- outcome metrics, cost model, authority manifest, versioning, provenance;
+- marketplace scan/quarantine/review/promotion/revocation.
+
+Exit:
+
+- repeatable business workflows deliver measured outcomes under authority.
+
+### Phase 17 - Sentinel Platform App And Operator Cloud V1
+
+Purpose:
+
+- deliver the final human-facing platform.
+
+Core deliverables:
+
+- polished app/cockpit, mission/workspace/timeline/replay views;
+- local-first operation with optional controlled cloud coordination;
+- multi-device sessions, notifications, and operator handoff;
+- no cloud authority shortcut.
+
+Exit:
+
+- a normal user can operate Sentinel fluently without low-level mission tools.
+
+### Phase 18 - Final Capability Gauntlet And Release Certification
+
+Purpose:
+
+- prove the complete operating system under realistic conditions.
+
+Core deliverables:
+
+- long-horizon missions, failures, restarts, attacks, revocations, cost stress;
+- memory poisoning, worker conflict, connector outage, sidecar/voice abuse;
+- product-power and control metrics;
+- independent audit and release certification.
+
+Exit:
+
+- release criteria in Section 21 are satisfied.
+
+## 7. Persistent Semantic Memory V1 Detail
+
+Required architecture:
+
+```text
+MemoryIngestor
+MemorySanitizer
+MemoryRecord
+MemoryProvenance
+MemoryNamespace
+LexicalIndex
+SemanticIndex
+EntityIndex
+ContradictionIndex
+MemoryRetriever
+MemoryRanker
+MemoryExpiryAndDeletion
+MemoryUtilityEvaluator
+```
+
+Non-negotiable properties:
+
+- memory stores data, not authority or executable instructions;
+- every record has source, trust class, timestamps, mission/user/entity scope,
+  evidence/receipt refs, and content hash;
+- recalled content is scanned and labeled before context injection;
+- contradictions and supersession are visible;
+- deletion and expiry are real;
+- retrieval is budgeted, deterministic where required, and explainable;
+- no raw secrets, credentials, prompts, provider responses, or reasoning.
+
+Mandatory gauntlets:
+
+- stale memory, malicious memory, contradictory memory, expired memory;
+- cross-mission leakage, cross-user leakage, secret-like input;
+- retrieval usefulness and mission-completion delta;
+- memory cannot change provider, authority, budget, or execution permission.
+
+## 8. Durable Workflow And Automatic Replan Detail
+
+Required state model:
+
+```text
+mission
+-> versioned workflow
+-> checkpointed step
+-> attempt
+-> receipt/FinalGate/evidence
+-> success, blocked, retry, replan, rollback, handoff, or terminal
+```
+
+Rules:
+
+- every resume revalidates authority, revocation, expiry, budget, and inputs;
+- steps are idempotent or explicitly non-repeatable;
+- replan-ready packets are advisory until Sentinel validates a new branch;
+- old branches cannot silently regain authority;
+- checkpoint and timeline writes are tamper-evident and crash-consistent;
+- failure terminal states are as provable as success states.
+
+## 9. Worker Fleet And Authority Inheritance Detail
+
+Required worker chain:
+
+```text
+parent authority
+-> strict child subset
+-> isolated worker context/workspace
+-> bounded execution
+-> typed result + evidence + receipts + FinalGate
+-> aggregator verification
+-> merge, reject, retry, or replan
+```
+
+Rules:
+
+- no root-authority inheritance;
+- no worker-created worker without explicit parent contract;
+- shared memory is context only;
+- worker outputs cannot grant authority;
+- parallelism is selected from expected value, decomposability, cost, and
+  conflict risk;
+- cancellation and revocation propagate immediately.
+
+## 10. Production Daemon And Proactive Scheduler Detail
+
+Required properties:
+
+- durable queue and worker lease ownership;
+- heartbeat, lease expiry, crash recovery, and dead-letter state;
+- proposal-only timers/events/watchers;
+- operator-visible status and handoff;
+- pause, kill, revoke, and expiry semantics;
+- complete safe failure records;
+- no daemon action outside MissionAuthorityEnvelope.
+
+## 11. Model Amplification Harness Detail
+
+The harness improves the selected model without hidden routing:
+
+- content-addressed reads and hash-bound writes;
+- persistent mission-scoped analysis kernels;
+- typed tools with small structured results;
+- evidence-linked LSP/debugger/test outputs;
+- isolated worker workspaces and deterministic merge checks;
+- interrupt rules and context compression;
+- per-model completion, cost, latency, retry, and recovery metrics.
+
+## 12. Skill And Procedure Fabric Detail
+
+A Sentinel procedure is:
+
+```text
+versioned + provenance-pinned + scanned + tested + authority-declared
++ evidence-required + revocable
+```
+
+It is never:
+
+```text
+arbitrary vendor plugin
+ambient script
+remote text trusted as instruction
+authority shortcut
+```
+
+## 13. Local Hardware And Cost Routing Detail
+
+Routing must produce an explicit decision receipt:
+
+```text
+candidates considered
+hardware/runtime availability
+quality requirement
+privacy requirement
+estimated latency/cost/energy
+budget
+selected explicit contract
+rejected candidates and reasons
+```
+
+No hidden fallback or AUTO route is approved by this roadmap.
+
+## 14. Real Channel Adapters Detail
+
+Start with one adapter. Prove:
+
+- inbound identity/session binding and untrusted-data treatment;
+- outbound recipient scope, approval, rate, and content policy;
+- attachments and links quarantined;
+- receipts, replay, revocation, and kill behavior;
+- no channel message becomes authority.
+
+## 15. Desktop Sidecar Detail
+
+Desktop authority must be narrower than browser authority:
+
+- enrolled sidecar and exact capabilities;
+- app/window/action target proof;
+- screenshot/OCR sanitization;
+- before/after state and action receipts;
+- separate kill switch and emergency stop;
+- no ambient terminal, clipboard, or host filesystem authority.
+
+## 16. Voice Detail
+
+Voice is a transport over the cockpit:
+
+- transcript is untrusted data;
+- spoken confirmation binds only to an explicit displayed proposal;
+- barge-in and kill are immediate;
+- session and cost budgets are visible;
+- voice never grants general authority.
+
+## 17. Future Dangerous Power Detail
+
+Credential, account, payment/trading, security, and device power require:
+
+```text
+special authority
+exact provider/target/device scope
+budget/cap/rate/deadline
+preflight simulation
+independent verification
+kill switch
+safe terminal state
+complete receipts and FinalGate
+```
+
+These phases may not be bundled into an earlier convenience pack.
+
+## 18. Product Power Metrics
+
+Every implementation lock must report:
+
+| Metric | Meaning |
+| --- | --- |
+| Mission completion rate | Useful objective completed |
+| Autonomous useful minutes | Verified progress without intervention |
+| Recovery rate | Recovery from broken tools/stale state |
+| Replan completion rate | Governed replan branch completed |
+| Parallel efficiency | Worker speedup relative to conflict/cost |
+| Cost per completed mission | Economic usefulness |
+| Memory utility | Recall improves outcome without authority poisoning |
+| Operator interruption count | Human repair burden |
+| Receipt completeness | Completed and failed actions explainable |
+| Time to useful result | Product responsiveness |
+| Connector reach | Real usable surfaces |
+| Kill/revocation latency | How quickly power stops |
+
+## 19. Roadmap Change Control
+
+This roadmap changes only through a dedicated truth/reconciliation lock.
+
+Any proposed reorder must include:
+
+1. source evidence showing current assumptions changed;
+2. product-power benefit;
+3. dependency analysis;
+4. authority/proof impact;
+5. explicit deferred work;
+6. docs drift repair;
+7. new next-phase declaration.
+
+No implementation pack may silently rename or skip a phase.
+
+## 20. Anti-Drift Rules
+
+```text
+The first section of CURRENT_STATE_LOCK is canonical current state.
+This master roadmap is canonical build order.
+Historical reports are evidence, not current instructions.
+Every CLOSED claim includes runtime maturity.
+No contract-only feature is described as live product power.
+No fake/injected backend is described as a real connector.
+No LLM, memory, receipt, FinalGate, worker, skill, channel, or trigger creates authority.
+No provider fallback/AUTO unless a future explicit lock approves it.
+No vendor runtime bridge or copied vendor code.
+Every new power enters through Sentinel-native contracts.
+Every dangerous power has receipts, FinalGate, kill switch, audit, and safe terminal state.
+```
+
+## 21. Final Definition Of Done
+
+Sentinel is complete when a normal user can ask it to pursue a long real-world
+objective and the system can:
+
+- understand and clarify through a fluent LLM cockpit;
+- create an explicit governed mission;
+- remember useful evidence across sessions;
+- plan, execute, replan, resume, and recover durably;
+- use controlled parallel workers;
+- operate continuously through a production daemon;
+- select explicit models economically;
+- reuse governed procedures;
+- use real browser, workspace, shell/code, API, channel, desktop, voice,
+  credential, account, payment/trading, security, and device surfaces where
+  authorized;
+- stop immediately on kill/revocation;
+- prove success, failure, and every material side effect;
+- expose a polished app/operator platform;
+- pass the final product-power and authority gauntlet.
+
+Completion does not mean ambient unlimited authority. It means maximum useful
+power inside explicit, inspectable, revocable authority.
+
+## 22. Next Implementation Prompt Title
+
+```text
+PERSISTENT_SEMANTIC_MEMORY_V1
+```
+
+Required direction:
+
+```text
+Build durable cognitive continuity for the live cockpit, Brain, and mission
+kernel. Memory remains provenance-linked context and can never become
+authority, execution permission, provider selection, or policy.
+```

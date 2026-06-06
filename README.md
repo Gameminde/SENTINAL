@@ -26,7 +26,7 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-06-06
+## Current Snapshot - 2026-06-07
 
 Sentinel is no longer just a controlled-agent design document. It now has a
 default-off power kernel with a Brain -> Gate -> Organ -> Receipt -> FinalGate
@@ -37,6 +37,12 @@ mission kernel, so the primary product surface is conversation -> mission draft
 That cockpit has now been externally audited and hardened for LLM authority
 boundaries, terminal mission lifecycle, timeline tamper visibility, and
 local/Ollama endpoint safety before persistent memory is attached.
+
+An exhaustive source audit and refreshed Agent Lab synthesis now define one
+canonical anti-drift roadmap to completion. Historical reports remain useful
+evidence, but the master roadmap owns the current build order and distinguishes
+live runtime, backend-thin, contract/test-locked, docs-only, and not-started
+capabilities.
 
 The project direction is maximum power under explicit authority: many agents,
 many organs, real browser control, real local execution, future shell/API/
@@ -63,9 +69,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
-previous_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
-active_implementation_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+current_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
+previous_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
+active_implementation_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
 next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
@@ -224,6 +230,9 @@ Start here for the current truth:
 
 ```text
 sentinel-control/docs/CURRENT_STATE_LOCK.md
+sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
+sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_SELF_AUDIT_2026_06_06.md
+sentinel-control/docs/reviews/SENTINEL_AGENT_LAB_SYNTHESIS_FOR_MASTER_ROADMAP_2026_06_06.md
 sentinel-control/docs/reviews/SENTINEL_EXHAUSTIVE_COMPANY_LEVEL_AUDIT_UPDATED_AFTER_WAVE_1.md
 sentinel-control/docs/reviews/COMPETITIVE_GAP_DELTA_LOCK_REPORT.md
 sentinel-control/docs/reviews/CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCK_REPORT.md
