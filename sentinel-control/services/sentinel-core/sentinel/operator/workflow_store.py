@@ -450,6 +450,9 @@ class DurableWorkflowStore:
             }
         ).with_hash()
         self._write_record(paths, updated)
+        telemetry_sink = getattr(self.mission_store, "telemetry_sink", None)
+        if telemetry_sink is not None and hasattr(telemetry_sink, "record_workflow_checkpoint"):
+            telemetry_sink.record_workflow_checkpoint(checkpoint)
         return checkpoint
 
     def _validate_step_states(

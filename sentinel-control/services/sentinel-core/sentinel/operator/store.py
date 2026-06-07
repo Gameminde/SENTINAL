@@ -23,9 +23,15 @@ _STORE_LOCKS_GUARD = threading.Lock()
 
 
 class MissionRunStore:
-    def __init__(self, run_root: Path | str) -> None:
+    def __init__(self, run_root: Path | str, *, telemetry_sink: Any | None = None) -> None:
         self.run_root = Path(run_root).resolve()
         self.run_root.mkdir(parents=True, exist_ok=True)
+        if telemetry_sink is None:
+            from sentinel.telemetry import TelemetryKernel
+
+            telemetry_sink = TelemetryKernel(self.run_root / "telemetry")
+        self._telemetry_sink = telemetry_sink
+        self.telemetry_sink = self._telemetry_sink
         with _STORE_LOCKS_GUARD:
             self._lock = _STORE_LOCKS.setdefault(str(self.run_root), threading.RLock())
 
@@ -165,6 +171,8 @@ class MissionRunStore:
                 handle.write(json.dumps(event.model_dump(mode="json"), sort_keys=True, default=str) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
+            if self._telemetry_sink is not None and hasattr(self._telemetry_sink, "record_mission_event"):
+                self._telemetry_sink.record_mission_event(event)
             return event
 
     def load_events(self, mission_id: str) -> list[MissionEvent]:

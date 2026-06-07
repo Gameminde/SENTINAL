@@ -24,6 +24,7 @@ class OperatorConversationEngine:
         mode: OperatorMode,
         user_model_contract: UserModelContract | None = None,
         model_client: OperatorModelClient | None = None,
+        telemetry_sink: object | None = None,
     ) -> None:
         self._mode = mode
         self._deterministic = DeterministicOperatorTestMode()
@@ -32,6 +33,7 @@ class OperatorConversationEngine:
                 mode=mode,
                 user_model_contract=user_model_contract,
                 model_client=model_client,
+                telemetry_sink=telemetry_sink,
             )
             if mode is OperatorMode.LLM_OPERATOR
             else None

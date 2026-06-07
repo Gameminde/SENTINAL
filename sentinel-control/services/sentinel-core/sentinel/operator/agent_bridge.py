@@ -28,9 +28,16 @@ class OperatorAgentRuntimeBridgeResult(SentinelModel):
 
 
 class OperatorAgentRuntimeBridge:
-    def __init__(self, kernel: MissionKernel, *, runtime: Any | None = None) -> None:
+    def __init__(
+        self,
+        kernel: MissionKernel,
+        *,
+        runtime: Any | None = None,
+        telemetry_sink: object | None = None,
+    ) -> None:
         self._kernel = kernel
         self._runtime = runtime
+        self._telemetry_sink = telemetry_sink or getattr(kernel, "telemetry_sink", None)
 
     def run(
         self,
@@ -93,6 +100,8 @@ class OperatorAgentRuntimeBridge:
                 "automatic_replan_executed": False,
             },
         )
+        if self._telemetry_sink is not None and hasattr(self._telemetry_sink, "record_agentruntime_result"):
+            self._telemetry_sink.record_agentruntime_result(mission_id, runtime_result)
         return OperatorAgentRuntimeBridgeResult(
             status=status,
             receipt_refs=receipt_refs,

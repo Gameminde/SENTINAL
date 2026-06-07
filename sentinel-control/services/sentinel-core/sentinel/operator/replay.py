@@ -33,7 +33,7 @@ class MissionReplayBuilder:
     def build(self, mission_id: str) -> MissionReplayView:
         events = self._store.load_events(mission_id)
         record = self._store.load_record(mission_id)
-        return MissionReplayView(
+        replay = MissionReplayView(
             mission_id=mission_id,
             events=events,
             tampered=not self._store.verify_timeline(mission_id),
@@ -43,6 +43,10 @@ class MissionReplayBuilder:
             memory_feedback_refs=_dedupe(ref for event in events for ref in event.memory_feedback_refs),
             terminal_explanation=_terminal_explanation(record.status),
         )
+        telemetry_sink = getattr(self._store, "telemetry_sink", None)
+        if telemetry_sink is not None and hasattr(telemetry_sink, "record_replay_view"):
+            telemetry_sink.record_replay_view(replay)
+        return replay
 
 
 def _dedupe(values) -> list[str]:

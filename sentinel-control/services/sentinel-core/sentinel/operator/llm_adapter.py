@@ -36,6 +36,7 @@ class OperatorLLMConversationAdapter:
         user_model_contract: UserModelContract | None = None,
         model_client: OperatorModelClient | None = None,
         prompt_renderer: OperatorPromptRenderer | None = None,
+        telemetry_sink: object | None = None,
     ) -> None:
         if mode is OperatorMode.LLM_OPERATOR and user_model_contract is None:
             raise OperatorLLMModeError("llm_operator_mode requires explicit UserModelContract")
@@ -43,6 +44,7 @@ class OperatorLLMConversationAdapter:
         self._contract = user_model_contract
         self._client = model_client
         self._renderer = prompt_renderer or OperatorPromptRenderer()
+        self._telemetry_sink = telemetry_sink
 
     def complete(self, frame: OperatorConversationFrame) -> OperatorLLMDecisionResult:
         if self._mode is not OperatorMode.LLM_OPERATOR:
@@ -50,6 +52,13 @@ class OperatorLLMConversationAdapter:
         if self._contract is None:
             raise OperatorLLMModeError("llm_operator_mode requires explicit UserModelContract")
         if self._client is None:
+            self._record_model_completion(
+                frame=frame,
+                blocked_reason="missing_operator_model_client",
+                schema_invalid=True,
+                provider_response_hash=None,
+                reasoning_hash=None,
+            )
             return _fail_closed(
                 mode=self._mode,
                 contract=self._contract,
@@ -59,21 +68,77 @@ class OperatorLLMConversationAdapter:
 
         prompt = self._renderer.render(frame)
         request = _build_operator_model_request(frame=frame, prompt=prompt, contract=self._contract)
+        self._record_model_start(request=request, frame=frame)
         raw_output = self._client.complete(request)
         try:
-            return validate_operator_structured_output(
+            result = validate_operator_structured_output(
                 raw_output,
                 mode=self._mode,
                 provider_id=self._contract.selected_provider_id,
                 backend_id=self._contract.selected_backend_id,
                 model_id=self._contract.selected_model,
             )
+            self._record_model_completion(
+                frame=frame,
+                request=request,
+                decision=result,
+                provider_response_hash=result.provider_response_hash,
+                reasoning_hash=result.reasoning_hash,
+                schema_invalid=False,
+            )
+            return result
         except OperatorStructuredOutputError:
+            self._record_model_completion(
+                frame=frame,
+                request=request,
+                blocked_reason="invalid_structured_output",
+                provider_response_hash=None,
+                reasoning_hash=None,
+                schema_invalid=True,
+            )
             return _fail_closed(
                 mode=self._mode,
                 contract=self._contract,
                 reason="invalid_structured_output",
                 reply="I could not validate the LLM operator output, so I will ask for a safer clarification instead.",
+            )
+
+    def _record_model_start(self, *, request: RealModelRequest, frame: OperatorConversationFrame) -> None:
+        if self._telemetry_sink is None or not hasattr(self._telemetry_sink, "record_model_call_started"):
+            return
+        self._telemetry_sink.record_model_call_started(
+            request,
+            session_id=frame.session_id,
+            frame_hash=frame.prompt_hash,
+        )
+
+    def _record_model_completion(
+        self,
+        *,
+        frame: OperatorConversationFrame,
+        request: RealModelRequest | None = None,
+        decision: OperatorLLMDecisionResult | None = None,
+        blocked_reason: str | None = None,
+        provider_response_hash: str | None = None,
+        reasoning_hash: str | None = None,
+        schema_invalid: bool,
+    ) -> None:
+        if self._telemetry_sink is None:
+            return
+        request = request or _build_operator_model_request(
+            frame=frame,
+            prompt=frame.safe_user_message,
+            contract=self._contract,  # type: ignore[arg-type]
+        )
+        if hasattr(self._telemetry_sink, "record_model_call_completed"):
+            self._telemetry_sink.record_model_call_completed(
+                request,
+                decision=decision,
+                provider_response_hash=provider_response_hash,
+                reasoning_hash=reasoning_hash,
+                session_id=frame.session_id,
+                blocked_reason=blocked_reason,
+                schema_invalid=schema_invalid,
             )
 
 

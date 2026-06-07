@@ -22,9 +22,9 @@ class DurableWorkflowReplayBuilder:
                 checkpoints=[],
                 tampered=True,
                 reexecuted_actions=False,
-            )
+        )
         mission_replay = MissionReplayBuilder(self._store.mission_store).build(record.mission_id)
-        return WorkflowReplayView(
+        replay = WorkflowReplayView(
             workflow_id=workflow_id,
             mission_id=record.mission_id,
             record=record,
@@ -32,3 +32,7 @@ class DurableWorkflowReplayBuilder:
             tampered=not verified or mission_replay.tampered,
             reexecuted_actions=False,
         )
+        telemetry_sink = getattr(self._store.mission_store, "telemetry_sink", None)
+        if telemetry_sink is not None and hasattr(telemetry_sink, "record_replay_view"):
+            telemetry_sink.record_replay_view(replay)
+        return replay

@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
-previous_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
-next_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
+current_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
+previous_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
+next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -56,7 +56,9 @@ optional AgentRuntime RoleLoopMemoryBridge durable write-through
 durable local MissionKernel workflow records, checkpoints, branches, proof ledger, and replay
 automatic typed-budget PowerRuntime replan inside unchanged authority
 same-process duplicate-tick prevention and per-step pause/kill/revocation checks
-roadmap change inserted mandatory telemetry before Worker Fleet = CLOSED / docs-only
+Sentinel-native telemetry kernel and store over existing proof/event surfaces
+Certified Mode telemetry snapshot with local tamper-resistant event/metric chains
+product-power metrics for mission completion, useful minutes, proof completeness, replay completeness, memory, model, replan, safety, and cost signals
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -68,7 +70,6 @@ Not product-complete:
 
 ```text
 multi-process workflow leases and production daemon
-unified observability telemetry and product-power metrics runtime
 real authority-inheriting worker fleet
 production daemon and proactive scheduler
 model-amplifying harness
@@ -259,7 +260,7 @@ Locked truth:
 
 ### Phase 3 - Observability Telemetry And Product Power Metrics V1
 
-Status: `NEXT` after this roadmap-change lock.
+Status: `LOCKED` on 2026-06-07.
 
 Purpose:
 
@@ -303,6 +304,24 @@ Exit:
 - Sentinel can produce a unified, redacted, tamper-resistant local telemetry
   view of mission, authority, model, organ, memory, workflow, replan, safety,
   cost, and product-power state without creating a parallel execution path.
+
+Locked truth:
+
+- local `TelemetryKernel` and `TelemetryStore` append redacted event and metric
+  streams with hash-chain verification;
+- MissionKernel, MissionRunStore, LLM operator adapter, PowerRuntime bridge,
+  AgentRuntime bridge, durable workflow checkpoints, and replay builders emit
+  telemetry through the existing runtime spine;
+- Certified Mode status is derived from local telemetry availability and
+  integrity;
+- telemetry domains cover operational, authority, LLM, organ, memory,
+  workflow, replan, worker-reserved, cost, safety, and product-power metrics;
+- raw prompts, raw provider responses, raw reasoning, raw credentials, and
+  raw secrets are blocked or redacted before telemetry persistence;
+- telemetry remains data, never authority, execution, permission, credential
+  unlock, or future approval;
+- no telemetry cloud, vendor bridge, Worker Fleet runtime, production daemon,
+  provider fallback/AUTO, or new actuator family was started.
 
 ### Phase 4 - Mission Worker Fleet And Authority Inheritance V1
 
@@ -844,16 +863,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
+MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 ```
 
 Required direction:
 
 ```text
-Build a Sentinel-native telemetry kernel over the existing EventBus,
-MissionKernel timeline, DurableWorkflowStore, PowerRuntime timeline,
-AgentRuntime refs, persistent-memory refs, receipts, FinalGate certificates,
-browser neural ledger, and operator replay. Telemetry is mandatory for
-Certified Sentinel Mode, remains local-first, tamper-resistant, redacted,
-operator-visible, and never becomes authority.
+Build a controlled worker fleet over the existing cockpit, MissionKernel,
+durable workflow, telemetry, memory, PowerRuntime, AgentRuntime, authority,
+receipt, and FinalGate spine. Child worker authority must be a strict subset of
+the parent MissionAuthorityEnvelope. Workers must inherit budgets, deadlines,
+tool/path/domain scopes, telemetry, replay, and merge/reject contracts without
+creating a direct organ path or expanding authority.
 ```

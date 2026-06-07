@@ -1,5 +1,108 @@
 # Current State Lock
 
+## Observability Telemetry And Product Power Metrics V1 - LOCKED
+
+Recorded at: 2026-06-07
+
+This section is the canonical current state. It supersedes the docs-only
+telemetry roadmap-change lock as top-level execution truth. Telemetry is now a
+real local Sentinel runtime spine over existing event/proof surfaces. Worker
+Fleet has not started.
+
+```text
+current_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
+previous_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
+next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Telemetry Runtime Truth
+
+```text
+TelemetryKernel and TelemetryStore = CLOSED / local runtime
+append-only JSONL event and metric streams = CLOSED
+event and metric hash chains = CLOSED / tamper-resistant local integrity
+certified_mode telemetry snapshot = CLOSED
+telemetry unavailable/disabled/tampered = certified_mode false
+MissionRunStore default telemetry sink = CLOSED
+MissionKernel telemetry access = CLOSED
+cockpit/conversation telemetry sink threading = CLOSED
+LLM operator model-call telemetry = CLOSED / explicit contract path only
+raw prompt persistence = BLOCKED
+raw provider response persistence = BLOCKED
+raw reasoning persistence = BLOCKED
+PowerRuntime result and timeline telemetry = CLOSED
+AgentRuntime result/replan/memory telemetry = CLOSED / bridge only
+DurableWorkflow checkpoint telemetry = CLOSED
+Mission and workflow replay telemetry = CLOSED / no re-execution
+OperationalTelemetry = CLOSED
+AuthorityTelemetry = CLOSED
+LLMTelemetry = CLOSED
+OrganTelemetry = CLOSED
+MemoryTelemetry = CLOSED
+WorkflowTelemetry = CLOSED
+ReplanTelemetry = CLOSED
+WorkerTelemetry = RESERVED / metrics and event domain only, no Worker Fleet runtime
+CostTelemetry = CLOSED
+SafetyTelemetry = CLOSED
+ProductPowerTelemetry = CLOSED
+secret/raw credential redaction = CLOSED
+telemetry-as-authority = BLOCKED
+telemetry execution = BLOCKED
+telemetry permission grant = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+telemetry cloud/vendor bridge = NOT_STARTED
+Worker Fleet = NOT_STARTED / next
+```
+
+### Certified Mode Rule
+
+```text
+Certified Sentinel Mode requires local telemetry.
+telemetry unavailable/corrupted/disabled/tampered = certified_mode false
+sensitive execution = fail_closed
+worker fleet = blocked until telemetry is available and verified
+credential/payment/trading/desktop/device phases = blocked without verified telemetry
+release certification = invalid without verified telemetry
+```
+
+Telemetry is not authority. It does not execute, grant permission, unlock
+credentials, store raw secrets, store raw credentials, store raw prompts, store
+raw provider responses, store raw reasoning, or become future permission.
+
+### Honest V1 Limits
+
+```text
+hash chains are local tamper-resistant integrity, not external cryptographic attestation
+telemetry is local-first JSONL, not a production telemetry service
+multi-process non-bypass enforcement is future production-daemon/worker work
+WorkerTelemetry is reserved for future worker events; Worker Fleet is not started
+telemetry summarizes refs and hashes; it does not authenticate executor identity
+telemetry records product-power samples but does not optimize routing or costs by itself
+```
+
+### Telemetry Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/telemetry/
+sentinel-control/services/sentinel-core/sentinel/operator/store.py
+sentinel-control/services/sentinel-core/sentinel/operator/kernel.py
+sentinel-control/services/sentinel-core/sentinel/operator/conversation.py
+sentinel-control/services/sentinel-core/sentinel/operator/cockpit.py
+sentinel-control/services/sentinel-core/sentinel/operator/llm_adapter.py
+sentinel-control/services/sentinel-core/sentinel/operator/power_bridge.py
+sentinel-control/services/sentinel-core/sentinel/operator/agent_bridge.py
+sentinel-control/services/sentinel-core/sentinel/operator/workflow_store.py
+sentinel-control/services/sentinel-core/sentinel/operator/replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/workflow_replay.py
+sentinel-control/services/sentinel-core/tests/test_observability_telemetry_and_product_power_metrics_v1.py
+sentinel-control/docs/reviews/OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Observability Telemetry Roadmap Change - LOCKED
 
 Recorded at: 2026-06-07

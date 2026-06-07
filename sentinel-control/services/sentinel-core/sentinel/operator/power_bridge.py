@@ -97,9 +97,16 @@ class BoundPowerActuatorExecutor:
 
 
 class OperatorPowerRuntimeBridge:
-    def __init__(self, kernel: MissionKernel, *, runtime: SentinelPowerRuntimeV0 | None = None) -> None:
+    def __init__(
+        self,
+        kernel: MissionKernel,
+        *,
+        runtime: SentinelPowerRuntimeV0 | None = None,
+        telemetry_sink: object | None = None,
+    ) -> None:
         self._kernel = kernel
         self._runtime = runtime or SentinelPowerRuntimeV0()
+        self._telemetry_sink = telemetry_sink or getattr(kernel, "telemetry_sink", None)
 
     def run(
         self,
@@ -116,25 +123,25 @@ class OperatorPowerRuntimeBridge:
         if plan.mission_id != mission_id:
             raise ValueError("power plan mission_id must match operator mission_id")
         if not self._kernel.store.verify_record(mission_id):
-            return self._blocked_result(mission_id, "mission_record_tampered")
+            return self._emit(self._blocked_result(mission_id, "mission_record_tampered"))
         terminal_reason = self._kernel.terminal_block_reason(mission_id)
         if terminal_reason is not None:
-            return self._blocked_terminal_result(mission_id, terminal_reason)
+            return self._emit(self._blocked_terminal_result(mission_id, terminal_reason))
         if envelope is None:
-            return self._blocked_result(mission_id, "mission_authority_envelope_required")
+            return self._emit(self._blocked_result(mission_id, "mission_authority_envelope_required"))
         if envelope.revoked_at is not None or datetime.now(UTC) > envelope.resolved_expires_at():
-            return self._blocked_result(mission_id, "mission_authority_envelope_inactive")
+            return self._emit(self._blocked_result(mission_id, "mission_authority_envelope_inactive"))
         if envelope.id != mission_id or not _plan_within_envelope(plan, envelope):
-            return self._blocked_result(mission_id, "power_plan_outside_authority")
+            return self._emit(self._blocked_result(mission_id, "power_plan_outside_authority"))
         if actuator_executor is not None:
-            return self._blocked_result(mission_id, "unbound_power_executor")
+            return self._emit(self._blocked_result(mission_id, "unbound_power_executor"))
         if executor_binding is not None and not isinstance(executor_binding, BoundPowerActuatorExecutor):
-            return self._blocked_result(mission_id, "unbound_power_executor")
+            return self._emit(self._blocked_result(mission_id, "unbound_power_executor"))
         if executor_binding is not None and (
             expected_executor_contract_id is not None
             and executor_binding.contract_id != expected_executor_contract_id
         ):
-            return self._blocked_result(mission_id, "executor_contract_mismatch")
+            return self._emit(self._blocked_result(mission_id, "executor_contract_mismatch"))
         reserved_actions = sum(1 + step.retry_budget for step in plan.graph.steps)
         reserved_cost = sum(step.estimated_cost_usd * (1 + step.retry_budget) for step in plan.graph.steps)
         try:
@@ -146,7 +153,7 @@ class OperatorPowerRuntimeBridge:
                 max_cost_usd=envelope.max_cost_usd,
             )
         except ValueError:
-            return self._blocked_result(mission_id, "mission_power_budget_exhausted")
+            return self._emit(self._blocked_result(mission_id, "mission_power_budget_exhausted"))
         try:
             result = self._runtime.run(
                 plan,
@@ -166,7 +173,7 @@ class OperatorPowerRuntimeBridge:
                 actual_actions=0,
                 actual_cost_usd=0.0,
             )
-            return self._blocked_result(mission_id, "power_runtime_bridge_failure")
+            return self._emit(self._blocked_result(mission_id, "power_runtime_bridge_failure"))
         actual_actions = sum(result_item.attempt_count for result_item in result.step_results)
         self._kernel.store.commit_power_budget(
             mission_id,
@@ -187,7 +194,7 @@ class OperatorPowerRuntimeBridge:
             memory_feedback_refs=list(result.memory_feedback_refs),
             metadata={"power_runtime_status": result.status.value},
         )
-        return result
+        return self._emit(result, mission_id=mission_id)
 
     def _blocked_terminal_result(self, mission_id: str, terminal_reason: str) -> PowerRuntimeResult:
         return self._blocked_result(
@@ -195,6 +202,11 @@ class OperatorPowerRuntimeBridge:
             "operator_mission_terminal",
             metadata={"drop_reason": "mission_closed", "mission_state": terminal_reason.rsplit(":", 1)[-1]},
         )
+
+    def _emit(self, result: PowerRuntimeResult, *, mission_id: str | None = None) -> PowerRuntimeResult:
+        if self._telemetry_sink is not None and hasattr(self._telemetry_sink, "record_power_runtime_result"):
+            self._telemetry_sink.record_power_runtime_result(result, mission_id=mission_id or result.mission_id)
+        return result
 
     def _blocked_result(
         self,

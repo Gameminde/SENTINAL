@@ -32,13 +32,16 @@ class LLMLiveOperatorCockpit:
         model_client=None,
         persistent_memory_recall_adapter: PersistentMemoryRecallAdapter | None = None,
         persistent_memory_owner_user_id: str | None = None,
+        telemetry_sink: object | None = None,
     ) -> None:
         self.session = OperatorConversationSession(mode=mode)
-        self.kernel = MissionKernel(run_root=run_root)
+        self.kernel = MissionKernel(run_root=run_root, telemetry_sink=telemetry_sink)
+        self._telemetry_sink = self.kernel.telemetry_sink
         self.engine = OperatorConversationEngine(
             mode=mode,
             user_model_contract=user_model_contract,
             model_client=model_client,
+            telemetry_sink=self._telemetry_sink,
         )
         self.active_mission_id: str | None = None
         self.active_mission_ids: list[str] = []
@@ -129,6 +132,7 @@ class LLMLiveOperatorCockpit:
         mission_id = self._single_active_mission_id()
         if mission_id is None:
             return self._needs_mission_selection()
+        self._record_interruption(command)
         if command == "pause":
             target = self.kernel.pause
             state = OperatorConversationState.MISSION_PAUSED
@@ -154,6 +158,7 @@ class LLMLiveOperatorCockpit:
         mission_id = self._single_active_mission_id()
         if mission_id is None:
             return self._needs_mission_selection()
+        self._record_interruption("status")
         record = self.kernel.store.load_record(mission_id)
         return OperatorTurnResult(
             session_id=self.session.session_id,
@@ -161,6 +166,11 @@ class LLMLiveOperatorCockpit:
             reply=f"Mission {record.mission_id} status: {record.status.value}.",
             mission_record=record,
         )
+
+    def _record_interruption(self, command: str) -> None:
+        if self._telemetry_sink is None or not hasattr(self._telemetry_sink, "record_operator_interruption"):
+            return
+        self._telemetry_sink.record_operator_interruption(session_id=self.session.session_id, command=command)
 
     def _single_active_mission_id(self) -> str | None:
         active = [mission_id for mission_id in self.active_mission_ids if mission_id]

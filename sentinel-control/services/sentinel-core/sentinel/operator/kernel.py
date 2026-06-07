@@ -30,8 +30,9 @@ class MissionLifecycleError(ValueError):
 
 
 class MissionKernel:
-    def __init__(self, *, run_root: Path | str) -> None:
-        self.store = MissionRunStore(run_root)
+    def __init__(self, *, run_root: Path | str, telemetry_sink: object | None = None) -> None:
+        self.store = MissionRunStore(run_root, telemetry_sink=telemetry_sink)
+        self.telemetry_sink = self.store.telemetry_sink
 
     def create_mission(
         self,
