@@ -1,5 +1,66 @@
 # Current State Lock
 
+## Persistent Semantic Memory V1 - LOCKED
+
+Recorded at: 2026-06-07
+
+This section is the canonical current state. It supersedes the exhaustive
+self-audit/master-roadmap lock as top-level execution truth. Persistent memory
+is now a real optional runtime capability, while remaining context-only and
+default-off unless explicitly wired.
+
+```text
+current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+previous_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
+next_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Persistent Memory Truth
+
+```text
+durable local SQLite memory store = CLOSED / live local runtime
+mission/user/entity/procedure namespaces = CLOSED
+lexical FTS and deterministic semantic retrieval = CLOSED
+provenance/trust/contradiction/supersession = CLOSED
+expiry/historical/deletion tombstones = CLOSED
+Brain recall = CLOSED / optional default-off
+Cockpit recall = CLOSED / optional default-off
+MissionKernel retrieval timeline refs = CLOSED
+AgentRuntime RoleLoopMemoryBridge write-through = CLOSED / optional default-off
+memory utility evaluator = CLOSED / callable library, not automatically invoked
+memory-as-authority = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+large-scale vector backend = NOT_STARTED
+encrypted-at-rest durable memory = NOT_STARTED
+durable mission workflow and automatic replan = NOT_STARTED / next
+```
+
+### Persistent Memory Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/memory/
+sentinel-control/services/sentinel-core/tests/test_persistent_semantic_memory_v1.py
+sentinel-control/services/sentinel-core/tests/test_persistent_semantic_memory_integrations_v1.py
+sentinel-control/services/sentinel-core/tests/test_persistent_semantic_memory_gauntlet_v1.py
+sentinel-control/docs/llm/memory/PERSISTENT_SEMANTIC_MEMORY_V1_SPEC.md
+sentinel-control/docs/reviews/PERSISTENT_SEMANTIC_MEMORY_V1_LOCK_REPORT.md
+```
+
+### Honest V1 Limits
+
+```text
+record hash = unkeyed corruption/non-rehashing tamper detection
+SQLite safe summaries = not encrypted at rest
+forensic deletion = not guaranteed
+semantic retrieval = bounded local linear scan
+prompt-injection screening = defense in depth, not complete semantic proof
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Sentinel Exhaustive Self-Audit And Master Roadmap Lock - LOCKED
 
 Recorded at: 2026-06-07

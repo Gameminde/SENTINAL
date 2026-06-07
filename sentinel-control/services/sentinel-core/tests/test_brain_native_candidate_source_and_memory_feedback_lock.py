@@ -18,6 +18,7 @@ from sentinel.agent.model_cost import ModelCostProfile
 from sentinel.agent.model_execution.redaction import text_hash
 from sentinel.agent.organs.organ_dispatch import OrganDispatcher
 from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionConfig, OrganRuntimeExecutionMode
+from sentinel.memory import PersistentMemoryIngestAdapter, PersistentSemanticMemoryService
 from sentinel.mission import MissionAuthorityEnvelope
 from sentinel.organs.browser.models import BrowserFetchedPage
 from sentinel.shared.enums import MissionMode, MissionType
@@ -344,7 +345,14 @@ def _user_input(
     }
 
 
-def _runtime(tmp_path: Path, config: OrganRuntimeExecutionConfig, *, fetcher: Any = None, order: list[str] | None = None):
+def _runtime(
+    tmp_path: Path,
+    config: OrganRuntimeExecutionConfig,
+    *,
+    fetcher: Any = None,
+    order: list[str] | None = None,
+    persistent_memory_ingest_adapter: PersistentMemoryIngestAdapter | None = None,
+):
     brain = RecordingBrainLoop(order)
     memory = RecordingMemoryBridge()
     dispatcher = RecordingDispatcher(order) if order is not None else None
@@ -355,6 +363,7 @@ def _runtime(tmp_path: Path, config: OrganRuntimeExecutionConfig, *, fetcher: An
         memory_bridge=memory,
         organ_dispatcher=dispatcher,
         browser_fetcher=fetcher,
+        persistent_memory_ingest_adapter=persistent_memory_ingest_adapter,
     )
     return runtime, brain, memory
 
@@ -524,6 +533,58 @@ def test_durable_memory_persistence_is_not_claimed(tmp_path: Path) -> None:
     assert result.memory_feedback_path == "CLOSED"
     assert result.durable_memory_persistence == "NOT_STARTED"
     assert "durable" not in result.memory_feedback_refs
+
+
+def test_explicit_persistent_memory_adapter_writes_runtime_feedback_through(tmp_path: Path) -> None:
+    service = PersistentSemanticMemoryService(tmp_path / "persistent-memory.sqlite3")
+    runtime, _, _ = _runtime(
+        tmp_path,
+        _config(OrganRuntimeExecutionMode.L2_L3_LOCAL_ONLY),
+        persistent_memory_ingest_adapter=PersistentMemoryIngestAdapter(service),
+    )
+
+    result = runtime.run(
+        _envelope(),
+        _user_input(
+            [_l2_candidate()],
+            authority=_authority(["L2"], ["file_operation"]),
+            contracts=_contracts(tmp_path, level="L2"),
+        ),
+        evidence_refs=["ev_l2"],
+    )
+
+    records, quarantined = service.store.records_for_user("user_native")
+    assert result.durable_memory_persistence == "CLOSED"
+    assert any(ref.startswith("persistent:pmem_") for ref in result.memory_feedback_refs)
+    assert records
+    assert quarantined == []
+
+
+def test_persistent_memory_write_through_failure_is_safe_and_non_blocking(tmp_path: Path) -> None:
+    class BrokenPersistentMemoryIngestAdapter:
+        def persist_bridge_result(self, bridge_result, *, requester_user_id):
+            raise RuntimeError("raw durable backend failure must not escape")
+
+    runtime, _, _ = _runtime(
+        tmp_path,
+        _config(OrganRuntimeExecutionMode.L2_L3_LOCAL_ONLY),
+        persistent_memory_ingest_adapter=BrokenPersistentMemoryIngestAdapter(),
+    )
+
+    result = runtime.run(
+        _envelope(),
+        _user_input(
+            [_l2_candidate()],
+            authority=_authority(["L2"], ["file_operation"]),
+            contracts=_contracts(tmp_path, level="L2"),
+        ),
+        evidence_refs=["ev_l2"],
+    )
+
+    assert result.organ_dispatch_result is not None
+    assert result.memory_feedback_path == "CLOSED"
+    assert result.durable_memory_persistence == "FAILED_SAFE"
+    assert "raw durable backend failure" not in str(result.model_dump(mode="json"))
 
 
 def test_replan_ready_packet_is_closed_without_automatic_replan(tmp_path: Path) -> None:

@@ -38,6 +38,7 @@ from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_hash
 from sentinel.shared.models import SentinelModel
 from sentinel.shared.safety_scanner import scan_forbidden_payload_flat
+from sentinel.memory.integration import PersistentMemoryRecallAdapter
 
 
 _PROMOTED_BROWSER_ORGAN_KINDS = {
@@ -151,6 +152,9 @@ class BrainCognitionInput(SentinelModel):
     retrieval_result: MemoryRetrievalResult | dict[str, Any] | None = None
     replay_timeline: MemoryReplayTimeline | dict[str, Any] | None = None
     checkpoint_set: MissionCheckpointSet | dict[str, Any] | None = None
+    persistent_memory_owner_user_id: str | None = None
+    persistent_memory_entity_ids: list[str] = Field(default_factory=list)
+    persistent_memory_procedure_ids: list[str] = Field(default_factory=list)
     existing_proposal_artifacts: list[dict[str, Any]] = Field(default_factory=list)
     budget_summaries: list[Any] = Field(default_factory=list)
     risk_flags: list[Any] = Field(default_factory=list)
@@ -179,6 +183,7 @@ class BrainCognitionResult(SentinelModel):
     missing_evidence: list[str] = Field(default_factory=list)
     risk_flags: list[str] = Field(default_factory=list)
     contradiction_refs: list[str] = Field(default_factory=list)
+    persistent_memory_recall_error_hash: str | None = None
     safe_next_step_recommendation: str
     recommended_next_pack_or_action: str
     safety_validation: BrainCognitionSafetyValidationResult
@@ -219,6 +224,7 @@ class BrainCognitionLoop:
         memory_retriever: SafeMemoryRetriever | None = None,
         replay_builder: MemoryReplayBuilder | None = None,
         checkpoint_builder: MissionCheckpointBuilder | None = None,
+        persistent_memory_recall_adapter: PersistentMemoryRecallAdapter | None = None,
     ) -> None:
         self._role_model_client = role_model_client
         self._role_loop_orchestrator = role_loop_orchestrator
@@ -227,6 +233,7 @@ class BrainCognitionLoop:
         self._retriever = memory_retriever or SafeMemoryRetriever()
         self._replay_builder = replay_builder or MemoryReplayBuilder()
         self._checkpoint_builder = checkpoint_builder or MissionCheckpointBuilder()
+        self._persistent_memory_recall_adapter = persistent_memory_recall_adapter
 
     def run(self, cognition_input: BrainCognitionInput | dict[str, Any]) -> BrainCognitionResult:
         if not isinstance(cognition_input, BrainCognitionInput):
@@ -267,7 +274,11 @@ class BrainCognitionLoop:
             available_evidence_refs=cognition_input.available_evidence_refs,
             proposals=proposals,
         )
-        memory_entries = _memory_entries(cognition_input, role_loop_result)
+        persistent_memory_entries, persistent_memory_error_hash = self._persistent_memory_entries(cognition_input)
+        memory_entries = [
+            *_memory_entries(cognition_input, role_loop_result),
+            *persistent_memory_entries,
+        ]
         memory_snapshot = _memory_snapshot(cognition_input, role_loop_result)
         feedback_signals = _feedback_signals(role_loop_result)
         hot_context_slots = self._hot_context_slots(
@@ -340,10 +351,32 @@ class BrainCognitionLoop:
             missing_evidence=missing_evidence,
             risk_flags=risk_flags,
             contradiction_refs=contradiction_refs,
+            persistent_memory_recall_error_hash=persistent_memory_error_hash,
             safe_next_step_recommendation=_recommendation(missing_evidence, contradiction_refs, risk_flags),
             recommended_next_pack_or_action="ORGAN_PROPOSAL_BRIDGE",
             safety_validation=safety,
         )
+
+    def _persistent_memory_entries(
+        self,
+        cognition_input: BrainCognitionInput,
+    ) -> tuple[list[LivingMissionMemoryEntry], str | None]:
+        if self._persistent_memory_recall_adapter is None:
+            return [], None
+        if not cognition_input.persistent_memory_owner_user_id:
+            return [], None
+        try:
+            bundle = self._persistent_memory_recall_adapter.recall(
+                owner_user_id=cognition_input.persistent_memory_owner_user_id,
+                mission_id=cognition_input.mission_id,
+                query_text=cognition_input.objective_summary,
+                entity_ids=cognition_input.persistent_memory_entity_ids,
+                procedure_ids=cognition_input.persistent_memory_procedure_ids,
+                current_time=cognition_input.current_time,
+            )
+        except Exception as exc:
+            return [], stable_hash({"failure_class": exc.__class__.__name__})
+        return bundle.entries, None
 
     def _run_role_loop(self, role_loop_plan: LLMRoleLoopPlan | None) -> LLMRoleLoopResult | None:
         if role_loop_plan is None:

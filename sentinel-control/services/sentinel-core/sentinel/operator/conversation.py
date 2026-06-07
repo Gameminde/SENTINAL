@@ -37,7 +37,13 @@ class OperatorConversationEngine:
             else None
         )
 
-    def handle_user_message(self, session: OperatorConversationSession, text: str) -> OperatorTurnResult:
+    def handle_user_message(
+        self,
+        session: OperatorConversationSession,
+        text: str,
+        *,
+        persistent_memory_context: str | None = None,
+    ) -> OperatorTurnResult:
         if _is_start_command(text) and session.current_draft is None:
             return _turn(
                 session=session,
@@ -48,7 +54,12 @@ class OperatorConversationEngine:
 
         message = OperatorMessage(session_id=session.session_id, role=OperatorMessageRole.USER, content=text)
         try:
-            frame = OperatorConversationFrame.build(session_id=session.session_id, user_message=message, current_draft=session.current_draft)
+            frame = OperatorConversationFrame.build(
+                session_id=session.session_id,
+                user_message=message,
+                current_draft=session.current_draft,
+                persistent_memory_context=persistent_memory_context,
+            )
         except ValueError:
             return _turn(
                 session=session,

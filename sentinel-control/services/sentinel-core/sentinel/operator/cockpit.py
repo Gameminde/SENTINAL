@@ -5,6 +5,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from sentinel.agent.model_contract import UserModelContract
+from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.conversation import OperatorConversationEngine
 from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
 from sentinel.operator.models import (
@@ -16,6 +17,9 @@ from sentinel.operator.models import (
     OperatorMode,
     OperatorTurnResult,
 )
+from sentinel.memory.integration import PersistentMemoryRecallAdapter
+from sentinel.memory.models import PersistentMemoryRetrievalResult
+from sentinel.operator.models import utc_now
 
 
 class LLMLiveOperatorCockpit:
@@ -26,6 +30,8 @@ class LLMLiveOperatorCockpit:
         mode: OperatorMode,
         user_model_contract: UserModelContract | None = None,
         model_client=None,
+        persistent_memory_recall_adapter: PersistentMemoryRecallAdapter | None = None,
+        persistent_memory_owner_user_id: str | None = None,
     ) -> None:
         self.session = OperatorConversationSession(mode=mode)
         self.kernel = MissionKernel(run_root=run_root)
@@ -36,6 +42,10 @@ class LLMLiveOperatorCockpit:
         )
         self.active_mission_id: str | None = None
         self.active_mission_ids: list[str] = []
+        self._persistent_memory_recall_adapter = persistent_memory_recall_adapter
+        self._persistent_memory_owner_user_id = persistent_memory_owner_user_id
+        self.last_persistent_memory_retrieval: PersistentMemoryRetrievalResult | None = None
+        self.last_persistent_memory_error_hash: str | None = None
 
     def handle(self, text: str) -> OperatorTurnResult:
         normalized = text.strip().lower()
@@ -49,8 +59,13 @@ class LLMLiveOperatorCockpit:
             return self._control("kill")
         if normalized in {"status", "what are you doing?", "qu'est-ce que tu fais ?", "/status"}:
             return self._status()
+        persistent_memory_context = self._recall_persistent_memory(text)
         try:
-            return self.engine.handle_user_message(self.session, text)
+            return self.engine.handle_user_message(
+                self.session,
+                text,
+                persistent_memory_context=persistent_memory_context,
+            )
         except ValidationError:
             return OperatorTurnResult(
                 session_id=self.session.session_id,
@@ -59,6 +74,28 @@ class LLMLiveOperatorCockpit:
                 intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="rejected unsafe operator output"),
                 metadata={"blocked_reason": "llm_operator_output_rejected"},
             )
+
+    def _recall_persistent_memory(self, text: str) -> str | None:
+        self.last_persistent_memory_retrieval = None
+        self.last_persistent_memory_error_hash = None
+        if self._persistent_memory_recall_adapter is None or not self._persistent_memory_owner_user_id:
+            return None
+        try:
+            bundle = self._persistent_memory_recall_adapter.recall(
+                owner_user_id=self._persistent_memory_owner_user_id,
+                mission_id=self.active_mission_id or self.session.session_id,
+                query_text=text,
+                current_time=utc_now(),
+            )
+        except Exception as exc:
+            self.last_persistent_memory_error_hash = stable_hash(
+                {"failure_class": exc.__class__.__name__}
+            )
+            return None
+        self.last_persistent_memory_retrieval = bundle.retrieval
+        if self.active_mission_id and bundle.retrieval.hits:
+            self.kernel.record_memory_retrieval(self.active_mission_id, bundle.retrieval)
+        return bundle.retrieval.to_untrusted_context_block() if bundle.retrieval.hits else None
 
     def _start(self) -> OperatorTurnResult:
         if self.session.current_draft is None or self.session.current_authority_summary is None:

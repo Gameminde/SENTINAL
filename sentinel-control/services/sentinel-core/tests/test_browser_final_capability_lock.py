@@ -15,9 +15,9 @@ def test_browser_final_capability_lock_docs_mark_roadmap_complete() -> None:
     current = _read("sentinel-control/docs/CURRENT_STATE_LOCK.md")
     roadmap = _read("sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md")
 
-    assert "current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED" in readme
+    assert "current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED" in readme
+    assert "current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED" in current
     assert "current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED" in current
-    assert "current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED" in roadmap
     assert "current_phase = BROWSER_FINAL_CAPABILITY_LOCKED" in current
     assert "BROWSER_FINAL_CAPABILITY_LOCK = implemented / locked" in roadmap
     assert "BROWSER_CONTROLLED_EXTENSION_AND_WEBMCP_BRIDGE_L7 [DONE]" in roadmap

@@ -5,11 +5,13 @@ from pathlib import Path
 from sentinel.operator.models import (
     MissionAuthoritySummary,
     MissionDraft,
+    MissionEvent,
     MissionRecord,
     OperatorMissionStatus,
 )
 from sentinel.operator.redaction import redact_operator_text
 from sentinel.operator.store import MissionRunStore
+from sentinel.memory.models import PersistentMemoryRetrievalResult
 
 
 TERMINAL_MISSION_STATUSES = frozenset(
@@ -82,6 +84,24 @@ class MissionKernel:
         if record.status not in TERMINAL_MISSION_STATUSES:
             return None
         return f"operator_mission_terminal:{record.status.value}"
+
+    def record_memory_retrieval(
+        self,
+        mission_id: str,
+        retrieval: PersistentMemoryRetrievalResult,
+    ) -> MissionEvent:
+        return self.store.append_event(
+            mission_id,
+            event_type="persistent_memory_retrieved",
+            safe_summary=f"Persistent memory recall returned {len(retrieval.hits)} scoped record(s).",
+            metadata={
+                "query_hash": retrieval.query_hash,
+                "record_count": len(retrieval.hits),
+                "data_not_instruction": True,
+                "authority_effect": "none",
+            },
+            memory_feedback_refs=[hit.record_id for hit in retrieval.hits],
+        )
 
     def _assert_transition_allowed(self, mission_id: str, target_status: OperatorMissionStatus) -> None:
         current = self.store.load_record(mission_id).status

@@ -56,6 +56,7 @@ from sentinel.agent.model_execution import (
 from sentinel.agent.models import AgentContext, AgentRunResult
 from sentinel.agent.llm.memory_bridge import MemoryBridgeInput, MemoryBridgeResult, RoleLoopMemoryBridge
 from sentinel.agent.model_execution.redaction import stable_hash
+from sentinel.memory.integration import PersistentMemoryIngestAdapter
 from sentinel.agent.organs.organ_dispatch import (
     OrganDispatcher,
     OrganDispatchResult,
@@ -266,6 +267,7 @@ class AgentRuntime:
         organ_dispatcher: OrganDispatcher | None = None,
         brain_cognition_loop: BrainCognitionLoop | None = None,
         memory_bridge: RoleLoopMemoryBridge | None = None,
+        persistent_memory_ingest_adapter: PersistentMemoryIngestAdapter | None = None,
     ) -> None:
         self.identity = identity or default_agent_identity()
         self.project_root = Path(project_root or Path.cwd()).resolve()
@@ -297,6 +299,7 @@ class AgentRuntime:
         self._organ_dispatcher = organ_dispatcher
         self._brain_cognition_loop = brain_cognition_loop
         self._memory_bridge = memory_bridge or RoleLoopMemoryBridge()
+        self._persistent_memory_ingest_adapter = persistent_memory_ingest_adapter
         self.context_builder = ContextBuilder()
         self.context_compressor = ContextCompressor()
         self.cognitive_cycle = CognitiveCycle()
@@ -470,6 +473,17 @@ class AgentRuntime:
             mission_id = raw_input.get("mission_id")
         if mission_id != envelope.id:
             return None, "PARTIAL"
+        requested_memory_owner = getattr(raw_input, "persistent_memory_owner_user_id", None)
+        if isinstance(raw_input, dict):
+            requested_memory_owner = raw_input.get("persistent_memory_owner_user_id")
+        if requested_memory_owner not in (None, envelope.user_id):
+            return None, "PARTIAL"
+        if isinstance(raw_input, dict):
+            raw_input = {**raw_input, "persistent_memory_owner_user_id": envelope.user_id}
+        else:
+            raw_input = raw_input.model_copy(
+                update={"persistent_memory_owner_user_id": envelope.user_id}
+            )
 
         brain_loop = self._brain_cognition_loop or BrainCognitionLoop()
         result = self._sanitize_brain_cognition_result_for_runtime(brain_loop.run(raw_input))
@@ -496,9 +510,9 @@ class AgentRuntime:
         envelope: MissionAuthorityEnvelope,
         brain_cognition_result: BrainCognitionResult | None,
         organ_dispatch_result: OrganDispatchResult,
-    ) -> tuple[MemoryBridgeResult | None, str, list[str], str | None]:
+    ) -> tuple[MemoryBridgeResult | None, str, list[str], str | None, str]:
         if not self._organ_execution_config.memory_feedback_enabled:
-            return None, "PREPARED", [], None
+            return None, "PREPARED", [], None, "NOT_STARTED"
 
         loop_id = f"organ_dispatch_{organ_dispatch_result.trace.input_hash[:16]}"
         bridge_input = MemoryBridgeInput(
@@ -529,7 +543,25 @@ class AgentRuntime:
         memory_snapshot_ref = result.snapshot.loop_id if result.snapshot is not None else None
         if memory_snapshot_ref:
             refs.append(f"snapshot:{memory_snapshot_ref}")
-        return result, "CLOSED", refs, memory_snapshot_ref
+        durable_status = "NOT_STARTED"
+        if self._persistent_memory_ingest_adapter is not None:
+            try:
+                durable_result = self._persistent_memory_ingest_adapter.persist_bridge_result(
+                    result,
+                    requester_user_id=envelope.user_id,
+                )
+                refs.extend(
+                    f"persistent:{record_id}" for record_id in durable_result.accepted_record_ids
+                )
+                durable_status = (
+                    "CLOSED"
+                    if durable_result.accepted_record_ids
+                    and not durable_result.rejected_source_memory_ids
+                    else "PARTIAL"
+                )
+            except Exception:
+                durable_status = "FAILED_SAFE"
+        return result, "CLOSED", refs, memory_snapshot_ref, durable_status
 
     def _memory_items_from_brain_and_dispatch(
         self,
@@ -1567,6 +1599,7 @@ class AgentRuntime:
                         memory_feedback_path,
                         memory_feedback_refs,
                         memory_snapshot_ref,
+                        durable_memory_persistence,
                     ) = self._write_memory_feedback_from_dispatch(
                         envelope=envelope,
                         brain_cognition_result=brain_cognition_result,

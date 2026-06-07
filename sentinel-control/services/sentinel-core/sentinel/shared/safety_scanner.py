@@ -50,7 +50,18 @@ def parse_evidence_bool(value: Any, *, field_name: str, default: bool) -> bool:
 
 
 SHARED_SECRET_LIKE_PATTERN = re.compile(
-    r"(Bearer\s+[A-Za-z0-9_\-]{12,}|gsk_[A-Za-z0-9]+|nvapi-[A-Za-z0-9]+|sk-or-v1-[A-Za-z0-9]+|sk-[A-Za-z0-9_\-]{16,})",
+    r"(Bearer\s+[A-Za-z0-9_\-]{12,}"
+    r"|gsk_[A-Za-z0-9]+"
+    r"|nvapi-[A-Za-z0-9]+"
+    r"|sk-or-v1-[A-Za-z0-9]+"
+    r"|sk-[A-Za-z0-9_\-]{16,}"
+    r"|gh[pousr]_[A-Za-z0-9]{20,}"
+    r"|github_pat_[A-Za-z0-9_]{20,}"
+    r"|glpat-[A-Za-z0-9_\-]{20,}"
+    r"|npm_[A-Za-z0-9]{20,}"
+    r"|xox[baprs]-[A-Za-z0-9\-]{20,}"
+    r"|(?:AKIA|ASIA)[A-Z0-9]{16}"
+    r"|(?:sk|rk)_live_[A-Za-z0-9]{16,})",
     re.IGNORECASE,
 )
 

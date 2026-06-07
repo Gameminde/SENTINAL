@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
-previous_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
-next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+previous_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
+next_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -51,6 +51,8 @@ local MissionKernel/store/queue with pause/resume/kill and replay
 Brain and AgentRuntime closed-loop paths
 MissionAuthorityEnvelope, Gate, receipts, FinalGate, memory feedback
 PowerRuntime V0
+durable local scoped semantic memory with optional Brain/cockpit recall
+optional AgentRuntime RoleLoopMemoryBridge durable write-through
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -61,7 +63,6 @@ injected-authority channel send path
 Not product-complete:
 
 ```text
-persistent semantic memory
 restartable durable workflow and automatic replan
 real authority-inheriting worker fleet
 production daemon and proactive scheduler
@@ -193,6 +194,8 @@ Exit:
 - self-audit, Agent Lab synthesis, master roadmap, and state truth committed.
 
 ### Phase 1 - Persistent Semantic Memory V1
+
+Status: `LOCKED` on 2026-06-07.
 
 Purpose:
 
@@ -768,13 +771,14 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-PERSISTENT_SEMANTIC_MEMORY_V1
+DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
 ```
 
 Required direction:
 
 ```text
-Build durable cognitive continuity for the live cockpit, Brain, and mission
-kernel. Memory remains provenance-linked context and can never become
-authority, execution permission, provider selection, or policy.
+Turn bounded missions and replan-ready packets into restartable governed
+workflows. Every resume and replan must revalidate authority, revocation,
+expiry, budgets, and proof without treating memory or old receipts as future
+permission.
 ```

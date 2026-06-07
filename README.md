@@ -36,7 +36,9 @@ mission kernel, so the primary product surface is conversation -> mission draft
 -> authority summary -> governed runtime, not mission-file administration.
 That cockpit has now been externally audited and hardened for LLM authority
 boundaries, terminal mission lifecycle, timeline tamper visibility, and
-local/Ollama endpoint safety before persistent memory is attached.
+local/Ollama endpoint safety. Sentinel now also has durable scoped semantic
+memory attached as an optional context-only runtime layer for Brain, cockpit,
+MissionKernel timeline refs, and AgentRuntime memory-feedback write-through.
 
 An exhaustive source audit and refreshed Agent Lab synthesis now define one
 canonical anti-drift roadmap to completion. Historical reports remain useful
@@ -69,10 +71,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
-previous_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
-active_implementation_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
-next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+previous_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
+active_implementation_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+next_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -150,6 +152,10 @@ AgentRuntime bridge = CLOSED / default-off controlled bridge only
 Product cockpit gauntlet = CLOSED
 Low-risk FinalGate receipts = CLOSED
 RoleLoopMemoryBridge feedback = CLOSED
+Persistent semantic memory local store/retrieval = CLOSED / optional context-only runtime
+Persistent memory Brain/cockpit recall = CLOSED / optional default-off
+Persistent memory AgentRuntime write-through = CLOSED / optional default-off
+Persistent memory MissionKernel timeline refs = CLOSED
 Replan-ready packet = CLOSED
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
@@ -172,11 +178,10 @@ Desktop action = NOT_STARTED
 Unrestricted shell/process execution = NOT_STARTED
 Payment/spend/trading = NOT_STARTED
 Provider fallback or AUTO routing = NOT_APPROVED
-Durable memory/EventBus WAL = NOT_STARTED
+Durable EventBus operational WAL = NOT_STARTED
 Automatic replan execution = NOT_STARTED
 Web dashboard = NOT_STARTED
 Voice runtime = NOT_STARTED
-Persistent semantic memory retrieval = NOT_STARTED / next
 Real Telegram/Slack/Gmail connectors = NOT_STARTED
 Production daemon service = NOT_STARTED
 Raw prompt/provider response/reasoning persistence = BLOCKED
@@ -191,7 +196,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = PERSISTENT_SEMANTIC_MEMORY_V1
+Next milestone = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -327,7 +332,8 @@ Recommended next build sequence:
 39. POWER_ACTUATOR_FABRIC_SELF_AUDIT_REMEDIATION - DONE
 40. COMPETITIVE_GAP_DELTA_LOCK - DONE
 41. SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 - DONE
-42. PERSISTENT_SEMANTIC_MEMORY_V1 - NEXT
+42. PERSISTENT_SEMANTIC_MEMORY_V1 - DONE
+43. DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 - NEXT
 ```
 
 The doctrine:

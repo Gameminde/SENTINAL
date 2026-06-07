@@ -8,6 +8,7 @@ from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.models import MissionDraft, OperatorMessage
 from sentinel.operator.redaction import redact_operator_text
 from sentinel.operator.safety import assert_data_not_authority
+from sentinel.memory.sanitizer import memory_text_rejection_reasons
 from sentinel.shared.models import SentinelModel, new_id
 from sentinel.shared.safety_scanner import (
     OrganSafetyScanCategory,
@@ -41,6 +42,8 @@ class OperatorConversationFrame(SentinelModel):
     user_message_hash: str
     safe_user_message: str
     current_draft_summary: dict[str, Any] | None = None
+    persistent_memory_context: str | None = Field(default=None, exclude=True, repr=False)
+    persistent_memory_context_hash: str | None = None
     structured_output_schema: dict[str, Any] = Field(default_factory=lambda: dict(_STRUCTURED_OUTPUT_SCHEMA))
     forbidden_actions: list[str] = Field(
         default_factory=lambda: [
@@ -66,8 +69,13 @@ class OperatorConversationFrame(SentinelModel):
         session_id: str,
         user_message: OperatorMessage,
         current_draft: MissionDraft | None = None,
+        persistent_memory_context: str | None = None,
     ) -> OperatorConversationFrame:
         _reject_prompt_injection(user_message.content)
+        if persistent_memory_context:
+            _reject_prompt_injection(persistent_memory_context)
+            if memory_text_rejection_reasons(persistent_memory_context):
+                raise ValueError("operator prompt frame rejected instruction-shaped memory context")
         draft_summary = (
             {
                 "draft_id": current_draft.draft_id,
@@ -86,6 +94,9 @@ class OperatorConversationFrame(SentinelModel):
             "user_message_hash": user_message.content_hash,
             "safe_user_message": user_message.safe_content,
             "current_draft_summary": draft_summary,
+            "persistent_memory_context_hash": stable_hash(redact_operator_text(persistent_memory_context))
+            if persistent_memory_context
+            else None,
             "structured_output_schema": _STRUCTURED_OUTPUT_SCHEMA,
         }
         return cls(
@@ -93,6 +104,10 @@ class OperatorConversationFrame(SentinelModel):
             user_message_hash=user_message.content_hash,
             safe_user_message=user_message.safe_content,
             current_draft_summary=draft_summary,
+            persistent_memory_context=redact_operator_text(persistent_memory_context)
+            if persistent_memory_context
+            else None,
+            persistent_memory_context_hash=safe_payload["persistent_memory_context_hash"],
             prompt_hash=stable_hash(safe_payload),
         )
 
@@ -116,6 +131,7 @@ class OperatorConversationFrame(SentinelModel):
             "user_message_hash": self.user_message_hash,
             "safe_user_message_hash": stable_hash(self.safe_user_message),
             "current_draft_summary": self.current_draft_summary,
+            "persistent_memory_context_hash": self.persistent_memory_context_hash,
             "structured_output_schema": self.structured_output_schema,
             "forbidden_actions": self.forbidden_actions,
             "prompt_hash": self.prompt_hash,
@@ -130,6 +146,8 @@ class OperatorConversationFrame(SentinelModel):
     def prompt_payload(self) -> dict[str, Any]:
         payload = self.safe_model_dump()
         payload["safe_user_message"] = self.safe_user_message
+        if self.persistent_memory_context:
+            payload["persistent_memory_context"] = self.persistent_memory_context
         return payload
 
 
