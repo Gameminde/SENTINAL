@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-07
 
 ```text
-current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
-previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-active_implementation_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
-next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+current_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
+previous_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+active_implementation_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
+next_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -133,6 +133,11 @@ Already real:
   deterministic semantic retrieval, contradiction/supersession, expiry,
   deletion tombstones, optional Brain/cockpit recall, and optional AgentRuntime
   memory-feedback write-through.
+- durable MissionKernel workflow records, checkpoints, branches, automatic
+  PowerRuntime replan inside unchanged authority, and replay without
+  re-execution.
+- docs-only roadmap change inserting unified telemetry/product-power metrics
+  before Worker Fleet.
 
 Still not enough for real-world power:
 
@@ -145,7 +150,8 @@ Still not enough for real-world power:
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
 - no production daemon service;
-- no durable restartable mission workflow or automatic replan execution.
+- no unified observability telemetry/product-power metrics runtime;
+- no Worker Fleet.
 
 Wave 1 current completion:
 
@@ -162,7 +168,8 @@ COMPETITIVE_GAP_DELTA_LOCK = CLOSED
 SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 = CLOSED
 PERSISTENT_SEMANTIC_MEMORY_V1 = CLOSED
 DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 = CLOSED
-MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = NEXT
+OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1 = NEXT
+MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = AFTER_TELEMETRY
 ```
 
 ## Target Architecture
@@ -686,7 +693,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
 ```
 
 Reason:
@@ -695,6 +702,8 @@ Reason:
 Sentinel now has a locked Wave 1 actuator fabric, an LLM-backed live operator
 cockpit, durable semantic memory, and restartable governed mission continuity
 with checkpointed typed-budget automatic PowerRuntime replan inside unchanged
-authority. The next step is a controlled worker fleet with strict child
-authority inheritance, worker budgets, merge contracts, and complete proof.
+authority. The next step is a unified telemetry/product-power measurement
+spine before controlled worker parallelism. Worker Fleet remains next after
+telemetry, with strict child authority inheritance, worker budgets, merge
+contracts, and complete proof.
 ```

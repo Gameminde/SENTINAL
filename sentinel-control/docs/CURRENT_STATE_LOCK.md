@@ -1,10 +1,74 @@
 # Current State Lock
 
+## Observability Telemetry Roadmap Change - LOCKED
+
+Recorded at: 2026-06-07
+
+This section is the canonical current state. It is a docs-only roadmap change
+that inserts mandatory telemetry before Worker Fleet. It does not implement
+telemetry runtime and does not start Worker Fleet.
+
+```text
+current_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
+previous_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+next_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Roadmap Change Truth
+
+```text
+telemetry phase inserted before worker fleet = CLOSED / docs-only
+master roadmap sequence updated = CLOSED
+README current-state pointer updated = CLOSED
+power/runtime roadmap pointer updated = CLOSED
+roadmap change proposal created = CLOSED
+lock report created = CLOSED
+telemetry runtime = NOT_STARTED
+worker fleet = NOT_STARTED
+production daemon = NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+vendor runtime bridge = NOT_APPROVED
+new execution surface = NOT_STARTED
+```
+
+### Certified Mode Telemetry Rule
+
+```text
+Certified Sentinel Mode requires local telemetry.
+telemetry unavailable/corrupted/disabled/tampered = certified_mode false
+sensitive execution = fail_closed
+worker fleet = blocked
+credential/payment/trading/desktop/device phases = blocked
+release certification = invalid
+```
+
+Telemetry is not authority. It does not execute, grant permission, unlock
+credentials, store raw secrets, store raw credentials, store raw prompts, store
+raw provider responses, store raw reasoning, or become future permission. It
+must be append-only, tamper-resistant, redacted, local-first, hash-bound,
+non-bypassable by agents/organs/workers/skills/LLM output, and
+operator-visible.
+
+### Roadmap Change Artifacts
+
+```text
+sentinel-control/docs/roadmaps/ROADMAP_CHANGE_PROPOSAL_TELEMETRY_V1.md
+sentinel-control/docs/reviews/OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCK_REPORT.md
+sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
+sentinel-control/docs/CURRENT_STATE_LOCK.md
+README.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Durable Mission Workflow And Automatic Replan V1 - LOCKED
 
 Recorded at: 2026-06-07
 
-This section is the canonical current state. It extends the existing
+This section is the previous runtime lock. It extends the existing
 MissionKernel, MissionRunStore, PowerRuntime, AgentRuntime bridge, receipts,
 FinalGate refs, replay, and persistent-memory refs. It does not create a
 parallel workflow runtime.
@@ -12,7 +76,7 @@ parallel workflow runtime.
 ```text
 current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
 previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+historical_next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 roadmap_doctrine = product power under provable authority
 ```
 

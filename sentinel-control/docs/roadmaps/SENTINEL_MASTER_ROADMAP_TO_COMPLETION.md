@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
-previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+current_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
+previous_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+next_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -56,6 +56,7 @@ optional AgentRuntime RoleLoopMemoryBridge durable write-through
 durable local MissionKernel workflow records, checkpoints, branches, proof ledger, and replay
 automatic typed-budget PowerRuntime replan inside unchanged authority
 same-process duplicate-tick prevention and per-step pause/kill/revocation checks
+roadmap change inserted mandatory telemetry before Worker Fleet = CLOSED / docs-only
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -67,6 +68,7 @@ Not product-complete:
 
 ```text
 multi-process workflow leases and production daemon
+unified observability telemetry and product-power metrics runtime
 real authority-inheriting worker fleet
 production daemon and proactive scheduler
 model-amplifying harness
@@ -104,6 +106,7 @@ The strongest competitor mechanisms show where Sentinel must grow:
 | --- | --- | --- |
 | Persistent semantic memory | Hermes, Letta, AgentMemory, OpenJarvis | Provenance-linked durable recall with contradiction, expiry, and utility scoring |
 | Durable workflow/replan | Microsoft Agent Framework, JARVIS | Checkpointed restartable Sentinel mission workflow |
+| Observability and product-power metrics | Microsoft Agent Framework, JARVIS, Hermes, Letta, gptme, Agent Zero, oh-my-pi, OpenClaw, DeerFlow | Unified tamper-resistant local telemetry over existing Sentinel proof surfaces |
 | Worker fleet | Hermes, DeerFlow, OpenJarvis | Narrow child authority, worker budgets, merge contracts |
 | Background operation | gptme, Hermes, JARVIS, Agent Zero | Production daemon, leases, proposal-only scheduler |
 | Model amplification | oh-my-pi, gptme | Hash-anchored edits, analysis kernels, typed workers, tool-output economy |
@@ -126,6 +129,7 @@ Organs = controlled muscles
 Memory = durable context, never authority
 Workers = controlled parallel execution
 Cockpit = chat / voice / app / channel surface
+Telemetry = measurement / observability / product-power metrics, never authority
 Ledger = proof / replay / audit
 ```
 
@@ -153,28 +157,30 @@ No layer may create a second authority path.
 0. MASTER_ROADMAP_TO_COMPLETION_LOCK
 1. PERSISTENT_SEMANTIC_MEMORY_V1
 2. DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
-3. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
-4. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
-5. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
-6. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
-7. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
-8. REAL_CHANNEL_ADAPTERS_V1
-9. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
-10. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
-11. DURABLE_CREDENTIAL_VAULT_AND_SESSION_BROKER_V1
-12. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
-13. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
-14. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
-15. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
-16. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
-17. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
-18. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
+3. OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
+4. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+5. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+6. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+7. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+8. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+9. REAL_CHANNEL_ADAPTERS_V1
+10. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+11. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+12. DURABLE_CREDENTIAL_VAULT_AND_SESSION_BROKER_V1
+13. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+14. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+15. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+16. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
+17. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
+18. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
+19. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
 ```
 
 Sequence law:
 
 ```text
 continuity before parallelism
+telemetry before parallelism
 parallelism before proactive operation
 durable operation before broad reach
 credential durability before account/payment power
@@ -249,9 +255,56 @@ Locked truth:
   remain a trusted same-process boundary until a later authenticated backend
   registry/ledger phase;
 - duplicate-tick prevention is same-process only; multi-process leases remain
-  Phase 4 work.
+  Phase 5 work.
 
-### Phase 3 - Mission Worker Fleet And Authority Inheritance V1
+### Phase 3 - Observability Telemetry And Product Power Metrics V1
+
+Status: `NEXT` after this roadmap-change lock.
+
+Purpose:
+
+- unify Sentinel's fragmented event, proof, workflow, memory, runtime, and
+  product-power measurement surfaces before worker parallelism;
+- make Certified Sentinel Mode depend on local telemetry.
+
+Core deliverables:
+
+- Sentinel-native telemetry kernel over EventBus, MissionKernel timeline,
+  MissionRunStore, DurableWorkflowStore, workflow checkpoints, PowerRuntime
+  timeline, AgentRuntime refs, persistent-memory refs, receipts, FinalGate
+  certificates, browser neural ledger, and operator replay;
+- OperationalTelemetry, AuthorityTelemetry, LLMTelemetry, OrganTelemetry,
+  MemoryTelemetry, WorkflowTelemetry, ReplanTelemetry, WorkerTelemetry,
+  CostTelemetry, SafetyTelemetry, and ProductPowerTelemetry domains;
+- append-only, tamper-resistant, redacted, local-first, hash-bound,
+  operator-visible telemetry;
+- product-power metrics for completion, autonomous useful minutes, time to
+  useful result, replan/recovery success, Gate/FinalGate rejects, kill/revocation
+  latency, memory utility, schema failure rate, token/cost, receipt completeness,
+  replay completeness, and future worker efficiency/conflict rate.
+
+Certified Mode rule:
+
+```text
+Certified Sentinel Mode requires local telemetry.
+telemetry unavailable/corrupted/disabled/tampered = certified_mode false
+sensitive execution = fail_closed
+worker fleet = blocked
+credential/payment/trading/desktop/device phases = blocked
+release certification = invalid
+```
+
+Telemetry is not authority, does not execute, does not grant permission, does
+not store raw secrets/prompts/provider responses/reasoning, and cannot become
+future permission.
+
+Exit:
+
+- Sentinel can produce a unified, redacted, tamper-resistant local telemetry
+  view of mission, authority, model, organ, memory, workflow, replan, safety,
+  cost, and product-power state without creating a parallel execution path.
+
+### Phase 4 - Mission Worker Fleet And Authority Inheritance V1
 
 Purpose:
 
@@ -268,7 +321,7 @@ Exit:
 
 - workers reduce mission time without authority expansion or proof loss.
 
-### Phase 4 - Production Mission Daemon And Proactive Scheduler V1
+### Phase 5 - Production Mission Daemon And Proactive Scheduler V1
 
 Purpose:
 
@@ -285,7 +338,7 @@ Exit:
 
 - Sentinel can work in the background without creating ambient authority.
 
-### Phase 5 - Model Amplification Execution Harness V1
+### Phase 6 - Model Amplification Execution Harness V1
 
 Purpose:
 
@@ -303,7 +356,7 @@ Exit:
 
 - measurable mission completion improvement without provider fallback/AUTO.
 
-### Phase 6 - Governed Skill And Procedure Fabric V1
+### Phase 7 - Governed Skill And Procedure Fabric V1
 
 Purpose:
 
@@ -321,7 +374,7 @@ Exit:
 - a promoted procedure can improve completion while remaining revocable and
   authority-bound.
 
-### Phase 7 - Local Model Hardware And Cost Router V1
+### Phase 8 - Local Model Hardware And Cost Router V1
 
 Purpose:
 
@@ -339,7 +392,7 @@ Exit:
 
 - routing is explicit, explainable, and never hidden fallback/AUTO.
 
-### Phase 8 - Real Channel Adapters V1
+### Phase 9 - Real Channel Adapters V1
 
 Purpose:
 
@@ -356,7 +409,7 @@ Exit:
 
 - one real channel supports controlled inbound and outbound mission flow.
 
-### Phase 9 - Permissioned Desktop Sidecar And Visual Grounding V1
+### Phase 10 - Permissioned Desktop Sidecar And Visual Grounding V1
 
 Purpose:
 
@@ -373,7 +426,7 @@ Exit:
 
 - selected desktop tasks work without ambient host authority.
 
-### Phase 10 - Realtime Voice And Ambient Operator V1
+### Phase 11 - Realtime Voice And Ambient Operator V1
 
 Purpose:
 
@@ -389,7 +442,7 @@ Exit:
 
 - voice controls the cockpit; it never bypasses Sentinel validation.
 
-### Phase 11 - Durable Credential Vault And Session Broker V1
+### Phase 12 - Durable Credential Vault And Session Broker V1
 
 Purpose:
 
@@ -406,7 +459,7 @@ Exit:
 
 - a scoped organ can use a credential without durable raw-value leakage.
 
-### Phase 12 - Account Creation And Login Special Authority V1
+### Phase 13 - Account Creation And Login Special Authority V1
 
 Purpose:
 
@@ -423,7 +476,7 @@ Exit:
 
 - approved account/login workflows complete with exact receipts and handoffs.
 
-### Phase 13 - Payment Spend Trading Special Authority V1
+### Phase 14 - Payment Spend Trading Special Authority V1
 
 Purpose:
 
@@ -439,7 +492,7 @@ Exit:
 
 - approved bounded financial tasks complete without general spending authority.
 
-### Phase 14 - Security Testing Special Authority V1
+### Phase 15 - Security Testing Special Authority V1
 
 Purpose:
 
@@ -456,7 +509,7 @@ Exit:
 
 - scoped defensive testing runs only against explicitly authorized targets.
 
-### Phase 15 - Electronics Device Control And IoT Organ V1
+### Phase 16 - Electronics Device Control And IoT Organ V1
 
 Purpose:
 
@@ -472,7 +525,7 @@ Exit:
 
 - selected devices can be controlled without ambient network/device authority.
 
-### Phase 16 - Business Automation Playbooks And Marketplace V1
+### Phase 17 - Business Automation Playbooks And Marketplace V1
 
 Purpose:
 
@@ -488,7 +541,7 @@ Exit:
 
 - repeatable business workflows deliver measured outcomes under authority.
 
-### Phase 17 - Sentinel Platform App And Operator Cloud V1
+### Phase 18 - Sentinel Platform App And Operator Cloud V1
 
 Purpose:
 
@@ -505,7 +558,7 @@ Exit:
 
 - a normal user can operate Sentinel fluently without low-level mission tools.
 
-### Phase 18 - Final Capability Gauntlet And Release Certification
+### Phase 19 - Final Capability Gauntlet And Release Certification
 
 Purpose:
 
@@ -791,14 +844,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
 ```
 
 Required direction:
 
 ```text
-Turn bounded missions and replan-ready packets into restartable governed
-workflows. Every resume and replan must revalidate authority, revocation,
-expiry, budgets, and proof without treating memory or old receipts as future
-permission.
+Build a Sentinel-native telemetry kernel over the existing EventBus,
+MissionKernel timeline, DurableWorkflowStore, PowerRuntime timeline,
+AgentRuntime refs, persistent-memory refs, receipts, FinalGate certificates,
+browser neural ledger, and operator replay. Telemetry is mandatory for
+Certified Sentinel Mode, remains local-first, tamper-resistant, redacted,
+operator-visible, and never becomes authority.
 ```
