@@ -52,19 +52,33 @@ class MissionKernel:
         return self.store.list_records()
 
     def enqueue(self, mission_id: str) -> MissionRecord:
-        self._assert_transition_allowed(mission_id, OperatorMissionStatus.QUEUED)
-        record = self.store.update_record_status(mission_id, OperatorMissionStatus.QUEUED)
-        self.store.append_event(mission_id, event_type="mission_queued", safe_summary="Mission queued.")
-        return record
+        with self.store.locked():
+            self._assert_transition_allowed(mission_id, OperatorMissionStatus.QUEUED)
+            record = self.store.update_record_status(mission_id, OperatorMissionStatus.QUEUED)
+            self.store.append_event(mission_id, event_type="mission_queued", safe_summary="Mission queued.")
+            return record
 
-    def update_status(self, mission_id: str, status: OperatorMissionStatus, safe_summary: str) -> MissionRecord:
-        self._assert_transition_allowed(mission_id, status)
-        record = self.store.update_record_status(mission_id, status)
-        self.store.append_event(mission_id, event_type=f"mission_{status.value}", safe_summary=safe_summary)
-        return record
+    def update_status(
+        self,
+        mission_id: str,
+        status: OperatorMissionStatus,
+        safe_summary: str,
+        *,
+        pause_origin: str | None = None,
+    ) -> MissionRecord:
+        with self.store.locked():
+            self._assert_transition_allowed(mission_id, status)
+            record = self.store.update_record_status(mission_id, status, pause_origin=pause_origin)
+            self.store.append_event(mission_id, event_type=f"mission_{status.value}", safe_summary=safe_summary)
+            return record
 
-    def pause(self, mission_id: str) -> MissionRecord:
-        return self.update_status(mission_id, OperatorMissionStatus.PAUSED, "Mission paused.")
+    def pause(self, mission_id: str, *, origin: str = "operator") -> MissionRecord:
+        return self.update_status(
+            mission_id,
+            OperatorMissionStatus.PAUSED,
+            "Mission paused.",
+            pause_origin=origin,
+        )
 
     def resume(self, mission_id: str) -> MissionRecord:
         return self.update_status(mission_id, OperatorMissionStatus.QUEUED, "Mission resumed.")

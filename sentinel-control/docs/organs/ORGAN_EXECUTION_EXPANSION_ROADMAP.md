@@ -12,10 +12,10 @@ Chrome DevTools MCP review discussion.
 Current truth:
 
 ```text
-current_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
-previous_phase = SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0_LOCKED
-active_implementation_phase = LLM_LIVE_OPERATOR_COCKPIT_EXTERNAL_AUDIT_LOCKED
-next_phase = PERSISTENT_SEMANTIC_MEMORY_V1
+current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+active_implementation_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 ```
 
 Competitive/product-power correction:
@@ -274,10 +274,19 @@ Revised browser organ roadmap:
     raw prompt/provider persistence, terminal mission resurrection, timeline
     tamper visibility, and local/Ollama endpoint safety defects.
 
-44. PERSISTENT_SEMANTIC_MEMORY_V1 [NEXT]
+44. PERSISTENT_SEMANTIC_MEMORY_V1 [CLOSED]
     Add durable semantic recall linked to receipts and mission timelines so the
     live cockpit can remember prior missions, user preferences, entities,
     decisions, and evidence without turning memory into authority.
+
+45. DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 [CLOSED]
+    Extend MissionKernel and PowerRuntime with versioned branches, checkpoints,
+    resume cursors, branch/plan/step-bound proof ledger, evidence-only replay,
+    and automatic typed-budget replan inside the unchanged MissionAuthorityEnvelope.
+
+46. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 [NEXT]
+    Add controlled parallel workers whose child authority, budgets, organs,
+    targets, and merge contracts are strict subsets of the parent mission.
 ```
 
 ## Strategic Update - 2026-05-26
@@ -434,7 +443,11 @@ Implemented and current:
 - browser upload/download quarantine with file hashes and root containment;
 - browser JavaScript sandbox special authority with hash-only receipts.
 
-Latest runtime lock:
+Historical browser-era runtime lock snapshot:
+
+The block below is retained as scoped historical evidence. It is not the
+current phase truth; the canonical current phase is declared at the top of
+this document and in `CURRENT_STATE_LOCK.md`.
 
 ```text
 current_phase = BROWSER_ACCOUNT_CREATION_SPECIAL_AUTHORITY_L7_LOCKED
@@ -1157,16 +1170,15 @@ Most dangerous future organ:
 
 Highest-value next implementation:
 
-- `PERSISTENT_SEMANTIC_MEMORY_V1`, because browser, shell sandbox, external
-  API, channel, workspace, PowerRuntime, and the LLM live cockpit now have a
-  first locked product-power spine. The next value is durable recall linked to
-  mission evidence, receipts, and user preferences without turning memory into
-  authority.
+- `MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1`, because persistent
+  semantic memory and restartable MissionKernel workflows with governed
+  automatic PowerRuntime replan are now locked. The next product-power gain is
+  controlled parallel execution under strict child-authority subsets.
 
 Recommended next pack:
 
 ```text
-PERSISTENT_SEMANTIC_MEMORY_V1
+MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 ```
 
 Parallel hardening recommendation:

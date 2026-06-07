@@ -290,6 +290,42 @@ def test_power_runtime_fails_closed_without_executor() -> None:
     assert result.execution_effect == "none"
 
 
+def test_power_runtime_sanitizes_non_result_executor_return() -> None:
+    from sentinel.power.runtime import (
+        PowerActuatorCapabilityLevel,
+        PowerActuatorFamily,
+        PowerMissionGraph,
+        PowerMissionPlan,
+        PowerMissionStep,
+        PowerRuntimeConfig,
+        SentinelPowerRuntimeV0,
+    )
+
+    plan = PowerMissionPlan(
+        mission_id="mission_invalid_executor_result",
+        graph=PowerMissionGraph(
+            steps=[
+                PowerMissionStep(
+                    step_id="observe",
+                    actuator_family=PowerActuatorFamily.BROWSER,
+                    capability_level=PowerActuatorCapabilityLevel.L4,
+                    organ_kind="browser_readonly",
+                    action_kind="observe",
+                )
+            ]
+        ),
+    )
+
+    result = SentinelPowerRuntimeV0().run(
+        plan,
+        config=PowerRuntimeConfig(enabled=True),
+        actuator_executor=lambda _step, _context: None,
+    )
+
+    assert result.status == "failed"
+    assert result.step_results[0].blocked_reason == "executor_invalid_result"
+
+
 def test_power_runtime_disabled_is_default_off() -> None:
     from sentinel.power.runtime import (
         PowerActuatorCapabilityLevel,

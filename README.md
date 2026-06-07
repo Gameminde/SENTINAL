@@ -71,10 +71,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-previous_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
-active_implementation_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-next_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+active_implementation_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -157,6 +157,17 @@ Persistent memory Brain/cockpit recall = CLOSED / optional default-off
 Persistent memory AgentRuntime write-through = CLOSED / optional default-off
 Persistent memory MissionKernel timeline refs = CLOSED
 Replan-ready packet = CLOSED
+Durable MissionKernel workflow records/checkpoints/resume cursors = CLOSED / local runtime
+Branch/plan/step-bound durable proof ledger = CLOSED / local hash-bound evidence
+Action and typed estimated-cost reservation before execution = CLOSED
+Automatic PowerRuntime replan inside unchanged authority = CLOSED / typed-budget-proven branches only
+PowerRuntime operator bridge envelope/target/executor binding = CLOSED
+PowerRuntime public bridge revoked/expired envelope and cumulative mission budget = CLOSED
+PowerRuntime hidden mutation/empty plan/unproved-success blocking = CLOSED
+Mission record hash and checkpoint prepared-event binding = CLOSED / local integrity
+Automatic AgentRuntime opaque replan = BLOCKED / typed action plan required
+Workflow replay without re-execution = CLOSED
+Workflow duplicate-tick prevention = CLOSED / same-process lock
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -179,7 +190,10 @@ Unrestricted shell/process execution = NOT_STARTED
 Payment/spend/trading = NOT_STARTED
 Provider fallback or AUTO routing = NOT_APPROVED
 Durable EventBus operational WAL = NOT_STARTED
-Automatic replan execution = NOT_STARTED
+Automatic positive-cost replan without typed step cost proof = BLOCKED
+Automatic opaque AgentRuntime replan = BLOCKED
+Multi-process workflow lease/production daemon = NOT_STARTED
+Cryptographic executor/receipt authenticity = NOT_STARTED / trusted same-process boundary only
 Web dashboard = NOT_STARTED
 Voice runtime = NOT_STARTED
 Real Telegram/Slack/Gmail connectors = NOT_STARTED
@@ -196,7 +210,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+Next milestone = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -356,7 +370,7 @@ CueIdea/RedditPulse evidence product, the Sentinel Control runtime, and Agent
 Lab, which is the forensic lab used to study external agent systems before
 rewriting useful powers into Sentinel-native contracts.
 
-Current public GitHub checkpoint:
+Historical public GitHub checkpoint (archived; not current execution truth):
 
 ```text
 remote = https://github.com/Gameminde/SENTINAL
@@ -365,7 +379,7 @@ latest_runtime_lock_commit = 07c0e09 runtime: lock brain native candidates and m
 previous_runtime_loop_commit = 634d709 runtime: close brain to organ runtime loop
 ```
 
-Current state lock:
+Historical state lock snapshot:
 
 ```text
 current_phase = BRAIN_NATIVE_ACTION_FEEDBACK_LOOP_LOCKED
@@ -373,7 +387,7 @@ previous_phase = BRAIN_TO_ORGAN_RUNTIME_CLOSED_LOOP_LOCKED
 next_phase = MISSION_AUTHORITY_AND_CREDENTIAL_VAULT_FOUNDATION
 ```
 
-Important current truth:
+Historical scoped truth at that checkpoint:
 
 ```text
 Brain native candidate source = CLOSED

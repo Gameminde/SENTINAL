@@ -11,9 +11,10 @@ from sentinel.agent.model_contract import (
 )
 from sentinel.agent.model_cost import ModelCostProfile
 from sentinel.mission.cancellation import CancellationToken
+from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.models import OperatorMode
-from sentinel.operator.power_bridge import OperatorPowerRuntimeBridge
+from sentinel.operator.power_bridge import BoundPowerActuatorExecutor, OperatorPowerRuntimeBridge
 from sentinel.operator.replay import MissionReplayBuilder
 from sentinel.power.runtime import (
     PowerActuatorCapabilityLevel,
@@ -148,7 +149,11 @@ def test_gauntlet_missing_executor_blocks_with_safe_replay(tmp_path: Path) -> No
     started = cockpit.handle("oui commence")
     mission_id = started.mission_record.mission_id
 
-    result = OperatorPowerRuntimeBridge(cockpit.kernel).run(mission_id, _plan(mission_id))
+    result = OperatorPowerRuntimeBridge(cockpit.kernel).run(
+        mission_id,
+        _plan(mission_id),
+        envelope=_power_envelope(mission_id),
+    )
     replay = MissionReplayBuilder(cockpit.kernel.store).build(mission_id)
 
     assert result.status is PowerRuntimeStatus.BLOCKED
@@ -165,14 +170,15 @@ def test_gauntlet_power_runtime_refs_surface_in_replay(tmp_path: Path) -> None:
     OperatorPowerRuntimeBridge(cockpit.kernel).run(
         mission_id,
         _plan(mission_id),
-        actuator_executor=lambda step, _context: PowerStepResult(
+        envelope=_power_envelope(mission_id),
+        executor_binding=_power_binding(lambda step, _context: PowerStepResult(
             step_id=step.step_id,
             status=PowerStepStatus.SUCCEEDED,
             receipt_refs=["receipt:gauntlet"],
             finalgate_certificate_refs=["finalgate:gauntlet"],
             memory_feedback_refs=["memory:gauntlet"],
             safe_summary="gauntlet step done",
-        ),
+        )),
     )
     replay = MissionReplayBuilder(cockpit.kernel.store).build(mission_id)
 
@@ -192,11 +198,12 @@ def test_gauntlet_kill_switch_aborts_remaining_power_steps(tmp_path: Path) -> No
     result = OperatorPowerRuntimeBridge(cockpit.kernel).run(
         mission_id,
         _plan(mission_id),
-        actuator_executor=lambda step, _context: PowerStepResult(
+        envelope=_power_envelope(mission_id),
+        executor_binding=_power_binding(lambda step, _context: PowerStepResult(
             step_id=step.step_id,
             status=PowerStepStatus.SUCCEEDED,
             safe_summary="should not run",
-        ),
+        )),
         cancellation_token=token,
     )
 
@@ -290,7 +297,24 @@ def _plan(mission_id: str) -> PowerMissionPlan:
                     capability_level=PowerActuatorCapabilityLevel.L3,
                     organ_kind="reversible_workspace",
                     action_kind="write",
+                    request={"path": "data/generated_projects/report.md"},
                 )
             ]
         ),
     )
+
+
+def _power_envelope(mission_id: str) -> MissionAuthorityEnvelope:
+    return MissionAuthorityEnvelope(
+        id=mission_id,
+        user_id="operator_gauntlet",
+        mission_title="Power gauntlet",
+        mission_objective="Run a governed workspace step.",
+        allowed_systems=["workspace"],
+        allowed_tools=["reversible_workspace"],
+        allowed_actions=["write"],
+    )
+
+
+def _power_binding(executor):
+    return BoundPowerActuatorExecutor(contract_id="executor:governed:v1", executor=executor)

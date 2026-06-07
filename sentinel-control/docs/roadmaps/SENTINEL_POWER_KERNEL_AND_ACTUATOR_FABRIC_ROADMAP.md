@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-07
 
 ```text
-current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-previous_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
-active_implementation_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-next_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+active_implementation_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -161,7 +161,8 @@ POWER_ACTUATOR_FABRIC_WAVE_1 = LOCKED
 COMPETITIVE_GAP_DELTA_LOCK = CLOSED
 SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 = CLOSED
 PERSISTENT_SEMANTIC_MEMORY_V1 = CLOSED
-DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 = NEXT
+DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 = CLOSED
+MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -685,14 +686,15 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 ```
 
 Reason:
 
 ```text
 Sentinel now has a locked Wave 1 actuator fabric, an LLM-backed live operator
-cockpit, and durable semantic memory. The next step is restartable governed
-mission continuity: checkpoints, resume, retry, automatic replan, and complete
-proof across failures without turning memory or old receipts into authority.
+cockpit, durable semantic memory, and restartable governed mission continuity
+with checkpointed typed-budget automatic PowerRuntime replan inside unchanged
+authority. The next step is a controlled worker fleet with strict child
+authority inheritance, worker budgets, merge contracts, and complete proof.
 ```

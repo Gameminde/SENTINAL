@@ -61,20 +61,28 @@ SHARED_SECRET_LIKE_PATTERN = re.compile(
     r"|npm_[A-Za-z0-9]{20,}"
     r"|xox[baprs]-[A-Za-z0-9\-]{20,}"
     r"|(?:AKIA|ASIA)[A-Z0-9]{16}"
-    r"|(?:sk|rk)_live_[A-Za-z0-9]{16,})",
+    r"|(?:sk|rk)_live_[A-Za-z0-9]{16,}"
+    r"|(?:access[_-]?token|refresh[_-]?token|session[_-]?token|sessionid|x-api-key|cookie)"
+    r"\s*[:=]\s*[^;\s&]{8,})",
     re.IGNORECASE,
 )
 
 SHARED_FORBIDDEN_SECRET_KEYS = {
+    "access_token",
     "api_key",
     "authorization",
     "bearer",
+    "cookie",
     "credential",
     "credential_value",
     "password",
+    "refresh_token",
     "secret",
     "secret_value",
+    "session_token",
+    "sessionid",
     "token",
+    "x_api_key",
 }
 
 SHARED_PROVIDER_OVERRIDE_KEYS = {

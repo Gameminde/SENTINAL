@@ -1,5 +1,87 @@
 # Current State Lock
 
+## Durable Mission Workflow And Automatic Replan V1 - LOCKED
+
+Recorded at: 2026-06-07
+
+This section is the canonical current state. It extends the existing
+MissionKernel, MissionRunStore, PowerRuntime, AgentRuntime bridge, receipts,
+FinalGate refs, replay, and persistent-memory refs. It does not create a
+parallel workflow runtime.
+
+```text
+current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Durable Workflow Truth
+
+```text
+durable workflow record/branch/checkpoint/resume cursor = CLOSED / local runtime
+workflow storage inside existing MissionKernel run directory = CLOSED
+versioned atomic record writes and fsynced event append = CLOSED
+hash-bound mission record and checkpoint/timeline tamper visibility = CLOSED
+checkpoint prepared-event binding before durable publication = CLOSED
+branch/plan/step-bound proof-backed resume without certified-step repetition = CLOSED
+forged/nonexistent proof refs cannot unlock dependencies = CLOSED
+branch transition checkpoint-first crash consistency = CLOSED / fail-closed on partial write
+action and typed estimated-cost reservation before execution = CLOSED
+automatic PowerRuntime replan inside unchanged authority = CLOSED
+automatic replan product default = enabled for typed-budget-proven in-authority branches
+stale checkpoint/new endpoint/new path/new recipient/risk/provider/executor drift = ESCALATE
+L6/L7/special-authority/credential/irreversible boundary = ESCALATE
+positive-cost replan without typed step cost proof = ESCALATE
+opaque AgentRuntime automatic replan = ESCALATE / typed action plan required
+pause/kill/revocation recheck before every next step = CLOSED
+same-process duplicate workflow tick prevention = CLOSED
+replay without re-execution = CLOSED
+tamper failure does not rewrite/re-hash damaged workflow state = CLOSED
+malformed checkpoint replay = CLOSED / fail-closed
+memory/receipt/FinalGate/checkpoint-as-permission = BLOCKED
+direct organ execution from workflow controller = BLOCKED
+unbound executor and PowerRuntime bridge without authority envelope = BLOCKED
+revoked/expired envelope and cumulative mission power budget at public bridge = BLOCKED
+hidden API mutation, empty power plan, and success without receipt/FinalGate refs = BLOCKED
+provider fallback/AUTO routing = NOT_APPROVED
+multi-process workflow lease = NOT_STARTED
+production mission daemon = NOT_STARTED
+```
+
+### Honest V1 Limits
+
+```text
+workflow/proof hashes are unkeyed corruption/non-rehashing tamper detection
+local proof ledger is not cryptographic authenticity against a writer that can rewrite every local file
+bound executor is a trusted same-process injection boundary, not cryptographic backend authentication
+receipt/FinalGate refs are structurally required but not authenticated by this V1 layer
+execution lock prevents duplicate ticks only inside one process
+typed estimated cost is charged conservatively; actual provider billing reconciliation is not implemented
+AgentRuntime continuation remains public-bridge controlled but opaque automatic replan is blocked
+workflow checkpoints cannot make an external side effect transactionally atomic
+checkpoint/record/event append is fail-closed but not one atomic multi-file transaction
+crash after durable action/cost reservation can require operator intervention
+kill/revocation cannot interrupt an actuator call already in progress
+```
+
+### Durable Workflow Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/workflow_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/workflow_store.py
+sentinel-control/services/sentinel-core/sentinel/operator/replan_guard.py
+sentinel-control/services/sentinel-core/sentinel/operator/workflow_runtime.py
+sentinel-control/services/sentinel-core/sentinel/operator/workflow_replay.py
+sentinel-control/services/sentinel-core/tests/test_durable_mission_workflow_and_automatic_replan_v1.py
+sentinel-control/services/sentinel-core/tests/test_durable_mission_workflow_replan_gauntlet_v1.py
+sentinel-control/docs/reviews/DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Persistent Semantic Memory V1 - LOCKED
 
 Recorded at: 2026-06-07

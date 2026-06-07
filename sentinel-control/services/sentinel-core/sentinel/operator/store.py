@@ -1,30 +1,47 @@
 from __future__ import annotations
 
 import json
+import os
+import threading
+from contextlib import contextmanager
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.models import MissionEvent, MissionRecord, OperatorMissionStatus, utc_now
-from sentinel.operator.redaction import redact_operator_text, redact_operator_value
+from sentinel.operator.redaction import (
+    redact_operator_text,
+    redact_operator_value,
+    sanitize_operator_refs,
+)
 from sentinel.operator.safety import reject_operator_control_payload
+
+
+_STORE_LOCKS: dict[str, threading.RLock] = {}
+_STORE_LOCKS_GUARD = threading.Lock()
 
 
 class MissionRunStore:
     def __init__(self, run_root: Path | str) -> None:
         self.run_root = Path(run_root).resolve()
         self.run_root.mkdir(parents=True, exist_ok=True)
+        with _STORE_LOCKS_GUARD:
+            self._lock = _STORE_LOCKS.setdefault(str(self.run_root), threading.RLock())
 
     def create_record(self, record: MissionRecord) -> MissionRecord:
         mission_dir = self._mission_dir(record.mission_id, create=True)
-        record = record.model_copy(update={"run_dir": str(mission_dir)})
+        record = record.model_copy(update={"run_dir": str(mission_dir)}).with_hash()
         self._write_record(record)
         self.append_event(record.mission_id, event_type="mission_created", safe_summary="Mission created.")
         return record
 
     def load_record(self, mission_id: str) -> MissionRecord:
         path = self._mission_dir(mission_id) / "record.json"
-        return MissionRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        record = MissionRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        if not record.verify_hash():
+            raise ValueError("mission record hash mismatch")
+        return record
 
     def list_records(self) -> list[MissionRecord]:
         records: list[MissionRecord] = []
@@ -33,14 +50,86 @@ class MissionRunStore:
                 continue
             record_path = child / "record.json"
             if record_path.exists():
-                records.append(MissionRecord.model_validate(json.loads(record_path.read_text(encoding="utf-8"))))
+                record = MissionRecord.model_validate(json.loads(record_path.read_text(encoding="utf-8")))
+                if not record.verify_hash():
+                    raise ValueError("mission record hash mismatch")
+                records.append(record)
         return sorted(records, key=lambda record: record.created_at)
 
-    def update_record_status(self, mission_id: str, status: OperatorMissionStatus) -> MissionRecord:
-        record = self.load_record(mission_id)
-        updated = record.model_copy(update={"status": status, "updated_at": utc_now()})
-        self._write_record(updated)
-        return updated
+    def update_record_status(
+        self,
+        mission_id: str,
+        status: OperatorMissionStatus,
+        *,
+        pause_origin: str | None = None,
+    ) -> MissionRecord:
+        with self._lock:
+            record = self.load_record(mission_id)
+            updated = record.model_copy(
+                update={
+                    "status": status,
+                    "pause_origin": pause_origin if status is OperatorMissionStatus.PAUSED else None,
+                    "updated_at": utc_now(),
+                }
+            ).with_hash()
+            self._write_record(updated)
+            return updated
+
+    def reserve_power_budget(
+        self,
+        mission_id: str,
+        *,
+        action_count: int,
+        estimated_cost_usd: float,
+        max_actions: int,
+        max_cost_usd: float,
+    ) -> MissionRecord:
+        if action_count < 0 or estimated_cost_usd < 0:
+            raise ValueError("power budget reservation invalid")
+        with self._lock:
+            record = self.load_record(mission_id)
+            if record.power_actions_used + record.power_actions_reserved + action_count > max_actions:
+                raise ValueError("mission power action budget exhausted")
+            if record.power_cost_used_usd + record.power_cost_reserved_usd + estimated_cost_usd > max_cost_usd:
+                raise ValueError("mission power cost budget exhausted")
+            updated = record.model_copy(
+                update={
+                    "power_actions_reserved": record.power_actions_reserved + action_count,
+                    "power_cost_reserved_usd": record.power_cost_reserved_usd + estimated_cost_usd,
+                    "updated_at": utc_now(),
+                }
+            ).with_hash()
+            self._write_record(updated)
+            return updated
+
+    def commit_power_budget(
+        self,
+        mission_id: str,
+        *,
+        reserved_actions: int,
+        reserved_cost_usd: float,
+        actual_actions: int,
+        actual_cost_usd: float,
+    ) -> MissionRecord:
+        if actual_actions < 0 or actual_actions > reserved_actions:
+            raise ValueError("mission power action debit invalid")
+        if actual_cost_usd < 0 or actual_cost_usd > reserved_cost_usd:
+            raise ValueError("mission power cost debit invalid")
+        with self._lock:
+            record = self.load_record(mission_id)
+            if record.power_actions_reserved < reserved_actions or record.power_cost_reserved_usd < reserved_cost_usd:
+                raise ValueError("mission power budget reservation missing")
+            updated = record.model_copy(
+                update={
+                    "power_actions_reserved": record.power_actions_reserved - reserved_actions,
+                    "power_cost_reserved_usd": record.power_cost_reserved_usd - reserved_cost_usd,
+                    "power_actions_used": record.power_actions_used + max(actual_actions, 0),
+                    "power_cost_used_usd": record.power_cost_used_usd + max(actual_cost_usd, 0.0),
+                    "updated_at": utc_now(),
+                }
+            ).with_hash()
+            self._write_record(updated)
+            return updated
 
     def append_event(
         self,
@@ -53,27 +142,30 @@ class MissionRunStore:
         finalgate_certificate_refs: list[str] | None = None,
         memory_feedback_refs: list[str] | None = None,
     ) -> MissionEvent:
-        metadata = redact_operator_value(metadata or {})
-        reject_operator_control_payload(metadata, context="mission_event")
-        events = self.load_events(mission_id)
-        previous_hash = events[-1].event_hash if events else None
-        event = MissionEvent(
-            mission_id=mission_id,
-            sequence=len(events),
-            event_type=event_type,
-            safe_summary=redact_operator_text(safe_summary),
-            metadata=metadata,
-            receipt_refs=list(receipt_refs or []),
-            finalgate_certificate_refs=list(finalgate_certificate_refs or []),
-            memory_feedback_refs=list(memory_feedback_refs or []),
-            previous_hash=previous_hash,
-            event_hash="",
-        )
-        event = event.model_copy(update={"event_hash": _hash_event(event)})
-        path = self._mission_dir(mission_id) / "events.jsonl"
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event.model_dump(mode="json"), sort_keys=True, default=str) + "\n")
-        return event
+        with self._lock:
+            metadata = redact_operator_value(metadata or {})
+            reject_operator_control_payload(metadata, context="mission_event")
+            events = self.load_events(mission_id)
+            previous_hash = events[-1].event_hash if events else None
+            event = MissionEvent(
+                mission_id=mission_id,
+                sequence=len(events),
+                event_type=event_type,
+                safe_summary=redact_operator_text(safe_summary),
+                metadata=metadata,
+                receipt_refs=sanitize_operator_refs(receipt_refs or []),
+                finalgate_certificate_refs=sanitize_operator_refs(finalgate_certificate_refs or []),
+                memory_feedback_refs=sanitize_operator_refs(memory_feedback_refs or []),
+                previous_hash=previous_hash,
+                event_hash="",
+            )
+            event = event.model_copy(update={"event_hash": _hash_event(event)})
+            path = self._mission_dir(mission_id) / "events.jsonl"
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(event.model_dump(mode="json"), sort_keys=True, default=str) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            return event
 
     def load_events(self, mission_id: str) -> list[MissionEvent]:
         path = self._mission_dir(mission_id) / "events.jsonl"
@@ -97,9 +189,44 @@ class MissionRunStore:
             previous_hash = event.event_hash
         return True
 
+    def verify_record(self, mission_id: str) -> bool:
+        try:
+            return self.load_record(mission_id).verify_hash()
+        except (OSError, ValueError, KeyError, json.JSONDecodeError):
+            return False
+
     def _write_record(self, record: MissionRecord) -> None:
         path = self._mission_dir(record.mission_id, create=True) / "record.json"
-        path.write_text(json.dumps(record.safe_model_dump(), sort_keys=True, indent=2, default=str), encoding="utf-8")
+        self.atomic_write_json(path, record.with_hash().safe_model_dump())
+
+    def mission_dir(self, mission_id: str, *, create: bool = False) -> Path:
+        return self._mission_dir(mission_id, create=create)
+
+    @contextmanager
+    def locked(self):
+        with self._lock:
+            yield
+
+    def atomic_write_json(self, path: Path, payload: Any) -> None:
+        path = path.resolve()
+        if self.run_root not in path.parents:
+            raise ValueError("write path escapes run root")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        rendered = json.dumps(payload, sort_keys=True, indent=2, default=str)
+        with self._lock:
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temp_path = Path(handle.name)
+                handle.write(rendered)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, path)
 
     def _mission_dir(self, mission_id: str, *, create: bool = False) -> Path:
         if not mission_id or any(sep in mission_id for sep in ("/", "\\")) or ".." in mission_id:

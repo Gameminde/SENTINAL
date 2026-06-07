@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
-previous_phase = SENTINEL_EXHAUSTIVE_SELF_AUDIT_AND_MASTER_ROADMAP_LOCKED
-next_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1
+current_phase = DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1_LOCKED
+previous_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED
+next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -53,6 +53,9 @@ MissionAuthorityEnvelope, Gate, receipts, FinalGate, memory feedback
 PowerRuntime V0
 durable local scoped semantic memory with optional Brain/cockpit recall
 optional AgentRuntime RoleLoopMemoryBridge durable write-through
+durable local MissionKernel workflow records, checkpoints, branches, proof ledger, and replay
+automatic typed-budget PowerRuntime replan inside unchanged authority
+same-process duplicate-tick prevention and per-step pause/kill/revocation checks
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -63,7 +66,7 @@ injected-authority channel send path
 Not product-complete:
 
 ```text
-restartable durable workflow and automatic replan
+multi-process workflow leases and production daemon
 real authority-inheriting worker fleet
 production daemon and proactive scheduler
 model-amplifying harness
@@ -215,6 +218,8 @@ Exit:
 
 ### Phase 2 - Durable Mission Workflow And Automatic Replan V1
 
+Status: `LOCKED` on 2026-06-07.
+
 Purpose:
 
 - turn bounded runs and replan-ready packets into restartable governed
@@ -230,6 +235,21 @@ Core deliverables:
 Exit:
 
 - a mission can crash, resume, replan, and finish with complete proof.
+
+Locked truth:
+
+- PowerRuntime replans auto-execute only when exact authority, objective,
+  step contracts, targets, budgets, provider/model, and executor bindings
+  remain unchanged;
+- stale checkpoints, target expansion, positive cost without typed step proof, L6/L7,
+  credential, irreversible, and special-authority boundaries escalate;
+- opaque AgentRuntime automatic continuation remains blocked until a typed
+  action plan can be guarded;
+- bound executors and receipt/FinalGate refs are structurally enforced but
+  remain a trusted same-process boundary until a later authenticated backend
+  registry/ledger phase;
+- duplicate-tick prevention is same-process only; multi-process leases remain
+  Phase 4 work.
 
 ### Phase 3 - Mission Worker Fleet And Authority Inheritance V1
 

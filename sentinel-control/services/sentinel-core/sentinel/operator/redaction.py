@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.shared.safety_scanner import SHARED_SECRET_LIKE_PATTERN
 
 
@@ -37,3 +38,17 @@ def redact_operator_value(value: Any) -> Any:
         redacted_items = [redact_operator_value(item) for item in value]
         return sorted(redacted_items, key=lambda item: repr(item))
     return value
+
+
+def sanitize_operator_ref(value: Any) -> str:
+    text = str(value)
+    redacted = redact_operator_text(text)
+    if redacted != text:
+        return f"redacted_ref:{stable_hash(text)}"
+    return redacted
+
+
+def sanitize_operator_refs(values: Any) -> list[str]:
+    if not isinstance(values, (list, tuple, set)):
+        return []
+    return list(dict.fromkeys(sanitize_operator_ref(value) for value in values if str(value)))

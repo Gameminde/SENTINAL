@@ -6,8 +6,8 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from sentinel.agent.model_execution.redaction import text_hash
-from sentinel.operator.redaction import redact_operator_text, redact_operator_value
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
+from sentinel.operator.redaction import redact_operator_text, redact_operator_value, sanitize_operator_refs
 from sentinel.operator.safety import assert_data_not_authority, reject_operator_control_payload
 from sentinel.shared.models import SentinelModel, new_id
 
@@ -377,6 +377,12 @@ class MissionRecord(SentinelModel):
     receipt_refs: list[str] = Field(default_factory=list)
     finalgate_certificate_refs: list[str] = Field(default_factory=list)
     memory_feedback_refs: list[str] = Field(default_factory=list)
+    pause_origin: str | None = None
+    power_actions_used: int = Field(default=0, ge=0)
+    power_actions_reserved: int = Field(default=0, ge=0)
+    power_cost_used_usd: float = Field(default=0.0, ge=0.0)
+    power_cost_reserved_usd: float = Field(default=0.0, ge=0.0)
+    record_hash: str = ""
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     data_not_authority: bool = True
@@ -395,6 +401,17 @@ class MissionRecord(SentinelModel):
         )
         return self
 
+    def with_hash(self) -> MissionRecord:
+        payload = self.safe_model_dump()
+        payload["record_hash"] = ""
+        return self.model_copy(update={"record_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        payload = self.safe_model_dump()
+        stored = payload["record_hash"]
+        payload["record_hash"] = ""
+        return bool(stored) and stored == stable_hash(payload)
+
     def safe_model_dump(self) -> dict[str, Any]:
         draft = _safe_mission_draft_dump(self.draft)
         authority = _safe_authority_summary_dump(self.authority_summary) if self.authority_summary else None
@@ -405,9 +422,15 @@ class MissionRecord(SentinelModel):
             "authority_summary": authority,
             "status": self.status.value,
             "run_dir": self.run_dir,
-            "receipt_refs": self.receipt_refs,
-            "finalgate_certificate_refs": self.finalgate_certificate_refs,
-            "memory_feedback_refs": self.memory_feedback_refs,
+            "receipt_refs": sanitize_operator_refs(self.receipt_refs),
+            "finalgate_certificate_refs": sanitize_operator_refs(self.finalgate_certificate_refs),
+            "memory_feedback_refs": sanitize_operator_refs(self.memory_feedback_refs),
+            "pause_origin": self.pause_origin,
+            "power_actions_used": self.power_actions_used,
+            "power_actions_reserved": self.power_actions_reserved,
+            "power_cost_used_usd": self.power_cost_used_usd,
+            "power_cost_reserved_usd": self.power_cost_reserved_usd,
+            "record_hash": self.record_hash,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "data_not_authority": self.data_not_authority,

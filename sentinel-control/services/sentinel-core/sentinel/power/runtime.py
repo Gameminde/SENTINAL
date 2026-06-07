@@ -62,6 +62,7 @@ class PowerMissionStep(SentinelModel):
     request: dict[str, Any] = Field(default_factory=dict)
     depends_on: list[str] = Field(default_factory=list)
     retry_budget: int = Field(default=0, ge=0)
+    estimated_cost_usd: float = Field(default=0.0, ge=0.0)
     receipt_refs: list[str] = Field(default_factory=list)
     finalgate_certificate_refs: list[str] = Field(default_factory=list)
     memory_feedback_refs: list[str] = Field(default_factory=list)
@@ -424,7 +425,14 @@ class SentinelPowerRuntimeV0:
                     blocked_reason=exc.__class__.__name__,
                     safe_summary="Actuator executor raised a sanitized failure.",
                 )
-            if result.step_id != step.step_id:
+            if not isinstance(result, PowerStepResult):
+                result = PowerStepResult(
+                    step_id=step.step_id,
+                    status=PowerStepStatus.FAILED,
+                    blocked_reason="executor_invalid_result",
+                    safe_summary="Actuator executor returned an invalid result.",
+                )
+            elif result.step_id != step.step_id:
                 result = PowerStepResult(
                     step_id=step.step_id,
                     status=PowerStepStatus.FAILED,

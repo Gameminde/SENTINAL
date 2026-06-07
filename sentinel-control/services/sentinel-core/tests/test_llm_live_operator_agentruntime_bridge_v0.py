@@ -10,8 +10,9 @@ from sentinel.operator.models import MissionDraft, OperatorMissionStatus
 from sentinel.shared.enums import MissionMode, MissionType
 
 
-def _envelope() -> MissionAuthorityEnvelope:
+def _envelope(mission_id: str) -> MissionAuthorityEnvelope:
     return MissionAuthorityEnvelope(
+        id=mission_id,
         user_id="operator_user",
         mission_type=MissionType.GTM,
         mission_title="Operator agent bridge",
@@ -60,7 +61,7 @@ def test_operator_agent_bridge_uses_public_runtime_api(tmp_path: Path) -> None:
 
     result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
         mission_id,
-        envelope=_envelope(),
+        envelope=_envelope(mission_id),
         user_input={"goal": "safe"},
     )
 
@@ -72,7 +73,7 @@ def test_operator_agent_bridge_uses_public_runtime_api(tmp_path: Path) -> None:
 def test_operator_agent_bridge_default_off_without_runtime_config(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
 
-    result = OperatorAgentRuntimeBridge(kernel).run(mission_id, envelope=_envelope(), user_input={})
+    result = OperatorAgentRuntimeBridge(kernel).run(mission_id, envelope=_envelope(mission_id), user_input={})
 
     assert result.status == "blocked"
     assert result.blocked_reason == "missing_agentruntime"
@@ -86,7 +87,7 @@ def test_operator_agent_bridge_does_not_run_killed_mission(tmp_path: Path) -> No
 
     result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
         mission_id,
-        envelope=_envelope(),
+        envelope=_envelope(mission_id),
         user_input={},
     )
 
@@ -101,7 +102,7 @@ def test_operator_agent_bridge_records_finalgate_memory_refs(tmp_path: Path) -> 
 
     result = OperatorAgentRuntimeBridge(kernel, runtime=RecordingRuntime()).run(
         mission_id,
-        envelope=_envelope(),
+        envelope=_envelope(mission_id),
         user_input={"goal": "safe"},
     )
 
@@ -115,7 +116,11 @@ def test_operator_agent_bridge_does_not_enable_provider_fallback(tmp_path: Path)
     kernel, mission_id = _kernel_with_mission(tmp_path)
     runtime = RecordingRuntime()
 
-    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(mission_id, envelope=_envelope(), user_input={})
+    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_envelope(mission_id),
+        user_input={},
+    )
 
     assert "fallback" not in str(runtime.calls[0][2]).lower()
     assert "auto" not in str(runtime.calls[0][2]).lower()
@@ -125,6 +130,10 @@ def test_operator_agent_bridge_does_not_directly_dispatch_organs(tmp_path: Path)
     kernel, mission_id = _kernel_with_mission(tmp_path)
     runtime = RecordingRuntime()
 
-    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(mission_id, envelope=_envelope(), user_input={})
+    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_envelope(mission_id),
+        user_input={},
+    )
 
     assert len(runtime.calls) == 1
