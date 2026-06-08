@@ -1,24 +1,113 @@
 # Current State Lock
 
+## Local Model Hardware And Cost Router V1 - LOCKED
+
+Recorded at: 2026-06-08
+
+This section is the canonical current state. It supersedes the governed
+skill/procedure fabric lock as top-level execution truth. Sentinel now has a
+Sentinel-native local model hardware and cost router over the existing explicit
+`UserModelContract`, LLM cockpit, MissionKernel, MissionRunStore,
+TelemetryKernel, Persistent Semantic Memory refs, ModelAmplificationHarness,
+GovernedSkillFabric, WorkerFleetRuntime, daemon, runtime, authority, receipt,
+FinalGate, and replay spine. It does not create a parallel provider runtime,
+parallel provider registry, parallel authority system, hidden routing path,
+provider fallback/AUTO, provider-native tools, model downloads, model server
+management, a new actuator family, or a vendor runtime bridge.
+
+```text
+current_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+previous_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+next_phase = REAL_CHANNEL_ADAPTERS_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Local Model Router Runtime Truth
+
+```text
+ModelRouterConfig = CLOSED
+ModelCandidate / ModelCandidateId / source/runtime/backend kinds = CLOSED
+ModelCapability/Cost/Latency/Quality/Privacy/Energy/Context/Hardware profiles = CLOSED / descriptor data only
+HardwareInventorySnapshot = CLOSED / safe local read-only metadata
+RuntimeAvailabilityProbe = CLOSED / explicit loopback socket only, no provider call, no credential probe, no network scan
+RoutePolicy / RouteObjective / RouteConstraint = CLOSED / policy data only
+RouteSimulationRequest / Result = CLOSED / deterministic candidate scoring where inputs match
+RouteCandidateScore and rejection reasons = CLOSED
+RouteDecision = CLOSED / advisory route decision data only
+RouteDecisionReceipt = CLOSED / hash-bound proof, not future permission
+RouteApprovalRecord = CLOSED / operator/operator-policy source only
+RouteExecutionBinding = CLOSED / explicit UserModelContract identity required
+RouteTelemetrySummary = CLOSED
+RouteReplayView and ModelRouterReplayBuilder = CLOSED / no re-execution
+candidate normalization from explicit UserModelContract = CLOSED
+candidate normalization from existing provider catalog = CLOSED
+local runtime descriptors for ollama / llama.cpp / vLLM / SGLang = CLOSED / descriptors only
+API descriptors for existing explicit/catalog candidates = CLOSED / descriptors only
+hardware/cost/privacy/latency/context/hardware-fit metrics = CLOSED
+route events and metrics through TelemetryKernel = CLOSED
+route persistence under MissionRunStore mission dirs = CLOSED
+router-as-authority = BLOCKED
+hidden provider/backend/model switch = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+provider-native tools = BLOCKED
+provider key discovery/persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+raw credential persistence = BLOCKED
+model downloads/server management = NOT_STARTED
+new actuator family = NOT_STARTED
+vendor runtime bridge = NOT_APPROVED
+Real Channel Adapters = NOT_STARTED / next
+```
+
+### Local Model Router Honest V1 Limits
+
+```text
+router is local same-process decision support, not a model execution runtime
+runtime availability probes only explicit loopback descriptors and never call providers
+provider catalog candidates are descriptors and cannot execute without explicit UserModelContract binding
+route approval is not MissionAuthorityEnvelope and cannot grant mission authority
+route receipt is proof/evidence only and cannot become future permission
+router does not add automatic failover, fallback/AUTO, local/cloud live switching, model downloads, or model server management
+router does not add credentials, payment, desktop, channels, voice, or new actuators
+```
+
+### Local Model Router Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/model_router_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/model_router.py
+sentinel-control/services/sentinel-core/sentinel/operator/model_router_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_local_model_hardware_and_cost_router_v1.py
+sentinel-control/docs/reviews/LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Governed Skill And Procedure Fabric V1 - LOCKED
 
 Recorded at: 2026-06-08
 
-This section is the canonical current state. It supersedes the model
-amplification harness lock as top-level execution truth. Sentinel now has a
-governed local skill/procedure fabric over the existing LLM cockpit,
+This section is the previous runtime lock. It superseded the model
+amplification harness lock at the time. It is now historical because the Local
+Model Hardware And Cost Router has locked on top of the existing LLM cockpit,
 MissionKernel, MissionRunStore, DurableWorkflowStore, MissionDaemonRuntime,
 WorkerFleetRuntime, ModelAmplificationHarness, TelemetryKernel, Persistent
-Semantic Memory refs, PowerRuntime/AgentRuntime bridge boundaries,
-MissionAuthorityEnvelope, receipt, FinalGate, and replay spine. It does not
+Semantic Memory refs, Skill Fabric, PowerRuntime/AgentRuntime bridge
+boundaries, MissionAuthorityEnvelope, receipt, FinalGate, and replay spine.
+The governed skill/procedure fabric does not
 create a parallel authority system, a parallel runtime, a parallel worker
 fleet, a parallel telemetry system, a public plugin marketplace, remote plugin
 execution, a model router, a new actuator family, or a vendor runtime bridge.
 
 ```text
-current_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+historical_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
 previous_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
-next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+historical_next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -52,7 +141,7 @@ raw prompt/provider response/reasoning persistence = BLOCKED
 raw credential persistence = BLOCKED
 new actuator family = NOT_STARTED
 vendor runtime bridge = NOT_APPROVED
-Local Model Hardware And Cost Router = NOT_STARTED / next
+Local Model Hardware And Cost Router = CLOSED / locked after this historical section
 ```
 
 ### Governed Skill/Procedure Fabric Honest V1 Limits

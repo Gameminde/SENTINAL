@@ -1415,6 +1415,20 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "procedure_step_failed": TelemetryEventKind.PROCEDURE_STEP_FAILED,
         "procedure_rollback_required": TelemetryEventKind.PROCEDURE_ROLLBACK_REQUIRED,
         "procedure_replay_built": TelemetryEventKind.PROCEDURE_REPLAY_BUILT,
+        "model_router_candidate_registered": TelemetryEventKind.MODEL_ROUTER_CANDIDATE_REGISTERED,
+        "model_router_candidate_rejected": TelemetryEventKind.MODEL_ROUTER_CANDIDATE_REJECTED,
+        "model_router_hardware_snapshot_created": TelemetryEventKind.MODEL_ROUTER_HARDWARE_SNAPSHOT_CREATED,
+        "model_router_runtime_probe_started": TelemetryEventKind.MODEL_ROUTER_RUNTIME_PROBE_STARTED,
+        "model_router_runtime_probe_completed": TelemetryEventKind.MODEL_ROUTER_RUNTIME_PROBE_COMPLETED,
+        "model_router_simulation_started": TelemetryEventKind.MODEL_ROUTER_SIMULATION_STARTED,
+        "model_router_simulation_completed": TelemetryEventKind.MODEL_ROUTER_SIMULATION_COMPLETED,
+        "model_router_decision_created": TelemetryEventKind.MODEL_ROUTER_DECISION_CREATED,
+        "model_router_decision_rejected": TelemetryEventKind.MODEL_ROUTER_DECISION_REJECTED,
+        "model_router_approval_recorded": TelemetryEventKind.MODEL_ROUTER_APPROVAL_RECORDED,
+        "model_router_binding_created": TelemetryEventKind.MODEL_ROUTER_BINDING_CREATED,
+        "model_router_binding_rejected": TelemetryEventKind.MODEL_ROUTER_BINDING_REJECTED,
+        "model_router_fallback_blocked": TelemetryEventKind.MODEL_ROUTER_FALLBACK_BLOCKED,
+        "model_router_policy_rejected": TelemetryEventKind.MODEL_ROUTER_POLICY_REJECTED,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1555,6 +1569,20 @@ def _domain_for_event(event_kind: TelemetryEventKind) -> TelemetryDomain:
         TelemetryEventKind.PROCEDURE_STEP_FAILED,
         TelemetryEventKind.PROCEDURE_ROLLBACK_REQUIRED,
         TelemetryEventKind.PROCEDURE_REPLAY_BUILT,
+        TelemetryEventKind.MODEL_ROUTER_CANDIDATE_REGISTERED,
+        TelemetryEventKind.MODEL_ROUTER_CANDIDATE_REJECTED,
+        TelemetryEventKind.MODEL_ROUTER_HARDWARE_SNAPSHOT_CREATED,
+        TelemetryEventKind.MODEL_ROUTER_RUNTIME_PROBE_STARTED,
+        TelemetryEventKind.MODEL_ROUTER_RUNTIME_PROBE_COMPLETED,
+        TelemetryEventKind.MODEL_ROUTER_SIMULATION_STARTED,
+        TelemetryEventKind.MODEL_ROUTER_SIMULATION_COMPLETED,
+        TelemetryEventKind.MODEL_ROUTER_DECISION_CREATED,
+        TelemetryEventKind.MODEL_ROUTER_DECISION_REJECTED,
+        TelemetryEventKind.MODEL_ROUTER_APPROVAL_RECORDED,
+        TelemetryEventKind.MODEL_ROUTER_BINDING_CREATED,
+        TelemetryEventKind.MODEL_ROUTER_BINDING_REJECTED,
+        TelemetryEventKind.MODEL_ROUTER_FALLBACK_BLOCKED,
+        TelemetryEventKind.MODEL_ROUTER_POLICY_REJECTED,
     }:
         return TelemetryDomain.PRODUCT_POWER
     return TelemetryDomain.PRODUCT_POWER

@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-previous_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
-next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+current_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+previous_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+next_phase = REAL_CHANNEL_ADAPTERS_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -63,6 +63,7 @@ same-process governed Worker Fleet with strict child authority inheritance, work
 production local MissionDaemonRuntime with durable queue, lease, heartbeat, recovery, dead-letter, and proposal-only scheduler
 local Model Amplification Execution Harness with hash-anchored state, content-addressed artifact refs, minimized tool-output economy, analysis kernel records, worker-safe typed results, conflict detection, telemetry, and replay
 governed Skill/Procedure Fabric with manifest/provenance/version pinning, scanner, quarantine, dry-run evaluation, scorecard, approval/promotion/revocation lifecycle, receipt-bound execution, rollback posture, telemetry, and replay
+local Model Hardware And Cost Router with explicit UserModelContract/catalog/descriptor candidates, safe hardware snapshots, explicit-loopback-only probes, route simulation, rejection reasons, route receipts, operator approval records, binding to explicit UserModelContract, telemetry, and replay
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -78,7 +79,7 @@ production multi-process worker service / leases / daemon integration
 production daemon service / OS service supervisor
 production LSP/debugger/deep coding harness integrations
 public skill marketplace and remote plugin execution
-hardware-aware local/cloud cost router
+automatic model failover, hidden provider switching, model downloads, and model server management
 real channel connectors
 live desktop sidecar
 voice
@@ -426,6 +427,27 @@ Core deliverables:
 Exit:
 
 - routing is explicit, explainable, and never hidden fallback/AUTO.
+
+Status: `LOCKED` on 2026-06-08.
+
+Locked truth:
+
+- router candidates come from explicit `UserModelContract`, the existing
+  provider catalog, and descriptor-only local/API records;
+- hardware snapshots are local read-only metadata;
+- runtime probes are explicit loopback-only and never provider calls, network
+  scans, credential probes, downloads, or model-server actions;
+- route policy, scoring, rejection reasons, decisions, receipts, approvals,
+  and bindings are data-only and hash-bound where persisted;
+- binding requires explicit selected provider/backend/model identity in
+  `UserModelContract`;
+- telemetry and replay cover route events/metrics without re-execution;
+- route receipts, telemetry, memory, skill, worker, daemon, scheduler, and
+  harness signals cannot grant authority or trigger hidden switching;
+- provider fallback/AUTO, provider-native tools, hidden provider/backend/model
+  override, raw prompt/provider response/reasoning persistence, provider key
+  persistence, model downloads, and model server management remain blocked or
+  not started.
 
 ### Phase 9 - Real Channel Adapters V1
 
@@ -879,15 +901,17 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+REAL_CHANNEL_ADAPTERS_V1
 ```
 
 Required direction:
 
 ```text
-Build explicit local/hardware/cost routing over the existing cockpit,
-MissionKernel, telemetry, memory, harness, runtime, authority, receipt,
-FinalGate, and replay spine. Add candidate discovery, route simulation,
-hardware/cost/privacy/latency metrics, route receipts, and operator policy
-without provider fallback/AUTO, hidden model switching, or authority expansion.
+Build real channel adapters over the existing cockpit, MissionKernel,
+telemetry, memory, daemon, Worker Fleet, skill fabric, router, runtime,
+authority, receipt, FinalGate, and replay spine. Start with scoped
+production-quality channel reach, inbound untrusted-data handling, outbound
+recipient/scope/rate/approval gates, receipts, replay, and kill/revocation
+behavior without credential vault, payment, desktop, provider fallback/AUTO, or
+new actuator-family drift.
 ```

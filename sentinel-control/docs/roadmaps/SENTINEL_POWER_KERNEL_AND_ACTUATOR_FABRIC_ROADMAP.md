@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-08
 
 ```text
-current_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-previous_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
-active_implementation_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+current_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+previous_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+active_implementation_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+next_phase = REAL_CHANNEL_ADAPTERS_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -153,12 +153,20 @@ Already real:
   authority and side effects, scanner, quarantine, dry-run evaluation,
   scorecards, approval/promotion/revocation lifecycle, receipt-bound
   execution, rollback posture, telemetry, and replay without re-execution.
+- local Model Hardware And Cost Router with explicit `UserModelContract`,
+  provider-catalog, local-runtime descriptor, and API descriptor candidates;
+  safe read-only hardware snapshots; explicit-loopback-only runtime probes;
+  route simulation, policy rejection reasons, route receipts, operator
+  approvals, explicit UserModelContract bindings, telemetry, and replay without
+  re-execution.
 
 Still not enough for real-world power:
 
 - no production multi-agent mission society orchestrator;
 - no public skill marketplace or remote plugin execution;
 - no production LSP/debugger/deep coding harness integration;
+- no automatic model failover, hidden provider switching, model downloads, or
+  model server management;
 - no durable account/session credential vault;
 - no real credential storage/resolution;
 - no real channel connector;
@@ -190,7 +198,8 @@ MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = CLOSED
 PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 = CLOSED
 MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 = CLOSED
 GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 = CLOSED
-LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 = NEXT
+LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 = CLOSED
+REAL_CHANNEL_ADAPTERS_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -714,7 +723,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+REAL_CHANNEL_ADAPTERS_V1
 ```
 
 Reason:
@@ -726,7 +735,12 @@ production local daemon/scheduler foundation plus a local model amplification
 harness for hash-anchored state, minimized tool outputs, worker-safe typed
 results, replay, and a governed skill/procedure fabric with manifest,
 provenance, scanner, quarantine, approval lifecycle, receipt-bound execution,
-rollback posture, and no authority expansion. The next step is local/hardware/
-cost routing with explicit candidate contracts, route receipts, no hidden
-fallback/AUTO, and no provider/backend/model override.
+rollback posture, and no authority expansion. Sentinel now also has explicit
+local/hardware/cost model routing with safe local hardware snapshots, descriptor
+candidate records, route simulation, route receipts, operator approval records,
+explicit UserModelContract binding, telemetry, replay, no hidden fallback/AUTO,
+and no provider/backend/model override. The next step is real channel adapters:
+scoped inbound/outbound reach with recipient/scope/rate/approval gates,
+receipts, FinalGate, replay, kill/revocation behavior, and no credential vault
+or ambient send authority.
 ```

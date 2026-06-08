@@ -49,6 +49,14 @@ heartbeats, stale-lease takeover proof, crash-recovery inspection, dead-letter
 records, proposal-only scheduling, operator-visible status, and daemon replay
 over the existing MissionKernel / DurableWorkflow / WorkerFleet / Telemetry
 spine.
+Sentinel now also has the Local Model Hardware And Cost Router V1 foundation:
+explicit candidate discovery from `UserModelContract` and the existing provider
+catalog, safe local hardware snapshots, descriptor-only local/API candidate
+records, route simulation, policy rejection reasons, hash-bound route receipts,
+operator approval records, explicit `UserModelContract` binding, telemetry, and
+replay. The router is decision support and binding data only; it does not add
+hidden provider switching, fallback/AUTO, provider-native tools, model
+downloads, model server management, or authority.
 
 An exhaustive source audit and refreshed Agent Lab synthesis now define one
 canonical anti-drift roadmap to completion. Historical reports remain useful
@@ -81,10 +89,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-previous_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
-active_implementation_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+current_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+previous_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+active_implementation_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+next_phase = REAL_CHANNEL_ADAPTERS_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -213,6 +221,12 @@ Skill dry-run evaluation, scorecard, rollback posture = CLOSED
 Receipt-bound procedure execution = CLOSED / through existing runtime executor path
 Procedure telemetry and replay = CLOSED / no re-execution
 Remote plugin execution and public marketplace = NOT_STARTED / blocked in V1
+Local Model Hardware And Cost Router = CLOSED / explicit route simulation and binding data
+Model candidate discovery from explicit contracts/catalog/descriptors = CLOSED
+Safe local hardware snapshot = CLOSED / read-only metadata
+Runtime availability probe = CLOSED / explicit loopback only, no provider calls or network scan
+Route policy, score, rejection reason, receipt, approval, binding = CLOSED
+Route telemetry and replay = CLOSED / no re-execution
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -245,6 +259,8 @@ Real Telegram/Slack/Gmail connectors = NOT_STARTED
 Production OS service wrapper / cloud daemon = NOT_STARTED
 Raw prompt/provider response/reasoning persistence = BLOCKED
 Production LSP/debugger/deep coding harness integration = NOT_STARTED
+Automatic model failover / provider fallback / AUTO routing = NOT_APPROVED
+Model downloads and model server management = NOT_STARTED
 ```
 
 The honest power score right now:
@@ -256,7 +272,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+Next milestone = REAL_CHANNEL_ADAPTERS_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -399,7 +415,8 @@ Recommended next build sequence:
 46. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 - DONE
 47. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 - DONE
 48. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 - DONE
-49. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 - NEXT
+49. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 - DONE
+50. REAL_CHANNEL_ADAPTERS_V1 - NEXT
 ```
 
 The doctrine:

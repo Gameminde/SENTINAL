@@ -38,6 +38,7 @@ class TelemetrySourceSurface(StrEnum):
     POWER_RUNTIME = "power_runtime"
     AGENT_RUNTIME = "agentruntime"
     LLM_OPERATOR = "llm_operator"
+    MODEL_ROUTER = "model_router"
     COCKPIT = "cockpit"
     REPLAY = "replay"
     BROWSER_LEDGER = "browser_neural_ledger"
@@ -155,6 +156,20 @@ class TelemetryEventKind(StrEnum):
     PROCEDURE_STEP_FAILED = "procedure_step_failed"
     PROCEDURE_ROLLBACK_REQUIRED = "procedure_rollback_required"
     PROCEDURE_REPLAY_BUILT = "procedure_replay_built"
+    MODEL_ROUTER_CANDIDATE_REGISTERED = "model_router_candidate_registered"
+    MODEL_ROUTER_CANDIDATE_REJECTED = "model_router_candidate_rejected"
+    MODEL_ROUTER_HARDWARE_SNAPSHOT_CREATED = "model_router_hardware_snapshot_created"
+    MODEL_ROUTER_RUNTIME_PROBE_STARTED = "model_router_runtime_probe_started"
+    MODEL_ROUTER_RUNTIME_PROBE_COMPLETED = "model_router_runtime_probe_completed"
+    MODEL_ROUTER_SIMULATION_STARTED = "model_router_simulation_started"
+    MODEL_ROUTER_SIMULATION_COMPLETED = "model_router_simulation_completed"
+    MODEL_ROUTER_DECISION_CREATED = "model_router_decision_created"
+    MODEL_ROUTER_DECISION_REJECTED = "model_router_decision_rejected"
+    MODEL_ROUTER_APPROVAL_RECORDED = "model_router_approval_recorded"
+    MODEL_ROUTER_BINDING_CREATED = "model_router_binding_created"
+    MODEL_ROUTER_BINDING_REJECTED = "model_router_binding_rejected"
+    MODEL_ROUTER_FALLBACK_BLOCKED = "model_router_fallback_blocked"
+    MODEL_ROUTER_POLICY_REJECTED = "model_router_policy_rejected"
 
 
 class TelemetryMetricKind(StrEnum):
@@ -218,6 +233,17 @@ class TelemetryMetricKind(StrEnum):
     PROCEDURE_ROLLBACK_COUNT = "procedure_rollback_count"
     SKILL_REVOCATION_COUNT = "skill_revocation_count"
     SKILL_AUTHORITY_REJECT_COUNT = "skill_authority_reject_count"
+    MODEL_ROUTER_CANDIDATE_COUNT = "model_router_candidate_count"
+    MODEL_ROUTER_CANDIDATE_REJECTION_COUNT = "model_router_candidate_rejection_count"
+    MODEL_ROUTER_ESTIMATED_COST_DELTA = "model_router_estimated_cost_delta"
+    MODEL_ROUTER_ESTIMATED_LATENCY_DELTA = "model_router_estimated_latency_delta"
+    MODEL_ROUTER_CONTEXT_FIT_SCORE = "model_router_context_fit_score"
+    MODEL_ROUTER_HARDWARE_FIT_SCORE = "model_router_hardware_fit_score"
+    MODEL_ROUTER_PRIVACY_SCORE = "model_router_privacy_score"
+    MODEL_ROUTER_QUALITY_SCORE = "model_router_quality_score"
+    MODEL_ROUTER_ROUTE_APPROVAL_RATE = "model_router_route_approval_rate"
+    MODEL_ROUTER_FALLBACK_BLOCK_COUNT = "model_router_fallback_block_count"
+    MODEL_ROUTER_POLICY_REJECT_COUNT = "model_router_policy_reject_count"
 
 
 class TelemetryEventRecord(SentinelModel):
