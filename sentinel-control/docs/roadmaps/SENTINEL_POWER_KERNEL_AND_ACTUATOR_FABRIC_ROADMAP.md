@@ -136,8 +136,9 @@ Already real:
 - durable MissionKernel workflow records, checkpoints, branches, automatic
   PowerRuntime replan inside unchanged authority, and replay without
   re-execution.
-- docs-only roadmap change inserting unified telemetry/product-power metrics
-  before Worker Fleet.
+- unified local observability telemetry/product-power metrics runtime before
+  Worker Fleet, with hash-bound local event/metric streams and Certified Mode
+  telemetry status.
 
 Still not enough for real-world power:
 
@@ -150,7 +151,8 @@ Still not enough for real-world power:
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
 - no production daemon service;
-- no unified observability telemetry/product-power metrics runtime;
+- unified observability telemetry/product-power metrics runtime = CLOSED / local runtime;
+- production telemetry service/cloud = NOT_STARTED;
 - no Worker Fleet.
 
 Wave 1 current completion:
@@ -693,17 +695,14 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1
+MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 ```
 
 Reason:
 
 ```text
-Sentinel now has a locked Wave 1 actuator fabric, an LLM-backed live operator
-cockpit, durable semantic memory, and restartable governed mission continuity
-with checkpointed typed-budget automatic PowerRuntime replan inside unchanged
-authority. The next step is a unified telemetry/product-power measurement
-spine before controlled worker parallelism. Worker Fleet remains next after
-telemetry, with strict child authority inheritance, worker budgets, merge
-contracts, and complete proof.
+Sentinel now has locked durable semantic memory, durable workflow/replan, and
+local telemetry/product-power metrics. The next step is controlled worker
+parallelism with strict child authority inheritance, worker budgets, telemetry,
+merge/reject contracts, receipts, FinalGate, and no authority expansion.
 ```
