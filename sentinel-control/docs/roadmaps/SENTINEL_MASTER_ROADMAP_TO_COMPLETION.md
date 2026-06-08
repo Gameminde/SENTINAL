@@ -59,6 +59,7 @@ same-process duplicate-tick prevention and per-step pause/kill/revocation checks
 Sentinel-native telemetry kernel and store over existing proof/event surfaces
 Certified Mode telemetry snapshot with local tamper-resistant event/metric chains
 product-power metrics for mission completion, useful minutes, proof completeness, replay completeness, memory, model, replan, safety, and cost signals
+same-process governed Worker Fleet with strict child authority inheritance, worker budgets, merge/reject/conflict contracts, telemetry, and replay
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -70,7 +71,7 @@ Not product-complete:
 
 ```text
 multi-process workflow leases and production daemon
-real authority-inheriting worker fleet
+production multi-process worker service / leases / daemon integration
 production daemon and proactive scheduler
 model-amplifying harness
 executable governed skill fabric
