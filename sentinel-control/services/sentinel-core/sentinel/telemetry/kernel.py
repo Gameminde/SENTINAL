@@ -47,6 +47,9 @@ class TelemetryKernel:
             raise TelemetryCertificationError(f"certified_mode_required:{reason}")
         return status
 
+    def record_metric(self, sample: TelemetryMetricSample) -> TelemetryMetricSample:
+        return self.store.record_metric(sample)
+
     def record_mission_event(self, event: MissionEvent) -> TelemetryEventRecord:
         telemetry_kind = _map_mission_event_kind(event.event_type)
         record = self.store.record_event(
@@ -1392,6 +1395,26 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "harness_conflict_detected": TelemetryEventKind.HARNESS_CONFLICT_DETECTED,
         "harness_merge_completed": TelemetryEventKind.HARNESS_MERGE_COMPLETED,
         "harness_merge_rejected": TelemetryEventKind.HARNESS_MERGE_REJECTED,
+        "skill_manifest_registered": TelemetryEventKind.SKILL_MANIFEST_REGISTERED,
+        "skill_manifest_rejected": TelemetryEventKind.SKILL_MANIFEST_REJECTED,
+        "skill_scan_started": TelemetryEventKind.SKILL_SCAN_STARTED,
+        "skill_scan_completed": TelemetryEventKind.SKILL_SCAN_COMPLETED,
+        "skill_quarantined": TelemetryEventKind.SKILL_QUARANTINED,
+        "skill_evaluation_started": TelemetryEventKind.SKILL_EVALUATION_STARTED,
+        "skill_evaluation_completed": TelemetryEventKind.SKILL_EVALUATION_COMPLETED,
+        "skill_approved": TelemetryEventKind.SKILL_APPROVED,
+        "skill_promoted": TelemetryEventKind.SKILL_PROMOTED,
+        "skill_revoked": TelemetryEventKind.SKILL_REVOKED,
+        "skill_execution_requested": TelemetryEventKind.SKILL_EXECUTION_REQUESTED,
+        "skill_execution_blocked": TelemetryEventKind.SKILL_EXECUTION_BLOCKED,
+        "skill_execution_started": TelemetryEventKind.SKILL_EXECUTION_STARTED,
+        "skill_execution_completed": TelemetryEventKind.SKILL_EXECUTION_COMPLETED,
+        "skill_execution_failed": TelemetryEventKind.SKILL_EXECUTION_FAILED,
+        "procedure_step_started": TelemetryEventKind.PROCEDURE_STEP_STARTED,
+        "procedure_step_completed": TelemetryEventKind.PROCEDURE_STEP_COMPLETED,
+        "procedure_step_failed": TelemetryEventKind.PROCEDURE_STEP_FAILED,
+        "procedure_rollback_required": TelemetryEventKind.PROCEDURE_ROLLBACK_REQUIRED,
+        "procedure_replay_built": TelemetryEventKind.PROCEDURE_REPLAY_BUILT,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1512,6 +1535,26 @@ def _domain_for_event(event_kind: TelemetryEventKind) -> TelemetryDomain:
         TelemetryEventKind.HARNESS_CONFLICT_DETECTED,
         TelemetryEventKind.HARNESS_MERGE_COMPLETED,
         TelemetryEventKind.HARNESS_MERGE_REJECTED,
+        TelemetryEventKind.SKILL_MANIFEST_REGISTERED,
+        TelemetryEventKind.SKILL_MANIFEST_REJECTED,
+        TelemetryEventKind.SKILL_SCAN_STARTED,
+        TelemetryEventKind.SKILL_SCAN_COMPLETED,
+        TelemetryEventKind.SKILL_QUARANTINED,
+        TelemetryEventKind.SKILL_EVALUATION_STARTED,
+        TelemetryEventKind.SKILL_EVALUATION_COMPLETED,
+        TelemetryEventKind.SKILL_APPROVED,
+        TelemetryEventKind.SKILL_PROMOTED,
+        TelemetryEventKind.SKILL_REVOKED,
+        TelemetryEventKind.SKILL_EXECUTION_REQUESTED,
+        TelemetryEventKind.SKILL_EXECUTION_BLOCKED,
+        TelemetryEventKind.SKILL_EXECUTION_STARTED,
+        TelemetryEventKind.SKILL_EXECUTION_COMPLETED,
+        TelemetryEventKind.SKILL_EXECUTION_FAILED,
+        TelemetryEventKind.PROCEDURE_STEP_STARTED,
+        TelemetryEventKind.PROCEDURE_STEP_COMPLETED,
+        TelemetryEventKind.PROCEDURE_STEP_FAILED,
+        TelemetryEventKind.PROCEDURE_ROLLBACK_REQUIRED,
+        TelemetryEventKind.PROCEDURE_REPLAY_BUILT,
     }:
         return TelemetryDomain.PRODUCT_POWER
     return TelemetryDomain.PRODUCT_POWER

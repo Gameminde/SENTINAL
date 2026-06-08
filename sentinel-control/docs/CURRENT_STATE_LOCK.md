@@ -1,23 +1,102 @@
 # Current State Lock
 
+## Governed Skill And Procedure Fabric V1 - LOCKED
+
+Recorded at: 2026-06-08
+
+This section is the canonical current state. It supersedes the model
+amplification harness lock as top-level execution truth. Sentinel now has a
+governed local skill/procedure fabric over the existing LLM cockpit,
+MissionKernel, MissionRunStore, DurableWorkflowStore, MissionDaemonRuntime,
+WorkerFleetRuntime, ModelAmplificationHarness, TelemetryKernel, Persistent
+Semantic Memory refs, PowerRuntime/AgentRuntime bridge boundaries,
+MissionAuthorityEnvelope, receipt, FinalGate, and replay spine. It does not
+create a parallel authority system, a parallel runtime, a parallel worker
+fleet, a parallel telemetry system, a public plugin marketplace, remote plugin
+execution, a model router, a new actuator family, or a vendor runtime bridge.
+
+```text
+current_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+previous_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Governed Skill/Procedure Fabric Runtime Truth
+
+```text
+SkillFabricConfig = CLOSED
+SkillManifest / ProcedureManifest = CLOSED / provenance-pinned, versioned, hash-bound
+SkillDeclaredAuthority / SideEffect / EvidenceRequirement = CLOSED / declarations only, not authority
+Skill scanner = CLOSED / quarantines authority expansion, credentials, provider override, fallback/AUTO, direct runtime/organ paths, remote plugin loading, and sensitive browser boundaries
+Skill quarantine = CLOSED
+Skill sandbox evaluation = CLOSED / dry-run only
+Skill scorecard = CLOSED
+Skill approval / promotion / revocation lifecycle = CLOSED
+SkillExecutionRequest / Plan / Result / Receipt = CLOSED / data-only, receipt-bound
+ProcedureRun = CLOSED
+ProcedureReplayBuilder = CLOSED / no re-execution and timeline tamper detection
+CompiledTrajectoryProcedure = CLOSED / typed browser trajectory shape with login/payment/account/KYC/CAPTCHA/submit blocked
+Skill telemetry events and metrics = CLOSED
+MissionRunStore skill persistence = CLOSED / under existing mission run dirs
+approved procedure execution through injected existing runtime executor = CLOSED
+rollback posture = CLOSED
+procedure memory/receipt/FinalGate refs as data = CLOSED
+skill-as-authority = BLOCKED
+procedure-as-authority = BLOCKED
+remote plugin execution = NOT_STARTED / BLOCKED in V1
+direct organ bypass = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+model/backend/provider override = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+raw credential persistence = BLOCKED
+new actuator family = NOT_STARTED
+vendor runtime bridge = NOT_APPROVED
+Local Model Hardware And Cost Router = NOT_STARTED / next
+```
+
+### Governed Skill/Procedure Fabric Honest V1 Limits
+
+```text
+fabric is local same-process foundation, not a public marketplace
+procedure execution uses injected existing runtime contracts, not direct plugin code
+evaluation is dry-run only by default and cannot perform real external mutation
+browser trajectories are typed guarded shapes, not generic login/payment automation
+fabric does not add provider routing, local/cloud cost routing, fallback/AUTO, or model selection
+fabric does not add credentials, payment, desktop, channels, voice, or new actuators
+```
+
+### Governed Skill/Procedure Fabric Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/skill_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/skill_fabric.py
+sentinel-control/services/sentinel-core/sentinel/operator/skill_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_governed_skill_and_procedure_fabric_v1.py
+sentinel-control/docs/reviews/GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Model Amplification Execution Harness V1 - LOCKED
 
 Recorded at: 2026-06-08
 
-This section is the canonical current state. It supersedes the production
-mission daemon and proactive scheduler lock as top-level execution truth.
-Sentinel now has a local mission-scoped model amplification harness over the
-existing LLM cockpit, MissionKernel, MissionRunStore, DurableWorkflowStore,
-MissionDaemonRuntime, WorkerFleetRuntime, TelemetryKernel, Persistent Semantic
-Memory refs, PowerRuntime/AgentRuntime bridge boundaries, MissionAuthorityEnvelope,
-receipt, FinalGate, and replay spine. It does not create a parallel authority
-system, a parallel runtime, a parallel worker fleet, a parallel telemetry
-system, a model router, a new actuator family, or a vendor runtime bridge.
+This section is the previous runtime lock. It superseded the production mission
+daemon and proactive scheduler lock at the time. It is now historical because
+the governed skill/procedure fabric has locked on top of the cockpit,
+MissionKernel, durable workflow, daemon, Worker Fleet, harness, telemetry,
+memory, runtime, and proof spine.
 
 ```text
-current_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+historical_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
 previous_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+historical_next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -53,7 +132,7 @@ raw credential persistence = BLOCKED
 direct organ bypass = BLOCKED
 new actuator family = NOT_STARTED
 vendor runtime bridge = NOT_APPROVED
-Governed Skill And Procedure Fabric = NOT_STARTED / next
+Governed Skill And Procedure Fabric = CLOSED / locked after this historical section
 ```
 
 ### Model Amplification Harness Honest V1 Limits

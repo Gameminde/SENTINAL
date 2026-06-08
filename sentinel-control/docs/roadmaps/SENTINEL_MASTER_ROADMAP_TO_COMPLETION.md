@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
-previous_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+current_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+previous_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -62,6 +62,7 @@ product-power metrics for mission completion, useful minutes, proof completeness
 same-process governed Worker Fleet with strict child authority inheritance, worker budgets, merge/reject/conflict contracts, telemetry, and replay
 production local MissionDaemonRuntime with durable queue, lease, heartbeat, recovery, dead-letter, and proposal-only scheduler
 local Model Amplification Execution Harness with hash-anchored state, content-addressed artifact refs, minimized tool-output economy, analysis kernel records, worker-safe typed results, conflict detection, telemetry, and replay
+governed Skill/Procedure Fabric with manifest/provenance/version pinning, scanner, quarantine, dry-run evaluation, scorecard, approval/promotion/revocation lifecycle, receipt-bound execution, rollback posture, telemetry, and replay
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -76,7 +77,7 @@ distributed/multi-process workflow leases and OS service supervision
 production multi-process worker service / leases / daemon integration
 production daemon service / OS service supervisor
 production LSP/debugger/deep coding harness integrations
-executable governed skill fabric
+public skill marketplace and remote plugin execution
 hardware-aware local/cloud cost router
 real channel connectors
 live desktop sidecar
@@ -405,6 +406,8 @@ Exit:
 
 - a promoted procedure can improve completion while remaining revocable and
   authority-bound.
+
+Status: `LOCKED` on 2026-06-08.
 
 ### Phase 8 - Local Model Hardware And Cost Router V1
 
@@ -876,16 +879,15 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
 ```
 
 Required direction:
 
 ```text
-Build governed skill and procedure fabric over the existing cockpit,
-MissionKernel, durable workflow, production daemon, Worker Fleet, telemetry,
-memory, PowerRuntime, AgentRuntime, authority, receipt, FinalGate, and replay
-spine. Add manifest, provenance, scanner, quarantine, approval lifecycle,
-rollback posture, and receipt-bound execution without creating ambient authority
-or importing vendor runtime code.
+Build explicit local/hardware/cost routing over the existing cockpit,
+MissionKernel, telemetry, memory, harness, runtime, authority, receipt,
+FinalGate, and replay spine. Add candidate discovery, route simulation,
+hardware/cost/privacy/latency metrics, route receipts, and operator policy
+without provider fallback/AUTO, hidden model switching, or authority expansion.
 ```

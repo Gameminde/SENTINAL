@@ -81,10 +81,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
-previous_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-active_implementation_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
-next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+current_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+previous_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+active_implementation_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
+next_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -207,6 +207,12 @@ Analysis kernel foundation = CLOSED / data-only, no ambient execution
 Structured minimized tool-output economy = CLOSED
 Worker-safe amplification results and conflict detection = CLOSED
 Harness telemetry and replay = CLOSED / no re-execution
+Governed Skill/Procedure Fabric = CLOSED / local mission-scoped runtime
+Skill manifests, provenance, scanner, quarantine, approval, promotion, revocation = CLOSED
+Skill dry-run evaluation, scorecard, rollback posture = CLOSED
+Receipt-bound procedure execution = CLOSED / through existing runtime executor path
+Procedure telemetry and replay = CLOSED / no re-execution
+Remote plugin execution and public marketplace = NOT_STARTED / blocked in V1
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -250,7 +256,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+Next milestone = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -392,7 +398,8 @@ Recommended next build sequence:
 45. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 - DONE
 46. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 - DONE
 47. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 - DONE
-48. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 - NEXT
+48. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 - DONE
+49. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 - NEXT
 ```
 
 The doctrine:
