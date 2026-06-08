@@ -1,18 +1,98 @@
 # Current State Lock
 
+## Mission Worker Fleet And Authority Inheritance V1 - LOCKED
+
+Recorded at: 2026-06-08
+
+This section is the canonical current state. It supersedes the telemetry runtime
+lock as top-level execution truth. Worker Fleet is now a real local Sentinel
+runtime foundation over the existing MissionKernel, DurableWorkflowStore,
+TelemetryKernel, MissionAuthorityEnvelope, receipt, FinalGate, memory-ref, and
+replay spine. It does not create a parallel authority system, a parallel
+runtime, a new actuator family, or a vendor runtime bridge.
+
+```text
+current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
+next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Worker Fleet Runtime Truth
+
+```text
+WorkerFleetRuntime = CLOSED / same-process local runtime
+WorkerFleetConfig = CLOSED
+WorkerRole and WorkerExecutionMode = CLOSED / safe V1 worker classes
+WorkerTask and WorkerTaskGraph = CLOSED
+WorkerSpawnRequest = CLOSED / data-only spawn proposal
+ChildAuthorityEnvelope = CLOSED / strict subset of parent MissionAuthorityEnvelope
+WorkerBudget and WorkerDeadline = CLOSED
+WorkerScope = CLOSED / tools, systems, paths, domains, data types, runtime mode flags
+WorkerExecutionContext = CLOSED / no direct organ dispatcher, credential provider, or power executor handle
+WorkerResultContract = CLOSED
+WorkerResult and WorkerEvidencePacket = CLOSED / redacted data-only result
+WorkerMergeDecision = CLOSED / MERGED, REJECTED, NEEDS_RETRY, NEEDS_REPLAN, NEEDS_OPERATOR_CHECKPOINT, CONFLICT
+WorkerConflictRecord = CLOSED
+WorkerFleetRun = CLOSED / hash-bound durable run record
+WorkerFleetReplayView = CLOSED / no re-execution
+WorkerFleetReplayBuilder = CLOSED
+Certified Mode telemetry requirement for Worker Fleet = CLOSED
+Worker telemetry events and metrics = CLOSED
+DurableWorkflow checkpoint binding via workflow_id metadata = CLOSED / optional existing workflow bridge
+MissionRunStore worker_fleet persistence = CLOSED
+memory/receipt/FinalGate/telemetry-as-authority = BLOCKED
+worker output authority expansion = BLOCKED
+provider/backend/model override from worker scope = BLOCKED
+worker direct organ bypass = BLOCKED
+worker-spawns-worker = BLOCKED in V1
+PowerRuntime worker = BLOCKED unless explicitly authorized inside child scope
+AgentRuntime worker = BLOCKED unless explicitly enabled by fleet config and child scope
+raw secret/prompt/provider response/reasoning persistence = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+new actuator family = NOT_STARTED
+vendor runtime bridge = NOT_APPROVED
+Production Mission Daemon = NOT_STARTED / next
+```
+
+### Worker Fleet Honest V1 Limits
+
+```text
+runtime is same-process local foundation, not production multi-process worker service
+worker executors are injected through Sentinel-native contracts, not ambient process workers
+durable leases, heartbeats, crash recovery, and proactive scheduling are next phase
+worker fleet does not add credentials, payment, desktop, channels, voice, or new actuators
+worker fleet does not authenticate executor identity beyond trusted same-process boundary
+```
+
+### Worker Fleet Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/worker_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/worker_fleet.py
+sentinel-control/services/sentinel-core/sentinel/operator/worker_replay.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_mission_worker_fleet_authority_inheritance_v1.py
+sentinel-control/docs/reviews/MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Observability Telemetry And Product Power Metrics V1 - LOCKED
 
 Recorded at: 2026-06-07
 
-This section is the canonical current state. It supersedes the docs-only
-telemetry roadmap-change lock as top-level execution truth. Telemetry is now a
-real local Sentinel runtime spine over existing event/proof surfaces. Worker
-Fleet has not started.
+This section is the previous runtime lock. It superseded the docs-only
+telemetry roadmap-change lock at the time. It is now historical because
+Worker Fleet has locked on top of the telemetry spine.
 
 ```text
 current_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
 previous_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
-next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+historical_next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -42,7 +122,7 @@ OrganTelemetry = CLOSED
 MemoryTelemetry = CLOSED
 WorkflowTelemetry = CLOSED
 ReplanTelemetry = CLOSED
-WorkerTelemetry = RESERVED / metrics and event domain only, no Worker Fleet runtime
+WorkerTelemetry = CLOSED / runtime events and metrics are now consumed by Worker Fleet
 CostTelemetry = CLOSED
 SafetyTelemetry = CLOSED
 ProductPowerTelemetry = CLOSED
@@ -52,7 +132,7 @@ telemetry execution = BLOCKED
 telemetry permission grant = BLOCKED
 provider fallback/AUTO = NOT_APPROVED
 telemetry cloud/vendor bridge = NOT_STARTED
-Worker Fleet = NOT_STARTED / next
+Worker Fleet = CLOSED / see current top-level lock
 ```
 
 ### Certified Mode Rule
@@ -75,8 +155,8 @@ raw provider responses, store raw reasoning, or become future permission.
 ```text
 hash chains are local tamper-resistant integrity, not external cryptographic attestation
 telemetry is local-first JSONL, not a production telemetry service
-multi-process non-bypass enforcement is future production-daemon/worker work
-WorkerTelemetry is reserved for future worker events; Worker Fleet is not started
+multi-process non-bypass enforcement is future production-daemon work
+WorkerTelemetry is now consumed by the Worker Fleet runtime
 telemetry summarizes refs and hashes; it does not authenticate executor identity
 telemetry records product-power samples but does not optimize routing or costs by itself
 ```

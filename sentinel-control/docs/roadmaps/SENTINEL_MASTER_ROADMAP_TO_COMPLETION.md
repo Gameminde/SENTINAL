@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-previous_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
-next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
+next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -325,16 +325,22 @@ Locked truth:
 
 ### Phase 4 - Mission Worker Fleet And Authority Inheritance V1
 
+Status: `LOCKED` on 2026-06-08.
+
 Purpose:
 
 - convert advisory society plans into controlled parallel execution.
 
 Core deliverables:
 
-- child authority envelope derived as a strict subset;
-- per-worker budget, deadline, tools, paths, domains, and result contract;
-- isolated workspace/evidence context;
-- aggregator/merge/reject path with receipts and FinalGate.
+- child authority envelope derived as a strict subset = CLOSED;
+- per-worker budget, deadline, tools, paths, domains, and result contract = CLOSED;
+- isolated worker execution context with no direct organ handle = CLOSED;
+- aggregator/merge/reject/conflict path with receipts, FinalGate, memory refs = CLOSED;
+- local WorkerTelemetry events/metrics = CLOSED;
+- durable worker run persistence under MissionRunStore = CLOSED;
+- WorkerFleetReplayView without re-execution = CLOSED;
+- optional DurableWorkflow checkpoint binding through existing workflow store = CLOSED.
 
 Exit:
 
@@ -863,16 +869,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
 ```
 
 Required direction:
 
 ```text
-Build a controlled worker fleet over the existing cockpit, MissionKernel,
-durable workflow, telemetry, memory, PowerRuntime, AgentRuntime, authority,
-receipt, and FinalGate spine. Child worker authority must be a strict subset of
-the parent MissionAuthorityEnvelope. Workers must inherit budgets, deadlines,
-tool/path/domain scopes, telemetry, replay, and merge/reject contracts without
-creating a direct organ path or expanding authority.
+Build the production local mission daemon over the existing cockpit,
+MissionKernel, durable workflow, Worker Fleet, telemetry, memory, PowerRuntime,
+AgentRuntime, authority, receipt, and FinalGate spine. Add leases, heartbeat,
+crash recovery, dead-letter handling, proactive proposal-only scheduling,
+operator handoff, pause/kill/resume/status visibility, and revocation/expiry
+rechecks without creating ambient authority or a parallel runtime.
 ```

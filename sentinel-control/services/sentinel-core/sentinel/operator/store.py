@@ -172,7 +172,10 @@ class MissionRunStore:
                 handle.flush()
                 os.fsync(handle.fileno())
             if self._telemetry_sink is not None and hasattr(self._telemetry_sink, "record_mission_event"):
-                self._telemetry_sink.record_mission_event(event)
+                try:
+                    self._telemetry_sink.record_mission_event(event)
+                except Exception:
+                    pass
             return event
 
     def load_events(self, mission_id: str) -> list[MissionEvent]:

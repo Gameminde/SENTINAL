@@ -737,9 +737,333 @@ class TelemetryKernel:
                     unit="seconds",
                     safe_summary="Revocation latency sample.",
                     metadata=metadata or {},
-                )
             )
+        )
         return event
+
+    def record_worker_spawn_requested(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_SPAWN_REQUESTED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_spawn_blocked(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_SPAWN_BLOCKED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_authority_derived(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.AUTHORITY,
+                event_kind=TelemetryEventKind.WORKER_AUTHORITY_DERIVED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_authority_rejected(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.AUTHORITY,
+                event_kind=TelemetryEventKind.WORKER_AUTHORITY_REJECTED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_started(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_STARTED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_completed(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+        receipt_refs: list[str] | None = None,
+        finalgate_certificate_refs: list[str] | None = None,
+        memory_feedback_refs: list[str] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_COMPLETED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+                receipt_refs=sanitize_telemetry_refs(receipt_refs or []),
+                finalgate_certificate_refs=sanitize_telemetry_refs(finalgate_certificate_refs or []),
+                memory_feedback_refs=sanitize_telemetry_refs(memory_feedback_refs or []),
+            )
+        )
+
+    def record_worker_failed(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_FAILED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_result_submitted(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+        receipt_refs: list[str] | None = None,
+        finalgate_certificate_refs: list[str] | None = None,
+        memory_feedback_refs: list[str] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_RESULT_SUBMITTED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+                receipt_refs=sanitize_telemetry_refs(receipt_refs or []),
+                finalgate_certificate_refs=sanitize_telemetry_refs(finalgate_certificate_refs or []),
+                memory_feedback_refs=sanitize_telemetry_refs(memory_feedback_refs or []),
+            )
+        )
+
+    def record_worker_result_merged(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+        receipt_refs: list[str] | None = None,
+        finalgate_certificate_refs: list[str] | None = None,
+        memory_feedback_refs: list[str] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_RESULT_MERGED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+                receipt_refs=sanitize_telemetry_refs(receipt_refs or []),
+                finalgate_certificate_refs=sanitize_telemetry_refs(finalgate_certificate_refs or []),
+                memory_feedback_refs=sanitize_telemetry_refs(memory_feedback_refs or []),
+            )
+        )
+
+    def record_worker_result_rejected(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_RESULT_REJECTED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_conflict_detected(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_CONFLICT_DETECTED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_killed(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_KILLED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_budget_exhausted(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_BUDGET_EXHAUSTED,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_timeout(
+        self,
+        *,
+        mission_id: str,
+        worker_fleet_run_id: str,
+        worker_id: str,
+        task_id: str,
+        safe_summary: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> TelemetryEventRecord:
+        return self.store.record_event(
+            TelemetryEventRecord(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                event_kind=TelemetryEventKind.WORKER_TIMEOUT,
+                safe_summary=safe_summary,
+                metadata={"worker_fleet_run_id": worker_fleet_run_id, "worker_id": worker_id, "task_id": task_id, **(metadata or {})},
+            )
+        )
+
+    def record_worker_metric(self, mission_id: str, metric_kind: TelemetryMetricKind, value: Any, *, safe_summary: str, metadata: dict[str, Any] | None = None) -> TelemetryMetricSample:
+        return self.store.record_metric(
+            TelemetryMetricSample(
+                mission_id=mission_id,
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.WORKER,
+                metric_kind=metric_kind,
+                value=value,
+                unit="ratio" if "rate" in metric_kind.value or "efficiency" in metric_kind.value else "count",
+                safe_summary=safe_summary,
+                metadata=metadata or {},
+            )
+        )
 
     def record_browser_neural_ledger_event(
         self,
@@ -1013,6 +1337,20 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "agentruntime_result": TelemetryEventKind.REPLAN_CANDIDATE_CREATED,
         "agentruntime_blocked": TelemetryEventKind.REPLAN_REJECTED,
         "persistent_memory_retrieved": TelemetryEventKind.MEMORY_RECALL_USED,
+        "worker_spawn_requested": TelemetryEventKind.WORKER_SPAWN_REQUESTED,
+        "worker_spawn_blocked": TelemetryEventKind.WORKER_SPAWN_BLOCKED,
+        "worker_started": TelemetryEventKind.WORKER_STARTED,
+        "worker_completed": TelemetryEventKind.WORKER_COMPLETED,
+        "worker_failed": TelemetryEventKind.WORKER_FAILED,
+        "worker_killed": TelemetryEventKind.WORKER_KILLED,
+        "worker_timeout": TelemetryEventKind.WORKER_TIMEOUT,
+        "worker_budget_exhausted": TelemetryEventKind.WORKER_BUDGET_EXHAUSTED,
+        "worker_authority_derived": TelemetryEventKind.WORKER_AUTHORITY_DERIVED,
+        "worker_authority_rejected": TelemetryEventKind.WORKER_AUTHORITY_REJECTED,
+        "worker_result_submitted": TelemetryEventKind.WORKER_RESULT_SUBMITTED,
+        "worker_result_merged": TelemetryEventKind.WORKER_RESULT_MERGED,
+        "worker_result_rejected": TelemetryEventKind.WORKER_RESULT_REJECTED,
+        "worker_conflict_detected": TelemetryEventKind.WORKER_CONFLICT_DETECTED,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1072,6 +1410,23 @@ def _domain_for_event(event_kind: TelemetryEventKind) -> TelemetryDomain:
         TelemetryEventKind.ORGAN_FAILED,
     }:
         return TelemetryDomain.ORGAN
+    if event_kind in {
+        TelemetryEventKind.WORKER_SPAWN_REQUESTED,
+        TelemetryEventKind.WORKER_SPAWN_BLOCKED,
+        TelemetryEventKind.WORKER_STARTED,
+        TelemetryEventKind.WORKER_COMPLETED,
+        TelemetryEventKind.WORKER_FAILED,
+        TelemetryEventKind.WORKER_KILLED,
+        TelemetryEventKind.WORKER_TIMEOUT,
+        TelemetryEventKind.WORKER_BUDGET_EXHAUSTED,
+        TelemetryEventKind.WORKER_AUTHORITY_DERIVED,
+        TelemetryEventKind.WORKER_AUTHORITY_REJECTED,
+        TelemetryEventKind.WORKER_RESULT_SUBMITTED,
+        TelemetryEventKind.WORKER_RESULT_MERGED,
+        TelemetryEventKind.WORKER_RESULT_REJECTED,
+        TelemetryEventKind.WORKER_CONFLICT_DETECTED,
+    }:
+        return TelemetryDomain.WORKER
     return TelemetryDomain.PRODUCT_POWER
 
 

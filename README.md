@@ -41,8 +41,9 @@ memory attached as an optional context-only runtime layer for Brain, cockpit,
 MissionKernel timeline refs, and AgentRuntime memory-feedback write-through.
 Durable workflow and automatic replan are now locked. The unified local
 telemetry/product-power metrics spine is also locked as a real Sentinel-native
-runtime layer, so Certified Sentinel Mode can depend on tamper-resistant,
-redacted, operator-visible measurement before Worker Fleet begins.
+runtime layer, and Worker Fleet is now locked on top of it with strict child
+authority inheritance, per-worker budgets, merge/reject contracts, telemetry,
+and replay.
 
 An exhaustive source audit and refreshed Agent Lab synthesis now define one
 canonical anti-drift roadmap to completion. Historical reports remain useful
@@ -75,10 +76,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-previous_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
-active_implementation_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
+active_implementation_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -181,6 +182,14 @@ PowerRuntime and AgentRuntime result telemetry = CLOSED
 Durable workflow checkpoint telemetry = CLOSED
 Replay completeness telemetry = CLOSED / no re-execution
 Certified Mode telemetry snapshot = CLOSED / local tamper-resistant status
+Mission Worker Fleet = CLOSED / governed same-process worker runtime
+Worker child authority inheritance = CLOSED / strict subset of parent MissionAuthorityEnvelope
+Worker budgets/deadlines/scopes = CLOSED
+Worker result contract validation = CLOSED
+Worker merge/reject/conflict detection = CLOSED
+Worker telemetry metrics/events = CLOSED / local runtime
+Worker replay = CLOSED / no re-execution
+Worker DurableWorkflow checkpoint binding = CLOSED / optional workflow_id bridge
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -207,7 +216,7 @@ Automatic positive-cost replan without typed step cost proof = BLOCKED
 Automatic opaque AgentRuntime replan = BLOCKED
 Multi-process workflow lease/production daemon = NOT_STARTED
 Cryptographic executor/receipt authenticity = NOT_STARTED / trusted same-process boundary only
-Worker Fleet = NOT_STARTED / next
+Production mission daemon = NOT_STARTED / next
 Web dashboard = NOT_STARTED
 Voice runtime = NOT_STARTED
 Real Telegram/Slack/Gmail connectors = NOT_STARTED
@@ -224,7 +233,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+Next milestone = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -363,7 +372,8 @@ Recommended next build sequence:
 42. PERSISTENT_SEMANTIC_MEMORY_V1 - DONE
 43. DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 - DONE
 44. OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1 - DONE
-45. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 - NEXT
+45. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 - DONE
+46. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 - NEXT
 ```
 
 The doctrine:

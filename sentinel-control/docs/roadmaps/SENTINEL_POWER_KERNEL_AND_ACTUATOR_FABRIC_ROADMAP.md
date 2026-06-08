@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-07
 
 ```text
-current_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-previous_phase = OBSERVABILITY_TELEMETRY_ROADMAP_CHANGE_LOCKED
-active_implementation_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-next_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
+active_implementation_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -139,6 +139,9 @@ Already real:
 - unified local observability telemetry/product-power metrics runtime before
   Worker Fleet, with hash-bound local event/metric streams and Certified Mode
   telemetry status.
+- governed Mission Worker Fleet with strict child authority inheritance,
+  worker budgets/deadlines/scopes, merge/reject/conflict contracts, telemetry,
+  workflow checkpoint binding, and replay without re-execution.
 
 Still not enough for real-world power:
 
@@ -153,7 +156,7 @@ Still not enough for real-world power:
 - no production daemon service;
 - unified observability telemetry/product-power metrics runtime = CLOSED / local runtime;
 - production telemetry service/cloud = NOT_STARTED;
-- no Worker Fleet.
+- no production multi-process worker service or daemon leases yet.
 
 Wave 1 current completion:
 
@@ -171,7 +174,8 @@ SENTINEL_LLM_LIVE_OPERATOR_COCKPIT_AND_MISSION_KERNEL_V0 = CLOSED
 PERSISTENT_SEMANTIC_MEMORY_V1 = CLOSED
 DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 = CLOSED
 OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1 = CLOSED
-MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = NEXT
+MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = CLOSED
+PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -695,14 +699,15 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1
+PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
 ```
 
 Reason:
 
 ```text
-Sentinel now has locked durable semantic memory, durable workflow/replan, and
-local telemetry/product-power metrics. The next step is controlled worker
-parallelism with strict child authority inheritance, worker budgets, telemetry,
-merge/reject contracts, receipts, FinalGate, and no authority expansion.
+Sentinel now has locked durable semantic memory, durable workflow/replan,
+local telemetry/product-power metrics, and governed Worker Fleet. The next step
+is a production local daemon with leases, heartbeat, crash recovery, dead-letter
+state, proactive proposal-only scheduling, operator handoff, and strict
+revocation/expiry rechecks before every resumed step.
 ```
