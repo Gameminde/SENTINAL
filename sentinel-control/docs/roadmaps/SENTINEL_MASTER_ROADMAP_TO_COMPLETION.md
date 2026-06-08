@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+current_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+previous_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -61,6 +61,7 @@ Certified Mode telemetry snapshot with local tamper-resistant event/metric chain
 product-power metrics for mission completion, useful minutes, proof completeness, replay completeness, memory, model, replan, safety, and cost signals
 same-process governed Worker Fleet with strict child authority inheritance, worker budgets, merge/reject/conflict contracts, telemetry, and replay
 production local MissionDaemonRuntime with durable queue, lease, heartbeat, recovery, dead-letter, and proposal-only scheduler
+local Model Amplification Execution Harness with hash-anchored state, content-addressed artifact refs, minimized tool-output economy, analysis kernel records, worker-safe typed results, conflict detection, telemetry, and replay
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -71,10 +72,10 @@ injected-authority channel send path
 Not product-complete:
 
 ```text
-multi-process workflow leases and production daemon
+distributed/multi-process workflow leases and OS service supervision
 production multi-process worker service / leases / daemon integration
 production daemon service / OS service supervisor
-model-amplifying harness
+production LSP/debugger/deep coding harness integrations
 executable governed skill fabric
 hardware-aware local/cloud cost router
 real channel connectors
@@ -384,6 +385,8 @@ Core deliverables:
 Exit:
 
 - measurable mission completion improvement without provider fallback/AUTO.
+
+Status: `LOCKED` on 2026-06-08.
 
 ### Phase 7 - Governed Skill And Procedure Fabric V1
 
@@ -873,16 +876,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
 ```
 
 Required direction:
 
 ```text
-Build the model amplification execution harness over the existing cockpit,
-MissionKernel, durable workflow, Worker Fleet, telemetry, memory, PowerRuntime,
-AgentRuntime, authority, receipt, and FinalGate spine. Add governed
-amplification loops, structured tool-output economy, hash-anchored state, and
-worker-safe execution amplification without creating ambient authority or a
-parallel runtime.
+Build governed skill and procedure fabric over the existing cockpit,
+MissionKernel, durable workflow, production daemon, Worker Fleet, telemetry,
+memory, PowerRuntime, AgentRuntime, authority, receipt, FinalGate, and replay
+spine. Add manifest, provenance, scanner, quarantine, approval lifecycle,
+rollback posture, and receipt-bound execution without creating ambient authority
+or importing vendor runtime code.
 ```

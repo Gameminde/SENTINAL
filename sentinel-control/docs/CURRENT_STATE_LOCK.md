@@ -1,11 +1,97 @@
 # Current State Lock
 
+## Model Amplification Execution Harness V1 - LOCKED
+
+Recorded at: 2026-06-08
+
+This section is the canonical current state. It supersedes the production
+mission daemon and proactive scheduler lock as top-level execution truth.
+Sentinel now has a local mission-scoped model amplification harness over the
+existing LLM cockpit, MissionKernel, MissionRunStore, DurableWorkflowStore,
+MissionDaemonRuntime, WorkerFleetRuntime, TelemetryKernel, Persistent Semantic
+Memory refs, PowerRuntime/AgentRuntime bridge boundaries, MissionAuthorityEnvelope,
+receipt, FinalGate, and replay spine. It does not create a parallel authority
+system, a parallel runtime, a parallel worker fleet, a parallel telemetry
+system, a model router, a new actuator family, or a vendor runtime bridge.
+
+```text
+current_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+previous_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Model Amplification Harness Runtime Truth
+
+```text
+AmplificationHarnessConfig = CLOSED
+AmplificationHarnessRuntime = CLOSED / local mission-scoped runtime
+AmplificationSession = CLOSED
+AmplificationStateRef = CLOSED / hash-bound state refs
+ContentAddressedArtifact = CLOSED / safe excerpts, content hashes, no raw artifact persistence
+HashAnchoredEdit and HashAnchoredPatch = CLOSED / base-hash verified proposals
+HashAnchoredEditVerification = CLOSED / drift and mismatch detection
+AnalysisKernelConfig / Session / Result = CLOSED / data-only foundation, no ambient execution
+ToolOutputEnvelope and MinimizedToolResult = CLOSED / structured tool-output economy
+EvidenceLinkedDiagnostic = CLOSED
+HarnessWorkerRequest and HarnessWorkerResult = CLOSED / typed minimized worker-safe outputs
+HarnessMergeDecision and HarnessConflictRecord = CLOSED
+HarnessContextPack and HarnessCompressionPolicy = CLOSED / required refs preserved
+HarnessTelemetrySummary = CLOSED
+HarnessReplayView and HarnessReplayBuilder = CLOSED / no re-execution
+Harness telemetry events and metrics = CLOSED
+mission run store harness persistence = CLOSED / under existing mission run dirs
+content-addressed read/write previews = CLOSED
+patch verification before/after application = CLOSED
+worker-safe amplification through existing WorkerFleet boundary = CLOSED
+memory refs as context only = CLOSED
+harness-as-authority = BLOCKED
+model/backend/provider override = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+raw prompt/provider response/reasoning persistence = BLOCKED
+raw credential persistence = BLOCKED
+direct organ bypass = BLOCKED
+new actuator family = NOT_STARTED
+vendor runtime bridge = NOT_APPROVED
+Governed Skill And Procedure Fabric = NOT_STARTED / next
+```
+
+### Model Amplification Harness Honest V1 Limits
+
+```text
+harness is local same-process foundation, not a full IDE or LSP/debugger product
+analysis kernels are data-only records and do not add ambient shell/network/filesystem execution
+hash-anchored edits are verified proposals, not direct patch authority
+harness does not add provider routing, local/cloud cost routing, fallback/AUTO, or model selection
+harness does not add credentials, payment, desktop, channels, voice, or new actuators
+worker-safe amplification uses existing WorkerFleet contracts and does not broaden child authority
+```
+
+### Model Amplification Harness Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/harness_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/harness_runtime.py
+sentinel-control/services/sentinel-core/sentinel/operator/harness_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_model_amplification_execution_harness_v1.py
+sentinel-control/docs/reviews/MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Production Mission Daemon And Proactive Scheduler V1 - LOCKED
 
 Recorded at: 2026-06-08
 
-This section is the canonical current state. It supersedes the Worker Fleet
-lock as top-level execution truth. Sentinel now has a production local mission
+This section is the previous runtime lock. It superseded the Worker Fleet
+lock at the time. It is now historical because the model amplification harness
+has locked on top of the MissionKernel, daemon, Worker Fleet, Telemetry, memory,
+runtime, and proof spine. Sentinel has a production local mission
 daemon and proposal-only scheduler foundation over the existing MissionKernel,
 MissionRunStore, DurableWorkflowStore, WorkerFleetRuntime, TelemetryKernel,
 MissionAuthorityEnvelope, receipt, FinalGate, memory-ref, and replay spine. It
@@ -14,9 +100,9 @@ worker fleet, a parallel telemetry system, a new actuator family, or a vendor
 runtime bridge.
 
 ```text
-current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+historical_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
 previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+historical_next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
 roadmap_doctrine = product power under provable authority
 ```
 

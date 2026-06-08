@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-08
 
 ```text
-current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-active_implementation_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+current_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+previous_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+active_implementation_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -145,10 +145,16 @@ Already real:
 - production local MissionDaemonRuntime with durable queue, leases, heartbeat,
   crash recovery inspection, dead-letter state, proposal-only scheduler, and
   operator-visible status/replay.
+- local Model Amplification Execution Harness with content-addressed artifacts,
+  hash-anchored edit verification, mission-scoped analysis kernel records,
+  minimized tool-output envelopes, worker-safe typed results, conflict
+  detection, telemetry, and replay without re-execution.
 
 Still not enough for real-world power:
 
 - no production multi-agent mission society orchestrator;
+- no governed executable skill/procedure fabric;
+- no production LSP/debugger/deep coding harness integration;
 - no durable account/session credential vault;
 - no real credential storage/resolution;
 - no real channel connector;
@@ -178,7 +184,8 @@ DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 = CLOSED
 OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1 = CLOSED
 MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = CLOSED
 PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 = CLOSED
-MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 = NEXT
+MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 = CLOSED
+GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -702,7 +709,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
 ```
 
 Reason:
@@ -710,7 +717,9 @@ Reason:
 ```text
 Sentinel now has locked durable semantic memory, durable workflow/replan,
 local telemetry/product-power metrics, governed Worker Fleet, and the
-production local daemon/scheduler foundation. The next step is model
-amplification: a harness that increases success rate, throughput, and tool
-economy without adding new authority or a parallel runtime.
+production local daemon/scheduler foundation plus a local model amplification
+harness for hash-anchored state, minimized tool outputs, worker-safe typed
+results, and replay. The next step is governed skill/procedure fabric: reusable
+procedures with manifest, provenance, scanner, quarantine, approval lifecycle,
+receipt-bound execution, rollback posture, and no authority expansion.
 ```

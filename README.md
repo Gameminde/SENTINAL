@@ -81,10 +81,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-active_implementation_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
-next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+current_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+previous_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+active_implementation_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1_LOCKED
+next_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -201,6 +201,12 @@ Daemon lease ownership, renewal, stale takeover proof, and heartbeat = CLOSED
 Daemon crash-recovery inspection and replay without re-execution = CLOSED
 Proactive scheduler = CLOSED / proposal-only, no ambient authority
 Daemon Certified Mode telemetry requirement = CLOSED
+Model Amplification Execution Harness = CLOSED / local mission-scoped runtime
+Content-addressed artifact refs and hash-anchored edits = CLOSED
+Analysis kernel foundation = CLOSED / data-only, no ambient execution
+Structured minimized tool-output economy = CLOSED
+Worker-safe amplification results and conflict detection = CLOSED
+Harness telemetry and replay = CLOSED / no re-execution
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -232,6 +238,7 @@ Voice runtime = NOT_STARTED
 Real Telegram/Slack/Gmail connectors = NOT_STARTED
 Production OS service wrapper / cloud daemon = NOT_STARTED
 Raw prompt/provider response/reasoning persistence = BLOCKED
+Production LSP/debugger/deep coding harness integration = NOT_STARTED
 ```
 
 The honest power score right now:
@@ -243,7 +250,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+Next milestone = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -384,7 +391,8 @@ Recommended next build sequence:
 44. OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1 - DONE
 45. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 - DONE
 46. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 - DONE
-47. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 - NEXT
+47. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 - DONE
+48. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 - NEXT
 ```
 
 The doctrine:

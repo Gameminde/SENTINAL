@@ -41,6 +41,31 @@ from sentinel.operator.daemon_models import (
 from sentinel.operator.daemon_replay import DaemonReplayBuilder
 from sentinel.operator.daemon_runtime import MissionDaemonRuntime, MissionDaemonRuntimeError
 from sentinel.operator.daemon_store import MissionDaemonStore
+from sentinel.operator.harness_models import (
+    AmplificationHarnessConfig,
+    AmplificationSession,
+    AmplificationStateRef,
+    AnalysisKernelConfig,
+    AnalysisKernelResult,
+    AnalysisKernelSession,
+    ContentAddressedArtifact,
+    EvidenceLinkedDiagnostic,
+    HarnessCompressionPolicy,
+    HarnessConflictRecord,
+    HarnessContextPack,
+    HarnessMergeDecision,
+    HarnessReplayView,
+    HarnessTelemetrySummary,
+    HarnessWorkerRequest,
+    HarnessWorkerResult,
+    HashAnchoredEdit,
+    HashAnchoredEditVerification,
+    HashAnchoredPatch,
+    MinimizedToolResult,
+    ToolOutputEnvelope,
+)
+from sentinel.operator.harness_replay import HarnessReplayBuilder
+from sentinel.operator.harness_runtime import AmplificationHarnessRuntime, HarnessRuntimeError
 from sentinel.operator.scheduler import ProactiveSchedulerRuntime, ProactiveTrigger
 
 __all__ = [
@@ -86,4 +111,28 @@ __all__ = [
     "SchedulerDecisionKind",
     "SchedulerPolicy",
     "ProactiveSchedulerRuntime",
+    "AmplificationHarnessConfig",
+    "AmplificationHarnessRuntime",
+    "AmplificationSession",
+    "AmplificationStateRef",
+    "AnalysisKernelConfig",
+    "AnalysisKernelResult",
+    "AnalysisKernelSession",
+    "ContentAddressedArtifact",
+    "EvidenceLinkedDiagnostic",
+    "HarnessCompressionPolicy",
+    "HarnessConflictRecord",
+    "HarnessContextPack",
+    "HarnessMergeDecision",
+    "HarnessReplayBuilder",
+    "HarnessReplayView",
+    "HarnessRuntimeError",
+    "HarnessTelemetrySummary",
+    "HarnessWorkerRequest",
+    "HarnessWorkerResult",
+    "HashAnchoredEdit",
+    "HashAnchoredEditVerification",
+    "HashAnchoredPatch",
+    "MinimizedToolResult",
+    "ToolOutputEnvelope",
 ]

@@ -1373,6 +1373,25 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "scheduler_proposal_rejected": TelemetryEventKind.SCHEDULER_PROPOSAL_REJECTED,
         "operator_handoff_created": TelemetryEventKind.OPERATOR_HANDOFF_CREATED,
         "operator_notification_created": TelemetryEventKind.OPERATOR_NOTIFICATION_CREATED,
+        "harness_session_started": TelemetryEventKind.HARNESS_SESSION_STARTED,
+        "harness_session_completed": TelemetryEventKind.HARNESS_SESSION_COMPLETED,
+        "harness_session_failed": TelemetryEventKind.HARNESS_SESSION_FAILED,
+        "harness_context_pack_created": TelemetryEventKind.HARNESS_CONTEXT_PACK_CREATED,
+        "harness_context_pack_rejected": TelemetryEventKind.HARNESS_CONTEXT_PACK_REJECTED,
+        "harness_artifact_read": TelemetryEventKind.HARNESS_ARTIFACT_READ,
+        "harness_edit_proposed": TelemetryEventKind.HARNESS_EDIT_PROPOSED,
+        "harness_edit_verified": TelemetryEventKind.HARNESS_EDIT_VERIFIED,
+        "harness_edit_rejected": TelemetryEventKind.HARNESS_EDIT_REJECTED,
+        "harness_kernel_started": TelemetryEventKind.HARNESS_KERNEL_STARTED,
+        "harness_kernel_completed": TelemetryEventKind.HARNESS_KERNEL_COMPLETED,
+        "harness_kernel_failed": TelemetryEventKind.HARNESS_KERNEL_FAILED,
+        "harness_tool_output_minimized": TelemetryEventKind.HARNESS_TOOL_OUTPUT_MINIMIZED,
+        "harness_worker_requested": TelemetryEventKind.HARNESS_WORKER_REQUESTED,
+        "harness_worker_completed": TelemetryEventKind.HARNESS_WORKER_COMPLETED,
+        "harness_worker_rejected": TelemetryEventKind.HARNESS_WORKER_REJECTED,
+        "harness_conflict_detected": TelemetryEventKind.HARNESS_CONFLICT_DETECTED,
+        "harness_merge_completed": TelemetryEventKind.HARNESS_MERGE_COMPLETED,
+        "harness_merge_rejected": TelemetryEventKind.HARNESS_MERGE_REJECTED,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1473,6 +1492,28 @@ def _domain_for_event(event_kind: TelemetryEventKind) -> TelemetryDomain:
         TelemetryEventKind.OPERATOR_NOTIFICATION_CREATED,
     }:
         return TelemetryDomain.OPERATIONAL
+    if event_kind in {
+        TelemetryEventKind.HARNESS_SESSION_STARTED,
+        TelemetryEventKind.HARNESS_SESSION_COMPLETED,
+        TelemetryEventKind.HARNESS_SESSION_FAILED,
+        TelemetryEventKind.HARNESS_CONTEXT_PACK_CREATED,
+        TelemetryEventKind.HARNESS_CONTEXT_PACK_REJECTED,
+        TelemetryEventKind.HARNESS_ARTIFACT_READ,
+        TelemetryEventKind.HARNESS_EDIT_PROPOSED,
+        TelemetryEventKind.HARNESS_EDIT_VERIFIED,
+        TelemetryEventKind.HARNESS_EDIT_REJECTED,
+        TelemetryEventKind.HARNESS_KERNEL_STARTED,
+        TelemetryEventKind.HARNESS_KERNEL_COMPLETED,
+        TelemetryEventKind.HARNESS_KERNEL_FAILED,
+        TelemetryEventKind.HARNESS_TOOL_OUTPUT_MINIMIZED,
+        TelemetryEventKind.HARNESS_WORKER_REQUESTED,
+        TelemetryEventKind.HARNESS_WORKER_COMPLETED,
+        TelemetryEventKind.HARNESS_WORKER_REJECTED,
+        TelemetryEventKind.HARNESS_CONFLICT_DETECTED,
+        TelemetryEventKind.HARNESS_MERGE_COMPLETED,
+        TelemetryEventKind.HARNESS_MERGE_REJECTED,
+    }:
+        return TelemetryDomain.PRODUCT_POWER
     return TelemetryDomain.PRODUCT_POWER
 
 
