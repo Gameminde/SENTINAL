@@ -1,6 +1,6 @@
 # Sentinel Master Roadmap To Completion
 
-Canonical lock date: 2026-06-07
+Canonical lock date: 2026-06-08
 Baseline HEAD: `987e2ee7f8f930fa38f10c0da66056a6db275141`
 
 This is the official anti-drift roadmap. Historical phase reports remain valid
@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -60,6 +60,7 @@ Sentinel-native telemetry kernel and store over existing proof/event surfaces
 Certified Mode telemetry snapshot with local tamper-resistant event/metric chains
 product-power metrics for mission completion, useful minutes, proof completeness, replay completeness, memory, model, replan, safety, and cost signals
 same-process governed Worker Fleet with strict child authority inheritance, worker budgets, merge/reject/conflict contracts, telemetry, and replay
+production local MissionDaemonRuntime with durable queue, lease, heartbeat, recovery, dead-letter, and proposal-only scheduler
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -72,7 +73,7 @@ Not product-complete:
 ```text
 multi-process workflow leases and production daemon
 production multi-process worker service / leases / daemon integration
-production daemon and proactive scheduler
+production daemon service / OS service supervisor
 model-amplifying harness
 executable governed skill fabric
 hardware-aware local/cloud cost router
@@ -363,6 +364,8 @@ Core deliverables:
 Exit:
 
 - Sentinel can work in the background without creating ambient authority.
+
+Status: `LOCKED` on 2026-06-08.
 
 ### Phase 6 - Model Amplification Execution Harness V1
 
@@ -870,16 +873,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
 ```
 
 Required direction:
 
 ```text
-Build the production local mission daemon over the existing cockpit,
+Build the model amplification execution harness over the existing cockpit,
 MissionKernel, durable workflow, Worker Fleet, telemetry, memory, PowerRuntime,
-AgentRuntime, authority, receipt, and FinalGate spine. Add leases, heartbeat,
-crash recovery, dead-letter handling, proactive proposal-only scheduling,
-operator handoff, pause/kill/resume/status visibility, and revocation/expiry
-rechecks without creating ambient authority or a parallel runtime.
+AgentRuntime, authority, receipt, and FinalGate spine. Add governed
+amplification loops, structured tool-output economy, hash-anchored state, and
+worker-safe execution amplification without creating ambient authority or a
+parallel runtime.
 ```

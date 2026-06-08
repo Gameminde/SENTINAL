@@ -1,20 +1,107 @@
 # Current State Lock
 
+## Production Mission Daemon And Proactive Scheduler V1 - LOCKED
+
+Recorded at: 2026-06-08
+
+This section is the canonical current state. It supersedes the Worker Fleet
+lock as top-level execution truth. Sentinel now has a production local mission
+daemon and proposal-only scheduler foundation over the existing MissionKernel,
+MissionRunStore, DurableWorkflowStore, WorkerFleetRuntime, TelemetryKernel,
+MissionAuthorityEnvelope, receipt, FinalGate, memory-ref, and replay spine. It
+does not create a parallel authority system, a parallel runtime, a parallel
+worker fleet, a parallel telemetry system, a new actuator family, or a vendor
+runtime bridge.
+
+```text
+current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Daemon And Scheduler Runtime Truth
+
+```text
+MissionDaemonConfig = CLOSED
+MissionDaemonState = CLOSED
+MissionDaemonRuntime = CLOSED / same-process local daemon foundation
+MissionDaemonStore = CLOSED / inside existing MissionRunStore mission dirs
+DaemonQueueRecord and DaemonQueueCursor = CLOSED
+DaemonLease and DaemonLeaseOwner = CLOSED / data-only ownership proof
+DaemonHeartbeat and DaemonHeartbeatRecord = CLOSED
+DeadLetterRecord and DeadLetterReason = CLOSED
+DaemonTickResult = CLOSED
+DaemonRecoveryPlan = CLOSED
+DaemonStatusView = CLOSED
+DaemonReplayView and DaemonReplayBuilder = CLOSED / no re-execution
+DaemonCertifiedModeSnapshot = CLOSED
+ProactiveSchedulerConfig / SchedulerPolicy = CLOSED / proposal-only data-only contracts
+ProactiveTrigger = CLOSED
+ProactiveProposal = CLOSED / can_execute false, can_grant_authority false
+SchedulerDecision = CLOSED
+OperatorHandoffRequest and OperatorNotification = CLOSED / data-only model contracts
+local telemetry required for certified daemon execution = CLOSED
+leases before daemon-owned ticks = CLOSED
+heartbeat emitted and persisted = CLOSED
+stale lease takeover requires expired/stale proof = CLOSED
+double daemon same mission execution under Certified Mode = BLOCKED
+revocation/expiry recheck before tick = CLOSED
+dead-letter on revoked/expired/unrecoverable state = CLOSED
+workflow tick delegation through DurableMissionWorkflowRuntime = CLOSED
+worker fleet remains WorkerFleetRuntime = CLOSED / daemon does not replace it
+proactive scheduler direct execution = BLOCKED
+scheduler-created authority = BLOCKED
+daemon-created authority = BLOCKED
+direct organ bypass = BLOCKED
+raw secret/prompt/provider response/reasoning persistence = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+new actuator family = NOT_STARTED
+vendor runtime bridge = NOT_APPROVED
+Model Amplification Execution Harness = NOT_STARTED / next
+```
+
+### Daemon And Scheduler Honest V1 Limits
+
+```text
+daemon is local same-process foundation, not an OS service or cloud daemon
+leases are local file-backed records, not distributed database leases
+scheduler is proposal-only and cannot execute ambient cron actions
+daemon does not add credentials, payment, desktop, channels, voice, or new actuators
+worker execution remains through WorkerFleetRuntime and trusted same-process executor contracts
+```
+
+### Daemon And Scheduler Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/daemon_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/daemon_store.py
+sentinel-control/services/sentinel-core/sentinel/operator/daemon_runtime.py
+sentinel-control/services/sentinel-core/sentinel/operator/daemon_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/scheduler.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_production_mission_daemon_and_scheduler_v1.py
+sentinel-control/docs/reviews/PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Mission Worker Fleet And Authority Inheritance V1 - LOCKED
 
 Recorded at: 2026-06-08
 
-This section is the canonical current state. It supersedes the telemetry runtime
-lock as top-level execution truth. Worker Fleet is now a real local Sentinel
-runtime foundation over the existing MissionKernel, DurableWorkflowStore,
-TelemetryKernel, MissionAuthorityEnvelope, receipt, FinalGate, memory-ref, and
-replay spine. It does not create a parallel authority system, a parallel
-runtime, a new actuator family, or a vendor runtime bridge.
+This section is the previous runtime lock. It superseded the telemetry runtime
+lock at the time. It is now historical because the production local daemon and
+proposal-only scheduler foundation has locked on top of the MissionKernel,
+DurableWorkflow, Worker Fleet, and Telemetry spine.
 
 ```text
 current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
 previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+historical_next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
 roadmap_doctrine = product power under provable authority
 ```
 

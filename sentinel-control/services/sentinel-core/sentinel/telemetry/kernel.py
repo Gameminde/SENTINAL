@@ -1351,6 +1351,28 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "worker_result_merged": TelemetryEventKind.WORKER_RESULT_MERGED,
         "worker_result_rejected": TelemetryEventKind.WORKER_RESULT_REJECTED,
         "worker_conflict_detected": TelemetryEventKind.WORKER_CONFLICT_DETECTED,
+        "daemon_queue_enqueued": TelemetryEventKind.MISSION_QUEUED,
+        "daemon_started": TelemetryEventKind.DAEMON_STARTED,
+        "daemon_stopped": TelemetryEventKind.DAEMON_STOPPED,
+        "daemon_tick_started": TelemetryEventKind.DAEMON_TICK_STARTED,
+        "daemon_tick_completed": TelemetryEventKind.DAEMON_TICK_COMPLETED,
+        "daemon_tick_failed": TelemetryEventKind.DAEMON_TICK_FAILED,
+        "daemon_lease_claimed": TelemetryEventKind.DAEMON_LEASE_CLAIMED,
+        "daemon_lease_rejected": TelemetryEventKind.DAEMON_LEASE_REJECTED,
+        "daemon_lease_renewed": TelemetryEventKind.DAEMON_LEASE_RENEWED,
+        "daemon_lease_expired": TelemetryEventKind.DAEMON_LEASE_EXPIRED,
+        "daemon_lease_released": TelemetryEventKind.DAEMON_LEASE_RELEASED,
+        "daemon_heartbeat_emitted": TelemetryEventKind.DAEMON_HEARTBEAT_EMITTED,
+        "daemon_heartbeat_missed": TelemetryEventKind.DAEMON_HEARTBEAT_MISSED,
+        "daemon_recovery_started": TelemetryEventKind.DAEMON_RECOVERY_STARTED,
+        "daemon_recovery_completed": TelemetryEventKind.DAEMON_RECOVERY_COMPLETED,
+        "daemon_recovery_failed": TelemetryEventKind.DAEMON_RECOVERY_FAILED,
+        "daemon_dead_letter_created": TelemetryEventKind.DAEMON_DEAD_LETTER_CREATED,
+        "scheduler_trigger_evaluated": TelemetryEventKind.SCHEDULER_TRIGGER_EVALUATED,
+        "scheduler_proposal_created": TelemetryEventKind.SCHEDULER_PROPOSAL_CREATED,
+        "scheduler_proposal_rejected": TelemetryEventKind.SCHEDULER_PROPOSAL_REJECTED,
+        "operator_handoff_created": TelemetryEventKind.OPERATOR_HANDOFF_CREATED,
+        "operator_notification_created": TelemetryEventKind.OPERATOR_NOTIFICATION_CREATED,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1427,6 +1449,30 @@ def _domain_for_event(event_kind: TelemetryEventKind) -> TelemetryDomain:
         TelemetryEventKind.WORKER_CONFLICT_DETECTED,
     }:
         return TelemetryDomain.WORKER
+    if event_kind in {
+        TelemetryEventKind.DAEMON_STARTED,
+        TelemetryEventKind.DAEMON_STOPPED,
+        TelemetryEventKind.DAEMON_TICK_STARTED,
+        TelemetryEventKind.DAEMON_TICK_COMPLETED,
+        TelemetryEventKind.DAEMON_TICK_FAILED,
+        TelemetryEventKind.DAEMON_LEASE_CLAIMED,
+        TelemetryEventKind.DAEMON_LEASE_REJECTED,
+        TelemetryEventKind.DAEMON_LEASE_RENEWED,
+        TelemetryEventKind.DAEMON_LEASE_EXPIRED,
+        TelemetryEventKind.DAEMON_LEASE_RELEASED,
+        TelemetryEventKind.DAEMON_HEARTBEAT_EMITTED,
+        TelemetryEventKind.DAEMON_HEARTBEAT_MISSED,
+        TelemetryEventKind.DAEMON_RECOVERY_STARTED,
+        TelemetryEventKind.DAEMON_RECOVERY_COMPLETED,
+        TelemetryEventKind.DAEMON_RECOVERY_FAILED,
+        TelemetryEventKind.DAEMON_DEAD_LETTER_CREATED,
+        TelemetryEventKind.SCHEDULER_TRIGGER_EVALUATED,
+        TelemetryEventKind.SCHEDULER_PROPOSAL_CREATED,
+        TelemetryEventKind.SCHEDULER_PROPOSAL_REJECTED,
+        TelemetryEventKind.OPERATOR_HANDOFF_CREATED,
+        TelemetryEventKind.OPERATOR_NOTIFICATION_CREATED,
+    }:
+        return TelemetryDomain.OPERATIONAL
     return TelemetryDomain.PRODUCT_POWER
 
 

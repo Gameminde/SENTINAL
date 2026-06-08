@@ -5,13 +5,13 @@ Date: 2026-05-26
 Status: canonical strategic roadmap for moving Sentinel from controlled internal
 runtime to real-world controlled automation.
 
-## Current Execution Truth - 2026-06-07
+## Current Execution Truth - 2026-06-08
 
 ```text
-current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-active_implementation_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+active_implementation_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -142,6 +142,9 @@ Already real:
 - governed Mission Worker Fleet with strict child authority inheritance,
   worker budgets/deadlines/scopes, merge/reject/conflict contracts, telemetry,
   workflow checkpoint binding, and replay without re-execution.
+- production local MissionDaemonRuntime with durable queue, leases, heartbeat,
+  crash recovery inspection, dead-letter state, proposal-only scheduler, and
+  operator-visible status/replay.
 
 Still not enough for real-world power:
 
@@ -153,10 +156,9 @@ Still not enough for real-world power:
 - no desktop/vision/OCR sidecar;
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
-- no production daemon service;
 - unified observability telemetry/product-power metrics runtime = CLOSED / local runtime;
 - production telemetry service/cloud = NOT_STARTED;
-- no production multi-process worker service or daemon leases yet.
+- no production multi-process worker service or daemon service / OS supervisor.
 
 Wave 1 current completion:
 
@@ -175,7 +177,8 @@ PERSISTENT_SEMANTIC_MEMORY_V1 = CLOSED
 DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 = CLOSED
 OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1 = CLOSED
 MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 = CLOSED
-PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 = NEXT
+PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 = CLOSED
+MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -699,15 +702,15 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
 ```
 
 Reason:
 
 ```text
 Sentinel now has locked durable semantic memory, durable workflow/replan,
-local telemetry/product-power metrics, and governed Worker Fleet. The next step
-is a production local daemon with leases, heartbeat, crash recovery, dead-letter
-state, proactive proposal-only scheduling, operator handoff, and strict
-revocation/expiry rechecks before every resumed step.
+local telemetry/product-power metrics, governed Worker Fleet, and the
+production local daemon/scheduler foundation. The next step is model
+amplification: a harness that increases success rate, throughput, and tool
+economy without adding new authority or a parallel runtime.
 ```

@@ -26,7 +26,7 @@ This repo contains **two apps plus one research lab**:
 
 If you are continuing development, start here. This README explains what the project is, why it exists, how the folders connect, what is production, what is research, how to run things, and what to build next.
 
-## Current Snapshot - 2026-06-07
+## Current Snapshot - 2026-06-08
 
 Sentinel is no longer just a controlled-agent design document. It now has a
 default-off power kernel with a Brain -> Gate -> Organ -> Receipt -> FinalGate
@@ -43,7 +43,12 @@ Durable workflow and automatic replan are now locked. The unified local
 telemetry/product-power metrics spine is also locked as a real Sentinel-native
 runtime layer, and Worker Fleet is now locked on top of it with strict child
 authority inheritance, per-worker budgets, merge/reject contracts, telemetry,
-and replay.
+and replay. Sentinel now also has the production local mission daemon and
+proactive scheduler V1 foundation: durable daemon queue records, leases,
+heartbeats, stale-lease takeover proof, crash-recovery inspection, dead-letter
+records, proposal-only scheduling, operator-visible status, and daemon replay
+over the existing MissionKernel / DurableWorkflow / WorkerFleet / Telemetry
+spine.
 
 An exhaustive source audit and refreshed Agent Lab synthesis now define one
 canonical anti-drift roadmap to completion. Historical reports remain useful
@@ -76,10 +81,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-previous_phase = OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1_LOCKED
-active_implementation_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
-next_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+current_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+previous_phase = MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1_LOCKED
+active_implementation_phase = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1_LOCKED
+next_phase = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -190,6 +195,12 @@ Worker merge/reject/conflict detection = CLOSED
 Worker telemetry metrics/events = CLOSED / local runtime
 Worker replay = CLOSED / no re-execution
 Worker DurableWorkflow checkpoint binding = CLOSED / optional workflow_id bridge
+Production local MissionDaemonRuntime = CLOSED / same-process local daemon foundation
+MissionDaemonStore durable queue/lease/heartbeat/dead-letter records = CLOSED
+Daemon lease ownership, renewal, stale takeover proof, and heartbeat = CLOSED
+Daemon crash-recovery inspection and replay without re-execution = CLOSED
+Proactive scheduler = CLOSED / proposal-only, no ambient authority
+Daemon Certified Mode telemetry requirement = CLOSED
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -214,13 +225,12 @@ Provider fallback or AUTO routing = NOT_APPROVED
 Durable EventBus operational WAL = NOT_STARTED
 Automatic positive-cost replan without typed step cost proof = BLOCKED
 Automatic opaque AgentRuntime replan = BLOCKED
-Multi-process workflow lease/production daemon = NOT_STARTED
+Multi-process daemon service / OS service supervisor = NOT_STARTED
 Cryptographic executor/receipt authenticity = NOT_STARTED / trusted same-process boundary only
-Production mission daemon = NOT_STARTED / next
 Web dashboard = NOT_STARTED
 Voice runtime = NOT_STARTED
 Real Telegram/Slack/Gmail connectors = NOT_STARTED
-Production daemon service = NOT_STARTED
+Production OS service wrapper / cloud daemon = NOT_STARTED
 Raw prompt/provider response/reasoning persistence = BLOCKED
 ```
 
@@ -233,7 +243,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1
+Next milestone = MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -373,7 +383,8 @@ Recommended next build sequence:
 43. DURABLE_MISSION_WORKFLOW_AND_AUTOMATIC_REPLAN_V1 - DONE
 44. OBSERVABILITY_TELEMETRY_AND_PRODUCT_POWER_METRICS_V1 - DONE
 45. MISSION_WORKER_FLEET_AND_AUTHORITY_INHERITANCE_V1 - DONE
-46. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 - NEXT
+46. PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 - DONE
+47. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 - NEXT
 ```
 
 The doctrine:
