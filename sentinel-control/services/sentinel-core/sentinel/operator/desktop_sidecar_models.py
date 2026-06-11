@@ -49,6 +49,7 @@ class MetricAvailability(StrEnum):
     UNSUPPORTED = "unsupported"
     PERMISSION_REQUIRED = "permission_required"
     BLOCKED_BY_POLICY = "blocked_by_policy"
+    PROBE_FAILED = "probe_failed"
 
 
 class DesktopActionKind(StrEnum):

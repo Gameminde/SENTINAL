@@ -56,7 +56,15 @@ records, route simulation, policy rejection reasons, hash-bound route receipts,
 operator approval records, explicit `UserModelContract` binding, telemetry, and
 replay. The router is decision support and binding data only; it does not add
 hidden provider switching, fallback/AUTO, provider-native tools, model
-downloads, model server management, or authority.
+downloads, model server management, or authority. Sentinel also now has the
+Live Desktop Operator Backend And System Monitoring V1 foundation inserted
+before Voice: safe local system/window/app/process/hardware snapshots,
+explicit monitoring sessions and ticks, desktop permission UI/tray/service
+shapes, control modes, fake/injected click/type/hotkey action backend,
+benchmark gauntlet, receipts, FinalGate, telemetry, replay, and kill/revocation
+behavior over the existing permissioned DesktopSidecar. This does not claim a
+production OS tray/service app, hidden screen capture, keylogging, credential
+harvesting, provider fallback/AUTO, or payment/account/security/device power.
 
 An exhaustive source audit and refreshed Agent Lab synthesis now define one
 canonical anti-drift roadmap to completion. Historical reports remain useful
@@ -89,9 +97,9 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
-previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-active_implementation_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+current_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+previous_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+active_implementation_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
 next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
@@ -240,6 +248,12 @@ Desktop visual grounding = CLOSED / evidence-linked target candidates, no action
 Desktop action preview/proposal = CLOSED / data-only proposal and before/after evidence contracts
 Desktop injected action backend = CLOSED / fake/injected transport only, authority/approval/allowlist/kill/revocation gated
 Desktop telemetry, receipts, FinalGate, replay = CLOSED / no re-screenshot or re-action
+Live Desktop Backend = CLOSED / local same-process backend foundation over DesktopSidecar
+Desktop system/app/window/process monitoring = CLOSED / safe local snapshots with UNKNOWN/UNSUPPORTED where unavailable
+Desktop hardware metric snapshots = CLOSED / CPU/RAM/disk/network plus GPU/sensor unknown posture when unavailable
+Desktop control modes and always-on monitoring policy shape = CLOSED / explicit user policy, not hidden capture
+Desktop benchmark gauntlet = CLOSED / fake/injected backend, replay no-reaction proof
+Live opt-in desktop action backend shape = CLOSED / descriptor only; normal tests use fake/injected transport
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -258,7 +272,7 @@ AgentRuntime promotion for hardened DevTools/visual/replay/recovery backend path
 Unbounded API mutation = NOT_STARTED
 Unapproved channel send = BLOCKED
 Provider-specific Telegram/Slack/Gmail connectors = NOT_STARTED
-Live opt-in desktop action adapter = NOT_STARTED / V1 supports fake/injected action backend only
+Production live opt-in desktop action adapter / OS service = NOT_STARTED / V1 supports descriptor shape and fake/injected action backend only
 Ambient hidden desktop capture/control = BLOCKED
 Credential/password/token harvesting from desktop = BLOCKED
 Unrestricted shell/process execution = NOT_STARTED
@@ -433,7 +447,8 @@ Recommended next build sequence:
 49. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 - DONE
 50. REAL_CHANNEL_ADAPTERS_V1 - DONE
 51. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 - DONE
-52. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 - NEXT
+52. LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 - DONE
+53. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 - NEXT
 ```
 
 The doctrine:

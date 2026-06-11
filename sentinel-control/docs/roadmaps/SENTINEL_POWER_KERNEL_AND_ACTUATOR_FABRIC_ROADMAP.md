@@ -8,9 +8,9 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-08
 
 ```text
-current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
-previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-active_implementation_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+current_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+previous_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+active_implementation_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
 next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 roadmap_doctrine = product power under provable authority
 ```
@@ -179,7 +179,12 @@ Still not enough for real-world power:
 - no unbounded API mutation;
 - permissioned desktop sidecar/visual grounding = CLOSED / local runtime with
   fake/injected action backend;
-- production live opt-in desktop adapter and OS service sidecar = NOT_STARTED;
+- live desktop operator backend and system monitoring = CLOSED / local
+  same-process backend foundation with safe system/app/window/process/hardware
+  snapshots, explicit monitoring sessions, fake/injected actions, benchmark
+  gauntlet, receipts, FinalGate, telemetry, replay, and kill/revocation;
+- production live opt-in desktop adapter and installed OS service sidecar =
+  NOT_STARTED;
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
 - unified observability telemetry/product-power metrics runtime = CLOSED / local runtime;
@@ -209,6 +214,7 @@ GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 = CLOSED
 LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 = CLOSED
 REAL_CHANNEL_ADAPTERS_V1 = CLOSED
 PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 = CLOSED
+LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 = CLOSED
 REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = NEXT
 ```
 
@@ -743,12 +749,12 @@ Sentinel now has locked durable semantic memory, durable workflow/replan,
 local telemetry/product-power metrics, governed Worker Fleet, the production
 local daemon/scheduler foundation, model amplification, governed skills and
 procedures, explicit local/hardware/cost model routing, real channel adapter
-foundation, and a permissioned desktop sidecar/visual grounding foundation with
-operator-visible observation, monitoring snapshots, target grounding, action
-preview/proposal, fake/injected action backend, before/after evidence,
-allowlists, receipts, FinalGate, replay, kill/revocation behavior, no hidden
-screenshot loop, no ambient host authority, no credential vault, and no
-fallback/AUTO. The next step is realtime voice and ambient operator transport
-over the existing cockpit without making voice an authority or direct execution
-surface.
+foundation, permissioned desktop sidecar/visual grounding, and a live desktop
+operator backend/system monitoring foundation with safe system/app/window/
+process/hardware snapshots, explicit monitoring sessions, fake/injected
+actions, benchmark gauntlet, receipts, FinalGate, replay, kill/revocation
+behavior, no hidden screenshot loop, no keylogger, no ambient host authority,
+no credential vault, and no fallback/AUTO. The next step is realtime voice and
+ambient operator transport over the existing cockpit without making voice an
+authority or direct execution surface.
 ```

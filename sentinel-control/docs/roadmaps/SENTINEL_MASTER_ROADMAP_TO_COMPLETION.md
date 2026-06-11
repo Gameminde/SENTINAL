@@ -37,8 +37,8 @@ provable.
 Current state:
 
 ```text
-current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
-previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+current_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+previous_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
 next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 roadmap_doctrine = product power under provable authority
 ```
@@ -66,6 +66,7 @@ governed Skill/Procedure Fabric with manifest/provenance/version pinning, scanne
 local Model Hardware And Cost Router with explicit UserModelContract/catalog/descriptor candidates, safe hardware snapshots, explicit-loopback-only probes, route simulation, rejection reasons, route receipts, operator approval records, binding to explicit UserModelContract, telemetry, and replay
 real channel adapter foundation with webhook-style explicit adapter descriptors, untrusted inbound handling, outbound drafts, operator approval, recipient/scope/rate/idempotency gates, injected transport send path through ChannelDraftSendOrganV1, receipts, FinalGate refs, telemetry, and replay without resend
 permissioned desktop sidecar foundation with policy modes, operator-visible observation, monitoring snapshots, visual grounding, action preview/proposal, fake/injected action backend, allowlists, sensitive-region handling, before/after evidence, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without re-screenshot or re-action
+live desktop operator backend and system monitoring foundation with safe local system/window/app/process/hardware snapshots, explicit monitoring sessions/ticks, permission UI/tray/service shapes, control modes, fake/injected desktop actions, benchmark gauntlet, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without new snapshots or re-action
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -83,7 +84,7 @@ production LSP/debugger/deep coding harness integrations
 public skill marketplace and remote plugin execution
 automatic model failover, hidden provider switching, model downloads, and model server management
 provider-specific Telegram/Slack/Gmail connectors and durable channel credential/session vaults
-production live opt-in desktop adapter and OS service sidecar
+production live opt-in desktop adapter and installed OS tray/service sidecar
 voice
 durable credential vault
 real account/payment/trading/security/device power
@@ -173,15 +174,16 @@ No layer may create a second authority path.
 8. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1
 9. REAL_CHANNEL_ADAPTERS_V1
 10. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
-11. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
-12. DURABLE_CREDENTIAL_VAULT_AND_SESSION_BROKER_V1
-13. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
-14. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
-15. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
-16. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
-17. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
-18. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
-19. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
+11. LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1
+12. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+13. DURABLE_CREDENTIAL_VAULT_AND_SESSION_BROKER_V1
+14. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+15. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+16. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+17. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
+18. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
+19. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
+20. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
 ```
 
 Sequence law:
@@ -501,7 +503,35 @@ Exit:
 
 - selected desktop tasks work without ambient host authority.
 
-### Phase 11 - Realtime Voice And Ambient Operator V1
+### Phase 11 - Live Desktop Operator Backend And System Monitoring V1
+
+Purpose:
+
+- close the next desktop-power gap after Permissioned Desktop Sidecar V1 before
+  Voice, without turning desktop reach into hidden host control.
+
+Core deliverables:
+
+- live-desktop-ready backend descriptors and maturity classes;
+- safe local system, app, window, process, display, hardware, sensor, clock,
+  and background activity snapshots;
+- explicit monitoring sessions and ticks with always-on policy shape, pause,
+  kill, revocation, and retention controls;
+- permission UI, tray, and service supervisor shapes for future app/tray work;
+- fake/injected click/type/hotkey/wait action backend, action plans, approvals,
+  idempotency keys, before/after evidence, receipts, FinalGate, telemetry, and
+  replay;
+- desktop benchmark gauntlet that proves governed fake/injected operation and
+  replay no-reaction behavior.
+
+Exit:
+
+- Sentinel has a live-desktop-ready Computer Operator backend foundation with
+  monitoring and fake/injected actions, but no production OS service/tray app,
+  no hidden capture, no keylogger, and no credential/payment/account/security/
+  device power.
+
+### Phase 12 - Realtime Voice And Ambient Operator V1
 
 Purpose:
 
@@ -517,7 +547,7 @@ Exit:
 
 - voice controls the cockpit; it never bypasses Sentinel validation.
 
-### Phase 12 - Durable Credential Vault And Session Broker V1
+### Phase 13 - Durable Credential Vault And Session Broker V1
 
 Purpose:
 
@@ -534,7 +564,7 @@ Exit:
 
 - a scoped organ can use a credential without durable raw-value leakage.
 
-### Phase 13 - Account Creation And Login Special Authority V1
+### Phase 14 - Account Creation And Login Special Authority V1
 
 Purpose:
 
@@ -551,7 +581,7 @@ Exit:
 
 - approved account/login workflows complete with exact receipts and handoffs.
 
-### Phase 14 - Payment Spend Trading Special Authority V1
+### Phase 15 - Payment Spend Trading Special Authority V1
 
 Purpose:
 
@@ -567,7 +597,7 @@ Exit:
 
 - approved bounded financial tasks complete without general spending authority.
 
-### Phase 15 - Security Testing Special Authority V1
+### Phase 16 - Security Testing Special Authority V1
 
 Purpose:
 
@@ -584,7 +614,7 @@ Exit:
 
 - scoped defensive testing runs only against explicitly authorized targets.
 
-### Phase 16 - Electronics Device Control And IoT Organ V1
+### Phase 17 - Electronics Device Control And IoT Organ V1
 
 Purpose:
 
@@ -600,7 +630,7 @@ Exit:
 
 - selected devices can be controlled without ambient network/device authority.
 
-### Phase 17 - Business Automation Playbooks And Marketplace V1
+### Phase 18 - Business Automation Playbooks And Marketplace V1
 
 Purpose:
 
@@ -616,7 +646,7 @@ Exit:
 
 - repeatable business workflows deliver measured outcomes under authority.
 
-### Phase 18 - Sentinel Platform App And Operator Cloud V1
+### Phase 19 - Sentinel Platform App And Operator Cloud V1
 
 Purpose:
 
@@ -633,7 +663,7 @@ Exit:
 
 - a normal user can operate Sentinel fluently without low-level mission tools.
 
-### Phase 19 - Final Capability Gauntlet And Release Certification
+### Phase 20 - Final Capability Gauntlet And Release Certification
 
 Purpose:
 

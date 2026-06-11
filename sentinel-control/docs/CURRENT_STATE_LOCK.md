@@ -1,12 +1,13 @@
 # Current State Lock
 
-## Permissioned Desktop Sidecar And Visual Grounding V1 - LOCKED
+## Live Desktop Operator Backend And System Monitoring V1 - LOCKED
 
 Recorded at: 2026-06-11
 
 This section is the canonical current state. It supersedes the Real Channel
-Adapters lock as top-level execution truth. Sentinel now has a Sentinel-native
-permissioned desktop sidecar and visual grounding foundation over the existing
+Adapters and Permissioned Desktop Sidecar locks as top-level execution truth.
+Sentinel now has a Sentinel-native live-desktop-ready backend foundation and
+system monitoring layer over the existing permissioned DesktopSidecar and the
 LLM cockpit, MissionKernel, MissionRunStore, DurableWorkflowStore,
 MissionDaemonRuntime, WorkerFleetRuntime, ModelAmplificationHarness,
 GovernedSkillFabric, LocalModelRouter, RealChannelAdapters, TelemetryKernel,
@@ -14,13 +15,102 @@ Persistent Semantic Memory refs, PowerRuntime/AgentRuntime bridge boundaries,
 MissionAuthorityEnvelope, Gate, receipts, FinalGate, and replay spine.
 
 It is not hidden desktop capture, not ambient host control, not a keylogger, not
-a credential vault, not a payment/account/security/device organ, not a provider
+credential harvesting, not a production OS tray/service app, not a credential
+vault, not a payment/account/security/device organ, not a provider
 fallback/AUTO path, and not a vendor runtime bridge.
+
+```text
+current_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+previous_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Live Desktop Backend Runtime Truth
+
+```text
+LiveDesktopBackendConfig / id / kind / maturity = CLOSED
+LiveDesktopBackendCapabilityProfile = CLOSED
+LiveDesktopBackendRegistry = CLOSED / local descriptor + fake/injected backend registry
+LiveDesktopBackendRuntime = CLOSED / local same-process runtime over DesktopSidecar
+DesktopOperatorSession / SessionPolicy / SessionState = CLOSED
+Desktop control modes = CLOSED / observe, monitor, assisted, approved-action, delegated-session, continuous-supervision policy modes
+Desktop permission UI / tray / service supervisor shapes = CLOSED / modeled only, not installed OS service
+Desktop system snapshots = CLOSED / safe local OS/session/window/app/process/hardware/sensor/clock summaries
+Desktop hardware metrics = CLOSED / UNKNOWN/UNSUPPORTED/PROBE_FAILED when unavailable; no fake precision
+Desktop monitoring sessions/ticks = CLOSED / explicit enablement, kill/revocation gated
+Desktop live action plans = CLOSED / proposal/plan first, not authority
+Desktop fake/injected action backend = CLOSED / click/type/hotkey/wait-style fake transport for tests and benchmark
+Optional live opt-in action backend shape = CLOSED / descriptor only unless explicitly configured; normal tests skip live OS actions
+Desktop benchmark gauntlet = CLOSED / fake/injected backend, replay-no-reaction proof
+Desktop action receipts = CLOSED / hash-bound safe metadata only
+Desktop FinalGate refs = CLOSED
+Live desktop replay = CLOSED / no new system snapshot, no re-action
+Live desktop telemetry events and metrics = CLOSED
+always-on monitoring policy shape = CLOSED / explicit user policy; no hidden capture
+hidden screenshot loop = BLOCKED
+keylogging = BLOCKED
+clipboard capture by default = BLOCKED
+raw screenshot/OCR/text persistence by default = BLOCKED
+raw credential/token/provider key persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+LLM/memory/skill/worker/daemon/scheduler/channel direct desktop control = BLOCKED
+receipt/FinalGate/memory/telemetry/monitoring as desktop authority = BLOCKED
+production OS app/tray/service = NOT_STARTED
+durable credential vault = NOT_STARTED
+payment/trading/account/security/device desktop power = NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Live Desktop Backend Honest V1 Limits
+
+```text
+LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 is inserted before REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+it closes the next desktop-power gap after Permissioned Desktop Sidecar V1
+it is a live-desktop-ready backend foundation, not a final production desktop app
+no production Windows/macOS/Linux installer, tray daemon, OS service, or global UI Automation backend is claimed
+normal tests use fake/injected action transports and do not call live desktop APIs
+live opt-in action backend remains descriptor-shaped and must be explicitly configured, local-only, operator-visible, allowlisted, authority-gated, telemetry-gated, receipted, FinalGate-certified, and replay-safe
+system monitoring returns UNKNOWN/UNSUPPORTED/PROBE_FAILED where safe data is unavailable
+benchmark gauntlet proves governed fake/injected desktop operation and replay no-reaction, not superiority over every live JARVIS-style agent
+```
+
+### Live Desktop Backend Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/live_desktop_backend_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/live_desktop_backend.py
+sentinel-control/services/sentinel-core/sentinel/operator/live_desktop_backend_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/desktop_sidecar_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_live_desktop_operator_backend_system_monitoring_v1.py
+sentinel-control/docs/reviews/LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
+## Permissioned Desktop Sidecar And Visual Grounding V1 - LOCKED
+
+Recorded at: 2026-06-11
+
+This section is historical. It superseded the Real Channel Adapters lock as
+top-level execution truth and was then superseded by the Live Desktop Operator
+Backend And System Monitoring lock.
+
+Sentinel has a Sentinel-native permissioned desktop sidecar and visual
+grounding foundation over the existing runtime spine. It is not hidden desktop
+capture, not ambient host control, not a keylogger, not a credential vault, not
+a payment/account/security/device organ, not a provider fallback/AUTO path, and
+not a vendor runtime bridge.
 
 ```text
 current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
 previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+historical_next_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1
 roadmap_doctrine = product power under provable authority
 ```
 

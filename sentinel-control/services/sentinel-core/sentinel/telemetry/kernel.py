@@ -1471,12 +1471,40 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "desktop_kill_switch_triggered": TelemetryEventKind.DESKTOP_KILL_SWITCH_TRIGGERED,
         "desktop_revocation_detected": TelemetryEventKind.DESKTOP_REVOCATION_DETECTED,
         "desktop_replay_built": TelemetryEventKind.DESKTOP_REPLAY_BUILT,
+        "live_desktop_backend_registered": TelemetryEventKind.LIVE_DESKTOP_BACKEND_REGISTERED,
+        "live_desktop_backend_rejected": TelemetryEventKind.LIVE_DESKTOP_BACKEND_REJECTED,
+        "desktop_operator_session_started": TelemetryEventKind.DESKTOP_OPERATOR_SESSION_STARTED,
+        "desktop_operator_session_completed": TelemetryEventKind.DESKTOP_OPERATOR_SESSION_COMPLETED,
+        "desktop_operator_session_failed": TelemetryEventKind.DESKTOP_OPERATOR_SESSION_FAILED,
+        "desktop_operator_mode_changed": TelemetryEventKind.DESKTOP_OPERATOR_MODE_CHANGED,
+        "desktop_system_snapshot_requested": TelemetryEventKind.DESKTOP_SYSTEM_SNAPSHOT_REQUESTED,
+        "desktop_system_snapshot_completed": TelemetryEventKind.DESKTOP_SYSTEM_SNAPSHOT_COMPLETED,
+        "desktop_system_snapshot_blocked": TelemetryEventKind.DESKTOP_SYSTEM_SNAPSHOT_BLOCKED,
+        "desktop_monitoring_session_started": TelemetryEventKind.DESKTOP_MONITORING_SESSION_STARTED,
+        "desktop_monitoring_tick_completed": TelemetryEventKind.DESKTOP_MONITORING_TICK_COMPLETED,
+        "desktop_monitoring_session_stopped": TelemetryEventKind.DESKTOP_MONITORING_SESSION_STOPPED,
+        "desktop_process_snapshot_created": TelemetryEventKind.DESKTOP_PROCESS_SNAPSHOT_CREATED,
+        "desktop_window_snapshot_created": TelemetryEventKind.DESKTOP_WINDOW_SNAPSHOT_CREATED,
+        "desktop_hardware_metric_snapshot_created": TelemetryEventKind.DESKTOP_HARDWARE_METRIC_SNAPSHOT_CREATED,
+        "desktop_live_action_planned": TelemetryEventKind.DESKTOP_LIVE_ACTION_PLANNED,
+        "desktop_live_action_blocked": TelemetryEventKind.DESKTOP_LIVE_ACTION_BLOCKED,
+        "desktop_live_action_started": TelemetryEventKind.DESKTOP_LIVE_ACTION_STARTED,
+        "desktop_live_action_completed": TelemetryEventKind.DESKTOP_LIVE_ACTION_COMPLETED,
+        "desktop_live_action_failed": TelemetryEventKind.DESKTOP_LIVE_ACTION_FAILED,
+        "desktop_live_action_kill_blocked": TelemetryEventKind.DESKTOP_LIVE_ACTION_KILL_BLOCKED,
+        "desktop_benchmark_started": TelemetryEventKind.DESKTOP_BENCHMARK_STARTED,
+        "desktop_benchmark_completed": TelemetryEventKind.DESKTOP_BENCHMARK_COMPLETED,
+        "desktop_benchmark_failed": TelemetryEventKind.DESKTOP_BENCHMARK_FAILED,
+        "desktop_service_shape_created": TelemetryEventKind.DESKTOP_SERVICE_SHAPE_CREATED,
+        "desktop_tray_shape_created": TelemetryEventKind.DESKTOP_TRAY_SHAPE_CREATED,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
 
 def _mission_event_family(event_type: str) -> str:
     if event_type.startswith("desktop_"):
+        return "desktop_sidecar"
+    if event_type.startswith("live_desktop_"):
         return "desktop_sidecar"
     if event_type.startswith("channel_"):
         return "channel_adapter"
