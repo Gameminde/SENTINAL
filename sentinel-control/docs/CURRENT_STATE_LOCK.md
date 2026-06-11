@@ -1,11 +1,119 @@
 # Current State Lock
 
+## Realtime Voice And Ambient Operator V1 - LOCKED
+
+Recorded at: 2026-06-11
+
+This section is the canonical current state. It supersedes the Live Desktop
+Operator Backend And System Monitoring lock as top-level execution truth.
+Sentinel now has a Sentinel-owned realtime voice and ambient operator runtime
+foundation over the existing LLM cockpit, MissionKernel, MissionRunStore,
+MissionDaemonRuntime, WorkerFleetRuntime, ModelAmplificationHarness,
+GovernedSkillFabric, LocalModelRouter, RealChannelAdapters, DesktopSidecar,
+LiveDesktopBackend, TelemetryKernel, Persistent Semantic Memory refs,
+PowerRuntime/AgentRuntime bridge boundaries, MissionAuthorityEnvelope, Gate,
+receipts, FinalGate, and replay spine.
+
+It is not a provider-owned assistant, not provider-owned tool execution, not
+voice authority, not hidden listening, not a raw audio recorder, not speaker
+biometric authentication, not voice cloning, not a live OpenAI/Gemini/LiveKit/
+Pipecat integration, not a durable credential vault, not a payment/account/
+security/device organ, not provider fallback/AUTO, and not a vendor runtime
+bridge.
+
+```text
+current_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+previous_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+next_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Realtime Voice Runtime Truth
+
+```text
+VoiceRuntimeConfig / VoiceSession / VoiceRuntime = CLOSED
+Voice modes = CLOSED / disabled, push-to-talk, wake-word, session voice, ambient listener, ambient operator, full voice copilot modeled
+Voice control mode = CLOSED / Sentinel-owned pipeline first
+Voice provider contracts = CLOSED / descriptor-only local STT/TTS, API STT/TTS, realtime speech provider shapes
+OpenAI Realtime / Gemini Live / LiveKit / Pipecat style descriptors = CLOSED / no live provider calls
+Speech-to-speech architecture = CLOSED / descriptor model only
+STT -> Sentinel Kernel -> TTS architecture = CLOSED / implemented through fake/injected backend
+AudioInputAdapter / AudioOutputAdapter = CLOSED / descriptor/fake-only, no microphone/speaker capture
+AudioFrameRef / AudioStreamRef / AudioChunkRef = CLOSED / hash-only metadata, no raw audio persistence
+VoiceActivityDetector / VoiceActivityEvent = CLOSED
+TurnDetectionPolicy / TurnDetectionResult / EndpointingDecision = CLOSED
+PartialTranscript / FinalTranscript = CLOSED / transcript hash and redacted excerpt only
+BargeInPolicy / BargeInEvent / InterruptionDecision = CLOSED
+SpeechToTextContract / TextToSpeechContract = CLOSED / descriptors only
+StreamingSpeechOutput / SpeechPlaybackState = CLOSED / fake/injected playback records
+RealtimeSpeechToolCallEnvelope = CLOSED / provider-native tool execution blocked
+VoiceCommandEnvelope = CLOSED / data and proposal only, not authority
+VoiceIntentCandidate / VoiceCommandRiskProfile / VoiceSafetyScanResult = CLOSED
+VoiceConfirmationRequest / VoiceConfirmationResult = CLOSED / evidence only, not authority
+VoiceKillWordPolicy / VoiceKillWordEvent = CLOSED
+AmbientVoicePolicy / AmbientVoiceEvent / VoiceNotification = CLOSED / scoped proactive categories
+VoiceOperatorPrompt / VoiceOperatorResponse = CLOSED / safe metadata model
+Voice-to-desktop proposal path = CLOSED / no direct desktop action
+VoiceReceipt / VoiceFinalGateCertificate = CLOSED
+VoiceTelemetrySummary / voice telemetry events and metrics = CLOSED
+VoiceReplayView / VoiceReplayBuilder = CLOSED / no audio playback, no provider calls, no action replay
+heavy voice research/design document = CLOSED
+raw audio persistence by default = BLOCKED
+raw full transcript persistence by default = BLOCKED
+speaker biometric persistence = BLOCKED
+provider key persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+provider-owned tool authority = BLOCKED
+voice-created authority = BLOCKED
+voice confirmation as authority = BLOCKED
+wake word / voice identity as authority = BLOCKED
+hidden always-on recorder = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+production microphone/speaker adapters = NOT_STARTED
+live OpenAI/Gemini/LiveKit/Pipecat integration = NOT_STARTED
+voice cloning = NOT_STARTED
+durable credential vault = NOT_STARTED / next
+payment/account/security/device voice power = NOT_STARTED
+```
+
+### Realtime Voice Honest V1 Limits
+
+```text
+voice runtime is local same-process foundation
+audio backend is fake/injected only
+provider support is descriptor/contract only
+no live microphone, speaker, STT, TTS, WebRTC, WebSocket, or realtime-provider call is made
+ambient listener/operator are policy-modeled and scoped; V1 is not hidden always-on recording
+speech-to-speech realtime sessions are descriptor-shaped only
+voice-to-desktop creates proposals/checkpoints, not direct actions
+replay reconstructs voice lifecycle and never plays audio, records microphone input, calls providers, or executes actions
+```
+
+### Realtime Voice Artifacts
+
+```text
+sentinel-control/docs/reviews/REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_RESEARCH_AND_DESIGN.md
+sentinel-control/services/sentinel-core/sentinel/operator/voice_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/voice_runtime.py
+sentinel-control/services/sentinel-core/sentinel/operator/voice_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_realtime_voice_ambient_operator_v1.py
+sentinel-control/docs/reviews/REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Live Desktop Operator Backend And System Monitoring V1 - LOCKED
 
 Recorded at: 2026-06-11
 
-This section is the canonical current state. It supersedes the Real Channel
-Adapters and Permissioned Desktop Sidecar locks as top-level execution truth.
+This section is historical. It superseded the Real Channel Adapters and
+Permissioned Desktop Sidecar locks as top-level execution truth and was then
+superseded by the Realtime Voice And Ambient Operator lock.
 Sentinel now has a Sentinel-native live-desktop-ready backend foundation and
 system monitoring layer over the existing permissioned DesktopSidecar and the
 LLM cockpit, MissionKernel, MissionRunStore, DurableWorkflowStore,
@@ -1129,7 +1237,7 @@ Raw provider response persistence = BLOCKED
 Raw reasoning persistence = BLOCKED
 Provider fallback/AUTO routing = NOT_APPROVED
 Web dashboard = NOT_STARTED
-Voice runtime = NOT_STARTED
+Voice runtime = SUPERSEDED / realtime voice foundation is CLOSED in current top lock
 Persistent semantic memory retrieval = NOT_STARTED / next
 Real channel adapters = NOT_STARTED
 Durable credential vault = NOT_STARTED

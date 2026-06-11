@@ -1497,6 +1497,32 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "desktop_benchmark_failed": TelemetryEventKind.DESKTOP_BENCHMARK_FAILED,
         "desktop_service_shape_created": TelemetryEventKind.DESKTOP_SERVICE_SHAPE_CREATED,
         "desktop_tray_shape_created": TelemetryEventKind.DESKTOP_TRAY_SHAPE_CREATED,
+        "voice_runtime_started": TelemetryEventKind.VOICE_RUNTIME_STARTED,
+        "voice_runtime_stopped": TelemetryEventKind.VOICE_RUNTIME_STOPPED,
+        "voice_session_started": TelemetryEventKind.VOICE_SESSION_STARTED,
+        "voice_session_completed": TelemetryEventKind.VOICE_SESSION_COMPLETED,
+        "voice_session_failed": TelemetryEventKind.VOICE_SESSION_FAILED,
+        "voice_mode_changed": TelemetryEventKind.VOICE_MODE_CHANGED,
+        "voice_audio_input_started": TelemetryEventKind.VOICE_AUDIO_INPUT_STARTED,
+        "voice_audio_input_stopped": TelemetryEventKind.VOICE_AUDIO_INPUT_STOPPED,
+        "voice_activity_detected": TelemetryEventKind.VOICE_ACTIVITY_DETECTED,
+        "voice_turn_started": TelemetryEventKind.VOICE_TURN_STARTED,
+        "voice_turn_ended": TelemetryEventKind.VOICE_TURN_ENDED,
+        "voice_partial_transcript_created": TelemetryEventKind.VOICE_PARTIAL_TRANSCRIPT_CREATED,
+        "voice_final_transcript_created": TelemetryEventKind.VOICE_FINAL_TRANSCRIPT_CREATED,
+        "voice_command_envelope_created": TelemetryEventKind.VOICE_COMMAND_ENVELOPE_CREATED,
+        "voice_command_blocked": TelemetryEventKind.VOICE_COMMAND_BLOCKED,
+        "voice_confirmation_required": TelemetryEventKind.VOICE_CONFIRMATION_REQUIRED,
+        "voice_confirmation_completed": TelemetryEventKind.VOICE_CONFIRMATION_COMPLETED,
+        "voice_barge_in_detected": TelemetryEventKind.VOICE_BARGE_IN_DETECTED,
+        "voice_output_started": TelemetryEventKind.VOICE_OUTPUT_STARTED,
+        "voice_output_interrupted": TelemetryEventKind.VOICE_OUTPUT_INTERRUPTED,
+        "voice_output_completed": TelemetryEventKind.VOICE_OUTPUT_COMPLETED,
+        "voice_kill_word_detected": TelemetryEventKind.VOICE_KILL_WORD_DETECTED,
+        "voice_ambient_notification_created": TelemetryEventKind.VOICE_AMBIENT_NOTIFICATION_CREATED,
+        "voice_provider_descriptor_registered": TelemetryEventKind.VOICE_PROVIDER_DESCRIPTOR_REGISTERED,
+        "voice_provider_descriptor_rejected": TelemetryEventKind.VOICE_PROVIDER_DESCRIPTOR_REJECTED,
+        "voice_replay_built": TelemetryEventKind.VOICE_REPLAY_BUILT,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1506,6 +1532,8 @@ def _mission_event_family(event_type: str) -> str:
         return "desktop_sidecar"
     if event_type.startswith("live_desktop_"):
         return "desktop_sidecar"
+    if event_type.startswith("voice_"):
+        return "voice_runtime"
     if event_type.startswith("channel_"):
         return "channel_adapter"
     if event_type.startswith("model_router_"):

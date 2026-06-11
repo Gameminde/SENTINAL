@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-08
 
 ```text
-current_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-previous_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
-active_implementation_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+current_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+previous_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+active_implementation_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+next_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -164,6 +164,12 @@ Already real:
   operator approvals, recipient/scope/rate/idempotency gates, injected
   transport sends through the existing ChannelDraftSendOrganV1, receipts,
   FinalGate refs, telemetry, and replay without resend.
+- realtime voice and ambient operator foundation with Sentinel-owned voice
+  runtime, provider descriptors, fake/injected audio backend, VAD/turn
+  detection, partial/final transcript events, barge-in/kill-word interruption,
+  voice command envelopes, scoped ambient notifications, voice-to-desktop
+  proposals, receipts, FinalGate, telemetry, and replay without audio playback,
+  provider calls, or action replay.
 
 Still not enough for real-world power:
 
@@ -185,6 +191,11 @@ Still not enough for real-world power:
   gauntlet, receipts, FinalGate, telemetry, replay, and kill/revocation;
 - production live opt-in desktop adapter and installed OS service sidecar =
   NOT_STARTED;
+- production microphone/speaker voice adapters and live voice provider
+  integrations = NOT_STARTED / V1 supports descriptors and fake/injected
+  backend only;
+- hidden always-on voice recorder, speaker biometric authentication, voice
+  cloning, provider-owned tools, and voice-created authority = BLOCKED;
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
 - unified observability telemetry/product-power metrics runtime = CLOSED / local runtime;
@@ -215,7 +226,8 @@ LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 = CLOSED
 REAL_CHANNEL_ADAPTERS_V1 = CLOSED
 PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 = CLOSED
 LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 = CLOSED
-REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = NEXT
+REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = CLOSED
+DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -739,7 +751,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 ```
 
 Reason:
@@ -749,12 +761,12 @@ Sentinel now has locked durable semantic memory, durable workflow/replan,
 local telemetry/product-power metrics, governed Worker Fleet, the production
 local daemon/scheduler foundation, model amplification, governed skills and
 procedures, explicit local/hardware/cost model routing, real channel adapter
-foundation, permissioned desktop sidecar/visual grounding, and a live desktop
-operator backend/system monitoring foundation with safe system/app/window/
-process/hardware snapshots, explicit monitoring sessions, fake/injected
-actions, benchmark gauntlet, receipts, FinalGate, replay, kill/revocation
-behavior, no hidden screenshot loop, no keylogger, no ambient host authority,
-no credential vault, and no fallback/AUTO. The next step is realtime voice and
-ambient operator transport over the existing cockpit without making voice an
-authority or direct execution surface.
+foundation, permissioned desktop sidecar/visual grounding, live desktop
+operator backend/system monitoring foundation, and realtime voice/ambient
+operator foundation. Voice remains Sentinel-owned, descriptor/fake-backend in
+V1, and cannot create authority, call organs, persist raw audio/transcripts, or
+enable provider fallback/AUTO. The next step is a durable credential vault and
+secret broker so future browser/API/channel/desktop/account workflows can
+resolve secrets through scoped grants, ephemeral handling, receipts, FinalGate,
+revocation, and no raw-value leakage.
 ```

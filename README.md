@@ -65,6 +65,16 @@ benchmark gauntlet, receipts, FinalGate, telemetry, replay, and kill/revocation
 behavior over the existing permissioned DesktopSidecar. This does not claim a
 production OS tray/service app, hidden screen capture, keylogging, credential
 harvesting, provider fallback/AUTO, or payment/account/security/device power.
+Sentinel now also has the Realtime Voice And Ambient Operator V1 foundation:
+a Sentinel-owned voice runtime over the existing cockpit/MissionKernel/runtime
+spine, with provider descriptors, fake/injected audio backend, VAD and turn
+detection models, partial/final transcript events, barge-in and kill-word
+interruption, voice command envelopes, scoped ambient notification policy,
+voice-to-desktop proposal contracts, voice receipts, FinalGate, telemetry, and
+replay. It does not claim production microphone/speaker adapters, live
+OpenAI/Gemini/LiveKit/Pipecat calls, voice cloning, speaker biometrics, hidden
+always-on recording, provider-owned tools, provider fallback/AUTO, or durable
+credential vault power.
 
 An exhaustive source audit and refreshed Agent Lab synthesis now define one
 canonical anti-drift roadmap to completion. Historical reports remain useful
@@ -97,10 +107,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-previous_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
-active_implementation_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+current_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+previous_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+active_implementation_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+next_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -254,6 +264,15 @@ Desktop hardware metric snapshots = CLOSED / CPU/RAM/disk/network plus GPU/senso
 Desktop control modes and always-on monitoring policy shape = CLOSED / explicit user policy, not hidden capture
 Desktop benchmark gauntlet = CLOSED / fake/injected backend, replay no-reaction proof
 Live opt-in desktop action backend shape = CLOSED / descriptor only; normal tests use fake/injected transport
+Realtime Voice Runtime = CLOSED / Sentinel-owned local same-process foundation
+Voice provider descriptors = CLOSED / local/API/realtime descriptor contracts only
+Voice fake/injected audio backend = CLOSED / no live microphone, speaker, STT, TTS, or realtime provider calls
+Voice VAD, turn detection, partial/final transcripts = CLOSED / hash and redacted excerpt persistence only
+Voice barge-in, interruption, and kill-word events = CLOSED
+VoiceCommandEnvelope = CLOSED / data and proposal only, never authority
+Ambient voice policy and notifications = CLOSED / scoped policy, no hidden recorder
+Voice-to-desktop proposal path = CLOSED / no direct desktop action
+Voice receipts, FinalGate, telemetry, replay = CLOSED / no audio playback or action replay
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -284,7 +303,10 @@ Automatic opaque AgentRuntime replan = BLOCKED
 Multi-process daemon service / OS service supervisor = NOT_STARTED
 Cryptographic executor/receipt authenticity = NOT_STARTED / trusted same-process boundary only
 Web dashboard = NOT_STARTED
-Voice runtime = NOT_STARTED
+Production microphone/speaker voice adapters = NOT_STARTED
+Live voice provider integrations = NOT_STARTED / descriptors only in V1
+Hidden always-on voice recorder = BLOCKED
+Voice cloning / speaker biometrics = NOT_STARTED
 Production OS service wrapper / cloud daemon = NOT_STARTED
 Raw prompt/provider response/reasoning persistence = BLOCKED
 Production LSP/debugger/deep coding harness integration = NOT_STARTED
@@ -301,7 +323,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+Next milestone = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -448,7 +470,8 @@ Recommended next build sequence:
 50. REAL_CHANNEL_ADAPTERS_V1 - DONE
 51. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 - DONE
 52. LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 - DONE
-53. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 - NEXT
+53. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 - DONE
+54. DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 - NEXT
 ```
 
 The doctrine:

@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-previous_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
-next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+current_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+previous_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
+next_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -67,6 +67,7 @@ local Model Hardware And Cost Router with explicit UserModelContract/catalog/des
 real channel adapter foundation with webhook-style explicit adapter descriptors, untrusted inbound handling, outbound drafts, operator approval, recipient/scope/rate/idempotency gates, injected transport send path through ChannelDraftSendOrganV1, receipts, FinalGate refs, telemetry, and replay without resend
 permissioned desktop sidecar foundation with policy modes, operator-visible observation, monitoring snapshots, visual grounding, action preview/proposal, fake/injected action backend, allowlists, sensitive-region handling, before/after evidence, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without re-screenshot or re-action
 live desktop operator backend and system monitoring foundation with safe local system/window/app/process/hardware snapshots, explicit monitoring sessions/ticks, permission UI/tray/service shapes, control modes, fake/injected desktop actions, benchmark gauntlet, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without new snapshots or re-action
+realtime voice and ambient operator foundation with Sentinel-owned voice runtime, provider descriptors, fake/injected audio backend, VAD/turn detection, partial/final transcripts, barge-in, kill words, command envelopes, ambient notification policy, voice-to-desktop proposals, receipts, FinalGate refs, telemetry, and replay without audio playback/provider calls/actions
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -85,7 +86,7 @@ public skill marketplace and remote plugin execution
 automatic model failover, hidden provider switching, model downloads, and model server management
 provider-specific Telegram/Slack/Gmail connectors and durable channel credential/session vaults
 production live opt-in desktop adapter and installed OS tray/service sidecar
-voice
+production microphone/speaker adapters and live voice provider integrations
 durable credential vault
 real account/payment/trading/security/device power
 platform app/cloud
@@ -176,7 +177,7 @@ No layer may create a second authority path.
 10. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
 11. LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1
 12. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
-13. DURABLE_CREDENTIAL_VAULT_AND_SESSION_BROKER_V1
+13. DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 14. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 15. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
 16. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
@@ -547,7 +548,29 @@ Exit:
 
 - voice controls the cockpit; it never bypasses Sentinel validation.
 
-### Phase 13 - Durable Credential Vault And Session Broker V1
+Status: `LOCKED` on 2026-06-11.
+
+Locked truth:
+
+- Sentinel owns voice session state, command envelopes, confirmation evidence,
+  receipts, FinalGate, telemetry, and replay;
+- provider support is descriptor-only for local STT/TTS, API STT/TTS, realtime
+  speech providers, OpenAI Realtime-style, Gemini Live-style, LiveKit-style, and
+  Pipecat-style architectures;
+- V1 implements a fake/injected STT -> Sentinel Kernel -> TTS-style runtime
+  foundation and models speech-to-speech realtime sessions as descriptors only;
+- no microphone, speaker, STT, TTS, WebRTC, WebSocket, or realtime provider
+  call is made in normal V1 runtime/tests;
+- voice input creates `VoiceCommandEnvelope` data and proposals/checkpoints; it
+  cannot create authority, execute, call organs, unlock credentials, or become
+  future permission;
+- raw audio, raw full transcripts, speaker biometrics, provider keys, raw
+  prompts, raw provider responses, raw reasoning, credentials, and tokens are
+  blocked from default persistence;
+- ambient listener/operator modes are policy-scoped; hidden always-on recording
+  remains blocked.
+
+### Phase 13 - Durable Credential Vault And Secret Broker V1
 
 Purpose:
 
@@ -853,6 +876,11 @@ Voice is a transport over the cockpit:
 - barge-in and kill are immediate;
 - session and cost budgets are visible;
 - voice never grants general authority.
+- provider realtime sessions, STT, and TTS are descriptors or explicitly
+  admitted backends; provider-native tools do not execute;
+- raw audio and full transcripts are not persisted by default;
+- replay reconstructs voice events without audio playback, microphone capture,
+  provider calls, or action replay.
 
 ## 17. Future Dangerous Power Detail
 
@@ -949,16 +977,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 ```
 
 Required direction:
 
 ```text
-Build realtime voice and ambient operator transport over the existing cockpit,
-MissionKernel, telemetry, memory, daemon, Worker Fleet, harness, skill fabric,
-router, channel adapters, desktop sidecar, runtime, authority, receipt,
-FinalGate, and replay spine. Voice may listen, transcribe, speak, summarize,
-handoff, and propose, but must not create authority, bypass confirmation,
-unlock credentials, execute directly, or become ambient action authority.
+Build a durable credential vault and secret broker over the existing Sentinel
+authority, runtime, telemetry, receipt, FinalGate, replay, desktop, channel,
+browser, and voice spine. Credentials and secrets may be resolved only through
+scoped grants, explicit policy, ephemeral handling, audit, receipts, revocation,
+and safe terminal states; memory, voice, receipts, FinalGate, telemetry, and
+provider output remain evidence/context only, never permission.
 ```
