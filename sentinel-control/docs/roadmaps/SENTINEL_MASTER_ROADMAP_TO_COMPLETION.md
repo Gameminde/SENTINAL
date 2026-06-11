@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-previous_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-next_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -65,6 +65,7 @@ local Model Amplification Execution Harness with hash-anchored state, content-ad
 governed Skill/Procedure Fabric with manifest/provenance/version pinning, scanner, quarantine, dry-run evaluation, scorecard, approval/promotion/revocation lifecycle, receipt-bound execution, rollback posture, telemetry, and replay
 local Model Hardware And Cost Router with explicit UserModelContract/catalog/descriptor candidates, safe hardware snapshots, explicit-loopback-only probes, route simulation, rejection reasons, route receipts, operator approval records, binding to explicit UserModelContract, telemetry, and replay
 real channel adapter foundation with webhook-style explicit adapter descriptors, untrusted inbound handling, outbound drafts, operator approval, recipient/scope/rate/idempotency gates, injected transport send path through ChannelDraftSendOrganV1, receipts, FinalGate refs, telemetry, and replay without resend
+permissioned desktop sidecar foundation with policy modes, operator-visible observation, monitoring snapshots, visual grounding, action preview/proposal, fake/injected action backend, allowlists, sensitive-region handling, before/after evidence, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without re-screenshot or re-action
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -82,7 +83,7 @@ production LSP/debugger/deep coding harness integrations
 public skill marketplace and remote plugin execution
 automatic model failover, hidden provider switching, model downloads, and model server management
 provider-specific Telegram/Slack/Gmail connectors and durable channel credential/session vaults
-live desktop sidecar
+production live opt-in desktop adapter and OS service sidecar
 voice
 durable credential vault
 real account/payment/trading/security/device power
@@ -918,17 +919,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 ```
 
 Required direction:
 
 ```text
-Build a permissioned desktop sidecar and visual grounding layer over the
-existing cockpit, MissionKernel, telemetry, memory, daemon, Worker Fleet,
-skill fabric, router, channel adapters, runtime, authority, receipt,
-FinalGate, and replay spine. Start with operator-visible, allowlisted,
-device-local observation and target grounding, before/after evidence, separate
-kill/revocation behavior, and no credential vault, payment, provider
-fallback/AUTO, or ambient host authority.
+Build realtime voice and ambient operator transport over the existing cockpit,
+MissionKernel, telemetry, memory, daemon, Worker Fleet, harness, skill fabric,
+router, channel adapters, desktop sidecar, runtime, authority, receipt,
+FinalGate, and replay spine. Voice may listen, transcribe, speak, summarize,
+handoff, and propose, but must not create authority, bypass confirmation,
+unlock credentials, execute directly, or become ambient action authority.
 ```

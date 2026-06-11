@@ -62,7 +62,8 @@ class TelemetryKernel:
                 event_kind=telemetry_kind,
                 safe_summary=event.safe_summary,
                 metadata={
-                    "mission_event_type": event.event_type,
+                    "mission_event_type_hash": stable_hash(event.event_type),
+                    "mission_event_family": _mission_event_family(event.event_type),
                     "sequence": event.sequence,
                     "created_at": event.created_at.isoformat(),
                     **event.metadata,
@@ -1181,7 +1182,11 @@ class TelemetryKernel:
                     domain=TelemetryDomain.SAFETY,
                     event_kind=TelemetryEventKind.SECRET_REDACTION_HIT,
                     safe_summary="Telemetry payload required redaction.",
-                    metadata={"mission_event_type": event.event_type, "redaction_detected": True},
+                    metadata={
+                        "mission_event_type_hash": stable_hash(event.event_type),
+                        "mission_event_family": _mission_event_family(event.event_type),
+                        "redaction_detected": True,
+                    },
                 )
             )
 
@@ -1444,8 +1449,52 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "channel_revocation_detected": TelemetryEventKind.CHANNEL_REVOCATION_DETECTED,
         "channel_kill_switch_triggered": TelemetryEventKind.CHANNEL_KILL_SWITCH_TRIGGERED,
         "channel_replay_built": TelemetryEventKind.CHANNEL_REPLAY_BUILT,
+        "desktop_sidecar_registered": TelemetryEventKind.DESKTOP_SIDECAR_REGISTERED,
+        "desktop_sidecar_rejected": TelemetryEventKind.DESKTOP_SIDECAR_REJECTED,
+        "desktop_observation_requested": TelemetryEventKind.DESKTOP_OBSERVATION_REQUESTED,
+        "desktop_observation_blocked": TelemetryEventKind.DESKTOP_OBSERVATION_BLOCKED,
+        "desktop_observation_completed": TelemetryEventKind.DESKTOP_OBSERVATION_COMPLETED,
+        "desktop_screenshot_captured": TelemetryEventKind.DESKTOP_SCREENSHOT_CAPTURED,
+        "desktop_screenshot_redacted": TelemetryEventKind.DESKTOP_SCREENSHOT_REDACTED,
+        "desktop_sensitive_region_detected": TelemetryEventKind.DESKTOP_SENSITIVE_REGION_DETECTED,
+        "desktop_grounding_requested": TelemetryEventKind.DESKTOP_GROUNDING_REQUESTED,
+        "desktop_grounding_completed": TelemetryEventKind.DESKTOP_GROUNDING_COMPLETED,
+        "desktop_grounding_failed": TelemetryEventKind.DESKTOP_GROUNDING_FAILED,
+        "desktop_action_proposed": TelemetryEventKind.DESKTOP_ACTION_PROPOSED,
+        "desktop_action_preview_created": TelemetryEventKind.DESKTOP_ACTION_PREVIEW_CREATED,
+        "desktop_action_approval_required": TelemetryEventKind.DESKTOP_ACTION_APPROVAL_REQUIRED,
+        "desktop_action_approved": TelemetryEventKind.DESKTOP_ACTION_APPROVED,
+        "desktop_action_blocked": TelemetryEventKind.DESKTOP_ACTION_BLOCKED,
+        "desktop_action_started": TelemetryEventKind.DESKTOP_ACTION_STARTED,
+        "desktop_action_completed": TelemetryEventKind.DESKTOP_ACTION_COMPLETED,
+        "desktop_action_failed": TelemetryEventKind.DESKTOP_ACTION_FAILED,
+        "desktop_kill_switch_triggered": TelemetryEventKind.DESKTOP_KILL_SWITCH_TRIGGERED,
+        "desktop_revocation_detected": TelemetryEventKind.DESKTOP_REVOCATION_DETECTED,
+        "desktop_replay_built": TelemetryEventKind.DESKTOP_REPLAY_BUILT,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
+
+
+def _mission_event_family(event_type: str) -> str:
+    if event_type.startswith("desktop_"):
+        return "desktop_sidecar"
+    if event_type.startswith("channel_"):
+        return "channel_adapter"
+    if event_type.startswith("model_router_"):
+        return "model_router"
+    if event_type.startswith("skill_") or event_type.startswith("procedure_"):
+        return "skill_fabric"
+    if event_type.startswith("harness_"):
+        return "amplification_harness"
+    if event_type.startswith("worker_"):
+        return "worker_fleet"
+    if event_type.startswith("daemon_") or event_type.startswith("scheduler_"):
+        return "mission_daemon"
+    if event_type.startswith("workflow_"):
+        return "workflow"
+    if event_type.startswith("mission_"):
+        return "mission"
+    return "mission_store"
 
 
 def _domain_for_event(event_kind: TelemetryEventKind) -> TelemetryDomain:

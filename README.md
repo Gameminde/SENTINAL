@@ -89,10 +89,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-previous_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-active_implementation_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-next_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+active_implementation_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -234,6 +234,12 @@ Channel outbound draft / operator approval / scoped send = CLOSED
 Channel recipient/scope/rate/idempotency gates = CLOSED
 Channel adapter receipts and FinalGate refs = CLOSED
 Channel adapter telemetry and replay = CLOSED / no resend
+Permissioned Desktop Sidecar = CLOSED / local mission-scoped runtime foundation
+Desktop observation and monitoring snapshots = CLOSED / operator-visible, hash-only screenshot evidence by default
+Desktop visual grounding = CLOSED / evidence-linked target candidates, no action execution
+Desktop action preview/proposal = CLOSED / data-only proposal and before/after evidence contracts
+Desktop injected action backend = CLOSED / fake/injected transport only, authority/approval/allowlist/kill/revocation gated
+Desktop telemetry, receipts, FinalGate, replay = CLOSED / no re-screenshot or re-action
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -252,7 +258,9 @@ AgentRuntime promotion for hardened DevTools/visual/replay/recovery backend path
 Unbounded API mutation = NOT_STARTED
 Unapproved channel send = BLOCKED
 Provider-specific Telegram/Slack/Gmail connectors = NOT_STARTED
-Desktop action = NOT_STARTED
+Live opt-in desktop action adapter = NOT_STARTED / V1 supports fake/injected action backend only
+Ambient hidden desktop capture/control = BLOCKED
+Credential/password/token harvesting from desktop = BLOCKED
 Unrestricted shell/process execution = NOT_STARTED
 Payment/spend/trading = NOT_STARTED
 Provider fallback or AUTO routing = NOT_APPROVED
@@ -279,7 +287,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+Next milestone = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -424,7 +432,8 @@ Recommended next build sequence:
 48. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 - DONE
 49. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 - DONE
 50. REAL_CHANNEL_ADAPTERS_V1 - DONE
-51. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 - NEXT
+51. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 - DONE
+52. REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 - NEXT
 ```
 
 The doctrine:

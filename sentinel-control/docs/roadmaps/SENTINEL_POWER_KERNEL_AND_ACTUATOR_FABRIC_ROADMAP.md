@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-08
 
 ```text
-current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-previous_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-active_implementation_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
-next_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+active_implementation_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -177,7 +177,9 @@ Still not enough for real-world power:
 - provider-specific Telegram/Slack/Gmail connectors and durable channel
   credential/session vaults are not started;
 - no unbounded API mutation;
-- no desktop/vision/OCR sidecar;
+- permissioned desktop sidecar/visual grounding = CLOSED / local runtime with
+  fake/injected action backend;
+- production live opt-in desktop adapter and OS service sidecar = NOT_STARTED;
 - no spend/trading/broker adapters beyond fake or paper modes;
 - no durable EventBus/WAL as the operational black box;
 - unified observability telemetry/product-power metrics runtime = CLOSED / local runtime;
@@ -206,7 +208,8 @@ MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 = CLOSED
 GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 = CLOSED
 LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 = CLOSED
 REAL_CHANNEL_ADAPTERS_V1 = CLOSED
-PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 = NEXT
+PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 = CLOSED
+REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -730,7 +733,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
 ```
 
 Reason:
@@ -739,11 +742,13 @@ Reason:
 Sentinel now has locked durable semantic memory, durable workflow/replan,
 local telemetry/product-power metrics, governed Worker Fleet, the production
 local daemon/scheduler foundation, model amplification, governed skills and
-procedures, explicit local/hardware/cost model routing, and real channel
-adapter foundation with scoped inbound/outbound reach, recipient/scope/rate/
-approval gates, receipts, FinalGate, replay, kill/revocation behavior, no
-credential vault, no ambient send authority, and no fallback/AUTO. The next
-step is a permissioned desktop sidecar and visual grounding layer with
-operator-visible device-local observation, target grounding, before/after
-evidence, allowlists, kill/revocation checks, and no ambient host authority.
+procedures, explicit local/hardware/cost model routing, real channel adapter
+foundation, and a permissioned desktop sidecar/visual grounding foundation with
+operator-visible observation, monitoring snapshots, target grounding, action
+preview/proposal, fake/injected action backend, before/after evidence,
+allowlists, receipts, FinalGate, replay, kill/revocation behavior, no hidden
+screenshot loop, no ambient host authority, no credential vault, and no
+fallback/AUTO. The next step is realtime voice and ambient operator transport
+over the existing cockpit without making voice an authority or direct execution
+surface.
 ```

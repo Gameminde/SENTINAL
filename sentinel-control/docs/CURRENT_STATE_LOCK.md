@@ -1,10 +1,101 @@
 # Current State Lock
 
+## Permissioned Desktop Sidecar And Visual Grounding V1 - LOCKED
+
+Recorded at: 2026-06-11
+
+This section is the canonical current state. It supersedes the Real Channel
+Adapters lock as top-level execution truth. Sentinel now has a Sentinel-native
+permissioned desktop sidecar and visual grounding foundation over the existing
+LLM cockpit, MissionKernel, MissionRunStore, DurableWorkflowStore,
+MissionDaemonRuntime, WorkerFleetRuntime, ModelAmplificationHarness,
+GovernedSkillFabric, LocalModelRouter, RealChannelAdapters, TelemetryKernel,
+Persistent Semantic Memory refs, PowerRuntime/AgentRuntime bridge boundaries,
+MissionAuthorityEnvelope, Gate, receipts, FinalGate, and replay spine.
+
+It is not hidden desktop capture, not ambient host control, not a keylogger, not
+a credential vault, not a payment/account/security/device organ, not a provider
+fallback/AUTO path, and not a vendor runtime bridge.
+
+```text
+current_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCKED
+previous_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+next_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Permissioned Desktop Sidecar Runtime Truth
+
+```text
+DesktopSidecarConfig / id / kind / maturity = CLOSED
+DesktopControlMode = CLOSED / observe, monitor, assisted, approved-action, delegated-session, continuous-supervision policy modes
+DesktopCapabilityProfile = CLOSED
+DesktopPermissionPolicy / MonitoringPolicy / ActionPolicy = CLOSED
+DesktopSidecarRegistry = CLOSED / local descriptor + injected backend registry
+DesktopSidecarRuntime = CLOSED / local same-process mission-scoped runtime
+Desktop observation = CLOSED / explicit policy, operator-visible, hash-only screenshot evidence by default
+Desktop monitoring snapshot = CLOSED / system/app/window/process/hardware/sensor/clock metrics with UNKNOWN/UNSUPPORTED posture
+Desktop visual grounding = CLOSED / evidence-linked target candidates, no execution
+Desktop action proposal/preview = CLOSED / data-only proposal, no action executed
+Desktop injected action backend = CLOSED / fake/injected transport only
+Desktop before/after evidence = CLOSED / hash-bound evidence records where action backend is injected
+Desktop app/window/display/region allowlists and blocklists = CLOSED
+Desktop sensitive-region/redaction policy = CLOSED / deterministic V1 labels, uncertain means checkpoint/block for live action
+Desktop kill/revocation checks = CLOSED
+DesktopSidecarReceipt = CLOSED / hash-bound evidence, not future permission
+DesktopSidecarFinalGateCertificate = CLOSED
+DesktopSidecarReplayView / DesktopSidecarReplayBuilder = CLOSED / no re-screenshot, no re-action
+Desktop telemetry events and metrics = CLOSED
+raw screenshot persistence by default = BLOCKED
+raw OCR/text persistence by default = BLOCKED
+raw credential/token/provider key persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+hidden ambient screenshot loop = BLOCKED
+LLM/memory/skill/worker/daemon/scheduler/channel direct desktop control = BLOCKED
+receipt/FinalGate/memory/telemetry as desktop authority = BLOCKED
+live opt-in desktop adapter = NOT_STARTED
+production-ready desktop adapter = NOT_STARTED
+durable credential vault = NOT_STARTED
+payment/trading/account/security/device desktop power = NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Permissioned Desktop Sidecar Honest V1 Limits
+
+```text
+desktop sidecar runtime is local same-process foundation, not an OS service
+first action backend maturity is fake/injected transport, not production host automation
+tests use fake/injected desktop transports and do not call live desktop APIs
+raw screenshots are hash-only by default; V1 does not claim perfect OCR/vision privacy detection
+continuous-supervision and delegated-session modes are modeled as policy modes, but production always-on readiness remains false
+live opt-in action adapter remains future work and must require explicit policy, authority, allowlists, approval where required, telemetry, receipts, FinalGate, kill/revocation checks, and replay
+desktop receipts prove scoped observation/action attempts; they cannot approve future actions
+replay reconstructs desktop lifecycle and never captures a new screenshot or repeats an action
+```
+
+### Permissioned Desktop Sidecar Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/desktop_sidecar_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/desktop_sidecar.py
+sentinel-control/services/sentinel-core/sentinel/operator/desktop_sidecar_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/proposal_bridge.py
+sentinel-control/services/sentinel-core/tests/test_permissioned_desktop_sidecar_visual_grounding_v1.py
+sentinel-control/docs/reviews/PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Real Channel Adapters V1 - LOCKED
 
 Recorded at: 2026-06-11
 
-This section is the canonical current state. It supersedes the Local Model
+This section is historical. It superseded the Local Model
 Hardware And Cost Router lock as top-level execution truth. Sentinel now has a
 Sentinel-native real channel adapter foundation over the existing LLM cockpit,
 MissionKernel, MissionRunStore, TelemetryKernel, Persistent Semantic Memory
@@ -15,7 +106,8 @@ replay spine. It does not create a parallel channel runtime, parallel authority
 system, parallel telemetry system, durable credential vault, provider-specific
 messaging integration, remote plugin execution, provider fallback/AUTO, desktop
 power, voice, payment/trading/account/security/device power, or a vendor
-runtime bridge.
+runtime bridge. It has now been superseded by the Permissioned Desktop Sidecar
+And Visual Grounding lock as top-level execution truth.
 
 ```text
 current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED

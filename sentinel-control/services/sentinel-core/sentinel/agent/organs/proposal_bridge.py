@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import Field, model_validator
 
-from sentinel.agent.brain.cognition_loop import BrainCognitionResult
 from sentinel.agent.llm.evidence_verifier import EvidenceVerificationResult
 from sentinel.agent.llm.memory_bridge import LivingMissionMemorySnapshot
 from sentinel.agent.llm.memory_replay import MemoryReplayTimeline, MissionCheckpointSet
@@ -16,6 +15,9 @@ from sentinel.agent.llm.proposals import DelegatedActionLevel, ProposalArtifactK
 from sentinel.agent.model_execution.redaction import sanitize_metadata, stable_hash
 from sentinel.shared.models import SentinelModel
 from sentinel.shared.safety_scanner import scan_forbidden_payload_flat
+
+if TYPE_CHECKING:
+    from sentinel.agent.brain.cognition_loop import BrainCognitionResult
 
 
 def utc_now() -> datetime:
@@ -181,7 +183,7 @@ class OrganProposalBridgeTrace(SentinelModel):
 
 class OrganProposalBridgeInput(SentinelModel):
     mission_id: str
-    brain_cognition_result: BrainCognitionResult | dict[str, Any] | None = None
+    brain_cognition_result: dict[str, Any] | Any | None = None
     proposal_artifacts: list[dict[str, Any]] = Field(default_factory=list)
     evidence_verification_summary: EvidenceVerificationResult | dict[str, Any] | None = None
     memory_snapshot: LivingMissionMemorySnapshot | dict[str, Any] | None = None
@@ -479,11 +481,7 @@ def _proposal_specific_rejection(kind: ProposalArtifactKind, proposal: dict[str,
 def _proposals(bridge_input: OrganProposalBridgeInput) -> list[dict[str, Any]]:
     proposals = [proposal for proposal in bridge_input.proposal_artifacts if isinstance(proposal, dict)]
     if bridge_input.brain_cognition_result is not None:
-        brain = (
-            bridge_input.brain_cognition_result
-            if isinstance(bridge_input.brain_cognition_result, BrainCognitionResult)
-            else BrainCognitionResult.model_validate(bridge_input.brain_cognition_result)
-        )
+        brain = _coerce_brain_cognition_result(bridge_input.brain_cognition_result)
         proposals.extend([proposal for proposal in brain.proposal_artifacts if isinstance(proposal, dict)])
     return [sanitize_metadata(proposal) for proposal in proposals]
 
@@ -491,33 +489,21 @@ def _proposals(bridge_input: OrganProposalBridgeInput) -> list[dict[str, Any]]:
 def _model_contract_refs(bridge_input: OrganProposalBridgeInput) -> tuple[str | None, str | None, str | None]:
     if bridge_input.brain_cognition_result is None:
         return bridge_input.selected_provider_id, bridge_input.selected_backend_id, bridge_input.selected_model
-    brain = (
-        bridge_input.brain_cognition_result
-        if isinstance(bridge_input.brain_cognition_result, BrainCognitionResult)
-        else BrainCognitionResult.model_validate(bridge_input.brain_cognition_result)
-    )
+    brain = _coerce_brain_cognition_result(bridge_input.brain_cognition_result)
     return brain.selected_provider_id, brain.selected_backend_id, brain.selected_model
 
 
 def _brain_trace_id(bridge_input: OrganProposalBridgeInput) -> str | None:
     if bridge_input.brain_cognition_result is None:
         return None
-    brain = (
-        bridge_input.brain_cognition_result
-        if isinstance(bridge_input.brain_cognition_result, BrainCognitionResult)
-        else BrainCognitionResult.model_validate(bridge_input.brain_cognition_result)
-    )
+    brain = _coerce_brain_cognition_result(bridge_input.brain_cognition_result)
     return brain.trace.replay_timeline_hash if brain.trace is not None else None
 
 
 def _risk_flags(bridge_input: OrganProposalBridgeInput) -> list[str]:
     values = _string_list(bridge_input.risk_flags)
     if bridge_input.brain_cognition_result is not None:
-        brain = (
-            bridge_input.brain_cognition_result
-            if isinstance(bridge_input.brain_cognition_result, BrainCognitionResult)
-            else BrainCognitionResult.model_validate(bridge_input.brain_cognition_result)
-        )
+        brain = _coerce_brain_cognition_result(bridge_input.brain_cognition_result)
         values.extend(brain.risk_flags)
     return _dedupe(values)
 
@@ -525,11 +511,7 @@ def _risk_flags(bridge_input: OrganProposalBridgeInput) -> list[str]:
 def _missing_evidence(bridge_input: OrganProposalBridgeInput) -> list[str]:
     values = _string_list(bridge_input.missing_evidence)
     if bridge_input.brain_cognition_result is not None:
-        brain = (
-            bridge_input.brain_cognition_result
-            if isinstance(bridge_input.brain_cognition_result, BrainCognitionResult)
-            else BrainCognitionResult.model_validate(bridge_input.brain_cognition_result)
-        )
+        brain = _coerce_brain_cognition_result(bridge_input.brain_cognition_result)
         values.extend(brain.missing_evidence)
     return _dedupe(values)
 
@@ -537,13 +519,15 @@ def _missing_evidence(bridge_input: OrganProposalBridgeInput) -> list[str]:
 def _unresolved_objections(bridge_input: OrganProposalBridgeInput) -> list[str]:
     values = _string_list(bridge_input.unresolved_objections)
     if bridge_input.brain_cognition_result is not None:
-        brain = (
-            bridge_input.brain_cognition_result
-            if isinstance(bridge_input.brain_cognition_result, BrainCognitionResult)
-            else BrainCognitionResult.model_validate(bridge_input.brain_cognition_result)
-        )
+        brain = _coerce_brain_cognition_result(bridge_input.brain_cognition_result)
         values.extend(brain.unresolved_objections)
     return _dedupe(values)
+
+
+def _coerce_brain_cognition_result(value: BrainCognitionResult | dict[str, Any]) -> BrainCognitionResult:
+    from sentinel.agent.brain.cognition_loop import BrainCognitionResult
+
+    return value if isinstance(value, BrainCognitionResult) else BrainCognitionResult.model_validate(value)
 
 
 def _params_hash(proposal: dict[str, Any]) -> str:
