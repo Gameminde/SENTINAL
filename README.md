@@ -89,10 +89,10 @@ latest_repair_commit = 37b0bea runtime: consolidate cognition memory scanners an
 Current state lock:
 
 ```text
-current_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-previous_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-active_implementation_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-next_phase = REAL_CHANNEL_ADAPTERS_V1
+current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+previous_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+active_implementation_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+next_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
 strategic_browser_refinement = BROWSER_DEVTOOLS_BACKEND_AND_ORCHESTRATOR_FOUNDATION
 latest_visible_power_milestone = LIVE_BROWSER_OPERATOR_STACK_L4_L5_L6
 latest_harvest_lock = CHROME_DEVTOOLS_MCP_HARVEST_AUDIT_LOCKED
@@ -227,6 +227,13 @@ Safe local hardware snapshot = CLOSED / read-only metadata
 Runtime availability probe = CLOSED / explicit loopback only, no provider calls or network scan
 Route policy, score, rejection reason, receipt, approval, binding = CLOSED
 Route telemetry and replay = CLOSED / no re-execution
+Real Channel Adapters = CLOSED / local webhook-style adapter foundation with injected transport
+ChannelConnectorRuntime = CLOSED / MissionKernel + channel organ + telemetry + replay spine
+Channel inbound untrusted-data handling = CLOSED
+Channel outbound draft / operator approval / scoped send = CLOSED
+Channel recipient/scope/rate/idempotency gates = CLOSED
+Channel adapter receipts and FinalGate refs = CLOSED
+Channel adapter telemetry and replay = CLOSED / no resend
 Mission authority grants foundation = CLOSED
 Credential refs/grants/proofs foundation = CLOSED / metadata-only
 Organ/cognition/memory safety scanners = CLOSED / shared canonical scanner
@@ -244,6 +251,7 @@ Generic arbitrary browser JavaScript = NOT_STARTED
 AgentRuntime promotion for hardened DevTools/visual/replay/recovery backend paths = NOT_STARTED
 Unbounded API mutation = NOT_STARTED
 Unapproved channel send = BLOCKED
+Provider-specific Telegram/Slack/Gmail connectors = NOT_STARTED
 Desktop action = NOT_STARTED
 Unrestricted shell/process execution = NOT_STARTED
 Payment/spend/trading = NOT_STARTED
@@ -255,7 +263,6 @@ Multi-process daemon service / OS service supervisor = NOT_STARTED
 Cryptographic executor/receipt authenticity = NOT_STARTED / trusted same-process boundary only
 Web dashboard = NOT_STARTED
 Voice runtime = NOT_STARTED
-Real Telegram/Slack/Gmail connectors = NOT_STARTED
 Production OS service wrapper / cloud daemon = NOT_STARTED
 Raw prompt/provider response/reasoning persistence = BLOCKED
 Production LSP/debugger/deep coding harness integration = NOT_STARTED
@@ -272,7 +279,7 @@ Local action power = real
 Browser/web power = live and expanding fast
 Credential/session power = browser-scoped ephemeral broker paths only; not durably stored
 Product-visible power = improving, but still below the control plane
-Next milestone = REAL_CHANNEL_ADAPTERS_V1
+Next milestone = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
 North star = many controlled agents operating many real-world organs
 ```
 
@@ -416,7 +423,8 @@ Recommended next build sequence:
 47. MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 - DONE
 48. GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 - DONE
 49. LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 - DONE
-50. REAL_CHANNEL_ADAPTERS_V1 - NEXT
+50. REAL_CHANNEL_ADAPTERS_V1 - DONE
+51. PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 - NEXT
 ```
 
 The doctrine:

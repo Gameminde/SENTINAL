@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-08
 
 ```text
-current_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-previous_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-active_implementation_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-next_phase = REAL_CHANNEL_ADAPTERS_V1
+current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+previous_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+active_implementation_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+next_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -159,6 +159,11 @@ Already real:
   route simulation, policy rejection reasons, route receipts, operator
   approvals, explicit UserModelContract bindings, telemetry, and replay without
   re-execution.
+- real Channel Adapter foundation with webhook-style adapter descriptors,
+  untrusted inbound handling, attachment/link quarantine, outbound drafts,
+  operator approvals, recipient/scope/rate/idempotency gates, injected
+  transport sends through the existing ChannelDraftSendOrganV1, receipts,
+  FinalGate refs, telemetry, and replay without resend.
 
 Still not enough for real-world power:
 
@@ -169,7 +174,8 @@ Still not enough for real-world power:
   model server management;
 - no durable account/session credential vault;
 - no real credential storage/resolution;
-- no real channel connector;
+- provider-specific Telegram/Slack/Gmail connectors and durable channel
+  credential/session vaults are not started;
 - no unbounded API mutation;
 - no desktop/vision/OCR sidecar;
 - no spend/trading/broker adapters beyond fake or paper modes;
@@ -199,7 +205,8 @@ PRODUCTION_MISSION_DAEMON_AND_PROACTIVE_SCHEDULER_V1 = CLOSED
 MODEL_AMPLIFICATION_EXECUTION_HARNESS_V1 = CLOSED
 GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1 = CLOSED
 LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1 = CLOSED
-REAL_CHANNEL_ADAPTERS_V1 = NEXT
+REAL_CHANNEL_ADAPTERS_V1 = CLOSED
+PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -723,24 +730,20 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-REAL_CHANNEL_ADAPTERS_V1
+PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
 ```
 
 Reason:
 
 ```text
 Sentinel now has locked durable semantic memory, durable workflow/replan,
-local telemetry/product-power metrics, governed Worker Fleet, and the
-production local daemon/scheduler foundation plus a local model amplification
-harness for hash-anchored state, minimized tool outputs, worker-safe typed
-results, replay, and a governed skill/procedure fabric with manifest,
-provenance, scanner, quarantine, approval lifecycle, receipt-bound execution,
-rollback posture, and no authority expansion. Sentinel now also has explicit
-local/hardware/cost model routing with safe local hardware snapshots, descriptor
-candidate records, route simulation, route receipts, operator approval records,
-explicit UserModelContract binding, telemetry, replay, no hidden fallback/AUTO,
-and no provider/backend/model override. The next step is real channel adapters:
-scoped inbound/outbound reach with recipient/scope/rate/approval gates,
-receipts, FinalGate, replay, kill/revocation behavior, and no credential vault
-or ambient send authority.
+local telemetry/product-power metrics, governed Worker Fleet, the production
+local daemon/scheduler foundation, model amplification, governed skills and
+procedures, explicit local/hardware/cost model routing, and real channel
+adapter foundation with scoped inbound/outbound reach, recipient/scope/rate/
+approval gates, receipts, FinalGate, replay, kill/revocation behavior, no
+credential vault, no ambient send authority, and no fallback/AUTO. The next
+step is a permissioned desktop sidecar and visual grounding layer with
+operator-visible device-local observation, target grounding, before/after
+evidence, allowlists, kill/revocation checks, and no ambient host authority.
 ```

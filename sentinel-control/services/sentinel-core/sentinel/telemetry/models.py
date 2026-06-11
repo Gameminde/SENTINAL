@@ -39,6 +39,7 @@ class TelemetrySourceSurface(StrEnum):
     AGENT_RUNTIME = "agentruntime"
     LLM_OPERATOR = "llm_operator"
     MODEL_ROUTER = "model_router"
+    CHANNEL_ADAPTER = "channel_adapter"
     COCKPIT = "cockpit"
     REPLAY = "replay"
     BROWSER_LEDGER = "browser_neural_ledger"
@@ -170,6 +171,21 @@ class TelemetryEventKind(StrEnum):
     MODEL_ROUTER_BINDING_REJECTED = "model_router_binding_rejected"
     MODEL_ROUTER_FALLBACK_BLOCKED = "model_router_fallback_blocked"
     MODEL_ROUTER_POLICY_REJECTED = "model_router_policy_rejected"
+    CHANNEL_ADAPTER_REGISTERED = "channel_adapter_registered"
+    CHANNEL_ADAPTER_REJECTED = "channel_adapter_rejected"
+    CHANNEL_INBOUND_RECEIVED = "channel_inbound_received"
+    CHANNEL_INBOUND_QUARANTINED = "channel_inbound_quarantined"
+    CHANNEL_IDENTITY_BOUND = "channel_identity_bound"
+    CHANNEL_OUTBOUND_DRAFT_CREATED = "channel_outbound_draft_created"
+    CHANNEL_OUTBOUND_APPROVAL_RECORDED = "channel_outbound_approval_recorded"
+    CHANNEL_OUTBOUND_SEND_REQUESTED = "channel_outbound_send_requested"
+    CHANNEL_OUTBOUND_SEND_BLOCKED = "channel_outbound_send_blocked"
+    CHANNEL_OUTBOUND_SENT = "channel_outbound_sent"
+    CHANNEL_OUTBOUND_FAILED = "channel_outbound_failed"
+    CHANNEL_DUPLICATE_SEND_BLOCKED = "channel_duplicate_send_blocked"
+    CHANNEL_REVOCATION_DETECTED = "channel_revocation_detected"
+    CHANNEL_KILL_SWITCH_TRIGGERED = "channel_kill_switch_triggered"
+    CHANNEL_REPLAY_BUILT = "channel_replay_built"
 
 
 class TelemetryMetricKind(StrEnum):
@@ -244,6 +260,16 @@ class TelemetryMetricKind(StrEnum):
     MODEL_ROUTER_ROUTE_APPROVAL_RATE = "model_router_route_approval_rate"
     MODEL_ROUTER_FALLBACK_BLOCK_COUNT = "model_router_fallback_block_count"
     MODEL_ROUTER_POLICY_REJECT_COUNT = "model_router_policy_reject_count"
+    CHANNEL_INBOUND_MESSAGE_COUNT = "channel_inbound_message_count"
+    CHANNEL_OUTBOUND_DRAFT_COUNT = "channel_outbound_draft_count"
+    CHANNEL_OUTBOUND_SEND_COUNT = "channel_outbound_send_count"
+    CHANNEL_OUTBOUND_BLOCK_COUNT = "channel_outbound_block_count"
+    CHANNEL_APPROVAL_REQUIRED_COUNT = "channel_approval_required_count"
+    CHANNEL_RATE_LIMIT_BLOCK_COUNT = "channel_rate_limit_block_count"
+    CHANNEL_DUPLICATE_SEND_BLOCK_COUNT = "channel_duplicate_send_block_count"
+    CHANNEL_RECEIPT_COMPLETENESS = "channel_receipt_completeness"
+    CHANNEL_DELIVERY_SUCCESS_RATE = "channel_delivery_success_rate"
+    CHANNEL_REPLAY_COMPLETENESS = "channel_replay_completeness"
 
 
 class TelemetryEventRecord(SentinelModel):

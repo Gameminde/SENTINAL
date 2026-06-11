@@ -1,11 +1,100 @@
 # Current State Lock
 
+## Real Channel Adapters V1 - LOCKED
+
+Recorded at: 2026-06-11
+
+This section is the canonical current state. It supersedes the Local Model
+Hardware And Cost Router lock as top-level execution truth. Sentinel now has a
+Sentinel-native real channel adapter foundation over the existing LLM cockpit,
+MissionKernel, MissionRunStore, TelemetryKernel, Persistent Semantic Memory
+refs, ModelAmplificationHarness, GovernedSkillFabric, WorkerFleetRuntime,
+daemon, explicit model router, PowerRuntime/AgentRuntime bridge boundaries,
+MissionAuthorityEnvelope, ChannelDraftSendOrganV1, receipt, FinalGate, and
+replay spine. It does not create a parallel channel runtime, parallel authority
+system, parallel telemetry system, durable credential vault, provider-specific
+messaging integration, remote plugin execution, provider fallback/AUTO, desktop
+power, voice, payment/trading/account/security/device power, or a vendor
+runtime bridge.
+
+```text
+current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+previous_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+next_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Real Channel Adapter Runtime Truth
+
+```text
+ChannelAdapterConfig / id / kind / provider kind = CLOSED
+ChannelCapabilityProfile = CLOSED
+ChannelRecipientPolicy / ScopePolicy / RateLimitPolicy / ApprovalPolicy = CLOSED
+ChannelConnectorRegistry = CLOSED / local adapter + injected transport registry
+ChannelConnectorRuntime = CLOSED / local same-process mission-scoped runtime
+ChannelInboundEnvelope / Message = CLOSED / untrusted data only
+ChannelInboundIdentityBinding = CLOSED / unverified by default
+ChannelAttachmentQuarantine / LinkQuarantine = CLOSED
+ChannelOutboundRequest / Draft = CLOSED / draft does not send
+ChannelOutboundApproval = CLOSED / operator/operator-policy/manual_operator only
+ChannelOutboundSendRequest = CLOSED
+ChannelDeliveryResult = CLOSED / injected transport result
+ChannelAdapterReceipt = CLOSED / hash-bound evidence, not future permission
+ChannelAdapterFinalGateCertificate = CLOSED
+ChannelAdapterReplayView / ChannelAdapterReplayBuilder = CLOSED / no resend
+Channel adapter telemetry events and metrics = CLOSED
+Webhook-style adapter foundation = CLOSED / explicit descriptor + injected transport
+inbound raw text persistence = BLOCKED / redacted safe text + text hash only
+outbound raw recipient persistence = BLOCKED / recipient hashes only
+raw channel token/credential persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+unapproved channel send = BLOCKED
+memory/skill/worker/daemon/scheduler/LLM/telemetry approval = BLOCKED
+receipt/FinalGate/memory/telemetry as authority = BLOCKED
+provider-specific Telegram/Slack/Gmail connectors = NOT_STARTED
+durable channel credential/session vault = NOT_STARTED
+remote plugin channel execution = NOT_STARTED
+desktop/voice/payment/trading/account/security/device power = NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Real Channel Adapter Honest V1 Limits
+
+```text
+channel adapter runtime is local same-process foundation, not a cloud service
+first adapter maturity is webhook-style explicit descriptor with injected transport
+tests use fake/injected transports and do not call external providers
+no durable credential vault exists for channel tokens or sessions
+provider-specific Telegram/Slack/Gmail adapters remain future work
+outbound send after process restart needs a future durable recipient/session broker; V1 stores recipient hashes, not raw recipients
+channel receipts prove the scoped send attempt; they cannot approve future sends
+replay reconstructs channel lifecycle and never resends
+```
+
+### Real Channel Adapter Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/channel_adapter_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/channel_adapter.py
+sentinel-control/services/sentinel-core/sentinel/operator/channel_adapter_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_real_channel_adapters_v1.py
+sentinel-control/docs/reviews/REAL_CHANNEL_ADAPTERS_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Local Model Hardware And Cost Router V1 - LOCKED
 
 Recorded at: 2026-06-08
 
-This section is the canonical current state. It supersedes the governed
-skill/procedure fabric lock as top-level execution truth. Sentinel now has a
+This section is historical. It superseded the governed skill/procedure fabric
+lock at the time, but it has now been superseded by the Real Channel Adapters
+lock as top-level execution truth. Sentinel has a
 Sentinel-native local model hardware and cost router over the existing explicit
 `UserModelContract`, LLM cockpit, MissionKernel, MissionRunStore,
 TelemetryKernel, Persistent Semantic Memory refs, ModelAmplificationHarness,

@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
-previous_phase = GOVERNED_SKILL_AND_PROCEDURE_FABRIC_V1_LOCKED
-next_phase = REAL_CHANNEL_ADAPTERS_V1
+current_phase = REAL_CHANNEL_ADAPTERS_V1_LOCKED
+previous_phase = LOCAL_MODEL_HARDWARE_AND_COST_ROUTER_V1_LOCKED
+next_phase = PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -64,6 +64,7 @@ production local MissionDaemonRuntime with durable queue, lease, heartbeat, reco
 local Model Amplification Execution Harness with hash-anchored state, content-addressed artifact refs, minimized tool-output economy, analysis kernel records, worker-safe typed results, conflict detection, telemetry, and replay
 governed Skill/Procedure Fabric with manifest/provenance/version pinning, scanner, quarantine, dry-run evaluation, scorecard, approval/promotion/revocation lifecycle, receipt-bound execution, rollback posture, telemetry, and replay
 local Model Hardware And Cost Router with explicit UserModelContract/catalog/descriptor candidates, safe hardware snapshots, explicit-loopback-only probes, route simulation, rejection reasons, route receipts, operator approval records, binding to explicit UserModelContract, telemetry, and replay
+real channel adapter foundation with webhook-style explicit adapter descriptors, untrusted inbound handling, outbound drafts, operator approval, recipient/scope/rate/idempotency gates, injected transport send path through ChannelDraftSendOrganV1, receipts, FinalGate refs, telemetry, and replay without resend
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -80,7 +81,7 @@ production daemon service / OS service supervisor
 production LSP/debugger/deep coding harness integrations
 public skill marketplace and remote plugin execution
 automatic model failover, hidden provider switching, model downloads, and model server management
-real channel connectors
+provider-specific Telegram/Slack/Gmail connectors and durable channel credential/session vaults
 live desktop sidecar
 voice
 durable credential vault
@@ -451,20 +452,36 @@ Locked truth:
 
 ### Phase 9 - Real Channel Adapters V1
 
+Status: `LOCKED` on 2026-06-11.
+
 Purpose:
 
 - give Sentinel real user reach.
 
-Core deliverables:
+Locked truth:
 
-- one production-quality adapter first;
-- inbound untrusted-data handling;
-- outbound recipient/scope/rate/approval gates;
-- durable session link, receipts, replay, and kill path.
+- `ChannelConnectorRuntime` is a local same-process operator layer over
+  `MissionKernel`, `MissionRunStore`, `TelemetryKernel`,
+  `ChannelDraftSendOrganV1`, `MissionAuthorityEnvelope`, receipts, FinalGate,
+  and replay;
+- webhook-style adapter descriptors, capability profiles, recipient/scope/rate
+  policies, approval policies, inbound envelopes, drafts, approvals, send
+  requests, receipts, and replay views are implemented;
+- inbound channel data is persisted only as untrusted redacted/hash-bound data
+  with attachment/link quarantine and unverified identity binding;
+- outbound send requires mission authority, recipient/scope/rate checks,
+  operator approval where required, idempotency, kill/revocation/expiry
+  checks, injected transport, receipt refs, FinalGate refs, telemetry, and
+  replay;
+- replay reconstructs channel activity without resending;
+- provider-specific Telegram/Slack/Gmail adapters, durable channel credential
+  vaults, ambient sends, remote plugin execution, fallback/AUTO, desktop,
+  voice, account/payment/trading/security/device power remain not started.
 
 Exit:
 
-- one real channel supports controlled inbound and outbound mission flow.
+- one real channel adapter foundation supports controlled inbound and outbound
+  mission flow through injected transport without ambient send authority.
 
 ### Phase 10 - Permissioned Desktop Sidecar And Visual Grounding V1
 
@@ -901,17 +918,17 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-REAL_CHANNEL_ADAPTERS_V1
+PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1
 ```
 
 Required direction:
 
 ```text
-Build real channel adapters over the existing cockpit, MissionKernel,
-telemetry, memory, daemon, Worker Fleet, skill fabric, router, runtime,
-authority, receipt, FinalGate, and replay spine. Start with scoped
-production-quality channel reach, inbound untrusted-data handling, outbound
-recipient/scope/rate/approval gates, receipts, replay, and kill/revocation
-behavior without credential vault, payment, desktop, provider fallback/AUTO, or
-new actuator-family drift.
+Build a permissioned desktop sidecar and visual grounding layer over the
+existing cockpit, MissionKernel, telemetry, memory, daemon, Worker Fleet,
+skill fabric, router, channel adapters, runtime, authority, receipt,
+FinalGate, and replay spine. Start with operator-visible, allowlisted,
+device-local observation and target grounding, before/after evidence, separate
+kill/revocation behavior, and no credential vault, payment, provider
+fallback/AUTO, or ambient host authority.
 ```

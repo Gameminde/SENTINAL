@@ -1429,6 +1429,21 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "model_router_binding_rejected": TelemetryEventKind.MODEL_ROUTER_BINDING_REJECTED,
         "model_router_fallback_blocked": TelemetryEventKind.MODEL_ROUTER_FALLBACK_BLOCKED,
         "model_router_policy_rejected": TelemetryEventKind.MODEL_ROUTER_POLICY_REJECTED,
+        "channel_adapter_registered": TelemetryEventKind.CHANNEL_ADAPTER_REGISTERED,
+        "channel_adapter_rejected": TelemetryEventKind.CHANNEL_ADAPTER_REJECTED,
+        "channel_inbound_received": TelemetryEventKind.CHANNEL_INBOUND_RECEIVED,
+        "channel_inbound_quarantined": TelemetryEventKind.CHANNEL_INBOUND_QUARANTINED,
+        "channel_identity_bound": TelemetryEventKind.CHANNEL_IDENTITY_BOUND,
+        "channel_outbound_draft_created": TelemetryEventKind.CHANNEL_OUTBOUND_DRAFT_CREATED,
+        "channel_outbound_approval_recorded": TelemetryEventKind.CHANNEL_OUTBOUND_APPROVAL_RECORDED,
+        "channel_outbound_send_requested": TelemetryEventKind.CHANNEL_OUTBOUND_SEND_REQUESTED,
+        "channel_outbound_send_blocked": TelemetryEventKind.CHANNEL_OUTBOUND_SEND_BLOCKED,
+        "channel_outbound_sent": TelemetryEventKind.CHANNEL_OUTBOUND_SENT,
+        "channel_outbound_failed": TelemetryEventKind.CHANNEL_OUTBOUND_FAILED,
+        "channel_duplicate_send_blocked": TelemetryEventKind.CHANNEL_DUPLICATE_SEND_BLOCKED,
+        "channel_revocation_detected": TelemetryEventKind.CHANNEL_REVOCATION_DETECTED,
+        "channel_kill_switch_triggered": TelemetryEventKind.CHANNEL_KILL_SWITCH_TRIGGERED,
+        "channel_replay_built": TelemetryEventKind.CHANNEL_REPLAY_BUILT,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
