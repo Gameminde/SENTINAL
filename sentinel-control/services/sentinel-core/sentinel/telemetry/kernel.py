@@ -1548,6 +1548,18 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "secret_rotation_required": TelemetryEventKind.SECRET_ROTATION_REQUIRED,
         "secret_leak_scan_completed": TelemetryEventKind.SECRET_LEAK_SCAN_COMPLETED,
         "secret_replay_built": TelemetryEventKind.SECRET_REPLAY_BUILT,
+        "account_authority_config_registered": TelemetryEventKind.ACCOUNT_AUTHORITY_CONFIG_REGISTERED,
+        "account_login_plan_created": TelemetryEventKind.ACCOUNT_LOGIN_PLAN_CREATED,
+        "account_login_checkpoint_created": TelemetryEventKind.ACCOUNT_LOGIN_CHECKPOINT_CREATED,
+        "account_login_completed": TelemetryEventKind.ACCOUNT_LOGIN_COMPLETED,
+        "account_login_blocked": TelemetryEventKind.ACCOUNT_LOGIN_BLOCKED,
+        "account_creation_plan_created": TelemetryEventKind.ACCOUNT_CREATION_PLAN_CREATED,
+        "account_creation_checkpoint_created": TelemetryEventKind.ACCOUNT_CREATION_CHECKPOINT_CREATED,
+        "account_creation_completed": TelemetryEventKind.ACCOUNT_CREATION_COMPLETED,
+        "account_creation_blocked": TelemetryEventKind.ACCOUNT_CREATION_BLOCKED,
+        "account_session_bound": TelemetryEventKind.ACCOUNT_SESSION_BOUND,
+        "account_flow_finalgate_certified": TelemetryEventKind.ACCOUNT_FLOW_FINALGATE_CERTIFIED,
+        "account_flow_replay_built": TelemetryEventKind.ACCOUNT_FLOW_REPLAY_BUILT,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1561,6 +1573,8 @@ def _mission_event_family(event_type: str) -> str:
         return "voice_runtime"
     if event_type.startswith("credential_vault_") or event_type.startswith("secret_"):
         return "credential_vault"
+    if event_type.startswith("account_"):
+        return "account_authority"
     if event_type.startswith("channel_"):
         return "channel_adapter"
     if event_type.startswith("model_router_"):

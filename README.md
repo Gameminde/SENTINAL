@@ -22,9 +22,9 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-06-12
-current_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
-previous_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
-next_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+current_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+next_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
 doctrine = product power under provable authority
 ```
 
@@ -32,13 +32,14 @@ Sentinel is no longer a vision document. It is now a local controlled-agent
 runtime with browser power, mission state, memory, workflow, workers, telemetry,
 daemon/scheduler foundation, model amplification, skill/procedure fabric,
 explicit model routing, real channel adapter foundation, desktop sidecar,
-live-desktop monitoring foundation, realtime voice foundation, and a durable
-credential vault / secret broker foundation.
+live-desktop monitoring foundation, realtime voice foundation, a durable
+credential vault / secret broker foundation, and governed account creation /
+login special-authority foundations.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCK_REPORT.md
+sentinel-control/docs/reviews/ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
 ```
 
 The canonical state truth is:
@@ -320,7 +321,7 @@ Sentinel now has a Sentinel-native credential vault foundation and secret
 broker. V1 is deliberately honest: it persists durable metadata, fake sealed
 refs, hashes, policies, unlock sessions, scoped leases, receipts, FinalGate
 certificates, telemetry, and replay. It does not claim production OS keychain,
-cloud vault, password-manager import, account login, or payment authority.
+cloud vault, password-manager import, or payment authority.
 
 ```text
 CredentialVaultRuntime = CLOSED / local fake sealed store maturity
@@ -333,7 +334,33 @@ secret use receipts and FinalGate = CLOSED
 vault replay = CLOSED / no materialization, no external action
 voice/desktop/channel/worker/skill/memory/LLM ambient secret use = BLOCKED
 OS keychain/cloud vault/password-manager live backend = NOT_STARTED
-account creation/login special authority = NOT_STARTED / next
+```
+
+### 16. Account Creation And Login Special Authority
+
+Sentinel now has a governed account/login authority coordinator over the
+existing CredentialVault, MissionKernel, browser/desktop/voice/channel,
+telemetry, receipt, FinalGate, and replay spine. V1 supports safe planning,
+human checkpoints, fake/injected sandbox execution, session binding, credential
+lease checkout, receipts, telemetry, and replay. It does not claim universal
+live public-site login or account creation.
+
+```text
+AccountAuthorityRuntime = CLOSED / local fake-injected special-authority foundation
+login planning = CLOSED
+account creation planning = CLOSED
+CredentialVault lease binding for login = CLOSED
+fake/injected login final consumer = CLOSED
+fake/injected sandbox account creation = CLOSED
+CAPTCHA/MFA/OTP/passkey/KYC/terms checkpoints = CLOSED / no bypass
+session binding receipts and FinalGate = CLOSED
+account authority replay = CLOSED / no login replay, no live account creation
+voice/desktop/channel/worker/skill/daemon/scheduler/memory/LLM direct account approval = BLOCKED
+fake identity / mass signup / ban evasion / credential stuffing / session theft = BLOCKED
+raw credential/token/session-cookie/prompt/provider-response/reasoning persistence = BLOCKED
+live public-site account/login adapter = NOT_STARTED
+production OAuth/OIDC token exchange = NOT_STARTED
+password manager / OS keychain live integration = NOT_STARTED
 ```
 
 ## What Sentinel Does Not Claim Yet
@@ -343,12 +370,13 @@ or not approved:
 
 ```text
 production OS-keychain/cloud-vault/password-manager secret backend = NOT_STARTED
-account creation/login special authority = NOT_STARTED / next
+live public-site universal account/login automation = NOT_STARTED
+production OAuth/OIDC token exchange = NOT_STARTED
 production microphone/speaker live provider adapters = NOT_STARTED
 voice cloning or speaker biometrics = NOT_STARTED
 production installed desktop tray/service app = NOT_STARTED
 durable channel provider credential/session adapters = NOT_STARTED
-payment/spend/trading/account/security/device powers = NOT_STARTED
+payment/spend/trading/security/device powers = NOT_STARTED
 platform app/operator cloud = NOT_STARTED
 provider fallback/AUTO = NOT_APPROVED
 vendor runtime integration = NOT_APPROVED
@@ -383,7 +411,7 @@ Use these files as the source of truth:
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
 sentinel-control/docs/roadmaps/SENTINEL_POWER_KERNEL_AND_ACTUATOR_FABRIC_ROADMAP.md
-sentinel-control/docs/reviews/DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCK_REPORT.md
+sentinel-control/docs/reviews/ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
 ```
 
 For current implementation code, start here:
@@ -402,7 +430,7 @@ sentinel-control/services/sentinel-core/tests/
 Run the Sentinel core test slices from the repository root unless noted:
 
 ```powershell
-py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/test_durable_credential_vault_secret_broker_v1.py -q
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/test_account_creation_login_special_authority_v1.py sentinel-control/services/sentinel-core/tests/test_durable_credential_vault_secret_broker_v1.py -q
 py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel
 ```
 
@@ -453,19 +481,18 @@ current product direction and should not shape Sentinel architecture.
 ## Build Order From Here
 
 ```text
-1. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
-2. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
-3. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
-4. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
-5. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
-6. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
-7. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
+1. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+2. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+3. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
+4. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
+5. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
+6. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
 ```
 
 Next implementation title:
 
 ```text
-ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
 ```
 
 ## Hard Rules

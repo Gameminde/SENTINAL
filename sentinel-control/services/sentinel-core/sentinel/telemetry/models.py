@@ -43,6 +43,7 @@ class TelemetrySourceSurface(StrEnum):
     DESKTOP_SIDECAR = "desktop_sidecar"
     VOICE_RUNTIME = "voice_runtime"
     CREDENTIAL_VAULT = "credential_vault"
+    ACCOUNT_AUTHORITY = "account_authority"
     COCKPIT = "cockpit"
     REPLAY = "replay"
     BROWSER_LEDGER = "browser_neural_ledger"
@@ -288,6 +289,18 @@ class TelemetryEventKind(StrEnum):
     SECRET_ROTATION_REQUIRED = "secret_rotation_required"
     SECRET_LEAK_SCAN_COMPLETED = "secret_leak_scan_completed"
     SECRET_REPLAY_BUILT = "secret_replay_built"
+    ACCOUNT_AUTHORITY_CONFIG_REGISTERED = "account_authority_config_registered"
+    ACCOUNT_LOGIN_PLAN_CREATED = "account_login_plan_created"
+    ACCOUNT_LOGIN_CHECKPOINT_CREATED = "account_login_checkpoint_created"
+    ACCOUNT_LOGIN_COMPLETED = "account_login_completed"
+    ACCOUNT_LOGIN_BLOCKED = "account_login_blocked"
+    ACCOUNT_CREATION_PLAN_CREATED = "account_creation_plan_created"
+    ACCOUNT_CREATION_CHECKPOINT_CREATED = "account_creation_checkpoint_created"
+    ACCOUNT_CREATION_COMPLETED = "account_creation_completed"
+    ACCOUNT_CREATION_BLOCKED = "account_creation_blocked"
+    ACCOUNT_SESSION_BOUND = "account_session_bound"
+    ACCOUNT_FLOW_FINALGATE_CERTIFIED = "account_flow_finalgate_certified"
+    ACCOUNT_FLOW_REPLAY_BUILT = "account_flow_replay_built"
 
 
 class TelemetryMetricKind(StrEnum):
@@ -421,6 +434,12 @@ class TelemetryMetricKind(StrEnum):
     SECRET_ROTATION_DUE_COUNT = "secret_rotation_due_count"
     SECRET_LEAK_SCAN_FINDINGS_COUNT = "secret_leak_scan_findings_count"
     SECRET_POLICY_REJECT_COUNT = "secret_policy_reject_count"
+    ACCOUNT_LOGIN_SUCCESS_RATE = "account_login_success_rate"
+    ACCOUNT_CREATION_SUCCESS_RATE = "account_creation_success_rate"
+    ACCOUNT_FLOW_CHECKPOINT_COUNT = "account_flow_checkpoint_count"
+    ACCOUNT_FLOW_BLOCK_COUNT = "account_flow_block_count"
+    ACCOUNT_CREDENTIAL_LEASE_BIND_COUNT = "account_credential_lease_bind_count"
+    ACCOUNT_REPLAY_COMPLETENESS = "account_replay_completeness"
 
 
 class TelemetryEventRecord(SentinelModel):

@@ -1,11 +1,111 @@
 # Current State Lock
 
+## Account Creation And Login Special Authority V1 - LOCKED
+
+Recorded at: 2026-06-12
+
+This section is the canonical current state. It supersedes the Durable
+Credential Vault And Secret Broker lock as top-level execution truth. Sentinel
+now has a Sentinel-native account/login special-authority coordinator over the
+existing LLM cockpit, MissionKernel, MissionRunStore, MissionDaemonRuntime,
+WorkerFleetRuntime, ModelAmplificationHarness, GovernedSkillFabric,
+LocalModelRouter, RealChannelAdapters, DesktopSidecar, LiveDesktopBackend,
+RealtimeVoiceRuntime, CredentialVaultRuntime, TelemetryKernel, Persistent
+Semantic Memory refs, PowerRuntime/AgentRuntime bridge boundaries,
+MissionAuthorityEnvelope, Gate, receipts, FinalGate, and replay spine.
+
+It is not a universal live public-site login bot, not account farming, not fake
+identity creation, not CAPTCHA/MFA/passkey/KYC bypass, not credential stuffing,
+not session theft, not a password-manager integration, not an OS keychain live
+integration, not payment/spend/trading authority, not provider fallback/AUTO,
+and not a vendor runtime bridge. V1 uses fake/injected and sandbox descriptors
+for account/login execution while proving authority, credential lease,
+checkpoint, receipt, FinalGate, telemetry, and replay boundaries.
+
+```text
+current_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+next_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Account/Login Runtime Truth
+
+```text
+AccountAuthorityConfig / AccountAuthorityRuntime / AccountAuthorityStore = CLOSED
+AccountAuthorityMode = CLOSED / disabled, plan_only, sandbox_only, operator-assisted and delegated session shapes
+AccountLoginRequest / Plan / Step / Result / Receipt = CLOSED
+AccountCreationRequest / Plan / Step / Result / Receipt = CLOSED
+AccountFlowKind / ProviderKind / SurfaceKind = CLOSED
+AccountIdentityRef / ProfileRef / SessionRef / SessionBinding / SessionPolicy / SessionState = CLOSED
+LoginCredentialRequirement = CLOSED
+CredentialLeaseBinding / FieldBinding / FillPolicy / RevealPolicy = CLOSED
+OAuth/OIDC/PKCE descriptors = CLOSED / descriptor-only, no live token exchange
+WebAuthn/passkey descriptor = CLOSED / user presence and verification checkpointed
+MFA/OTP/email/phone/CAPTCHA/KYC descriptors = CLOSED / checkpoint only, no bypass
+HumanCheckpoint / AccountFlowCheckpoint = CLOSED
+AccountCreationFieldPolicy / IdentityTruthPolicy / DisposableAccountPolicy / SandboxAccountPolicy = CLOSED
+TermsAndPolicyAcknowledgement = CLOSED
+AccountFlowSafetyScanResult / RiskProfile / Approval / IdempotencyKey = CLOSED
+AccountSessionReceipt = CLOSED
+AccountAuthorityFinalGateCertificate = CLOSED
+AccountAuthorityReplayView / AccountAuthorityReplayBuilder = CLOSED
+AccountAuthorityTelemetrySummary and telemetry events/metrics = CLOSED
+CredentialVault lease binding for login = CLOSED
+fake/injected login final consumer = CLOSED
+fake/injected sandbox account creation = CLOSED
+voice/desktop/channel/skill/worker/daemon/scheduler/memory/LLM direct account action = BLOCKED
+memory/receipt/telemetry/FinalGate/session ref as authority = BLOCKED
+fake identity / mass signup / ban evasion / credential stuffing / session theft = BLOCKED
+CAPTCHA/MFA/OTP/passkey/KYC bypass = BLOCKED
+raw credential/password/token/session-cookie/provider-key persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+live public-site login/account adapter = NOT_STARTED
+production OAuth/OIDC token exchange = NOT_STARTED
+password manager / OS keychain live integration = NOT_STARTED
+payment/spend/trading/security/device power = NOT_STARTED / next starts payment special authority
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Account/Login Honest V1 Limits
+
+```text
+V1 is a local same-process special-authority foundation
+V1 uses fake/injected final consumers and sandbox/disposable operator-owned account descriptors
+V1 does not call live public account providers, solve CAPTCHA, intercept MFA, fake WebAuthn/passkeys, perform KYC, or create accounts at scale
+V1 does not persist raw credentials, passwords, tokens, cookies, provider keys, prompts, provider responses, or reasoning
+V1 does not import vendor runtime code or add a provider fallback/AUTO path
+credential-backed login still requires MissionAuthorityEnvelope plus CredentialVault grant/lease/checkout/use receipt
+replay reconstructs account authority records and never logs in, creates an account, calls a provider, or materializes a credential
+```
+
+### Account/Login Artifacts
+
+```text
+sentinel-control/docs/reviews/ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_RESEARCH_AND_DESIGN.md
+sentinel-control/services/sentinel-core/sentinel/operator/account_authority_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/account_authority.py
+sentinel-control/services/sentinel-core/sentinel/operator/account_authority_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/credential_vault.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_account_creation_login_special_authority_v1.py
+sentinel-control/docs/reviews/ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Durable Credential Vault And Secret Broker V1 - LOCKED
 
 Recorded at: 2026-06-12
 
-This section is the canonical current state. It supersedes the Realtime Voice
-And Ambient Operator lock as top-level execution truth. Sentinel now has a
+This section is historical. It superseded the Realtime Voice And Ambient
+Operator lock as top-level execution truth and was then superseded by the
+Account Creation And Login Special Authority lock.
+Sentinel now has a
 Sentinel-native durable credential metadata vault and scoped secret broker over
 the existing LLM cockpit, MissionKernel, MissionRunStore, MissionDaemonRuntime,
 WorkerFleetRuntime, ModelAmplificationHarness, GovernedSkillFabric,

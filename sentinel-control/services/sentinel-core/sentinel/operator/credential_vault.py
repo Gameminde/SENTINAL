@@ -298,7 +298,12 @@ class CredentialVaultRuntime:
             mission_id,
             "secret_access_requested",
             "Secret access requested through broker.",
-            metadata={"secret_id": secret_id, "request_id": request.request_id, "consumer_kind": consumer_kind.value, "purpose": purpose},
+            metadata={
+                "secret_id": secret_id,
+                "request_id": request.request_id,
+                "consumer_kind_hash": stable_hash(consumer_kind.value),
+                "purpose_hash": stable_hash(purpose),
+            },
         )
         self.store.append_event(
             mission_id,

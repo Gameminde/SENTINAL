@@ -8,10 +8,10 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-12
 
 ```text
-current_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
-previous_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
-active_implementation_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
-next_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+current_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+active_implementation_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+next_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -176,6 +176,11 @@ Already real:
   FinalGate certificates, telemetry, leak scans, revocation/expiry/kill
   behavior, safe memory/worker/model-prompt summaries, and replay without
   secret materialization or external action.
+- account creation/login special-authority foundation with governed account
+  flow planning, CredentialVault lease binding, fake/injected login final
+  consumer, fake/injected sandbox account creation, CAPTCHA/MFA/OTP/passkey/KYC
+  checkpoints, session binding, receipts, FinalGate, telemetry, and replay
+  without credential materialization or live provider calls.
 
 Still not enough for real-world power:
 
@@ -188,7 +193,8 @@ Still not enough for real-world power:
   maturity with no raw secret persistence;
 - production OS keychain, cloud vault, password manager import, and real
   encrypted secret backend = NOT_STARTED;
-- account/session login special authority = NOT_STARTED / next;
+- account/session login special authority = CLOSED / local fake-injected sandbox foundation;
+- live public-site account/login adapters and production OAuth/OIDC token exchange = NOT_STARTED;
 - provider-specific Telegram/Slack/Gmail connectors and durable channel
   credential/session vaults are not started;
 - no unbounded API mutation;
@@ -237,7 +243,8 @@ PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 = CLOSED
 LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 = CLOSED
 REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = CLOSED
 DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 = CLOSED
-ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1 = NEXT
+ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1 = CLOSED
+PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -761,7 +768,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
 ```
 
 Reason:
@@ -772,11 +779,12 @@ local telemetry/product-power metrics, governed Worker Fleet, the production
 local daemon/scheduler foundation, model amplification, governed skills and
 procedures, explicit local/hardware/cost model routing, real channel adapter
 foundation, permissioned desktop sidecar/visual grounding, live desktop
-operator backend/system monitoring foundation, and realtime voice/ambient
-operator foundation. Sentinel also now has a durable credential vault and
-secret broker foundation with fake sealed store maturity, scoped handles,
-leases, receipts, FinalGate, telemetry, revocation/expiry/kill behavior, and no
-raw secret persistence. The next step is account creation/login special
-authority: use the brokered credential spine only through explicit authority,
-operator checkpoints, evidence, receipts, FinalGate, and safe terminal states.
+operator backend/system monitoring foundation, realtime voice/ambient operator
+foundation, durable credential vault/secret broker, and account creation/login
+special-authority foundation. Account/login is closed as local fake-injected
+sandbox authority with credential lease binding, checkpoints, receipts,
+FinalGate, telemetry, replay, and no raw secret persistence. The next step is
+payment/spend/trading special authority with caps, allowlists, double
+confirmation, dry-run/simulation, reconciliation, receipts, FinalGate,
+kill/revocation, and safe terminal states.
 ```

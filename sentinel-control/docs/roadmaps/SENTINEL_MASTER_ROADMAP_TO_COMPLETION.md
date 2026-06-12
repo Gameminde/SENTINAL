@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
-previous_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
-next_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+current_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+next_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -69,6 +69,7 @@ permissioned desktop sidecar foundation with policy modes, operator-visible obse
 live desktop operator backend and system monitoring foundation with safe local system/window/app/process/hardware snapshots, explicit monitoring sessions/ticks, permission UI/tray/service shapes, control modes, fake/injected desktop actions, benchmark gauntlet, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without new snapshots or re-action
 realtime voice and ambient operator foundation with Sentinel-owned voice runtime, provider descriptors, fake/injected audio backend, VAD/turn detection, partial/final transcripts, barge-in, kill words, command envelopes, ambient notification policy, voice-to-desktop proposals, receipts, FinalGate refs, telemetry, and replay without audio playback/provider calls/actions
 durable credential vault and secret broker foundation with local fake sealed store maturity, durable secret metadata, sealed hash refs, unlock sessions, scoped handles/leases, checkout token metadata, receipts, FinalGate certificates, telemetry, revocation/expiry/kill behavior, and replay without secret materialization
+account creation/login special-authority foundation with governed planning, CredentialVault lease binding, human checkpoints for CAPTCHA/MFA/OTP/passkey/KYC/terms, fake/injected login and sandbox account creation, session binding, receipts, FinalGate, telemetry, and replay without credential materialization or live provider calls
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -89,7 +90,7 @@ provider-specific Telegram/Slack/Gmail connectors and durable channel credential
 production live opt-in desktop adapter and installed OS tray/service sidecar
 production microphone/speaker adapters and live voice provider integrations
 production OS-keychain/cloud-vault/password-manager secret backend
-account creation/login special authority
+live public-site account/login automation and production OAuth/OIDC token exchange
 real account/payment/trading/security/device power
 platform app/cloud
 ```
@@ -598,20 +599,33 @@ Exit:
 
 ### Phase 14 - Account Creation And Login Special Authority V1
 
+Status: `LOCKED` on 2026-06-12.
+
 Purpose:
 
 - support authorized onboarding/login without fake identity or ambient access.
 
 Core deliverables:
 
-- identity/account scope and evidence requirements;
-- handoff boundaries for CAPTCHA/KYC/terms;
-- provider-specific controlled adapters;
-- post-action verification and session revocation.
+- account/login authority config, policy, modes, plans, results, receipts, and
+  replay;
+- identity/account scope, operator-owned profile, terms, and evidence
+  requirements;
+- CredentialVault grant/lease/checkout/use receipt binding for login;
+- human checkpoints for CAPTCHA, MFA, OTP, passkey/WebAuthn, KYC, terms, and
+  consent boundaries;
+- OAuth/OIDC/PKCE descriptors as safe metadata only, with no live token
+  exchange;
+- fake/injected login final consumer and sandbox account creation execution;
+- post-action session binding, telemetry, FinalGate, and replay.
 
 Exit:
 
-- approved account/login workflows complete with exact receipts and handoffs.
+- approved fake/injected or sandbox account/login workflows complete with exact
+  receipts and handoffs. Live public-site login/account adapters, production
+  OAuth/OIDC token exchange, password-manager/OS-keychain live integration,
+  account farming, CAPTCHA/MFA/passkey/KYC bypass, and raw credential/token/
+  cookie persistence remain blocked or not started.
 
 ### Phase 15 - Payment Spend Trading Special Authority V1
 
@@ -986,17 +1000,17 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
 ```
 
 Required direction:
 
 ```text
-Build account creation and login special authority over the existing Sentinel
-authority, runtime, credential broker, telemetry, receipt, FinalGate, replay,
-browser, desktop, channel, and voice spine. Account/login workflows require
-explicit MissionAuthorityEnvelope grants, credential broker leases, evidence,
-operator checkpoints for CAPTCHA/KYC/terms/payment boundaries, revocation, and
+Build payment, spend, and trading special authority over the existing Sentinel
+authority, runtime, credential broker, account/session, telemetry, receipt,
+FinalGate, replay, browser, desktop, channel, and voice spine. Payment/trading
+workflows require explicit MissionAuthorityEnvelope grants, caps, allowlists,
+double confirmation, dry-run/simulation, reconciliation, kill/revocation, and
 safe terminal states; memory, voice, receipts, FinalGate, telemetry, and
 provider output remain evidence/context only, never permission.
 ```
