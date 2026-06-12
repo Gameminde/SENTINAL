@@ -1523,6 +1523,31 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "voice_provider_descriptor_registered": TelemetryEventKind.VOICE_PROVIDER_DESCRIPTOR_REGISTERED,
         "voice_provider_descriptor_rejected": TelemetryEventKind.VOICE_PROVIDER_DESCRIPTOR_REJECTED,
         "voice_replay_built": TelemetryEventKind.VOICE_REPLAY_BUILT,
+        "credential_vault_initialized": TelemetryEventKind.CREDENTIAL_VAULT_INITIALIZED,
+        "credential_vault_locked": TelemetryEventKind.CREDENTIAL_VAULT_LOCKED,
+        "credential_vault_unlock_requested": TelemetryEventKind.CREDENTIAL_VAULT_UNLOCK_REQUESTED,
+        "credential_vault_unlocked": TelemetryEventKind.CREDENTIAL_VAULT_UNLOCKED,
+        "credential_vault_unlock_rejected": TelemetryEventKind.CREDENTIAL_VAULT_UNLOCK_REJECTED,
+        "credential_vault_unlock_expired": TelemetryEventKind.CREDENTIAL_VAULT_UNLOCK_EXPIRED,
+        "secret_registered": TelemetryEventKind.SECRET_REGISTERED,
+        "secret_registration_rejected": TelemetryEventKind.SECRET_REGISTRATION_REJECTED,
+        "secret_metadata_updated": TelemetryEventKind.SECRET_METADATA_UPDATED,
+        "secret_access_requested": TelemetryEventKind.SECRET_ACCESS_REQUESTED,
+        "secret_access_granted": TelemetryEventKind.SECRET_ACCESS_GRANTED,
+        "secret_access_rejected": TelemetryEventKind.SECRET_ACCESS_REJECTED,
+        "secret_lease_created": TelemetryEventKind.SECRET_LEASE_CREATED,
+        "secret_lease_expired": TelemetryEventKind.SECRET_LEASE_EXPIRED,
+        "secret_lease_revoked": TelemetryEventKind.SECRET_LEASE_REVOKED,
+        "secret_checkout_started": TelemetryEventKind.SECRET_CHECKOUT_STARTED,
+        "secret_checkout_completed": TelemetryEventKind.SECRET_CHECKOUT_COMPLETED,
+        "secret_checkout_rejected": TelemetryEventKind.SECRET_CHECKOUT_REJECTED,
+        "secret_use_started": TelemetryEventKind.SECRET_USE_STARTED,
+        "secret_use_completed": TelemetryEventKind.SECRET_USE_COMPLETED,
+        "secret_use_failed": TelemetryEventKind.SECRET_USE_FAILED,
+        "secret_revoked": TelemetryEventKind.SECRET_REVOKED,
+        "secret_rotation_required": TelemetryEventKind.SECRET_ROTATION_REQUIRED,
+        "secret_leak_scan_completed": TelemetryEventKind.SECRET_LEAK_SCAN_COMPLETED,
+        "secret_replay_built": TelemetryEventKind.SECRET_REPLAY_BUILT,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1534,6 +1559,8 @@ def _mission_event_family(event_type: str) -> str:
         return "desktop_sidecar"
     if event_type.startswith("voice_"):
         return "voice_runtime"
+    if event_type.startswith("credential_vault_") or event_type.startswith("secret_"):
+        return "credential_vault"
     if event_type.startswith("channel_"):
         return "channel_adapter"
     if event_type.startswith("model_router_"):
@@ -1601,6 +1628,31 @@ def _domain_for_event(event_kind: TelemetryEventKind) -> TelemetryDomain:
         TelemetryEventKind.REVOCATION_DETECTED,
         TelemetryEventKind.SECRET_REDACTION_HIT,
         TelemetryEventKind.CREDENTIAL_ACCESS_DENIED,
+        TelemetryEventKind.CREDENTIAL_VAULT_INITIALIZED,
+        TelemetryEventKind.CREDENTIAL_VAULT_LOCKED,
+        TelemetryEventKind.CREDENTIAL_VAULT_UNLOCK_REQUESTED,
+        TelemetryEventKind.CREDENTIAL_VAULT_UNLOCKED,
+        TelemetryEventKind.CREDENTIAL_VAULT_UNLOCK_REJECTED,
+        TelemetryEventKind.CREDENTIAL_VAULT_UNLOCK_EXPIRED,
+        TelemetryEventKind.SECRET_REGISTERED,
+        TelemetryEventKind.SECRET_REGISTRATION_REJECTED,
+        TelemetryEventKind.SECRET_METADATA_UPDATED,
+        TelemetryEventKind.SECRET_ACCESS_REQUESTED,
+        TelemetryEventKind.SECRET_ACCESS_GRANTED,
+        TelemetryEventKind.SECRET_ACCESS_REJECTED,
+        TelemetryEventKind.SECRET_LEASE_CREATED,
+        TelemetryEventKind.SECRET_LEASE_EXPIRED,
+        TelemetryEventKind.SECRET_LEASE_REVOKED,
+        TelemetryEventKind.SECRET_CHECKOUT_STARTED,
+        TelemetryEventKind.SECRET_CHECKOUT_COMPLETED,
+        TelemetryEventKind.SECRET_CHECKOUT_REJECTED,
+        TelemetryEventKind.SECRET_USE_STARTED,
+        TelemetryEventKind.SECRET_USE_COMPLETED,
+        TelemetryEventKind.SECRET_USE_FAILED,
+        TelemetryEventKind.SECRET_REVOKED,
+        TelemetryEventKind.SECRET_ROTATION_REQUIRED,
+        TelemetryEventKind.SECRET_LEAK_SCAN_COMPLETED,
+        TelemetryEventKind.SECRET_REPLAY_BUILT,
     }:
         return TelemetryDomain.SAFETY
     if event_kind in {

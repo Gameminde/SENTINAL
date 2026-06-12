@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
-previous_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-next_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
+current_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+previous_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+next_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -68,6 +68,7 @@ real channel adapter foundation with webhook-style explicit adapter descriptors,
 permissioned desktop sidecar foundation with policy modes, operator-visible observation, monitoring snapshots, visual grounding, action preview/proposal, fake/injected action backend, allowlists, sensitive-region handling, before/after evidence, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without re-screenshot or re-action
 live desktop operator backend and system monitoring foundation with safe local system/window/app/process/hardware snapshots, explicit monitoring sessions/ticks, permission UI/tray/service shapes, control modes, fake/injected desktop actions, benchmark gauntlet, receipts, FinalGate refs, telemetry, kill/revocation behavior, and replay without new snapshots or re-action
 realtime voice and ambient operator foundation with Sentinel-owned voice runtime, provider descriptors, fake/injected audio backend, VAD/turn detection, partial/final transcripts, barge-in, kill words, command envelopes, ambient notification policy, voice-to-desktop proposals, receipts, FinalGate refs, telemetry, and replay without audio playback/provider calls/actions
+durable credential vault and secret broker foundation with local fake sealed store maturity, durable secret metadata, sealed hash refs, unlock sessions, scoped handles/leases, checkout token metadata, receipts, FinalGate certificates, telemetry, revocation/expiry/kill behavior, and replay without secret materialization
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -87,7 +88,8 @@ automatic model failover, hidden provider switching, model downloads, and model 
 provider-specific Telegram/Slack/Gmail connectors and durable channel credential/session vaults
 production live opt-in desktop adapter and installed OS tray/service sidecar
 production microphone/speaker adapters and live voice provider integrations
-durable credential vault
+production OS-keychain/cloud-vault/password-manager secret backend
+account creation/login special authority
 real account/payment/trading/security/device power
 platform app/cloud
 ```
@@ -572,20 +574,27 @@ Locked truth:
 
 ### Phase 13 - Durable Credential Vault And Secret Broker V1
 
+Status: `LOCKED` on 2026-06-12.
+
 Purpose:
 
-- safely resolve real credentials for approved organs.
+- safely broker credentials for approved consumers without turning secrets into
+  authority or durable plaintext.
 
 Core deliverables:
 
-- encrypted-at-rest vault backend and credential refs;
+- local fake sealed store maturity with durable metadata, hashes, and refs;
+- credential refs, handles, unlock sessions, scoped leases, and checkout token
+  metadata;
 - mission/organ/action/domain scope, TTL, max use, revocation;
-- audited ephemeral resolution, no raw value in receipts/logs/memory;
-- browser/API/channel session broker and sanitizer.
+- audited handle-only checkout, no raw value in receipts/logs/memory/replay;
+- broker sanitizer, leak scan, telemetry, receipts, FinalGate, and replay.
 
 Exit:
 
-- a scoped organ can use a credential without durable raw-value leakage.
+- a scoped consumer can receive a secret handle/lease path without durable
+  raw-value leakage. Production OS keychain/cloud/password-manager backends and
+  account/login authority remain future phases.
 
 ### Phase 14 - Account Creation And Login Special Authority V1
 
@@ -977,16 +986,17 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
+ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 ```
 
 Required direction:
 
 ```text
-Build a durable credential vault and secret broker over the existing Sentinel
-authority, runtime, telemetry, receipt, FinalGate, replay, desktop, channel,
-browser, and voice spine. Credentials and secrets may be resolved only through
-scoped grants, explicit policy, ephemeral handling, audit, receipts, revocation,
-and safe terminal states; memory, voice, receipts, FinalGate, telemetry, and
+Build account creation and login special authority over the existing Sentinel
+authority, runtime, credential broker, telemetry, receipt, FinalGate, replay,
+browser, desktop, channel, and voice spine. Account/login workflows require
+explicit MissionAuthorityEnvelope grants, credential broker leases, evidence,
+operator checkpoints for CAPTCHA/KYC/terms/payment boundaries, revocation, and
+safe terminal states; memory, voice, receipts, FinalGate, telemetry, and
 provider output remain evidence/context only, never permission.
 ```

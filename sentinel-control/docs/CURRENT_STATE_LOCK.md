@@ -1,11 +1,106 @@
 # Current State Lock
 
+## Durable Credential Vault And Secret Broker V1 - LOCKED
+
+Recorded at: 2026-06-12
+
+This section is the canonical current state. It supersedes the Realtime Voice
+And Ambient Operator lock as top-level execution truth. Sentinel now has a
+Sentinel-native durable credential metadata vault and scoped secret broker over
+the existing LLM cockpit, MissionKernel, MissionRunStore, MissionDaemonRuntime,
+WorkerFleetRuntime, ModelAmplificationHarness, GovernedSkillFabric,
+LocalModelRouter, RealChannelAdapters, DesktopSidecar, LiveDesktopBackend,
+RealtimeVoiceRuntime, TelemetryKernel, Persistent Semantic Memory refs,
+PowerRuntime/AgentRuntime bridge boundaries, MissionAuthorityEnvelope, Gate,
+receipts, FinalGate, and replay spine.
+
+It is not a production cryptographic vault, not an OS keychain integration, not
+a cloud secret manager, not a password-manager import, not an account/login
+authority, not a payment/account/security/device organ, not provider
+fallback/AUTO, and not a vendor runtime bridge. V1 uses a local fake sealed
+store maturity: durable secret metadata and hash refs are real; durable raw
+secret material is blocked.
+
+```text
+current_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+previous_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+next_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Durable Credential Vault Runtime Truth
+
+```text
+CredentialVaultConfig / CredentialVaultRuntime / CredentialVaultStore = CLOSED
+vault maturity = CLOSED / fake_sealed_store
+durable secret metadata = CLOSED
+SecretMetadata / SecretVersion / SecretProvenance = CLOSED
+SecretMaterialEnvelope = CLOSED / sealed hash + fake sealed ref only
+SecretRef / SecretHandle = CLOSED / context and handles only, not authority
+VaultUnlockPolicy / VaultUnlockSession / VaultOperatorApproval = CLOSED
+SecretAccessRequest / Grant / Lease = CLOSED
+SecretCheckoutToken / SecretCheckoutResult = CLOSED / no raw material returned
+SecretUseContext / SecretUseReceipt = CLOSED
+SecretFinalGateCertificate = CLOSED
+SecretReplayView / CredentialVaultReplayBuilder = CLOSED / no materialization
+SecretLeakScanResult = CLOSED
+expiry / revocation / rotation-required metadata = CLOSED
+kill-triggered active lease invalidation = CLOSED
+Telemetry events and metrics for vault/broker lifecycle = CLOSED
+safe memory / worker / model-prompt summaries = CLOSED / no raw material
+voice/desktop/channel/skill/daemon/scheduler/memory/LLM ambient secret use = BLOCKED
+vault-created authority = BLOCKED
+broker-created authority = BLOCKED
+secret handle/lease/receipt/FinalGate as authority = BLOCKED
+raw secret/plaintext persistence = BLOCKED
+raw credential/token/provider key persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+OS keychain live backend = NOT_STARTED
+cloud vault live backend = NOT_STARTED
+password-manager import = NOT_STARTED
+account creation/login special authority = NOT_STARTED / next
+payment/spend/trading/security/device power = NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Durable Credential Vault Honest V1 Limits
+
+```text
+storage maturity is fake_sealed_store, not production encrypted-at-rest vault
+V1 stores hashes, fake sealed refs, metadata, policies, unlock sessions, leases, receipts, FinalGate refs, telemetry, and replay
+V1 does not persist raw API keys, passwords, cookies, OAuth refresh tokens, provider keys, prompts, provider responses, or reasoning
+V1 does not call Windows DPAPI, macOS Keychain, Linux Secret Service, AWS/GCP/Azure secret managers, 1Password, or Bitwarden
+V1 does not perform browser login, account creation, payment, trading, KYC, CAPTCHA, security testing, or device control
+secret use still requires MissionAuthorityEnvelope plus policy/scope/consumer/unlock/expiry/revocation checks
+checkout returns handle/token metadata only and never returns secret material
+replay reconstructs vault lifecycle and never materializes a secret or repeats an external action
+```
+
+### Durable Credential Vault Artifacts
+
+```text
+sentinel-control/docs/reviews/DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_RESEARCH_AND_DESIGN.md
+sentinel-control/services/sentinel-core/sentinel/operator/credential_vault_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/credential_vault.py
+sentinel-control/services/sentinel-core/sentinel/operator/credential_vault_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/__init__.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/tests/test_durable_credential_vault_secret_broker_v1.py
+sentinel-control/docs/reviews/DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Realtime Voice And Ambient Operator V1 - LOCKED
 
 Recorded at: 2026-06-11
 
-This section is the canonical current state. It supersedes the Live Desktop
-Operator Backend And System Monitoring lock as top-level execution truth.
+This section is historical. It superseded the Live Desktop Operator Backend And
+System Monitoring lock as top-level execution truth and was then superseded by
+the Durable Credential Vault And Secret Broker lock.
 Sentinel now has a Sentinel-owned realtime voice and ambient operator runtime
 foundation over the existing LLM cockpit, MissionKernel, MissionRunStore,
 MissionDaemonRuntime, WorkerFleetRuntime, ModelAmplificationHarness,

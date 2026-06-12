@@ -5,13 +5,13 @@ Date: 2026-05-26
 Status: canonical strategic roadmap for moving Sentinel from controlled internal
 runtime to real-world controlled automation.
 
-## Current Execution Truth - 2026-06-08
+## Current Execution Truth - 2026-06-12
 
 ```text
-current_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
-previous_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-active_implementation_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
-next_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
+current_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+previous_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+active_implementation_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+next_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -170,6 +170,12 @@ Already real:
   voice command envelopes, scoped ambient notifications, voice-to-desktop
   proposals, receipts, FinalGate, telemetry, and replay without audio playback,
   provider calls, or action replay.
+- durable credential vault and secret broker foundation with local fake sealed
+  store maturity, durable secret metadata, sealed hash refs, unlock sessions,
+  scoped secret handles/leases, checkout token metadata, secret use receipts,
+  FinalGate certificates, telemetry, leak scans, revocation/expiry/kill
+  behavior, safe memory/worker/model-prompt summaries, and replay without
+  secret materialization or external action.
 
 Still not enough for real-world power:
 
@@ -178,8 +184,11 @@ Still not enough for real-world power:
 - no production LSP/debugger/deep coding harness integration;
 - no automatic model failover, hidden provider switching, model downloads, or
   model server management;
-- no durable account/session credential vault;
-- no real credential storage/resolution;
+- durable credential vault / secret broker = CLOSED / local fake sealed store
+  maturity with no raw secret persistence;
+- production OS keychain, cloud vault, password manager import, and real
+  encrypted secret backend = NOT_STARTED;
+- account/session login special authority = NOT_STARTED / next;
 - provider-specific Telegram/Slack/Gmail connectors and durable channel
   credential/session vaults are not started;
 - no unbounded API mutation;
@@ -227,7 +236,8 @@ REAL_CHANNEL_ADAPTERS_V1 = CLOSED
 PERMISSIONED_DESKTOP_SIDECAR_AND_VISUAL_GROUNDING_V1 = CLOSED
 LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 = CLOSED
 REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = CLOSED
-DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 = NEXT
+DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 = CLOSED
+ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -751,7 +761,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
+ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 ```
 
 Reason:
@@ -763,10 +773,10 @@ local daemon/scheduler foundation, model amplification, governed skills and
 procedures, explicit local/hardware/cost model routing, real channel adapter
 foundation, permissioned desktop sidecar/visual grounding, live desktop
 operator backend/system monitoring foundation, and realtime voice/ambient
-operator foundation. Voice remains Sentinel-owned, descriptor/fake-backend in
-V1, and cannot create authority, call organs, persist raw audio/transcripts, or
-enable provider fallback/AUTO. The next step is a durable credential vault and
-secret broker so future browser/API/channel/desktop/account workflows can
-resolve secrets through scoped grants, ephemeral handling, receipts, FinalGate,
-revocation, and no raw-value leakage.
+operator foundation. Sentinel also now has a durable credential vault and
+secret broker foundation with fake sealed store maturity, scoped handles,
+leases, receipts, FinalGate, telemetry, revocation/expiry/kill behavior, and no
+raw secret persistence. The next step is account creation/login special
+authority: use the brokered credential spine only through explicit authority,
+operator checkpoints, evidence, receipts, FinalGate, and safe terminal states.
 ```

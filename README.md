@@ -21,10 +21,10 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 ## Current Snapshot
 
 ```text
-snapshot_date = 2026-06-11
-current_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
-previous_phase = LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1_LOCKED
-next_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
+snapshot_date = 2026-06-12
+current_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
+previous_phase = REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCKED
+next_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 doctrine = product power under provable authority
 ```
 
@@ -32,12 +32,13 @@ Sentinel is no longer a vision document. It is now a local controlled-agent
 runtime with browser power, mission state, memory, workflow, workers, telemetry,
 daemon/scheduler foundation, model amplification, skill/procedure fabric,
 explicit model routing, real channel adapter foundation, desktop sidecar,
-live-desktop monitoring foundation, and realtime voice foundation.
+live-desktop monitoring foundation, realtime voice foundation, and a durable
+credential vault / secret broker foundation.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCK_REPORT.md
+sentinel-control/docs/reviews/DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCK_REPORT.md
 ```
 
 The canonical state truth is:
@@ -313,17 +314,40 @@ voice-to-desktop proposal path = CLOSED / no direct desktop action
 voice replay = CLOSED / no audio playback, provider call, or action replay
 ```
 
+### 15. Credential Vault And Secret Broker
+
+Sentinel now has a Sentinel-native credential vault foundation and secret
+broker. V1 is deliberately honest: it persists durable metadata, fake sealed
+refs, hashes, policies, unlock sessions, scoped leases, receipts, FinalGate
+certificates, telemetry, and replay. It does not claim production OS keychain,
+cloud vault, password-manager import, account login, or payment authority.
+
+```text
+CredentialVaultRuntime = CLOSED / local fake sealed store maturity
+durable secret metadata = CLOSED
+raw secret/plaintext persistence = BLOCKED
+unlock sessions = CLOSED / operator-approved metadata
+scoped secret handles and leases = CLOSED
+secret checkout = CLOSED / handle-token metadata only
+secret use receipts and FinalGate = CLOSED
+vault replay = CLOSED / no materialization, no external action
+voice/desktop/channel/worker/skill/memory/LLM ambient secret use = BLOCKED
+OS keychain/cloud vault/password-manager live backend = NOT_STARTED
+account creation/login special authority = NOT_STARTED / next
+```
+
 ## What Sentinel Does Not Claim Yet
 
 Sentinel is powerful, but the README must not lie. These are still not started
 or not approved:
 
 ```text
-durable credential vault = NOT_STARTED / next
+production OS-keychain/cloud-vault/password-manager secret backend = NOT_STARTED
+account creation/login special authority = NOT_STARTED / next
 production microphone/speaker live provider adapters = NOT_STARTED
 voice cloning or speaker biometrics = NOT_STARTED
 production installed desktop tray/service app = NOT_STARTED
-durable channel credential/session vaults = NOT_STARTED
+durable channel provider credential/session adapters = NOT_STARTED
 payment/spend/trading/account/security/device powers = NOT_STARTED
 platform app/operator cloud = NOT_STARTED
 provider fallback/AUTO = NOT_APPROVED
@@ -359,7 +383,7 @@ Use these files as the source of truth:
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
 sentinel-control/docs/roadmaps/SENTINEL_POWER_KERNEL_AND_ACTUATOR_FABRIC_ROADMAP.md
-sentinel-control/docs/reviews/REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1_LOCK_REPORT.md
+sentinel-control/docs/reviews/DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCK_REPORT.md
 ```
 
 For current implementation code, start here:
@@ -378,7 +402,7 @@ sentinel-control/services/sentinel-core/tests/
 Run the Sentinel core test slices from the repository root unless noted:
 
 ```powershell
-py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/test_realtime_voice_ambient_operator_v1.py -q
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/test_durable_credential_vault_secret_broker_v1.py -q
 py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel
 ```
 
@@ -429,20 +453,19 @@ current product direction and should not shape Sentinel architecture.
 ## Build Order From Here
 
 ```text
-1. DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
-2. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
-3. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
-4. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
-5. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
-6. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
-7. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
-8. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
+1. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
+2. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+3. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+4. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
+5. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
+6. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
+7. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
 ```
 
 Next implementation title:
 
 ```text
-DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
+ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 ```
 
 ## Hard Rules
