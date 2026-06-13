@@ -24,6 +24,21 @@ sandbox or paper result != live external effect
 test success != normal-user product readiness
 ```
 
+## Post-Baseline Green Gate Remediation
+
+The baseline findings below remain historical evidence of the state measured
+at the baseline lock. They were closed by
+`REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION` without changing the
+baseline score or backend maturity:
+
+```text
+full canonical core suite after remediation = 2686 passed, 0 failed, 3 skipped
+stale historical truth test = CLOSED
+mixed unsafe/safe browser-neural continuity defect = CLOSED
+new capability = none
+Wave 1 = not started
+```
+
 ## Maturity Labels
 
 | Label | Meaning |
@@ -138,6 +153,9 @@ full core suite = NOT GREEN / 2681 passed, 2 failed, 4 skipped
 Neither open item creates new authority, leaks the tested secret values, or
 changes backend maturity. Both should be repaired in the hardening work
 attached to the first convergence wave.
+
+Post-baseline truth: both items are now closed by the dedicated zero-growth
+green-gate remediation before Wave 1.
 
 ## Baseline Commands
 

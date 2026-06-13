@@ -13,6 +13,14 @@ goal = convert existing foundations into demonstrated live power
 Security Testing Special Authority remains canonical future work but is
 deferred. It is not the active next phase.
 
+The baseline green gate was closed before Wave 1:
+
+```text
+REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION = LOCKED
+full canonical core suite = 2686 passed, 0 failed, 3 skipped
+capability growth = none
+```
+
 ## Architecture-Growth Rules
 
 ```text
@@ -127,4 +135,4 @@ changes are committed and pushed
 REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 ```
 
-Do not start it from the baseline lock.
+It remains next and was not started by the green-gate remediation.

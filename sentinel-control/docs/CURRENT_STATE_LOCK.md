@@ -1,5 +1,49 @@
 # Current State Lock
 
+## Real-World Power Baseline Green Gate Remediation - LOCKED
+
+Recorded at: 2026-06-14
+
+This section is the canonical current state. It supersedes the Real-World Power
+Baseline And AgentLab Task Audit lock as top-level truth. It adds no runtime
+capability and does not start convergence Wave 1.
+
+The remediation closes exactly the baseline's two recorded failures: one stale
+historical truth assertion and one fail-closed browser-neural continuity defect.
+The complete canonical core suite is green.
+
+```text
+current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+roadmap_doctrine = product power under provable authority
+```
+
+### Green Gate Truth
+
+```text
+full_core_suite = GREEN / 2686 passed, 0 failed, 3 skipped
+stale_historical_truth_test = CLOSED / canonical-current-phase invariant
+mixed_unsafe_safe_browser_neural_ref_continuity = CLOSED / safe refs preserved, unsafe refs hashed
+invalid_browser_neural_motor_artifact = FAIL_CLOSED
+unrelated_unsafe_cognition_payload = FAIL_CLOSED
+new execution surface = NOT_STARTED
+new special authority = NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+Security Testing Special Authority V1 = DEFERRED / NOT_STARTED
+Wave 1 = NOT_STARTED / next
+```
+
+### Green Gate Artifact
+
+```text
+sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap and convergence roadmap are canonical.
+
 ## Real-World Power Baseline And AgentLab Task Audit - LOCKED
 
 Recorded at: 2026-06-14

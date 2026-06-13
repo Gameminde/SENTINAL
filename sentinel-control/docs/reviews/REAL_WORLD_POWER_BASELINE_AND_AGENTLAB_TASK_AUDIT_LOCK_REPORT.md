@@ -17,6 +17,17 @@ SECURITY_TESTING_SPECIAL_AUTHORITY_V1 = DEFERRED / not started
 No runtime capability, actuator, special authority, provider, connector, UI
 framework, speculative contract family, or vendor runtime was added.
 
+## Post-Lock Remediation Note
+
+The two failures recorded by this historical baseline were subsequently closed
+by the zero-growth `REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION` lock.
+The current canonical core result is `2686 passed, 0 failed, 3 skipped`.
+See:
+
+```text
+sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCK_REPORT.md
+```
+
 ## What Changed Strategically
 
 ```text

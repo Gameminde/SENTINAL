@@ -37,8 +37,8 @@ provable.
 Current state:
 
 ```text
-current_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
 next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 roadmap_doctrine = product power under provable authority
 ```
@@ -48,7 +48,9 @@ The active strategy is now the
 baseline measures current real power at `5.4 / 10`: Sentinel's authority,
 proof, and local runtime spine are strong, but broad live backend reach and a
 production operator product remain limited. The convergence roadmap is the
-canonical active build sequence. Security Testing Special Authority remains
+canonical active build sequence. The baseline green gate is closed with `2686
+passed, 0 failed, 3 skipped`; this remediation added no capability and did not
+change the product-power score. Security Testing Special Authority remains
 future work and is deferred.
 
 Real now:

@@ -8,18 +8,19 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-14
 
 ```text
-current_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
-active_implementation_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+active_implementation_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
 next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 roadmap_doctrine = product power under provable authority
 ```
 
-The baseline and AgentLab task audit is a measurement, competitive-harvest, and
-roadmap-reconciliation lock, not a new actuator phase. It starts the
-real-world-power convergence program: existing foundations must now become
-demonstrated end-to-end user power before Sentinel adds more special-authority
-or actuator families. Security Testing Special Authority remains deferred.
+The baseline green-gate remediation closes the two failures recorded by the
+baseline and AgentLab task audit. It is a zero-growth hardening lock, not a new
+actuator phase. The full canonical core suite is green at `2686 passed, 0
+failed, 3 skipped`. Existing foundations must now become demonstrated
+end-to-end user power before Sentinel adds more special-authority or actuator
+families. Security Testing Special Authority remains deferred.
 
 Canonical roadmap:
 

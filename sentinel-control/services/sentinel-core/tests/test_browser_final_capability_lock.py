@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -10,13 +11,19 @@ def _read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+def _current_phase(document: str) -> str:
+    match = re.search(r"^current_phase = (.+)$", document, flags=re.MULTILINE)
+    assert match is not None
+    return match.group(1)
+
+
 def test_browser_final_capability_lock_docs_mark_roadmap_complete() -> None:
     readme = _read("README.md")
     current = _read("sentinel-control/docs/CURRENT_STATE_LOCK.md")
+    master = _read("sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md")
     roadmap = _read("sentinel-control/docs/organs/ORGAN_EXECUTION_EXPANSION_ROADMAP.md")
 
-    assert "current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED" in readme
-    assert "current_phase = PERSISTENT_SEMANTIC_MEMORY_V1_LOCKED" in current
+    assert _current_phase(readme) == _current_phase(current) == _current_phase(master)
     assert "current_phase = BROWSER_NEURAL_GAUNTLET_LOCKED" in current
     assert "current_phase = BROWSER_FINAL_CAPABILITY_LOCKED" in current
     assert "BROWSER_FINAL_CAPABILITY_LOCK = implemented / locked" in roadmap

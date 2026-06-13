@@ -22,8 +22,8 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-06-14
-current_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
 next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 doctrine = product power under provable authority
 ```
@@ -38,13 +38,15 @@ login plus sandbox spend / paper trading special-authority foundations. The
 latest baseline lock measures that power honestly at task level: governance and
 local runtime are strong, real bounded browser/workspace/shell power exists,
 while broad live external reach and a production operator app remain limited.
-The active program now converts existing foundations into demonstrated
-real-world power before adding more special-authority surfaces.
+The green-gate remediation closes the baseline's two recorded failures without
+adding capability: the canonical core suite is now `2686 passed, 0 failed, 3
+skipped`. The active program now converts existing foundations into
+demonstrated real-world power before adding more special-authority surfaces.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCK_REPORT.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCK_REPORT.md
 ```
 
 The canonical state truth is:

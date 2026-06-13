@@ -24,7 +24,7 @@ from sentinel.agent.browser import (
     BrowserRenderer,
     DnsResolver,
 )
-from sentinel.agent.browser.neural import motor_proposal_artifact_to_browser_step_candidate
+from sentinel.agent.browser.neural import MotorProposalArtifact, motor_proposal_artifact_to_browser_step_candidate
 from sentinel.agent.capability_selector import CapabilitySelector
 from sentinel.agent.cognitive_cycle import CognitiveCycle
 from sentinel.agent.controlled_capability import LocalControlledCapabilityRunner
@@ -195,6 +195,26 @@ _TEMPORARY_DISPATCH_FORBIDDEN_TEXT = {
     "reasoning:",
     "secret",
 }
+
+_BROWSER_NEURAL_MOTOR_HASH_FIELDS = (
+    "proposal_artifact_id",
+    "mission_id",
+    "organ_kind",
+    "action_level",
+    "target_ref",
+    "source_signal_refs",
+    "source_evidence_refs",
+    "required_authority",
+    "risk_flags",
+    "expected_receipt_type",
+    "verification_plan",
+    "url",
+    "action_kind",
+    "allowed_domains",
+    "target_role",
+    "target_name",
+    "text",
+)
 
 
 class AgentRuntime:
@@ -478,6 +498,7 @@ class AgentRuntime:
             requested_memory_owner = raw_input.get("persistent_memory_owner_user_id")
         if requested_memory_owner not in (None, envelope.user_id):
             return None, "PARTIAL"
+        raw_input = self._normalize_brain_cognition_input_for_runtime(raw_input)
         if isinstance(raw_input, dict):
             raw_input = {**raw_input, "persistent_memory_owner_user_id": envelope.user_id}
         else:
@@ -845,11 +866,47 @@ class AgentRuntime:
     @classmethod
     def _normalize_browser_neural_refs_in_proposal(cls, proposal: dict[str, Any]) -> dict[str, Any]:
         normalized = dict(proposal)
+        refs_changed = False
         for key in ("source_signal_refs", "browser_neural_signal_refs", "neural_signal_refs"):
             value = normalized.get(key)
             if isinstance(value, list):
-                normalized[key] = [cls._safe_browser_neural_signal_ref(str(ref)) for ref in value]
+                safe_refs = [cls._safe_browser_neural_signal_ref(str(ref)) for ref in value]
+                refs_changed = refs_changed or safe_refs != value
+                normalized[key] = safe_refs
+        if refs_changed and cls._is_valid_browser_neural_motor_proposal(proposal):
+            normalized["artifact_hash"] = stable_hash(
+                {key: normalized.get(key) for key in _BROWSER_NEURAL_MOTOR_HASH_FIELDS}
+            )
         return normalized
+
+    @classmethod
+    def _normalize_brain_cognition_input_for_runtime(cls, raw_input: Any) -> Any:
+        artifacts = (
+            raw_input.get("existing_proposal_artifacts")
+            if isinstance(raw_input, dict)
+            else getattr(raw_input, "existing_proposal_artifacts", None)
+        )
+        if not isinstance(artifacts, list):
+            return raw_input
+        normalized_artifacts = [
+            cls._normalize_browser_neural_refs_in_proposal(artifact)
+            if isinstance(artifact, dict) and cls._is_valid_browser_neural_motor_proposal(artifact)
+            else artifact
+            for artifact in artifacts
+        ]
+        if normalized_artifacts == artifacts:
+            return raw_input
+        if isinstance(raw_input, dict):
+            return {**raw_input, "existing_proposal_artifacts": normalized_artifacts}
+        return raw_input.model_copy(update={"existing_proposal_artifacts": normalized_artifacts})
+
+    @staticmethod
+    def _is_valid_browser_neural_motor_proposal(proposal: dict[str, Any]) -> bool:
+        try:
+            MotorProposalArtifact.model_validate(proposal)
+        except Exception:
+            return False
+        return True
 
     @staticmethod
     def _safe_browser_neural_signal_ref(ref: str) -> str:

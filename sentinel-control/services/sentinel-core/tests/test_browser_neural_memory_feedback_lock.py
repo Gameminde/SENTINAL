@@ -101,7 +101,48 @@ def test_unsafe_browser_neural_signal_refs_are_hashed_before_memory_or_replan(tm
 
     assert "sessionid_abc123" not in dumped
     assert "token=plainvalue" not in dumped
+    assert result.brain_cognition_result is not None
+    assert result.brain_cognition_result.mission_id == _runtime_mission().id
+    assert result.brain_cognition_result.safety_validation.valid is True
+    assert result.organ_dispatch_result is not None
+    assert result.organ_dispatch_result.trace.executed_count == 1
     assert result.replan_packet is not None
     assert "nsig_planner" in result.replan_packet["browser_neural_signal_refs"]
     assert all("=" not in ref and "?" not in ref and "/" not in ref for ref in result.replan_packet["browser_neural_signal_refs"])
     assert any(ref.startswith("nsig_ref_hash_") for ref in result.replan_packet["browser_neural_signal_refs"])
+
+
+def test_browser_neural_ref_normalization_does_not_allow_unrelated_unsafe_cognition_payload(tmp_path: Path) -> None:
+    user_input = _user_input([_motor_proposal("mprop_unrelated_unsafe_payload", "open")])
+    user_input["organ_dispatch"]["brain_cognition_input"]["objective_summary"] = "provider_override=model-x"
+
+    result = AgentRuntime(project_root=tmp_path / "project", organ_execution_config=_config(tmp_path, neural_enabled=True)).run(
+        _runtime_mission(),
+        user_input=user_input,
+    )
+
+    assert result.brain_cognition_result is not None
+    assert result.brain_cognition_result.safety_validation.valid is False
+    assert result.brain_cognition_result.proposal_artifacts == []
+    assert result.organ_dispatch_result is not None
+    assert result.organ_dispatch_result.trace.executed_count == 0
+
+
+def test_browser_neural_ref_normalization_does_not_launder_invalid_motor_artifact(tmp_path: Path) -> None:
+    proposal = _motor_proposal("mprop_invalid_hash_unsafe_refs", "open")
+    proposal["source_signal_refs"] = ["nsig_session_cookie=sessionid_abc123"]
+    proposal["artifact_hash"] = "invalid_artifact_hash"
+
+    result = AgentRuntime(project_root=tmp_path / "project", organ_execution_config=_config(tmp_path, neural_enabled=True)).run(
+        _runtime_mission(),
+        user_input=_user_input([proposal]),
+    )
+
+    dumped = result.model_dump_json()
+
+    assert "sessionid_abc123" not in dumped
+    assert result.brain_cognition_result is not None
+    assert result.brain_cognition_result.safety_validation.valid is False
+    assert result.brain_cognition_result.proposal_artifacts == []
+    assert result.organ_dispatch_result is not None
+    assert result.organ_dispatch_result.trace.executed_count == 0

@@ -23,7 +23,7 @@ not receive live-product credit.
 | Credential usability | 3.0 | Fake sealed store, scoped handles/leases, no raw secret persistence | No OS keychain/production vault backend | JARVIS, OpenClaw | Real OS credential backend with user-visible lease/use/revoke UX |
 | Operator UX | 4.5 | LLM cockpit CLI, mission status, timeline, replay | No installable tray/compact/full app | Agent Zero, OpenClaw, JARVIS | Lightweight app with fast onboarding, approvals, progress, kill, replay |
 | Installation/deployment | 1.5 | Repository and Python CLI only | No installer, OS service, tray, upgrade flow | OpenClaw, Agent Zero, JARVIS | One-command install and reliable local service/app lifecycle |
-| Reliability | 6.0 | 2,278 test functions and strong local invariant coverage; full core baseline 2681 passed, 2 failed, 4 skipped | Two open baseline failures plus limited live backend and long-duration evidence | Microsoft Agent Framework, Hermes | Repair open baseline failures, then run real-task reliability corpus, soak tests, crash recovery, repeatability target |
+| Reliability | 6.0 | 2,278 test functions and strong local invariant coverage; post-remediation full core suite 2686 passed, 0 failed, 3 skipped | Limited live backend and long-duration evidence | Microsoft Agent Framework, Hermes | Run real-task reliability corpus, soak tests, crash recovery, repeatability target |
 | Governance/proof | 9.0 | Authority envelope, Gate, receipts, FinalGate, telemetry, replay, kill/revocation | Larger adversarial FinalGate matrix still recommended | Sentinel | Expand cross-surface property tests while preserving current invariants |
 
 ## Current Aggregate
@@ -35,18 +35,19 @@ live_product_reach = primary limiter
 installation_and_operator_product = weakest area
 ```
 
-The full canonical core suite is not green:
+The post-baseline full canonical core suite is green:
 
 ```text
-2687 collected
-2681 passed
-2 failed
-4 skipped
+2689 collected
+2686 passed
+0 failed
+3 skipped
 ```
 
-This constrains the reliability score. The open failures are one stale
-historical truth assertion and one fail-closed browser-neural continuity defect
-where a mixed unsafe/safe proposal loses its safe replan reference.
+The dedicated green-gate remediation closed the stale historical truth
+assertion and the fail-closed browser-neural continuity defect. The reliability
+score remains unchanged because a green repository suite does not prove
+long-duration live task reliability.
 
 ## Exact 8/10 Certification Gates
 
