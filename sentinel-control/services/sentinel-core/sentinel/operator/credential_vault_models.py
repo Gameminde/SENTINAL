@@ -596,6 +596,7 @@ class SecretAccessGrant(CredentialVaultDataModel):
 
 class SecretAccessLease(CredentialVaultDataModel):
     lease_id: str = Field(default_factory=lambda: new_id("secret_lease"))
+    lease_ref_hash: str = ""
     grant_id: str
     mission_id: str
     secret_id: str
@@ -622,10 +623,17 @@ class SecretAccessLease(CredentialVaultDataModel):
         payload["lease_hash"] = ""
         return bool(stored) and stored == stable_hash(payload)
 
+    def safe_model_dump(self) -> dict[str, Any]:
+        payload = super().safe_model_dump()
+        raw_lease_id = str(payload.pop("lease_id", self.lease_id))
+        payload["lease_ref_hash"] = self.lease_ref_hash or stable_hash(raw_lease_id)
+        return payload
+
 
 class SecretCheckoutToken(CredentialVaultDataModel):
     checkout_token_id: str = Field(default_factory=lambda: new_id("secret_checkout"))
-    lease_id: str
+    lease_id: str | None = None
+    lease_ref_hash: str | None = None
     token_hash: str
     issued_at: datetime = Field(default_factory=vault_utc_now)
     expires_at: datetime
@@ -639,11 +647,19 @@ class SecretCheckoutToken(CredentialVaultDataModel):
             raise ValueError("secret checkout token cannot persist or materialize raw token values")
         return self
 
+    def safe_model_dump(self) -> dict[str, Any]:
+        payload = super().safe_model_dump()
+        raw_lease_id = payload.pop("lease_id", None) or self.lease_id
+        if raw_lease_id:
+            payload["lease_ref_hash"] = self.lease_ref_hash or stable_hash(raw_lease_id)
+        return payload
+
 
 class SecretCheckoutResult(CredentialVaultDataModel):
     checkout_result_id: str = Field(default_factory=lambda: new_id("secret_checkout_result"))
     mission_id: str
-    lease_id: str
+    lease_id: str | None = None
+    lease_ref_hash: str | None = None
     secret_handle: SecretHandle
     checkout_token: SecretCheckoutToken
     consumer: CredentialConsumerRef
@@ -663,6 +679,19 @@ class SecretCheckoutResult(CredentialVaultDataModel):
         payload = self.safe_model_dump()
         payload["result_hash"] = ""
         return self.model_copy(update={"result_hash": stable_hash(payload)})
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        payload = super().safe_model_dump()
+        raw_lease_id = payload.pop("lease_id", None) or self.lease_id
+        if raw_lease_id:
+            payload["lease_ref_hash"] = self.lease_ref_hash or stable_hash(raw_lease_id)
+        if isinstance(payload.get("checkout_token"), dict):
+            token = dict(payload["checkout_token"])
+            token_raw_lease_id = token.pop("lease_id", None)
+            if token_raw_lease_id:
+                token["lease_ref_hash"] = token.get("lease_ref_hash") or stable_hash(token_raw_lease_id)
+            payload["checkout_token"] = token
+        return payload
 
 
 class SecretFinalGateCertificate(CredentialVaultDataModel):
@@ -697,6 +726,7 @@ class SecretUseReceipt(CredentialVaultDataModel):
     scope_hash: str
     grant_id: str | None = None
     lease_id: str | None = None
+    lease_ref_hash: str | None = None
     checkout_token_id: str | None = None
     expiry: datetime | None = None
     revocation_status: str = "active"
@@ -727,6 +757,13 @@ class SecretUseReceipt(CredentialVaultDataModel):
         payload["receipt_hash"] = ""
         payload["finalgate_certificate"] = None
         return bool(stored) and stored == stable_hash(payload)
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        payload = super().safe_model_dump()
+        raw_lease_id = payload.pop("lease_id", None) or self.lease_id
+        if raw_lease_id:
+            payload["lease_ref_hash"] = self.lease_ref_hash or stable_hash(raw_lease_id)
+        return payload
 
 
 class SecretRedactionResult(CredentialVaultDataModel):

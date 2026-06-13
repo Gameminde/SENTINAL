@@ -21,10 +21,10 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 ## Current Snapshot
 
 ```text
-snapshot_date = 2026-06-12
-current_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
-previous_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
-next_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+snapshot_date = 2026-06-13
+current_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 doctrine = product power under provable authority
 ```
 
@@ -34,12 +34,12 @@ daemon/scheduler foundation, model amplification, skill/procedure fabric,
 explicit model routing, real channel adapter foundation, desktop sidecar,
 live-desktop monitoring foundation, realtime voice foundation, a durable
 credential vault / secret broker foundation, and governed account creation /
-login special-authority foundations.
+login plus sandbox spend / paper trading special-authority foundations.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
+sentinel-control/docs/reviews/PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
 ```
 
 The canonical state truth is:
@@ -363,6 +363,36 @@ production OAuth/OIDC token exchange = NOT_STARTED
 password manager / OS keychain live integration = NOT_STARTED
 ```
 
+### 17. Payment, Spend, And Trading Special Authority
+
+Sentinel now has a sandbox-first and paper-trading-first financial authority
+coordinator over the existing CredentialVault, AccountAuthority, MissionKernel,
+browser/desktop/voice/channel, telemetry, receipt, FinalGate, and replay spine.
+V1 supports financial planning, caps, velocity controls, recipient/merchant and
+instrument policy, checkpoints, idempotency, sandbox spend execution, paper
+trading execution, credential lease refs, receipts, FinalGate, telemetry, and
+replay. It does not execute live money or submit live broker orders.
+
+```text
+FinancialAuthorityRuntime = CLOSED / sandbox and paper-trading special-authority foundation
+financial modes = CLOSED / disabled, plan_only, sandbox_only, paper_trading_only, assisted spend/trade shapes
+spend planning and preview = CLOSED
+sandbox spend fake execution = CLOSED
+paper trade planning and fake execution = CLOSED
+budget/velocity/merchant/recipient/instrument policies = CLOSED
+MFA/SCA/KYC/subscription/refund/external-transfer checkpoints = CLOSED / no bypass
+payment idempotency and duplicate prevention = CLOSED
+CredentialVault payment method lease binding = CLOSED / hash-only persisted refs
+financial receipts and FinalGate = CLOSED
+financial replay = CLOSED / no payment/trade replay, no provider call
+voice/desktop/browser/channel/worker/skill/daemon/scheduler/memory/LLM direct financial approval = BLOCKED
+card testing / refund abuse / market manipulation / spoofing / wash trading = BLOCKED
+raw credential/payment card/token/provider-key/prompt/provider-response/reasoning persistence = BLOCKED
+live money execution = NOT_STARTED / locked special authority
+live broker order submission = NOT_STARTED / locked special authority
+payment provider / bank / broker live connectors = NOT_STARTED
+```
+
 ## What Sentinel Does Not Claim Yet
 
 Sentinel is powerful, but the README must not lie. These are still not started
@@ -376,7 +406,9 @@ production microphone/speaker live provider adapters = NOT_STARTED
 voice cloning or speaker biometrics = NOT_STARTED
 production installed desktop tray/service app = NOT_STARTED
 durable channel provider credential/session adapters = NOT_STARTED
-payment/spend/trading/security/device powers = NOT_STARTED
+live money payment/spend/trading execution = NOT_STARTED / locked special authority
+payment provider / bank / broker live connectors = NOT_STARTED
+security/device powers = NOT_STARTED
 platform app/operator cloud = NOT_STARTED
 provider fallback/AUTO = NOT_APPROVED
 vendor runtime integration = NOT_APPROVED
@@ -411,7 +443,7 @@ Use these files as the source of truth:
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
 sentinel-control/docs/roadmaps/SENTINEL_POWER_KERNEL_AND_ACTUATOR_FABRIC_ROADMAP.md
-sentinel-control/docs/reviews/ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
+sentinel-control/docs/reviews/PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
 ```
 
 For current implementation code, start here:
@@ -430,7 +462,7 @@ sentinel-control/services/sentinel-core/tests/
 Run the Sentinel core test slices from the repository root unless noted:
 
 ```powershell
-py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/test_account_creation_login_special_authority_v1.py sentinel-control/services/sentinel-core/tests/test_durable_credential_vault_secret_broker_v1.py -q
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/test_payment_spend_trading_special_authority_v1.py sentinel-control/services/sentinel-core/tests/test_account_creation_login_special_authority_v1.py sentinel-control/services/sentinel-core/tests/test_durable_credential_vault_secret_broker_v1.py -q
 py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel
 ```
 
@@ -481,18 +513,17 @@ current product direction and should not shape Sentinel architecture.
 ## Build Order From Here
 
 ```text
-1. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
-2. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
-3. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
-4. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
-5. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
-6. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
+1. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+2. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
+3. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
+4. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
+5. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
 ```
 
 Next implementation title:
 
 ```text
-PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 ```
 
 ## Hard Rules

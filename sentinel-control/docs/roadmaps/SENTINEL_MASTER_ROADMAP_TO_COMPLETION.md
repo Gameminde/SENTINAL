@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
-previous_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
-next_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+current_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -70,6 +70,7 @@ live desktop operator backend and system monitoring foundation with safe local s
 realtime voice and ambient operator foundation with Sentinel-owned voice runtime, provider descriptors, fake/injected audio backend, VAD/turn detection, partial/final transcripts, barge-in, kill words, command envelopes, ambient notification policy, voice-to-desktop proposals, receipts, FinalGate refs, telemetry, and replay without audio playback/provider calls/actions
 durable credential vault and secret broker foundation with local fake sealed store maturity, durable secret metadata, sealed hash refs, unlock sessions, scoped handles/leases, checkout token metadata, receipts, FinalGate certificates, telemetry, revocation/expiry/kill behavior, and replay without secret materialization
 account creation/login special-authority foundation with governed planning, CredentialVault lease binding, human checkpoints for CAPTCHA/MFA/OTP/passkey/KYC/terms, fake/injected login and sandbox account creation, session binding, receipts, FinalGate, telemetry, and replay without credential materialization or live provider calls
+payment/spend/trading special-authority foundation with sandbox spend planning/execution, paper trading planning/execution, caps, velocity, merchant/recipient/instrument policies, idempotency, checkpoints, CredentialVault payment method lease refs, receipts, FinalGate, telemetry, and replay without live money or broker orders
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
@@ -91,7 +92,8 @@ production live opt-in desktop adapter and installed OS tray/service sidecar
 production microphone/speaker adapters and live voice provider integrations
 production OS-keychain/cloud-vault/password-manager secret backend
 live public-site account/login automation and production OAuth/OIDC token exchange
-real account/payment/trading/security/device power
+live payment provider / bank / broker connectors and live money/trading execution
+real security/device power
 platform app/cloud
 ```
 
@@ -631,17 +633,26 @@ Exit:
 
 Purpose:
 
-- enable bounded financial action.
+- CLOSED: enable sandbox-first and paper-trading-first financial special
+  authority without live money by default.
 
 Core deliverables:
 
-- merchant/broker allowlists, caps, loss policy, double confirmation;
-- simulation/dry-run and independent pre-execution verification;
-- provider adapters, kill switch, reconciliation, and immutable receipts.
+- FinancialAuthorityRuntime / Store / ReplayBuilder;
+- spend planning, sandbox spend execution, payment descriptors, idempotency,
+  duplicate prevention, caps, velocity, merchant/recipient policy, and
+  operator checkpoints;
+- paper trading planning/execution, order tickets/previews, instrument/order
+  policy, margin/leverage/options blocks, and market abuse blocks;
+- CredentialVault payment method lease binding with hash-only persisted refs;
+- telemetry, receipts, FinalGate, kill/revocation, and replay without
+  re-execution.
 
 Exit:
 
-- approved bounded financial tasks complete without general spending authority.
+- CLOSED locally for sandbox spend and paper trading. Live provider, bank,
+  broker, card, transfer, and real-money execution remain NOT_STARTED /
+  locked special authority.
 
 ### Phase 16 - Security Testing Special Authority V1
 
@@ -1000,17 +1011,17 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 ```
 
 Required direction:
 
 ```text
-Build payment, spend, and trading special authority over the existing Sentinel
-authority, runtime, credential broker, account/session, telemetry, receipt,
-FinalGate, replay, browser, desktop, channel, and voice spine. Payment/trading
-workflows require explicit MissionAuthorityEnvelope grants, caps, allowlists,
-double confirmation, dry-run/simulation, reconciliation, kill/revocation, and
-safe terminal states; memory, voice, receipts, FinalGate, telemetry, and
-provider output remain evidence/context only, never permission.
+Build security testing special authority over the existing Sentinel authority,
+runtime, telemetry, receipt, FinalGate, replay, channel, desktop, browser,
+credential, account, and financial boundaries. Security work must require proof
+of target authorization and scope, strict method/rate/data/time bounds,
+evidence quarantine, kill/revocation, disclosure workflow, and safe terminal
+states; memory, voice, receipts, FinalGate, telemetry, and tool output remain
+evidence/context only, never permission.
 ```

@@ -5,13 +5,13 @@ Date: 2026-05-26
 Status: canonical strategic roadmap for moving Sentinel from controlled internal
 runtime to real-world controlled automation.
 
-## Current Execution Truth - 2026-06-12
+## Current Execution Truth - 2026-06-13
 
 ```text
-current_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
-previous_phase = DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1_LOCKED
-active_implementation_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
-next_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+current_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+active_implementation_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCKED
+next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -181,6 +181,12 @@ Already real:
   consumer, fake/injected sandbox account creation, CAPTCHA/MFA/OTP/passkey/KYC
   checkpoints, session binding, receipts, FinalGate, telemetry, and replay
   without credential materialization or live provider calls.
+- payment/spend/trading special-authority foundation with sandbox spend
+  planning/execution, paper trade planning/execution, caps, velocity,
+  merchant/recipient/instrument policy, checkpoints, payment idempotency,
+  duplicate prevention, CredentialVault payment method lease refs, receipts,
+  FinalGate, telemetry, and replay without live money, bank calls, payment
+  provider calls, or live broker orders.
 
 Still not enough for real-world power:
 
@@ -211,7 +217,9 @@ Still not enough for real-world power:
   backend only;
 - hidden always-on voice recorder, speaker biometric authentication, voice
   cloning, provider-owned tools, and voice-created authority = BLOCKED;
-- no spend/trading/broker adapters beyond fake or paper modes;
+- payment/spend/trading special authority = CLOSED / sandbox spend and paper-trading local runtime;
+- live money execution, payment provider/bank/broker connectors, and live
+  broker order submission = NOT_STARTED / locked special authority;
 - no durable EventBus/WAL as the operational black box;
 - unified observability telemetry/product-power metrics runtime = CLOSED / local runtime;
 - production telemetry service/cloud = NOT_STARTED;
@@ -244,7 +252,8 @@ LIVE_DESKTOP_OPERATOR_BACKEND_AND_SYSTEM_MONITORING_V1 = CLOSED
 REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = CLOSED
 DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 = CLOSED
 ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1 = CLOSED
-PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1 = NEXT
+PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1 = CLOSED
+SECURITY_TESTING_SPECIAL_AUTHORITY_V1 = NEXT
 ```
 
 ## Target Architecture
@@ -768,7 +777,7 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
+SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 ```
 
 Reason:
@@ -780,11 +789,12 @@ local daemon/scheduler foundation, model amplification, governed skills and
 procedures, explicit local/hardware/cost model routing, real channel adapter
 foundation, permissioned desktop sidecar/visual grounding, live desktop
 operator backend/system monitoring foundation, realtime voice/ambient operator
-foundation, durable credential vault/secret broker, and account creation/login
-special-authority foundation. Account/login is closed as local fake-injected
-sandbox authority with credential lease binding, checkpoints, receipts,
-FinalGate, telemetry, replay, and no raw secret persistence. The next step is
-payment/spend/trading special authority with caps, allowlists, double
-confirmation, dry-run/simulation, reconciliation, receipts, FinalGate,
-kill/revocation, and safe terminal states.
+foundation, durable credential vault/secret broker, account creation/login
+special authority, and payment/spend/trading special authority. Payment is
+closed only as sandbox spend and paper-trading local runtime with caps,
+allowlists, idempotency, CredentialVault lease refs, receipts, FinalGate,
+telemetry, replay, and no live money by default. The next step is security
+testing special authority with proof of authorization, strict scope/method/rate
+bounds, evidence quarantine, receipts, FinalGate, telemetry, kill/revocation,
+and safe terminal states.
 ```

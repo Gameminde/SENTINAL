@@ -10,6 +10,7 @@ from sentinel.operator.credential_vault_models import (
     CredentialConsumerKind,
     CredentialConsumerRef,
     CredentialScopePolicy,
+    CredentialUseRiskProfile,
     CredentialVaultConfig,
     CredentialVaultMaturity,
     HIGH_RISK_SECRET_KINDS,
@@ -41,6 +42,7 @@ from sentinel.operator.credential_vault_models import (
 )
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.store import MissionRunStore
+from sentinel.shared.models import new_id
 from sentinel.shared.safety_scanner import OrganSafetyScanCategory, scan_forbidden_payload_categorized
 from sentinel.telemetry import TelemetryDomain, TelemetryMetricKind, TelemetryMetricSample, TelemetrySourceSurface
 
@@ -73,7 +75,7 @@ class CredentialVaultStore:
             mission_id,
             event_type=event_type,
             safe_summary=safe_summary,
-            metadata=metadata or {},
+            metadata=_safe_event_metadata(metadata or {}),
             receipt_refs=receipt_refs or [],
             finalgate_certificate_refs=finalgate_certificate_refs or [],
         )
@@ -90,6 +92,21 @@ class CredentialVaultStore:
         return self._mission_store.mission_dir(mission_id, create=True) / "credential_vault"
 
 
+def _safe_event_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    safe: dict[str, Any] = {}
+    for key, value in metadata.items():
+        if str(key) in {"lease_id", "credential_lease_id"}:
+            safe[f"{key}_hash"] = stable_hash(value)
+            continue
+        probe = {key: value}
+        scan = scan_forbidden_payload_categorized(probe, path="$")
+        if scan[OrganSafetyScanCategory.ALL.value]:
+            safe[f"{key}_hash"] = stable_hash(value)
+        else:
+            safe[key] = value
+    return safe
+
+
 class CredentialVaultRuntime:
     """Sentinel-native credential metadata vault and scoped secret broker.
 
@@ -100,6 +117,7 @@ class CredentialVaultRuntime:
     def __init__(self, kernel: MissionKernel) -> None:
         self.kernel = kernel
         self.store = CredentialVaultStore(kernel.store)
+        self._lease_id_by_hash: dict[str, str] = {}
 
     def initialize_vault(self, *, mission_id: str, config: CredentialVaultConfig) -> CredentialVaultConfig:
         self.kernel.store.load_record(mission_id)
@@ -237,7 +255,7 @@ class CredentialVaultRuntime:
             mission_id,
             "secret_registered",
             "Secret metadata registered with fake sealed material ref.",
-            metadata={"secret_id": record.secret_id, "kind": record.kind.value, "metadata_hash": record.metadata_hash},
+            metadata={"secret_id": record.secret_id, "kind_hash": stable_hash(record.kind.value), "metadata_hash": record.metadata_hash},
         )
         self._record_metric(mission_id, TelemetryMetricKind.CREDENTIAL_VAULT_SECRET_COUNT, len(self._load_all(mission_id, "secrets", SecretMetadata)), "Credential vault secret count sample.")
         return record
@@ -257,7 +275,14 @@ class CredentialVaultRuntime:
     ) -> SecretAccessGrant:
         metadata = self._load_secret(mission_id, secret_id)
         self._assert_secret_available(metadata)
-        if metadata.kind in HIGH_RISK_SECRET_KINDS or metadata.kind in set(metadata.scope_policy.blocked_kinds):
+        special_authority_kind_allowed = (
+            metadata.kind in HIGH_RISK_SECRET_KINDS
+            and metadata.use_policy.risk_profile is CredentialUseRiskProfile.SPECIAL_AUTHORITY
+            and metadata.kind in set(metadata.use_policy.allowed_kinds)
+        )
+        if metadata.kind in HIGH_RISK_SECRET_KINDS and not special_authority_kind_allowed:
+            raise CredentialVaultRuntimeError("secret_kind_blocked")
+        if metadata.kind not in HIGH_RISK_SECRET_KINDS and metadata.kind in set(metadata.scope_policy.blocked_kinds):
             raise CredentialVaultRuntimeError("secret_kind_blocked")
         if purpose not in set(metadata.scope_policy.allowed_purposes) or purpose not in set(metadata.use_policy.allowed_purposes):
             raise CredentialVaultRuntimeError("purpose_not_allowed")
@@ -323,8 +348,11 @@ class CredentialVaultRuntime:
             mission_id=mission_id,
             secret_id=grant.secret_id,
             secret_handle=grant.secret_handle,
+            lease_ref_hash=stable_hash(new_lease_id := new_id("secret_lease")),
+            lease_id=new_lease_id,
             expires_at=vault_utc_now() + timedelta(seconds=ttl),
         ).with_hash()
+        self._lease_id_by_hash[lease.lease_ref_hash] = lease.lease_id
         self.store.write(mission_id, "leases", lease.lease_id, lease.safe_model_dump())
         self.store.append_event(
             mission_id,
@@ -390,12 +418,14 @@ class CredentialVaultRuntime:
             raise CredentialVaultRuntimeError("consumer_not_allowed")
         token = SecretCheckoutToken(
             lease_id=lease_id,
+            lease_ref_hash=stable_hash(lease_id),
             token_hash=stable_hash({"lease_id": lease_id, "mission_id": mission_id, "consumer_ref": consumer_ref}),
             expires_at=lease.expires_at,
         )
         result = SecretCheckoutResult(
             mission_id=mission_id,
             lease_id=lease_id,
+            lease_ref_hash=stable_hash(lease_id),
             secret_handle=lease.secret_handle,
             checkout_token=token,
             consumer=CredentialConsumerRef(consumer_kind=consumer_kind, consumer_ref=consumer_ref),
@@ -453,7 +483,10 @@ class CredentialVaultRuntime:
         )
         if checkout is None:
             raise CredentialVaultRuntimeError("secret_checkout_not_found")
-        lease = self._load_one(mission_id, "leases", checkout.lease_id, SecretAccessLease)
+        lease_id = checkout.lease_id or self._lease_id_by_hash.get(str(checkout.lease_ref_hash or ""))
+        if not lease_id:
+            raise CredentialVaultRuntimeError("secret_lease_required")
+        lease = self._load_one(mission_id, "leases", lease_id, SecretAccessLease)
         grant = self._load_one(mission_id, "grants", lease.grant_id, SecretAccessGrant)
         metadata = self._load_secret(mission_id, lease.secret_id)
         receipt = SecretUseReceipt(
@@ -470,6 +503,7 @@ class CredentialVaultRuntime:
             revocation_status="revoked" if lease.revoked_at else "active",
             policy_hash=metadata.use_policy.policy_hash,
             status=status,
+            lease_ref_hash=stable_hash(lease.lease_id),
         ).with_hash()
         decision = SecretFinalGateDecision.USED if status == "used" else SecretFinalGateDecision.FAILED
         finalgate = SecretFinalGateCertificate(
@@ -643,13 +677,27 @@ class CredentialVaultRuntime:
         return secret
 
     def _load_one(self, mission_id: str, category: str, item_id: str, model: Any) -> Any:
-        return model.model_validate_json(self.store.item_path(mission_id, category, item_id).read_text(encoding="utf-8"))
+        item = model.model_validate_json(self.store.item_path(mission_id, category, item_id).read_text(encoding="utf-8"))
+        if category == "leases" and isinstance(item, SecretAccessLease):
+            lease_ref_hash = stable_hash(item_id)
+            self._lease_id_by_hash[lease_ref_hash] = item_id
+            return item.model_copy(update={"lease_id": item_id, "lease_ref_hash": lease_ref_hash})
+        return item
 
     def _load_all(self, mission_id: str, category: str, model: Any) -> list[Any]:
         path = self.store.root(mission_id) / category
         if not path.exists():
             return []
-        return [model.model_validate_json(item.read_text(encoding="utf-8")) for item in sorted(path.glob("*.json"))]
+        items = [model.model_validate_json(item.read_text(encoding="utf-8")) for item in sorted(path.glob("*.json"))]
+        if category == "leases":
+            rendered: list[Any] = []
+            for item in items:
+                if isinstance(item, SecretAccessLease) and item.lease_ref_hash in self._lease_id_by_hash:
+                    rendered.append(item.model_copy(update={"lease_id": self._lease_id_by_hash[item.lease_ref_hash]}))
+                else:
+                    rendered.append(item)
+            return rendered
+        return items
 
     def _reject_secret_payload(self, payload: dict[str, Any]) -> None:
         scan = scan_forbidden_payload_categorized(payload, path="$")

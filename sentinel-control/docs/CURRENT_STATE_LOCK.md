@@ -1,8 +1,105 @@
 # Current State Lock
 
+## Payment Spend Trading Special Authority V1 - LOCKED
+
+Recorded at: 2026-06-13
+
+This section is the canonical current state. It supersedes the Account Creation
+And Login Special Authority lock as top-level execution truth. Sentinel now has
+a Sentinel-native payment/spend/trading special-authority coordinator over the
+existing LLM cockpit, MissionKernel, MissionRunStore, MissionDaemonRuntime,
+WorkerFleetRuntime, ModelAmplificationHarness, GovernedSkillFabric,
+LocalModelRouter, RealChannelAdapters, DesktopSidecar, LiveDesktopBackend,
+RealtimeVoiceRuntime, CredentialVaultRuntime, AccountAuthorityRuntime,
+TelemetryKernel, Persistent Semantic Memory refs, PowerRuntime/AgentRuntime
+bridge boundaries, MissionAuthorityEnvelope, Gate, receipts, FinalGate, and
+replay spine.
+
+It is not live money automation, not a bank/broker/payment provider connector,
+not unauthorized purchase/transfer/trading power, not card testing, not refund
+or chargeback abuse, not SCA/MFA/KYC bypass, not market manipulation, not
+provider fallback/AUTO, and not a vendor runtime bridge. V1 is sandbox-first,
+paper-trading-first, approval-heavy, cap-limited, idempotency-safe,
+receipt-bound, replay-safe, and no-live-money-by-default.
+
+```text
+current_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCKED
+previous_phase = ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1_LOCKED
+next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Payment/Spend/Trading Runtime Truth
+
+```text
+FinancialAuthorityConfig / FinancialAuthorityRuntime / FinancialAuthorityStore = CLOSED
+FinancialAuthorityMode = CLOSED / disabled, plan_only, sandbox_only, paper_trading_only, assisted spend/trade shapes
+SpendRequest / SpendPlan / SpendPreview / SpendResult / SpendReceipt = CLOSED
+PaymentIntent / Authorization / Capture / Refund / Dispute descriptors = CLOSED / metadata only
+PaymentIdempotencyKey / FinancialIdempotencyRecord / DuplicatePreventionRecord = CLOSED
+Transfer models = CLOSED / descriptor and planning shape only
+TradingRequest / TradingPlan / TradeOrderTicket / TradeOrderPreview / TradeOrderResult / TradeOrderReceipt = CLOSED
+PaperTradingSession / PaperTradingResult = CLOSED / fake paper execution only
+FinancialBudgetPolicy / VelocityPolicy / MerchantPolicy / RecipientPolicy / InstrumentPolicy / MarketPolicy = CLOSED
+FinancialRiskLimit / FinancialApprovalPolicy / HumanConfirmation = CLOSED
+FinancialCheckpoint = CLOSED / MFA/SCA/KYC/subscription/refund/external-transfer checkpoint only
+CredentialVault payment method lease binding = CLOSED / hash-only persisted refs
+FinancialFinalGateCertificate = CLOSED
+FinancialReplayView / FinancialAuthorityReplayBuilder = CLOSED / no re-execution
+FinancialTelemetrySummary and telemetry events/metrics = CLOSED
+sandbox spend fake execution = CLOSED
+paper trading fake execution = CLOSED
+voice/desktop/browser/channel/skill/worker/daemon/scheduler/memory/LLM direct financial approval = BLOCKED
+memory/receipt/telemetry/FinalGate/replay as authority = BLOCKED
+card testing / refund abuse / chargeback abuse / sanctions evasion = BLOCKED
+market manipulation / spoofing / layering / wash trading / pump-and-dump = BLOCKED
+raw payment method/card/bank/broker/provider-key persistence = BLOCKED
+raw prompt/provider response/reasoning persistence = BLOCKED
+live money execution = NOT_STARTED / locked special authority
+live broker order submission = NOT_STARTED / locked special authority
+payment provider / bank / broker live connectors = NOT_STARTED
+security/device power = NOT_STARTED / next starts security special authority
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Payment/Spend/Trading Honest V1 Limits
+
+```text
+V1 is a local same-process sandbox and paper-trading special-authority foundation
+V1 does not call live payment providers, banks, brokers, exchanges, payment forms, or real checkout endpoints
+V1 does not transfer funds, capture payment, submit live broker orders, or hold provider keys
+V1 does not automate MFA/SCA/KYC, password managers, refund disputes, chargebacks, or tax/legal compliance
+V1 persists hash-only credential lease refs and never persists raw payment method material
+replay reconstructs financial authority records and never executes payment, transfer, or trade actions
+```
+
+### Payment/Spend/Trading Artifacts
+
+```text
+sentinel-control/docs/reviews/PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_RESEARCH_AND_DESIGN.md
+sentinel-control/services/sentinel-core/sentinel/operator/financial_authority_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/financial_authority.py
+sentinel-control/services/sentinel-core/sentinel/operator/financial_authority_replay.py
+sentinel-control/services/sentinel-core/sentinel/operator/credential_vault.py
+sentinel-control/services/sentinel-core/sentinel/operator/credential_vault_models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/models.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py
+sentinel-control/services/sentinel-core/sentinel/telemetry/store.py
+sentinel-control/services/sentinel-core/tests/test_payment_spend_trading_special_authority_v1.py
+sentinel-control/docs/reviews/PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Account Creation And Login Special Authority V1 - LOCKED
 
 Recorded at: 2026-06-12
+
+This section is historical. It superseded the Durable Credential Vault And
+Secret Broker lock as top-level execution truth and was then superseded by the
+Payment Spend Trading Special Authority lock.
 
 This section is the canonical current state. It supersedes the Durable
 Credential Vault And Secret Broker lock as top-level execution truth. Sentinel

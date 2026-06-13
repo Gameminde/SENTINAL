@@ -9,7 +9,9 @@ from typing import Any
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.telemetry.models import (
     TelemetryEventRecord,
+    TelemetryEventKind,
     TelemetryMetricSample,
+    TelemetryMetricKind,
     TelemetrySnapshot,
 )
 
@@ -132,6 +134,10 @@ class TelemetryStore:
                     for key in ("provider_id", "backend_id", "model_id")
                     if metric.value.get(key) is not None
                 }
+        for event_kind in TelemetryEventKind:
+            event_counts_by_kind.setdefault(event_kind.value, 0)
+        for metric_kind in TelemetryMetricKind:
+            metric_counts_by_kind.setdefault(metric_kind.value, 0)
         return TelemetrySnapshot(
             root_path=str(self.root),
             telemetry_available=True,

@@ -1560,6 +1560,33 @@ def _map_mission_event_kind(event_type: str) -> TelemetryEventKind:
         "account_session_bound": TelemetryEventKind.ACCOUNT_SESSION_BOUND,
         "account_flow_finalgate_certified": TelemetryEventKind.ACCOUNT_FLOW_FINALGATE_CERTIFIED,
         "account_flow_replay_built": TelemetryEventKind.ACCOUNT_FLOW_REPLAY_BUILT,
+        "financial_authority_initialized": TelemetryEventKind.FINANCIAL_AUTHORITY_INITIALIZED,
+        "financial_action_requested": TelemetryEventKind.FINANCIAL_ACTION_REQUESTED,
+        "financial_action_planned": TelemetryEventKind.FINANCIAL_ACTION_PLANNED,
+        "financial_action_blocked": TelemetryEventKind.FINANCIAL_ACTION_BLOCKED,
+        "financial_checkpoint_created": TelemetryEventKind.FINANCIAL_CHECKPOINT_CREATED,
+        "financial_approval_required": TelemetryEventKind.FINANCIAL_APPROVAL_REQUIRED,
+        "financial_approval_completed": TelemetryEventKind.FINANCIAL_APPROVAL_COMPLETED,
+        "spend_requested": TelemetryEventKind.SPEND_REQUESTED,
+        "spend_preview_created": TelemetryEventKind.SPEND_PREVIEW_CREATED,
+        "spend_blocked": TelemetryEventKind.SPEND_BLOCKED,
+        "spend_sandbox_executed": TelemetryEventKind.SPEND_SANDBOX_EXECUTED,
+        "spend_completed": TelemetryEventKind.SPEND_COMPLETED,
+        "spend_failed": TelemetryEventKind.SPEND_FAILED,
+        "payment_intent_created": TelemetryEventKind.PAYMENT_INTENT_CREATED,
+        "payment_idempotency_reserved": TelemetryEventKind.PAYMENT_IDEMPOTENCY_RESERVED,
+        "payment_duplicate_blocked": TelemetryEventKind.PAYMENT_DUPLICATE_BLOCKED,
+        "transfer_requested": TelemetryEventKind.TRANSFER_REQUESTED,
+        "transfer_preview_created": TelemetryEventKind.TRANSFER_PREVIEW_CREATED,
+        "transfer_blocked": TelemetryEventKind.TRANSFER_BLOCKED,
+        "trade_requested": TelemetryEventKind.TRADE_REQUESTED,
+        "trade_order_preview_created": TelemetryEventKind.TRADE_ORDER_PREVIEW_CREATED,
+        "trade_order_blocked": TelemetryEventKind.TRADE_ORDER_BLOCKED,
+        "paper_trade_executed": TelemetryEventKind.PAPER_TRADE_EXECUTED,
+        "trade_order_completed": TelemetryEventKind.TRADE_ORDER_COMPLETED,
+        "trade_order_failed": TelemetryEventKind.TRADE_ORDER_FAILED,
+        "financial_kill_switch_triggered": TelemetryEventKind.FINANCIAL_KILL_SWITCH_TRIGGERED,
+        "financial_replay_built": TelemetryEventKind.FINANCIAL_REPLAY_BUILT,
     }
     return mapping.get(event_type, TelemetryEventKind.ORGAN_CALLED)
 
@@ -1575,6 +1602,15 @@ def _mission_event_family(event_type: str) -> str:
         return "credential_vault"
     if event_type.startswith("account_"):
         return "account_authority"
+    if (
+        event_type.startswith("financial_")
+        or event_type.startswith("spend_")
+        or event_type.startswith("payment_")
+        or event_type.startswith("transfer_")
+        or event_type.startswith("trade_")
+        or event_type.startswith("paper_trade_")
+    ):
+        return "financial_authority"
     if event_type.startswith("channel_"):
         return "channel_adapter"
     if event_type.startswith("model_router_"):
