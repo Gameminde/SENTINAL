@@ -1,7 +1,7 @@
 # Sentinel Master Roadmap To Completion
 
-Canonical lock date: 2026-06-08
-Baseline HEAD: `987e2ee7f8f930fa38f10c0da66056a6db275141`
+Canonical lock date: 2026-06-14
+Baseline HEAD before this docs-only lock: `e4128483e519ef6dcd9509db6bd6e0b2f3a290f6`
 
 This is the official anti-drift roadmap. Historical phase reports remain valid
 evidence for their scoped locks, but they do not override this document's
@@ -37,11 +37,19 @@ provable.
 Current state:
 
 ```text
-current_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
-next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+current_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 roadmap_doctrine = product power under provable authority
 ```
+
+The active strategy is now the
+`SENTINEL_REAL_WORLD_POWER_BASELINE_AND_CONVERGENCE_PROGRAM`. The task-level
+baseline measures current real power at `5.4 / 10`: Sentinel's authority,
+proof, and local runtime spine are strong, but broad live backend reach and a
+production operator product remain limited. The convergence roadmap is the
+canonical active build sequence. Security Testing Special Authority remains
+future work and is deferred.
 
 Real now:
 
@@ -171,6 +179,30 @@ No layer may create a second authority path.
 
 ## 5. Master Build Sequence
 
+The historical completion sequence below records how the current Sentinel
+spine was built and which future capability families remain. It no longer
+defines the active next implementation order.
+
+Active convergence sequence:
+
+```text
+1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+2. Desktop real control and monitoring
+3. Realtime voice backend
+4. One production-quality real channel connector
+5. Real OS credential backend
+6. OS service/tray and lightweight app
+7. Cross-domain real-world mission gauntlet
+```
+
+Canonical active convergence roadmap:
+
+```text
+sentinel-control/docs/roadmaps/SENTINEL_REAL_WORLD_POWER_CONVERGENCE_ROADMAP.md
+```
+
+Historical/future capability sequence:
+
 ```text
 0. MASTER_ROADMAP_TO_COMPLETION_LOCK
 1. PERSISTENT_SEMANTIC_MEMORY_V1
@@ -188,7 +220,7 @@ No layer may create a second authority path.
 13. DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1
 14. ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1
 15. PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1
-16. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+16. SECURITY_TESTING_SPECIAL_AUTHORITY_V1 (DEFERRED / NOT_STARTED)
 17. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
 18. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
 19. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
@@ -659,6 +691,8 @@ Exit:
 
 ### Phase 16 - Security Testing Special Authority V1
 
+Status: `DEFERRED / NOT_STARTED`. This is not the active next phase.
+
 Purpose:
 
 - enable authorized defensive testing.
@@ -1014,17 +1048,16 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 ```
 
 Required direction:
 
 ```text
-Build security testing special authority over the existing Sentinel authority,
-runtime, telemetry, receipt, FinalGate, replay, channel, desktop, browser,
-credential, account, and financial boundaries. Security work must require proof
-of target authorization and scope, strict method/rate/data/time bounds,
-evidence quarantine, kill/revocation, disclosure workflow, and safe terminal
-states; memory, voice, receipts, FinalGate, telemetry, and tool output remain
-evidence/context only, never permission.
+Convert existing bounded coding/workspace and browser capabilities into
+representative end-to-end live task power. Reuse the existing authority,
+MissionKernel, workflow/replan, daemon, workers, harness, memory, telemetry,
+receipts, FinalGate, replay, and kill/revocation spine. Measure task success,
+duration, interventions, recovery, proof completeness, and operator
+visibility. Add no new actuator family or special authority.
 ```

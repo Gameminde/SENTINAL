@@ -5,26 +5,27 @@ Date: 2026-05-26
 Status: canonical strategic roadmap for moving Sentinel from controlled internal
 runtime to real-world controlled automation.
 
-## Current Execution Truth - 2026-06-13
+## Current Execution Truth - 2026-06-14
 
 ```text
-current_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
-active_implementation_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
-next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+current_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+active_implementation_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 roadmap_doctrine = product power under provable authority
 ```
 
-Deep Audit global invariants and power truth reconciliation is a safety,
-code-quality, and truth-reconciliation lock, not a new actuator phase.
-Payment/spend/trading remains CLOSED as the latest product-power phase;
-Security Testing Special Authority remains the next canonical implementation
-phase.
+The baseline and AgentLab task audit is a measurement, competitive-harvest, and
+roadmap-reconciliation lock, not a new actuator phase. It starts the
+real-world-power convergence program: existing foundations must now become
+demonstrated end-to-end user power before Sentinel adds more special-authority
+or actuator families. Security Testing Special Authority remains deferred.
 
 Canonical roadmap:
 
 ```text
 sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
+sentinel-control/docs/roadmaps/SENTINEL_REAL_WORLD_POWER_CONVERGENCE_ROADMAP.md
 ```
 
 This actuator-fabric roadmap remains the historical and architectural record
@@ -259,7 +260,9 @@ REALTIME_VOICE_AND_AMBIENT_OPERATOR_V1 = CLOSED
 DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 = CLOSED
 ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1 = CLOSED
 PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1 = CLOSED
-SECURITY_TESTING_SPECIAL_AUTHORITY_V1 = NEXT
+REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT = LOCKED
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER = NEXT
+SECURITY_TESTING_SPECIAL_AUTHORITY_V1 = DEFERRED / NOT_STARTED
 ```
 
 ## Target Architecture
@@ -783,24 +786,17 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 ```
 
 Reason:
 
 ```text
-Sentinel now has locked durable semantic memory, durable workflow/replan,
-local telemetry/product-power metrics, governed Worker Fleet, the production
-local daemon/scheduler foundation, model amplification, governed skills and
-procedures, explicit local/hardware/cost model routing, real channel adapter
-foundation, permissioned desktop sidecar/visual grounding, live desktop
-operator backend/system monitoring foundation, realtime voice/ambient operator
-foundation, durable credential vault/secret broker, account creation/login
-special authority, and payment/spend/trading special authority. Payment is
-closed only as sandbox spend and paper-trading local runtime with caps,
-allowlists, idempotency, CredentialVault lease refs, receipts, FinalGate,
-telemetry, replay, and no live money by default. The next step is security
-testing special authority with proof of authorization, strict scope/method/rate
-bounds, evidence quarantine, receipts, FinalGate, telemetry, kill/revocation,
-and safe terminal states.
+Sentinel has a strong governed local runtime and multiple mature foundations,
+but the task-level baseline measures overall real-world product power at
+5.4 / 10 because live external backend reach and productized end-to-end task
+proof remain limited. The next step is to converge the already-real bounded
+workspace, shell, harness, and browser paths into representative coding and
+browser missions with measured recovery, interventions, receipts, replay, and
+kill behavior. No new actuator family or special authority is required.
 ```

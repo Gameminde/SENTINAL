@@ -1,5 +1,60 @@
 # Current State Lock
 
+## Real-World Power Baseline And AgentLab Task Audit - LOCKED
+
+Recorded at: 2026-06-14
+
+This section is the canonical current state. It supersedes the Deep Audit
+Global Invariants And Power Truth Reconciliation lock as top-level strategic
+truth. It adds no runtime capability and starts no new special authority.
+
+The lock inventories Sentinel at task level, runs a safe representative
+gauntlet, compares current task power with AgentLab source-only evidence,
+defines evidence-bound product-power scores and 8/10 gates, and changes the
+active program from horizontal capability expansion to real-world power
+convergence.
+
+```text
+current_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+roadmap_doctrine = product power under provable authority
+```
+
+### Baseline Truth
+
+```text
+overall_real_world_product_power = 5.4 / 10
+governance_and_proof = strong
+real_bounded_live_power = browser local fixture, workspace/filesystem, allowlisted shell
+real_local_governed_power = mission, workflow, replan, workers, daemon, memory, telemetry, proof
+injected_or_fake_foundations = channels, desktop, voice, account/login
+sandbox_or_paper_foundations = finance
+production_operator_app = NOT_STARTED
+AgentLab = SOURCE_ONLY
+full_core_suite = NOT_GREEN / 2681 passed, 2 failed, 4 skipped
+stale_historical_truth_test = OPEN
+mixed_unsafe_safe_browser_neural_ref_continuity = OPEN / fail-closed
+Security Testing Special Authority V1 = DEFERRED / NOT_STARTED
+new execution surface = NOT_STARTED
+new special authority = NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Baseline And Convergence Artifacts
+
+```text
+sentinel-control/docs/reviews/SENTINEL_REAL_WORLD_POWER_BASELINE.md
+sentinel-control/docs/reviews/SENTINEL_AGENTLAB_TASK_LEVEL_COMPETITIVE_MATRIX.md
+sentinel-control/docs/reviews/SENTINEL_PRODUCT_POWER_SCORECARD.md
+sentinel-control/docs/roadmaps/SENTINEL_REAL_WORLD_POWER_CONVERGENCE_ROADMAP.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap and convergence roadmap are canonical.
+
 ## Sentinel Deep Audit Global Invariants And Power Truth Reconciliation - LOCKED
 
 Recorded at: 2026-06-13

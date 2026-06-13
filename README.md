@@ -21,10 +21,10 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 ## Current Snapshot
 
 ```text
-snapshot_date = 2026-06-13
-current_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
-next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+snapshot_date = 2026-06-14
+current_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 doctrine = product power under provable authority
 ```
 
@@ -35,14 +35,16 @@ explicit model routing, real channel adapter foundation, desktop sidecar,
 live-desktop monitoring foundation, realtime voice foundation, a durable
 credential vault / secret broker foundation, and governed account creation /
 login plus sandbox spend / paper trading special-authority foundations. The
-latest audit lock reconciles current power truth and adds fail-closed certified
-telemetry gates before material financial/account/channel execution side
-effects.
+latest baseline lock measures that power honestly at task level: governance and
+local runtime are strong, real bounded browser/workspace/shell power exists,
+while broad live external reach and a production operator app remain limited.
+The active program now converts existing foundations into demonstrated
+real-world power before adding more special-authority surfaces.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCK_REPORT.md
 ```
 
 The canonical state truth is:
@@ -446,7 +448,8 @@ Use these files as the source of truth:
 sentinel-control/docs/CURRENT_STATE_LOCK.md
 sentinel-control/docs/roadmaps/SENTINEL_MASTER_ROADMAP_TO_COMPLETION.md
 sentinel-control/docs/roadmaps/SENTINEL_POWER_KERNEL_AND_ACTUATOR_FABRIC_ROADMAP.md
-sentinel-control/docs/reviews/PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCK_REPORT.md
+sentinel-control/docs/roadmaps/SENTINEL_REAL_WORLD_POWER_CONVERGENCE_ROADMAP.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCK_REPORT.md
 ```
 
 For current implementation code, start here:
@@ -516,18 +519,25 @@ current product direction and should not shape Sentinel architecture.
 ## Build Order From Here
 
 ```text
-1. SECURITY_TESTING_SPECIAL_AUTHORITY_V1
-2. ELECTRONICS_DEVICE_CONTROL_AND_IOT_ORGAN_V1
-3. BUSINESS_AUTOMATION_PLAYBOOKS_AND_MARKETPLACE_V1
-4. SENTINEL_PLATFORM_APP_AND_OPERATOR_CLOUD_V1
-5. FINAL_CAPABILITY_GAUNTLET_AND_RELEASE_CERTIFICATION
+1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+2. Desktop real control and monitoring
+3. Realtime voice backend
+4. One production-quality real channel connector
+5. Real OS credential backend
+6. OS service/tray and lightweight app
+7. Cross-domain real-world mission gauntlet
 ```
 
 Next implementation title:
 
 ```text
-SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
 ```
+
+`SECURITY_TESTING_SPECIAL_AUTHORITY_V1` and other new special-authority or
+actuator-family phases are deferred while this convergence program proves the
+usefulness, recovery, proof completeness, and operator experience of powers
+Sentinel already owns.
 
 ## Hard Rules
 
