@@ -114,6 +114,12 @@ class WorkerFleetRuntime:
                         )
                         run.status = WorkerFleetRunStatus.KILLED
                         run.blocked_reason = "worker_killed"
+                        self._stop_outstanding_futures(
+                            mission_id=mission_id,
+                            run_id=run.worker_fleet_run_id,
+                            futures=futures,
+                            reason="worker_killed",
+                        )
                         break
                     ready_tasks = [
                         task
@@ -139,7 +145,12 @@ class WorkerFleetRuntime:
                             run.status = WorkerFleetRunStatus.BLOCKED
                             run.blocked_reason = "worker_authority_derivation_failed"
                             pending_tasks = {}
-                            futures.clear()
+                            self._stop_outstanding_futures(
+                                mission_id=mission_id,
+                                run_id=run.worker_fleet_run_id,
+                                futures=futures,
+                                reason="worker_authority_derivation_failed",
+                            )
                             break
                         context = WorkerExecutionContext(
                             worker_id=f"{run.worker_fleet_run_id}:{task.task_id}",
@@ -191,7 +202,12 @@ class WorkerFleetRuntime:
                                 task_id=context.task_id,
                             )
                             pending_tasks.clear()
-                            futures.clear()
+                            self._stop_outstanding_futures(
+                                mission_id=mission_id,
+                                run_id=run.worker_fleet_run_id,
+                                futures=futures,
+                                reason="worker_failed",
+                            )
                             break
                         normalized, validation_reasons = self._validate_worker_result(context, result)
                         if normalized is None:
@@ -213,7 +229,12 @@ class WorkerFleetRuntime:
                             run.status = WorkerFleetRunStatus.BLOCKED
                             run.blocked_reason = "worker_result_contract_rejected"
                             pending_tasks.clear()
-                            futures.clear()
+                            self._stop_outstanding_futures(
+                                mission_id=mission_id,
+                                run_id=run.worker_fleet_run_id,
+                                futures=futures,
+                                reason="worker_result_contract_rejected",
+                            )
                             break
                         run.worker_results.append(normalized)
                         self._emit_worker_completed(mission_id, run.worker_fleet_run_id, normalized)
@@ -237,19 +258,34 @@ class WorkerFleetRuntime:
                             run.status = WorkerFleetRunStatus.BLOCKED
                             run.blocked_reason = "worker_conflict_detected"
                             pending_tasks.clear()
-                            futures.clear()
+                            self._stop_outstanding_futures(
+                                mission_id=mission_id,
+                                run_id=run.worker_fleet_run_id,
+                                futures=futures,
+                                reason="worker_conflict_detected",
+                            )
                             break
                         if decision.outcome is WorkerMergeOutcome.REJECTED:
                             run.status = WorkerFleetRunStatus.BLOCKED
                             run.blocked_reason = "worker_result_rejected"
                             pending_tasks.clear()
-                            futures.clear()
+                            self._stop_outstanding_futures(
+                                mission_id=mission_id,
+                                run_id=run.worker_fleet_run_id,
+                                futures=futures,
+                                reason="worker_result_rejected",
+                            )
                             break
                         if decision.outcome is WorkerMergeOutcome.NEEDS_RETRY:
                             run.status = WorkerFleetRunStatus.BLOCKED
                             run.blocked_reason = "worker_retry_required"
                             pending_tasks.clear()
-                            futures.clear()
+                            self._stop_outstanding_futures(
+                                mission_id=mission_id,
+                                run_id=run.worker_fleet_run_id,
+                                futures=futures,
+                                reason="worker_retry_required",
+                            )
                             break
                     if run.status in {WorkerFleetRunStatus.BLOCKED, WorkerFleetRunStatus.FAILED, WorkerFleetRunStatus.KILLED}:
                         break
@@ -606,6 +642,65 @@ class WorkerFleetRuntime:
     def _persist_run(self, run: WorkerFleetRun) -> None:
         path = self._worker_fleet_path(run.mission_id, run.worker_fleet_run_id)
         self._kernel.store.atomic_write_json(path, run.safe_model_dump())
+
+    def _stop_outstanding_futures(
+        self,
+        *,
+        mission_id: str,
+        run_id: str,
+        futures: dict[Future[WorkerResult], WorkerExecutionContext],
+        reason: str,
+    ) -> None:
+        if not futures:
+            return
+        outstanding = list(futures.items())
+        futures.clear()
+        running: list[Future[WorkerResult]] = []
+        for future, context in outstanding:
+            cancelled = future.cancel()
+            self._append_worker_event(
+                mission_id,
+                event_type="worker_killed",
+                safe_summary=f"Worker {context.task_id} stopped after fleet terminal state: {reason}.",
+                run_id=run_id,
+                worker_id=context.worker_id,
+                task_id=context.task_id,
+            )
+            self._emit_worker_event(
+                mission_id,
+                event_type="worker_killed",
+                safe_summary=f"Worker {context.task_id} stopped after fleet terminal state.",
+                run_id=run_id,
+                worker_id=context.worker_id,
+                task_id=context.task_id,
+            )
+            if not cancelled and not future.done():
+                running.append(future)
+        if running:
+            wait(running)
+        for future, context in outstanding:
+            if future.cancelled():
+                continue
+            if future.done():
+                try:
+                    future.result()
+                except Exception as exc:  # noqa: BLE001
+                    self._append_worker_event(
+                        mission_id,
+                        event_type="worker_failed",
+                        safe_summary=f"Stopped worker {context.task_id} failed while draining: {exc.__class__.__name__}.",
+                        run_id=run_id,
+                        worker_id=context.worker_id,
+                        task_id=context.task_id,
+                    )
+                    self._emit_worker_event(
+                        mission_id,
+                        event_type="worker_failed",
+                        safe_summary=f"Stopped worker {context.task_id} failed while draining: {exc.__class__.__name__}.",
+                        run_id=run_id,
+                        worker_id=context.worker_id,
+                        task_id=context.task_id,
+                    )
 
     def _worker_fleet_root(self, mission_id: str) -> Path:
         return self._kernel.store.mission_dir(mission_id, create=True) / "worker_fleet"

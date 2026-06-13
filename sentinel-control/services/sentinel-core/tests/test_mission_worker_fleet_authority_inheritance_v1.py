@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ from sentinel.operator.worker_models import (
     WorkerDeadline,
     WorkerEvidencePacket,
     WorkerExecutionMode,
+    WorkerFleetConfig,
     WorkerFleetRunStatus,
     WorkerMergeOutcome,
     WorkerResult,
@@ -244,6 +246,46 @@ def test_worker_exception_path_does_not_persist_raw_exception_or_secret(tmp_path
     assert run.blocked_reason == "worker_failed:RuntimeError"
     assert "raw-worker-secret" not in payload
     assert "raw-worker-secret" not in "\n".join(event.safe_summary for event in kernel.store.load_events(mission_id))
+
+
+def test_worker_fleet_records_outstanding_future_cancellation_after_authority_failure(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel)
+    parent = _parent_envelope(mission_id)
+    fast_task = _task("worker_fast")
+    slow_task = _task("worker_slow")
+    blocked_task = _task("worker_blocked_child", actions=["share"])
+    blocked_task = blocked_task.model_copy(update={"depends_on": ["worker_fast"]})
+    executed: list[str] = []
+
+    def executor(context):
+        executed.append(context.task_id)
+        if context.task_id == "worker_slow":
+            time.sleep(0.1)
+        return _worker_result(context, safe_summary=f"{context.task_id} completed.")
+
+    run = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=parent,
+        spawn_request=WorkerSpawnRequest(
+            mission_id=mission_id,
+            requested_by="operator",
+            tasks=[fast_task, slow_task, blocked_task],
+            safe_reason="Prove outstanding workers are handled when a child is blocked.",
+            config=WorkerFleetConfig(max_workers=3),
+        ),
+        worker_executor=executor,
+    )
+
+    events = kernel.store.load_events(mission_id)
+    assert run.status is WorkerFleetRunStatus.BLOCKED
+    assert run.blocked_reason == "worker_authority_derivation_failed"
+    assert "worker_slow" in executed
+    assert any(
+        event.event_type == "worker_killed"
+        and event.metadata.get("task_id") == "worker_slow"
+        for event in events
+    )
 
 
 def test_power_runtime_worker_requires_explicit_authorization(tmp_path: Path) -> None:

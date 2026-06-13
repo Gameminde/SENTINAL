@@ -31,6 +31,7 @@ from sentinel.agent.organs.organ_dispatch import _build_l2_executor_contract
 from sentinel.agent.organs.proposal_bridge import OrganProposalKind
 from sentinel.agent.organs.proposal_bridge import FileOperationOrganCandidate, OrganCandidateAuthorityClass, OrganCandidateRiskClass
 from sentinel.agent.organs.delegated_action_gate import _budget_exhausted
+from sentinel.shared.safety_scanner import scan_forbidden_payload_categorized
 from sentinel.agent.organs.reversible_workspace_executor import (
     L3ExecutorContract,
     L3ReversibleWorkspaceExecutor,
@@ -424,3 +425,47 @@ def test_delegated_gate_budget_parser_treats_malformed_budget_as_exhausted() -> 
     )
 
     assert _budget_exhausted({"remaining_action_count": "unlimited"}, candidate) is True
+
+
+def test_delegated_gate_explicit_zero_retries_is_exhausted() -> None:
+    candidate = FileOperationOrganCandidate(
+        candidate_id="candidate_retry_budget_audit",
+        mission_id="mission_budget_audit",
+        source_proposal_id="proposal_retry_budget_audit",
+        action_level_candidate=DelegatedActionLevel.L2,
+        authority_class=OrganCandidateAuthorityClass.NEEDS_GATE,
+        risk_class=OrganCandidateRiskClass.LOW,
+        budget_estimate={"action_count": 1},
+        evidence_refs=["ev_budget"],
+        receipt_refs=["receipt_budget"],
+        expected_outcome="Create a local artifact.",
+        rollback_posture="delete with tombstone",
+        user_review_required=False,
+        safe_summary="Zero retries should block retry-dependent execution.",
+        params_hash="params_retry_budget_hash",
+    )
+
+    assert (
+        _budget_exhausted(
+            {
+                "remaining_action_count": 1,
+                "remaining_retries": 0,
+                "remaining_tokens": 1000,
+            },
+            candidate,
+        )
+        is True
+    )
+
+
+def test_safety_scanner_prefers_safe_model_dump_over_raw_model_dump() -> None:
+    class CredentialBearingProbe:
+        def safe_model_dump(self) -> dict[str, str]:
+            return {"safe_ref": "credential_handle_only"}
+
+        def model_dump(self, *_args: Any, **_kwargs: Any) -> dict[str, str]:
+            raise AssertionError("raw model_dump must not be called for scanner payloads")
+
+    result = scan_forbidden_payload_categorized({"probe": CredentialBearingProbe()})
+
+    assert result["all"] == []

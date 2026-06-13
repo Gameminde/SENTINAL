@@ -528,7 +528,7 @@ def _budget_reasons(gate_input: DelegatedActionGateInput, candidate: BaseOrganCa
 def _budget_exhausted(budget: dict[str, Any], candidate: BaseOrganCandidate) -> bool:
     if _safe_int(budget.get("remaining_action_count"), default=0) <= 0:
         return True
-    if _safe_int(budget.get("remaining_retries"), default=0) < 0:
+    if "remaining_retries" in budget and _safe_int(budget.get("remaining_retries"), default=0) <= 0:
         return True
     if _safe_int(budget.get("remaining_tokens"), default=0) <= 0:
         return True

@@ -379,6 +379,12 @@ def _truthy_payload(value: Any) -> bool:
 def _model_dump(value: Any) -> Any:
     if isinstance(value, (str, bytes, bytearray, int, float, bool, type(None))):
         return value
+    safe_dumper = getattr(value, "safe_model_dump", None)
+    if callable(safe_dumper):
+        try:
+            return safe_dumper()
+        except TypeError:
+            return safe_dumper(mode="python")
     dumper = getattr(value, "model_dump", None)
     if not callable(dumper):
         return value

@@ -1,5 +1,63 @@
 # Current State Lock
 
+## Sentinel Deep Audit V3 Remediation - LOCKED
+
+Recorded at: 2026-06-13
+
+This section is the canonical current state. It supersedes the Payment Spend
+Trading Special Authority lock as top-level execution truth only for audit
+remediation state. It does not add a new product capability and does not start
+Security Testing Special Authority V1.
+
+Opus/ENI Deep Audit V3 and its addendum were read as external adversarial audit
+inputs. Current-code verification showed that the browser session manager lock,
+browser executor exception handling, child authority intersection, daemon
+pre-tick kill/pause/revocation checks, and position-independent organ dispatch
+correlation were already present in the repository. The live remediation batch
+closed the remaining verified gaps in scanner safe serialization, explicit
+retry-budget exhaustion, and Worker Fleet outstanding-future handling.
+
+```text
+current_phase = SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCKED
+previous_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCKED
+next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Deep Audit V3 Remediation Truth
+
+```text
+CR-1 browser session cache race = ALREADY_REMEDIATED / lock present in current code
+CR-3 browser executor exception handling = ALREADY_REMEDIATED / guarded exception paths present
+CR-2 independent L6 browser session managers = ALREADY_REMEDIATED / shared locked manager path present
+PM-2 child authority intersection = VERIFIED_CLOSED
+PM-3 daemon tick kill/pause/revocation check = VERIFIED_CLOSED
+LR-6 position-based candidate correlation = VERIFIED_CLOSED / source_proposal_id correlation
+LR-1 gate priority inversion = VERIFIED_CLOSED / authority decisions precede budget exhaustion
+LR-3 remaining_retries zero handling = REMEDIATED
+SS-1 safety scanner raw model_dump preference = REMEDIATED / safe_model_dump preferred
+WF-1 worker futures dropped on terminal state = REMEDIATED / outstanding futures cancelled/drained and recorded
+raw credential/provider-key/prompt/provider-response/reasoning persistence = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+new execution surface = NOT_STARTED
+Security Testing Special Authority V1 = NOT_STARTED / next
+```
+
+### Deep Audit V3 Remediation Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/shared/safety_scanner.py
+sentinel-control/services/sentinel-core/sentinel/agent/organs/delegated_action_gate.py
+sentinel-control/services/sentinel-core/sentinel/operator/worker_fleet.py
+sentinel-control/services/sentinel-core/tests/test_audit_remediation_batch_lock.py
+sentinel-control/services/sentinel-core/tests/test_mission_worker_fleet_authority_inheritance_v1.py
+sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Payment Spend Trading Special Authority V1 - LOCKED
 
 Recorded at: 2026-06-13
