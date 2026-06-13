@@ -338,6 +338,7 @@ class FinancialAuthorityRuntime:
             raise FinancialAuthorityRuntimeError("spend_plan_hash_mismatch")
         config = self._load_config(mission_id, plan.config_id)
         self._assert_authority(mission_id, envelope, action="financial_spend", tool="financial_authority")
+        self._assert_certified_telemetry()
         if plan.status is FinancialPlanStatus.CHECKPOINT_REQUIRED:
             raise FinancialAuthorityRuntimeError("financial_checkpoint_required")
         if plan.status is FinancialPlanStatus.BLOCKED:
@@ -442,6 +443,7 @@ class FinancialAuthorityRuntime:
             raise FinancialAuthorityRuntimeError("trade_plan_hash_mismatch")
         config = self._load_config(mission_id, plan.config_id)
         self._assert_authority(mission_id, envelope, action="financial_trade", tool="financial_authority")
+        self._assert_certified_telemetry()
         if plan.status is FinancialPlanStatus.CHECKPOINT_REQUIRED:
             raise FinancialAuthorityRuntimeError("financial_checkpoint_required")
         if plan.status is FinancialPlanStatus.BLOCKED:
@@ -643,6 +645,15 @@ class FinancialAuthorityRuntime:
     def _assert_surface(self, config: FinancialAuthorityConfig, surface_kind: Any) -> None:
         if surface_kind not in set(config.allowed_surfaces):
             raise FinancialAuthorityRuntimeError("financial_surface_not_allowed")
+
+    def _assert_certified_telemetry(self) -> None:
+        sink = getattr(self.kernel, "telemetry_sink", None)
+        if sink is None or not hasattr(sink, "require_certified_mode"):
+            raise FinancialAuthorityRuntimeError("telemetry_certified_mode_required")
+        try:
+            sink.require_certified_mode()
+        except Exception as exc:
+            raise FinancialAuthorityRuntimeError("telemetry_certified_mode_required") from exc
 
     def _scan_or_raise(self, payload: Any) -> None:
         rendered = str(payload)

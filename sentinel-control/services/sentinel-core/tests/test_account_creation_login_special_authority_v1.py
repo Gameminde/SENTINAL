@@ -426,6 +426,26 @@ def test_account_result_memory_receipt_finalgate_telemetry_and_replay_are_not_au
     assert runtime.store.verify_timeline(mission_id)
 
 
+def test_account_material_execution_requires_certified_telemetry_before_receipts(tmp_path: Path) -> None:
+    from sentinel.operator.account_authority import AccountAuthorityRuntimeError
+
+    runtime, mission_id = _runtime(tmp_path)
+    config = _register_account_creation_config(runtime, mission_id)
+    plan = runtime.plan_account_creation(
+        mission_id=mission_id,
+        config_id=config.config_id,
+        request=_creation_request(),
+        envelope=_envelope(mission_id),
+    )
+    runtime.kernel.telemetry_sink.store.enabled = False
+
+    with pytest.raises(AccountAuthorityRuntimeError, match="telemetry_certified_mode_required"):
+        runtime.execute_account_creation(mission_id=mission_id, plan_id=plan.plan_id, envelope=_envelope(mission_id))
+
+    receipt_root = runtime.store.mission_dir(mission_id, create=True) / "account_authority" / "account_creation_receipts"
+    assert not receipt_root.exists()
+
+
 def test_raw_sensitive_values_are_rejected_or_redacted_before_persistence(tmp_path: Path) -> None:
     from sentinel.operator.account_authority import AccountAuthorityRuntimeError
 

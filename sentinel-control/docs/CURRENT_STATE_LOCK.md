@@ -1,5 +1,58 @@
 # Current State Lock
 
+## Sentinel Deep Audit Global Invariants And Power Truth Reconciliation - LOCKED
+
+Recorded at: 2026-06-13
+
+This section is the canonical current state. It supersedes the Deep Audit V4
+Power Premortem Remediation lock as top-level audit truth. It does not add a
+new product capability and does not start Security Testing Special Authority V1.
+
+This lock reconciles Opus/ENI Deep Audit V3/V4 findings against current code,
+adds explicit browser isolation and serialization canary proof, fixes a
+reproduced certified-telemetry fail-closed gap in material special-authority
+execution paths, and publishes a current power maturity matrix plus a
+contract/export inflation analysis.
+
+```text
+current_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
+next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Global Invariants And Power Truth
+
+```text
+browser mission/config/credential-scope isolation = VERIFIED
+global sensitive serialization canary = VERIFIED / reject-or-redact before persistence
+FinalGate determinism/terminality/property slices = VERIFIED_PARTIALLY_CLOSED
+telemetry tamper detection = VERIFIED
+certified telemetry before material financial/account/channel execution = REMEDIATED
+current power maturity matrix = CREATED
+contract/export inflation analysis = CREATED / architecture debt accepted
+raw credential/provider-key/prompt/provider-response/reasoning persistence = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+new execution surface = NOT_STARTED
+Security Testing Special Authority V1 = NOT_STARTED / next
+```
+
+### Global Invariant Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/operator/account_authority.py
+sentinel-control/services/sentinel-core/sentinel/operator/channel_adapter.py
+sentinel-control/services/sentinel-core/sentinel/operator/financial_authority.py
+sentinel-control/services/sentinel-core/tests/test_deep_audit_global_invariants_power_truth_reconciliation.py
+sentinel-control/docs/reviews/SENTINEL_CURRENT_POWER_MATURITY_MATRIX.md
+sentinel-control/docs/reviews/SENTINEL_CONTRACT_AND_EXPORT_INFLATION_ANALYSIS.md
+sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Sentinel Deep Audit V4 Power Premortem Remediation - LOCKED
 
 Recorded at: 2026-06-13

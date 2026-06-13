@@ -22,8 +22,8 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-06-13
-current_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCKED
+current_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
 next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 doctrine = product power under provable authority
 ```
@@ -34,12 +34,15 @@ daemon/scheduler foundation, model amplification, skill/procedure fabric,
 explicit model routing, real channel adapter foundation, desktop sidecar,
 live-desktop monitoring foundation, realtime voice foundation, a durable
 credential vault / secret broker foundation, and governed account creation /
-login plus sandbox spend / paper trading special-authority foundations.
+login plus sandbox spend / paper trading special-authority foundations. The
+latest audit lock reconciles current power truth and adds fail-closed certified
+telemetry gates before material financial/account/channel execution side
+effects.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCK_REPORT.md
 ```
 
 The canonical state truth is:

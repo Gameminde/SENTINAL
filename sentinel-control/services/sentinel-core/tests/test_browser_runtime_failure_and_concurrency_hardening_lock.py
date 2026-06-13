@@ -132,6 +132,72 @@ def test_browser_session_manager_cache_key_isolates_runtime_config_profiles(tmp_
         runtime_execution_module.close_browser_runtime_sessions_for_config(mission_id=MISSION_ID, config=config_b)
 
 
+def test_browser_session_manager_cache_key_isolates_mission_ids(tmp_path: Path) -> None:
+    config = _runtime_config(
+        tmp_path,
+        browser_document_fixtures={URL: LOGIN_HTML},
+        browser_persist_sessions=True,
+    )
+    gate = _gate(DelegatedActionLevel.L5)
+    request_a = OrganRuntimeExecutionRequest(
+        mission_id=MISSION_ID,
+        action_level=DelegatedActionLevel.L5,
+        organ_kind="browser_session_manager",
+        authority_envelope=_mission(),
+        gate_result=gate,
+        delegated_lane=gate.lane,
+        browser_session_request=_open_request(),
+    )
+    request_b = request_a.model_copy(update={"mission_id": f"{MISSION_ID}_other"})
+
+    key_a, manager_a = runtime_execution_module._browser_session_manager_for_runtime(request_a, config)
+    key_b, manager_b = runtime_execution_module._browser_session_manager_for_runtime(request_b, config)
+
+    try:
+        assert key_a != key_b
+        assert manager_a is not manager_b
+    finally:
+        runtime_execution_module.close_browser_runtime_sessions_for_config(mission_id=MISSION_ID, config=config)
+        runtime_execution_module.close_browser_runtime_sessions_for_config(mission_id=f"{MISSION_ID}_other", config=config)
+
+
+def test_browser_session_manager_cache_key_isolates_credential_scope_and_proof_refs(tmp_path: Path) -> None:
+    config_a = _runtime_config(
+        tmp_path,
+        browser_document_fixtures={URL: LOGIN_HTML},
+        browser_persist_sessions=True,
+        credential_policy_refs=["policy:user-a"],
+        credential_proof_refs=["proof:user-a"],
+    )
+    config_b = _runtime_config(
+        tmp_path,
+        browser_document_fixtures={URL: LOGIN_HTML},
+        browser_persist_sessions=True,
+        credential_policy_refs=["policy:user-b"],
+        credential_proof_refs=["proof:user-b"],
+    )
+    gate = _gate(DelegatedActionLevel.L5)
+    request = OrganRuntimeExecutionRequest(
+        mission_id=MISSION_ID,
+        action_level=DelegatedActionLevel.L5,
+        organ_kind="browser_session_manager",
+        authority_envelope=_mission(),
+        gate_result=gate,
+        delegated_lane=gate.lane,
+        browser_session_request=_open_request(),
+    )
+
+    key_a, manager_a = runtime_execution_module._browser_session_manager_for_runtime(request, config_a)
+    key_b, manager_b = runtime_execution_module._browser_session_manager_for_runtime(request, config_b)
+
+    try:
+        assert key_a != key_b
+        assert manager_a is not manager_b
+    finally:
+        runtime_execution_module.close_browser_runtime_sessions_for_config(mission_id=MISSION_ID, config=config_a)
+        runtime_execution_module.close_browser_runtime_sessions_for_config(mission_id=MISSION_ID, config=config_b)
+
+
 def test_live_browser_session_marks_closed_even_if_backend_close_raises() -> None:
     from sentinel.agent.organs.browser_session_manager_l5_live import _LiveBrowserSession
 

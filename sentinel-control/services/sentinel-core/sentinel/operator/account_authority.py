@@ -183,6 +183,7 @@ class AccountAuthorityRuntime:
             raise AccountAuthorityRuntimeError("account_login_plan_hash_mismatch")
         config = self._load_config(mission_id, plan.config_id)
         self._assert_authority(mission_id, envelope, action="account_login", tool="account_authority", domain=plan.target_domain, config=config)
+        self._assert_certified_telemetry()
         if plan.status is AccountPlanStatus.CHECKPOINT_REQUIRED:
             raise AccountAuthorityRuntimeError("human_checkpoint_required")
         if not credential_lease_id:
@@ -361,6 +362,7 @@ class AccountAuthorityRuntime:
             raise AccountAuthorityRuntimeError("account_creation_plan_hash_mismatch")
         config = self._load_config(mission_id, plan.config_id)
         self._assert_authority(mission_id, envelope, action="account_creation", tool="account_authority", domain=plan.target_domain, config=config)
+        self._assert_certified_telemetry()
         if plan.status is AccountPlanStatus.CHECKPOINT_REQUIRED:
             raise AccountAuthorityRuntimeError("human_checkpoint_required")
         account_creation_hash = stable_hash({"mission_id": mission_id, "plan_id": plan_id, "service_hash": plan.service_hash})
@@ -506,6 +508,15 @@ class AccountAuthorityRuntime:
             raise AccountAuthorityRuntimeError("account_service_not_allowed")
         if surface_kind not in set(config.allowed_surfaces):
             raise AccountAuthorityRuntimeError("account_surface_not_allowed")
+
+    def _assert_certified_telemetry(self) -> None:
+        sink = getattr(self.kernel, "telemetry_sink", None)
+        if sink is None or not hasattr(sink, "require_certified_mode"):
+            raise AccountAuthorityRuntimeError("telemetry_certified_mode_required")
+        try:
+            sink.require_certified_mode()
+        except Exception as exc:
+            raise AccountAuthorityRuntimeError("telemetry_certified_mode_required") from exc
 
     def _scan_or_raise(self, payload: Any) -> None:
         if "[REDACTED_SECRET]" in str(payload):

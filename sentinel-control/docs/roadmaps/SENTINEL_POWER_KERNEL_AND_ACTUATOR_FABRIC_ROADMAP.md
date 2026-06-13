@@ -8,17 +8,18 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-13
 
 ```text
-current_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCKED
-active_implementation_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
+current_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
+active_implementation_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
 next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
 
-Deep Audit V4 power-premortem remediation is a safety/code-quality lock, not a
-new actuator phase. Payment/spend/trading remains CLOSED as the latest
-product-power phase; Security Testing Special Authority remains the next
-canonical implementation phase.
+Deep Audit global invariants and power truth reconciliation is a safety,
+code-quality, and truth-reconciliation lock, not a new actuator phase.
+Payment/spend/trading remains CLOSED as the latest product-power phase;
+Security Testing Special Authority remains the next canonical implementation
+phase.
 
 Canonical roadmap:
 

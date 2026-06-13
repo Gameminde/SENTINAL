@@ -37,8 +37,8 @@ provable.
 Current state:
 
 ```text
-current_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
-previous_phase = SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCKED
+current_phase = SENTINEL_DEEP_AUDIT_GLOBAL_INVARIANTS_AND_POWER_TRUTH_RECONCILIATION_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
 next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 roadmap_doctrine = product power under provable authority
 ```
@@ -73,6 +73,7 @@ account creation/login special-authority foundation with governed planning, Cred
 payment/spend/trading special-authority foundation with sandbox spend planning/execution, paper trading planning/execution, caps, velocity, merchant/recipient/instrument policies, idempotency, checkpoints, CredentialVault payment method lease refs, receipts, FinalGate, telemetry, and replay without live money or broker orders
 Deep Audit V3 remediation for scanner safe serialization, retry-budget exhaustion, and Worker Fleet terminal outstanding-future handling
 Deep Audit V4 power-premortem remediation for browser runtime persistent-session cache config isolation and current-state stale-audit disposition
+Deep Audit global invariants and power truth reconciliation for browser isolation proof, cross-surface sensitive serialization canary proof, certified-telemetry fail-closed material execution remediation, current power maturity matrix, and contract/export inflation analysis
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path

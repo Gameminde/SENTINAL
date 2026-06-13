@@ -267,6 +267,53 @@ def test_sandbox_spend_and_paper_trade_execute_only_fake_results(tmp_path: Path)
     assert trade.finalgate_certificate.certified is True
 
 
+@pytest.mark.parametrize("action_kind", ["spend", "trade"])
+def test_financial_material_execution_requires_certified_telemetry_before_receipts(
+    tmp_path: Path,
+    action_kind: str,
+) -> None:
+    from sentinel.operator.financial_authority import FinancialAuthorityRuntimeError
+
+    runtime, mission_id = _runtime(tmp_path)
+    config = _register_config(runtime, mission_id)
+    if action_kind == "spend":
+        plan = runtime.plan_spend(
+            mission_id=mission_id,
+            config_id=config.config_id,
+            request=_spend_request(),
+            envelope=_envelope(mission_id),
+        )
+        execute = lambda: runtime.execute_sandbox_spend(
+            mission_id=mission_id,
+            plan_id=plan.plan_id,
+            envelope=_envelope(mission_id),
+            approval_ref="approval-spend",
+        )
+        receipt_category = "spend_receipts"
+    else:
+        plan = runtime.plan_trade(
+            mission_id=mission_id,
+            config_id=config.config_id,
+            request=_trade_request(),
+            envelope=_envelope(mission_id),
+        )
+        execute = lambda: runtime.execute_paper_trade(
+            mission_id=mission_id,
+            plan_id=plan.plan_id,
+            envelope=_envelope(mission_id),
+            approval_ref="approval-trade",
+        )
+        receipt_category = "trade_receipts"
+
+    runtime.kernel.telemetry_sink.store.enabled = False
+
+    with pytest.raises(FinancialAuthorityRuntimeError, match="telemetry_certified_mode_required"):
+        execute()
+
+    receipt_root = runtime.store.root(mission_id) / receipt_category
+    assert not receipt_root.exists()
+
+
 @pytest.mark.parametrize("source", ["voice", "desktop", "browser", "channel", "skill", "worker", "daemon", "scheduler", "memory", "llm"])
 def test_advisory_surfaces_cannot_approve_or_execute_financial_actions(tmp_path: Path, source: str) -> None:
     from sentinel.operator.financial_authority import FinancialAuthorityRuntimeError

@@ -259,6 +259,7 @@ class ChannelConnectorRuntime:
         request: ChannelOutboundSendRequest,
         envelope: MissionAuthorityEnvelope | None,
     ) -> ChannelOutboundSendResult:
+        self._assert_certified_telemetry()
         self._append_event(
             mission_id,
             event_type="channel_outbound_send_requested",
@@ -472,6 +473,15 @@ class ChannelConnectorRuntime:
             raise ChannelConnectorRuntimeError("channel_not_in_scope")
         if config.scope_policy.allowed_threads and thread_ref is not None and thread_ref not in config.scope_policy.allowed_threads:
             raise ChannelConnectorRuntimeError("thread_not_in_scope")
+
+    def _assert_certified_telemetry(self) -> None:
+        sink = getattr(self.kernel, "telemetry_sink", None)
+        if sink is None or not hasattr(sink, "require_certified_mode"):
+            raise ChannelConnectorRuntimeError("telemetry_certified_mode_required")
+        try:
+            sink.require_certified_mode()
+        except Exception as exc:
+            raise ChannelConnectorRuntimeError("telemetry_certified_mode_required") from exc
 
     def _assert_recipient_policy(
         self,

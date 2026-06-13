@@ -285,6 +285,34 @@ def test_receipts_are_hash_bound_and_cannot_become_future_permission(tmp_path: P
         type(receipt).model_validate(payload)
 
 
+def test_channel_send_requires_certified_telemetry_before_transport(tmp_path: Path) -> None:
+    calls: list[object] = []
+    runtime, mission_id = _runtime(tmp_path, transport=lambda request: calls.append(request) or {"delivery_ref": "delivery"})
+    adapter = runtime.register_adapter(mission_id=mission_id, config=_webhook_config())
+    draft = runtime.create_outbound_draft(
+        mission_id=mission_id,
+        request=_outbound_request(adapter.adapter_id, recipients=["founder@example.com"]),
+    )
+    approval = runtime.approve_outbound(
+        mission_id=mission_id,
+        approval=ChannelOutboundApproval(adapter_id=adapter.adapter_id, draft_id=draft.draft_id),
+    )
+    runtime.kernel.telemetry_sink.store.enabled = False
+
+    with pytest.raises(ChannelConnectorRuntimeError, match="telemetry_certified_mode_required"):
+        runtime.send_outbound(
+            mission_id=mission_id,
+            request=ChannelOutboundSendRequest(
+                adapter_id=adapter.adapter_id,
+                draft_id=draft.draft_id,
+                approval_id=approval.approval_id,
+            ),
+            envelope=_envelope(mission_id),
+        )
+
+    assert calls == []
+
+
 def test_replay_reconstructs_channel_activity_without_resending(tmp_path: Path) -> None:
     calls: list[object] = []
     runtime, mission_id = _runtime(tmp_path, transport=lambda request: calls.append(request) or {"delivery_ref": "delivery"})
