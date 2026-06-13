@@ -93,6 +93,7 @@ def test_login_plan_uses_credential_vault_lease_and_final_consumer_checkout(tmp_
         plan_id=plan.plan_id,
         envelope=_envelope(mission_id),
         credential_vault=vault,
+        credential_lease_id=lease.lease_id,
     )
 
     assert plan.credential_requirement is not None
@@ -145,7 +146,104 @@ def test_login_blocks_missing_or_revoked_credential_lease(tmp_path: Path) -> Non
             plan_id=plan.plan_id,
             envelope=_envelope(mission_id),
             credential_vault=vault,
+            credential_lease_id=lease.lease_id,
         )
+
+
+def test_login_rejects_service_and_surface_outside_config(tmp_path: Path) -> None:
+    from sentinel.operator.account_authority import AccountAuthorityRuntimeError
+    from sentinel.operator.account_authority_models import AccountSurfaceKind
+
+    runtime, mission_id = _runtime(tmp_path)
+    config = _register_login_config(runtime, mission_id)
+
+    with pytest.raises(AccountAuthorityRuntimeError, match="account_service_not_allowed"):
+        runtime.plan_login(
+            mission_id=mission_id,
+            config_id=config.config_id,
+            request=_login_request(credential_lease_id="lease-ref", service_name="Other Service"),
+            envelope=_envelope(mission_id),
+        )
+
+    with pytest.raises(AccountAuthorityRuntimeError, match="account_surface_not_allowed"):
+        runtime.plan_login(
+            mission_id=mission_id,
+            config_id=config.config_id,
+            request=_login_request(credential_lease_id="lease-ref", surface_kind=AccountSurfaceKind.DESKTOP),
+            envelope=_envelope(mission_id),
+        )
+
+
+def test_account_creation_rejects_surface_outside_config(tmp_path: Path) -> None:
+    from sentinel.operator.account_authority import AccountAuthorityRuntimeError
+    from sentinel.operator.account_authority_models import AccountSurfaceKind
+
+    runtime, mission_id = _runtime(tmp_path)
+    config = _register_account_creation_config(runtime, mission_id)
+
+    with pytest.raises(AccountAuthorityRuntimeError, match="account_surface_not_allowed"):
+        runtime.plan_account_creation(
+            mission_id=mission_id,
+            config_id=config.config_id,
+            request=_creation_request(surface_kind=AccountSurfaceKind.DESKTOP),
+            envelope=_envelope(mission_id),
+        )
+
+
+def test_login_rejects_credential_lease_scope_for_different_target(tmp_path: Path) -> None:
+    from sentinel.operator.account_authority import AccountAuthorityRuntimeError
+
+    runtime, mission_id = _runtime(tmp_path)
+    config = _register_login_config(runtime, mission_id)
+    vault, secret_id, unlock_session_id = _credential_vault_with_login_secret(
+        runtime.kernel,
+        mission_id,
+        allowed_scopes=["login:other.example.test"],
+    )
+    grant = vault.request_secret_access(
+        mission_id=mission_id,
+        secret_id=secret_id,
+        consumer_kind=CredentialConsumerKind.BROWSER_LOGIN,
+        consumer_ref="account_authority_final_consumer",
+        purpose="account_login",
+        requested_scope=["login:other.example.test"],
+        envelope=_envelope(mission_id),
+        unlock_session_id=unlock_session_id,
+        context=SecretUseContext(target_ref="other.example.test", evidence_refs=["ev-other-login-target"]),
+    )
+    lease = vault.create_secret_lease(mission_id=mission_id, grant_id=grant.grant_id, ttl_seconds=60)
+    plan = runtime.plan_login(
+        mission_id=mission_id,
+        config_id=config.config_id,
+        request=_login_request(credential_lease_id=lease.lease_id),
+        envelope=_envelope(mission_id),
+    )
+
+    with pytest.raises(AccountAuthorityRuntimeError, match="credential_lease_scope_mismatch"):
+        runtime.execute_login(
+            mission_id=mission_id,
+            plan_id=plan.plan_id,
+            envelope=_envelope(mission_id),
+            credential_vault=vault,
+            credential_lease_id=lease.lease_id,
+        )
+
+
+def test_login_plan_persists_hash_only_credential_lease_ref(tmp_path: Path) -> None:
+    runtime, mission_id = _runtime(tmp_path)
+    config = _register_login_config(runtime, mission_id)
+
+    plan = runtime.plan_login(
+        mission_id=mission_id,
+        config_id=config.config_id,
+        request=_login_request(credential_lease_id="lease-secret-capability-ref"),
+        envelope=_envelope(mission_id),
+    )
+    persisted = _mission_text(runtime, mission_id)
+
+    assert plan.credential_lease_ref is None
+    assert plan.credential_lease_ref_hash
+    assert "lease-secret-capability-ref" not in persisted
 
 
 def test_login_blocks_after_kill_or_authority_expiry(tmp_path: Path) -> None:
@@ -466,7 +564,12 @@ def _creation_request(**overrides):
     return AccountCreationRequest(**data)
 
 
-def _credential_vault_with_login_secret(kernel: MissionKernel, mission_id: str):
+def _credential_vault_with_login_secret(
+    kernel: MissionKernel,
+    mission_id: str,
+    *,
+    allowed_scopes: list[str] | None = None,
+):
     vault = CredentialVaultRuntime(kernel)
     vault.initialize_vault(mission_id=mission_id, config=CredentialVaultConfig(vault_id="account-vault", maturity=CredentialVaultMaturity.FAKE_SEALED_STORE))
     metadata = vault.register_secret(
@@ -477,7 +580,7 @@ def _credential_vault_with_login_secret(kernel: MissionKernel, mission_id: str):
             allowed_consumers=[CredentialConsumerKind.BROWSER_LOGIN],
             allowed_consumer_refs=["account_authority_final_consumer"],
             allowed_purposes=["account_login"],
-            allowed_scopes=["login:accounts.example.test"],
+            allowed_scopes=allowed_scopes or ["login:accounts.example.test"],
         ),
         use_policy=SecretUsePolicy(
             allowed_purposes=["account_login"],

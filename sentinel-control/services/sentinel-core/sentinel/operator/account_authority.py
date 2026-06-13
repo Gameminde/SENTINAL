@@ -127,6 +127,7 @@ class AccountAuthorityRuntime:
             config=config,
         )
         self._scan_or_raise(request.safe_model_dump())
+        self._assert_config_request_scope(config=config, service_name=request.service_name, surface_kind=request.surface_kind)
         if not request.credential_lease_id:
             raise AccountAuthorityRuntimeError("credential_lease_required")
         checkpoints = self._persist_checkpoints(mission_id, build_checkpoints(mission_id, request.boundary_descriptors), "account_login_checkpoint_created")
@@ -143,7 +144,7 @@ class AccountAuthorityRuntime:
             provider_kind=request.provider_kind,
             surface_kind=request.surface_kind,
             credential_requirement=LoginCredentialRequirement(),
-            credential_lease_ref=request.credential_lease_id,
+            credential_lease_ref=None,
             credential_lease_ref_hash=stable_hash(request.credential_lease_id),
             steps=[
                 AccountLoginStep(action="validate_authority", target_ref_hash=stable_hash(target_domain)),
@@ -175,6 +176,7 @@ class AccountAuthorityRuntime:
         plan_id: str,
         envelope: MissionAuthorityEnvelope | None,
         credential_vault: CredentialVaultRuntime,
+        credential_lease_id: str | None = None,
     ) -> AccountLoginResult:
         plan = self._load_one(mission_id, "login_plans", plan_id, AccountLoginPlan)
         if not plan.verify_hash():
@@ -183,12 +185,22 @@ class AccountAuthorityRuntime:
         self._assert_authority(mission_id, envelope, action="account_login", tool="account_authority", domain=plan.target_domain, config=config)
         if plan.status is AccountPlanStatus.CHECKPOINT_REQUIRED:
             raise AccountAuthorityRuntimeError("human_checkpoint_required")
-        if not plan.credential_lease_ref:
+        if not credential_lease_id:
             raise AccountAuthorityRuntimeError("credential_lease_required")
+        if stable_hash(credential_lease_id) != plan.credential_lease_ref_hash:
+            raise AccountAuthorityRuntimeError("credential_lease_hash_mismatch")
         try:
+            credential_vault.assert_lease_matches_scope(
+                mission_id=mission_id,
+                lease_id=credential_lease_id,
+                expected_purpose="account_login",
+                expected_scope=[f"login:{plan.target_domain}"],
+                expected_consumer_kind=CredentialConsumerKind.BROWSER_LOGIN,
+                expected_consumer_ref="account_authority_final_consumer",
+            )
             checkout = credential_vault.checkout_secret(
                 mission_id=mission_id,
-                lease_id=plan.credential_lease_ref,
+                lease_id=credential_lease_id,
                 consumer_kind=CredentialConsumerKind.BROWSER_LOGIN,
                 consumer_ref="account_authority_final_consumer",
             )
@@ -281,6 +293,7 @@ class AccountAuthorityRuntime:
             config=config,
         )
         self._scan_or_raise(request.safe_model_dump())
+        self._assert_config_request_scope(config=config, service_name=request.service_name, surface_kind=request.surface_kind)
         if request.service_name not in set(config.allowed_services):
             raise AccountAuthorityRuntimeError("account_service_not_allowed")
         if not request.operator_owned_profile_authorized:
@@ -481,6 +494,18 @@ class AccountAuthorityRuntime:
             raise AccountAuthorityRuntimeError("account_login_mode_not_allowed")
         if action == "account_creation" and config.default_mode.value not in {"operator_assisted_account_creation", "delegated_account_creation_session", "plan_only", "sandbox_only"}:
             raise AccountAuthorityRuntimeError("account_creation_mode_not_allowed")
+
+    def _assert_config_request_scope(
+        self,
+        *,
+        config: AccountAuthorityConfig,
+        service_name: str,
+        surface_kind: Any,
+    ) -> None:
+        if config.allowed_services and service_name.lower() not in {service.lower() for service in config.allowed_services}:
+            raise AccountAuthorityRuntimeError("account_service_not_allowed")
+        if surface_kind not in set(config.allowed_surfaces):
+            raise AccountAuthorityRuntimeError("account_surface_not_allowed")
 
     def _scan_or_raise(self, payload: Any) -> None:
         if "[REDACTED_SECRET]" in str(payload):

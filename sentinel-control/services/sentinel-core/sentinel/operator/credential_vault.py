@@ -416,6 +416,36 @@ class CredentialVaultRuntime:
         self._record_metric(mission_id, TelemetryMetricKind.SECRET_CHECKOUT_COUNT, 1, "Secret checkout count sample.")
         return result
 
+    def assert_lease_matches_scope(
+        self,
+        *,
+        mission_id: str,
+        lease_id: str,
+        expected_purpose: str,
+        expected_scope: list[str],
+        expected_consumer_kind: CredentialConsumerKind,
+        expected_consumer_ref: str,
+    ) -> None:
+        lease = self._load_one(mission_id, "leases", lease_id, SecretAccessLease)
+        if not lease.verify_hash():
+            raise CredentialVaultRuntimeError("secret_lease_hash_mismatch")
+        if not lease.is_active():
+            raise CredentialVaultRuntimeError("secret_lease_not_active")
+        grant = self._load_one(mission_id, "grants", lease.grant_id, SecretAccessGrant)
+        if not grant.verify_hash():
+            raise CredentialVaultRuntimeError("secret_grant_hash_mismatch")
+        if grant.secret_id != lease.secret_id:
+            raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
+        if grant.consumer.consumer_kind is not expected_consumer_kind or grant.consumer.consumer_ref != expected_consumer_ref:
+            raise CredentialVaultRuntimeError("consumer_not_allowed")
+        if grant.purpose != expected_purpose:
+            raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
+        if not set(expected_scope).issubset(set(grant.granted_scope)):
+            raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
+        metadata = self._load_secret(mission_id, lease.secret_id)
+        if not set(expected_scope).issubset(set(metadata.scope_policy.allowed_scopes)):
+            raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
+
     def record_secret_use(self, *, mission_id: str, checkout_token_id: str, status: str) -> SecretUseReceipt:
         checkout = next(
             (item for item in self._load_all(mission_id, "checkouts", SecretCheckoutResult) if item.checkout_token.checkout_token_id == checkout_token_id),

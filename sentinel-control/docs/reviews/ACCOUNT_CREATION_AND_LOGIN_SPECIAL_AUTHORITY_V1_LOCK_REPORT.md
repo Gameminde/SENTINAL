@@ -275,6 +275,26 @@ tests, audit, or this lock report.
 
 No open P0, P1, or serious P2 issues remain for this lock.
 
+## Post-Lock Credential Review Remediation
+
+Before starting `PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1`, a second
+credential-focused logic/code review found and fixed three sensitive gaps:
+
+| Severity | Finding | Remediation |
+|---|---|---|
+| P1 | Account login could consume a CredentialVault lease whose granted scope targeted another login domain. | `CredentialVaultRuntime.assert_lease_matches_scope()` now verifies active lease, grant hash, consumer, purpose, granted scope, and secret scope before AccountAuthority checkout. AccountAuthority binds login leases to `login:<target_domain>`. |
+| P1 | AccountAuthority config service/surface allowlists were only partially enforced. | Login and account creation now enforce configured service and surface allowlists before plan persistence or execution. |
+| P2 | AccountAuthority login plan persisted the raw credential lease id. | AccountAuthority persists only `credential_lease_ref_hash`; execution requires the live lease id and rejects hash mismatches before checkout. |
+
+Regression tests were added for:
+
+```text
+service outside config blocked
+surface outside config blocked
+cross-scope credential lease blocked
+AccountAuthority plan persists hash-only credential lease ref
+```
+
 ## Tests And Checks
 
 Targeted and regression tests run with exit code 0:
