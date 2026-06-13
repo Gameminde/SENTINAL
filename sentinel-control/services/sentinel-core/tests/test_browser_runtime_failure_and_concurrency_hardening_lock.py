@@ -99,6 +99,39 @@ def test_browser_session_manager_cache_has_thread_lock_and_reuses_single_manager
     assert len(set(manager_ids)) == 1
 
 
+def test_browser_session_manager_cache_key_isolates_runtime_config_profiles(tmp_path: Path) -> None:
+    config_a = _runtime_config(
+        tmp_path,
+        browser_document_fixtures={URL: LOGIN_HTML.replace("Email", "Email A")},
+        browser_persist_sessions=True,
+    )
+    config_b = _runtime_config(
+        tmp_path,
+        browser_document_fixtures={URL: LOGIN_HTML.replace("Email", "Email B")},
+        browser_persist_sessions=True,
+    )
+    gate = _gate(DelegatedActionLevel.L5)
+    request = OrganRuntimeExecutionRequest(
+        mission_id=MISSION_ID,
+        action_level=DelegatedActionLevel.L5,
+        organ_kind="browser_session_manager",
+        authority_envelope=_mission(),
+        gate_result=gate,
+        delegated_lane=gate.lane,
+        browser_session_request=_open_request(),
+    )
+
+    key_a, manager_a = runtime_execution_module._browser_session_manager_for_runtime(request, config_a)
+    key_b, manager_b = runtime_execution_module._browser_session_manager_for_runtime(request, config_b)
+
+    try:
+        assert key_a != key_b
+        assert manager_a is not manager_b
+    finally:
+        runtime_execution_module.close_browser_runtime_sessions_for_config(mission_id=MISSION_ID, config=config_a)
+        runtime_execution_module.close_browser_runtime_sessions_for_config(mission_id=MISSION_ID, config=config_b)
+
+
 def test_live_browser_session_marks_closed_even_if_backend_close_raises() -> None:
     from sentinel.agent.organs.browser_session_manager_l5_live import _LiveBrowserSession
 

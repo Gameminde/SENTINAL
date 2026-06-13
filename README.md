@@ -22,8 +22,8 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-06-13
-current_phase = SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCKED
-previous_phase = PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1_LOCKED
+current_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCKED
 next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
 doctrine = product power under provable authority
 ```
@@ -39,7 +39,7 @@ login plus sandbox spend / paper trading special-authority foundations.
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCK_REPORT.md
 ```
 
 The canonical state truth is:

@@ -909,11 +909,25 @@ def _browser_session_manager_key(
     mission_id: str,
     config: OrganRuntimeExecutionConfig,
 ) -> str:
+    credential_scope_hash = stable_hash(
+        {
+            "credential_policy_refs": sorted(config.credential_policy_refs),
+            "credential_proof_refs": sorted(config.credential_proof_refs),
+        }
+    )
     return stable_hash(
         {
             "mission_id": mission_id,
             "capture_root": config.browser_capture_root or ".sentinel/browser_runtime",
             "engine": config.browser_engine,
+            "headless": config.browser_headless,
+            "accept_downloads": config.browser_accept_downloads,
+            "viewport": {
+                "width": config.browser_viewport_width,
+                "height": config.browser_viewport_height,
+            },
+            "document_fixtures_hash": stable_hash(config.browser_document_fixtures),
+            "credential_scope_hash": credential_scope_hash,
         }
     )
 

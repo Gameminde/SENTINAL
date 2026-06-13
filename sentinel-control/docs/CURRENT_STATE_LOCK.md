@@ -1,5 +1,56 @@
 # Current State Lock
 
+## Sentinel Deep Audit V4 Power Premortem Remediation - LOCKED
+
+Recorded at: 2026-06-13
+
+This section is the canonical current state. It supersedes the Deep Audit V3
+Remediation lock as top-level remediation truth. It does not add a product
+capability, does not start Security Testing Special Authority V1, and does not
+change the latest product-power phase.
+
+Opus/ENI Deep Audit V4 Power Premortem was read as an adversarial strategic and
+technical input. Its competitive/product-power critique remains useful, but its
+runtime inventory is stale relative to this repository: persistent memory,
+worker fleet, workflow/replan, daemon/scheduler, model router, skill fabric,
+real channel adapter foundation, desktop, voice, credential vault,
+account/login, and sandbox spend/paper-trading foundations have already been
+locked in the current repo. The live remediation closed the remaining concrete
+browser runtime session-cache isolation gap identified from the CR-1 family.
+
+```text
+current_phase = SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCKED
+previous_phase = SENTINEL_DEEP_AUDIT_V3_REMEDIATION_LOCKED
+next_phase = SECURITY_TESTING_SPECIAL_AUTHORITY_V1
+roadmap_doctrine = product power under provable authority
+```
+
+### Deep Audit V4 Remediation Truth
+
+```text
+V4 stale inventory = DISPOSITIONED / no downgrade of current truth docs
+CR-1 browser session cache race = REMEDIATED / persistent manager key now includes safe runtime config fingerprint
+FinalGate property/invariant testing request = VERIFIED_PARTIALLY_CLOSED / existing determinism, terminality, trace, receipt, risk-route, and controlled-capability regressions present
+contract inflation concern = ACCEPTED_ARCHITECTURE_DEBT / no new runtime surface added
+product-power critique = ACCEPTED_STRATEGIC_INPUT / real backend work remains roadmap-governed
+raw credential/provider-key/prompt/provider-response/reasoning persistence = BLOCKED
+provider fallback/AUTO = NOT_APPROVED
+new execution surface = NOT_STARTED
+Security Testing Special Authority V1 = NOT_STARTED / next
+```
+
+### Deep Audit V4 Remediation Artifacts
+
+```text
+sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py
+sentinel-control/services/sentinel-core/tests/test_browser_runtime_failure_and_concurrency_hardening_lock.py
+sentinel-control/docs/reviews/SENTINEL_DEEP_AUDIT_V4_POWER_PREMORTEM_REMEDIATION_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The
+master roadmap is canonical.
+
 ## Sentinel Deep Audit V3 Remediation - LOCKED
 
 Recorded at: 2026-06-13
