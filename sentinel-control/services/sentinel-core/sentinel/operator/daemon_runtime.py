@@ -196,12 +196,16 @@ class MissionDaemonRuntime:
         max_steps: int | None = None,
     ) -> DaemonTickResult:
         self._require_certified_mode()
+        if not self.kernel.store.verify_record(mission_id):
+            raise MissionDaemonRuntimeError("mission_record_tampered")
         now = now or datetime.now(UTC)
         started = datetime.now(UTC)
         try:
             self.store.require_owned_lease(mission_id, owner_id=self.config.owner_id, now=now)
         except ValueError as exc:
             raise MissionDaemonRuntimeError(str(exc)) from exc
+        if current_envelope.id != mission_id:
+            raise MissionDaemonRuntimeError("mission_authority_mismatch")
         self.store.append_event(
             mission_id,
             event_type="daemon_tick_started",
@@ -442,6 +446,13 @@ class MissionDaemonRuntime:
     def _require_certified_mode(self) -> None:
         if not self.config.require_certified_telemetry:
             return
+        sink = getattr(self.kernel, "telemetry_sink", None)
+        if sink is not None and hasattr(sink, "require_material_execution"):
+            try:
+                sink.require_material_execution("mission_daemon")
+                return
+            except Exception as exc:
+                raise MissionDaemonRuntimeError("daemon_certified_telemetry_required:telemetry_unavailable") from exc
         snapshot = self.certified_mode_snapshot()
         if not snapshot.certified_mode:
             reason = ",".join(snapshot.reasons) or "telemetry_unavailable"

@@ -346,6 +346,24 @@ def test_agent_runtime_certifies_worker_crash_as_closed_failure(tmp_path):
     assert result.learning_proposals
 
 
+def test_agent_runtime_redacts_secret_like_runtime_failure_text(tmp_path):
+    env = envelope()
+    runtime = AgentRuntime(project_root=tmp_path)
+    leaked_secret = "OPENAI_API_KEY=sk-test-runtime-secret-1234567890"
+
+    def raise_worker_error(*args, **kwargs):
+        raise RuntimeError(leaked_secret)
+
+    runtime.worker_coordinator.runner.run_mission = raise_worker_error
+
+    result = runtime.run(env, {"idea": "Worker crash"}, evidence_refs=["ev_001"])
+    rendered_trace = str([event.model_dump(mode="json") for event in result.trace])
+
+    assert leaked_secret not in (result.escalation_reason or "")
+    assert leaked_secret not in rendered_trace
+    assert "[REDACTED_SECRET]" in (result.escalation_reason or "")
+
+
 def test_critical_tool_selection_review_prevents_worker_execution(tmp_path):
     env = envelope(allowed_actions=["create_project_folder"], allowed_tools=["safe_file_writer"])
 

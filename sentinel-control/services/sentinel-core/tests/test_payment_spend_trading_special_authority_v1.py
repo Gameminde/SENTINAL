@@ -267,6 +267,23 @@ def test_sandbox_spend_and_paper_trade_execute_only_fake_results(tmp_path: Path)
     assert trade.finalgate_certificate.certified is True
 
 
+def test_spend_and_trade_execution_are_single_use_per_plan(tmp_path: Path) -> None:
+    from sentinel.operator.financial_authority import FinancialAuthorityRuntimeError
+
+    runtime, mission_id = _runtime(tmp_path)
+    config = _register_config(runtime, mission_id)
+    spend_plan = runtime.plan_spend(mission_id=mission_id, config_id=config.config_id, request=_spend_request(), envelope=_envelope(mission_id))
+    trade_plan = runtime.plan_trade(mission_id=mission_id, config_id=config.config_id, request=_trade_request(), envelope=_envelope(mission_id))
+
+    runtime.execute_sandbox_spend(mission_id=mission_id, plan_id=spend_plan.plan_id, envelope=_envelope(mission_id), approval_ref="approval-spend")
+    runtime.execute_paper_trade(mission_id=mission_id, plan_id=trade_plan.plan_id, envelope=_envelope(mission_id), approval_ref="approval-trade")
+
+    with pytest.raises(FinancialAuthorityRuntimeError, match="financial_plan_already_executed"):
+        runtime.execute_sandbox_spend(mission_id=mission_id, plan_id=spend_plan.plan_id, envelope=_envelope(mission_id), approval_ref="approval-spend")
+    with pytest.raises(FinancialAuthorityRuntimeError, match="financial_plan_already_executed"):
+        runtime.execute_paper_trade(mission_id=mission_id, plan_id=trade_plan.plan_id, envelope=_envelope(mission_id), approval_ref="approval-trade")
+
+
 @pytest.mark.parametrize("action_kind", ["spend", "trade"])
 def test_financial_material_execution_requires_certified_telemetry_before_receipts(
     tmp_path: Path,

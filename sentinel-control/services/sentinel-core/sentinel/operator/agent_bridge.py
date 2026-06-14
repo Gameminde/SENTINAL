@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import Field
@@ -10,6 +11,7 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.redaction import sanitize_operator_refs
 from sentinel.shared.models import SentinelModel
+from sentinel.telemetry import TelemetryCertificationError
 
 
 class OperatorAgentRuntimeBridgeResult(SentinelModel):
@@ -47,6 +49,8 @@ class OperatorAgentRuntimeBridge:
         user_input: dict[str, Any],
         update_mission_status: bool = True,
     ) -> OperatorAgentRuntimeBridgeResult:
+        if not self._kernel.store.verify_record(mission_id):
+            return OperatorAgentRuntimeBridgeResult(status="blocked", blocked_reason="mission_record_tampered")
         if envelope.id != mission_id:
             self._kernel.store.append_event(
                 mission_id,
@@ -67,6 +71,34 @@ class OperatorAgentRuntimeBridge:
                 status="blocked",
                 blocked_reason="operator_mission_terminal",
             )
+        if envelope.revoked_at is not None or datetime.now(UTC) > envelope.resolved_expires_at():
+            self._kernel.store.append_event(
+                mission_id,
+                event_type="agentruntime_blocked",
+                safe_summary="AgentRuntime bridge blocked because mission authority is inactive.",
+                metadata={"blocked_reason": "mission_authority_envelope_inactive"},
+            )
+            return OperatorAgentRuntimeBridgeResult(
+                status="blocked",
+                blocked_reason="mission_authority_envelope_inactive",
+            )
+        record = self._kernel.store.load_record(mission_id)
+        if record.status not in {OperatorMissionStatus.QUEUED, OperatorMissionStatus.RUNNING}:
+            self._kernel.store.append_event(
+                mission_id,
+                event_type="agentruntime_blocked",
+                safe_summary="AgentRuntime bridge blocked because mission is not executable.",
+                metadata={"blocked_reason": "operator_mission_not_executable", "mission_state": record.status.value},
+            )
+            return OperatorAgentRuntimeBridgeResult(status="blocked", blocked_reason="operator_mission_not_executable")
+        if not _require_material_telemetry(self._telemetry_sink, "agentruntime_bridge"):
+            self._kernel.store.append_event(
+                mission_id,
+                event_type="agentruntime_blocked",
+                safe_summary="AgentRuntime bridge blocked because certified telemetry is unavailable.",
+                metadata={"blocked_reason": "telemetry_certified_mode_required"},
+            )
+            return OperatorAgentRuntimeBridgeResult(status="blocked", blocked_reason="telemetry_certified_mode_required")
         if self._runtime is None:
             self._kernel.update_status(mission_id, OperatorMissionStatus.BLOCKED, "AgentRuntime bridge blocked: missing runtime.")
             self._kernel.store.append_event(
@@ -77,11 +109,37 @@ class OperatorAgentRuntimeBridge:
             )
             return OperatorAgentRuntimeBridgeResult(status="blocked", blocked_reason="missing_agentruntime")
 
-        runtime_result = self._runtime.run(envelope, user_input)
+        if record.status is OperatorMissionStatus.QUEUED:
+            self._kernel.update_status(mission_id, OperatorMissionStatus.RUNNING, "AgentRuntime bridge started mission execution.")
+        try:
+            runtime_result = self._runtime.run(envelope, user_input)
+        except Exception:  # noqa: BLE001
+            if update_mission_status:
+                self._kernel.update_status(
+                    mission_id,
+                    OperatorMissionStatus.BLOCKED,
+                    "AgentRuntime bridge failed safely.",
+                )
+            self._kernel.store.append_event(
+                mission_id,
+                event_type="agentruntime_blocked",
+                safe_summary="AgentRuntime bridge contained a runtime failure.",
+                metadata={"blocked_reason": "agentruntime_bridge_failure"},
+            )
+            return OperatorAgentRuntimeBridgeResult(
+                status="blocked",
+                blocked_reason="agentruntime_bridge_failure",
+            )
         finalgate_refs = _finalgate_refs(runtime_result)
         memory_refs = _memory_refs(runtime_result)
         receipt_refs = _receipt_refs(runtime_result)
-        status = "completed" if bool(getattr(runtime_result, "success", False)) else "blocked"
+        runtime_success = bool(getattr(runtime_result, "success", False))
+        finalgate = getattr(runtime_result, "final_gate_certification", None)
+        finalgate_accepted = bool(getattr(finalgate, "accepted", False))
+        status = "completed" if runtime_success and finalgate_accepted else "blocked"
+        blocked_reason = None
+        if status == "blocked":
+            blocked_reason = "agentruntime_finalgate_required" if runtime_success else "agentruntime_reported_failure"
         if update_mission_status:
             operator_status = OperatorMissionStatus.COMPLETED if status == "completed" else OperatorMissionStatus.BLOCKED
             self._kernel.update_status(mission_id, operator_status, f"AgentRuntime finished with status {status}.")
@@ -98,12 +156,14 @@ class OperatorAgentRuntimeBridge:
                 "replan_ready": bool(getattr(runtime_result, "replan_ready", False)),
                 "replan_packet_ref": replan_packet_ref,
                 "automatic_replan_executed": False,
+                "blocked_reason": blocked_reason,
             },
         )
         if self._telemetry_sink is not None and hasattr(self._telemetry_sink, "record_agentruntime_result"):
             self._telemetry_sink.record_agentruntime_result(mission_id, runtime_result)
         return OperatorAgentRuntimeBridgeResult(
             status=status,
+            blocked_reason=blocked_reason,
             receipt_refs=receipt_refs,
             finalgate_certificate_refs=finalgate_refs,
             memory_feedback_refs=memory_refs,
@@ -115,7 +175,12 @@ class OperatorAgentRuntimeBridge:
 def _finalgate_refs(runtime_result: Any) -> list[str]:
     cert = getattr(runtime_result, "final_gate_certification", None)
     cert_id = getattr(cert, "id", None)
-    return sanitize_operator_refs([cert_id] if cert_id else [])
+    if cert_id:
+        return sanitize_operator_refs([cert_id])
+    if not bool(getattr(cert, "accepted", False)):
+        return []
+    payload = cert.model_dump(mode="json") if hasattr(cert, "model_dump") else cert
+    return sanitize_operator_refs([f"finalgate:{stable_hash(payload)}"])
 
 
 def _memory_refs(runtime_result: Any) -> list[str]:
@@ -127,3 +192,18 @@ def _memory_refs(runtime_result: Any) -> list[str]:
 def _receipt_refs(runtime_result: Any) -> list[str]:
     refs = getattr(runtime_result, "receipt_refs", None)
     return sanitize_operator_refs(refs)
+
+
+def _require_material_telemetry(sink: object | None, operation: str) -> bool:
+    if sink is None:
+        return True
+    try:
+        if hasattr(sink, "require_material_execution"):
+            sink.require_material_execution(operation)
+        elif hasattr(sink, "require_certified_mode"):
+            sink.require_certified_mode()
+    except TelemetryCertificationError:
+        return False
+    except Exception:  # noqa: BLE001
+        return False
+    return True

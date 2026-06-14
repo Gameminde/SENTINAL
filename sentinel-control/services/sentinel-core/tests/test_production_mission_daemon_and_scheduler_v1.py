@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -42,6 +43,32 @@ def test_daemon_requires_verified_telemetry_and_valid_lease_before_tick(tmp_path
     healthy_daemon = MissionDaemonRuntime(healthy_kernel, config=MissionDaemonConfig(owner_id="daemon_a"))
     with pytest.raises(MissionDaemonRuntimeError, match="daemon_lease_required"):
         healthy_daemon.tick(healthy_mission_id, current_envelope=_envelope(healthy_mission_id))
+
+
+def test_daemon_rejects_authority_envelope_for_another_mission(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    daemon = MissionDaemonRuntime(kernel, config=MissionDaemonConfig(owner_id="daemon_a"))
+    daemon.enqueue(mission_id)
+    daemon.claim_lease(mission_id)
+
+    with pytest.raises(MissionDaemonRuntimeError, match="mission_authority_mismatch"):
+        daemon.tick(mission_id, current_envelope=_envelope("another_mission"))
+
+    assert daemon.store.load_queue_record(mission_id).status is DaemonQueueStatus.QUEUED
+
+
+def test_daemon_rejects_tampered_mission_record_before_tick(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    daemon = MissionDaemonRuntime(kernel, config=MissionDaemonConfig(owner_id="daemon_a"))
+    daemon.enqueue(mission_id)
+    daemon.claim_lease(mission_id)
+    record_path = kernel.store.run_root / mission_id / "record.json"
+    payload = json.loads(record_path.read_text(encoding="utf-8"))
+    payload["status"] = "completed"
+    record_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(MissionDaemonRuntimeError, match="mission_record_tampered"):
+        daemon.tick(mission_id, current_envelope=_envelope(mission_id))
 
 
 def test_daemon_claims_renews_heartbeats_and_blocks_double_owner(tmp_path: Path) -> None:

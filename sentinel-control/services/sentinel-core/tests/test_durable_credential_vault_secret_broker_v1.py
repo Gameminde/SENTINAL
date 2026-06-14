@@ -255,6 +255,42 @@ def test_secret_broker_checkout_returns_handles_and_tokens_not_raw_secret(tmp_pa
     assert _fake_secret() not in checkout.safe_model_dump().__repr__()
 
 
+def test_secret_checkout_rechecks_secret_revocation_and_expiry_after_lease_creation(tmp_path: Path) -> None:
+    runtime, mission_id, metadata, unlocked = _runtime_with_secret(tmp_path)
+    grant = _grant(runtime, mission_id, metadata.secret_id, unlocked.unlock_session_id)
+    lease = runtime.create_secret_lease(mission_id=mission_id, grant_id=grant.grant_id, ttl_seconds=60)
+
+    runtime.revoke_secret(mission_id=mission_id, secret_id=metadata.secret_id, reason="operator revoked before checkout")
+
+    with pytest.raises(CredentialVaultRuntimeError, match="secret_revoked"):
+        runtime.checkout_secret(
+            mission_id=mission_id,
+            lease_id=lease.lease_id,
+            consumer_kind=CredentialConsumerKind.EXTERNAL_API,
+            consumer_ref="external_api_organ",
+        )
+
+
+def test_secret_use_cannot_mark_expired_or_revoked_lease_as_used(tmp_path: Path) -> None:
+    runtime, mission_id, metadata, unlocked = _runtime_with_secret(tmp_path)
+    grant = _grant(runtime, mission_id, metadata.secret_id, unlocked.unlock_session_id)
+    lease = runtime.create_secret_lease(mission_id=mission_id, grant_id=grant.grant_id, ttl_seconds=60)
+    checkout = runtime.checkout_secret(
+        mission_id=mission_id,
+        lease_id=lease.lease_id,
+        consumer_kind=CredentialConsumerKind.EXTERNAL_API,
+        consumer_ref="external_api_organ",
+    )
+    runtime.expire_secret_lease(mission_id=mission_id, lease_id=lease.lease_id)
+
+    with pytest.raises(CredentialVaultRuntimeError, match="secret_lease_not_active"):
+        runtime.record_secret_use(
+            mission_id=mission_id,
+            checkout_token_id=checkout.checkout_token.checkout_token_id,
+            status="used",
+        )
+
+
 def test_secret_material_never_appears_in_telemetry_receipt_replay_memory_worker_or_prompt_context(tmp_path: Path) -> None:
     runtime, mission_id, metadata, unlocked = _runtime_with_secret(tmp_path)
     grant = _grant(runtime, mission_id, metadata.secret_id, unlocked.unlock_session_id)

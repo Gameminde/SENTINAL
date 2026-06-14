@@ -1,5 +1,62 @@
 # Current State Lock
 
+## Sentinel High-Sensitivity Runtime Remediation - LOCKED
+
+Recorded at: 2026-06-14
+
+This section is the canonical current state. It supersedes the Wave 1 partial
+close as the latest top-level lock, while preserving Wave 1 as
+`PARTIALLY_CLOSED`. This remediation did not start the real-model certification
+provider run and did not start `SECURITY_TESTING_SPECIAL_AUTHORITY_V1`.
+
+The lock hardens high-sensitivity runtime invariants across the MissionKernel,
+AgentRuntime bridge, PowerRuntime bridge, Worker Fleet, credential/account/
+financial surfaces, daemon, telemetry, receipts, FinalGate, and replay.
+
+```text
+current_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
+previous_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
+roadmap_doctrine = product power under provable authority
+```
+
+### Remediation Truth
+
+```text
+MissionKernel strict transition matrix = CLOSED
+DRAFT/RUNNING lifecycle execution gates = CLOSED
+QUEUED -> RUNNING before runtime execution = CLOSED
+terminal resurrection = BLOCKED
+central telemetry degradation policy = CLOSED
+material execution without certified telemetry = BLOCKED
+kill/revocation under telemetry degradation = AVAILABLE
+Worker Fleet post-kill result merge/certification = BLOCKED
+Worker Fleet hard kill of already-running same-process Python code = NOT_CLAIMED / future process isolation
+credential grant/lease/checkout/use revalidation = CLOSED
+account/login and financial plan replay = BLOCKED
+PowerRuntime retry cancellation and actual-cost commit = CLOSED
+AgentRuntime bridge FinalGate completion truth = CLOSED
+empty FinalGate registry = FAIL_CLOSED
+raw exception persistence = REDACTED / BLOCKED
+real-model certification provider run = NOT_STARTED
+functional core suite excluding perf = GREEN / 3 skipped
+full canonical core suite = NOT_GREEN / existing ArtifactRefStore.get perf budget failure
+Wave 1 = PARTIALLY_CLOSED
+Security Testing Special Authority V1 = DEFERRED / NOT_STARTED
+provider fallback/AUTO = NOT_APPROVED
+```
+
+### Remediation Artifacts
+
+```text
+sentinel-control/docs/reviews/SENTINEL_HIGH_SENSITIVITY_CODE_LOGIC_REVIEW_2026_06_14.md
+sentinel-control/docs/reviews/SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is the isolated real-model certification pack.
+
 ## Real-World Power Convergence Wave 1 - PARTIALLY CLOSED
 
 Recorded at: 2026-06-14

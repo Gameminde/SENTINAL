@@ -24,6 +24,7 @@ from sentinel.telemetry.models import (
 )
 from sentinel.telemetry.redaction import sanitize_telemetry_refs, sanitize_telemetry_value
 from sentinel.telemetry.store import TelemetryStore
+from sentinel.telemetry.policy import TelemetryExecutionClass, evaluate_telemetry_operation
 
 
 class TelemetryCertificationError(RuntimeError):
@@ -41,11 +42,19 @@ class TelemetryKernel:
         return self.store.certified_mode_status()
 
     def require_certified_mode(self) -> TelemetrySnapshot:
-        status = self.certified_mode_status()
-        if not status.certified_mode:
-            reason = ", ".join(status.reasons) or "telemetry_unavailable"
-            raise TelemetryCertificationError(f"certified_mode_required:{reason}")
-        return status
+        return self.require_material_execution("certified_mode")
+
+    def require_material_execution(self, operation: str) -> TelemetrySnapshot:
+        decision = evaluate_telemetry_operation(self, TelemetryExecutionClass.MATERIAL_MUTATION)
+        if not decision.evidence_ready:
+            reason = ",".join(decision.reasons) or "telemetry_unavailable"
+            raise TelemetryCertificationError(
+                f"material_execution_requires_certified_telemetry:{operation}:{reason}"
+            )
+        return self.certified_mode_status()
+
+    def mark_degraded(self, reason: str) -> None:
+        self.store.mark_degraded(reason)
 
     def record_metric(self, sample: TelemetryMetricSample) -> TelemetryMetricSample:
         return self.store.record_metric(sample)

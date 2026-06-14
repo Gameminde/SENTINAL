@@ -85,6 +85,7 @@ silent success = 0
 duplicate material side effects = 0
 cross-mission contamination = 0
 open gates = real explicit-model coding-agent run, coding/browser process restart, public-SaaS corpus, long-duration soak
+latest hardening = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
 Wave 2 = NOT_STARTED / blocked until Wave 1 completion
 ```
 
@@ -145,8 +146,11 @@ changes are committed and pushed
 ## Immediate Next Work
 
 ```text
-REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 ```
 
-Complete the open real-model, process-restart, public-SaaS, and soak gates.
-Do not start Wave 2 until the remaining Wave 1 proof is complete.
+Start with the isolated explicit real-model coding-agent certification gate,
+using the hardened MissionKernel lifecycle, telemetry, runtime, receipt,
+FinalGate, replay, and kill/revocation spine. After that, complete the
+process-restart, public-SaaS, and soak gates. Do not start Wave 2 until the
+remaining Wave 1 proof is complete.

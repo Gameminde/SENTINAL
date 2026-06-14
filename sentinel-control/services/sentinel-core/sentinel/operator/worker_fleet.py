@@ -68,6 +68,14 @@ class WorkerFleetRuntime:
         self._assert_supported_mission(mission_id)
         if spawn_request.mission_id != mission_id:
             raise WorkerFleetRuntimeError("worker spawn request mission mismatch")
+        if parent_envelope.id != mission_id:
+            raise WorkerFleetRuntimeError("worker_parent_authority_mission_mismatch")
+        if parent_envelope.revoked_at is not None or datetime.now(UTC) > parent_envelope.resolved_expires_at():
+            return self._blocked_run(
+                mission_id,
+                spawn_request=spawn_request,
+                reason="worker_parent_authority_inactive",
+            )
         if spawn_request.config.require_certified_telemetry and not self._certified_mode():
             return self._blocked_run(
                 mission_id,
@@ -105,7 +113,7 @@ class WorkerFleetRuntime:
             futures: dict[Future[WorkerResult], WorkerExecutionContext] = {}
             with ThreadPoolExecutor(max_workers=min(self._config.max_workers, max(1, len(task_graph)))) as pool:
                 while pending_tasks or futures:
-                    if cancellation_token is not None and getattr(cancellation_token, "is_cancelled", lambda: False)():
+                    if _is_cancelled(cancellation_token):
                         self._append_worker_event(
                             mission_id,
                             event_type="worker_killed",
@@ -119,6 +127,23 @@ class WorkerFleetRuntime:
                             run_id=run.worker_fleet_run_id,
                             futures=futures,
                             reason="worker_killed",
+                        )
+                        break
+                    if not _parent_authority_active(parent_envelope):
+                        self._append_worker_event(
+                            mission_id,
+                            event_type="worker_authority_rejected",
+                            safe_summary="Worker fleet stopped because parent authority became inactive.",
+                            run_id=run.worker_fleet_run_id,
+                        )
+                        run.status = WorkerFleetRunStatus.BLOCKED
+                        run.blocked_reason = "worker_parent_authority_inactive"
+                        pending_tasks.clear()
+                        self._stop_outstanding_futures(
+                            mission_id=mission_id,
+                            run_id=run.worker_fleet_run_id,
+                            futures=futures,
+                            reason="worker_parent_authority_inactive",
                         )
                         break
                     ready_tasks = [
@@ -177,7 +202,47 @@ class WorkerFleetRuntime:
                         break
                     if not futures:
                         break
-                    done, _ = wait(list(futures.keys()), return_when=FIRST_COMPLETED)
+                    done, _ = wait(
+                        list(futures.keys()),
+                        timeout=self._config.cancellation_poll_seconds,
+                        return_when=FIRST_COMPLETED,
+                    )
+                    if not done:
+                        continue
+                    if _is_cancelled(cancellation_token):
+                        self._append_worker_event(
+                            mission_id,
+                            event_type="worker_killed",
+                            safe_summary="Worker fleet rejected results returned after cancellation.",
+                            run_id=run.worker_fleet_run_id,
+                        )
+                        run.status = WorkerFleetRunStatus.KILLED
+                        run.blocked_reason = "worker_killed"
+                        pending_tasks.clear()
+                        self._stop_outstanding_futures(
+                            mission_id=mission_id,
+                            run_id=run.worker_fleet_run_id,
+                            futures=futures,
+                            reason="worker_killed",
+                        )
+                        break
+                    if not _parent_authority_active(parent_envelope):
+                        self._append_worker_event(
+                            mission_id,
+                            event_type="worker_authority_rejected",
+                            safe_summary="Worker fleet rejected results returned after parent authority became inactive.",
+                            run_id=run.worker_fleet_run_id,
+                        )
+                        run.status = WorkerFleetRunStatus.BLOCKED
+                        run.blocked_reason = "worker_parent_authority_inactive"
+                        pending_tasks.clear()
+                        self._stop_outstanding_futures(
+                            mission_id=mission_id,
+                            run_id=run.worker_fleet_run_id,
+                            futures=futures,
+                            reason="worker_parent_authority_inactive",
+                        )
+                        break
                     for future in done:
                         context = futures.pop(future)
                         try:
@@ -285,6 +350,24 @@ class WorkerFleetRuntime:
                                 run_id=run.worker_fleet_run_id,
                                 futures=futures,
                                 reason="worker_retry_required",
+                            )
+                            break
+                        if decision.outcome in {
+                            WorkerMergeOutcome.NEEDS_REPLAN,
+                            WorkerMergeOutcome.NEEDS_OPERATOR_CHECKPOINT,
+                        }:
+                            run.status = WorkerFleetRunStatus.BLOCKED
+                            run.blocked_reason = (
+                                "worker_replan_required"
+                                if decision.outcome is WorkerMergeOutcome.NEEDS_REPLAN
+                                else "worker_operator_checkpoint_required"
+                            )
+                            pending_tasks.clear()
+                            self._stop_outstanding_futures(
+                                mission_id=mission_id,
+                                run_id=run.worker_fleet_run_id,
+                                futures=futures,
+                                reason=run.blocked_reason,
                             )
                             break
                     if run.status in {WorkerFleetRunStatus.BLOCKED, WorkerFleetRunStatus.FAILED, WorkerFleetRunStatus.KILLED}:
@@ -482,12 +565,18 @@ class WorkerFleetRuntime:
         results_by_task: dict[str, WorkerResult],
     ) -> WorkerMergeDecision:
         conflict_key = task_def.result_contract.conflict_key
-        if result.evidence_packet.receipt_refs and result.evidence_packet.finalgate_certificate_refs:
+        if result.status is WorkerTaskStatus.COMPLETED:
             outcome = WorkerMergeOutcome.MERGED
             reasons: list[str] = []
+        elif result.status in {WorkerTaskStatus.FAILED, WorkerTaskStatus.TIMEOUT}:
+            outcome = WorkerMergeOutcome.NEEDS_RETRY
+            reasons = [f"worker_result_{result.status.value}"]
+        elif result.status in {WorkerTaskStatus.BLOCKED, WorkerTaskStatus.BUDGET_EXHAUSTED}:
+            outcome = WorkerMergeOutcome.NEEDS_REPLAN
+            reasons = [f"worker_result_{result.status.value}"]
         else:
             outcome = WorkerMergeOutcome.REJECTED
-            reasons = ["missing_required_evidence"]
+            reasons = [f"worker_result_{result.status.value}"]
         if outcome is WorkerMergeOutcome.MERGED and conflict_key is not None:
             for prior_task_id, prior in results_by_task.items():
                 prior_conflict_key = tasks_by_id[prior_task_id].result_contract.conflict_key
@@ -868,6 +957,20 @@ class WorkerFleetRuntime:
 
 def _scope_subset(child: list[str], parent: list[str]) -> bool:
     return set(child).issubset(set(parent))
+
+
+def _is_cancelled(cancellation_token: Any | None) -> bool:
+    if cancellation_token is None:
+        return False
+    value = getattr(cancellation_token, "is_cancelled", False)
+    return bool(value() if callable(value) else value)
+
+
+def _parent_authority_active(parent_envelope: MissionAuthorityEnvelope) -> bool:
+    return (
+        parent_envelope.revoked_at is None
+        and datetime.now(UTC) <= parent_envelope.resolved_expires_at()
+    )
 
 
 def _intersection(child: list[str], parent: list[str]) -> list[str]:

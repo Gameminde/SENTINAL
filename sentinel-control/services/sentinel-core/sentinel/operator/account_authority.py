@@ -186,6 +186,7 @@ class AccountAuthorityRuntime:
         self._assert_certified_telemetry()
         if plan.status is AccountPlanStatus.CHECKPOINT_REQUIRED:
             raise AccountAuthorityRuntimeError("human_checkpoint_required")
+        self._assert_plan_not_executed(mission_id, "login_receipts", plan.plan_id, AccountLoginReceipt)
         if not credential_lease_id:
             raise AccountAuthorityRuntimeError("credential_lease_required")
         if stable_hash(credential_lease_id) != plan.credential_lease_ref_hash:
@@ -365,6 +366,7 @@ class AccountAuthorityRuntime:
         self._assert_certified_telemetry()
         if plan.status is AccountPlanStatus.CHECKPOINT_REQUIRED:
             raise AccountAuthorityRuntimeError("human_checkpoint_required")
+        self._assert_plan_not_executed(mission_id, "account_creation_receipts", plan.plan_id, AccountCreationReceipt)
         account_creation_hash = stable_hash({"mission_id": mission_id, "plan_id": plan_id, "service_hash": plan.service_hash})
         session = AccountSessionRef(service_hash=plan.service_hash, target_domain=plan.target_domain).with_hash()
         receipt = AccountCreationReceipt(
@@ -450,6 +452,17 @@ class AccountAuthorityRuntime:
     def _load_one(self, mission_id: str, category: str, item_id: str, model: Any) -> Any:
         return model.model_validate_json(self.store.item_path(mission_id, category, item_id).read_text(encoding="utf-8"))
 
+    def _load_all(self, mission_id: str, category: str, model: Any) -> list[Any]:
+        root = self.store.root(mission_id) / category
+        if not root.exists():
+            return []
+        return [model.model_validate_json(item.read_text(encoding="utf-8")) for item in sorted(root.glob("*.json"))]
+
+    def _assert_plan_not_executed(self, mission_id: str, category: str, plan_id: str, model: Any) -> None:
+        for receipt in self._load_all(mission_id, category, model):
+            if getattr(receipt, "plan_id", None) == plan_id:
+                raise AccountAuthorityRuntimeError("account_plan_already_executed")
+
     def _persist_checkpoints(self, mission_id: str, checkpoints: list[HumanCheckpoint], event_type: str) -> list[HumanCheckpoint]:
         for checkpoint in checkpoints:
             self.store.write(mission_id, "checkpoints", checkpoint.checkpoint_id, checkpoint.safe_model_dump())
@@ -511,10 +524,15 @@ class AccountAuthorityRuntime:
 
     def _assert_certified_telemetry(self) -> None:
         sink = getattr(self.kernel, "telemetry_sink", None)
-        if sink is None or not hasattr(sink, "require_certified_mode"):
+        if sink is None:
             raise AccountAuthorityRuntimeError("telemetry_certified_mode_required")
         try:
-            sink.require_certified_mode()
+            if hasattr(sink, "require_material_execution"):
+                sink.require_material_execution("account_authority")
+            elif hasattr(sink, "require_certified_mode"):
+                sink.require_certified_mode()
+            else:
+                raise AccountAuthorityRuntimeError("telemetry_certified_mode_required")
         except Exception as exc:
             raise AccountAuthorityRuntimeError("telemetry_certified_mode_required") from exc
 

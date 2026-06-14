@@ -476,10 +476,15 @@ class ChannelConnectorRuntime:
 
     def _assert_certified_telemetry(self) -> None:
         sink = getattr(self.kernel, "telemetry_sink", None)
-        if sink is None or not hasattr(sink, "require_certified_mode"):
+        if sink is None:
             raise ChannelConnectorRuntimeError("telemetry_certified_mode_required")
         try:
-            sink.require_certified_mode()
+            if hasattr(sink, "require_material_execution"):
+                sink.require_material_execution("channel_send")
+            elif hasattr(sink, "require_certified_mode"):
+                sink.require_certified_mode()
+            else:
+                raise ChannelConnectorRuntimeError("telemetry_certified_mode_required")
         except Exception as exc:
             raise ChannelConnectorRuntimeError("telemetry_certified_mode_required") from exc
 

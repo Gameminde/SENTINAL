@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.agent_bridge import OperatorAgentRuntimeBridge
 from sentinel.operator.kernel import MissionKernel
@@ -17,7 +19,19 @@ from sentinel.power.runtime import (
     PowerMissionPlan,
     PowerMissionStep,
 )
-from sentinel.telemetry import TelemetryEventKind, TelemetryDomain, TelemetryEventRecord, TelemetrySourceSurface, TelemetryStore
+from sentinel.telemetry import (
+    TelemetryCertificationError,
+    TelemetryDegradationPolicy,
+    TelemetryDomain,
+    TelemetryEventKind,
+    TelemetryEventRecord,
+    TelemetryExecutionClass,
+    TelemetryKernel,
+    TelemetryOperationalState,
+    TelemetrySourceSurface,
+    TelemetryStore,
+    evaluate_telemetry_operation,
+)
 
 
 def test_telemetry_store_redacts_secrets_and_detects_tamper(tmp_path: Path) -> None:
@@ -68,8 +82,69 @@ def test_mission_kernel_default_telemetry_records_mission_flow(tmp_path: Path) -
     assert "mission_started" in kinds
 
 
+def test_central_telemetry_degradation_policy_blocks_material_but_preserves_kill_and_explicit_read_only(
+    tmp_path: Path,
+) -> None:
+    telemetry = TelemetryKernel(tmp_path / "telemetry", enabled=False)
+
+    material = evaluate_telemetry_operation(
+        telemetry,
+        TelemetryExecutionClass.MATERIAL_MUTATION,
+    )
+    read_only = evaluate_telemetry_operation(
+        telemetry,
+        TelemetryExecutionClass.READ_ONLY_OBSERVATION,
+        policy=TelemetryDegradationPolicy(allow_read_only_when_degraded=True),
+    )
+    kill = evaluate_telemetry_operation(
+        telemetry,
+        TelemetryExecutionClass.KILL_OR_REVOCATION,
+    )
+
+    assert material.evidence_ready is False
+    assert material.state is TelemetryOperationalState.UNAVAILABLE
+    assert read_only.evidence_ready is True
+    assert read_only.state is TelemetryOperationalState.READ_ONLY_SAFE_MODE
+    assert kill.evidence_ready is True
+    assert kill.kill_and_revocation_available is True
+    assert material.operator_visible is True
+    with pytest.raises(TelemetryCertificationError, match="material_execution_requires_certified_telemetry"):
+        telemetry.require_material_execution("workspace_mutation")
+
+
+def test_telemetry_write_failure_degrades_certification_and_blocks_material_execution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    telemetry = TelemetryKernel(tmp_path / "telemetry")
+
+    def fail_write(*_args, **_kwargs):
+        raise OSError("simulated telemetry disk failure")
+
+    monkeypatch.setattr(telemetry.store, "_append_jsonl", fail_write)
+
+    with pytest.raises(Exception, match="telemetry_write_failed"):
+        telemetry.store.record_event(
+            TelemetryEventRecord(
+                mission_id="mission_telemetry_failure",
+                source_surface=TelemetrySourceSurface.MISSION_KERNEL,
+                domain=TelemetryDomain.OPERATIONAL,
+                event_kind=TelemetryEventKind.MISSION_STARTED,
+                safe_summary="Telemetry write must fail closed.",
+            )
+        )
+
+    snapshot = telemetry.certified_mode_status()
+    assert snapshot.certified_mode is False
+    assert snapshot.operator_visible is True
+    assert "telemetry_write_failed" in snapshot.reasons
+    with pytest.raises(TelemetryCertificationError):
+        telemetry.require_material_execution("channel_send")
+
+
 def test_agent_bridge_records_replan_and_memory_telemetry(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
+    kernel.enqueue(mission_id)
 
     class FakeAgentRuntime:
         def run(self, envelope, user_input):
@@ -80,7 +155,7 @@ def test_agent_bridge_records_replan_and_memory_telemetry(tmp_path: Path) -> Non
                 automatic_replan_executed=True,
                 replan_packet={"branch": "replan"},
                 receipt_refs=["receipt_1"],
-                final_gate_certification=SimpleNamespace(id="finalgate_1"),
+                    final_gate_certification=SimpleNamespace(id="finalgate_1", accepted=True),
                 memory_feedback_refs=["memory_1"],
                 memory_feedback_result=SimpleNamespace(memory_entry_refs=["memory_1"]),
                 brain_candidate_source_status="brain_ready",

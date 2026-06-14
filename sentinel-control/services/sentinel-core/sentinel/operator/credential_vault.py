@@ -341,7 +341,14 @@ class CredentialVaultRuntime:
 
     def create_secret_lease(self, *, mission_id: str, grant_id: str, ttl_seconds: int) -> SecretAccessLease:
         grant = self._load_one(mission_id, "grants", grant_id, SecretAccessGrant)
+        if not grant.verify_hash():
+            raise CredentialVaultRuntimeError("secret_grant_hash_mismatch")
+        if grant.expires_at <= vault_utc_now():
+            raise CredentialVaultRuntimeError("secret_grant_expired")
         metadata = self._load_secret(mission_id, grant.secret_id)
+        self._assert_secret_available(metadata)
+        if ttl_seconds <= 0:
+            raise CredentialVaultRuntimeError("secret_lease_ttl_invalid")
         ttl = min(ttl_seconds, metadata.use_policy.max_lease_seconds)
         lease = SecretAccessLease(
             grant_id=grant_id,
@@ -414,8 +421,17 @@ class CredentialVaultRuntime:
         if not lease.is_active():
             raise CredentialVaultRuntimeError("secret_lease_not_active")
         grant = self._load_one(mission_id, "grants", lease.grant_id, SecretAccessGrant)
+        if not grant.verify_hash():
+            raise CredentialVaultRuntimeError("secret_grant_hash_mismatch")
+        if grant.expires_at <= vault_utc_now():
+            raise CredentialVaultRuntimeError("secret_grant_expired")
+        if grant.secret_id != lease.secret_id:
+            raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
+        metadata = self._load_secret(mission_id, lease.secret_id)
+        self._assert_secret_available(metadata)
         if grant.consumer.consumer_kind is not consumer_kind or grant.consumer.consumer_ref != consumer_ref:
             raise CredentialVaultRuntimeError("consumer_not_allowed")
+        self._assert_certified_telemetry("credential_checkout")
         token = SecretCheckoutToken(
             lease_id=lease_id,
             lease_ref_hash=stable_hash(lease_id),
@@ -464,6 +480,8 @@ class CredentialVaultRuntime:
         grant = self._load_one(mission_id, "grants", lease.grant_id, SecretAccessGrant)
         if not grant.verify_hash():
             raise CredentialVaultRuntimeError("secret_grant_hash_mismatch")
+        if grant.expires_at <= vault_utc_now():
+            raise CredentialVaultRuntimeError("secret_grant_expired")
         if grant.secret_id != lease.secret_id:
             raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
         if grant.consumer.consumer_kind is not expected_consumer_kind or grant.consumer.consumer_ref != expected_consumer_ref:
@@ -473,6 +491,7 @@ class CredentialVaultRuntime:
         if not set(expected_scope).issubset(set(grant.granted_scope)):
             raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
         metadata = self._load_secret(mission_id, lease.secret_id)
+        self._assert_secret_available(metadata)
         if not set(expected_scope).issubset(set(metadata.scope_policy.allowed_scopes)):
             raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
 
@@ -487,8 +506,22 @@ class CredentialVaultRuntime:
         if not lease_id:
             raise CredentialVaultRuntimeError("secret_lease_required")
         lease = self._load_one(mission_id, "leases", lease_id, SecretAccessLease)
+        if not lease.verify_hash():
+            raise CredentialVaultRuntimeError("secret_lease_hash_mismatch")
+        if not lease.is_active():
+            raise CredentialVaultRuntimeError("secret_lease_not_active")
         grant = self._load_one(mission_id, "grants", lease.grant_id, SecretAccessGrant)
+        if not grant.verify_hash():
+            raise CredentialVaultRuntimeError("secret_grant_hash_mismatch")
+        if grant.expires_at <= vault_utc_now():
+            raise CredentialVaultRuntimeError("secret_grant_expired")
+        if grant.secret_id != lease.secret_id:
+            raise CredentialVaultRuntimeError("credential_lease_scope_mismatch")
+        if grant.consumer.consumer_kind is not checkout.consumer.consumer_kind or grant.consumer.consumer_ref != checkout.consumer.consumer_ref:
+            raise CredentialVaultRuntimeError("consumer_not_allowed")
         metadata = self._load_secret(mission_id, lease.secret_id)
+        self._assert_secret_available(metadata)
+        self._assert_certified_telemetry("credential_secret_use")
         receipt = SecretUseReceipt(
             mission_id=mission_id,
             secret_id=lease.secret_id,
@@ -657,6 +690,20 @@ class CredentialVaultRuntime:
             raise CredentialVaultRuntimeError("secret_revoked")
         if metadata.is_expired():
             raise CredentialVaultRuntimeError("secret_expired")
+
+    def _assert_certified_telemetry(self, operation: str) -> None:
+        sink = getattr(self.kernel, "telemetry_sink", None)
+        if sink is None:
+            raise CredentialVaultRuntimeError("telemetry_certified_mode_required")
+        try:
+            if hasattr(sink, "require_material_execution"):
+                sink.require_material_execution(operation)
+            elif hasattr(sink, "require_certified_mode"):
+                sink.require_certified_mode()
+            else:
+                raise CredentialVaultRuntimeError("telemetry_certified_mode_required")
+        except Exception as exc:
+            raise CredentialVaultRuntimeError("telemetry_certified_mode_required") from exc
 
     def _active_leases(self, mission_id: str) -> list[SecretAccessLease]:
         return [lease for lease in self._load_all(mission_id, "leases", SecretAccessLease) if lease.is_active()]

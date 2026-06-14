@@ -22,9 +22,9 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-06-14
-current_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
-previous_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
-next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
+current_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
+previous_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 doctrine = product power under provable authority
 ```
 
@@ -39,15 +39,21 @@ latest convergence evidence measures that power honestly at task level:
 governance and local runtime are strong, and Wave 1 now proves repeatable
 controlled coding/workspace and live Playwright browser missions with zero
 silent success, duplicate material side effects, or cross-mission
-contamination. Wave 1 is `PARTIALLY_CLOSED`: the backend is certified on
+contamination. Wave 1 is still `PARTIALLY_CLOSED`: the backend is certified on
 controlled fixtures, while a real explicit-model coding-agent run, process
 restart continuity, public-SaaS evidence, and long-duration soak remain open.
+
+The latest lock is a high-sensitivity runtime remediation. It hardens strict
+MissionKernel state transitions, centralized telemetry degradation policy,
+Worker Fleet post-kill/parent-expiry result rejection, credential/account/
+financial replay barriers, bridge lifecycle gates, runtime proof preservation,
+and exception redaction. It does not start the real-model provider run.
 No new actuator family or special-authority surface was added.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_LOCK_REPORT.md
+sentinel-control/docs/reviews/SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCK_REPORT.md
 ```
 
 The canonical state truth is:

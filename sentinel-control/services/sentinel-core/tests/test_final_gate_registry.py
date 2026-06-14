@@ -133,6 +133,14 @@ def test_registry_evaluates_all_registered_modules(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_empty_final_gate_registry_fails_closed(tmp_path) -> None:
+    verdict = FinalGateRegistry().evaluate_all(_run(tmp_path))
+
+    assert verdict.accepted is False
+    assert [check.name for check in verdict.checks] == ["final_gate_registry_nonempty"]
+    assert verdict.checks[0].passed is False
+
+
 def test_new_module_registration_without_core_modification(tmp_path) -> None:
     """**Validates: CP-11.1 (Open-Closed).**
 

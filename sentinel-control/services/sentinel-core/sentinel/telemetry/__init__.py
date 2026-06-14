@@ -9,17 +9,29 @@ from sentinel.telemetry.models import (
     TelemetrySourceSurface,
 )
 from sentinel.telemetry.store import TelemetryIntegrityError, TelemetryStore
+from sentinel.telemetry.policy import (
+    TelemetryDegradationPolicy,
+    TelemetryExecutionClass,
+    TelemetryOperationalState,
+    TelemetryPolicyDecision,
+    evaluate_telemetry_operation,
+)
 
 __all__ = [
     "TelemetryCertificationError",
     "TelemetryDomain",
+    "TelemetryDegradationPolicy",
+    "TelemetryExecutionClass",
     "TelemetryEventKind",
     "TelemetryEventRecord",
     "TelemetryIntegrityError",
     "TelemetryKernel",
     "TelemetryMetricKind",
     "TelemetryMetricSample",
+    "TelemetryOperationalState",
+    "TelemetryPolicyDecision",
     "TelemetrySnapshot",
     "TelemetrySourceSurface",
     "TelemetryStore",
+    "evaluate_telemetry_operation",
 ]

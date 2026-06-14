@@ -31,28 +31,40 @@ class TelemetryStore:
         self.enabled = enabled
         self.events_path = self.root / "events.jsonl"
         self.metrics_path = self.root / "metrics.jsonl"
+        self._degradation_reasons: set[str] = set()
         with _TELEMETRY_LOCKS_GUARD:
             self._lock = _TELEMETRY_LOCKS.setdefault(str(self.root), threading.RLock())
 
     def record_event(self, record: TelemetryEventRecord) -> TelemetryEventRecord:
         if not self.enabled:
             raise TelemetryIntegrityError("telemetry_store_disabled")
-        with self._lock:
-            events = self.load_events()
-            previous_hash = events[-1].event_hash if events else None
-            event = record.model_copy(update={"previous_hash": previous_hash}).with_hash()
-            self._append_jsonl(self.events_path, event.safe_model_dump())
-            return event
+        try:
+            with self._lock:
+                events = self.load_events()
+                previous_hash = events[-1].event_hash if events else None
+                event = record.model_copy(update={"previous_hash": previous_hash}).with_hash()
+                self._append_jsonl(self.events_path, event.safe_model_dump())
+                return event
+        except Exception as exc:
+            self.mark_degraded("telemetry_write_failed")
+            raise TelemetryIntegrityError("telemetry_write_failed") from exc
 
     def record_metric(self, sample: TelemetryMetricSample) -> TelemetryMetricSample:
         if not self.enabled:
             raise TelemetryIntegrityError("telemetry_store_disabled")
-        with self._lock:
-            metrics = self.load_metrics()
-            previous_hash = metrics[-1].metric_hash if metrics else None
-            metric = sample.model_copy(update={"previous_hash": previous_hash}).with_hash()
-            self._append_jsonl(self.metrics_path, metric.safe_model_dump())
-            return metric
+        try:
+            with self._lock:
+                metrics = self.load_metrics()
+                previous_hash = metrics[-1].metric_hash if metrics else None
+                metric = sample.model_copy(update={"previous_hash": previous_hash}).with_hash()
+                self._append_jsonl(self.metrics_path, metric.safe_model_dump())
+                return metric
+        except Exception as exc:
+            self.mark_degraded("telemetry_write_failed")
+            raise TelemetryIntegrityError("telemetry_write_failed") from exc
+
+    def mark_degraded(self, reason: str) -> None:
+        self._degradation_reasons.add(str(reason))
 
     def load_events(self) -> list[TelemetryEventRecord]:
         if not self.events_path.exists():
@@ -100,11 +112,21 @@ class TelemetryStore:
         return True
 
     def snapshot(self) -> TelemetrySnapshot:
-        events = self.load_events()
-        metrics = self.load_metrics()
-        event_chain_ok = self.verify_events()
-        metric_chain_ok = self.verify_metrics()
-        reasons: list[str] = []
+        reasons: list[str] = sorted(self._degradation_reasons)
+        try:
+            events = self.load_events()
+            event_chain_ok = self.verify_events()
+        except Exception:
+            events = []
+            event_chain_ok = False
+            reasons.append("event_chain_unreadable")
+        try:
+            metrics = self.load_metrics()
+            metric_chain_ok = self.verify_metrics()
+        except Exception:
+            metrics = []
+            metric_chain_ok = False
+            reasons.append("metric_chain_unreadable")
         if not self.enabled:
             reasons.append("telemetry_disabled")
         if not event_chain_ok:
@@ -113,6 +135,7 @@ class TelemetryStore:
             reasons.append("metric_chain_tampered")
         if not self.events_path.exists() and not self.metrics_path.exists():
             reasons.append("telemetry_empty")
+        reasons = list(dict.fromkeys(reasons))
         event_counts_by_kind: dict[str, int] = {}
         metric_counts_by_kind: dict[str, int] = {}
         domain_counts: dict[str, int] = {}
@@ -140,11 +163,11 @@ class TelemetryStore:
             metric_counts_by_kind.setdefault(metric_kind.value, 0)
         return TelemetrySnapshot(
             root_path=str(self.root),
-            telemetry_available=True,
+            telemetry_available=self.enabled,
             event_chain_ok=event_chain_ok,
             metric_chain_ok=metric_chain_ok,
             tampered=not event_chain_ok or not metric_chain_ok,
-            certified_mode=self.enabled and event_chain_ok and metric_chain_ok,
+            certified_mode=self.enabled and event_chain_ok and metric_chain_ok and not self._degradation_reasons,
             reasons=reasons,
             event_count=len(events),
             metric_count=len(metrics),
@@ -154,7 +177,11 @@ class TelemetryStore:
             latest_event_hash=events[-1].event_hash if events else None,
             latest_metric_hash=metrics[-1].metric_hash if metrics else None,
             latest_provider_backend_model=latest_provider_backend_model,
-            product_power_score=_product_power_score(events, metrics, certified=self.enabled and event_chain_ok and metric_chain_ok),
+            product_power_score=_product_power_score(
+                events,
+                metrics,
+                certified=self.enabled and event_chain_ok and metric_chain_ok and not self._degradation_reasons,
+            ),
         )
 
     def certified_mode_status(self) -> TelemetrySnapshot:

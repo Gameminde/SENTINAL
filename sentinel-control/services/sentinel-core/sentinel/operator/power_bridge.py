@@ -9,6 +9,7 @@ from sentinel.mission.cancellation import CancellationToken
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import OperatorMissionStatus
+from sentinel.telemetry import TelemetryCertificationError
 from sentinel.power.runtime import (
     PowerActuatorCapabilityLevel,
     PowerActuatorFamily,
@@ -133,6 +134,17 @@ class OperatorPowerRuntimeBridge:
             return self._emit(self._blocked_result(mission_id, "mission_authority_envelope_inactive"))
         if envelope.id != mission_id or not _plan_within_envelope(plan, envelope):
             return self._emit(self._blocked_result(mission_id, "power_plan_outside_authority"))
+        record = self._kernel.store.load_record(mission_id)
+        if record.status not in {OperatorMissionStatus.QUEUED, OperatorMissionStatus.RUNNING}:
+            return self._emit(
+                self._blocked_result(
+                    mission_id,
+                    "operator_mission_not_executable",
+                    metadata={"mission_state": record.status.value},
+                )
+            )
+        if not _require_material_telemetry(self._telemetry_sink, "power_runtime_bridge"):
+            return self._blocked_result(mission_id, "telemetry_certified_mode_required")
         if actuator_executor is not None:
             return self._emit(self._blocked_result(mission_id, "unbound_power_executor"))
         if executor_binding is not None and not isinstance(executor_binding, BoundPowerActuatorExecutor):
@@ -154,6 +166,8 @@ class OperatorPowerRuntimeBridge:
             )
         except ValueError:
             return self._emit(self._blocked_result(mission_id, "mission_power_budget_exhausted"))
+        if record.status is OperatorMissionStatus.QUEUED:
+            self._kernel.update_status(mission_id, OperatorMissionStatus.RUNNING, "PowerRuntime bridge started mission execution.")
         try:
             result = self._runtime.run(
                 plan,
@@ -175,12 +189,17 @@ class OperatorPowerRuntimeBridge:
             )
             return self._emit(self._blocked_result(mission_id, "power_runtime_bridge_failure"))
         actual_actions = sum(result_item.attempt_count for result_item in result.step_results)
+        costs_by_step = {step.step_id: step.estimated_cost_usd for step in plan.graph.steps}
+        actual_cost = sum(
+            costs_by_step.get(result_item.step_id, 0.0) * result_item.attempt_count
+            for result_item in result.step_results
+        )
         self._kernel.store.commit_power_budget(
             mission_id,
             reserved_actions=reserved_actions,
             reserved_cost_usd=reserved_cost,
             actual_actions=actual_actions,
-            actual_cost_usd=reserved_cost if actual_actions else 0.0,
+            actual_cost_usd=actual_cost,
         )
         if update_mission_status:
             status = _operator_status(result.status)
@@ -386,6 +405,21 @@ def _proof_enforcing_executor(executor: PowerActuatorExecutor) -> PowerActuatorE
         return result
 
     return execute
+
+
+def _require_material_telemetry(sink: object | None, operation: str) -> bool:
+    if sink is None:
+        return True
+    try:
+        if hasattr(sink, "require_material_execution"):
+            sink.require_material_execution(operation)
+        elif hasattr(sink, "require_certified_mode"):
+            sink.require_certified_mode()
+    except TelemetryCertificationError:
+        return False
+    except Exception:  # noqa: BLE001
+        return False
+    return True
 
 
 def _matches_irreversible_marker(value: str) -> bool:

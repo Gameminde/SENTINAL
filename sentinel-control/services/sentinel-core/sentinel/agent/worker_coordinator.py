@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from sentinel.agent.event_bus import EventBus
+from sentinel.agent.evidence_ranker import sanitize_context_text
 from sentinel.agent.events import AgentEventType
 from sentinel.agent.models import AgentContext, WorkerResult, WorkerTask
 from sentinel.agent.phases import AgentPhase
@@ -53,7 +54,7 @@ class WorkerCoordinator:
                     "action_count": 0,
                     "executed_action_ids": [],
                     "error_type": type(exc).__name__,
-                    "error": str(exc),
+                    "error": sanitize_context_text(str(exc)),
                 },
             )
             raise

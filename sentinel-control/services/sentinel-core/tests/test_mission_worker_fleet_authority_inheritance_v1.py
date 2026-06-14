@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import threading
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from sentinel.mission.cancellation import CancellationToken
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
@@ -73,6 +76,118 @@ def test_child_authority_is_strict_subset_and_cannot_expand_parent_envelope(tmp_
     assert expanded.status is WorkerFleetRunStatus.BLOCKED
     assert expanded.blocked_reason == "worker_authority_derivation_failed"
     assert expanded.worker_results == []
+
+
+def test_worker_fleet_rejects_parent_authority_for_another_mission(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel)
+    calls: list[str] = []
+
+    with pytest.raises(ValueError, match="worker_parent_authority_mission_mismatch"):
+        runtime.run(
+            mission_id=mission_id,
+            parent_envelope=_parent_envelope("another_mission"),
+            spawn_request=_spawn_request(mission_id, task=_task("worker_read")),
+            worker_executor=lambda context: calls.append(context.task_id) or _successful_executor(context),
+        )
+
+    assert calls == []
+
+
+def test_worker_fleet_blocks_revoked_or_expired_parent_authority(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel)
+    calls: list[str] = []
+    request = _spawn_request(mission_id, task=_task("worker_read"))
+    parent = _parent_envelope(mission_id)
+
+    revoked = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=parent.model_copy(update={"revoked_at": datetime.now(UTC)}),
+        spawn_request=request,
+        worker_executor=lambda context: calls.append(context.task_id) or _successful_executor(context),
+    )
+    expired = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=parent.model_copy(
+            update={"created_at": datetime.now(UTC) - timedelta(hours=2), "max_duration_minutes": 1}
+        ),
+        spawn_request=request,
+        worker_executor=lambda context: calls.append(context.task_id) or _successful_executor(context),
+    )
+
+    assert calls == []
+    assert revoked.status is WorkerFleetRunStatus.BLOCKED
+    assert expired.status is WorkerFleetRunStatus.BLOCKED
+    assert revoked.blocked_reason == "worker_parent_authority_inactive"
+    assert expired.blocked_reason == "worker_parent_authority_inactive"
+
+
+def test_worker_fleet_honors_standard_cancellation_token_before_execution(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel)
+    token = CancellationToken()
+    token.cancel()
+    calls: list[str] = []
+
+    run = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=_parent_envelope(mission_id),
+        spawn_request=_spawn_request(mission_id, task=_task("worker_read")),
+        worker_executor=lambda context: calls.append(context.task_id) or _successful_executor(context),
+        cancellation_token=token,
+    )
+
+    assert run.status is WorkerFleetRunStatus.KILLED
+    assert run.blocked_reason == "worker_killed"
+    assert calls == []
+
+
+def test_analysis_worker_merges_without_execution_receipts_when_contract_allows_it(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel)
+
+    def analysis_executor(context) -> WorkerResult:
+        result = _worker_result(context, safe_summary="Analysis completed with evidence.")
+        return result.model_copy(
+            update={
+                "evidence_packet": WorkerEvidencePacket(
+                    evidence_refs=["evidence:analysis"],
+                    receipt_refs=[],
+                    finalgate_certificate_refs=[],
+                )
+            }
+        )
+
+    run = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=_parent_envelope(mission_id),
+        spawn_request=_spawn_request(mission_id, task=_task("analysis")),
+        worker_executor=analysis_executor,
+    )
+
+    assert run.status is WorkerFleetRunStatus.COMPLETED
+    assert run.merge_decisions[0].outcome is WorkerMergeOutcome.MERGED
+
+
+def test_failed_worker_result_requests_retry_instead_of_false_completion(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel)
+
+    run = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=_parent_envelope(mission_id),
+        spawn_request=_spawn_request(mission_id, task=_task("unstable_analysis")),
+        worker_executor=lambda context: _worker_result(
+            context,
+            status=WorkerTaskStatus.FAILED,
+            safe_summary="Analysis worker failed after producing diagnostic evidence.",
+        ),
+    )
+
+    assert run.status is WorkerFleetRunStatus.BLOCKED
+    assert run.blocked_reason == "worker_retry_required"
+    assert run.merge_decisions[0].outcome is WorkerMergeOutcome.NEEDS_RETRY
 
 
 def test_worker_fleet_requires_verified_telemetry_in_certified_mode(tmp_path: Path) -> None:
@@ -285,6 +400,71 @@ def test_worker_fleet_records_outstanding_future_cancellation_after_authority_fa
         event.event_type == "worker_killed"
         and event.metadata.get("task_id") == "worker_slow"
         for event in events
+    )
+
+
+def test_worker_result_returned_after_kill_is_drained_and_never_merged_or_certified(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel, config=WorkerFleetConfig(cancellation_poll_seconds=0.01))
+    token = CancellationToken()
+    started = threading.Event()
+
+    def executor(context):
+        started.set()
+        token.wait(timeout=1.0)
+        return _worker_result(context, safe_summary="Late worker result after kill.")
+
+    def cancel_after_start() -> None:
+        assert started.wait(timeout=1.0)
+        token.cancel()
+
+    canceller = threading.Thread(target=cancel_after_start)
+    canceller.start()
+    run = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=_parent_envelope(mission_id),
+        spawn_request=_spawn_request(mission_id, task=_task("worker_late_after_kill")),
+        worker_executor=executor,
+        cancellation_token=token,
+    )
+    canceller.join(timeout=1.0)
+
+    assert run.status is WorkerFleetRunStatus.KILLED
+    assert run.worker_results == []
+    assert run.merge_decisions == []
+    events = kernel.store.load_events(mission_id)
+    assert any(event.event_type == "worker_killed" for event in events)
+    assert not any(
+        "finalgate_worker" in event.finalgate_certificate_refs
+        for event in events
+        if event.event_type.startswith("worker_")
+    )
+
+
+def test_worker_fleet_stops_when_parent_authority_expires_while_worker_is_active(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = WorkerFleetRuntime(kernel, config=WorkerFleetConfig(cancellation_poll_seconds=0.01))
+    parent = _parent_envelope(mission_id).model_copy(
+        update={"expires_at": datetime.now(UTC) + timedelta(milliseconds=30)}
+    )
+
+    def executor(context):
+        time.sleep(0.08)
+        return _worker_result(context, safe_summary="Worker returned after parent expiry.")
+
+    run = runtime.run(
+        mission_id=mission_id,
+        parent_envelope=parent,
+        spawn_request=_spawn_request(mission_id, task=_task("worker_parent_expires")),
+        worker_executor=executor,
+    )
+
+    assert run.status is WorkerFleetRunStatus.BLOCKED
+    assert run.blocked_reason == "worker_parent_authority_inactive"
+    assert run.worker_results == []
+    assert any(
+        event.event_type == "worker_authority_rejected"
+        for event in kernel.store.load_events(mission_id)
     )
 
 

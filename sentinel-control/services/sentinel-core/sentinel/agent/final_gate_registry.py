@@ -95,11 +95,24 @@ class FinalGateRegistry:
         # Local import to avoid a circular import at module-load time —
         # ``final_gate.py`` imports this module to wire the default
         # registry.
-        from sentinel.agent.final_gate import CoreFinalGateResult
+        from sentinel.agent.final_gate import (
+            CoreFinalGateResult,
+            CoreGateCheck,
+            CoreGateCheckKind,
+        )
 
         checks: list = []
         for module in self._modules:
             checks.extend(module.checks(result, allowed_project_root=allowed_project_root))
+        if not checks:
+            checks.append(
+                CoreGateCheck(
+                    name="final_gate_registry_nonempty",
+                    kind=CoreGateCheckKind.CERTIFICATION,
+                    passed=False,
+                    message="FinalGate registry has no checks and cannot certify the run.",
+                )
+            )
         return CoreFinalGateResult(
             accepted=all(check.passed for check in checks),
             checks=checks,

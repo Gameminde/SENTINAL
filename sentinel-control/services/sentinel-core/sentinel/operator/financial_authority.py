@@ -345,6 +345,7 @@ class FinancialAuthorityRuntime:
             raise FinancialAuthorityRuntimeError("financial_plan_blocked")
         if config.approval_policy.operator_approval_required and not approval_ref:
             raise FinancialAuthorityRuntimeError("financial_operator_approval_required")
+        self._assert_plan_not_executed(mission_id, "spend_receipts", plan.plan_id, SpendReceipt)
         secret_use_ref: str | None = None
         checkout_ref: str | None = None
         if plan.credential_lease_ref_hash:
@@ -450,6 +451,7 @@ class FinancialAuthorityRuntime:
             raise FinancialAuthorityRuntimeError("financial_plan_blocked")
         if config.approval_policy.operator_approval_required and not approval_ref:
             raise FinancialAuthorityRuntimeError("financial_operator_approval_required")
+        self._assert_plan_not_executed(mission_id, "trade_receipts", plan.plan_id, TradeOrderReceipt)
         receipt = TradeOrderReceipt(
             mission_id=mission_id,
             plan_id=plan.plan_id,
@@ -620,6 +622,11 @@ class FinancialAuthorityRuntime:
             return []
         return [model.model_validate_json(item.read_text(encoding="utf-8")) for item in sorted(root.glob("*.json"))]
 
+    def _assert_plan_not_executed(self, mission_id: str, category: str, plan_id: str, model: Any) -> None:
+        for receipt in self._load_all(mission_id, category, model):
+            if getattr(receipt, "plan_id", None) == plan_id:
+                raise FinancialAuthorityRuntimeError("financial_plan_already_executed")
+
     def _assert_authority(self, mission_id: str, envelope: MissionAuthorityEnvelope | None, *, action: str, tool: str) -> None:
         if envelope is None:
             raise FinancialAuthorityRuntimeError("mission_authority_required")
@@ -648,10 +655,15 @@ class FinancialAuthorityRuntime:
 
     def _assert_certified_telemetry(self) -> None:
         sink = getattr(self.kernel, "telemetry_sink", None)
-        if sink is None or not hasattr(sink, "require_certified_mode"):
+        if sink is None:
             raise FinancialAuthorityRuntimeError("telemetry_certified_mode_required")
         try:
-            sink.require_certified_mode()
+            if hasattr(sink, "require_material_execution"):
+                sink.require_material_execution("financial_authority")
+            elif hasattr(sink, "require_certified_mode"):
+                sink.require_certified_mode()
+            else:
+                raise FinancialAuthorityRuntimeError("telemetry_certified_mode_required")
         except Exception as exc:
             raise FinancialAuthorityRuntimeError("telemetry_certified_mode_required") from exc
 

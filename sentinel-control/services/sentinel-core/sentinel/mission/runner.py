@@ -217,7 +217,7 @@ class MissionRunner:
                         result={
                             "step_id": step.id,
                             "error_type": type(exc).__name__,
-                            "error": str(exc),
+                            "error": "Action executor raised a sanitized failure.",
                         },
                     )
                     blocked_actions.append(routed_action)

@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
-from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.kernel import (
+    VALID_MISSION_TRANSITIONS,
+    MissionKernel,
+    MissionLifecycleError,
+)
 from sentinel.operator.models import (
     MissionAuthoritySummary,
     MissionDraft,
@@ -136,11 +141,111 @@ def test_kernel_terminal_mission_cannot_be_requeued(tmp_path: Path) -> None:
     kernel = MissionKernel(run_root=tmp_path)
     record = kernel.create_mission(session_id="session_kernel", draft=_draft())
 
+    kernel.enqueue(record.mission_id)
+    kernel.update_status(record.mission_id, OperatorMissionStatus.RUNNING, "Running.")
     kernel.update_status(record.mission_id, OperatorMissionStatus.COMPLETED, "Done.")
 
     with pytest.raises(ValueError):
         kernel.enqueue(record.mission_id)
     assert kernel.store.load_record(record.mission_id).status is OperatorMissionStatus.COMPLETED
+
+
+def test_kernel_transition_policy_is_explicit_for_every_status(tmp_path: Path) -> None:
+    assert set(VALID_MISSION_TRANSITIONS) == set(OperatorMissionStatus)
+    assert OperatorMissionStatus.COMPLETED not in VALID_MISSION_TRANSITIONS[OperatorMissionStatus.DRAFT]
+    assert OperatorMissionStatus.RUNNING not in VALID_MISSION_TRANSITIONS[OperatorMissionStatus.KILLED]
+    assert OperatorMissionStatus.COMPLETED not in VALID_MISSION_TRANSITIONS[OperatorMissionStatus.FAILED]
+    assert OperatorMissionStatus.RUNNING not in VALID_MISSION_TRANSITIONS[OperatorMissionStatus.REVOKED]
+
+
+@pytest.mark.parametrize(
+    "terminal_status,target_status",
+    [
+        (OperatorMissionStatus.COMPLETED, OperatorMissionStatus.RUNNING),
+        (OperatorMissionStatus.KILLED, OperatorMissionStatus.QUEUED),
+        (OperatorMissionStatus.FAILED, OperatorMissionStatus.COMPLETED),
+        (OperatorMissionStatus.REVOKED, OperatorMissionStatus.RUNNING),
+        (OperatorMissionStatus.BLOCKED, OperatorMissionStatus.RUNNING),
+    ],
+)
+def test_kernel_invalid_terminal_transition_fails_closed_with_safe_event(
+    tmp_path: Path,
+    terminal_status: OperatorMissionStatus,
+    target_status: OperatorMissionStatus,
+) -> None:
+    kernel = MissionKernel(run_root=tmp_path / terminal_status.value)
+    record = kernel.create_mission(session_id="session_kernel", draft=_draft())
+    kernel.enqueue(record.mission_id)
+    kernel.update_status(record.mission_id, OperatorMissionStatus.RUNNING, "Running.")
+    kernel.update_status(record.mission_id, terminal_status, "Terminal.")
+
+    with pytest.raises(MissionLifecycleError):
+        kernel.update_status(record.mission_id, target_status, "Unsafe resurrection.")
+
+    assert kernel.store.load_record(record.mission_id).status is terminal_status
+    rejected = kernel.store.load_events(record.mission_id)[-1]
+    assert rejected.event_type == "mission_transition_rejected"
+    assert rejected.metadata["current_status"] == terminal_status.value
+    assert rejected.metadata["target_status"] == target_status.value
+
+
+def test_kernel_rejects_invalid_nonterminal_jump_without_state_mutation(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path)
+    record = kernel.create_mission(session_id="session_kernel", draft=_draft())
+
+    with pytest.raises(MissionLifecycleError):
+        kernel.update_status(record.mission_id, OperatorMissionStatus.COMPLETED, "Skipped lifecycle.")
+
+    assert kernel.store.load_record(record.mission_id).status is OperatorMissionStatus.DRAFT
+    assert kernel.store.load_events(record.mission_id)[-1].event_type == "mission_transition_rejected"
+
+
+def test_kernel_completion_and_kill_race_has_one_terminal_winner(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path)
+    record = kernel.create_mission(session_id="session_kernel", draft=_draft())
+    kernel.enqueue(record.mission_id)
+    kernel.update_status(record.mission_id, OperatorMissionStatus.RUNNING, "Running.")
+
+    def transition(target: OperatorMissionStatus) -> str:
+        try:
+            kernel.update_status(record.mission_id, target, f"Race to {target.value}.")
+            return "accepted"
+        except MissionLifecycleError:
+            return "rejected"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(transition, [OperatorMissionStatus.COMPLETED, OperatorMissionStatus.KILLED]))
+
+    assert sorted(outcomes) == ["accepted", "rejected"]
+    assert kernel.store.load_record(record.mission_id).status in {
+        OperatorMissionStatus.COMPLETED,
+        OperatorMissionStatus.KILLED,
+    }
+    assert any(event.event_type == "mission_transition_rejected" for event in kernel.store.load_events(record.mission_id))
+
+
+def test_kernel_pause_resume_kill_and_revocation_transitions_are_explicit(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path)
+    paused = kernel.create_mission(session_id="session_kernel", draft=_draft())
+    kernel.enqueue(paused.mission_id)
+    kernel.update_status(paused.mission_id, OperatorMissionStatus.RUNNING, "Running.")
+    kernel.pause(paused.mission_id)
+    kernel.resume(paused.mission_id)
+    kernel.kill(paused.mission_id)
+    assert kernel.store.load_record(paused.mission_id).status is OperatorMissionStatus.KILLED
+
+    revoked = kernel.create_mission(session_id="session_kernel", draft=_draft())
+    kernel.enqueue(revoked.mission_id)
+    kernel.update_status(revoked.mission_id, OperatorMissionStatus.RUNNING, "Running.")
+    kernel.update_status(revoked.mission_id, OperatorMissionStatus.REVOKED, "Revoked.")
+    assert kernel.store.load_record(revoked.mission_id).status is OperatorMissionStatus.REVOKED
+
+    failed = kernel.create_mission(session_id="session_kernel", draft=_draft())
+    kernel.enqueue(failed.mission_id)
+    kernel.update_status(failed.mission_id, OperatorMissionStatus.RUNNING, "Running.")
+    kernel.update_status(failed.mission_id, OperatorMissionStatus.FAILED, "Failed.")
+    with pytest.raises(MissionLifecycleError):
+        kernel.enqueue(failed.mission_id)
 
 
 def test_kernel_records_failure_without_raw_exception_leak(tmp_path: Path) -> None:

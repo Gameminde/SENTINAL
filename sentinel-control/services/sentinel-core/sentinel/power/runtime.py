@@ -363,9 +363,20 @@ class SentinelPowerRuntimeV0:
                 context,
                 actuator_executor,
                 max(step.retry_budget, runtime_config.default_retry_budget),
+                cancellation_token,
             )
             if memory_feedback_builder is not None and runtime_config.record_memory_feedback_refs:
-                refs = memory_feedback_builder(step, step_result, context)
+                try:
+                    refs = memory_feedback_builder(step, step_result, context)
+                except Exception:  # noqa: BLE001
+                    refs = []
+                    timeline.record(
+                        "memory_feedback_failed",
+                        "Memory feedback failed safely after power step execution.",
+                        step_id=step.step_id,
+                        receipt_refs=step_result.receipt_refs,
+                        finalgate_certificate_refs=step_result.finalgate_certificate_refs,
+                    )
                 if refs:
                     step_result = step_result.model_copy(
                         update={
@@ -396,6 +407,14 @@ class SentinelPowerRuntimeV0:
                     timeline,
                     blocked_reason=step_result.blocked_reason,
                 )
+            if step_result.status is PowerStepStatus.ABORTED:
+                return self._result(
+                    plan,
+                    PowerRuntimeStatus.ABORTED,
+                    step_results,
+                    timeline,
+                    blocked_reason=step_result.blocked_reason,
+                )
             return self._result(
                 plan,
                 PowerRuntimeStatus.FAILED,
@@ -412,10 +431,13 @@ class SentinelPowerRuntimeV0:
         context: dict[str, Any],
         actuator_executor: PowerActuatorExecutor,
         retry_budget: int,
+        cancellation_token: CancellationToken | None,
     ) -> PowerStepResult:
         attempts_allowed = retry_budget + 1
         last_result: PowerStepResult | None = None
         for attempt in range(1, attempts_allowed + 1):
+            if cancellation_token is not None and cancellation_token.is_cancelled:
+                return self._aborted_step(step, attempt_count=attempt - 1)
             try:
                 result = actuator_executor(step, deepcopy(context))
             except Exception as exc:  # pragma: no cover - exact exception type is executor owned.
@@ -487,10 +509,11 @@ class SentinelPowerRuntimeV0:
         return "step_failed"
 
     @staticmethod
-    def _aborted_step(step: PowerMissionStep) -> PowerStepResult:
+    def _aborted_step(step: PowerMissionStep, *, attempt_count: int = 0) -> PowerStepResult:
         return PowerStepResult(
             step_id=step.step_id,
             status=PowerStepStatus.ABORTED,
+            attempt_count=attempt_count,
             blocked_reason="kill_switch_cancelled",
             safe_summary="Kill switch cancelled before step execution.",
         )

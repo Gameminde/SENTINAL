@@ -426,6 +426,49 @@ def test_account_result_memory_receipt_finalgate_telemetry_and_replay_are_not_au
     assert runtime.store.verify_timeline(mission_id)
 
 
+def test_login_and_account_creation_execution_are_single_use_per_plan(tmp_path: Path) -> None:
+    from sentinel.operator.account_authority import AccountAuthorityRuntimeError
+
+    runtime, mission_id = _runtime(tmp_path)
+    login_config = _register_login_config(runtime, mission_id)
+    vault, secret_id, unlock_session_id = _credential_vault_with_login_secret(runtime.kernel, mission_id)
+    grant = vault.request_secret_access(
+        mission_id=mission_id,
+        secret_id=secret_id,
+        consumer_kind=CredentialConsumerKind.BROWSER_LOGIN,
+        consumer_ref="account_authority_final_consumer",
+        purpose="account_login",
+        requested_scope=["login:accounts.example.test"],
+        envelope=_envelope(mission_id),
+        unlock_session_id=unlock_session_id,
+        context=SecretUseContext(target_ref="accounts.example.test", evidence_refs=["ev-login-target"]),
+    )
+    lease = vault.create_secret_lease(mission_id=mission_id, grant_id=grant.grant_id, ttl_seconds=60)
+    login_plan = runtime.plan_login(
+        mission_id=mission_id,
+        config_id=login_config.config_id,
+        request=_login_request(credential_lease_id=lease.lease_id),
+        envelope=_envelope(mission_id),
+    )
+    runtime.execute_login(mission_id=mission_id, plan_id=login_plan.plan_id, envelope=_envelope(mission_id), credential_vault=vault, credential_lease_id=lease.lease_id)
+
+    with pytest.raises(AccountAuthorityRuntimeError, match="account_plan_already_executed"):
+        runtime.execute_login(mission_id=mission_id, plan_id=login_plan.plan_id, envelope=_envelope(mission_id), credential_vault=vault, credential_lease_id=lease.lease_id)
+
+    runtime2, mission_id2 = _runtime(tmp_path)
+    creation_config = _register_account_creation_config(runtime2, mission_id2)
+    creation_plan = runtime2.plan_account_creation(
+        mission_id=mission_id2,
+        config_id=creation_config.config_id,
+        request=_creation_request(),
+        envelope=_envelope(mission_id2),
+    )
+    runtime2.execute_account_creation(mission_id=mission_id2, plan_id=creation_plan.plan_id, envelope=_envelope(mission_id2))
+
+    with pytest.raises(AccountAuthorityRuntimeError, match="account_plan_already_executed"):
+        runtime2.execute_account_creation(mission_id=mission_id2, plan_id=creation_plan.plan_id, envelope=_envelope(mission_id2))
+
+
 def test_account_material_execution_requires_certified_telemetry_before_receipts(tmp_path: Path) -> None:
     from sentinel.operator.account_authority import AccountAuthorityRuntimeError
 

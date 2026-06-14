@@ -7,6 +7,49 @@ import pytest
 from sentinel.mission.cancellation import CancellationToken
 
 
+def test_power_runtime_preserves_execution_proof_when_memory_feedback_builder_fails() -> None:
+    from sentinel.power.runtime import (
+        PowerActuatorCapabilityLevel,
+        PowerActuatorFamily,
+        PowerMissionGraph,
+        PowerMissionPlan,
+        PowerMissionStep,
+        PowerRuntimeConfig,
+        PowerStepResult,
+        PowerStepStatus,
+        SentinelPowerRuntimeV0,
+    )
+
+    step = PowerMissionStep(
+        step_id="write_report",
+        actuator_family=PowerActuatorFamily.WORKSPACE,
+        capability_level=PowerActuatorCapabilityLevel.L3,
+        organ_kind="workspace",
+        action_kind="write",
+    )
+
+    def memory_feedback_builder(_step, _result, _context):
+        raise RuntimeError("memory backend unavailable")
+
+    result = SentinelPowerRuntimeV0().run(
+        PowerMissionPlan(mission_id="mission_memory_optional", graph=PowerMissionGraph(steps=[step])),
+        config=PowerRuntimeConfig(enabled=True),
+        actuator_executor=lambda current_step, _context: PowerStepResult(
+            step_id=current_step.step_id,
+            status=PowerStepStatus.SUCCEEDED,
+            receipt_refs=["receipt:write"],
+            finalgate_certificate_refs=["finalgate:write"],
+            safe_summary="write completed",
+        ),
+        memory_feedback_builder=memory_feedback_builder,
+    )
+
+    assert result.status == "completed"
+    assert result.receipt_refs == ["receipt:write"]
+    assert result.finalgate_certificate_refs == ["finalgate:write"]
+    assert any(item.event_type == "memory_feedback_failed" for item in result.timeline.items)
+
+
 def test_power_runtime_runs_dependency_order_and_records_timeline() -> None:
     from sentinel.power.runtime import (
         PowerActuatorCapabilityLevel,
@@ -189,6 +232,60 @@ def test_power_runtime_enforces_retry_budget() -> None:
     assert result.status == "completed"
     assert attempts["retry_step"] == 2
     assert result.step_results[0].attempt_count == 2
+
+
+def test_power_runtime_kill_switch_aborts_before_retry() -> None:
+    from sentinel.power.runtime import (
+        PowerActuatorCapabilityLevel,
+        PowerActuatorFamily,
+        PowerMissionGraph,
+        PowerMissionPlan,
+        PowerMissionStep,
+        PowerRuntimeConfig,
+        PowerStepResult,
+        PowerStepStatus,
+        SentinelPowerRuntimeV0,
+    )
+
+    token = CancellationToken()
+    calls: list[str] = []
+
+    def executor(step: PowerMissionStep, _context: dict[str, object]) -> PowerStepResult:
+        calls.append(step.step_id)
+        token.cancel()
+        return PowerStepResult(
+            step_id=step.step_id,
+            status=PowerStepStatus.FAILED,
+            blocked_reason="transient_failure",
+            safe_summary="first attempt failed",
+        )
+
+    result = SentinelPowerRuntimeV0().run(
+        PowerMissionPlan(
+            mission_id="mission_retry_kill",
+            graph=PowerMissionGraph(
+                steps=[
+                    PowerMissionStep(
+                        step_id="retry_step",
+                        actuator_family=PowerActuatorFamily.WORKSPACE,
+                        capability_level=PowerActuatorCapabilityLevel.L3,
+                        organ_kind="reversible_workspace",
+                        action_kind="write",
+                        retry_budget=2,
+                    )
+                ]
+            ),
+        ),
+        config=PowerRuntimeConfig(enabled=True),
+        actuator_executor=executor,
+        cancellation_token=token,
+    )
+
+    assert calls == ["retry_step"]
+    assert result.status == "aborted"
+    assert result.step_results[-1].status == "aborted"
+    assert result.step_results[-1].attempt_count == 1
+    assert result.blocked_reason == "kill_switch_cancelled"
 
 
 def test_power_runtime_kill_switch_aborts_before_next_step() -> None:

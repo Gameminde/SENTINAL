@@ -24,9 +24,80 @@ TERMINAL_MISSION_STATUSES = frozenset(
     }
 )
 
+VALID_MISSION_TRANSITIONS: dict[OperatorMissionStatus, frozenset[OperatorMissionStatus]] = {
+    OperatorMissionStatus.DRAFT: frozenset(
+        {
+            OperatorMissionStatus.READY_TO_START,
+            OperatorMissionStatus.QUEUED,
+            OperatorMissionStatus.PAUSED,
+            OperatorMissionStatus.CANCEL_REQUESTED,
+            OperatorMissionStatus.KILLED,
+            OperatorMissionStatus.FAILED,
+            OperatorMissionStatus.BLOCKED,
+            OperatorMissionStatus.REVOKED,
+        }
+    ),
+    OperatorMissionStatus.READY_TO_START: frozenset(
+        {
+            OperatorMissionStatus.QUEUED,
+            OperatorMissionStatus.PAUSED,
+            OperatorMissionStatus.CANCEL_REQUESTED,
+            OperatorMissionStatus.KILLED,
+            OperatorMissionStatus.FAILED,
+            OperatorMissionStatus.BLOCKED,
+            OperatorMissionStatus.REVOKED,
+        }
+    ),
+    OperatorMissionStatus.QUEUED: frozenset(
+        {
+            OperatorMissionStatus.RUNNING,
+            OperatorMissionStatus.PAUSED,
+            OperatorMissionStatus.CANCEL_REQUESTED,
+            OperatorMissionStatus.KILLED,
+            OperatorMissionStatus.FAILED,
+            OperatorMissionStatus.BLOCKED,
+            OperatorMissionStatus.REVOKED,
+        }
+    ),
+    OperatorMissionStatus.RUNNING: frozenset(
+        {
+            OperatorMissionStatus.PAUSED,
+            OperatorMissionStatus.CANCEL_REQUESTED,
+            OperatorMissionStatus.KILLED,
+            OperatorMissionStatus.COMPLETED,
+            OperatorMissionStatus.FAILED,
+            OperatorMissionStatus.BLOCKED,
+            OperatorMissionStatus.REVOKED,
+        }
+    ),
+    OperatorMissionStatus.PAUSED: frozenset(
+        {
+            OperatorMissionStatus.QUEUED,
+            OperatorMissionStatus.CANCEL_REQUESTED,
+            OperatorMissionStatus.KILLED,
+            OperatorMissionStatus.FAILED,
+            OperatorMissionStatus.BLOCKED,
+            OperatorMissionStatus.REVOKED,
+        }
+    ),
+    OperatorMissionStatus.CANCEL_REQUESTED: frozenset(
+        {
+            OperatorMissionStatus.KILLED,
+            OperatorMissionStatus.FAILED,
+            OperatorMissionStatus.BLOCKED,
+            OperatorMissionStatus.REVOKED,
+        }
+    ),
+    OperatorMissionStatus.KILLED: frozenset(),
+    OperatorMissionStatus.COMPLETED: frozenset(),
+    OperatorMissionStatus.FAILED: frozenset(),
+    OperatorMissionStatus.BLOCKED: frozenset(),
+    OperatorMissionStatus.REVOKED: frozenset(),
+}
+
 
 class MissionLifecycleError(ValueError):
-    """Raised when a mission lifecycle transition would reopen terminal work."""
+    """Raised when a mission lifecycle transition is not explicitly allowed."""
 
 
 class MissionKernel:
@@ -120,7 +191,20 @@ class MissionKernel:
 
     def _assert_transition_allowed(self, mission_id: str, target_status: OperatorMissionStatus) -> None:
         current = self.store.load_record(mission_id).status
-        if current in TERMINAL_MISSION_STATUSES and target_status is not current:
-            raise MissionLifecycleError(
-                f"mission {mission_id} is terminal ({current.value}) and cannot transition to {target_status.value}"
-            )
+        if target_status is current:
+            return
+        if target_status in VALID_MISSION_TRANSITIONS[current]:
+            return
+        self.store.append_event(
+            mission_id,
+            event_type="mission_transition_rejected",
+            safe_summary="Mission lifecycle transition rejected by canonical policy.",
+            metadata={
+                "current_status": current.value,
+                "target_status": target_status.value,
+                "terminal_source": current in TERMINAL_MISSION_STATUSES,
+            },
+        )
+        raise MissionLifecycleError(
+            f"mission {mission_id} cannot transition from {current.value} to {target_status.value}"
+        )

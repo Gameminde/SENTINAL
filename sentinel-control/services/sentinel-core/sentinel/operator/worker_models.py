@@ -69,6 +69,7 @@ class WorkerMergeOutcome(StrEnum):
 
 class WorkerFleetConfig(SentinelModel):
     max_workers: int = Field(default=8, ge=1, le=64)
+    cancellation_poll_seconds: float = Field(default=0.05, ge=0.001, le=1.0)
     require_certified_telemetry: bool = True
     allow_worker_spawn_from_worker: bool = False
     allow_agentruntime_workers: bool = False

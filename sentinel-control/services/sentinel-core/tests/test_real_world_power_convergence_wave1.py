@@ -205,6 +205,7 @@ def test_wave1_coding_workspace_vertical_gauntlet_repeats_five_times(tmp_path: P
             ),
         )
         kernel.enqueue(mission.mission_id)
+        kernel.update_status(mission.mission_id, OperatorMissionStatus.RUNNING, "Wave 1 coding benchmark started.")
 
         structure = sorted(path.relative_to(repo_root).as_posix() for path in repo_root.rglob("*") if path.is_file())
         assert "src/pricing.py" in structure
@@ -382,6 +383,7 @@ def test_wave1_controlled_live_browser_gauntlet_repeats_ten_times(tmp_path: Path
             draft=MissionDraft(title="Controlled browser task", objective="Complete and prove a live controlled task."),
         )
         kernel.enqueue(mission.mission_id)
+        kernel.update_status(mission.mission_id, OperatorMissionStatus.RUNNING, "Wave 1 browser benchmark started.")
         envelope = _browser_envelope(mission.mission_id)
         contract = BrowserSessionContract(
             mission_id=mission.mission_id,
@@ -624,6 +626,7 @@ def test_wave1_controlled_live_browser_gauntlet_repeats_ten_times(tmp_path: Path
                 draft=MissionDraft(title="Fresh browser task", objective="Prove no stale session state leaks."),
             )
             kernel.enqueue(next_mission.mission_id)
+            kernel.update_status(next_mission.mission_id, OperatorMissionStatus.RUNNING, "Wave 1 fresh browser benchmark started.")
             next_envelope = _browser_envelope(next_mission.mission_id)
             next_contract = contract.model_copy(update={"mission_id": next_mission.mission_id})
             next_opened = manager.open_session(

@@ -18,6 +18,7 @@ from sentinel.power.runtime import (
     PowerStepResult,
     PowerStepStatus,
 )
+from sentinel.telemetry import TelemetryKernel
 
 
 def _kernel_with_mission(tmp_path: Path) -> tuple[MissionKernel, str]:
@@ -219,6 +220,49 @@ def test_power_bridge_fails_closed_without_authority_envelope(tmp_path: Path) ->
     assert calls == []
     assert result.status is PowerRuntimeStatus.BLOCKED
     assert result.blocked_reason == "mission_authority_envelope_required"
+
+
+def test_power_bridge_blocks_draft_mission_before_material_execution(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path)
+    record = kernel.create_mission(
+        session_id="session_power",
+        draft=MissionDraft(title="Draft power mission", objective="Must be explicitly started."),
+    )
+    calls: list[str] = []
+
+    result = OperatorPowerRuntimeBridge(kernel).run(
+        record.mission_id,
+        _plan(record.mission_id),
+        envelope=_envelope(record.mission_id),
+        executor_binding=_binding(lambda step, _context: calls.append(step.step_id)),
+    )
+
+    assert calls == []
+    assert result.status is PowerRuntimeStatus.BLOCKED
+    assert result.blocked_reason == "operator_mission_not_executable"
+    assert kernel.store.load_record(record.mission_id).status is OperatorMissionStatus.DRAFT
+
+
+def test_power_bridge_blocks_material_execution_when_certified_telemetry_is_unavailable(tmp_path: Path) -> None:
+    telemetry = TelemetryKernel(tmp_path / "telemetry", enabled=False)
+    kernel = MissionKernel(run_root=tmp_path / "runs", telemetry_sink=telemetry)
+    record = kernel.create_mission(
+        session_id="session_power",
+        draft=MissionDraft(title="Power mission", objective="Requires certified telemetry."),
+    )
+    kernel.enqueue(record.mission_id)
+    calls: list[str] = []
+
+    result = OperatorPowerRuntimeBridge(kernel).run(
+        record.mission_id,
+        _plan(record.mission_id),
+        envelope=_envelope(record.mission_id),
+        executor_binding=_binding(lambda step, _context: calls.append(step.step_id)),
+    )
+
+    assert calls == []
+    assert result.status is PowerRuntimeStatus.BLOCKED
+    assert result.blocked_reason == "telemetry_certified_mode_required"
 
 
 def test_power_bridge_rejects_plan_outside_authority_envelope(tmp_path: Path) -> None:
@@ -573,6 +617,59 @@ def test_power_bridge_enforces_cumulative_mission_cost_budget(tmp_path: Path) ->
     assert first.status is PowerRuntimeStatus.COMPLETED
     assert second.status is PowerRuntimeStatus.BLOCKED
     assert second.blocked_reason == "mission_power_budget_exhausted"
+
+
+def test_power_bridge_commits_actual_retry_cost_not_reserved_worst_case(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    bridge = OperatorPowerRuntimeBridge(kernel)
+    plan = _plan(mission_id).model_copy(
+        update={
+            "graph": PowerMissionGraph(
+                steps=[
+                    _plan(mission_id).graph.steps[0].model_copy(
+                        update={"estimated_cost_usd": 0.4, "retry_budget": 1}
+                    )
+                ]
+            )
+        }
+    )
+    binding = _binding(
+        lambda step, _context: PowerStepResult(
+            step_id=step.step_id,
+            status=PowerStepStatus.SUCCEEDED,
+            receipt_refs=["receipt:cost"],
+            finalgate_certificate_refs=["finalgate:cost"],
+            safe_summary="done",
+        )
+    )
+    envelope = _envelope(mission_id, max_actions=4, max_cost_usd=0.8)
+
+    first = bridge.run(mission_id, plan, envelope=envelope, executor_binding=binding, update_mission_status=False)
+    no_retry_plan = plan.model_copy(
+        update={
+            "graph": PowerMissionGraph(
+                steps=[plan.graph.steps[0].model_copy(update={"retry_budget": 0})]
+            )
+        }
+    )
+    second = bridge.run(
+        mission_id,
+        no_retry_plan,
+        envelope=envelope,
+        executor_binding=binding,
+        update_mission_status=False,
+    )
+    third = bridge.run(
+        mission_id,
+        no_retry_plan,
+        envelope=envelope,
+        executor_binding=binding,
+        update_mission_status=False,
+    )
+
+    assert first.status is PowerRuntimeStatus.COMPLETED
+    assert second.status is PowerRuntimeStatus.COMPLETED
+    assert third.blocked_reason == "mission_power_budget_exhausted"
 
 
 def test_power_bridge_rejects_hidden_api_mutation_request(tmp_path: Path) -> None:

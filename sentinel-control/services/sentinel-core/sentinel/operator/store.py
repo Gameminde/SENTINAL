@@ -175,7 +175,8 @@ class MissionRunStore:
                 try:
                     self._telemetry_sink.record_mission_event(event)
                 except Exception:
-                    pass
+                    if hasattr(self._telemetry_sink, "mark_degraded"):
+                        self._telemetry_sink.mark_degraded("mission_event_forwarding_failed")
             return event
 
     def load_events(self, mission_id: str) -> list[MissionEvent]:

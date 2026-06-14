@@ -179,7 +179,8 @@ def test_runner_converts_executor_exception_into_failed_mission_trace(tmp_path):
     assert result.blocked_actions
     assert MissionTraceEventType.ACTION_BLOCKED in event_types
     assert MissionTraceEventType.MISSION_FAILED in event_types
-    assert any(event.result.get("error") == "simulated executor failure" for event in result.trace_events)
+    assert any(event.result.get("error_type") == "RuntimeError" for event in result.trace_events)
+    assert any(event.result.get("error") == "Action executor raised a sanitized failure." for event in result.trace_events)
 
 
 def test_runner_preserves_executor_revocation_as_revoked_mission(tmp_path):

@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
-previous_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
-next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
+current_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
+previous_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 roadmap_doctrine = product power under provable authority
 ```
 
@@ -48,11 +48,17 @@ The active strategy is now the
 current evidence measures real power at `5.7 / 10`: Sentinel's authority,
 proof, and local runtime spine are strong, but broad live backend reach and a
 production operator product remain limited. The convergence roadmap is the
-canonical active build sequence. Wave 1 is `PARTIALLY_CLOSED`: controlled
+canonical active build sequence. Wave 1 remains `PARTIALLY_CLOSED`: controlled
 coding/workspace and live Playwright browser backends are certified through
 repeated vertical gauntlets, while real-model, process-restart, public-SaaS,
-and soak proof remain open. Security Testing Special Authority remains future
-work and is deferred.
+and soak proof remain open.
+
+The latest lock is `SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED`.
+It hardens strict MissionKernel transitions, certified telemetry degradation
+policy, Worker Fleet post-kill result rejection, credential/account/financial
+revalidation, bridge lifecycle gates, proof preservation, and exception
+redaction. Security Testing Special Authority remains future work and is
+deferred.
 
 Real now:
 
@@ -191,13 +197,14 @@ defines the active next implementation order.
 Active convergence sequence:
 
 ```text
-1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
-2. Desktop real control and monitoring
-3. Realtime voice backend
-4. One production-quality real channel connector
-5. Real OS credential backend
-6. OS service/tray and lightweight app
-7. Cross-domain real-world mission gauntlet
+1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
+2. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
+3. Desktop real control and monitoring
+4. Realtime voice backend
+5. One production-quality real channel connector
+6. Real OS credential backend
+7. OS service/tray and lightweight app
+8. Cross-domain real-world mission gauntlet
 ```
 
 Canonical active convergence roadmap:
@@ -1053,15 +1060,15 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 ```
 
 Required direction:
 
 ```text
-Close the remaining Wave 1 evidence gates: run an explicit real-model
-coding-agent mission, prove coding and browser continuity across process
-restart, add a representative public-SaaS browser corpus where safe, and run
+Start the isolated real-model coding-agent certification pack first, then close
+the remaining Wave 1 evidence gates: process-restart continuity, a representative
+public-SaaS browser corpus where safe, and
 long-duration soak evidence. Preserve the existing authority, proof, replay,
 and kill/revocation spine. Add no new actuator family or special authority.
 ```

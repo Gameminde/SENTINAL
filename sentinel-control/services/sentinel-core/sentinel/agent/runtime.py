@@ -1978,6 +1978,7 @@ class AgentRuntime:
                 active_plan=plan,
             ))
         except Exception as exc:
+            safe_error = sanitize_context_text(str(exc))
             final_phase = AgentPhase.FAILED
             event_type = AgentEventType.AGENT_FAILED
             if isinstance(exc, MissionRevokedError):
@@ -2017,7 +2018,7 @@ class AgentRuntime:
                 "Agent run failed before completion.",
                 phase_before=state.phase,
                 phase_after=final_phase,
-                payload={"error": str(exc)},
+                payload={"error": safe_error},
             )
             self.supervisor.assert_trace_integrity(event_bus)
             # Task 2.4-B: preserve mission_result / mission_results /
@@ -2076,7 +2077,7 @@ class AgentRuntime:
                 replan_packet=replan_packet,
                 automatic_replan_executed=automatic_replan_executed,
                 active_plan=fallback_active_plan,
-                escalation_reason=str(exc),
+                escalation_reason=safe_error,
             ))
 
     def _execute_controlled_tool_calls(
@@ -2271,100 +2272,6 @@ class AgentRuntime:
                 }
             )
         return results
-
-    def _block_repair_if_action_budget_would_overflow(
-        self,
-        envelope: MissionAuthorityEnvelope,
-        state: AgentState,
-        repair_decision,
-        controlled_capability_results: list[dict[str, Any]],
-        mission_result,
-        *,
-        plan_step_count: int,
-        event_bus: EventBus,
-    ):
-        if repair_decision.decision != RepairDecisionType.REPAIR_ALLOWED:
-            return repair_decision
-
-        controlled_executed = self._accepted_controlled_capability_count(controlled_capability_results)
-        mission_actions_used = mission_result.state.action_count if mission_result is not None else 0
-        projected_total = controlled_executed + mission_actions_used + max(0, plan_step_count)
-        if projected_total <= envelope.max_actions:
-            return repair_decision
-
-        reasons = [
-            *repair_decision.reasons,
-            "repair_blocked_by_global_action_budget",
-        ]
-        event = event_bus.append(
-            AgentEventType.REPAIR_DECIDED,
-            "Bounded repair was blocked because the projected run action budget would overflow.",
-            phase_before=state.phase,
-            phase_after=state.phase,
-            payload={
-                "decision": RepairDecisionType.REPAIR_BLOCKED,
-                "repair_pressure": repair_decision.repair_pressure,
-                "reasons": reasons,
-                "findings_used": repair_decision.findings_used,
-                "current_repair_cycles": state.repair_cycles,
-                "max_repair_cycles": state.max_repair_cycles,
-                "controlled_executed": controlled_executed,
-                "mission_actions_used": mission_actions_used,
-                "projected_repair_actions": max(0, plan_step_count),
-                "projected_total_actions": projected_total,
-                "max_actions": envelope.max_actions,
-            },
-            trace_refs=repair_decision.trace_refs,
-        )
-        return repair_decision.model_copy(
-            update={
-                "decision": RepairDecisionType.REPAIR_BLOCKED,
-                "reasons": reasons,
-                "can_continue": False,
-                "instructions": [],
-                "trace_refs": [*repair_decision.trace_refs, event.id],
-            }
-        )
-
-    @staticmethod
-    def _accepted_controlled_capability_count(results: list[dict[str, Any]]) -> int:
-        return sum(1 for item in results if item.get("accepted") is True)
-
-    @staticmethod
-    def _raw_tool_call_payloads(user_input: dict[str, Any], *, limit: int) -> tuple[list[str], int]:
-        raw_value = user_input.get("tool_calls", user_input.get("tool_call"))
-        if raw_value is None:
-            return [], 0
-        items = raw_value if isinstance(raw_value, list) else [raw_value]
-        requested_count = len(items)
-        payloads: list[str] = []
-        for item in items[: max(0, limit)]:
-            if isinstance(item, str):
-                payloads.append(item)
-            elif isinstance(item, dict):
-                payloads.append(json.dumps(item, sort_keys=True, default=str, separators=(",", ":")))
-            else:
-                payloads.append(str(item))
-        return payloads, requested_count
-
-    def _controlled_capture_root(self, envelope: MissionAuthorityEnvelope) -> Path:
-        for allowed_root in envelope.allowed_paths or []:
-            normalized = PurePosixPath(str(allowed_root).replace("\\", "/"))
-            if normalized.is_absolute() or ".." in normalized.parts or "*" in normalized.parts:
-                continue
-            if normalized.as_posix().rstrip("/") == "data/generated_projects":
-                capture_root = (self.project_root / normalized / mission_slug(envelope.mission_title)).resolve()
-                capture_root.relative_to(self.project_root)
-                return capture_root
-        raise ValueError("Controlled local capability capture requires data/generated_projects in mission allowed_paths.")
-
-    def _certify_trace(self, event_bus: EventBus):
-        return self.certification_gate.certify(event_bus.events())
-
-    def _snapshot_trace(self, event_bus: EventBus):
-        return self.trace_replayer.replay(event_bus.events()).snapshot
-
-    # ------------------------------------------------------------------
 
     def _route_local_tool_call_through_scheduler(
         self,
