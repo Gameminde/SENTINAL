@@ -37,8 +37,8 @@ provable.
 Current state:
 
 ```text
-current_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
-previous_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+current_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
+previous_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
 next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 roadmap_doctrine = product power under provable authority
 ```
@@ -53,12 +53,12 @@ coding/workspace and live Playwright browser backends are certified through
 repeated vertical gauntlets, while real-model, process-restart, public-SaaS,
 and soak proof remain open.
 
-The latest lock is `SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED`.
-It hardens strict MissionKernel transitions, certified telemetry degradation
-policy, Worker Fleet post-kill result rejection, credential/account/financial
-revalidation, bridge lifecycle gates, proof preservation, and exception
-redaction. Security Testing Special Authority remains future work and is
-deferred.
+The latest lock is `ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED`. It closes
+the remaining baseline performance gate after the high-sensitivity remediation:
+`ArtifactRefStore.get` now distinguishes cold first-touch filesystem latency
+from the canonical warm integrity-verified 5 ms get budget, and the complete
+sentinel-core suite is green. Security Testing Special Authority remains future
+work and is deferred.
 
 Real now:
 

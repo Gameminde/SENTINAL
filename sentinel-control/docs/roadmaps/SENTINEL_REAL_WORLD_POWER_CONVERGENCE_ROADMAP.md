@@ -86,6 +86,8 @@ duplicate material side effects = 0
 cross-mission contamination = 0
 open gates = real explicit-model coding-agent run, coding/browser process restart, public-SaaS corpus, long-duration soak
 latest hardening = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
+latest baseline gate = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
+full canonical core suite after green gate = GREEN / 2749 passed / 3 skipped / 0 failed
 Wave 2 = NOT_STARTED / blocked until Wave 1 completion
 ```
 

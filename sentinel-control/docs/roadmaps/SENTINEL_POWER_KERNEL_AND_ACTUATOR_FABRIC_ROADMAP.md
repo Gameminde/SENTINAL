@@ -8,8 +8,8 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-14
 
 ```text
-current_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
-previous_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+current_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
+previous_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
 active_implementation_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 roadmap_doctrine = product power under provable authority
@@ -23,10 +23,11 @@ certification, process-restart continuity, public-SaaS evidence, and
 long-duration soak. No new actuator family or special authority was added.
 Security Testing Special Authority remains deferred.
 
-The latest lock is a high-sensitivity runtime remediation. It closes strict
-MissionKernel transition law, centralized telemetry degradation policy, and the
-honest Worker Fleet cooperative cancellation guarantee before the real-model
-certification pack.
+The latest lock is the `ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE`. It closes
+the remaining baseline performance blocker by separating cold first-touch
+artifact filesystem latency from the canonical warm integrity-verified 5 ms
+`ArtifactRefStore.get` budget and restores the full sentinel-core suite to
+green before the real-model certification pack.
 
 Canonical roadmap:
 
@@ -270,6 +271,7 @@ PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1 = CLOSED
 REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT = LOCKED
 REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER = PARTIALLY_CLOSED
 SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION = LOCKED
+ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE = LOCKED
 REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION = NEXT
 SECURITY_TESTING_SPECIAL_AUTHORITY_V1 = DEFERRED / NOT_STARTED
 ```

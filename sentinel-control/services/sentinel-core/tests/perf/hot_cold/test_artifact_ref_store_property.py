@@ -68,6 +68,27 @@ _separator_st = st.sampled_from(["", " ", "\n", "; ", ", ", ": ", "  ", "\t"])
 # ---------------------------------------------------------------------------
 
 
+def test_missing_artifact_raises_key_error() -> None:
+    """Missing artifacts fail closed as KeyError without emitting false integrity events."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        event_bus = EventBus(mission_id="mission_artifact_test")
+        store = ArtifactRefStore(tmpdir, event_bus=event_bus)
+
+        missing_hash = hashlib.sha256(b"missing artifact").hexdigest()
+
+        try:
+            store.get(missing_hash)
+            raise AssertionError("Expected KeyError for missing artifact")
+        except KeyError:
+            pass
+
+        assert not [
+            event
+            for event in event_bus.events()
+            if event.event_type == AgentEventType.ARTIFACT_INTEGRITY_ERROR
+        ]
+
+
 @given(payload=_payload_st)
 @settings(max_examples=200, deadline=None, suppress_health_check=[HealthCheck.too_slow])
 def test_round_trip(payload: bytes) -> None:

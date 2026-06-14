@@ -149,10 +149,10 @@ class ArtifactRefStore:
         Raises KeyError if the artifact does not exist.
         """
         artifact_path = self._artifact_path(content_hash)
-        if not artifact_path.exists():
-            raise KeyError(f"artifact {content_hash} not found")
-
-        data = artifact_path.read_bytes()
+        try:
+            data = artifact_path.read_bytes()
+        except FileNotFoundError as exc:
+            raise KeyError(f"artifact {content_hash} not found") from exc
 
         # --- Integrity check ---
         actual_hash = hashlib.sha256(data).hexdigest()

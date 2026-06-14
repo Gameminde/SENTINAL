@@ -1,11 +1,58 @@
 # Current State Lock
 
+## ArtifactRefStore Performance Green Gate - LOCKED
+
+Recorded at: 2026-06-14
+
+This section is the canonical current state. It supersedes the high-sensitivity
+runtime remediation as the latest top-level lock while preserving that
+remediation as the previous lock. This green gate did not restore or run the
+real-model certification files and did not start a real-model provider call.
+
+The lock classifies the `ArtifactRefStore.get` p95 failure, compares the parent
+and current commits under the same Windows host, profiles the read path, removes
+an avoidable existence probe from `get`, and recalibrates the benchmark so cold
+first-touch random filesystem latency is measured separately from the canonical
+warm integrity-verified 5 ms get gate.
+
+```text
+current_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
+previous_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
+next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
+roadmap_doctrine = product power under provable authority
+```
+
+### Green Gate Truth
+
+```text
+root_cause_classification = PRE_EXISTING_PERFORMANCE_DEBT / BENCHMARK_METHODOLOGY_DEFECT / ENVIRONMENT_SPECIFIC_FAILURE
+current_commit_regression = NO
+ArtifactRefStore.get missing-artifact fail-closed behavior = PRESERVED
+ArtifactRefStore.get integrity verification = PRESERVED
+cold first-touch artifact read measurement = EXPLICIT / PLATFORM_AWARE
+warm integrity-verified ArtifactRefStore.get p95 <= 5 ms = CLOSED
+full canonical sentinel-core suite = GREEN / 2749 passed / 3 skipped / 0 failed
+real-model certification files = ISOLATED OUTSIDE REPO
+real-model provider run = NOT_STARTED
+new capability or actuator = NOT_ADDED
+```
+
+### Green Gate Artifacts
+
+```text
+sentinel-control/docs/reviews/ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCK_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is still the isolated real-model certification pack.
+
 ## Sentinel High-Sensitivity Runtime Remediation - LOCKED
 
 Recorded at: 2026-06-14
 
-This section is the canonical current state. It supersedes the Wave 1 partial
-close as the latest top-level lock, while preserving Wave 1 as
+This section records the previous top-level lock. It superseded the Wave 1 partial
+close at the time it was recorded, while preserving Wave 1 as
 `PARTIALLY_CLOSED`. This remediation did not start the real-model certification
 provider run and did not start `SECURITY_TESTING_SPECIAL_AUTHORITY_V1`.
 

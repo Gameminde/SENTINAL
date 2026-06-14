@@ -22,8 +22,8 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-06-14
-current_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
-previous_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+current_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
+previous_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
 next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
 doctrine = product power under provable authority
 ```
@@ -43,17 +43,18 @@ contamination. Wave 1 is still `PARTIALLY_CLOSED`: the backend is certified on
 controlled fixtures, while a real explicit-model coding-agent run, process
 restart continuity, public-SaaS evidence, and long-duration soak remain open.
 
-The latest lock is a high-sensitivity runtime remediation. It hardens strict
-MissionKernel state transitions, centralized telemetry degradation policy,
-Worker Fleet post-kill/parent-expiry result rejection, credential/account/
-financial replay barriers, bridge lifecycle gates, runtime proof preservation,
-and exception redaction. It does not start the real-model provider run.
-No new actuator family or special-authority surface was added.
+The latest lock is the `ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE`. It classifies
+the `ArtifactRefStore.get` p95 failure as pre-existing benchmark methodology
+debt on Windows first-touch random file reads, removes an avoidable read-path
+metadata probe, splits cold first-touch measurement from the canonical warm
+integrity-verified 5 ms get gate, and restores the full sentinel-core suite to
+green: 2,749 passed, 3 skipped, 0 failed. It does not start the real-model
+provider run. No new actuator family or special-authority surface was added.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCK_REPORT.md
 ```
 
 The canonical state truth is:
