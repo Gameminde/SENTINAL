@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import hashlib
 import time
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from threading import RLock
@@ -42,6 +43,9 @@ class BrowserSessionActionKind(StrEnum):
     SELECT = "select"
     HOVER = "hover"
     WAIT_FOR_TEXT = "wait_for_text"
+    OPEN_TAB = "open_tab"
+    SWITCH_TAB = "switch_tab"
+    CLOSE_TAB = "close_tab"
     CLOSE = "close"
 
 
@@ -65,6 +69,7 @@ class BrowserSessionContract(SentinelModel):
     allowed_domains: list[str]
     allowed_action_kinds: list[BrowserSessionActionKind] = Field(default_factory=list)
     max_steps: int = Field(default=10, ge=1, le=100)
+    max_tabs: int = Field(default=4, ge=1, le=16)
     receipt_required: bool = True
     finalgate_required: bool = True
     credential_use_enabled: bool = False
@@ -101,6 +106,7 @@ class BrowserSessionRequest(SentinelModel):
     url: str
     contract: BrowserSessionContract
     session_id: str | None = None
+    tab_id: str | None = None
     action_kind: BrowserSessionActionKind = BrowserSessionActionKind.OBSERVE
     target_role: str | None = None
     target_name: str | None = None
@@ -138,6 +144,8 @@ class BrowserSessionReceipt(SentinelModel):
     mission_id: str
     request_id: str
     session_id: str | None = None
+    tab_id: str | None = None
+    tab_count: int = 0
     backend_kind: str
     action_level: DelegatedActionLevel = DelegatedActionLevel.L5
     action_kind: str
@@ -248,18 +256,70 @@ class BrowserSessionFinalGate:
 
 
 class _LiveBrowserSession:
-    def __init__(self, *, session_id: str, mission_id: str, url: str, engine_session: BrowserEngineSession) -> None:
+    def __init__(
+        self,
+        *,
+        session_id: str,
+        mission_id: str,
+        url: str,
+        engine_session: BrowserEngineSession,
+        contract_hash: str = "",
+        contract: BrowserSessionContract | None = None,
+    ) -> None:
         self.session_id = session_id
         self.mission_id = mission_id
         self.url = url
         self.engine_session = engine_session
+        self.contract_hash = contract_hash
+        self.contract = contract
         self.step_index = 0
         self.closed = False
         self.lock = RLock()
+        self.active_tab_id = new_id("bsesstab")
+        self.tabs: dict[str, Any | None] = {self.active_tab_id: None}
 
     @property
     def page(self) -> Any:
-        return self.engine_session.page
+        page = self.tabs[self.active_tab_id]
+        if page is None:
+            page = self.engine_session.page
+            self.tabs[self.active_tab_id] = page
+        return page
+
+    @property
+    def tab_count(self) -> int:
+        return len(self.tabs)
+
+    def open_tab(self, *, url: str, timeout_ms: int) -> str:
+        page = self.page.context.new_page()
+        try:
+            _goto_session_document(page, url, timeout_ms)
+        except Exception:
+            page.close()
+            raise
+        tab_id = new_id("bsesstab")
+        self.tabs[tab_id] = page
+        self.active_tab_id = tab_id
+        return tab_id
+
+    def switch_tab(self, tab_id: str) -> None:
+        if tab_id not in self.tabs:
+            raise RuntimeError("browser_session_tab_missing")
+        self.active_tab_id = tab_id
+        bring_to_front = getattr(self.page, "bring_to_front", None)
+        if callable(bring_to_front):
+            bring_to_front()
+
+    def close_tab(self, tab_id: str) -> None:
+        if tab_id not in self.tabs:
+            raise RuntimeError("browser_session_tab_missing")
+        if len(self.tabs) <= 1:
+            raise RuntimeError("browser_session_last_tab_close_blocked")
+        page = self.tabs.pop(tab_id)
+        if page is not None:
+            page.close()
+        if self.active_tab_id == tab_id:
+            self.active_tab_id = next(iter(self.tabs))
 
     @property
     def backend_kind(self) -> str:
@@ -335,7 +395,14 @@ class BrowserSessionManagerL5Live:
                 viewport_width=self.viewport_width,
                 viewport_height=self.viewport_height,
             )
-            session = _LiveBrowserSession(session_id=session_id, mission_id=req.mission.id, url=req.url, engine_session=engine_session)
+            session = _LiveBrowserSession(
+                session_id=session_id,
+                mission_id=req.mission.id,
+                url=req.url,
+                engine_session=engine_session,
+                contract_hash=stable_hash(req.contract.model_dump(mode="json")),
+                contract=req.contract,
+            )
             with self._sessions_lock:
                 self._sessions[session.session_id] = session
             receipt = self._capture_receipt(
@@ -370,6 +437,8 @@ class BrowserSessionManagerL5Live:
         session = self._session(req)
         if session is None:
             return self._blocked(req, safety, "browser_session_missing_or_closed", BrowserSessionActionKind.OBSERVE.value)
+        if not self._contract_matches(session, req.contract):
+            return self._blocked(req, safety, "browser_session_contract_mismatch", BrowserSessionActionKind.OBSERVE.value)
         receipt = self._capture_receipt(
             req,
             session,
@@ -403,11 +472,15 @@ class BrowserSessionManagerL5Live:
         session = self._session(req)
         if session is None:
             return self._blocked(req, safety, "browser_session_missing_or_closed", action)
+        if not self._contract_matches(session, req.contract):
+            return self._blocked(req, safety, "browser_session_contract_mismatch", action)
+        if session.step_index >= req.contract.max_steps:
+            return self._blocked(req, safety, "browser_session_step_limit_reached", action)
         try:
             with session.lock:
                 before = self._snapshot(session.page, req.timeout_ms)
                 before_screenshot = self._write_screenshot(session, "before", req.capture_screenshot, req.timeout_ms)
-                self._execute_step(session.page, req, req.timeout_ms)
+                self._execute_step(session, req, req.timeout_ms)
                 session.step_index += 1
                 after = self._snapshot(session.page, req.timeout_ms)
                 after_screenshot = self._write_screenshot(session, "after", req.capture_screenshot, req.timeout_ms)
@@ -416,6 +489,8 @@ class BrowserSessionManagerL5Live:
                     mission_id=req.mission.id,
                     request_id=req.request_id,
                     session_id=session.session_id,
+                    tab_id=session.active_tab_id,
+                    tab_count=session.tab_count,
                     backend_kind=session.backend_kind,
                     action_kind=action,
                     status=BrowserSessionStatus.EXECUTED,
@@ -448,7 +523,8 @@ class BrowserSessionManagerL5Live:
                 execution_effect=receipt.execution_effect,
             )
         except Exception as exc:
-            return self._blocked(req, safety, f"browser_session_interaction_failed:{type(exc).__name__}", action)
+            reason = str(exc) if str(exc).startswith("browser_session_") else f"browser_session_interaction_failed:{type(exc).__name__}"
+            return self._blocked(req, safety, reason, action)
 
     def close_session(self, request: BrowserSessionRequest | dict[str, Any]) -> BrowserSessionResult:
         req = _coerce_request(request)
@@ -468,6 +544,8 @@ class BrowserSessionManagerL5Live:
             mission_id=req.mission.id,
             request_id=req.request_id,
             session_id=session.session_id,
+            tab_id=session.active_tab_id,
+            tab_count=session.tab_count,
             backend_kind=session.backend_kind,
             action_kind=BrowserSessionActionKind.CLOSE.value,
             status=BrowserSessionStatus.CLOSED,
@@ -503,6 +581,11 @@ class BrowserSessionManagerL5Live:
             rejected.extend(scan["all"])
         if req.contract.mission_id != req.mission.id:
             reasons.append("contract_mission_mismatch")
+        if required_action != "browser_session_close":
+            if req.mission.revoked_at is not None:
+                reasons.append("mission_authority_revoked")
+            elif req.mission.resolved_expires_at() <= datetime.now(UTC):
+                reasons.append("mission_authority_expired")
         host = (urlparse(req.url).hostname or "").lower()
         if host not in req.contract.allowed_domains or host not in [domain.lower() for domain in req.mission.allowed_domains]:
             reasons.append("browser_session_domain_not_authorized")
@@ -514,6 +597,8 @@ class BrowserSessionManagerL5Live:
                 reasons.append("browser_session_action_not_enabled_by_contract")
             if _looks_credential_bearing(req):
                 reasons.append("credential_input_not_promoted_in_browser_session_v1")
+            if action in {BrowserSessionActionKind.SWITCH_TAB.value, BrowserSessionActionKind.CLOSE_TAB.value} and not req.tab_id:
+                reasons.append("browser_session_tab_id_required")
         return BrowserSessionSafetyValidationResult(valid=not reasons, reasons=list(dict.fromkeys(reasons)), rejected_paths=sorted(set(rejected)))
 
     def render_untrusted_context(self, receipt: BrowserSessionReceipt | dict[str, Any]) -> str:
@@ -935,8 +1020,50 @@ class BrowserSessionManagerL5Live:
             return None
         return session
 
-    def _execute_step(self, page: Any, req: BrowserSessionRequest, timeout_ms: int) -> None:
+    @staticmethod
+    def _contract_matches(session: _LiveBrowserSession, contract: BrowserSessionContract) -> bool:
+        opened = session.contract
+        if opened is None:
+            return bool(session.contract_hash) and session.contract_hash == stable_hash(contract.model_dump(mode="json"))
+        return (
+            contract.mission_id == opened.mission_id
+            and set(contract.allowed_domains).issubset(opened.allowed_domains)
+            and set(contract.allowed_action_kinds).issubset(opened.allowed_action_kinds)
+            and contract.max_steps <= opened.max_steps
+            and contract.max_tabs <= opened.max_tabs
+            and contract.contract_version == opened.contract_version
+            and contract.receipt_required is True
+            and contract.finalgate_required is True
+            and not any(
+                (
+                    contract.credential_use_enabled,
+                    contract.login_enabled,
+                    contract.submit_enabled,
+                    contract.downloads_enabled,
+                    contract.arbitrary_js_enabled,
+                    contract.can_grant_authority,
+                    contract.can_approve_future_execution,
+                )
+            )
+            and contract.authority_effect == "none"
+            and contract.execution_effect == "none"
+            and contract.data_not_instruction is True
+        )
+
+    def _execute_step(self, session: _LiveBrowserSession, req: BrowserSessionRequest, timeout_ms: int) -> None:
         action = _action_value(req.action_kind)
+        if action == BrowserSessionActionKind.OPEN_TAB.value:
+            if session.tab_count >= req.contract.max_tabs:
+                raise RuntimeError("browser_session_tab_limit_reached")
+            session.open_tab(url=req.url, timeout_ms=timeout_ms)
+            return
+        if action == BrowserSessionActionKind.SWITCH_TAB.value:
+            session.switch_tab(req.tab_id or "")
+            return
+        if action == BrowserSessionActionKind.CLOSE_TAB.value:
+            session.close_tab(req.tab_id or "")
+            return
+        page = session.page
         if action == BrowserSessionActionKind.WAIT_FOR_TEXT.value:
             page.get_by_text(req.text or "").first.wait_for(state="visible", timeout=timeout_ms)
             return
@@ -976,6 +1103,8 @@ class BrowserSessionManagerL5Live:
             mission_id=req.mission.id,
             request_id=req.request_id,
             session_id=session.session_id,
+            tab_id=session.active_tab_id,
+            tab_count=session.tab_count,
             backend_kind=session.backend_kind,
             action_kind=action_kind,
             status=status,
@@ -1063,16 +1192,20 @@ class BrowserSessionManagerL5Live:
         return states
 
     def _blocked(self, req: BrowserSessionRequest, safety: BrowserSessionSafetyValidationResult, reason: str, action_kind: str) -> BrowserSessionResult:
-        self._sanitize_session(session=self._session(req), reason="failure")
+        session = self._session(req)
+        self._sanitize_session(session=session, reason="failure")
         receipt = BrowserSessionReceipt(
             mission_id=req.mission.id,
             request_id=req.request_id,
             session_id=req.session_id,
+            tab_id=session.active_tab_id if session is not None else req.tab_id,
+            tab_count=session.tab_count if session is not None else 0,
             backend_kind=getattr(self.backend, "backend_kind", "unknown"),
             action_kind=action_kind,
             status=BrowserSessionStatus.BLOCKED,
             url_hash=stable_hash(req.url),
             blocked_reason=reason,
+            step_index=session.step_index if session is not None else 0,
             safe_summary=f"Browser session operation blocked: {reason}.",
         )
         certificate = self._certify_receipt(receipt)
@@ -1097,6 +1230,15 @@ def _backend_for_engine(engine: str, *, document_fixtures: dict[str, str] | None
     raise ValueError(f"unknown browser session engine: {engine}")
 
 
+def _goto_session_document(page: Any, url: str, timeout_ms: int) -> None:
+    response = page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+    if response is None:
+        return
+    status = int(getattr(response, "status", 0) or 0)
+    if status and not 200 <= status <= 299:
+        raise RuntimeError(f"browser_session_tab_open_status:{status}")
+
+
 def _coerce_request(request: BrowserSessionRequest | dict[str, Any]) -> BrowserSessionRequest:
     return request if isinstance(request, BrowserSessionRequest) else BrowserSessionRequest.model_validate(request)
 
@@ -1118,6 +1260,9 @@ _PROMOTED_SESSION_ACTIONS = {
     BrowserSessionActionKind.SELECT.value,
     BrowserSessionActionKind.HOVER.value,
     BrowserSessionActionKind.WAIT_FOR_TEXT.value,
+    BrowserSessionActionKind.OPEN_TAB.value,
+    BrowserSessionActionKind.SWITCH_TAB.value,
+    BrowserSessionActionKind.CLOSE_TAB.value,
 }
 
 

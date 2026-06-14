@@ -98,6 +98,7 @@ class CloakBrowserSessionBackend:
                 accept_downloads=self.accept_downloads,
                 java_script_enabled=self.page_javascript_enabled,
             )
+            _install_context_fixture_route(context, self.document_fixtures, url)
             page = context.new_page()
             network_events: list[dict[str, Any]] = []
             console_messages: list[dict[str, Any]] = []
@@ -160,6 +161,7 @@ class PlaywrightSessionBackend:
                 storage_state=None,
                 viewport={"width": viewport_width, "height": viewport_height},
             )
+            _install_context_fixture_route(context, self.document_fixtures, url)
             page = context.new_page()
             network_events: list[dict[str, Any]] = []
             console_messages: list[dict[str, Any]] = []
@@ -197,6 +199,14 @@ def _install_fixture_route(page: Any, document_fixtures: dict[str, str], initial
     if not document_fixtures:
         return
     page.route("**/*", lambda route, request: _route_request(route, request, initial_url, document_fixtures))
+
+
+def _install_context_fixture_route(context: Any, document_fixtures: dict[str, str], initial_url: str) -> None:
+    if not document_fixtures:
+        return
+    route = getattr(context, "route", None)
+    if callable(route):
+        route("**/*", lambda request_route, request: _route_request(request_route, request, initial_url, document_fixtures))
 
 
 def _install_metadata_listeners(

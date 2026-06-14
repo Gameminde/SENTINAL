@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 
 from pydantic import Field, model_validator
@@ -420,7 +422,7 @@ class L3ReversibleWorkspaceExecutor:
                 after_content = target_path.read_text(encoding="utf-8")
             else:
                 after_content = _mutated_content(request, before_snapshot.safe_content)
-                target_path.write_text(after_content, encoding="utf-8")
+                _atomic_write_text(target_path, after_content)
         except (OSError, UnicodeDecodeError, ValueError):
             return self._blocked_result(
                 request=request,
@@ -541,7 +543,7 @@ class L3ReversibleWorkspaceExecutor:
                 failure_reason="rollback_path_outside_workspace",
             )
         try:
-            target_path.write_text(result.before_snapshot.safe_content, encoding="utf-8")
+            _atomic_write_text(target_path, result.before_snapshot.safe_content)
             restored_hash = _file_hash(target_path)
         except OSError as exc:
             return _rollback_unavailable(
@@ -1149,11 +1151,36 @@ def _readback_text_hash(path: Path) -> str:
 
 def _attempt_safe_restore(target_path: Path, before_snapshot: L3WorkspaceBeforeSnapshot) -> tuple[bool, bool]:
     try:
-        target_path.write_text(before_snapshot.safe_content, encoding="utf-8")
+        _atomic_write_text(target_path, before_snapshot.safe_content)
         restored_hash = _readback_text_hash(target_path)
     except OSError:
         return True, False
     return True, restored_hash == before_snapshot.before_hash
+
+
+def _atomic_write_text(target_path: Path, content: str) -> None:
+    """Replace a scoped text file without exposing a partial write."""
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: Path | None = None
+    try:
+        with NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=target_path.parent,
+            prefix=f".{target_path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temp_path = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, target_path)
+        temp_path = None
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
 
 
 def _patch_bytes(request: L3WorkspaceRequest) -> int:

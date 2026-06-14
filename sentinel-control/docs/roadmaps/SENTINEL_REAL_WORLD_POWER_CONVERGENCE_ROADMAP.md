@@ -75,6 +75,19 @@ prove session continuity and changed-state recovery
 measure time, interventions, recovery, receipts, replay, and kill
 ```
 
+Current status:
+
+```text
+status = PARTIALLY_CLOSED
+coding/workspace backend = BACKEND_CERTIFIED / 5 controlled repetitions
+browser backend = BACKEND_CERTIFIED / 10 controlled live Playwright repetitions
+silent success = 0
+duplicate material side effects = 0
+cross-mission contamination = 0
+open gates = real explicit-model coding-agent run, coding/browser process restart, public-SaaS corpus, long-duration soak
+Wave 2 = NOT_STARTED / blocked until Wave 1 completion
+```
+
 ### Wave 2 - Desktop Real Control And Monitoring
 
 Convert the injected desktop foundation into one production-quality, explicit
@@ -132,7 +145,8 @@ changes are committed and pushed
 ## Immediate Next Work
 
 ```text
-REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 ```
 
-It remains next and was not started by the green-gate remediation.
+Complete the open real-model, process-restart, public-SaaS, and soak gates.
+Do not start Wave 2 until the remaining Wave 1 proof is complete.

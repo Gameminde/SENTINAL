@@ -12,7 +12,7 @@ control_plane = strong
 local_governed_runtime = real
 live_external_backend_reach = limited
 production_operator_product = not started
-overall_real_world_product_power = 5.4 / 10
+overall_real_world_product_power = 5.7 / 10
 ```
 
 The baseline rule is strict:
@@ -36,7 +36,26 @@ full canonical core suite after remediation = 2686 passed, 0 failed, 3 skipped
 stale historical truth test = CLOSED
 mixed unsafe/safe browser-neural continuity defect = CLOSED
 new capability = none
-Wave 1 = not started
+Wave 1 at green gate = not started
+```
+
+## Post-Baseline Wave 1 Convergence Evidence
+
+Wave 1 is now `PARTIALLY_CLOSED`. The controlled backend evidence raises
+coding/workspace, browser, and reliability to `7.5 / 10`, while preserving the
+baseline rule that controlled fixtures are not public production reach.
+
+```text
+coding/workspace = 5 controlled repetitions passed
+browser = 10 controlled live Playwright repetitions passed
+silent success = 0
+duplicate material side effects = 0
+cross-mission contamination = 0
+backend certification = CLOSED
+real explicit-model coding agent = NOT_RUN
+browser process restart and public-SaaS corpus = NOT_PROVEN
+long-duration soak = NOT_PROVEN
+Wave 2 = NOT_STARTED
 ```
 
 ## Maturity Labels
@@ -58,9 +77,9 @@ Wave 1 = not started
 
 | Surface | Contract maturity | Runtime wiring | Backend type | Real side effect possible | Setup required | Default mode | Task success evidence | Recovery behavior | Operator intervention | Product readiness | Main blocker |
 |:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|:--|
-| Browser | Closed across governed L4/L5 and scoped L6 paths | Mission/Power/Agent runtime paths | Playwright fixture/local renderer plus fake orchestration backends | Yes, bounded browser actions | Explicit authority and local browser dependencies | Bounded/explicit | Live observe/type/click tests; 5 live-browser tests were among the slowest baseline tasks | Multi-step recovery proven on fake action backend | Authority/checkpoints for sensitive boundaries | `LIVE_BOUNDED` | Real SaaS/session/upload/download/login gauntlet |
-| Workspace | Closed L3 reversible executor | Explicit runtime opt-in | Real scoped filesystem | Yes, inside approved workspace | Approved root, hashes, rollback posture | Explicit opt-in | Real file replacement and rollback tests | Hash drift and rollback checks | Boundary escalation only | `LIVE_BOUNDED` | End-to-end coding mission UX and larger project benchmarks |
-| Coding | Harness, shell/code organ, workspace, workers exist | Fragmented across existing spine | Local bounded tools | Partly | Explicit mission plus scoped workspace | Explicit opt-in | Hash-anchored edit, workspace mutation, compile/test subprocess proofs | Workflow/replan can recover bounded steps | Needed for scope/authority expansion | `LOCAL_ONLY` | No measured full repository inspect-edit-test-debug mission |
+| Browser | Closed across governed L4/L5 and scoped L6 paths | Mission/Power/Agent runtime paths | Live Playwright controlled fixture plus governed orchestration | Yes, bounded browser actions | Explicit authority and local browser dependencies | Bounded/explicit | Ten repeated controlled live tasks: multi-tab, submit, upload/download quarantine, login checkpoint, recovery, replay | Changed-target/failure recovery, per-step revocation/expiry, safe close | Authority/checkpoints for sensitive boundaries | `LIVE_BOUNDED` | Public-SaaS corpus and browser-session process restart |
+| Workspace | Closed L3 reversible executor | Explicit runtime opt-in | Real scoped filesystem | Yes, inside approved workspace | Approved root, hashes, rollback posture | Explicit opt-in | Five repeated controlled coding/workspace vertical tasks | Atomic write, hash drift, rollback, regression checks | Boundary escalation only | `LIVE_BOUNDED` | Real-model agent run and durable process restart |
+| Coding | Harness, shell/code organ, workspace, workflow, workers | Existing mission/runtime/proof spine | Local bounded tools | Partly | Explicit mission plus scoped workspace | Explicit opt-in | Repeated inspect-edit-test-repair-regression-rollback backend gauntlet | Induced failure repair and rollback proven in controlled task | Needed for scope/authority expansion | `LOCAL_ONLY` | Explicit real-model agent certification, LSP/debugger product depth |
 | Shell | Closed allowlisted sandbox organ | PowerRuntime adapter | Real local subprocess, allowlisted | Yes, bounded | Scoped cwd, command allowlist, timeout | Explicit opt-in | Python version and compileall receipt/FinalGate tests | Timeout and kill paths tested | Required outside allowlist | `LIVE_BOUNDED` | No broad build/dev command profiles or container-grade isolation |
 | External API | Closed scoped read/write organ | PowerRuntime adapter | Injected transport in current tests | Transport contract can mutate when authorized | Domain/method authority and injected transport | Read/scoped; mutation requires authority | GET, mutation gate, rate limit, response quarantine tests | Fail closed on scope/rate mismatch | Required for new domains/mutations | `INJECTED` | No production connector/task benchmark |
 | Filesystem | Closed reversible workspace path | Explicit executor | Real local scoped filesystem | Yes, bounded | Approved workspace root | Explicit opt-in | Path traversal/symlink/race/rollback tests | Rollback/tombstone available for supported operations | Boundary escalation | `LIVE_BOUNDED` | No user-facing project workspace flow |
@@ -131,8 +150,10 @@ The two failures are baseline findings, not hidden:
 ## What Was Not Demonstrated
 
 ```text
-normal-user end-to-end repository inspect/edit/test/debug mission
-live multi-step public SaaS browser task
+real explicit-model normal-user repository mission
+coding mission continuity across a new runtime/process
+live multi-step public SaaS browser task and process restart
+long-duration soak
 real Slack/Telegram/Gmail send
 real global desktop click/type
 live microphone/STT/TTS conversation

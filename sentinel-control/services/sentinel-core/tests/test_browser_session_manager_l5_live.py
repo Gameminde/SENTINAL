@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 import types
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,13 @@ HTML = """
       <button>Remember</button>
     </main>
   </body>
+</html>
+"""
+SECOND_URL = "https://example.com/research"
+SECOND_HTML = """
+<html>
+  <head><title>Research</title></head>
+  <body><main><h1>Research Evidence</h1><button>Pin evidence</button></main></body>
 </html>
 """
 
@@ -118,6 +126,292 @@ def test_live_browser_session_persists_form_state_across_steps(tmp_path: Path) -
         assert observed.receipt.form_state_summary == [{"name": "Email", "role": "textbox", "value_hash": typed.receipt.typed_text_hash}]
         assert closed.receipt.closed is True
         assert list((tmp_path / "browser").rglob("*_screenshot.png"))
+    finally:
+        manager.close_all()
+
+
+def test_live_browser_session_promotes_bounded_multitab_with_receipts(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML, SECOND_URL: SECOND_HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[
+            BrowserSessionActionKind.OPEN_TAB,
+            BrowserSessionActionKind.SWITCH_TAB,
+            BrowserSessionActionKind.CLOSE_TAB,
+        ],
+        max_steps=8,
+        max_tabs=2,
+    )
+
+    try:
+        opened = manager.open_session(BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract))
+        new_tab = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=SECOND_URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.OPEN_TAB,
+            )
+        )
+        overflow = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=SECOND_URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.OPEN_TAB,
+            )
+        )
+        switched = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.SWITCH_TAB,
+                tab_id=opened.receipt.tab_id,
+            )
+        )
+        closed = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=SECOND_URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLOSE_TAB,
+                tab_id=new_tab.receipt.tab_id,
+            )
+        )
+
+        assert new_tab.accepted is True
+        assert new_tab.receipt.tab_count == 2
+        assert new_tab.receipt.tab_id != opened.receipt.tab_id
+        assert overflow.accepted is False
+        assert overflow.reason == "browser_session_tab_limit_reached"
+        assert switched.accepted is True
+        assert switched.receipt.tab_id == opened.receipt.tab_id
+        assert closed.accepted is True
+        assert closed.receipt.tab_count == 1
+        assert all(
+            result.finalgate_certificate is not None and result.finalgate_certificate.certified
+            for result in (new_tab, overflow, switched, closed)
+        )
+    finally:
+        manager.close_all()
+
+
+def test_live_browser_session_multitab_does_not_cross_mission_boundary(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML, SECOND_URL: SECOND_HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.OPEN_TAB],
+        max_tabs=2,
+    )
+    other_mission = _envelope().model_copy(update={"id": "mission_browser_session_other"})
+
+    try:
+        opened = manager.open_session(BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract))
+        forged = manager.interact(
+            BrowserSessionRequest.model_construct(
+                mission=other_mission,
+                url=SECOND_URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.OPEN_TAB,
+                target_nth=0,
+                values=[],
+                timeout_ms=15_000,
+                capture_screenshot=True,
+                authority_effect="none",
+                execution_effect="none",
+                can_grant_authority=False,
+                can_approve_future_execution=False,
+                data_not_instruction=True,
+            )
+        )
+
+        assert forged.accepted is False
+        assert forged.reason == "contract_mission_mismatch"
+    finally:
+        manager.close_all()
+
+
+@pytest.mark.parametrize(
+    ("mission_update", "expected_reason"),
+    [
+        ({"revoked_at": datetime.now(UTC)}, "mission_authority_revoked"),
+        ({"expires_at": datetime.now(UTC) - timedelta(seconds=1)}, "mission_authority_expired"),
+    ],
+)
+def test_live_browser_session_rechecks_revocation_and_expiry_before_each_step(
+    tmp_path: Path,
+    mission_update: dict[str, object],
+    expected_reason: str,
+) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.CLICK],
+    )
+    try:
+        opened = manager.open_session(BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract))
+        blocked = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope().model_copy(update=mission_update),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLICK,
+                target_role="button",
+                target_name="Remember",
+            )
+        )
+
+        assert blocked.accepted is False
+        assert blocked.reason == expected_reason
+        assert blocked.receipt.finalgate_verified is True
+        assert blocked.finalgate_certificate is not None
+        assert blocked.finalgate_certificate.certified is True
+        closed = manager.close_session(
+            BrowserSessionRequest(
+                mission=_envelope().model_copy(update=mission_update),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+            )
+        )
+        assert closed.accepted is True
+        assert closed.receipt.closed is True
+    finally:
+        manager.close_all()
+
+
+def test_live_browser_session_enforces_bounded_interaction_steps(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.CLICK],
+        max_steps=1,
+    )
+    try:
+        opened = manager.open_session(BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract))
+        first = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLICK,
+                target_role="button",
+                target_name="Remember",
+            )
+        )
+        overflow = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLICK,
+                target_role="button",
+                target_name="Remember",
+            )
+        )
+
+        assert first.accepted is True
+        assert overflow.accepted is False
+        assert overflow.reason == "browser_session_step_limit_reached"
+        assert overflow.receipt.step_index == 1
+    finally:
+        manager.close_all()
+
+
+def test_live_browser_session_rejects_contract_expansion_after_open(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.CLICK],
+        max_steps=1,
+        max_tabs=1,
+    )
+    expanded = contract.model_copy(update={"max_steps": 10, "max_tabs": 4})
+    try:
+        opened = manager.open_session(BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract))
+        blocked = manager.interact(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=URL,
+                contract=expanded,
+                session_id=opened.session_id,
+                action_kind=BrowserSessionActionKind.CLICK,
+                target_role="button",
+                target_name="Remember",
+            )
+        )
+
+        assert blocked.accepted is False
+        assert blocked.reason == "browser_session_contract_mismatch"
     finally:
         manager.close_all()
 

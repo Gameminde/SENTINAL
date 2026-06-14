@@ -10,8 +10,8 @@ not receive live-product credit.
 
 | Domain | Score / 10 | Evidence | Current blocker | Competitor reference | Required work to reach 8/10 |
 |:--|--:|:--|:--|:--|:--|
-| Coding/workspace | 5.5 | Real scoped workspace mutation, allowlisted subprocess, hash-anchored edits | No complete inspect-edit-test-debug mission or LSP/debugger product path | oh-my-pi, gptme, Agent Zero | Representative repository gauntlet with recovery, compact evidence, bounded interventions |
-| Browser | 6.5 | Real bounded Playwright observe/type/click; broad governed stack; fake multi-step recovery | No representative live SaaS task suite, session continuity benchmark, or measured recovery rate | Hermes, Webwright, UI-TARS | Live multi-step benchmark with session continuity, upload/download/login checkpoints, recovery, replay |
+| Coding/workspace | 7.5 | Five repeated controlled inspect-edit-test-repair-regression-rollback missions; atomic scoped mutation and proof invariants | Real explicit-model agent run, process-restart coding continuity, and product LSP/debugger path remain open | oh-my-pi, gptme, Agent Zero | Real-model repository corpus with durable process restart, LSP/debugger depth, and bounded interventions |
+| Browser | 7.5 | Ten repeated controlled live Playwright missions with multi-tab, submit, upload/download quarantine, login checkpoint, changed-target recovery, revocation, and replay | Public-SaaS corpus and browser-session continuity across process restart remain open | Hermes, Webwright, UI-TARS | Public live-task corpus with restart continuity, changed-state recovery, and bounded interventions |
 | Desktop | 3.5 | Injected monitoring and fake actions with strong policy/proof | No production live opt-in OS adapter | UI-TARS, JARVIS, Agent Zero | Real scoped OS action backend plus benchmark success/recovery/kill proof |
 | Voice | 3.0 | Fake/injected VAD, transcript, barge-in, kill word | No live microphone/STT/TTS/realtime backend | JARVIS, Hermes | Live local/realtime conversation with latency, interruption, kill, and no authority bypass |
 | Channels | 3.0 | Local drafts and injected send lifecycle | No real provider connector | OpenClaw, Hermes, DeerFlow | One production-quality connector with inbound/outbound, auth, replay, recovery, rate limits |
@@ -23,13 +23,13 @@ not receive live-product credit.
 | Credential usability | 3.0 | Fake sealed store, scoped handles/leases, no raw secret persistence | No OS keychain/production vault backend | JARVIS, OpenClaw | Real OS credential backend with user-visible lease/use/revoke UX |
 | Operator UX | 4.5 | LLM cockpit CLI, mission status, timeline, replay | No installable tray/compact/full app | Agent Zero, OpenClaw, JARVIS | Lightweight app with fast onboarding, approvals, progress, kill, replay |
 | Installation/deployment | 1.5 | Repository and Python CLI only | No installer, OS service, tray, upgrade flow | OpenClaw, Agent Zero, JARVIS | One-command install and reliable local service/app lifecycle |
-| Reliability | 6.0 | 2,278 test functions and strong local invariant coverage; post-remediation full core suite 2686 passed, 0 failed, 3 skipped | Limited live backend and long-duration evidence | Microsoft Agent Framework, Hermes | Run real-task reliability corpus, soak tests, crash recovery, repeatability target |
+| Reliability | 7.5 | Repeated Wave 1 vertical gauntlets with zero silent success, duplicate material side effects, and cross-mission contamination; strong local invariant coverage | Long-duration soak and full process-restart convergence remain open | Microsoft Agent Framework, Hermes | Long-duration real-task corpus, process restart recovery, and soak targets |
 | Governance/proof | 9.0 | Authority envelope, Gate, receipts, FinalGate, telemetry, replay, kill/revocation | Larger adversarial FinalGate matrix still recommended | Sentinel | Expand cross-surface property tests while preserving current invariants |
 
 ## Current Aggregate
 
 ```text
-unweighted_average = 5.4 / 10
+unweighted_average = 5.7 / 10
 control_and_proof = strongest area
 live_product_reach = primary limiter
 installation_and_operator_product = weakest area
@@ -38,16 +38,19 @@ installation_and_operator_product = weakest area
 The post-baseline full canonical core suite is green:
 
 ```text
-2689 collected
-2686 passed
+2698 collected
+2695 passed
 0 failed
 3 skipped
 ```
 
 The dedicated green-gate remediation closed the stale historical truth
-assertion and the fail-closed browser-neural continuity defect. The reliability
-score remains unchanged because a green repository suite does not prove
-long-duration live task reliability.
+assertion and the fail-closed browser-neural continuity defect. Wave 1 then
+raised only evidence-backed scores: controlled coding/workspace passed five
+repetitions and controlled live Playwright browser passed ten repetitions.
+Both reported zero silent success, duplicate material side effects, and
+cross-mission contamination. The backend is certified; agent-level real-model,
+process-restart, public-SaaS, and soak gates remain open.
 
 ## Exact 8/10 Certification Gates
 

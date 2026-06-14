@@ -37,21 +37,22 @@ provable.
 Current state:
 
 ```text
-current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
-previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
-next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+current_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+previous_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 roadmap_doctrine = product power under provable authority
 ```
 
 The active strategy is now the
 `SENTINEL_REAL_WORLD_POWER_BASELINE_AND_CONVERGENCE_PROGRAM`. The task-level
-baseline measures current real power at `5.4 / 10`: Sentinel's authority,
+current evidence measures real power at `5.7 / 10`: Sentinel's authority,
 proof, and local runtime spine are strong, but broad live backend reach and a
 production operator product remain limited. The convergence roadmap is the
-canonical active build sequence. The baseline green gate is closed with `2686
-passed, 0 failed, 3 skipped`; this remediation added no capability and did not
-change the product-power score. Security Testing Special Authority remains
-future work and is deferred.
+canonical active build sequence. Wave 1 is `PARTIALLY_CLOSED`: controlled
+coding/workspace and live Playwright browser backends are certified through
+repeated vertical gauntlets, while real-model, process-restart, public-SaaS,
+and soak proof remain open. Security Testing Special Authority remains future
+work and is deferred.
 
 Real now:
 
@@ -87,6 +88,8 @@ Deep Audit global invariants and power truth reconciliation for browser isolatio
 live governed browser L4/L5 and scoped L6 special-authority paths
 real scoped workspace writes
 real allowlisted shell/code subprocess path
+atomic reversible workspace mutation with controlled vertical repeatability evidence
+bounded live multi-tab Playwright sessions with contract, lifecycle, recovery, and replay evidence
 real scoped external API path
 injected-authority channel send path
 ```
@@ -188,7 +191,7 @@ defines the active next implementation order.
 Active convergence sequence:
 
 ```text
-1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 2. Desktop real control and monitoring
 3. Realtime voice backend
 4. One production-quality real channel connector
@@ -1050,16 +1053,15 @@ power inside explicit, inspectable, revocable authority.
 ## 22. Next Implementation Prompt Title
 
 ```text
-REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 ```
 
 Required direction:
 
 ```text
-Convert existing bounded coding/workspace and browser capabilities into
-representative end-to-end live task power. Reuse the existing authority,
-MissionKernel, workflow/replan, daemon, workers, harness, memory, telemetry,
-receipts, FinalGate, replay, and kill/revocation spine. Measure task success,
-duration, interventions, recovery, proof completeness, and operator
-visibility. Add no new actuator family or special authority.
+Close the remaining Wave 1 evidence gates: run an explicit real-model
+coding-agent mission, prove coding and browser continuity across process
+restart, add a representative public-SaaS browser corpus where safe, and run
+long-duration soak evidence. Preserve the existing authority, proof, replay,
+and kill/revocation spine. Add no new actuator family or special authority.
 ```

@@ -22,9 +22,9 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-06-14
-current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
-previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
-next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+current_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+previous_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 doctrine = product power under provable authority
 ```
 
@@ -35,18 +35,19 @@ explicit model routing, real channel adapter foundation, desktop sidecar,
 live-desktop monitoring foundation, realtime voice foundation, a durable
 credential vault / secret broker foundation, and governed account creation /
 login plus sandbox spend / paper trading special-authority foundations. The
-latest baseline lock measures that power honestly at task level: governance and
-local runtime are strong, real bounded browser/workspace/shell power exists,
-while broad live external reach and a production operator app remain limited.
-The green-gate remediation closes the baseline's two recorded failures without
-adding capability: the canonical core suite is now `2686 passed, 0 failed, 3
-skipped`. The active program now converts existing foundations into
-demonstrated real-world power before adding more special-authority surfaces.
+latest convergence evidence measures that power honestly at task level:
+governance and local runtime are strong, and Wave 1 now proves repeatable
+controlled coding/workspace and live Playwright browser missions with zero
+silent success, duplicate material side effects, or cross-mission
+contamination. Wave 1 is `PARTIALLY_CLOSED`: the backend is certified on
+controlled fixtures, while a real explicit-model coding-agent run, process
+restart continuity, public-SaaS evidence, and long-duration soak remain open.
+No new actuator family or special-authority surface was added.
 
 The current top-level lock report is:
 
 ```text
-sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_LOCK_REPORT.md
 ```
 
 The canonical state truth is:
@@ -521,7 +522,7 @@ current product direction and should not shape Sentinel architecture.
 ## Build Order From Here
 
 ```text
-1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+1. REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 2. Desktop real control and monitoring
 3. Realtime voice backend
 4. One production-quality real channel connector
@@ -533,7 +534,7 @@ current product direction and should not shape Sentinel architecture.
 Next implementation title:
 
 ```text
-REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 ```
 
 `SECURITY_TESTING_SPECIAL_AUTHORITY_V1` and other new special-authority or

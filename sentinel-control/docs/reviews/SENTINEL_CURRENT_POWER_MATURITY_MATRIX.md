@@ -1,6 +1,6 @@
 # Sentinel Current Power Maturity Matrix
 
-Recorded at: 2026-06-13
+Recorded at: 2026-06-14
 
 ## Verdict
 
@@ -13,7 +13,9 @@ proof_spine_strength = HIGH
 local_runtime_power = REAL / bounded
 live_external_backend_power = LIMITED
 production_app_power = NOT_STARTED
-security_testing_special_authority = NOT_STARTED / next
+real_world_power_convergence_wave_1 = PARTIALLY_CLOSED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
+security_testing_special_authority = DEFERRED / NOT_STARTED
 ```
 
 Sentinel is not production-complete, but it is no longer docs-only. It has a
@@ -54,8 +56,20 @@ sandbox, descriptor, or injected backend foundations.
 | Credential vault/secret broker | WIRED_FAKE_OR_SANDBOX | Durable metadata, fake sealed store, handles/leases, no raw secret materialization | Real durable vault/HSM/OS keychain integration not started |
 | Account/login authority | WIRED_FAKE_OR_SANDBOX | Fake/injected login/account creation, MFA/CAPTCHA/KYC checkpoints, credential lease binding | Live login/session broker not started |
 | Payment/spend/trading authority | WIRED_FAKE_OR_SANDBOX | Sandbox spend, paper trade, caps, idempotency, forbidden live-money actions | Live money/broker authority not approved |
-| Security testing special authority | NOT_STARTED | Roadmap next | Must be built as special authority, not generic offensive tooling |
+| Security testing special authority | NOT_STARTED | Deferred by convergence program | Must be built later as special authority, not generic offensive tooling |
 | Platform app/operator cloud | NOT_STARTED | Roadmap only | No web/dashboard/cloud product claim |
+
+## Wave 1 Convergence Truth
+
+```text
+overall_real_world_product_power = 5.7 / 10
+coding_workspace = 7.5 / 10 / BACKEND_CERTIFIED
+browser = 7.5 / 10 / BACKEND_CERTIFIED on controlled live Playwright fixtures
+reliability = 7.5 / 10 / repeated controlled vertical evidence
+real_model_agent_certification = NOT_RUN
+process_restart_and_long_duration_soak = NOT_PROVEN
+Wave 2 = NOT_STARTED
+```
 
 ## Real Runtime Summary
 

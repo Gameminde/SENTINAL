@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from inspect import signature
+import os
 from pathlib import Path
 from typing import Any
 
@@ -161,6 +162,31 @@ def test_l3_replaces_text_file_inside_approved_workspace(tmp_path: Path) -> None
     assert path.read_text(encoding="utf-8") == "after\n"
     assert result.before_snapshot.before_hash == before_hash
     assert result.after_snapshot.after_hash == text_hash("after\n")
+
+
+def test_l3_workspace_mutation_and_rollback_use_atomic_replace(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path, before_hash = _workspace_file(tmp_path, content="before\n")
+    executor = L3ReversibleWorkspaceExecutor()
+    replace_targets: list[Path] = []
+    real_replace = os.replace
+
+    def tracked_replace(source: str | Path, target: str | Path) -> None:
+        replace_targets.append(Path(target))
+        real_replace(source, target)
+
+    monkeypatch.setattr(l3_module.os, "replace", tracked_replace)
+
+    result = executor.execute(_request(tmp_path, before_hash=before_hash, content="after\n"))
+    rollback = executor.rollback(result, rollback_reason="prove atomic restore")
+
+    assert result.attempt_status is L3WorkspaceAttemptStatus.MUTATED
+    assert rollback.attempt_status is L3WorkspaceAttemptStatus.ROLLBACK_COMPLETED
+    assert replace_targets == [path, path]
+    assert path.read_text(encoding="utf-8") == "before\n"
+    assert not list(path.parent.glob(f".{path.name}.*.tmp"))
 
 
 def test_l3_appends_text_file_inside_approved_workspace(tmp_path: Path) -> None:

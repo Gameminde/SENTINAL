@@ -8,19 +8,20 @@ runtime to real-world controlled automation.
 ## Current Execution Truth - 2026-06-14
 
 ```text
-current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
-previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
-active_implementation_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
-next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+current_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+previous_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+active_implementation_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 roadmap_doctrine = product power under provable authority
 ```
 
-The baseline green-gate remediation closes the two failures recorded by the
-baseline and AgentLab task audit. It is a zero-growth hardening lock, not a new
-actuator phase. The full canonical core suite is green at `2686 passed, 0
-failed, 3 skipped`. Existing foundations must now become demonstrated
-end-to-end user power before Sentinel adds more special-authority or actuator
-families. Security Testing Special Authority remains deferred.
+Wave 1 is `PARTIALLY_CLOSED`. Controlled coding/workspace passed five repeated
+vertical tasks and controlled live Playwright browser passed ten, with zero
+silent success, duplicate material side effects, or cross-mission
+contamination. The remaining completion gates are real-model agent
+certification, process-restart continuity, public-SaaS evidence, and
+long-duration soak. No new actuator family or special authority was added.
+Security Testing Special Authority remains deferred.
 
 Canonical roadmap:
 
@@ -262,7 +263,8 @@ DURABLE_CREDENTIAL_VAULT_AND_SECRET_BROKER_V1 = CLOSED
 ACCOUNT_CREATION_AND_LOGIN_SPECIAL_AUTHORITY_V1 = CLOSED
 PAYMENT_SPEND_TRADING_SPECIAL_AUTHORITY_V1 = CLOSED
 REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT = LOCKED
-REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER = NEXT
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER = PARTIALLY_CLOSED
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION = NEXT
 SECURITY_TESTING_SPECIAL_AUTHORITY_V1 = DEFERRED / NOT_STARTED
 ```
 
@@ -787,17 +789,15 @@ These are the credibility tests. A roadmap that cannot pass these is not enough.
 Start:
 
 ```text
-REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 ```
 
 Reason:
 
 ```text
-Sentinel has a strong governed local runtime and multiple mature foundations,
-but the task-level baseline measures overall real-world product power at
-5.4 / 10 because live external backend reach and productized end-to-end task
-proof remain limited. The next step is to converge the already-real bounded
-workspace, shell, harness, and browser paths into representative coding and
-browser missions with measured recovery, interventions, receipts, replay, and
-kill behavior. No new actuator family or special authority is required.
+Sentinel now measures overall real-world product power at `5.7 / 10`.
+Controlled coding/workspace and browser backends are repeatable and certified,
+but real-model agent execution, process-restart continuity, public-SaaS
+evidence, and long-duration soak remain open. Complete those gates before
+starting Wave 2. No new actuator family or special authority is required.
 ```

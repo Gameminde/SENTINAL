@@ -1,43 +1,61 @@
 # Current State Lock
 
-## Real-World Power Baseline Green Gate Remediation - LOCKED
+## Real-World Power Convergence Wave 1 - PARTIALLY CLOSED
 
 Recorded at: 2026-06-14
 
 This section is the canonical current state. It supersedes the Real-World Power
-Baseline And AgentLab Task Audit lock as top-level truth. It adds no runtime
-capability and does not start convergence Wave 1.
+Baseline Green Gate Remediation lock as top-level truth. It closes the
+controlled backend portion of convergence Wave 1 and leaves the unproven
+real-model, process-restart, public-SaaS, and soak gates open.
 
-The remediation closes exactly the baseline's two recorded failures: one stale
-historical truth assertion and one fail-closed browser-neural continuity defect.
-The complete canonical core suite is green.
+The implementation reuses the existing MissionKernel, authority, runtime,
+workflow/replan, telemetry, receipt, FinalGate, replay, and kill/revocation
+spine. It adds atomic reversible workspace writes, bounded live multi-tab
+browser sessions, contract-expansion blocking, per-step lifecycle rechecks,
+and repeatable controlled vertical gauntlets. It adds no new actuator family or
+special authority.
 
 ```text
-current_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
-previous_phase = REAL_WORLD_POWER_BASELINE_AND_AGENTLAB_TASK_AUDIT_LOCKED
-next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER
+current_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_PARTIALLY_CLOSED
+previous_phase = REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCKED
+next_phase = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_COMPLETION
 roadmap_doctrine = product power under provable authority
 ```
 
-### Green Gate Truth
+### Wave 1 Current Truth
 
 ```text
-full_core_suite = GREEN / 2686 passed, 0 failed, 3 skipped
-stale_historical_truth_test = CLOSED / canonical-current-phase invariant
-mixed_unsafe_safe_browser_neural_ref_continuity = CLOSED / safe refs preserved, unsafe refs hashed
-invalid_browser_neural_motor_artifact = FAIL_CLOSED
-unrelated_unsafe_cognition_payload = FAIL_CLOSED
-new execution surface = NOT_STARTED
+overall_real_world_product_power = 5.7 / 10
+coding_workspace_power = 7.5 / 10
+browser_power = 7.5 / 10
+reliability_power = 7.5 / 10
+coding_workspace_backend = BACKEND_CERTIFIED / 5 controlled repetitions
+coding_workspace_agent_level = NOT_RUN / explicit real UserModelContract gate open
+browser_backend = BACKEND_CERTIFIED / 10 controlled live Playwright repetitions
+browser_public_saas_and_process_restart = NOT_PROVEN
+long_duration_soak = NOT_PROVEN
+silent_success = 0
+duplicate_material_side_effects = 0
+cross_mission_contamination = 0
+atomic_reversible_workspace_write = CLOSED
+bounded_live_multitab_browser = CLOSED
+browser_contract_expansion = BLOCKED
+browser_per_step_revocation_and_expiry = CLOSED
+full_canonical_core_suite = GREEN / 2698 collected, 2695 passed, 0 failed, 3 skipped
 new special authority = NOT_STARTED
 provider fallback/AUTO = NOT_APPROVED
 Security Testing Special Authority V1 = DEFERRED / NOT_STARTED
-Wave 1 = NOT_STARTED / next
+Wave 1 = PARTIALLY_CLOSED
+Wave 2 = NOT_STARTED / blocked until Wave 1 completion
 ```
 
-### Green Gate Artifact
+### Wave 1 Artifacts
 
 ```text
-sentinel-control/docs/reviews/REAL_WORLD_POWER_BASELINE_GREEN_GATE_REMEDIATION_LOCK_REPORT.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_CONVERGENCE_WAVE_1_RESEARCH_AND_ARCHITECTURE.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_CONVERGENCE_WAVE_1_BENCHMARK_REPORT.md
+sentinel-control/docs/reviews/REAL_WORLD_POWER_CONVERGENCE_WAVE_1_CODING_WORKSPACE_AND_BROWSER_LIVE_POWER_LOCK_REPORT.md
 ```
 
 Historical current-phase and next-phase blocks below remain evidence for their
