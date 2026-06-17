@@ -23,6 +23,7 @@ from sentinel.agent.model_execution.catalog import (
 from sentinel.agent.model_execution.openai_compatible import (
     OpenAICompatibleChatProvider,
     OpenAICompatibleProviderConfig,
+    _http_error_diagnostic,
 )
 from sentinel.agent.model_execution.redaction import text_hash
 
@@ -343,3 +344,174 @@ def _payload(
         "choices": [{"finish_reason": "stop", "message": message}],
         "usage": usage or {"prompt_tokens": 12, "completion_tokens": 8, "total_tokens": 20},
     }
+
+
+def test_strict_json_request_does_not_extract_material_json_from_prose() -> None:
+    request = _compatible_request().model_copy(
+        update={"request_metadata": {"strict_json_only": True}}
+    )
+    payload = _payload()
+    payload["choices"][0]["message"]["content"] = (
+        'I will act now. {"decision":"continue","evidence_refs":[]} Done.'
+    )
+
+    response = _provider().map_payload(request, payload)
+
+    assert set(response.content) == {"raw_text_hash"}
+    assert response.finish_reason == "stop"
+    assert response.output_truncated is False
+
+
+def test_explicit_mutation_patch_transport_keeps_raw_text_memory_only() -> None:
+    raw_patch = "\n".join(
+        [
+            "PATCH",
+            "--- a/src/pricing.py",
+            "+++ b/src/pricing.py",
+            "@@ -1,2 +1,2 @@",
+            " def double(amount: int) -> int:",
+            "-    return amount",
+            "+    return amount * 2",
+        ]
+    )
+    request = _compatible_request().model_copy(
+        update={
+            "request_metadata": {
+                "strict_json_only": False,
+                "raw_text_transport": "mutation_patch_v2",
+            }
+        }
+    )
+    payload = _payload()
+    payload["choices"][0]["message"]["content"] = raw_patch
+
+    response = _provider().map_payload(request, payload)
+
+    assert response.raw_text_in_memory_only == raw_patch
+    assert response.content["raw_text_hash"] == text_hash(raw_patch)
+    assert response.content["raw_text_transport"] == "mutation_patch_v2"
+    assert response.content["visible_content_char_count"] == len(raw_patch)
+    assert response.content["visible_content_estimated_tokens"] == max(1, (len(raw_patch) + 3) // 4)
+    dumped = response.model_dump_json()
+    assert raw_patch not in dumped
+    assert "return amount * 2" not in dumped
+
+
+def test_mutation_patch_transport_records_reasoning_metadata_without_raw_reasoning() -> None:
+    request = _compatible_request().model_copy(
+        update={
+            "request_metadata": {
+                "strict_json_only": False,
+                "raw_text_transport": "mutation_patch_v2",
+            }
+        }
+    )
+    payload = _payload(
+        message_extra={"content": "PATCH", "reasoning_content": "private patch reasoning with hidden diff"},
+        usage={"prompt_tokens": 21, "completion_tokens": 320, "completion_tokens_details": {"reasoning_tokens": 315}},
+    )
+    profile = _profile(
+        usage_mapping=ProviderUsageMapping(
+            input_tokens_path="usage.prompt_tokens",
+            output_tokens_path="usage.completion_tokens",
+            total_tokens_path="usage.total_tokens",
+            reasoning_tokens_path="usage.completion_tokens_details.reasoning_tokens",
+        )
+    )
+
+    response = _provider(profile=profile).map_payload(request, payload)
+
+    assert response.content["raw_text_hash"] == text_hash("PATCH")
+    assert response.content["raw_text_transport"] == "mutation_patch_v2"
+    assert response.content["visible_content_char_count"] == 5
+    assert response.content["visible_content_estimated_tokens"] == 2
+    assert response.content["reasoning_present"] is True
+    assert response.content["reasoning_hash"] == text_hash("private patch reasoning with hidden diff")
+    assert response.content["reasoning_char_count"] == len("private patch reasoning with hidden diff")
+    assert response.content["reasoning_token_count"] == 315
+    assert response.output_tokens == 320
+    dumped = response.model_dump_json()
+    assert "private patch reasoning" not in dumped
+    assert "hidden diff" not in dumped
+    assert "raw_text_in_memory_only" not in dumped
+
+
+def test_read_only_audit_report_transport_keeps_visible_report_memory_only() -> None:
+    report = "# Sentinel Audit\n\nEvidence-backed architecture map."
+    request = _compatible_request().model_copy(
+        update={
+            "request_metadata": {
+                "strict_json_only": False,
+                "raw_text_transport": "read_only_audit_report_v1",
+            }
+        }
+    )
+    payload = _payload(
+        message_extra={"content": report, "reasoning_content": "private audit reasoning"},
+        usage={"prompt_tokens": 44, "completion_tokens": 92},
+    )
+
+    response = _provider().map_payload(request, payload)
+
+    assert response.raw_text_in_memory_only == report
+    assert response.content["raw_text_hash"] == text_hash(report)
+    assert response.content["raw_text_transport"] == "read_only_audit_report_v1"
+    assert response.content["visible_content_char_count"] == len(report)
+    assert response.content["visible_content_estimated_tokens"] == max(1, (len(report) + 3) // 4)
+    assert response.content["reasoning_present"] is True
+    assert response.content["reasoning_hash"] == text_hash("private audit reasoning")
+    dumped = response.model_dump_json()
+    assert "Evidence-backed architecture map" not in dumped
+    assert "private audit reasoning" not in dumped
+    assert "raw_text_in_memory_only" not in dumped
+
+
+def test_provider_records_safe_finish_reason_and_truncation_without_raw_content() -> None:
+    request = _compatible_request().model_copy(
+        update={"request_metadata": {"strict_json_only": True}}
+    )
+    payload = _payload()
+    payload["choices"][0]["finish_reason"] = "length"
+    payload["choices"][0]["message"]["content"] = '{"decision":"continue"'
+
+    response = _provider().map_payload(request, payload)
+
+    assert response.finish_reason == "length"
+    assert response.output_truncated is True
+    assert set(response.content) == {"raw_text_hash"}
+
+
+def test_provider_redacts_unsafe_finish_reason() -> None:
+    request = _compatible_request().model_copy(
+        update={"request_metadata": {"strict_json_only": True}}
+    )
+    raw_finish = "stop sk-test-finish-secret-1234567890"
+    payload = _payload()
+    payload["choices"][0]["finish_reason"] = raw_finish
+    payload["choices"][0]["message"]["content"] = '{"decision":"continue"}'
+
+    response = _provider().map_payload(request, payload)
+    dumped = response.model_dump_json()
+
+    assert response.finish_reason == "unsafe_provider_label"
+    assert response.content["finish_reason_hash"] == text_hash(raw_finish)
+    assert raw_finish not in dumped
+
+
+def test_provider_redacts_unsafe_error_type_and_code() -> None:
+    raw_type = "invalid_request sk-test-type-secret-1234567890"
+    raw_code = "bad_request sk-test-code-secret-1234567890"
+    response = httpx.Response(
+        400,
+        json={"error": {"type": raw_type, "code": raw_code, "message": "safe"}},
+    )
+
+    diagnostic = _http_error_diagnostic(response)
+    dumped = json.dumps(diagnostic)
+
+    assert diagnostic["provider_error_type"] == "unsafe_provider_label"
+    assert diagnostic["provider_error_type_hash"] == text_hash(raw_type)
+    assert diagnostic["provider_error_code"] == "unsafe_provider_label"
+    assert diagnostic["provider_error_code_hash"] == text_hash(raw_code)
+    assert raw_type not in dumped
+    assert raw_code not in dumped

@@ -85,8 +85,11 @@ class ProviderModelResponse(SentinelModel):
     model_id: str
     response_id: str | None = None
     content: dict[str, Any] = Field(default_factory=dict)
+    raw_text_in_memory_only: str | None = Field(default=None, exclude=True, repr=False)
     refusal: bool = False
     error_class: str | None = None
+    finish_reason: str | None = None
+    output_truncated: bool = False
     input_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(default=0, ge=0)
     cost_usd: float = Field(default=0.0, ge=0.0)

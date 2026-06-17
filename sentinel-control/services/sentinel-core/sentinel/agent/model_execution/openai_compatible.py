@@ -13,6 +13,7 @@ from sentinel.agent.model_execution.policy import ModelTimeoutPolicy
 from sentinel.agent.model_execution.provider import RealModelProvider
 from sentinel.agent.model_execution.redaction import text_hash
 from sentinel.shared.models import SentinelModel
+from sentinel.shared.safety_scanner import scan_forbidden_payload_flat
 
 
 class OpenAICompatibleProviderConfig(SentinelModel):
@@ -145,7 +146,19 @@ class OpenAICompatibleChatProvider(RealModelProvider):
         if not isinstance(content, str):
             return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
 
-        parsed_content = _parse_content(content)
+        strict_json_only = request.request_metadata.get("strict_json_only") is True
+        raw_text_transport = request.request_metadata.get("raw_text_transport")
+        raw_text_in_memory_only: str | None = None
+        if raw_text_transport in {"mutation_patch_v2", "read_only_audit_report_v1"}:
+            parsed_content = {
+                "raw_text_hash": text_hash(content),
+                "raw_text_transport": raw_text_transport,
+                "visible_content_char_count": len(content),
+                "visible_content_estimated_tokens": max(1, (len(content) + 3) // 4),
+            }
+            raw_text_in_memory_only = content
+        else:
+            parsed_content = _parse_content(content, strict_json_only=strict_json_only)
         if not isinstance(parsed_content, dict):
             return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
 
@@ -153,12 +166,19 @@ class OpenAICompatibleChatProvider(RealModelProvider):
         if reasoning_text:
             parsed_content["reasoning_present"] = True
             parsed_content["reasoning_hash"] = text_hash(reasoning_text)
-        elif self.backend_profile.supports_reasoning_controls:
+            parsed_content["reasoning_char_count"] = len(reasoning_text)
+        elif self.backend_profile.supports_reasoning_controls and "raw_text_hash" not in parsed_content:
             parsed_content["reasoning_present"] = False
 
         usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+        reasoning_tokens = _safe_int(_get_path({"usage": usage}, self.backend_profile.usage_mapping.reasoning_tokens_path))
+        if reasoning_tokens:
+            parsed_content["reasoning_token_count"] = reasoning_tokens
         response_id = payload.get("id")
         response_model = payload.get("model")
+        finish_reason, finish_reason_hash = _safe_provider_label(choice.get("finish_reason"))
+        if finish_reason_hash:
+            parsed_content["finish_reason_hash"] = finish_reason_hash
         if response_model is not None and str(response_model) != request.model_id:
             return self._error_response(
                 request,
@@ -170,7 +190,10 @@ class OpenAICompatibleChatProvider(RealModelProvider):
             model_id=request.model_id,
             response_id=text_hash(str(response_id)) if response_id else None,
             content=parsed_content,
+            raw_text_in_memory_only=raw_text_in_memory_only,
             refusal=bool(message.get("refusal")),
+            finish_reason=finish_reason,
+            output_truncated=finish_reason == "length",
             input_tokens=_safe_int(_get_path({"usage": usage}, self.backend_profile.usage_mapping.input_tokens_path)),
             output_tokens=_safe_int(_get_path({"usage": usage}, self.backend_profile.usage_mapping.output_tokens_path)),
         )
@@ -208,10 +231,12 @@ class OpenAICompatibleChatProvider(RealModelProvider):
         )
 
 
-def _parse_content(content: str) -> dict[str, Any]:
+def _parse_content(content: str, *, strict_json_only: bool = False) -> dict[str, Any]:
     try:
         parsed_content = json.loads(content)
     except json.JSONDecodeError:
+        if strict_json_only:
+            return {"raw_text_hash": text_hash(content)}
         parsed_content = _extract_json_object(content)
         if parsed_content is None:
             return {"raw_text_hash": text_hash(content)}
@@ -264,8 +289,14 @@ def _http_error_diagnostic(response: httpx.Response) -> dict[str, Any]:
         return diagnostic
     error = parsed.get("error") if isinstance(parsed, dict) else None
     if isinstance(error, dict):
-        diagnostic["provider_error_type"] = str(error.get("type", ""))[:240]
-        diagnostic["provider_error_code"] = str(error.get("code", ""))[:240]
+        error_type, error_type_hash = _safe_provider_label(error.get("type"), max_len=240)
+        error_code, error_code_hash = _safe_provider_label(error.get("code"), max_len=240)
+        diagnostic["provider_error_type"] = error_type or ""
+        diagnostic["provider_error_code"] = error_code or ""
+        if error_type_hash:
+            diagnostic["provider_error_type_hash"] = error_type_hash
+        if error_code_hash:
+            diagnostic["provider_error_code_hash"] = error_code_hash
         message = str(error.get("message", ""))
         if message:
             diagnostic["provider_error_message_hash"] = text_hash(message)
@@ -292,3 +323,13 @@ def _safe_int(value: Any) -> int:
     except (TypeError, ValueError):
         return 0
     return max(0, parsed)
+
+
+def _safe_provider_label(value: Any, *, max_len: int = 120) -> tuple[str | None, str | None]:
+    if value is None:
+        return None, None
+    rendered_full = str(value)
+    rendered = rendered_full[:max_len]
+    if scan_forbidden_payload_flat(rendered_full, path="$.provider_label"):
+        return "unsafe_provider_label", text_hash(rendered_full)
+    return rendered, None
