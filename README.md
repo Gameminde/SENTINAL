@@ -21,10 +21,12 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 ## Current Snapshot
 
 ```text
-snapshot_date = 2026-06-14
-current_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
-previous_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
-next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
+snapshot_date = 2026-06-18
+canonical_locked_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
+active_experimental_lane = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
+latest_local_hardening = READ_ONLY_OPERATOR_REAL_PROVIDER_FAILURE_HARDENING_V1
+branch = experimental/real-model-lab-freeze-v1
+next_work = review pushed experimental hardening, then decide next controlled run
 doctrine = product power under provable authority
 ```
 
@@ -35,13 +37,14 @@ explicit model routing, real channel adapter foundation, desktop sidecar,
 live-desktop monitoring foundation, realtime voice foundation, a durable
 credential vault / secret broker foundation, and governed account creation /
 login plus sandbox spend / paper trading special-authority foundations. The
-latest convergence evidence measures that power honestly at task level:
-governance and local runtime are strong, and Wave 1 now proves repeatable
-controlled coding/workspace and live Playwright browser missions with zero
-silent success, duplicate material side effects, or cross-mission
-contamination. Wave 1 is still `PARTIALLY_CLOSED`: the backend is certified on
-controlled fixtures, while a real explicit-model coding-agent run, process
-restart continuity, public-SaaS evidence, and long-duration soak remain open.
+latest convergence work measures that power honestly at task level: governance
+and local runtime are strong, controlled coding/workspace and live Playwright
+browser backends are repeatable on fixtures, and the real-model lane has now
+been exercised through explicit provider calls, read-only self-exploration,
+Stage B report diagnostics, and a production-spine read-only fake-model gate.
+Wave 1 remains experimental and not fully certified: public-SaaS evidence,
+long-duration soak, production-spine integration for all real-model paths, and
+holdout certification still remain open.
 
 The latest lock is the `ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE`. It classifies
 the `ArtifactRefStore.get` p95 failure as pre-existing benchmark methodology
@@ -51,10 +54,26 @@ integrity-verified 5 ms get gate, and restores the full sentinel-core suite to
 green: 2,749 passed, 3 skipped, 0 failed. It does not start the real-model
 provider run. No new actuator family or special-authority surface was added.
 
+The active experimental branch now contains an additional local hardening commit
+for the read-only operator production spine. That hardening adds typed
+read-only failure taxonomy, post-parse/pre-tool decision checkpoints, failed
+action-attempt evidence, emergency terminal records when FinalGate persistence
+fails, replay counters that prove no re-execution, and a Windows-safe
+`MissionRunStore` atomic-write path for deep run directories. This is a generic
+failure-hardening pack, not a score increase and not a new capability surface.
+
 The current top-level lock report is:
 
 ```text
 sentinel-control/docs/reviews/ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCK_REPORT.md
+```
+
+The current experimental read-only operator reports are:
+
+```text
+sentinel-control/docs/reviews/REAL_MODEL_READ_ONLY_OPERATOR_PRODUCTION_SPINE_V1_FAKE_MODEL_GATE_REPORT.md
+sentinel-control/docs/reviews/SENTINEL_REAL_MODEL_BEHAVIORAL_EXHAUSTIVE_REMEDIATION_LOCK_REPORT_V1.md
+sentinel-control/docs/reviews/STAGE_B_SANITIZED_REPORT_CAPTURE_AND_INDEPENDENT_VERIFICATION_V1_REPORT.md
 ```
 
 The canonical state truth is:
