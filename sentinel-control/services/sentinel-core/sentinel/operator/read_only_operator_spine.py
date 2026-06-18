@@ -304,6 +304,7 @@ class ReadOnlyFailedAttemptEvidence(SentinelModel):
     decision_checkpoint_ref: str | None = None
     failure_code: str
     runtime_phase: str
+    proof_kind: str = "failed_action_attempt"
     exception_class: str | None = None
     successful_action_receipt_ref: str | None = None
     attempt_hash: str = ""
@@ -340,6 +341,7 @@ class ReadOnlyFailedAttemptEvidence(SentinelModel):
             "decision_checkpoint_ref": self.decision_checkpoint_ref,
             "failure_code": self.failure_code,
             "runtime_phase": self.runtime_phase,
+            "proof_kind": self.proof_kind,
             "exception_class": self.exception_class,
             "successful_action_receipt_ref": self.successful_action_receipt_ref,
             "attempt_hash": self.attempt_hash,
@@ -435,6 +437,10 @@ class ReadOnlyReplayView(SentinelModel):
     finalgate_writes_after_replay: int = 0
     emergency_terminal_writes_before_replay: int = 0
     emergency_terminal_writes_after_replay: int = 0
+    event_count_before_replay: int = 0
+    event_count_after_replay: int = 0
+    mission_status_before_replay: str | None = None
+    mission_status_after_replay: str | None = None
     reexecuted: bool = False
 
 
@@ -491,15 +497,27 @@ class ReadOnlyProductionSpineSession:
             blocked_reason = bridge_result.blocked_reason
             if blocked_reason == "agentruntime_reported_failure" and runtime.last_result is not None:
                 blocked_reason = runtime.last_result.blocked_reason or blocked_reason
-            return ReadOnlyProductionSpineResult(
-                mission_id=self.mission_id,
-                status="blocked",
-                bridge_status=bridge_result.status,
-                blocked_reason=blocked_reason,
-                receipt_refs=list(bridge_result.receipt_refs),
-                finalgate_refs=list(bridge_result.finalgate_certificate_refs),
-                finalgate_status="rejected",
-            )
+            if runtime.last_result is not None:
+                self._finalize_blocked_status_if_open()
+                return runtime.last_result.model_copy(
+                    update={
+                        "bridge_status": bridge_result.status,
+                        "blocked_reason": blocked_reason,
+                        "receipt_refs": list(runtime.last_result.receipt_refs),
+                        "finalgate_refs": list(runtime.last_result.finalgate_refs),
+                        "finalgate_status": "rejected",
+                    }
+                )
+            if blocked_reason == "agentruntime_bridge_failure":
+                blocked = self._record_blocked(
+                    ReadOnlySpineError(
+                        ReadOnlyFailureCode.BRIDGE_INTERNAL_FAILURE,
+                        phase="bridge_runtime",
+                    )
+                )
+                return blocked.model_copy(update={"bridge_status": bridge_result.status})
+            blocked = self._record_blocked(str(blocked_reason or "agentruntime_bridge_blocked"))
+            return blocked.model_copy(update={"bridge_status": bridge_result.status})
         return ReadOnlyProductionSpineResult(
             mission_id=self.mission_id,
             status="completed",
@@ -540,8 +558,8 @@ class ReadOnlyProductionSpineSession:
                         exception_class=exc.__class__.__name__,
                         legacy_reason="model_decision_error",
                     ) from exc
-                self._require_runtime_open()
                 self._record_decision_checkpoint(decision)
+                self._require_runtime_open()
 
                 if decision.action is ReadOnlyActionKind.FINISH_REPORT:
                     self._validate_terminal_report(decision.operator_message or "", decision.evidence_refs)
@@ -603,14 +621,15 @@ class ReadOnlyProductionSpineSession:
 
             raise ReadOnlySpineError(ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED, phase="turn_budget")
         except ReadOnlySpineError as exc:
-            return self._record_blocked(exc)
+            return self._record_blocked(exc, terminalize=self._active_envelope is None)
         except Exception as exc:  # noqa: BLE001
             return self._record_blocked(
                 ReadOnlySpineError(
                     ReadOnlyFailureCode.READ_INTERNAL_RUNTIME_FAILURE,
                     phase="unexpected_runtime",
                     exception_class=exc.__class__.__name__,
-                )
+                ),
+                terminalize=self._active_envelope is None,
             )
 
     def _run_inside_bridge(self, _envelope: MissionAuthorityEnvelope) -> ReadOnlyProductionSpineResult:
@@ -625,7 +644,20 @@ class ReadOnlyProductionSpineSession:
             return None
         return self._last_finalgate
 
-    def _record_blocked(self, error: ReadOnlySpineError | str) -> ReadOnlyProductionSpineResult:
+    def _finalize_blocked_status_if_open(self) -> None:
+        if not self.kernel.is_terminal(self.mission_id):
+            self.kernel.update_status(
+                self.mission_id,
+                OperatorMissionStatus.BLOCKED,
+                "Read-only spine session blocked.",
+            )
+
+    def _record_blocked(
+        self,
+        error: ReadOnlySpineError | str,
+        *,
+        terminalize: bool = True,
+    ) -> ReadOnlyProductionSpineResult:
         if isinstance(error, ReadOnlySpineError):
             reason = error.legacy_reason or error.failure_code
             phase = error.phase
@@ -635,18 +667,17 @@ class ReadOnlyProductionSpineSession:
             phase = "unknown"
             exception_class = None
         proof_code = _proof_failure_code(reason)
-        if not self.kernel.is_terminal(self.mission_id):
-            self.kernel.update_status(self.mission_id, OperatorMissionStatus.BLOCKED, "Read-only spine session blocked.")
         if self._latest_decision_checkpoint_ref is not None:
             self._record_failed_attempt(
                 proof_code,
                 phase=_safe_runtime_phase(phase),
+                proof_kind=_proof_kind(reason, phase),
                 exception_class=exception_class,
             )
         finalgate_refs: list[str] = []
         try:
             certificate = self._record_finalgate(
-                receipt_refs=[],
+                receipt_refs=[*self._receipt_refs],
                 status="blocked",
                 accepted=False,
                 reason=reason,
@@ -671,10 +702,12 @@ class ReadOnlyProductionSpineSession:
             },
             finalgate_certificate_refs=finalgate_refs,
         )
+        if terminalize:
+            self._finalize_blocked_status_if_open()
         return ReadOnlyProductionSpineResult(
             mission_id=self.mission_id,
             status="blocked",
-            receipt_refs=[],
+            receipt_refs=[*self._receipt_refs],
             finalgate_refs=finalgate_refs,
             finalgate_status="rejected",
             blocked_reason=reason,
@@ -721,6 +754,7 @@ class ReadOnlyProductionSpineSession:
         failure_code: str,
         *,
         phase: str,
+        proof_kind: str = "failed_action_attempt",
         exception_class: str | None = None,
     ) -> ReadOnlyFailedAttemptEvidence:
         if self._failed_attempt_refs:
@@ -731,6 +765,7 @@ class ReadOnlyProductionSpineSession:
             decision_checkpoint_ref=self._latest_decision_checkpoint_ref,
             failure_code=failure_code,
             runtime_phase=phase,
+            proof_kind=proof_kind,
             exception_class=exception_class,
             successful_action_receipt_ref=None,
         ).with_hash()
@@ -781,6 +816,8 @@ class ReadOnlyProductionSpineSession:
     def build_replay(self) -> ReadOnlyReplayView:
         model_calls_before = self.decision_client.call_count
         tool_calls_before = self.tool_call_count
+        event_count_before = len(self.kernel.store.load_events(self.mission_id))
+        mission_status_before = self.kernel.store.load_record(self.mission_id).status.value
         receipt_writes_before = self._artifact_write_count("receipts")
         failed_attempt_writes_before = self._artifact_write_count("failed_attempts")
         finalgate_writes_before = self._artifact_write_count("finalgate")
@@ -816,20 +853,6 @@ class ReadOnlyProductionSpineSession:
             failed_attempt_refs=failed_attempt_refs,
             emergency_terminal_refs=emergency_terminal_refs,
         )
-        self.kernel.store.append_event(
-            self.mission_id,
-            event_type="read_only_spine_replay_built",
-            safe_summary="Read-only spine replay rebuilt from stored artifacts without re-execution.",
-            metadata={
-                "reexecuted": False,
-                "receipt_count": len(receipt_refs),
-                "failed_attempt_count": len(failed_attempt_refs),
-                "finalgate_count": len(finalgate_refs),
-                "emergency_terminal_count": len(emergency_terminal_refs),
-            },
-            receipt_refs=receipt_refs,
-            finalgate_certificate_refs=finalgate_refs,
-        )
         return ReadOnlyReplayView(
             mission_id=self.mission_id,
             receipt_refs=receipt_refs,
@@ -850,6 +873,10 @@ class ReadOnlyProductionSpineSession:
             finalgate_writes_after_replay=self._artifact_write_count("finalgate"),
             emergency_terminal_writes_before_replay=emergency_terminal_writes_before,
             emergency_terminal_writes_after_replay=self._artifact_write_count("emergency_terminal"),
+            event_count_before_replay=event_count_before,
+            event_count_after_replay=len(self.kernel.store.load_events(self.mission_id)),
+            mission_status_before_replay=mission_status_before,
+            mission_status_after_replay=self.kernel.store.load_record(self.mission_id).status.value,
             reexecuted=False,
         )
 
@@ -1353,6 +1380,20 @@ def _proof_failure_code(reason: str) -> str:
     if reason.startswith("mission_authority_envelope_"):
         return ReadOnlyFailureCode.READ_ACCESS_BLOCKED.value
     return ReadOnlyFailureCode.READ_INTERNAL_RUNTIME_FAILURE.value
+
+
+def _proof_kind(reason: str, phase: str) -> str:
+    if reason.startswith("gate_sequence:"):
+        return "gate_denial"
+    if "gate" in phase.lower():
+        return "gate_denial"
+    if reason.startswith("terminal_report_"):
+        return "terminal_report_rejection"
+    if reason.startswith("mission_authority_envelope_"):
+        return "authority_recheck_block"
+    if reason.startswith("operator_mission_terminal:"):
+        return "runtime_terminal_recheck"
+    return "failed_action_attempt"
 
 
 def _safe_runtime_phase(phase: str) -> str:

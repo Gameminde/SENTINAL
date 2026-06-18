@@ -23,6 +23,7 @@ from sentinel.operator.read_only_operator_spine import (
     ReadOnlyActionKind,
     ReadOnlyDecision,
     ReadOnlyDecisionClient,
+    ReadOnlyFailureCode,
     ReadOnlyProductionSpineSession,
     ReadOnlySpineError,
 )
@@ -148,6 +149,8 @@ def test_kill_after_model_response_blocks_before_action_receipt(tmp_path: Path) 
     assert result.blocked_reason == "operator_mission_terminal:killed"
     assert result.receipt_refs == []
     assert decision_client.call_count == 1
+    checkpoint = _only_json_payload(session, "decision_checkpoints")
+    assert checkpoint["runtime_phase"] == "post_parse_pre_gate"
     event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
     assert "read_only_spine_action_receipted" not in event_types
     assert event_types.count("read_only_spine_finalgate_certified") == 1
@@ -206,6 +209,8 @@ def test_authority_revoked_after_model_response_blocks_before_action(tmp_path: P
     assert result.blocked_reason == "mission_authority_envelope_inactive"
     assert decision_client.call_count == 1
     assert session.tool_call_count == 0
+    checkpoint = _only_json_payload(session, "decision_checkpoints")
+    assert checkpoint["runtime_phase"] == "post_parse_pre_gate"
     event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
     assert "read_only_spine_action_receipted" not in event_types
 
@@ -542,6 +547,7 @@ def test_wrong_authority_envelope_blocks_before_read_only_runtime_call(tmp_path:
     assert result.bridge_status == "blocked"
     assert result.blocked_reason == "mission_identity_mismatch"
     assert decision_client.call_count == 0
+    _assert_prebridge_terminal_proof(session, result, expected_failure="mission_identity_mismatch")
     event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
     assert "agentruntime_blocked" in event_types
     assert "read_only_spine_action_receipted" not in event_types
@@ -573,6 +579,7 @@ def test_revoked_authority_envelope_blocks_before_read_only_runtime_call(tmp_pat
     assert result.bridge_status == "blocked"
     assert result.blocked_reason == "mission_authority_envelope_inactive"
     assert decision_client.call_count == 0
+    _assert_prebridge_terminal_proof(session, result, expected_failure="mission_authority_envelope_inactive")
 
 
 def test_expired_authority_envelope_blocks_before_read_only_runtime_call(tmp_path: Path) -> None:
@@ -603,6 +610,7 @@ def test_expired_authority_envelope_blocks_before_read_only_runtime_call(tmp_pat
     assert result.bridge_status == "blocked"
     assert result.blocked_reason == "mission_authority_envelope_inactive"
     assert decision_client.call_count == 0
+    _assert_prebridge_terminal_proof(session, result, expected_failure="mission_authority_envelope_inactive")
 
 
 def test_terminal_report_with_unsupported_action_claim_is_rejected_by_finalgate(tmp_path: Path) -> None:
@@ -633,6 +641,10 @@ def test_terminal_report_with_unsupported_action_claim_is_rejected_by_finalgate(
     assert result.status == "blocked"
     assert result.bridge_status == "blocked"
     assert result.blocked_reason == "terminal_report_unsupported_action_claim"
+    assert len(result.receipt_refs) == 1
+    finalgate = _only_json_payload(session, "finalgate")
+    assert finalgate["accepted"] is False
+    assert finalgate["receipt_refs"] == result.receipt_refs
     event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
     assert event_types.count("read_only_spine_finalgate_certified") == 1
     assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
@@ -770,6 +782,8 @@ def test_authority_scope_narrowing_uses_gate_sequence_before_action(tmp_path: Pa
     assert result.status == "blocked"
     assert result.blocked_reason == "gate_sequence:out_of_scope:escalate"
     assert decision_client.call_count == 1
+    failed_attempt = _only_json_payload(session, "failed_attempts")
+    assert failed_attempt["proof_kind"] == "gate_denial"
     event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
     assert "read_only_spine_action_receipted" not in event_types
     assert "read_only_spine_finalgate_certified" in event_types
@@ -797,12 +811,19 @@ def test_replay_records_zero_model_and_tool_call_delta(tmp_path: Path) -> None:
     )
     session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
 
+    event_count_before = len(cockpit.kernel.store.load_events(mission_id))
+    status_before = cockpit.kernel.store.load_record(mission_id).status
     replay = session.build_replay()
+    event_count_after = len(cockpit.kernel.store.load_events(mission_id))
+    status_after = cockpit.kernel.store.load_record(mission_id).status
 
     assert replay.model_calls_after_replay - replay.model_calls_before_replay == 0
     assert replay.tool_calls_after_replay - replay.tool_calls_before_replay == 0
     assert replay.receipt_writes_after_replay - replay.receipt_writes_before_replay == 0
     assert replay.finalgate_writes_after_replay - replay.finalgate_writes_before_replay == 0
+    assert replay.event_count_before_replay == replay.event_count_after_replay
+    assert event_count_after == event_count_before
+    assert status_after is status_before
 
 
 def test_replay_rejects_missing_receipt_artifact(tmp_path: Path) -> None:
@@ -1017,8 +1038,41 @@ def test_snapshot_drift_after_model_response_blocks_before_action(tmp_path: Path
     assert result.blocked_reason == "SNAPSHOT_CHANGED"
     assert decision_client.call_count == 1
     assert session.tool_call_count == 0
+    checkpoint = _only_json_payload(session, "decision_checkpoints")
+    assert checkpoint["runtime_phase"] == "post_parse_pre_gate"
     event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
     assert "read_only_spine_action_receipted" not in event_types
+
+
+def test_bridge_exception_after_tool_attempt_is_typed_and_terminal(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Sentinel\n", encoding="utf-8")
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = _BridgeFailureAfterToolAttemptSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient(
+            [ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."})]
+        ),
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == ReadOnlyFailureCode.BRIDGE_INTERNAL_FAILURE.value
+    assert result.bridge_status == "blocked"
+    assert session.tool_call_count == 1
+    _assert_blocked_terminal_proof(
+        session,
+        result,
+        session.build_replay(),
+        expected_failure=ReadOnlyFailureCode.BRIDGE_INTERNAL_FAILURE.value,
+    )
 
 
 def test_deadline_exhausted_before_model_call_blocks_without_action(tmp_path: Path) -> None:
@@ -1227,6 +1281,30 @@ def _assert_blocked_terminal_proof(
     assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
     assert replay.failed_attempt_writes_before_replay == replay.failed_attempt_writes_after_replay
     assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+    events = session.kernel.store.load_events(session.mission_id)
+    assert events[-1].event_type == "mission_blocked"
+
+
+def _assert_prebridge_terminal_proof(
+    session: ReadOnlyProductionSpineSession,
+    result: object,
+    *,
+    expected_failure: str,
+) -> None:
+    assert result.status == "blocked"
+    assert result.blocked_reason == expected_failure
+    assert result.receipt_refs == []
+    assert result.finalgate_status == "rejected"
+    assert session.kernel.store.load_record(session.mission_id).status is OperatorMissionStatus.BLOCKED
+    events = session.kernel.store.load_events(session.mission_id)
+    event_types = [event.event_type for event in events]
+    assert event_types.count("mission_blocked") == 1
+    assert event_types.count("read_only_spine_action_receipted") == 0
+    assert event_types.count("read_only_spine_finalgate_certified") == 1
+    assert events[-1].event_type == "mission_blocked"
+    finalgate = _only_json_payload(session, "finalgate")
+    assert finalgate["accepted"] is False
+    assert finalgate["status"] == "blocked"
 
 
 class _SequenceClient:
@@ -1327,6 +1405,18 @@ class _FinalGatePersistenceFailingSession(ReadOnlyProductionSpineSession):
         if collection == "finalgate":
             raise OSError("finalgate store unavailable")
         super()._write_artifact(collection, item_id, payload)
+
+
+class _BridgeFailureAfterToolAttemptSession(ReadOnlyProductionSpineSession):
+    def _run_inside_bridge(self, envelope: MissionAuthorityEnvelope) -> object:
+        self._active_envelope = envelope
+        try:
+            decision = self.decision_client.complete(self._context())
+            self._record_decision_checkpoint(decision)
+            self._execute_read_only_action(decision)
+            raise RuntimeError("bridge failure after governed tool attempt")
+        finally:
+            self._active_envelope = None
 
 
 class _DriftingDecisionClient(ReadOnlyDecisionClient):
