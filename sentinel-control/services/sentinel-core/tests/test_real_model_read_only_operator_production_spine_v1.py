@@ -340,6 +340,184 @@ def test_read_file_segment_safe_excerpt_is_redacted_and_bounded(tmp_path: Path) 
     assert observation["safe_excerpt_truncated"] is True
 
 
+@pytest.mark.parametrize(
+    ("action", "arguments", "expected_failure"),
+    [
+        (ReadOnlyActionKind.READ_FILE_SEGMENT, {"path": "."}, "READ_TARGET_WRONG_KIND"),
+        (ReadOnlyActionKind.LIST_DIRECTORY, {"path": "README.md"}, "READ_TARGET_WRONG_KIND"),
+        (ReadOnlyActionKind.READ_FILE_SEGMENT, {"path": "missing.md"}, "READ_TARGET_NOT_FOUND"),
+        (
+            ReadOnlyActionKind.READ_FILE_SEGMENT,
+            {"path": "README.md", "start_line": 0, "line_count": 1},
+            "READ_SEGMENT_INVALID",
+        ),
+        (
+            ReadOnlyActionKind.READ_FILE_SEGMENT,
+            {"path": "README.md", "start_line": 1, "line_count": 0},
+            "READ_SEGMENT_INVALID",
+        ),
+    ],
+)
+def test_read_only_domain_failures_are_typed_checkpointed_and_finalgated(
+    tmp_path: Path,
+    action: ReadOnlyActionKind,
+    arguments: dict[str, object],
+    expected_failure: str,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Sentinel\n", encoding="utf-8")
+
+    session, result, replay = _run_blocked_session(
+        tmp_path,
+        workspace,
+        ReadOnlyDecision(action=action, arguments=arguments),
+    )
+
+    _assert_blocked_terminal_proof(session, result, replay, expected_failure=expected_failure)
+    checkpoint = _only_json_payload(session, "decision_checkpoints")
+    assert checkpoint["canonical_action_name"] == action.value
+    assert checkpoint["argument_key_names"] == sorted(arguments)
+    assert checkpoint["parser_status"] == "parsed"
+    assert checkpoint["canonicalization_status"] == "canonicalized"
+    assert checkpoint["runtime_phase"] == "post_parse_pre_gate"
+    assert "arguments" not in checkpoint
+    failed_attempt = _only_json_payload(session, "failed_attempts")
+    assert failed_attempt["failure_code"] == expected_failure
+    assert failed_attempt["successful_action_receipt_ref"] is None
+
+
+def test_snapshot_change_between_validation_and_read_is_typed_and_finalgated(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    target = workspace / "README.md"
+    target.write_text("# Sentinel\n", encoding="utf-8")
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = _DeleteTargetBeforeReadSession(
+        target,
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient(
+            [ReadOnlyDecision(action=ReadOnlyActionKind.READ_FILE_SEGMENT, arguments={"path": "README.md"})]
+        ),
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    _assert_blocked_terminal_proof(session, result, replay, expected_failure="SNAPSHOT_CHANGED")
+
+
+def test_known_backend_exception_is_typed_without_generic_bridge_failure(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Sentinel\n", encoding="utf-8")
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = _KnownBackendFailingSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient(
+            [ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."})]
+        ),
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    _assert_blocked_terminal_proof(session, result, replay, expected_failure="READ_BACKEND_FAILURE")
+
+
+def test_unexpected_executor_exception_is_redacted_and_typed(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Sentinel\n", encoding="utf-8")
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = _UnexpectedExecutorFailingSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient(
+            [ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."})]
+        ),
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    _assert_blocked_terminal_proof(session, result, replay, expected_failure="READ_INTERNAL_RUNTIME_FAILURE")
+    failed_attempt = _only_json_payload(session, "failed_attempts")
+    assert failed_attempt["exception_class"] == "RuntimeError"
+    assert "raw provider payload" not in json.dumps(failed_attempt)
+
+
+def test_receipt_persistence_exception_produces_failed_attempt_and_rejected_finalgate(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Sentinel\n", encoding="utf-8")
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = _ReceiptPersistenceFailingSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient(
+            [ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."})]
+        ),
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    _assert_blocked_terminal_proof(session, result, replay, expected_failure="RECEIPT_PERSISTENCE_FAILED")
+    assert _json_payloads(session, "receipts") == []
+    assert len(_json_payloads(session, "failed_attempts")) == 1
+
+
+def test_finalgate_persistence_exception_writes_emergency_terminal_record(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Sentinel\n", encoding="utf-8")
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = _FinalGatePersistenceFailingSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient(
+            [ReadOnlyDecision(action=ReadOnlyActionKind.READ_FILE_SEGMENT, arguments={"path": "missing.md"})]
+        ),
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == "READ_TARGET_NOT_FOUND"
+    assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
+    assert result.finalgate_refs == []
+    emergency = _only_json_payload(session, "emergency_terminal")
+    assert emergency["normal_finalgate_persistence_failed"] is True
+    assert emergency["accepted"] is False
+    assert emergency["mission_id"] == mission_id
+    assert replay.emergency_terminal_count == 1
+    assert replay.emergency_terminal_writes_before_replay == replay.emergency_terminal_writes_after_replay
+
+
 def test_wrong_authority_envelope_blocks_before_read_only_runtime_call(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -836,7 +1014,7 @@ def test_snapshot_drift_after_model_response_blocks_before_action(tmp_path: Path
     result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
 
     assert result.status == "blocked"
-    assert result.blocked_reason == "snapshot_drift_detected"
+    assert result.blocked_reason == "SNAPSHOT_CHANGED"
     assert decision_client.call_count == 1
     assert session.tool_call_count == 0
     event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
@@ -986,6 +1164,71 @@ def _finalgate_path(session: ReadOnlyProductionSpineSession, mission_id: str, fi
     return session.kernel.store.mission_dir(mission_id) / "read_only_spine" / "finalgate" / f"{finalgate_ref}.json"
 
 
+def _run_blocked_session(
+    tmp_path: Path,
+    workspace: Path,
+    decision: ReadOnlyDecision,
+) -> tuple[ReadOnlyProductionSpineSession, object, object]:
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient([decision]),
+    )
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+    return session, result, replay
+
+
+def _json_payloads(session: ReadOnlyProductionSpineSession, collection: str) -> list[dict[str, object]]:
+    root = session.kernel.store.mission_dir(session.mission_id) / "read_only_spine" / collection
+    if not root.exists():
+        return []
+    return [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(root.glob("*.json"))
+    ]
+
+
+def _only_json_payload(session: ReadOnlyProductionSpineSession, collection: str) -> dict[str, object]:
+    payloads = _json_payloads(session, collection)
+    assert len(payloads) == 1
+    return payloads[0]
+
+
+def _assert_blocked_terminal_proof(
+    session: ReadOnlyProductionSpineSession,
+    result: object,
+    replay: object,
+    *,
+    expected_failure: str,
+) -> None:
+    assert result.status == "blocked"
+    assert result.blocked_reason == expected_failure
+    assert result.receipt_refs == []
+    assert result.finalgate_status == "rejected"
+    assert session.kernel.store.load_record(session.mission_id).status is OperatorMissionStatus.BLOCKED
+    events = session.kernel.store.load_events(session.mission_id)
+    event_types = [event.event_type for event in events]
+    assert event_types.count("mission_blocked") == 1
+    assert event_types.count("read_only_spine_action_receipted") == 0
+    assert event_types.count("read_only_spine_failed_attempt_recorded") == 1
+    assert event_types.count("read_only_spine_finalgate_certified") == 1
+    finalgate = _only_json_payload(session, "finalgate")
+    assert finalgate["accepted"] is False
+    assert finalgate["status"] == "blocked"
+    assert finalgate["reason"] == expected_failure
+    assert replay.reexecuted is False
+    assert replay.model_calls_before_replay == replay.model_calls_after_replay
+    assert replay.tool_calls_before_replay == replay.tool_calls_after_replay
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+    assert replay.failed_attempt_writes_before_replay == replay.failed_attempt_writes_after_replay
+    assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+
+
 class _SequenceClient:
     def __init__(self, *outputs: dict[str, object]) -> None:
         self.outputs = list(outputs)
@@ -1050,6 +1293,40 @@ class _KillingAfterToolSession(ReadOnlyProductionSpineSession):
         observation = super()._execute_read_only_action(decision)
         self.cockpit.handle("kill")
         return observation
+
+
+class _DeleteTargetBeforeReadSession(ReadOnlyProductionSpineSession):
+    def __init__(self, target: Path, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._target = target
+
+    def _read_file_lines(self, path: Path) -> list[str]:
+        self._target.unlink()
+        return super()._read_file_lines(path)
+
+
+class _KnownBackendFailingSession(ReadOnlyProductionSpineSession):
+    def _list_directory_entries(self, path: Path) -> list[str]:
+        raise OSError("backend unavailable")
+
+
+class _UnexpectedExecutorFailingSession(ReadOnlyProductionSpineSession):
+    def _list_directory_entries(self, path: Path) -> list[str]:
+        raise RuntimeError("raw provider payload must not escape")
+
+
+class _ReceiptPersistenceFailingSession(ReadOnlyProductionSpineSession):
+    def _write_artifact(self, collection: str, item_id: str, payload: dict[str, Any]) -> None:
+        if collection == "receipts":
+            raise OSError("receipt store unavailable")
+        super()._write_artifact(collection, item_id, payload)
+
+
+class _FinalGatePersistenceFailingSession(ReadOnlyProductionSpineSession):
+    def _write_artifact(self, collection: str, item_id: str, payload: dict[str, Any]) -> None:
+        if collection == "finalgate":
+            raise OSError("finalgate store unavailable")
+        super()._write_artifact(collection, item_id, payload)
 
 
 class _DriftingDecisionClient(ReadOnlyDecisionClient):

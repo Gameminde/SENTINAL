@@ -22,6 +22,15 @@ _STORE_LOCKS: dict[str, threading.RLock] = {}
 _STORE_LOCKS_GUARD = threading.Lock()
 
 
+def _filesystem_path(path: Path) -> str:
+    rendered = str(path)
+    if os.name != "nt" or rendered.startswith("\\\\?\\"):
+        return rendered
+    if rendered.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + rendered[2:]
+    return "\\\\?\\" + rendered
+
+
 class MissionRunStore:
     def __init__(self, run_root: Path | str, *, telemetry_sink: Any | None = None) -> None:
         self.run_root = Path(run_root).resolve()
@@ -229,16 +238,16 @@ class MissionRunStore:
             with NamedTemporaryFile(
                 mode="w",
                 encoding="utf-8",
-                dir=path.parent,
-                prefix=f".{path.name}.",
+                dir=_filesystem_path(path.parent),
+                prefix=".tmp.",
                 suffix=".tmp",
                 delete=False,
             ) as handle:
-                temp_path = Path(handle.name)
+                temp_path = handle.name
                 handle.write(rendered)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temp_path, path)
+            os.replace(temp_path, _filesystem_path(path))
 
     def _mission_dir(self, mission_id: str, *, create: bool = False) -> Path:
         if not mission_id or any(sep in mission_id for sep in ("/", "\\")) or ".." in mission_id:

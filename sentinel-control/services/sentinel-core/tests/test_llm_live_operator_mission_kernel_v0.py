@@ -77,6 +77,19 @@ def test_kernel_rejects_path_escape(tmp_path: Path) -> None:
         store.load_record("../escape")
 
 
+def test_store_atomic_write_uses_short_temp_name_for_deep_artifact_path(tmp_path: Path) -> None:
+    store = MissionRunStore(tmp_path / "runs")
+    filename = "artifact_" + ("x" * 48) + ".json"
+    target_dir = store.run_root / "mission_deep" / "read_only_spine"
+    while len(str(target_dir / filename)) < 230:
+        target_dir = target_dir / "segment"
+    target = target_dir / filename
+
+    store.atomic_write_json(target, {"ok": True})
+
+    assert json.loads(target.read_text(encoding="utf-8")) == {"ok": True}
+
+
 def test_kernel_appends_hash_chained_events(tmp_path: Path) -> None:
     kernel = MissionKernel(run_root=tmp_path)
     record = kernel.create_mission(session_id="session_kernel", draft=_draft())

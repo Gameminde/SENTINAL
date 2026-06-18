@@ -37,14 +37,54 @@ SENSITIVE_SNAPSHOT_NAMES = frozenset(
 READ_ONLY_SAFE_EXCERPT_MAX_CHARS = 4_000
 
 
-class ReadOnlySpineError(RuntimeError):
-    """Raised when the production-spine read-only session fails closed."""
-
-
 class ReadOnlyActionKind(StrEnum):
     LIST_DIRECTORY = "list_directory"
     READ_FILE_SEGMENT = "read_file_segment"
     FINISH_REPORT = "finish_report"
+
+
+class ReadOnlyFailureCode(StrEnum):
+    READ_TARGET_NOT_FOUND = "READ_TARGET_NOT_FOUND"
+    READ_TARGET_WRONG_KIND = "READ_TARGET_WRONG_KIND"
+    READ_SEGMENT_INVALID = "READ_SEGMENT_INVALID"
+    READ_ACCESS_BLOCKED = "READ_ACCESS_BLOCKED"
+    SNAPSHOT_CHANGED = "SNAPSHOT_CHANGED"
+    READ_BACKEND_FAILURE = "READ_BACKEND_FAILURE"
+    READ_INTERNAL_RUNTIME_FAILURE = "READ_INTERNAL_RUNTIME_FAILURE"
+    BRIDGE_INTERNAL_FAILURE = "BRIDGE_INTERNAL_FAILURE"
+    RECEIPT_PERSISTENCE_FAILED = "RECEIPT_PERSISTENCE_FAILED"
+    FINALGATE_PERSISTENCE_FAILED = "FINALGATE_PERSISTENCE_FAILED"
+    READ_MODEL_DECISION_TIMEOUT = "READ_MODEL_DECISION_TIMEOUT"
+    READ_MODEL_DECISION_ERROR = "READ_MODEL_DECISION_ERROR"
+    READ_DECISION_EXHAUSTED = "READ_DECISION_EXHAUSTED"
+    READ_MAX_TURNS_EXHAUSTED = "READ_MAX_TURNS_EXHAUSTED"
+    TERMINAL_REPORT_EMPTY = "TERMINAL_REPORT_EMPTY"
+    TERMINAL_REPORT_UNSUPPORTED_ACTION_CLAIM = "TERMINAL_REPORT_UNSUPPORTED_ACTION_CLAIM"
+    TERMINAL_REPORT_UNKNOWN_EVIDENCE_REF = "TERMINAL_REPORT_UNKNOWN_EVIDENCE_REF"
+    RUNTIME_TERMINAL_BLOCKED = "RUNTIME_TERMINAL_BLOCKED"
+    REPORT_EMPTY = "REPORT_EMPTY"
+    REPORT_UNSAFE_CLAIM = "REPORT_UNSAFE_CLAIM"
+    REPORT_UNKNOWN_EVIDENCE = "REPORT_UNKNOWN_EVIDENCE"
+    RUNTIME_STOPPED = "RUNTIME_STOPPED"
+
+
+class ReadOnlySpineError(RuntimeError):
+    """Raised when the production-spine read-only session fails closed."""
+
+    def __init__(
+        self,
+        failure_code: ReadOnlyFailureCode | str,
+        *,
+        phase: str = "unknown",
+        exception_class: str | None = None,
+        legacy_reason: str | None = None,
+    ) -> None:
+        code = failure_code.value if isinstance(failure_code, ReadOnlyFailureCode) else str(failure_code)
+        self.failure_code = code
+        self.phase = phase
+        self.exception_class = exception_class
+        self.legacy_reason = legacy_reason
+        super().__init__(code)
 
 
 class ReadOnlyDecision(SentinelModel):
@@ -79,7 +119,7 @@ class ReadOnlyDecisionClient:
         del context
         self.call_count += 1
         if not self._decisions:
-            raise ReadOnlySpineError("read_only_decision_exhausted")
+            raise ReadOnlySpineError(ReadOnlyFailureCode.READ_DECISION_EXHAUSTED, phase="model_decision")
         return self._decisions.pop(0)
 
 
@@ -193,6 +233,178 @@ class ReadOnlyFinalGateCertificate(SentinelModel):
         }
 
 
+class ReadOnlyDecisionCheckpoint(SentinelModel):
+    checkpoint_id: str = Field(default_factory=lambda: new_id("rochk"))
+    mission_id: str
+    run_id: str
+    decision_hash: str
+    canonical_action_name: str
+    argument_key_names: list[str] = Field(default_factory=list)
+    evidence_ref_count: int = 0
+    safe_target_kind: str = "none"
+    parser_status: str = "parsed"
+    canonicalization_status: str = "canonicalized"
+    runtime_phase: str = "post_parse_pre_gate"
+    authority_reference_hash: str | None = None
+    model_call_index: int = 0
+    checkpoint_hash: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _checkpoint_is_evidence_only(self) -> ReadOnlyDecisionCheckpoint:
+        assert_data_not_authority(
+            context="read_only_decision_checkpoint",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+    def with_hash(self) -> ReadOnlyDecisionCheckpoint:
+        payload = self.safe_model_dump()
+        payload["checkpoint_hash"] = ""
+        return self.model_copy(update={"checkpoint_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        return self.with_hash().checkpoint_hash == self.checkpoint_hash
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "checkpoint_id": self.checkpoint_id,
+            "mission_id": self.mission_id,
+            "run_id": self.run_id,
+            "decision_hash": self.decision_hash,
+            "canonical_action_name": self.canonical_action_name,
+            "argument_key_names": list(self.argument_key_names),
+            "evidence_ref_count": self.evidence_ref_count,
+            "safe_target_kind": self.safe_target_kind,
+            "parser_status": self.parser_status,
+            "canonicalization_status": self.canonicalization_status,
+            "runtime_phase": self.runtime_phase,
+            "authority_reference_hash": self.authority_reference_hash,
+            "model_call_index": self.model_call_index,
+            "checkpoint_hash": self.checkpoint_hash,
+            "created_at": self.created_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+
+class ReadOnlyFailedAttemptEvidence(SentinelModel):
+    attempt_id: str = Field(default_factory=lambda: new_id("rofail"))
+    mission_id: str
+    run_id: str
+    decision_checkpoint_ref: str | None = None
+    failure_code: str
+    runtime_phase: str
+    exception_class: str | None = None
+    successful_action_receipt_ref: str | None = None
+    attempt_hash: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _failed_attempt_is_evidence_only(self) -> ReadOnlyFailedAttemptEvidence:
+        assert_data_not_authority(
+            context="read_only_failed_attempt",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+    def with_hash(self) -> ReadOnlyFailedAttemptEvidence:
+        payload = self.safe_model_dump()
+        payload["attempt_hash"] = ""
+        return self.model_copy(update={"attempt_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        return self.with_hash().attempt_hash == self.attempt_hash
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "attempt_id": self.attempt_id,
+            "mission_id": self.mission_id,
+            "run_id": self.run_id,
+            "decision_checkpoint_ref": self.decision_checkpoint_ref,
+            "failure_code": self.failure_code,
+            "runtime_phase": self.runtime_phase,
+            "exception_class": self.exception_class,
+            "successful_action_receipt_ref": self.successful_action_receipt_ref,
+            "attempt_hash": self.attempt_hash,
+            "created_at": self.created_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+
+class ReadOnlyEmergencyTerminalRecord(SentinelModel):
+    emergency_id: str = Field(default_factory=lambda: new_id("roterm"))
+    mission_id: str
+    run_id: str
+    status: str = "emergency_blocked"
+    accepted: bool = False
+    original_failure_code: str
+    emergency_failure_code: str
+    normal_finalgate_persistence_failed: bool = True
+    emergency_hash: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _emergency_terminal_is_evidence_only(self) -> ReadOnlyEmergencyTerminalRecord:
+        assert_data_not_authority(
+            context="read_only_emergency_terminal",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+    def with_hash(self) -> ReadOnlyEmergencyTerminalRecord:
+        payload = self.safe_model_dump()
+        payload["emergency_hash"] = ""
+        return self.model_copy(update={"emergency_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        return self.with_hash().emergency_hash == self.emergency_hash
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "emergency_id": self.emergency_id,
+            "mission_id": self.mission_id,
+            "run_id": self.run_id,
+            "status": self.status,
+            "accepted": self.accepted,
+            "original_failure_code": self.original_failure_code,
+            "emergency_failure_code": self.emergency_failure_code,
+            "normal_finalgate_persistence_failed": self.normal_finalgate_persistence_failed,
+            "emergency_hash": self.emergency_hash,
+            "created_at": self.created_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+
 class ReadOnlyProductionSpineResult(SentinelModel):
     mission_id: str
     status: str
@@ -209,14 +421,20 @@ class ReadOnlyReplayView(SentinelModel):
     finalgate_refs: list[str] = Field(default_factory=list)
     receipt_count: int = 0
     finalgate_count: int = 0
+    failed_attempt_count: int = 0
+    emergency_terminal_count: int = 0
     model_calls_before_replay: int = 0
     model_calls_after_replay: int = 0
     tool_calls_before_replay: int = 0
     tool_calls_after_replay: int = 0
     receipt_writes_before_replay: int = 0
     receipt_writes_after_replay: int = 0
+    failed_attempt_writes_before_replay: int = 0
+    failed_attempt_writes_after_replay: int = 0
     finalgate_writes_before_replay: int = 0
     finalgate_writes_after_replay: int = 0
+    emergency_terminal_writes_before_replay: int = 0
+    emergency_terminal_writes_after_replay: int = 0
     reexecuted: bool = False
 
 
@@ -236,6 +454,7 @@ class ReadOnlyProductionSpineSession:
         self.cockpit = cockpit
         self.kernel: MissionKernel = cockpit.kernel
         self.mission_id = mission_id
+        self.run_id = new_id("readonly_run")
         self.snapshot_root = Path(snapshot_root).resolve()
         self.decision_client = decision_client
         self.max_turns = max_turns
@@ -245,6 +464,9 @@ class ReadOnlyProductionSpineSession:
         self._receipt_refs: list[str] = []
         self._finalgate_refs: list[str] = []
         self._last_finalgate: ReadOnlyFinalGateCertificate | None = None
+        self._latest_decision_checkpoint_ref: str | None = None
+        self._failed_attempt_refs: list[str] = []
+        self._emergency_terminal_refs: list[str] = []
         self._active_envelope: MissionAuthorityEnvelope | None = None
         self.tool_call_count = 0
         self._evidence_ref_by_hash: dict[str, str] = {}
@@ -305,25 +527,50 @@ class ReadOnlyProductionSpineSession:
                 except ReadOnlySpineError:
                     raise
                 except TimeoutError as exc:
-                    raise ReadOnlySpineError("model_decision_timeout") from exc
+                    raise ReadOnlySpineError(
+                        ReadOnlyFailureCode.READ_MODEL_DECISION_TIMEOUT,
+                        phase="model_decision",
+                        exception_class=exc.__class__.__name__,
+                        legacy_reason="model_decision_timeout",
+                    ) from exc
                 except Exception as exc:  # noqa: BLE001
-                    raise ReadOnlySpineError("model_decision_error") from exc
+                    raise ReadOnlySpineError(
+                        ReadOnlyFailureCode.READ_MODEL_DECISION_ERROR,
+                        phase="model_decision",
+                        exception_class=exc.__class__.__name__,
+                        legacy_reason="model_decision_error",
+                    ) from exc
                 self._require_runtime_open()
+                self._record_decision_checkpoint(decision)
 
                 if decision.action is ReadOnlyActionKind.FINISH_REPORT:
                     self._validate_terminal_report(decision.operator_message or "", decision.evidence_refs)
-                    receipt = self._record_receipt(
-                        action=decision.action,
-                        status="success",
-                        observation={"operator_message": decision.operator_message or ""},
-                        evidence_refs=[obs["evidence_ref"] for obs in self._observations],
-                    )
-                    certificate = self._record_finalgate(
-                        receipt_refs=[*self._receipt_refs, receipt.receipt_id],
-                        status="accepted",
-                        accepted=True,
-                        reason="terminal_read_only_report_has_action_receipts",
-                    )
+                    try:
+                        receipt = self._record_receipt(
+                            action=decision.action,
+                            status="success",
+                            observation={"operator_message": decision.operator_message or ""},
+                            evidence_refs=[obs["evidence_ref"] for obs in self._observations],
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        raise ReadOnlySpineError(
+                            ReadOnlyFailureCode.RECEIPT_PERSISTENCE_FAILED,
+                            phase="receipt_persistence",
+                            exception_class=exc.__class__.__name__,
+                        ) from exc
+                    try:
+                        certificate = self._record_finalgate(
+                            receipt_refs=[*self._receipt_refs, receipt.receipt_id],
+                            status="accepted",
+                            accepted=True,
+                            reason="terminal_read_only_report_has_action_receipts",
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        raise ReadOnlySpineError(
+                            ReadOnlyFailureCode.FINALGATE_PERSISTENCE_FAILED,
+                            phase="finalgate_persistence",
+                            exception_class=exc.__class__.__name__,
+                        ) from exc
                     self.kernel.update_status(
                         self.mission_id,
                         OperatorMissionStatus.COMPLETED,
@@ -340,16 +587,31 @@ class ReadOnlyProductionSpineSession:
                 observation = self._execute_read_only_action(decision)
                 self._require_runtime_open()
                 self._observations.append(observation)
-                self._record_receipt(
-                    action=decision.action,
-                    status="success",
-                    observation=observation,
-                    evidence_refs=[observation["evidence_ref"]],
-                )
+                try:
+                    self._record_receipt(
+                        action=decision.action,
+                        status="success",
+                        observation=observation,
+                        evidence_refs=[observation["evidence_ref"]],
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    raise ReadOnlySpineError(
+                        ReadOnlyFailureCode.RECEIPT_PERSISTENCE_FAILED,
+                        phase="receipt_persistence",
+                        exception_class=exc.__class__.__name__,
+                    ) from exc
 
-            raise ReadOnlySpineError("read_only_max_turns_exhausted")
+            raise ReadOnlySpineError(ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED, phase="turn_budget")
         except ReadOnlySpineError as exc:
-            return self._record_blocked(str(exc))
+            return self._record_blocked(exc)
+        except Exception as exc:  # noqa: BLE001
+            return self._record_blocked(
+                ReadOnlySpineError(
+                    ReadOnlyFailureCode.READ_INTERNAL_RUNTIME_FAILURE,
+                    phase="unexpected_runtime",
+                    exception_class=exc.__class__.__name__,
+                )
+            )
 
     def _run_inside_bridge(self, _envelope: MissionAuthorityEnvelope) -> ReadOnlyProductionSpineResult:
         self._active_envelope = _envelope
@@ -363,36 +625,166 @@ class ReadOnlyProductionSpineSession:
             return None
         return self._last_finalgate
 
-    def _record_blocked(self, reason: str) -> ReadOnlyProductionSpineResult:
+    def _record_blocked(self, error: ReadOnlySpineError | str) -> ReadOnlyProductionSpineResult:
+        if isinstance(error, ReadOnlySpineError):
+            reason = error.legacy_reason or error.failure_code
+            phase = error.phase
+            exception_class = error.exception_class
+        else:
+            reason = str(error)
+            phase = "unknown"
+            exception_class = None
+        proof_code = _proof_failure_code(reason)
         if not self.kernel.is_terminal(self.mission_id):
             self.kernel.update_status(self.mission_id, OperatorMissionStatus.BLOCKED, "Read-only spine session blocked.")
-        certificate = self._record_finalgate(
-            receipt_refs=[],
-            status="blocked",
-            accepted=False,
-            reason=reason,
-        )
+        if self._latest_decision_checkpoint_ref is not None:
+            self._record_failed_attempt(
+                proof_code,
+                phase=_safe_runtime_phase(phase),
+                exception_class=exception_class,
+            )
+        finalgate_refs: list[str] = []
+        try:
+            certificate = self._record_finalgate(
+                receipt_refs=[],
+                status="blocked",
+                accepted=False,
+                reason=reason,
+            )
+            finalgate_refs = [certificate.certificate_id]
+        except Exception as exc:  # noqa: BLE001
+            self._record_emergency_terminal(
+                original_failure_code=proof_code,
+                emergency_failure_code=ReadOnlyFailureCode.FINALGATE_PERSISTENCE_FAILED.value,
+                exception_class=exc.__class__.__name__,
+            )
         self.kernel.store.append_event(
             self.mission_id,
             event_type="read_only_spine_blocked",
             safe_summary="Read-only production-spine session blocked before material action.",
-            metadata={"blocked_reason_hash": text_hash(reason), "blocked": True},
-            finalgate_certificate_refs=[certificate.certificate_id],
+            metadata={
+                "blocked": True,
+                "blocked_reason_hash": text_hash(reason),
+                "typed_failure_code": proof_code,
+                "runtime_phase": _safe_runtime_phase(phase),
+                "exception_class": exception_class,
+            },
+            finalgate_certificate_refs=finalgate_refs,
         )
         return ReadOnlyProductionSpineResult(
             mission_id=self.mission_id,
             status="blocked",
             receipt_refs=[],
-            finalgate_refs=[certificate.certificate_id],
+            finalgate_refs=finalgate_refs,
             finalgate_status="rejected",
             blocked_reason=reason,
         )
+
+    def _record_decision_checkpoint(self, decision: ReadOnlyDecision) -> ReadOnlyDecisionCheckpoint:
+        argument_key_names = sorted(str(key) for key in decision.arguments)
+        decision_hash = stable_hash(
+            {
+                "action": decision.action.value,
+                "argument_key_names": argument_key_names,
+                "evidence_ref_count": len(sanitize_operator_refs(decision.evidence_refs)),
+                "operator_message_hash": text_hash(decision.operator_message or ""),
+            }
+        )
+        authority_reference = self._active_envelope.id if self._active_envelope is not None else self.mission_id
+        checkpoint = ReadOnlyDecisionCheckpoint(
+            mission_id=self.mission_id,
+            run_id=self.run_id,
+            decision_hash=decision_hash,
+            canonical_action_name=decision.action.value,
+            argument_key_names=argument_key_names,
+            evidence_ref_count=len(sanitize_operator_refs(decision.evidence_refs)),
+            safe_target_kind=self._safe_target_kind(decision),
+            authority_reference_hash=text_hash(authority_reference),
+            model_call_index=self.decision_client.call_count,
+        ).with_hash()
+        self._write_artifact("decision_checkpoints", checkpoint.checkpoint_id, checkpoint.safe_model_dump())
+        self._latest_decision_checkpoint_ref = checkpoint.checkpoint_id
+        self.kernel.store.append_event(
+            self.mission_id,
+            event_type="read_only_spine_decision_checkpointed",
+            safe_summary="Read-only decision checkpoint recorded after parse and before Gate.",
+            metadata={
+                "checkpoint_hash": checkpoint.checkpoint_hash,
+                "action": checkpoint.canonical_action_name,
+                "runtime_phase": checkpoint.runtime_phase,
+            },
+        )
+        return checkpoint
+
+    def _record_failed_attempt(
+        self,
+        failure_code: str,
+        *,
+        phase: str,
+        exception_class: str | None = None,
+    ) -> ReadOnlyFailedAttemptEvidence:
+        if self._failed_attempt_refs:
+            return self._load_failed_attempt(self._failed_attempt_refs[-1])
+        failed_attempt = ReadOnlyFailedAttemptEvidence(
+            mission_id=self.mission_id,
+            run_id=self.run_id,
+            decision_checkpoint_ref=self._latest_decision_checkpoint_ref,
+            failure_code=failure_code,
+            runtime_phase=phase,
+            exception_class=exception_class,
+            successful_action_receipt_ref=None,
+        ).with_hash()
+        self._write_artifact("failed_attempts", failed_attempt.attempt_id, failed_attempt.safe_model_dump())
+        self._failed_attempt_refs.append(failed_attempt.attempt_id)
+        self.kernel.store.append_event(
+            self.mission_id,
+            event_type="read_only_spine_failed_attempt_recorded",
+            safe_summary="Read-only failed action-attempt evidence recorded.",
+            metadata={
+                "attempt_id": failed_attempt.attempt_id,
+                "failure_code": failure_code,
+                "runtime_phase": phase,
+                "attempt_hash": failed_attempt.attempt_hash,
+            },
+        )
+        return failed_attempt
+
+    def _record_emergency_terminal(
+        self,
+        *,
+        original_failure_code: str,
+        emergency_failure_code: str,
+        exception_class: str | None = None,
+    ) -> ReadOnlyEmergencyTerminalRecord:
+        emergency = ReadOnlyEmergencyTerminalRecord(
+            mission_id=self.mission_id,
+            run_id=self.run_id,
+            original_failure_code=original_failure_code,
+            emergency_failure_code=emergency_failure_code,
+        ).with_hash()
+        self._write_artifact("emergency_terminal", emergency.emergency_id, emergency.safe_model_dump())
+        self._emergency_terminal_refs.append(emergency.emergency_id)
+        self.kernel.store.append_event(
+            self.mission_id,
+            event_type="read_only_spine_emergency_terminal_recorded",
+            safe_summary="Read-only emergency terminal record persisted after FinalGate write failure.",
+            metadata={
+                "emergency_id": emergency.emergency_id,
+                "original_failure_code": original_failure_code,
+                "emergency_failure_code": emergency_failure_code,
+                "exception_class": exception_class,
+                "emergency_hash": emergency.emergency_hash,
+            },
+        )
+        return emergency
 
     def build_replay(self) -> ReadOnlyReplayView:
         model_calls_before = self.decision_client.call_count
         tool_calls_before = self.tool_call_count
         receipt_writes_before = self._artifact_write_count("receipts")
+        failed_attempt_writes_before = self._artifact_write_count("failed_attempts")
         finalgate_writes_before = self._artifact_write_count("finalgate")
+        emergency_terminal_writes_before = self._artifact_write_count("emergency_terminal")
         events = self.kernel.store.load_events(self.mission_id)
         receipt_refs = _dedupe(
             ref
@@ -400,18 +792,41 @@ class ReadOnlyProductionSpineSession:
             if event.event_type == "read_only_spine_action_receipted"
             for ref in event.receipt_refs
         )
+        failed_attempt_refs = _dedupe(
+            str(event.metadata.get("attempt_id") or "")
+            for event in events
+            if event.event_type == "read_only_spine_failed_attempt_recorded"
+        )
+        failed_attempt_refs = [ref for ref in failed_attempt_refs if ref]
         finalgate_refs = _dedupe(
             ref
             for event in events
             if event.event_type == "read_only_spine_finalgate_certified"
             for ref in event.finalgate_certificate_refs
         )
-        self._verify_replay_artifacts(receipt_refs=receipt_refs, finalgate_refs=finalgate_refs)
+        emergency_terminal_refs = _dedupe(
+            str(event.metadata.get("emergency_id") or "")
+            for event in events
+            if event.event_type == "read_only_spine_emergency_terminal_recorded"
+        )
+        emergency_terminal_refs = [ref for ref in emergency_terminal_refs if ref]
+        self._verify_replay_artifacts(
+            receipt_refs=receipt_refs,
+            finalgate_refs=finalgate_refs,
+            failed_attempt_refs=failed_attempt_refs,
+            emergency_terminal_refs=emergency_terminal_refs,
+        )
         self.kernel.store.append_event(
             self.mission_id,
             event_type="read_only_spine_replay_built",
             safe_summary="Read-only spine replay rebuilt from stored artifacts without re-execution.",
-            metadata={"reexecuted": False, "receipt_count": len(receipt_refs), "finalgate_count": len(finalgate_refs)},
+            metadata={
+                "reexecuted": False,
+                "receipt_count": len(receipt_refs),
+                "failed_attempt_count": len(failed_attempt_refs),
+                "finalgate_count": len(finalgate_refs),
+                "emergency_terminal_count": len(emergency_terminal_refs),
+            },
             receipt_refs=receipt_refs,
             finalgate_certificate_refs=finalgate_refs,
         )
@@ -421,14 +836,20 @@ class ReadOnlyProductionSpineSession:
             finalgate_refs=finalgate_refs,
             receipt_count=len(receipt_refs),
             finalgate_count=len(finalgate_refs),
+            failed_attempt_count=len(failed_attempt_refs),
+            emergency_terminal_count=len(emergency_terminal_refs),
             model_calls_before_replay=model_calls_before,
             model_calls_after_replay=self.decision_client.call_count,
             tool_calls_before_replay=tool_calls_before,
             tool_calls_after_replay=self.tool_call_count,
             receipt_writes_before_replay=receipt_writes_before,
             receipt_writes_after_replay=self._artifact_write_count("receipts"),
+            failed_attempt_writes_before_replay=failed_attempt_writes_before,
+            failed_attempt_writes_after_replay=self._artifact_write_count("failed_attempts"),
             finalgate_writes_before_replay=finalgate_writes_before,
             finalgate_writes_after_replay=self._artifact_write_count("finalgate"),
+            emergency_terminal_writes_before_replay=emergency_terminal_writes_before,
+            emergency_terminal_writes_after_replay=self._artifact_write_count("emergency_terminal"),
             reexecuted=False,
         )
 
@@ -442,34 +863,66 @@ class ReadOnlyProductionSpineSession:
             "legal_actions": [item.value for item in ReadOnlyActionKind],
         }
 
+    def _safe_target_kind(self, decision: ReadOnlyDecision) -> str:
+        if decision.action is ReadOnlyActionKind.FINISH_REPORT:
+            return "terminal_report"
+        path_value = decision.arguments.get("path")
+        if not isinstance(path_value, str) or not path_value.strip():
+            return "none"
+        if path_value == ".":
+            return "snapshot_root"
+        suffix = Path(path_value).suffix.lower().lstrip(".")
+        if suffix:
+            return f"file_extension:{suffix[:24]}"
+        if path_value.endswith(("/", "\\")):
+            return "directory_like"
+        return "path_like"
+
     def _execute_read_only_action(self, decision: ReadOnlyDecision) -> dict[str, Any]:
         self._gate(decision)
         self.tool_call_count += 1
-        if decision.action is ReadOnlyActionKind.LIST_DIRECTORY:
-            path = self._resolve_path(str(decision.arguments.get("path", ".")))
-            entries = sorted(child.name for child in path.iterdir())
-            observation = {"path": self._relative(path), "entries": entries}
-        elif decision.action is ReadOnlyActionKind.READ_FILE_SEGMENT:
-            path = self._resolve_path(str(decision.arguments.get("path", "")))
-            start_line = int(decision.arguments.get("start_line", 1))
-            line_count = int(decision.arguments.get("line_count", 40))
-            lines = path.read_text(encoding="utf-8").splitlines()
-            start_index = max(start_line - 1, 0)
-            retained = lines[start_index : start_index + max(line_count, 0)]
-            excerpt = redact_operator_text("\n".join(retained))
-            truncated = len(excerpt) > READ_ONLY_SAFE_EXCERPT_MAX_CHARS
-            safe_excerpt = excerpt[:READ_ONLY_SAFE_EXCERPT_MAX_CHARS]
-            observation = {
-                "path": self._relative(path),
-                "start_line": start_line,
-                "line_count": len(retained),
-                "content_hash": text_hash("\n".join(retained)),
-                "safe_excerpt": safe_excerpt,
-                "safe_excerpt_char_count": len(safe_excerpt),
-                "safe_excerpt_truncated": truncated,
-            }
-        else:
-            raise ReadOnlySpineError(f"unsupported_read_only_action:{decision.action.value}")
+        try:
+            if decision.action is ReadOnlyActionKind.LIST_DIRECTORY:
+                path = self._resolve_path(str(decision.arguments.get("path", ".")))
+                self._require_directory_target(path)
+                entries = self._list_directory_entries(path)
+                observation = {"path": self._relative(path), "entries": entries}
+            elif decision.action is ReadOnlyActionKind.READ_FILE_SEGMENT:
+                path = self._resolve_path(str(decision.arguments.get("path", "")))
+                start_line = self._read_positive_int(decision.arguments.get("start_line", 1))
+                line_count = self._read_positive_int(decision.arguments.get("line_count", 40))
+                self._require_file_target(path)
+                lines = self._read_file_lines(path)
+                start_index = start_line - 1
+                retained = lines[start_index : start_index + line_count]
+                excerpt = redact_operator_text("\n".join(retained))
+                truncated = len(excerpt) > READ_ONLY_SAFE_EXCERPT_MAX_CHARS
+                safe_excerpt = excerpt[:READ_ONLY_SAFE_EXCERPT_MAX_CHARS]
+                observation = {
+                    "path": self._relative(path),
+                    "start_line": start_line,
+                    "line_count": len(retained),
+                    "content_hash": text_hash("\n".join(retained)),
+                    "safe_excerpt": safe_excerpt,
+                    "safe_excerpt_char_count": len(safe_excerpt),
+                    "safe_excerpt_truncated": truncated,
+                }
+            else:
+                raise ReadOnlySpineError(
+                    ReadOnlyFailureCode.READ_ACCESS_BLOCKED,
+                    phase="action_validation",
+                    legacy_reason=f"unsupported_read_only_action:{decision.action.value}",
+                )
+        except ReadOnlySpineError:
+            raise
+        except (OSError, UnicodeError) as exc:
+            raise self._typed_backend_exception(exc) from exc
+        except Exception as exc:  # noqa: BLE001
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_INTERNAL_RUNTIME_FAILURE,
+                phase="tool_execution",
+                exception_class=exc.__class__.__name__,
+            ) from exc
         observation_hash = stable_hash(redact_operator_value(observation))
         existing_ref = self._evidence_ref_by_hash.get(observation_hash)
         evidence_ref = existing_ref or new_id("readonly_evidence")
@@ -484,6 +937,50 @@ class ReadOnlyProductionSpineSession:
             self._evidence_ref_by_hash[observation_hash] = evidence_ref
             self._write_artifact("evidence", evidence_ref, observation)
         return observation
+
+    def _read_positive_int(self, value: object) -> int:
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_SEGMENT_INVALID,
+                phase="action_validation",
+                exception_class=exc.__class__.__name__,
+            ) from exc
+        if parsed < 1:
+            raise ReadOnlySpineError(ReadOnlyFailureCode.READ_SEGMENT_INVALID, phase="action_validation")
+        return parsed
+
+    def _require_directory_target(self, path: Path) -> None:
+        if not path.exists():
+            raise ReadOnlySpineError(ReadOnlyFailureCode.READ_TARGET_NOT_FOUND, phase="target_validation")
+        if not path.is_dir():
+            raise ReadOnlySpineError(ReadOnlyFailureCode.READ_TARGET_WRONG_KIND, phase="target_validation")
+
+    def _require_file_target(self, path: Path) -> None:
+        if not path.exists():
+            raise ReadOnlySpineError(ReadOnlyFailureCode.READ_TARGET_NOT_FOUND, phase="target_validation")
+        if not path.is_file():
+            raise ReadOnlySpineError(ReadOnlyFailureCode.READ_TARGET_WRONG_KIND, phase="target_validation")
+
+    def _list_directory_entries(self, path: Path) -> list[str]:
+        return sorted(child.name for child in path.iterdir())
+
+    def _read_file_lines(self, path: Path) -> list[str]:
+        return path.read_text(encoding="utf-8").splitlines()
+
+    def _typed_backend_exception(self, exc: OSError | UnicodeError) -> ReadOnlySpineError:
+        if self._calculate_snapshot_fingerprint() != self._snapshot_fingerprint:
+            return ReadOnlySpineError(
+                ReadOnlyFailureCode.SNAPSHOT_CHANGED,
+                phase="tool_execution",
+                exception_class=exc.__class__.__name__,
+            )
+        return ReadOnlySpineError(
+            ReadOnlyFailureCode.READ_BACKEND_FAILURE,
+            phase="tool_execution",
+            exception_class=exc.__class__.__name__,
+        )
 
     def _gate(self, decision: ReadOnlyDecision) -> None:
         self._require_runtime_open()
@@ -508,7 +1005,11 @@ class ReadOnlyProductionSpineSession:
         if decision.action.value not in allowed_actions:
             raise ReadOnlySpineError(f"read_only_action_outside_authority:{decision.action.value}")
         if decision.action is ReadOnlyActionKind.READ_FILE_SEGMENT and "path" not in decision.arguments:
-            raise ReadOnlySpineError("read_file_segment_path_required")
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_SEGMENT_INVALID,
+                phase="action_validation",
+                legacy_reason="read_file_segment_path_required",
+            )
 
     def _record_receipt(
         self,
@@ -619,19 +1120,38 @@ class ReadOnlyProductionSpineSession:
             return 0
         return len(list(root.glob("*.json")))
 
-    def _verify_replay_artifacts(self, *, receipt_refs: list[str], finalgate_refs: list[str]) -> None:
+    def _verify_replay_artifacts(
+        self,
+        *,
+        receipt_refs: list[str],
+        finalgate_refs: list[str],
+        failed_attempt_refs: list[str],
+        emergency_terminal_refs: list[str],
+    ) -> None:
         for receipt_ref in receipt_refs:
             receipt = self._load_receipt(receipt_ref)
             if receipt.mission_id != self.mission_id:
                 raise ReadOnlySpineError("read_only_replay_receipt_mission_mismatch")
             if not receipt.verify_hash():
                 raise ReadOnlySpineError("read_only_replay_receipt_hash_mismatch")
+        for failed_attempt_ref in failed_attempt_refs:
+            failed_attempt = self._load_failed_attempt(failed_attempt_ref)
+            if failed_attempt.mission_id != self.mission_id:
+                raise ReadOnlySpineError("read_only_replay_failed_attempt_mission_mismatch")
+            if not failed_attempt.verify_hash():
+                raise ReadOnlySpineError("read_only_replay_failed_attempt_hash_mismatch")
         for finalgate_ref in finalgate_refs:
             certificate = self._load_finalgate(finalgate_ref)
             if certificate.mission_id != self.mission_id:
                 raise ReadOnlySpineError("read_only_replay_finalgate_mission_mismatch")
             if not certificate.verify_hash():
                 raise ReadOnlySpineError("read_only_replay_finalgate_hash_mismatch")
+        for emergency_terminal_ref in emergency_terminal_refs:
+            emergency = self._load_emergency_terminal(emergency_terminal_ref)
+            if emergency.mission_id != self.mission_id:
+                raise ReadOnlySpineError("read_only_replay_emergency_terminal_mission_mismatch")
+            if not emergency.verify_hash():
+                raise ReadOnlySpineError("read_only_replay_emergency_terminal_hash_mismatch")
 
     def _load_receipt(self, receipt_ref: str) -> ReadOnlyActionReceipt:
         path = self._artifact_path("receipts", receipt_ref)
@@ -639,11 +1159,23 @@ class ReadOnlyProductionSpineSession:
             raise ReadOnlySpineError("read_only_replay_missing_receipt")
         return ReadOnlyActionReceipt.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
+    def _load_failed_attempt(self, failed_attempt_ref: str) -> ReadOnlyFailedAttemptEvidence:
+        path = self._artifact_path("failed_attempts", failed_attempt_ref)
+        if not path.exists():
+            raise ReadOnlySpineError("read_only_replay_missing_failed_attempt")
+        return ReadOnlyFailedAttemptEvidence.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
     def _load_finalgate(self, finalgate_ref: str) -> ReadOnlyFinalGateCertificate:
         path = self._artifact_path("finalgate", finalgate_ref)
         if not path.exists():
             raise ReadOnlySpineError("read_only_replay_missing_finalgate")
         return ReadOnlyFinalGateCertificate.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+    def _load_emergency_terminal(self, emergency_terminal_ref: str) -> ReadOnlyEmergencyTerminalRecord:
+        path = self._artifact_path("emergency_terminal", emergency_terminal_ref)
+        if not path.exists():
+            raise ReadOnlySpineError("read_only_replay_missing_emergency_terminal")
+        return ReadOnlyEmergencyTerminalRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
     def _require_unblocked(self) -> None:
         reason = self.kernel.terminal_block_reason(self.mission_id)
@@ -682,7 +1214,7 @@ class ReadOnlyProductionSpineSession:
 
     def _require_snapshot_unchanged(self) -> None:
         if self._calculate_snapshot_fingerprint() != self._snapshot_fingerprint:
-            raise ReadOnlySpineError("snapshot_drift_detected")
+            raise ReadOnlySpineError(ReadOnlyFailureCode.SNAPSHOT_CHANGED, phase="snapshot_validation")
 
     def _resolve_path(self, requested: str) -> Path:
         raw = Path(requested)
@@ -795,6 +1327,36 @@ def _dedupe(values: Any) -> list[str]:
         seen.add(value)
         result.append(value)
     return result
+
+
+_LEGACY_FAILURE_CODE_MAP = {
+    "model_decision_error": ReadOnlyFailureCode.READ_MODEL_DECISION_ERROR.value,
+    "model_decision_timeout": ReadOnlyFailureCode.READ_MODEL_DECISION_TIMEOUT.value,
+    "read_only_decision_exhausted": ReadOnlyFailureCode.READ_DECISION_EXHAUSTED.value,
+    "read_only_max_turns_exhausted": ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED.value,
+    "snapshot_drift_detected": ReadOnlyFailureCode.SNAPSHOT_CHANGED.value,
+    "terminal_report_empty": ReadOnlyFailureCode.REPORT_EMPTY.value,
+    "terminal_report_unsupported_action_claim": ReadOnlyFailureCode.REPORT_UNSAFE_CLAIM.value,
+    "terminal_report_unknown_evidence_ref": ReadOnlyFailureCode.REPORT_UNKNOWN_EVIDENCE.value,
+}
+
+
+def _proof_failure_code(reason: str) -> str:
+    if reason in {item.value for item in ReadOnlyFailureCode}:
+        return reason
+    if reason in _LEGACY_FAILURE_CODE_MAP:
+        return _LEGACY_FAILURE_CODE_MAP[reason]
+    if reason.startswith("operator_mission_terminal:"):
+        return ReadOnlyFailureCode.RUNTIME_STOPPED.value
+    if reason.startswith("gate_sequence:") or reason.startswith("read_only_action_"):
+        return ReadOnlyFailureCode.READ_ACCESS_BLOCKED.value
+    if reason.startswith("mission_authority_envelope_"):
+        return ReadOnlyFailureCode.READ_ACCESS_BLOCKED.value
+    return ReadOnlyFailureCode.READ_INTERNAL_RUNTIME_FAILURE.value
+
+
+def _safe_runtime_phase(phase: str) -> str:
+    return phase if phase.replace("_", "").isalnum() else "runtime_terminal"
 
 
 def _mission_action_from_decision(mission_id: str, decision: ReadOnlyDecision) -> MissionAction:
