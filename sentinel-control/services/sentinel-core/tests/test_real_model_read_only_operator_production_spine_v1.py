@@ -278,6 +278,68 @@ def test_read_only_session_can_be_mediated_by_existing_agentruntime_bridge(tmp_p
     assert result.finalgate_refs == finalgate_events[0].finalgate_certificate_refs
 
 
+def test_read_file_segment_exposes_bounded_safe_excerpt_to_next_model_turn(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "src").mkdir()
+    (workspace / "src" / "parser.py").write_text(
+        "\n".join(
+            [
+                "def parse_event(raw):",
+                "    return {'type': raw.get('kind'), 'payload': raw.get('payload')}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = _ExcerptAwareDecisionClient()
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+
+    assert result.status == "completed"
+    assert decision_client.saw_excerpt is True
+
+
+def test_read_file_segment_safe_excerpt_is_redacted_and_bounded(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "notes.md").write_text(
+        "API_KEY=sk-unit-secret-1234567890\n" + ("x" * 5_000),
+        encoding="utf-8",
+    )
+
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient([]),
+    )
+    observation = session._execute_read_only_action(
+        ReadOnlyDecision(
+            action=ReadOnlyActionKind.READ_FILE_SEGMENT,
+            arguments={"path": "notes.md", "start_line": 1, "line_count": 2},
+        )
+    )
+
+    assert "sk-unit-secret-1234567890" not in observation["safe_excerpt"]
+    assert "[REDACTED_SECRET]" in observation["safe_excerpt"]
+    assert observation["safe_excerpt_char_count"] == 4_000
+    assert observation["safe_excerpt_truncated"] is True
+
+
 def test_wrong_authority_envelope_blocks_before_read_only_runtime_call(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
@@ -932,6 +994,33 @@ class _SequenceClient:
     def complete(self, request: RealModelRequest) -> dict[str, object]:
         self.requests.append(request)
         return self.outputs.pop(0)
+
+
+class _ExcerptAwareDecisionClient(ReadOnlyDecisionClient):
+    def __init__(self) -> None:
+        super().__init__([])
+        self.saw_excerpt = False
+
+    def complete(self, context: dict[str, Any]) -> ReadOnlyDecision:
+        self.call_count += 1
+        observations = context.get("observations", [])
+        if self.call_count == 1:
+            return ReadOnlyDecision(
+                action=ReadOnlyActionKind.READ_FILE_SEGMENT,
+                arguments={"path": "src/parser.py", "start_line": 1, "line_count": 3},
+            )
+        latest = observations[-1]
+        excerpt = latest.get("safe_excerpt")
+        assert isinstance(excerpt, str)
+        assert "parse_event" in excerpt
+        assert "raw.get('kind')" in excerpt
+        assert latest.get("safe_excerpt_truncated") is False
+        self.saw_excerpt = True
+        return ReadOnlyDecision(
+            action=ReadOnlyActionKind.FINISH_REPORT,
+            operator_message="The parser evidence was inspected through a bounded safe excerpt.",
+            evidence_refs=[latest["evidence_ref"]],
+        )
 
 
 class _KillingDecisionClient(ReadOnlyDecisionClient):

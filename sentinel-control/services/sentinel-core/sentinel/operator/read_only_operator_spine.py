@@ -34,6 +34,7 @@ SENSITIVE_SNAPSHOT_NAMES = frozenset(
         "secrets.json",
     }
 )
+READ_ONLY_SAFE_EXCERPT_MAX_CHARS = 4_000
 
 
 class ReadOnlySpineError(RuntimeError):
@@ -455,11 +456,17 @@ class ReadOnlyProductionSpineSession:
             lines = path.read_text(encoding="utf-8").splitlines()
             start_index = max(start_line - 1, 0)
             retained = lines[start_index : start_index + max(line_count, 0)]
+            excerpt = redact_operator_text("\n".join(retained))
+            truncated = len(excerpt) > READ_ONLY_SAFE_EXCERPT_MAX_CHARS
+            safe_excerpt = excerpt[:READ_ONLY_SAFE_EXCERPT_MAX_CHARS]
             observation = {
                 "path": self._relative(path),
                 "start_line": start_line,
                 "line_count": len(retained),
                 "content_hash": text_hash("\n".join(retained)),
+                "safe_excerpt": safe_excerpt,
+                "safe_excerpt_char_count": len(safe_excerpt),
+                "safe_excerpt_truncated": truncated,
             }
         else:
             raise ReadOnlySpineError(f"unsupported_read_only_action:{decision.action.value}")
