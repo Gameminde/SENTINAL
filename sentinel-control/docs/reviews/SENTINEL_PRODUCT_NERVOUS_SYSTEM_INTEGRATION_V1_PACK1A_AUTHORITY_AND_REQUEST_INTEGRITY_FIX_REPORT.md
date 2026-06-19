@@ -10,6 +10,7 @@ Scope:
 
 - Complete executable-authority provenance for the new product route.
 - Make `MissionExecutionRequest` immutable and synchronize its state through `MissionRunStore` events.
+- Pack 1A.1 correction: require explicit cockpit approval scope and remove transient false orphan state.
 
 Explicit non-goals:
 
@@ -21,7 +22,7 @@ Explicit non-goals:
 
 ## Verdict
 
-`PACK_1A_AUTHORITY_AND_REQUEST_INTEGRITY_FIX = LOCAL_COMMIT_CANDIDATE`
+`PACK_1A_1_EXPLICIT_APPROVAL_AND_REQUEST_STATE_FIX = LOCAL_COMMIT_CANDIDATE`
 
 The focused product-route gaps identified after Pack 0 + Pack 1 are closed locally:
 
@@ -30,6 +31,7 @@ The focused product-route gaps identified after Pack 0 + Pack 1 are closed local
 - Authority renewal uses deterministic latest-version conflict checks and immutable version lineage.
 - Mission execution requests are immutable prepared artifacts.
 - Request lifecycle state is derived from canonical mission events instead of mutable request status rewrites.
+- Lifecycle-backed cockpit start requires an explicit typed `MissionAuthorityApprovalScope`.
 
 ## Files Changed
 
@@ -80,6 +82,10 @@ The approval scope remains data-only:
 - `authority_effect = none`
 - `can_grant_authority = false`
 - `can_execute = false`
+
+Lifecycle-backed cockpit use now requires the caller to provide this typed approval scope. The cockpit no longer synthesizes executable approval from `MissionAuthoritySummary` or policy. Missing lifecycle approval fails closed before mission creation, authority issuance, request persistence, or enqueue.
+
+No safe-empty executable helper is retained for lifecycle-backed cockpit start. If a caller supplies an empty approval scope directly to `MissionLifecycleService`, it is still intersected with policy and cannot satisfy a non-empty authority summary.
 
 ## Restrictive Intersection Rules
 
@@ -188,8 +194,9 @@ The mission is not enqueued until authority issuance, request persistence, and r
 | --- | --- |
 | `mission_execution_request_claimed` for request id | `CLAIMED` |
 | Else `mission_queued` for request id | `QUEUED` |
-| Else `mission_execution_request_prepared` and mission still `DRAFT` | `ORPHANED_PREPARED` |
-| Else `mission_execution_request_prepared` and mission is not `DRAFT` | `PREPARED` |
+| Else `mission_execution_request_enqueue_failed` for request id | `ORPHANED_PREPARED` |
+| Else `mission_execution_request_reconciliation_orphaned` for request id | `ORPHANED_PREPARED` |
+| Else `mission_execution_request_prepared` | `PREPARED` |
 | Else request artifact only | `PREPARED` |
 
 Reserved future states:
@@ -208,7 +215,11 @@ Pack 1A does not implement normal execution closeout; later packs own completion
 | Authority record tamper | Load fails with hash mismatch | `test_loaded_authority_record_hash_is_verified` |
 | Request artifact persistence failure | Mission remains `DRAFT`, no request, no prepared event, no queue | `test_lifecycle_request_persistence_failure_leaves_no_request_or_enqueue` |
 | Request-prepared event persistence failure | Request artifact remains `PREPARED`, no queue | `test_lifecycle_request_prepared_event_failure_does_not_enqueue` |
-| MissionKernel enqueue failure | Mission remains `DRAFT`; request is `ORPHANED_PREPARED`; no queued state | `test_lifecycle_does_not_mark_request_queued_when_enqueue_fails` |
+| Missing lifecycle-backed cockpit approval | No mission record, no authority envelope, no request, no enqueue | `test_lifecycle_backed_cockpit_missing_explicit_approval_scope_blocks_before_mission_creation` |
+| Explicit lifecycle-backed cockpit approval | Approval scope hash preserved; policy only narrows | `test_lifecycle_backed_cockpit_preserves_explicit_scope_and_policy_only_narrows` |
+| Prepared-before-enqueue interval | Request derives `PREPARED`, not `ORPHANED_PREPARED` | `test_lifecycle_prepared_before_enqueue_derives_prepared_not_orphaned` |
+| MissionKernel enqueue failure | Mission remains `DRAFT`; safe enqueue-failed event derives `ORPHANED_PREPARED`; no queued state | `test_lifecycle_does_not_mark_request_queued_when_enqueue_fails` |
+| Enqueue-failure event persistence failure | Request remains conservatively `PREPARED`; no queued or orphan state | `test_lifecycle_enqueue_failure_event_persistence_failure_leaves_request_prepared` |
 | Daemon claim failure | Request remains `QUEUED`; no request-claimed event | `test_runtime_host_daemon_claim_failure_does_not_mark_request_claimed` |
 | Stale renewal | Renewal rejected with conflict | `test_renewal_rejects_stale_revoked_or_expired_lineage` |
 | Revoked renewal | Renewal rejected as revoked | `test_renewal_rejects_stale_revoked_or_expired_lineage` |
@@ -223,8 +234,10 @@ Pack 1A did not modify RuntimeHost application startup wiring.
 
 Preserved Pack 1 behavior:
 
-- `SentinelRuntimeHost.start()` starts daemon supervision.
-- `SentinelRuntimeHost.shutdown()` stops daemon supervision.
+- `SentinelRuntimeHost.start()` initializes and enables daemon infrastructure.
+- Automatic background queue supervision is not implemented or proven.
+- Current Pack 1 execution uses explicit deterministic `pump_daemon_once()` calls.
+- `SentinelRuntimeHost.shutdown()` stops daemon infrastructure.
 - Cockpit remains a client when injected with `MissionLifecycleService`.
 - Daemon deterministic pickup still stops at the injected/fake workflow boundary for Pack 1.
 
@@ -241,7 +254,7 @@ py -3.13 -m pytest -q tests/operator/test_authority_issuer.py tests/operator/tes
 Result:
 
 ```text
-17 passed
+21 passed
 ```
 
 ```text
@@ -251,7 +264,7 @@ py -3.13 -m pytest -q tests/operator/test_workflow_bridge_factory_pack1.py tests
 Result:
 
 ```text
-51 passed
+55 passed
 ```
 
 ```text
@@ -261,7 +274,7 @@ py -3.13 -O -m pytest -q tests/operator/test_authority_issuer.py tests/operator/
 Result:
 
 ```text
-17 passed
+21 passed
 1 expected pytest optimized-mode assertion warning
 ```
 
@@ -285,7 +298,7 @@ Result:
 PASS
 ```
 
-Targeted scans over changed files found no raw credential, raw prompt, raw response, raw reasoning, provider key persistence, provider-native tools, direct organ bypass, or provider fallback/AUTO introduction. Benign matches were existing enum/parameter words such as `AUTONOMOUS` and `fallback` in conversation-state handling.
+Targeted scans over changed files found no raw credential, raw prompt, raw response, raw reasoning, provider key persistence, provider-native tools, direct organ bypass, or provider fallback/AUTO introduction. Benign matches were report-only non-goal names such as `AgentRuntime` and `OrganDispatcher`, plus this scan-summary line itself.
 
 ## Remaining Limits
 
@@ -294,7 +307,8 @@ Targeted scans over changed files found no raw credential, raw prompt, raw respo
 - Existing legacy/internal paths are not migrated by Pack 1A.
 - Normal request `COMPLETED` and `BLOCKED` derivation is reserved for later execution integration packs.
 - Ordered writes expose partial artifacts through deterministic state views; they are not represented as atomic transactions.
+- Same-process shared `MissionRunStore` locking proves authority renewal compare-and-write ordering for one process. Cross-process renewal concurrency is not proven in Pack 1A.1.
 
 ## Final Local Status
 
-Pack 1A is ready for one local commit after verification. The final commit hash is recorded in the assistant response after commit creation.
+Pack 1A.1 is ready for one local commit after verification. The final commit hash is recorded in the assistant response after commit creation.

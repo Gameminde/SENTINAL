@@ -36,9 +36,11 @@ class LLMLiveOperatorCockpit:
         persistent_memory_owner_user_id: str | None = None,
         telemetry_sink: object | None = None,
         lifecycle_service: MissionLifecycleService | None = None,
+        authority_approval_scope: MissionAuthorityApprovalScope | None = None,
     ) -> None:
         self.session = OperatorConversationSession(mode=mode)
         self._lifecycle_service = lifecycle_service
+        self.authority_approval_scope = authority_approval_scope
         self.kernel = (
             lifecycle_service.kernel
             if lifecycle_service is not None
@@ -117,11 +119,19 @@ class LLMLiveOperatorCockpit:
                 intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="start"),
             )
         if self._lifecycle_service is not None:
+            if self.authority_approval_scope is None:
+                return OperatorTurnResult(
+                    session_id=self.session.session_id,
+                    state=OperatorConversationState.ASKING_CLARIFICATIONS,
+                    reply="Explicit typed authority approval scope is required before governed mission start.",
+                    intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="explicit authority approval required"),
+                    metadata={"blocked_reason": "explicit_authority_approval_scope_required"},
+                )
             lifecycle_result = self._lifecycle_service.create_mission(
                 session_id=self.session.session_id,
                 draft=self.session.current_draft,
                 authority_summary=self.session.current_authority_summary,
-                approval_scope=_default_authority_approval_scope(self.session.current_authority_summary),
+                approval_scope=self.authority_approval_scope,
                 policy=_default_authority_policy(self.session.current_authority_summary),
                 capability_id=str(
                     self.session.current_authority_summary.metadata.get(
@@ -259,23 +269,6 @@ def _default_authority_policy(summary) -> MissionAuthorityPolicy:
     max_actions = summary.metadata.get("max_actions", 10)
     max_cost = summary.metadata.get("max_cost_usd", 0.0)
     return MissionAuthorityPolicy(
-        user_id=str(summary.metadata.get("user_id", "operator_user")),
-        allowed_systems=["local_workspace"],
-        allowed_tools=["read_only_observation"],
-        allowed_actions=list(dict.fromkeys(summary.allowed_actions)),
-        forbidden_actions=list(dict.fromkeys(summary.forbidden_actions)),
-        allowed_paths=["."],
-        max_duration_minutes=max_duration if isinstance(max_duration, int) else 30,
-        max_actions=max_actions if isinstance(max_actions, int) else 10,
-        max_cost_usd=float(max_cost) if isinstance(max_cost, int | float) else 0.0,
-    )
-
-
-def _default_authority_approval_scope(summary) -> MissionAuthorityApprovalScope:
-    max_duration = summary.metadata.get("max_duration_minutes", 30)
-    max_actions = summary.metadata.get("max_actions", 10)
-    max_cost = summary.metadata.get("max_cost_usd", 0.0)
-    return MissionAuthorityApprovalScope(
         user_id=str(summary.metadata.get("user_id", "operator_user")),
         allowed_systems=["local_workspace"],
         allowed_tools=["read_only_observation"],

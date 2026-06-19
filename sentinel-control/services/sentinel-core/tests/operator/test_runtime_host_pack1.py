@@ -89,10 +89,12 @@ def test_runtime_host_daemon_claim_failure_does_not_mark_request_claimed(tmp_pat
 
 def test_cockpit_can_start_mission_as_runtime_host_client(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    approval_scope = _approval_scope()
     cockpit = LLMLiveOperatorCockpit(
         run_root=tmp_path / "unused",
         mode=OperatorMode.DETERMINISTIC_TEST,
         lifecycle_service=host.lifecycle,
+        authority_approval_scope=approval_scope,
     )
     cockpit.session.current_draft = _draft()
     cockpit.session.current_authority_summary = _summary()
@@ -107,6 +109,59 @@ def test_cockpit_can_start_mission_as_runtime_host_client(tmp_path: Path) -> Non
     assert host.kernel.store.load_record(result.mission_record.mission_id).status.value == "queued"
 
 
+def test_lifecycle_backed_cockpit_missing_explicit_approval_scope_blocks_before_mission_creation(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    cockpit = LLMLiveOperatorCockpit(
+        run_root=tmp_path / "unused",
+        mode=OperatorMode.DETERMINISTIC_TEST,
+        lifecycle_service=host.lifecycle,
+    )
+    cockpit.session.current_draft = _draft()
+    cockpit.session.current_authority_summary = _summary()
+
+    result = cockpit.handle("start")
+
+    assert result.state is OperatorConversationState.ASKING_CLARIFICATIONS
+    assert result.metadata["blocked_reason"] == "explicit_authority_approval_scope_required"
+    assert host.kernel.list_missions() == []
+
+
+def test_lifecycle_backed_cockpit_preserves_explicit_scope_and_policy_only_narrows(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    approval_scope = _approval_scope(
+        allowed_actions=["list_directory", "read_file_segment", "search_text"],
+        max_actions=12,
+    )
+    authority_summary = _summary(allowed_actions=["list_directory", "read_file_segment", "search_text"])
+    authority_summary = authority_summary.model_copy(update={"metadata": {"max_actions": 4}})
+    cockpit = LLMLiveOperatorCockpit(
+        run_root=tmp_path / "unused",
+        mode=OperatorMode.DETERMINISTIC_TEST,
+        lifecycle_service=host.lifecycle,
+        authority_approval_scope=approval_scope,
+    )
+    cockpit.session.current_draft = _draft()
+    cockpit.session.current_authority_summary = authority_summary
+
+    result = cockpit.handle("start")
+
+    assert result.state is OperatorConversationState.MISSION_QUEUED
+    assert result.mission_record is not None
+    active = host.authority_issuer.resolve_active(result.mission_record.mission_id)
+    record = host.authority_issuer.list_records(result.mission_record.mission_id)[-1]
+    assert record.authority_approval_scope_hash == approval_scope.approval_scope_hash
+    assert active.allowed_actions == ["list_directory", "read_file_segment", "search_text"]
+    assert active.allowed_systems == ["local_workspace"]
+    assert active.allowed_tools == ["read_only_observation"]
+    assert active.allowed_paths == ["."]
+    assert active.allowed_domains == []
+    assert active.allowed_accounts == []
+    assert active.allowed_data_types == []
+    assert active.browser_v3_authority_grants == []
+    assert active.credential_grants == []
+    assert active.max_actions == 4
+
+
 def _draft() -> MissionDraft:
     return MissionDraft(
         title="Read-only repository inspection",
@@ -115,10 +170,10 @@ def _draft() -> MissionDraft:
     )
 
 
-def _summary() -> MissionAuthoritySummary:
+def _summary(*, allowed_actions: list[str] | None = None) -> MissionAuthoritySummary:
     return MissionAuthoritySummary(
         mission_id="pending",
-        allowed_actions=["list_directory", "read_file_segment", "search_text", "finish_report"],
+        allowed_actions=allowed_actions or ["list_directory", "read_file_segment", "search_text", "finish_report"],
         forbidden_actions=["write_file", "shell"],
         summary="Read-only authority only.",
     )
@@ -138,15 +193,15 @@ def _policy() -> MissionAuthorityPolicy:
     )
 
 
-def _approval_scope() -> MissionAuthorityApprovalScope:
+def _approval_scope(*, allowed_actions: list[str] | None = None, max_actions: int = 12) -> MissionAuthorityApprovalScope:
     return MissionAuthorityApprovalScope(
         user_id="operator_user",
         allowed_systems=["local_workspace"],
         allowed_tools=["read_only_observation"],
-        allowed_actions=["list_directory", "read_file_segment", "search_text", "finish_report"],
+        allowed_actions=allowed_actions or ["list_directory", "read_file_segment", "search_text", "finish_report"],
         forbidden_actions=["write_file", "shell"],
         allowed_paths=["."],
         max_duration_minutes=15,
-        max_actions=12,
+        max_actions=max_actions,
         max_cost_usd=0.0,
     )

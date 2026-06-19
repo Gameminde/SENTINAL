@@ -21,7 +21,6 @@ from sentinel.operator.models import (
     MissionAuthoritySummary,
     MissionDraft,
     MissionRecord,
-    OperatorMissionStatus,
 )
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority, reject_operator_control_payload
@@ -170,16 +169,20 @@ class MissionLifecycleService:
                 "request_hash": execution_request.request_hash,
             },
         )
-        record = self.kernel.enqueue(
-            record.mission_id,
-            metadata={
-                "execution_request_id": execution_request.request_id,
-                "capability_id": execution_request.capability_id,
-                "operation": execution_request.operation,
-                "authority_envelope_ref": execution_request.authority_envelope_ref,
-                "request_hash": execution_request.request_hash,
-            },
-        )
+        try:
+            record = self.kernel.enqueue(
+                record.mission_id,
+                metadata={
+                    "execution_request_id": execution_request.request_id,
+                    "capability_id": execution_request.capability_id,
+                    "operation": execution_request.operation,
+                    "authority_envelope_ref": execution_request.authority_envelope_ref,
+                    "request_hash": execution_request.request_hash,
+                },
+            )
+        except Exception:
+            self._record_enqueue_failed(record.mission_id, execution_request)
+            raise
         if self.daemon_runtime is not None:
             self.daemon_runtime.enqueue(
                 record.mission_id,
@@ -264,13 +267,13 @@ class MissionLifecycleService:
             state = MissionExecutionRequestState.CLAIMED
         elif "mission_queued" in event_types:
             state = MissionExecutionRequestState.QUEUED
+        elif (
+            "mission_execution_request_enqueue_failed" in event_types
+            or "mission_execution_request_reconciliation_orphaned" in event_types
+        ):
+            state = MissionExecutionRequestState.ORPHANED_PREPARED
         elif "mission_execution_request_prepared" in event_types:
-            record = self.kernel.store.load_record(mission_id)
-            state = (
-                MissionExecutionRequestState.ORPHANED_PREPARED
-                if record.status is OperatorMissionStatus.DRAFT
-                else MissionExecutionRequestState.PREPARED
-            )
+            state = MissionExecutionRequestState.PREPARED
         else:
             state = MissionExecutionRequestState.PREPARED
         return MissionExecutionRequestStateView(
@@ -285,6 +288,18 @@ class MissionLifecycleService:
         self.kernel.store.atomic_write_json(
             self._request_path(request.mission_id, request.request_id),
             request.safe_model_dump(),
+        )
+
+    def _record_enqueue_failed(self, mission_id: str, request: MissionExecutionRequest) -> None:
+        self.kernel.store.append_event(
+            mission_id,
+            event_type="mission_execution_request_enqueue_failed",
+            safe_summary="Mission execution request enqueue failed after request preparation.",
+            metadata={
+                "execution_request_id": request.request_id,
+                "request_hash": request.request_hash,
+                "failure_code": "mission_kernel_enqueue_failed",
+            },
         )
 
     def _request_root(self, mission_id: str) -> Path:

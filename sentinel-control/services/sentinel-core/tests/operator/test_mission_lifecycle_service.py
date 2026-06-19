@@ -99,7 +99,80 @@ def test_lifecycle_does_not_mark_request_queued_when_enqueue_fails(tmp_path: Pat
     assert request.verify_hash()
     events = kernel.store.load_events(record.mission_id)
     assert "mission_queued" not in [event.event_type for event in events]
+    failure_event = next(event for event in events if event.event_type == "mission_execution_request_enqueue_failed")
+    assert failure_event.metadata["execution_request_id"] == request.request_id
+    assert failure_event.metadata["failure_code"] == "mission_kernel_enqueue_failed"
     assert lifecycle.derive_request_state(record.mission_id, request.request_id).state is MissionExecutionRequestState.ORPHANED_PREPARED
+
+
+def test_lifecycle_prepared_before_enqueue_derives_prepared_not_orphaned(tmp_path: Path) -> None:
+    class _InspectingEnqueueKernel(MissionKernel):
+        lifecycle: MissionLifecycleService
+        observed_state: MissionExecutionRequestState | None = None
+
+        def enqueue(self, mission_id: str, *, metadata=None):  # noqa: ANN001
+            request_id = metadata["execution_request_id"]
+            self.observed_state = self.lifecycle.derive_request_state(mission_id, request_id).state
+            return super().enqueue(mission_id, metadata=metadata)
+
+    kernel = _InspectingEnqueueKernel(run_root=tmp_path / "runs")
+    lifecycle = MissionLifecycleService(kernel)
+    kernel.lifecycle = lifecycle
+
+    result = lifecycle.create_mission(
+        session_id="session_lifecycle",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_approval_scope(),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "."},
+        workspace_ref="snapshot:unit",
+        model_contract_ref="model_contract:unit",
+    )
+
+    assert kernel.observed_state is MissionExecutionRequestState.PREPARED
+    assert lifecycle.derive_request_state(result.record.mission_id, result.execution_request.request_id).state is MissionExecutionRequestState.QUEUED
+
+
+def test_lifecycle_enqueue_failure_event_persistence_failure_leaves_request_prepared(tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
+    class _FailingEnqueueKernel(MissionKernel):
+        def enqueue(self, mission_id: str, *, metadata=None):  # noqa: ANN001
+            raise MissionLifecycleError("synthetic enqueue failure")
+
+    kernel = _FailingEnqueueKernel(run_root=tmp_path / "runs")
+    lifecycle = MissionLifecycleService(kernel)
+    original_append_event = kernel.store.append_event
+
+    def failing_append_event(mission_id, *args, **kwargs):  # noqa: ANN001
+        event_type = kwargs.get("event_type") if "event_type" in kwargs else args[0]
+        if event_type == "mission_execution_request_enqueue_failed":
+            raise RuntimeError("synthetic enqueue failure event persistence failure")
+        return original_append_event(mission_id, *args, **kwargs)
+
+    monkeypatch.setattr(kernel.store, "append_event", failing_append_event)
+
+    with pytest.raises(RuntimeError, match="synthetic enqueue failure event persistence failure"):
+        lifecycle.create_mission(
+            session_id="session_lifecycle",
+            draft=_draft(),
+            authority_summary=_summary(),
+            approval_scope=_approval_scope(),
+            policy=_policy(),
+            capability_id="read_only_research",
+            operation="inspect_repository",
+            parameters={"workspace": "."},
+            workspace_ref="snapshot:unit",
+            model_contract_ref="model_contract:unit",
+        )
+
+    record = kernel.list_missions()[0]
+    request = lifecycle.latest_execution_request(record.mission_id)
+    event_types = [event.event_type for event in kernel.store.load_events(record.mission_id)]
+    assert "mission_queued" not in event_types
+    assert "mission_execution_request_enqueue_failed" not in event_types
+    assert lifecycle.derive_request_state(record.mission_id, request.request_id).state is MissionExecutionRequestState.PREPARED
 
 
 def test_lifecycle_request_persistence_failure_leaves_no_request_or_enqueue(tmp_path: Path) -> None:
