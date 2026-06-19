@@ -19,6 +19,17 @@ class AgentExecutionEventKind(StrEnum):
     RUNTIME_FAILED = "runtime_failed"
     RUNTIME_REVOKED = "runtime_revoked"
     RUNTIME_ESCALATED = "runtime_escalated"
+    WORKER_STARTED = "worker_started"
+    WORKER_COMPLETED = "worker_completed"
+    ORGAN_DISPATCH_COMPLETED = "organ_dispatch_completed"
+    ORGAN_DISPATCH_SKIPPED = "organ_dispatch_skipped"
+    ORGAN_RECEIPT_RECORDED = "organ_receipt_recorded"
+    CONTROLLED_CAPABILITY_EXECUTED = "controlled_capability_executed"
+    CONTROLLED_CAPABILITY_REJECTED = "controlled_capability_rejected"
+    ARTIFACT_CAPTURED = "artifact_captured"
+    ARTIFACT_CAPTURE_DUPLICATE = "artifact_capture_duplicate"
+    ARTIFACT_CAPTURE_REJECTED = "artifact_capture_rejected"
+    ARTIFACT_CAPTURE_INDEX_WRITTEN = "artifact_capture_index_written"
     EVIDENCE_REFS_UPDATED = "evidence_refs_updated"
     RECEIPT_REFS_UPDATED = "receipt_refs_updated"
 
@@ -60,8 +71,18 @@ class AgentExecutionEvent(SentinelModel):
     safe_summary: str
     evidence_refs: list[str] = Field(default_factory=list)
     receipt_refs: list[str] = Field(default_factory=list)
+    artifact_refs: list[str] = Field(default_factory=list)
+    capability_refs: list[str] = Field(default_factory=list)
+    worker_refs: list[str] = Field(default_factory=list)
+    organ_refs: list[str] = Field(default_factory=list)
+    source_ledger: str = "agent_runtime_event_bus"
     source_event_id: str
     source_event_hash: str
+    source_event_type: str
+    source_sequence: int = Field(ge=0)
+    source_logical_time: int = Field(ge=0)
+    source_parent_event_id: str | None = None
+    activity_kind: str
     event_hash: str = ""
     data_not_authority: bool = True
     authority_effect: str = "none"
@@ -72,6 +93,14 @@ class AgentExecutionEvent(SentinelModel):
     def _hash_bound_safe_projection(self) -> "AgentExecutionEvent":
         if self.authority_effect != "none" or not self.data_not_authority or self.can_grant_authority or self.can_execute:
             raise ValueError("AgentExecutionEvent is data only and cannot grant authority or execute.")
+        if self.activity_kind != self.event_kind.value:
+            raise ValueError("AgentExecutionEvent activity kind must match event kind.")
+        if not self.source_ledger or not _SAFE_REF_PATTERN.fullmatch(self.source_ledger):
+            raise ValueError("AgentExecutionEvent source ledger is not safe.")
+        if not self.source_event_type or not _SAFE_REF_PATTERN.fullmatch(self.source_event_type):
+            raise ValueError("AgentExecutionEvent source event type is not safe.")
+        if self.source_parent_event_id is not None and not _SAFE_REF_PATTERN.fullmatch(self.source_parent_event_id):
+            raise ValueError("AgentExecutionEvent source parent ref is not safe.")
         expected = _hash_event_projection(self)
         if self.event_hash and self.event_hash != expected:
             raise ValueError("AgentExecutionEvent hash mismatch.")
@@ -101,10 +130,19 @@ class AgentExecutionEvent(SentinelModel):
         if event_kind is None:
             return None
         trace_refs = [str(ref) for ref in getattr(agent_event, "trace_refs", ()) or ()]
-        receipt_refs = _safe_refs(ref for ref in trace_refs if ref.startswith("receipt:"))
-        evidence_refs = _safe_refs(ref for ref in trace_refs if not ref.startswith("receipt:"))
+        receipt_refs = _safe_prefixed_refs(trace_refs, "receipt:")
+        artifact_refs = _safe_prefixed_refs(trace_refs, "artifact:")
+        capability_refs = _safe_prefixed_refs(trace_refs, "capability:")
+        worker_refs = _safe_prefixed_refs(trace_refs, "worker:")
+        organ_refs = _safe_prefixed_refs(trace_refs, "organ:")
+        evidence_refs = _safe_refs(
+            ref
+            for ref in trace_refs
+            if not ref.startswith(("receipt:", "artifact:", "capability:", "worker:", "organ:"))
+        )
         phase_before = _validated_phase(getattr(agent_event, "phase_before", None))
         phase_after = _validated_phase(getattr(agent_event, "phase_after", None))
+        source_event_type = str(_enum_value(getattr(agent_event, "event_type", "")) or "")
         return cls(
             event_kind=event_kind,
             mission_id=str(getattr(agent_event, "mission_id")),
@@ -117,8 +155,17 @@ class AgentExecutionEvent(SentinelModel):
             safe_summary=_deterministic_summary(event_kind, phase_before=phase_before, phase_after=phase_after),
             evidence_refs=evidence_refs,
             receipt_refs=receipt_refs,
+            artifact_refs=artifact_refs,
+            capability_refs=capability_refs,
+            worker_refs=worker_refs,
+            organ_refs=organ_refs,
             source_event_id=str(getattr(agent_event, "id")),
             source_event_hash=str(getattr(agent_event, "event_hash")),
+            source_event_type=_safe_source_event_label(source_event_type),
+            source_sequence=int(getattr(agent_event, "sequence")),
+            source_logical_time=int(getattr(agent_event, "logical_time")),
+            source_parent_event_id=getattr(agent_event, "parent_event_id", None),
+            activity_kind=event_kind.value,
         )
 
     def operator_metadata(self) -> dict[str, Any]:
@@ -134,8 +181,18 @@ class AgentExecutionEvent(SentinelModel):
             "phase_after": self.phase_after,
             "evidence_refs": list(self.evidence_refs),
             "receipt_refs": list(self.receipt_refs),
+            "artifact_refs": list(self.artifact_refs),
+            "capability_refs": list(self.capability_refs),
+            "worker_refs": list(self.worker_refs),
+            "organ_refs": list(self.organ_refs),
+            "source_ledger": self.source_ledger,
             "source_event_id": self.source_event_id,
             "source_event_hash": self.source_event_hash,
+            "source_event_type": self.source_event_type,
+            "source_sequence": self.source_sequence,
+            "source_logical_time": self.source_logical_time,
+            "source_parent_event_id": self.source_parent_event_id,
+            "activity_kind": self.activity_kind,
             "event_hash": self.event_hash,
             "terminal": self.terminal,
             "critical": self.critical,
@@ -149,8 +206,12 @@ def _kind_from_source_event(agent_event: Any) -> AgentExecutionEventKind | None:
     phase_before = _validated_phase(getattr(agent_event, "phase_before", None))
     phase_after = _validated_phase(getattr(agent_event, "phase_after", None))
     trace_refs = [str(ref) for ref in getattr(agent_event, "trace_refs", ()) or ()]
-    receipt_refs = _safe_refs(ref for ref in trace_refs if ref.startswith("receipt:"))
-    evidence_refs = _safe_refs(ref for ref in trace_refs if not ref.startswith("receipt:"))
+    receipt_refs = _safe_prefixed_refs(trace_refs, "receipt:")
+    evidence_refs = _safe_refs(
+        ref
+        for ref in trace_refs
+        if not ref.startswith(("receipt:", "artifact:", "capability:", "worker:", "organ:", "browser:", "memory:"))
+    )
 
     if event_type == "agent_initialized":
         return AgentExecutionEventKind.RUNTIME_STARTED
@@ -164,6 +225,11 @@ def _kind_from_source_event(agent_event: Any) -> AgentExecutionEventKind | None:
         return AgentExecutionEventKind.RUNTIME_REVOKED
     if event_type == "agent_escalated":
         return AgentExecutionEventKind.RUNTIME_ESCALATED
+    if _source_event_is_pack2b_source_only(event_type):
+        return None
+    material_kind = _material_kind_from_source_type(event_type)
+    if material_kind is not None:
+        return material_kind
     if phase_before is not None and phase_after is not None and phase_before != phase_after:
         return AgentExecutionEventKind.PHASE_TRANSITION
     if receipt_refs:
@@ -171,6 +237,31 @@ def _kind_from_source_event(agent_event: Any) -> AgentExecutionEventKind | None:
     if evidence_refs:
         return AgentExecutionEventKind.EVIDENCE_REFS_UPDATED
     return None
+
+
+def _material_kind_from_source_type(event_type: str | None) -> AgentExecutionEventKind | None:
+    mapping = {
+        "worker_started": AgentExecutionEventKind.WORKER_STARTED,
+        "worker_completed": AgentExecutionEventKind.WORKER_COMPLETED,
+        "organ_dispatch_completed": AgentExecutionEventKind.ORGAN_DISPATCH_COMPLETED,
+        "organ_dispatch_skipped": AgentExecutionEventKind.ORGAN_DISPATCH_SKIPPED,
+        "organ_execution_receipt_recorded": AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED,
+        "controlled_capability_executed": AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED,
+        "controlled_capability_rejected": AgentExecutionEventKind.CONTROLLED_CAPABILITY_REJECTED,
+        "artifact_captured": AgentExecutionEventKind.ARTIFACT_CAPTURED,
+        "artifact_capture_duplicate": AgentExecutionEventKind.ARTIFACT_CAPTURE_DUPLICATE,
+        "artifact_capture_rejected": AgentExecutionEventKind.ARTIFACT_CAPTURE_REJECTED,
+        "artifact_capture_index_written": AgentExecutionEventKind.ARTIFACT_CAPTURE_INDEX_WRITTEN,
+    }
+    return mapping.get(event_type or "")
+
+
+def _source_event_is_pack2b_source_only(event_type: str | None) -> bool:
+    if not event_type:
+        return False
+    if event_type.startswith("browser_"):
+        return True
+    return event_type in {"learning_proposed"}
 
 
 def _enum_value(value: Any) -> str | None:
@@ -255,6 +346,16 @@ def _safe_refs(values: Any, *, limit: int = 8) -> list[str]:
     return refs
 
 
+def _safe_prefixed_refs(values: Any, prefix: str, *, limit: int = 8) -> list[str]:
+    return _safe_refs((value for value in values if str(value).startswith(prefix)), limit=limit)
+
+
+def _safe_source_event_label(event_type: str) -> str:
+    if event_type == "organ_execution_receipt_recorded":
+        return AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED.value
+    return event_type
+
+
 def _deterministic_summary(
     event_kind: AgentExecutionEventKind,
     *,
@@ -269,6 +370,28 @@ def _deterministic_summary(
         return "Agent runtime receipt references were updated."
     if event_kind is AgentExecutionEventKind.EVIDENCE_REFS_UPDATED:
         return "Agent runtime evidence references were updated."
+    if event_kind is AgentExecutionEventKind.WORKER_STARTED:
+        return "Agent runtime worker started."
+    if event_kind is AgentExecutionEventKind.WORKER_COMPLETED:
+        return "Agent runtime worker completed."
+    if event_kind is AgentExecutionEventKind.ORGAN_DISPATCH_COMPLETED:
+        return "Agent runtime organ dispatch completed."
+    if event_kind is AgentExecutionEventKind.ORGAN_DISPATCH_SKIPPED:
+        return "Agent runtime organ dispatch skipped."
+    if event_kind is AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED:
+        return "Agent runtime organ execution receipt was recorded."
+    if event_kind is AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED:
+        return "Agent runtime controlled capability executed."
+    if event_kind is AgentExecutionEventKind.CONTROLLED_CAPABILITY_REJECTED:
+        return "Agent runtime controlled capability rejected."
+    if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURED:
+        return "Agent runtime artifact captured."
+    if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURE_DUPLICATE:
+        return "Agent runtime duplicate artifact capture observed."
+    if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURE_REJECTED:
+        return "Agent runtime artifact capture rejected."
+    if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURE_INDEX_WRITTEN:
+        return "Agent runtime artifact capture index written."
     if event_kind is AgentExecutionEventKind.RUNTIME_COMPLETED:
         return "Agent runtime reached completed terminal state."
     if event_kind is AgentExecutionEventKind.RUNTIME_FAILED:

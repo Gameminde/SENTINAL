@@ -46,6 +46,7 @@ class OperatorAgentEventBridge:
         self._bridge_call_id = bridge_call_id
         self._agent_run_id = agent_run_id
         self._seen_source_event_ids: set[str] = set()
+        self._last_source_sequence_by_ledger: dict[str, int] = {}
         self._terminal_seen = False
         self._closed = False
         self._projected_event_ids: list[str] = []
@@ -97,7 +98,11 @@ class OperatorAgentEventBridge:
             raise AgentEventBridgePersistenceError("AgentRuntime event source hash anchor missing.")
         if event.source_event_id in self._seen_source_event_ids:
             raise AgentEventBridgePersistenceError("AgentRuntime duplicate source event rejected.")
+        previous_sequence = self._last_source_sequence_by_ledger.get(event.source_ledger)
+        if previous_sequence is not None and event.source_sequence <= previous_sequence:
+            raise AgentEventBridgePersistenceError("AgentRuntime nonmonotonic source event sequence rejected.")
         _reject_unsafe_projection_metadata(event.operator_metadata())
+        self._last_source_sequence_by_ledger[event.source_ledger] = event.source_sequence
 
 
 def _reject_unsafe_projection_metadata(metadata: dict[str, Any]) -> None:

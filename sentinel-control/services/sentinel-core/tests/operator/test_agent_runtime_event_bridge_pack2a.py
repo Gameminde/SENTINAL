@@ -36,8 +36,8 @@ def test_agent_runtime_events_project_to_mission_store_in_source_order(tmp_path:
     kinds = [event.metadata["event_kind"] for event in projected]
     assert kinds == [
         AgentExecutionEventKind.RUNTIME_STARTED.value,
-        AgentExecutionEventKind.PHASE_TRANSITION.value,
-        AgentExecutionEventKind.RECEIPT_REFS_UPDATED.value,
+        AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED.value,
+        AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED.value,
         AgentExecutionEventKind.RUNTIME_COMPLETED.value,
     ]
     assert projected[0].sequence < projected[-1].sequence
@@ -268,8 +268,8 @@ def test_projection_summaries_are_deterministic_and_do_not_copy_source_text() ->
     )
 
     assert len(sink.events) == 1
-    assert sink.events[0].event_kind is AgentExecutionEventKind.PHASE_TRANSITION
-    assert sink.events[0].safe_summary == "Agent runtime phase changed from initialized to executing."
+    assert sink.events[0].event_kind is AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED
+    assert sink.events[0].safe_summary == "Agent runtime controlled capability executed."
     serialized = sink.events[0].model_dump_json()
     assert "raw_prompt" not in serialized
     assert "example.test" not in serialized
@@ -334,7 +334,7 @@ def test_projection_refs_are_bounded_and_sanitized() -> None:
 
     assert len(sink.events) == 1
     projected = sink.events[0]
-    assert projected.event_kind is AgentExecutionEventKind.RECEIPT_REFS_UPDATED
+    assert projected.event_kind is AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED
     assert projected.receipt_refs == ["receipt:ok", "receipt:another"]
     assert projected.evidence_refs == [
         "evidence:ok",
@@ -371,7 +371,7 @@ def test_every_pack2a_projection_is_truthfully_critical() -> None:
     )
 
     assert len(sink.events) == 1
-    assert sink.events[0].event_kind is AgentExecutionEventKind.EVIDENCE_REFS_UPDATED
+    assert sink.events[0].event_kind is AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED
     assert sink.events[0].critical is True
 
 
@@ -393,6 +393,94 @@ def test_replay_reads_projected_events_without_reexecuting_agent_runtime(tmp_pat
     assert replay.mission_id == mission_id
     assert runtime.call_count == call_count
     assert len(kernel.store.load_events(mission_id)) == event_count
+
+
+def test_pack2b_material_activity_projects_real_emitters_with_source_order(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = MaterialActivityRuntime()
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_envelope(mission_id),
+        user_input={"goal": "safe"},
+        execution_request_id="mission_exec_req_pack2b_material",
+        update_mission_status=False,
+    )
+
+    assert result.status == "completed"
+    projected = _projected_events(kernel, mission_id)
+    kinds = [event.metadata["event_kind"] for event in projected]
+    assert kinds == [
+        "runtime_started",
+        "worker_started",
+        "controlled_capability_executed",
+        "artifact_captured",
+        "organ_receipt_recorded",
+        "runtime_completed",
+    ]
+    material = projected[1:-1]
+    assert [event.metadata["activity_kind"] for event in material] == kinds[1:-1]
+    assert [event.metadata["source_sequence"] for event in projected] == sorted(
+        event.metadata["source_sequence"] for event in projected
+    )
+    assert [event.metadata["source_sequence"] for event in projected] == [event.sequence for event in runtime.events]
+    assert all(event.metadata["source_ledger"] == "agent_runtime_event_bus" for event in projected)
+    assert projected[2].metadata["capability_refs"] == ["capability:local_file"]
+    assert projected[3].metadata["artifact_refs"] == ["artifact:captured"]
+    assert projected[4].receipt_refs == ["receipt:organ"]
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.RUNNING
+    serialized = "\n".join(event.model_dump_json() for event in projected)
+    assert "https://example.test" not in serialized
+    assert "C:\\secret" not in serialized
+    assert "raw_prompt" not in serialized
+    assert "provider_response" not in serialized
+    assert "reasoning" not in serialized.lower()
+
+
+def test_pack2b_material_projection_rejects_nonmonotonic_source_sequence(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=NonMonotonicMaterialRuntime()).run(
+        mission_id,
+        envelope=_envelope(mission_id),
+        user_input={"goal": "safe"},
+        update_mission_status=False,
+    )
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == "AGENT_EVENT_SPINE_PERSISTENCE_FAILED"
+    projected = _projected_events(kernel, mission_id)
+    assert [event.metadata["event_kind"] for event in projected] == ["runtime_started", "worker_started"]
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.RUNNING
+
+
+def test_pack2b_unsupported_browser_and_memory_source_events_remain_source_only() -> None:
+    sink = CapturingSink()
+    bus = EventBus(
+        "mission_pack2b_source_only",
+        execution_event_sink=sink,
+        execution_run_id="run_pack2b_source_only",
+        bridge_call_id="bridge_pack2b_source_only",
+        agent_run_id="agent_pack2b_source_only",
+    )
+
+    bus.append(
+        AgentEventType.BROWSER_EVIDENCE_COLLECTED,
+        "Browser result https://example.test should stay source-only in Pack 2B.",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.ORGAN_DISPATCHING,
+        trace_refs=["browser:evidence"],
+    )
+    bus.append(
+        AgentEventType.LEARNING_PROPOSED,
+        "Memory feedback proposal should stay source-only in Pack 2B.",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.LEARNING_PROPOSING,
+        trace_refs=["memory:proposal"],
+    )
+
+    assert len(bus.events()) == 2
+    assert sink.events == []
 
 
 class CapturingSink:
@@ -541,6 +629,141 @@ class DeterministicEventRuntime:
             final_gate_certification=finalgate,
             memory_feedback_result=SimpleNamespace(memory_entry_refs=[]),
             receipt_refs=["receipt:agent"] if success else [],
+            artifact_paths=[],
+        )
+
+
+class MaterialActivityRuntime:
+    def __init__(self) -> None:
+        self.call_count = 0
+        self.events = []
+
+    def run(
+        self,
+        envelope: MissionAuthorityEnvelope,
+        user_input: dict[str, Any],
+        *,
+        execution_event_sink=None,
+        execution_run_id: str,
+        execution_request_id: str | None,
+        bridge_call_id: str,
+        agent_run_id: str,
+    ):
+        self.call_count += 1
+        bus = EventBus(
+            envelope.id,
+            execution_event_sink=execution_event_sink,
+            execution_run_id=execution_run_id,
+            execution_request_id=execution_request_id,
+            bridge_call_id=bridge_call_id,
+            agent_run_id=agent_run_id,
+        )
+        bus.append(
+            AgentEventType.AGENT_INITIALIZED,
+            "Agent runtime initialized.",
+            phase_before=AgentPhase.CREATED,
+            phase_after=AgentPhase.INITIALIZED,
+        )
+        bus.append(
+            AgentEventType.WORKER_STARTED,
+            "Worker started with raw_prompt that must not project.",
+            phase_before=AgentPhase.EXECUTING,
+            phase_after=AgentPhase.EXECUTING,
+            payload={"task_id": "task_secret", "project_path": "C:\\secret\\repo"},
+            trace_refs=["worker:mission"],
+        )
+        bus.append(
+            AgentEventType.CONTROLLED_CAPABILITY_EXECUTED,
+            "Capability executed https://example.test provider_response.",
+            phase_before=AgentPhase.EXECUTING,
+            phase_after=AgentPhase.EXECUTING,
+            payload={"arguments": {"path": "C:\\secret\\out.md"}, "reasoning": "no"},
+            trace_refs=["capability:local_file", "evidence:policy"],
+        )
+        bus.append(
+            AgentEventType.ARTIFACT_CAPTURED,
+            "Artifact captured.",
+            phase_before=AgentPhase.EXECUTING,
+            phase_after=AgentPhase.EXECUTING,
+            payload={"relative_path": "secret.md", "sha256": "abc"},
+            trace_refs=["artifact:captured", "evidence:artifact"],
+        )
+        bus.append(
+            AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED,
+            "Organ receipt recorded.",
+            phase_before=AgentPhase.EXECUTING,
+            phase_after=AgentPhase.EXECUTING,
+            trace_refs=["receipt:organ", "organ:browser"],
+        )
+        bus.append(
+            AgentEventType.AGENT_COMPLETED,
+            "Agent completed.",
+            phase_before=AgentPhase.EXECUTING,
+            phase_after=AgentPhase.COMPLETED,
+        )
+        self.events = list(bus.events())
+        return SimpleNamespace(
+            success=True,
+            final_phase=AgentPhase.COMPLETED,
+            final_gate_certification=SimpleNamespace(id="finalgate:material", accepted=True),
+            memory_feedback_result=SimpleNamespace(memory_entry_refs=[]),
+            receipt_refs=["receipt:organ"],
+            artifact_paths=[],
+        )
+
+
+class NonMonotonicMaterialRuntime(MaterialActivityRuntime):
+    def run(
+        self,
+        envelope: MissionAuthorityEnvelope,
+        user_input: dict[str, Any],
+        *,
+        execution_event_sink=None,
+        execution_run_id: str,
+        execution_request_id: str | None,
+        bridge_call_id: str,
+        agent_run_id: str,
+    ):
+        self.call_count += 1
+        bus = EventBus(
+            envelope.id,
+            execution_event_sink=execution_event_sink,
+            execution_run_id=execution_run_id,
+            execution_request_id=execution_request_id,
+            bridge_call_id=bridge_call_id,
+            agent_run_id=agent_run_id,
+        )
+        bus.append(
+            AgentEventType.AGENT_INITIALIZED,
+            "Agent runtime initialized.",
+            phase_before=AgentPhase.CREATED,
+            phase_after=AgentPhase.INITIALIZED,
+        )
+        bus.append(
+            AgentEventType.WORKER_STARTED,
+            "Worker started.",
+            phase_before=AgentPhase.EXECUTING,
+            phase_after=AgentPhase.EXECUTING,
+            trace_refs=["worker:mission"],
+        )
+        self.events = list(bus.events())
+        if execution_event_sink is not None:
+            stale_source = self.events[1].model_copy(update={"sequence": 1})
+            execution_event_sink.emit(
+                AgentExecutionEvent.from_agent_event(
+                    stale_source,
+                    run_id=execution_run_id,
+                    execution_request_id=execution_request_id,
+                    bridge_call_id=bridge_call_id,
+                    agent_run_id=agent_run_id,
+                )
+            )
+        return SimpleNamespace(
+            success=True,
+            final_phase=AgentPhase.COMPLETED,
+            final_gate_certification=SimpleNamespace(id="finalgate:material", accepted=True),
+            memory_feedback_result=SimpleNamespace(memory_entry_refs=[]),
+            receipt_refs=[],
             artifact_paths=[],
         )
 
