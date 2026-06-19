@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.conversation import OperatorConversationEngine
-from sentinel.operator.authority_issuer import MissionAuthorityPolicy
+from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
 from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
 from sentinel.operator.mission_lifecycle_service import MissionLifecycleService
 from sentinel.operator.models import (
@@ -121,6 +121,7 @@ class LLMLiveOperatorCockpit:
                 session_id=self.session.session_id,
                 draft=self.session.current_draft,
                 authority_summary=self.session.current_authority_summary,
+                approval_scope=_default_authority_approval_scope(self.session.current_authority_summary),
                 policy=_default_authority_policy(self.session.current_authority_summary),
                 capability_id=str(
                     self.session.current_authority_summary.metadata.get(
@@ -258,6 +259,23 @@ def _default_authority_policy(summary) -> MissionAuthorityPolicy:
     max_actions = summary.metadata.get("max_actions", 10)
     max_cost = summary.metadata.get("max_cost_usd", 0.0)
     return MissionAuthorityPolicy(
+        user_id=str(summary.metadata.get("user_id", "operator_user")),
+        allowed_systems=["local_workspace"],
+        allowed_tools=["read_only_observation"],
+        allowed_actions=list(dict.fromkeys(summary.allowed_actions)),
+        forbidden_actions=list(dict.fromkeys(summary.forbidden_actions)),
+        allowed_paths=["."],
+        max_duration_minutes=max_duration if isinstance(max_duration, int) else 30,
+        max_actions=max_actions if isinstance(max_actions, int) else 10,
+        max_cost_usd=float(max_cost) if isinstance(max_cost, int | float) else 0.0,
+    )
+
+
+def _default_authority_approval_scope(summary) -> MissionAuthorityApprovalScope:
+    max_duration = summary.metadata.get("max_duration_minutes", 30)
+    max_actions = summary.metadata.get("max_actions", 10)
+    max_cost = summary.metadata.get("max_cost_usd", 0.0)
+    return MissionAuthorityApprovalScope(
         user_id=str(summary.metadata.get("user_id", "operator_user")),
         allowed_systems=["local_workspace"],
         allowed_tools=["read_only_observation"],

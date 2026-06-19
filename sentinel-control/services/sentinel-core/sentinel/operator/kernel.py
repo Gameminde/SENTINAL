@@ -127,11 +127,16 @@ class MissionKernel:
     def list_missions(self) -> list[MissionRecord]:
         return self.store.list_records()
 
-    def enqueue(self, mission_id: str) -> MissionRecord:
+    def enqueue(self, mission_id: str, *, metadata: dict[str, object] | None = None) -> MissionRecord:
         with self.store.locked():
             self._assert_transition_allowed(mission_id, OperatorMissionStatus.QUEUED)
             record = self.store.update_record_status(mission_id, OperatorMissionStatus.QUEUED)
-            self.store.append_event(mission_id, event_type="mission_queued", safe_summary="Mission queued.")
+            self.store.append_event(
+                mission_id,
+                event_type="mission_queued",
+                safe_summary="Mission queued.",
+                metadata=dict(metadata or {}),
+            )
             return record
 
     def update_status(

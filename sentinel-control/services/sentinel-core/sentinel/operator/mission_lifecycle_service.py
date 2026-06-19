@@ -9,6 +9,7 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.authority_issuer import (
+    MissionAuthorityApprovalScope,
     IssuedMissionAuthority,
     MissionAuthorityEnvelopeIssuer,
     MissionAuthorityEnvelopeRecord,
@@ -27,12 +28,13 @@ from sentinel.operator.safety import assert_data_not_authority, reject_operator_
 from sentinel.shared.models import SentinelModel, new_id
 
 
-class MissionExecutionRequestStatus(StrEnum):
-    CREATED = "created"
+class MissionExecutionRequestState(StrEnum):
+    PREPARED = "prepared"
     QUEUED = "queued"
     CLAIMED = "claimed"
     COMPLETED = "completed"
     BLOCKED = "blocked"
+    ORPHANED_PREPARED = "orphaned_prepared"
 
 
 class MissionExecutionRequest(SentinelModel):
@@ -44,7 +46,7 @@ class MissionExecutionRequest(SentinelModel):
     workspace_ref: str
     model_contract_ref: str
     authority_envelope_ref: str
-    status: MissionExecutionRequestStatus = MissionExecutionRequestStatus.CREATED
+    prepared: bool = True
     request_hash: str = ""
     data_not_authority: bool = True
     authority_effect: str = "none"
@@ -74,7 +76,7 @@ class MissionExecutionRequest(SentinelModel):
             "workspace_ref": redact_operator_text(self.workspace_ref),
             "model_contract_ref": redact_operator_text(self.model_contract_ref),
             "authority_envelope_ref": self.authority_envelope_ref,
-            "status": self.status.value,
+            "prepared": self.prepared,
             "request_hash": self.request_hash,
             "data_not_authority": self.data_not_authority,
             "authority_effect": self.authority_effect,
@@ -101,6 +103,14 @@ class MissionLifecycleCreateResult(SentinelModel):
     execution_request: MissionExecutionRequest
 
 
+class MissionExecutionRequestStateView(SentinelModel):
+    request_id: str
+    mission_id: str
+    state: MissionExecutionRequestState
+    event_refs: list[str] = Field(default_factory=list)
+    safe_summary: str
+
+
 class MissionLifecycleService:
     def __init__(
         self,
@@ -119,6 +129,7 @@ class MissionLifecycleService:
         session_id: str,
         draft: MissionDraft,
         authority_summary: MissionAuthoritySummary,
+        approval_scope: MissionAuthorityApprovalScope,
         policy: MissionAuthorityPolicy,
         capability_id: str,
         operation: str,
@@ -135,7 +146,7 @@ class MissionLifecycleService:
             draft=draft,
             authority_summary=bound_summary,
         )
-        authority = self.authority_issuer.issue(record.mission_id, policy=policy)
+        authority = self.authority_issuer.issue(record.mission_id, approval_scope=approval_scope, policy=policy)
         execution_request = MissionExecutionRequest(
             mission_id=record.mission_id,
             capability_id=capability_id,
@@ -148,38 +159,43 @@ class MissionLifecycleService:
         self._persist_execution_request(execution_request)
         self.kernel.store.append_event(
             record.mission_id,
-            event_type="mission_execution_request_persisted",
-            safe_summary="Mission execution request persisted before enqueue.",
+            event_type="mission_execution_request_prepared",
+            safe_summary="Mission execution request prepared before enqueue.",
             metadata={
                 "request_id": execution_request.request_id,
                 "capability_id": execution_request.capability_id,
                 "operation": execution_request.operation,
                 "parameter_hash": execution_request.parameter_hash,
                 "authority_envelope_ref": execution_request.authority_envelope_ref,
+                "request_hash": execution_request.request_hash,
             },
         )
-        queued_request = self._update_execution_request_status(
+        record = self.kernel.enqueue(
             record.mission_id,
-            execution_request.request_id,
-            MissionExecutionRequestStatus.QUEUED,
+            metadata={
+                "execution_request_id": execution_request.request_id,
+                "capability_id": execution_request.capability_id,
+                "operation": execution_request.operation,
+                "authority_envelope_ref": execution_request.authority_envelope_ref,
+                "request_hash": execution_request.request_hash,
+            },
         )
-        record = self.kernel.enqueue(record.mission_id)
         if self.daemon_runtime is not None:
             self.daemon_runtime.enqueue(
                 record.mission_id,
                 safe_reason="Mission queued by lifecycle service after authority issuance.",
                 metadata={
-                    "execution_request_id": queued_request.request_id,
-                    "capability_id": queued_request.capability_id,
-                    "operation": queued_request.operation,
-                    "authority_envelope_ref": queued_request.authority_envelope_ref,
+                    "execution_request_id": execution_request.request_id,
+                    "capability_id": execution_request.capability_id,
+                    "operation": execution_request.operation,
+                    "authority_envelope_ref": execution_request.authority_envelope_ref,
                 },
             )
         return MissionLifecycleCreateResult(
             record=record,
             authority=authority,
             authority_record=authority.record,
-            execution_request=queued_request,
+            execution_request=execution_request,
         )
 
     def load_execution_request(self, mission_id: str, request_id: str) -> MissionExecutionRequest:
@@ -208,19 +224,62 @@ class MissionLifecycleService:
                 raise ValueError("mission execution request hash mismatch")
         return sorted(requests, key=lambda item: item.request_id)
 
-    def mark_request_claimed(self, mission_id: str, request_id: str) -> MissionExecutionRequest:
-        return self._update_execution_request_status(mission_id, request_id, MissionExecutionRequestStatus.CLAIMED)
+    def mark_request_claimed(self, mission_id: str, request_id: str) -> MissionExecutionRequestStateView:
+        request = self.load_execution_request(mission_id, request_id)
+        event = self.kernel.store.append_event(
+            mission_id,
+            event_type="mission_execution_request_claimed",
+            safe_summary="Mission execution request claimed after daemon lease claim.",
+            metadata={
+                "execution_request_id": request.request_id,
+                "request_hash": request.request_hash,
+            },
+        )
+        return self.derive_request_state(mission_id, request_id, extra_event_refs=[event.event_id])
 
-    def _update_execution_request_status(
+    def derive_request_state(
         self,
         mission_id: str,
         request_id: str,
-        status: MissionExecutionRequestStatus,
-    ) -> MissionExecutionRequest:
+        *,
+        extra_event_refs: list[str] | None = None,
+    ) -> MissionExecutionRequestStateView:
         request = self.load_execution_request(mission_id, request_id)
-        updated = request.model_copy(update={"status": status}).with_hash()
-        self._persist_execution_request(updated)
-        return updated
+        events = self.kernel.store.load_events(mission_id)
+        event_refs = [
+            event.event_id
+            for event in events
+            if event.metadata.get("execution_request_id") == request.request_id
+            or event.metadata.get("request_id") == request.request_id
+        ]
+        if extra_event_refs:
+            event_refs.extend(extra_event_refs)
+        event_types = [
+            event.event_type
+            for event in events
+            if event.metadata.get("execution_request_id") == request.request_id
+            or event.metadata.get("request_id") == request.request_id
+        ]
+        if "mission_execution_request_claimed" in event_types:
+            state = MissionExecutionRequestState.CLAIMED
+        elif "mission_queued" in event_types:
+            state = MissionExecutionRequestState.QUEUED
+        elif "mission_execution_request_prepared" in event_types:
+            record = self.kernel.store.load_record(mission_id)
+            state = (
+                MissionExecutionRequestState.ORPHANED_PREPARED
+                if record.status is OperatorMissionStatus.DRAFT
+                else MissionExecutionRequestState.PREPARED
+            )
+        else:
+            state = MissionExecutionRequestState.PREPARED
+        return MissionExecutionRequestStateView(
+            request_id=request.request_id,
+            mission_id=mission_id,
+            state=state,
+            event_refs=list(dict.fromkeys(event_refs)),
+            safe_summary=f"Mission execution request state derived as {state.value}.",
+        )
 
     def _persist_execution_request(self, request: MissionExecutionRequest) -> None:
         self.kernel.store.atomic_write_json(
@@ -237,7 +296,8 @@ class MissionLifecycleService:
 
 __all__ = [
     "MissionExecutionRequest",
-    "MissionExecutionRequestStatus",
+    "MissionExecutionRequestState",
+    "MissionExecutionRequestStateView",
     "MissionLifecycleCreateResult",
     "MissionLifecycleService",
 ]
