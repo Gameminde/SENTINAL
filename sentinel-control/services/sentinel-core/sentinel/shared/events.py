@@ -38,6 +38,7 @@ from typing import Any
 
 from pydantic import ConfigDict, Field, field_serializer, field_validator
 
+from sentinel.shared.execution_events import AgentExecutionEvent, ExecutionEventSink
 from sentinel.shared.models import SentinelModel, new_id
 
 
@@ -494,10 +495,24 @@ class _TrackedEventList(list["AgentEvent"]):
 
 
 class EventBus:
-    def __init__(self, mission_id: str) -> None:
+    def __init__(
+        self,
+        mission_id: str,
+        *,
+        execution_event_sink: ExecutionEventSink | None = None,
+        execution_run_id: str | None = None,
+        execution_request_id: str | None = None,
+        bridge_call_id: str | None = None,
+        agent_run_id: str | None = None,
+    ) -> None:
         self.mission_id = mission_id
         self._events: _TrackedEventList = _TrackedEventList()
         self._last_hash: str | None = None
+        self._execution_event_sink = execution_event_sink
+        self._execution_run_id = execution_run_id or mission_id
+        self._execution_request_id = execution_request_id
+        self._bridge_call_id = bridge_call_id or ""
+        self._agent_run_id = agent_run_id or ""
 
     def append(
         self,
@@ -538,6 +553,16 @@ class EventBus:
         event = AgentEvent(**event_data)
         self._events.append_untracked(event)
         self._last_hash = event_hash
+        if self._execution_event_sink is not None:
+            self._execution_event_sink.emit(
+                AgentExecutionEvent.from_agent_event(
+                    event,
+                    run_id=self._execution_run_id,
+                    execution_request_id=self._execution_request_id,
+                    bridge_call_id=self._bridge_call_id,
+                    agent_run_id=self._agent_run_id,
+                )
+            )
         return event
 
     def _assert_append_integrity(self) -> None:

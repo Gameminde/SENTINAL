@@ -159,7 +159,10 @@ class MissionRunStore:
     ) -> MissionEvent:
         with self._lock:
             metadata = redact_operator_value(metadata or {})
-            reject_operator_control_payload(metadata, context="mission_event")
+            reject_operator_control_payload(
+                _mission_event_safety_payload(event_type=event_type, metadata=metadata),
+                context="mission_event",
+            )
             events = self.load_events(mission_id)
             previous_hash = events[-1].event_hash if events else None
             event = MissionEvent(
@@ -264,3 +267,16 @@ def _hash_event(event: MissionEvent) -> str:
     payload = event.model_dump(mode="json")
     payload["event_hash"] = ""
     return stable_hash(payload)
+
+
+def _mission_event_safety_payload(*, event_type: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    if (
+        event_type == "agentruntime_execution_event_observed"
+        and isinstance(metadata.get("terminal"), bool)
+    ):
+        payload = dict(metadata)
+        # In this event family, "terminal" is a runtime-state label, not a
+        # shell/terminal action surface. Keep it stored, but scan the rest.
+        payload.pop("terminal", None)
+        return payload
+    return metadata

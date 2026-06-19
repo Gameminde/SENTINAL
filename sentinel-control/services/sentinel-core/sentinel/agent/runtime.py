@@ -967,8 +967,20 @@ class AgentRuntime:
         *,
         evidence_refs: list[str] | None = None,
         memory_items: list[dict[str, Any]] | None = None,
+        execution_event_sink: Any | None = None,
+        execution_run_id: str | None = None,
+        execution_request_id: str | None = None,
+        bridge_call_id: str | None = None,
+        agent_run_id: str | None = None,
     ) -> AgentRunResult:
-        event_bus = EventBus(envelope.id)
+        event_bus = EventBus(
+            envelope.id,
+            execution_event_sink=execution_event_sink,
+            execution_run_id=execution_run_id,
+            execution_request_id=execution_request_id,
+            bridge_call_id=bridge_call_id,
+            agent_run_id=agent_run_id,
+        )
         evidence_chains = []
         controlled_capability_results: list[dict[str, Any]] = []
         mission_results = []

@@ -519,5 +519,18 @@ class MissionEvent(SentinelModel):
             can_grant_authority=self.can_grant_authority,
             can_execute=self.can_execute,
         )
-        reject_operator_control_payload(self.metadata, context="mission_event")
+        reject_operator_control_payload(_mission_event_safety_payload(self), context="mission_event")
         return self
+
+
+def _mission_event_safety_payload(event: MissionEvent) -> dict[str, Any]:
+    if (
+        event.event_type == "agentruntime_execution_event_observed"
+        and isinstance(event.metadata.get("terminal"), bool)
+    ):
+        payload = dict(event.metadata)
+        # This terminal bit means "runtime reached an absorbing state"; it is
+        # not the terminal/shell action surface blocked elsewhere.
+        payload.pop("terminal", None)
+        return payload
+    return event.metadata
