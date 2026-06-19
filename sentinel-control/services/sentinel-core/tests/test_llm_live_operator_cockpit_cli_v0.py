@@ -51,7 +51,16 @@ def test_cockpit_cli_start_runs_mission(tmp_path: Path, capsys) -> None:
     script = tmp_path / "script.txt"
     script.write_text("Je veux lancer un business\noui commence\n", encoding="utf-8")
 
-    code = main(["cockpit", "--run-root", str(tmp_path / "runs"), "--deterministic-test-mode", "--script", str(script)])
+    code = main([
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--deterministic-test-mode",
+        "--authority-scope",
+        str(_authority_scope_path(tmp_path)),
+        "--script",
+        str(script),
+    ])
 
     output = capsys.readouterr().out
     assert code == 0
@@ -62,7 +71,16 @@ def test_cockpit_cli_status(tmp_path: Path, capsys) -> None:
     script = tmp_path / "script.txt"
     script.write_text("Je veux lancer un business\noui commence\nstatus\n", encoding="utf-8")
 
-    code = main(["cockpit", "--run-root", str(tmp_path / "runs"), "--deterministic-test-mode", "--script", str(script)])
+    code = main([
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--deterministic-test-mode",
+        "--authority-scope",
+        str(_authority_scope_path(tmp_path)),
+        "--script",
+        str(script),
+    ])
 
     output = capsys.readouterr().out
     assert code == 0
@@ -73,7 +91,16 @@ def test_cockpit_cli_timeline(tmp_path: Path, capsys) -> None:
     script = tmp_path / "script.txt"
     script.write_text("Je veux lancer un business\noui commence\n/timeline\n", encoding="utf-8")
 
-    code = main(["cockpit", "--run-root", str(tmp_path / "runs"), "--deterministic-test-mode", "--script", str(script)])
+    code = main([
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--deterministic-test-mode",
+        "--authority-scope",
+        str(_authority_scope_path(tmp_path)),
+        "--script",
+        str(script),
+    ])
 
     output = capsys.readouterr().out
     assert code == 0
@@ -104,7 +131,16 @@ def test_cockpit_cli_replay(tmp_path: Path, capsys) -> None:
     script = tmp_path / "script.txt"
     script.write_text("Je veux lancer un business\noui commence\n/replay\n", encoding="utf-8")
 
-    code = main(["cockpit", "--run-root", str(tmp_path / "runs"), "--deterministic-test-mode", "--script", str(script)])
+    code = main([
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--deterministic-test-mode",
+        "--authority-scope",
+        str(_authority_scope_path(tmp_path)),
+        "--script",
+        str(script),
+    ])
 
     output = capsys.readouterr().out
     assert code == 0
@@ -115,7 +151,16 @@ def test_cockpit_cli_pause_resume_kill(tmp_path: Path, capsys) -> None:
     script = tmp_path / "script.txt"
     script.write_text("Je veux lancer un business\noui commence\npause\nresume\nkill\n", encoding="utf-8")
 
-    code = main(["cockpit", "--run-root", str(tmp_path / "runs"), "--deterministic-test-mode", "--script", str(script)])
+    code = main([
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--deterministic-test-mode",
+        "--authority-scope",
+        str(_authority_scope_path(tmp_path)),
+        "--script",
+        str(script),
+    ])
 
     output = capsys.readouterr().out
     assert code == 0
@@ -137,7 +182,16 @@ def test_cockpit_cli_missions(tmp_path: Path, capsys) -> None:
     script = tmp_path / "script.txt"
     script.write_text("Je veux lancer un business\noui commence\n/missions\n", encoding="utf-8")
 
-    code = main(["cockpit", "--run-root", str(tmp_path / "runs"), "--deterministic-test-mode", "--script", str(script)])
+    code = main([
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--deterministic-test-mode",
+        "--authority-scope",
+        str(_authority_scope_path(tmp_path)),
+        "--script",
+        str(script),
+    ])
 
     output = capsys.readouterr().out
     assert code == 0
@@ -165,7 +219,17 @@ def test_cockpit_cli_no_manual_mission_id_for_single_active_mission(tmp_path: Pa
     script = tmp_path / "script.txt"
     script.write_text("Je veux lancer un business\noui commence\nstatus\n", encoding="utf-8")
 
-    code = main(["cockpit", "--run-root", str(tmp_path / "runs"), "--deterministic-test-mode", "--script", str(script), "--json"])
+    code = main([
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--deterministic-test-mode",
+        "--authority-scope",
+        str(_authority_scope_path(tmp_path)),
+        "--script",
+        str(script),
+        "--json",
+    ])
 
     output = capsys.readouterr().out
     payload = json.loads(output)
@@ -263,3 +327,29 @@ def _valid_llm_output() -> dict[str, object]:
             "summary": "Research and drafting only; no external send or payment.",
         },
     }
+
+
+def _authority_scope_path(tmp_path: Path) -> Path:
+    path = tmp_path / "authority-scope.json"
+    path.write_text(
+        json.dumps(
+            {
+                "user_id": "operator_user",
+                "allowed_systems": ["local_workspace"],
+                "allowed_tools": ["read_only_observation"],
+                "allowed_actions": ["research", "draft"],
+                "forbidden_actions": ["payment", "send_email", "credential_access", "shell", "write_file"],
+                "allowed_paths": ["."],
+                "allowed_domains": [],
+                "allowed_accounts": [],
+                "allowed_data_types": [],
+                "browser_v3_authority_grants": [],
+                "credential_grants": [],
+                "max_duration_minutes": 15,
+                "max_actions": 4,
+                "max_cost_usd": 0.0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path

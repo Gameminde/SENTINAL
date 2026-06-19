@@ -39,10 +39,13 @@ from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
     EphemeralBrowserCredentialProvider,
 )
 from sentinel.agent.model_contract import UserModelContract
+from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
+from sentinel.operator.legacy_classification import InternalAccessClassification
 from sentinel.operator.model_client import OperatorCatalogModelClient
 from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
 from sentinel.operator.replay import MissionReplayBuilder
+from sentinel.operator.runtime_host import SentinelRuntimeHost
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
 from sentinel.power_lab import PowerLabMissionRejected, load_power_lab_mission_file, run_power_lab_mission
@@ -91,6 +94,16 @@ def build_parser() -> argparse.ArgumentParser:
         )
         cockpit_parser.add_argument("--once", default=None, help="Process one user message and exit.")
         cockpit_parser.add_argument("--script", default=None, help="Read newline-delimited user messages from a text file.")
+        cockpit_parser.add_argument(
+            "--authority-scope",
+            default=None,
+            help="Explicit MissionAuthorityApprovalScope JSON file for governed product mission starts.",
+        )
+        cockpit_parser.add_argument(
+            "--legacy-internal-direct",
+            action="store_true",
+            help="Use the old direct-kernel cockpit path. Classified LEGACY_INTERNAL and not a product route.",
+        )
         cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
@@ -315,13 +328,89 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
         if user_model_contract is not None and mode is OperatorMode.LLM_OPERATOR
         else None
     )
+
+    if args.legacy_internal_direct:
+        return _run_legacy_internal_cockpit_command(
+            args,
+            mode=mode,
+            user_model_contract=user_model_contract,
+            model_client=model_client,
+        )
+
+    try:
+        approval_scope = _load_authority_approval_scope(Path(args.authority_scope)) if args.authority_scope else None
+    except ValueError as exc:
+        print(f"sentinel cockpit: authority_scope_invalid:{exc}", file=sys.stderr)
+        return 2
+
+    host = None
+    try:
+        host = SentinelRuntimeHost(run_root=Path(args.run_root))
+    except Exception as exc:  # noqa: BLE001
+        print(f"sentinel cockpit: runtime_host_construction_failed:{exc.__class__.__name__}", file=sys.stderr)
+        return 2
+
+    try:
+        try:
+            host.start()
+        except Exception as exc:  # noqa: BLE001
+            print(f"sentinel cockpit: runtime_host_start_failed:{exc.__class__.__name__}", file=sys.stderr)
+            return 2
+
+        cockpit = LLMLiveOperatorCockpit(
+            run_root=Path(args.run_root),
+            mode=mode,
+            user_model_contract=user_model_contract,
+            model_client=model_client,
+            lifecycle_service=host.lifecycle,
+            authority_approval_scope=approval_scope,
+        )
+        return _run_cockpit_turn_loop(
+            args,
+            cockpit,
+            classification=InternalAccessClassification.PRODUCTION_ROUTE,
+            host=host,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"sentinel cockpit: cockpit_product_route_failed:{exc.__class__.__name__}", file=sys.stderr)
+        return 2
+    finally:
+        try:
+            host.shutdown()
+        except Exception as exc:  # noqa: BLE001
+            print(f"sentinel cockpit: runtime_host_shutdown_failed:{exc.__class__.__name__}", file=sys.stderr)
+
+
+def _run_legacy_internal_cockpit_command(
+    args: argparse.Namespace,
+    *,
+    mode: OperatorMode,
+    user_model_contract: UserModelContract | None,
+    model_client: OperatorCatalogModelClient | None,
+) -> int:
     cockpit = LLMLiveOperatorCockpit(
         run_root=Path(args.run_root),
         mode=mode,
         user_model_contract=user_model_contract,
         model_client=model_client,
     )
+    return _run_cockpit_turn_loop(
+        args,
+        cockpit,
+        classification=InternalAccessClassification.LEGACY_INTERNAL,
+        host=None,
+    )
+
+
+def _run_cockpit_turn_loop(
+    args: argparse.Namespace,
+    cockpit: LLMLiveOperatorCockpit,
+    *,
+    classification: InternalAccessClassification,
+    host: SentinelRuntimeHost | None,
+) -> int:
     turns: list[dict[str, object]] = []
+    pumped_mission_ids: set[str] = set()
 
     if args.once is None and args.script is None and not args.json:
         print("Sentinel: Bonjour, je suis la. Qu'est-ce que tu veux faire ?")
@@ -342,6 +431,32 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             turn = _cockpit_replay_turn(cockpit)
         else:
             turn = cockpit.handle(line)
+        turn = _with_cockpit_route_metadata(turn, classification=classification, host=host)
+        if (
+            host is not None
+            and turn.state is OperatorConversationState.MISSION_QUEUED
+            and turn.mission_record is not None
+            and getattr(turn.mission_record, "mission_id", None)
+            and turn.mission_record.mission_id not in pumped_mission_ids
+        ):
+            try:
+                pickup = host.pump_daemon_once(turn.mission_record.mission_id)
+            except Exception as exc:  # noqa: BLE001
+                print(f"sentinel cockpit: daemon_pickup_failed:{exc.__class__.__name__}", file=sys.stderr)
+                return 2
+            pumped_mission_ids.add(turn.mission_record.mission_id)
+            turn = _with_cockpit_route_metadata(
+                turn,
+                classification=classification,
+                host=host,
+                daemon_pickup={
+                    "mission_id": pickup.mission_id,
+                    "execution_request_ref": pickup.execution_request_ref,
+                    "claimed": pickup.claimed,
+                    "tick_executed": bool(getattr(pickup.tick_result, "executed", False)),
+                    "tick_status": getattr(getattr(pickup.tick_result, "status", None), "value", None),
+                },
+            )
         safe_turn = turn.safe_model_dump()
         turns.append(safe_turn)
         if not args.json:
@@ -350,6 +465,60 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(turns, sort_keys=True, default=str))
     return 0
+
+
+_REQUIRED_APPROVAL_SCOPE_FIELDS = frozenset(
+    {
+        "user_id",
+        "allowed_systems",
+        "allowed_tools",
+        "allowed_actions",
+        "forbidden_actions",
+        "allowed_paths",
+        "allowed_domains",
+        "allowed_accounts",
+        "allowed_data_types",
+        "browser_v3_authority_grants",
+        "credential_grants",
+        "max_duration_minutes",
+        "max_actions",
+        "max_cost_usd",
+    }
+)
+
+
+def _load_authority_approval_scope(path: Path) -> MissionAuthorityApprovalScope:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"read_failed:{exc.__class__.__name__}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("approval_scope_must_be_json_object")
+    missing = sorted(_REQUIRED_APPROVAL_SCOPE_FIELDS - payload.keys())
+    if missing:
+        raise ValueError(f"approval_scope_missing_required_fields:{','.join(missing)}")
+    try:
+        return MissionAuthorityApprovalScope.model_validate(payload)
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"approval_scope_validation_failed:{exc.__class__.__name__}") from exc
+
+
+def _with_cockpit_route_metadata(
+    turn: OperatorTurnResult,
+    *,
+    classification: InternalAccessClassification,
+    host: SentinelRuntimeHost | None,
+    daemon_pickup: dict[str, object] | None = None,
+) -> OperatorTurnResult:
+    metadata = dict(turn.metadata)
+    metadata["internal_access_classification"] = classification.value
+    metadata["production_runtime_host_used"] = classification is InternalAccessClassification.PRODUCTION_ROUTE
+    if host is not None:
+        metadata["runtime_host_status"] = host.status().status.value
+        metadata["runtime_host_lifecycle_ref"] = f"lifecycle:{id(host.lifecycle)}"
+    if daemon_pickup is not None:
+        metadata["daemon_pickup"] = daemon_pickup
+    return turn.model_copy(update={"metadata": metadata})
 
 
 def _cockpit_help_turn(cockpit: LLMLiveOperatorCockpit) -> OperatorTurnResult:
