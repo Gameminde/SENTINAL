@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.agent_bridge import OperatorAgentRuntimeBridge
+from sentinel.operator.agent_bridge import AgentEventProjectionMode, OperatorAgentRuntimeBridge
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
 from sentinel.operator.power_bridge import OperatorPowerRuntimeBridge
@@ -161,7 +161,11 @@ def test_agent_bridge_records_replan_and_memory_telemetry(tmp_path: Path) -> Non
                 brain_candidate_source_status="brain_ready",
             )
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=FakeAgentRuntime()).run(
+    result = OperatorAgentRuntimeBridge(
+        kernel,
+        runtime=FakeAgentRuntime(),
+        projection_mode=AgentEventProjectionMode.LEGACY_EXPLICITLY_DISABLED,
+    ).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={"goal": "measure telemetry"},

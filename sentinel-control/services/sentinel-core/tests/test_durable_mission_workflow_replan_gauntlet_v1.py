@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.agent_bridge import OperatorAgentRuntimeBridge
+from sentinel.operator.agent_bridge import AgentEventProjectionMode, OperatorAgentRuntimeBridge
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionDraft, OperatorMissionStatus
 from sentinel.operator.power_bridge import BoundPowerActuatorExecutor
@@ -115,6 +115,14 @@ def _executor(calls: list[str]):
 
 def _bound(executor):
     return BoundPowerActuatorExecutor(contract_id="executor:governed:v1", executor=executor)
+
+
+def _test_only_legacy_agent_bridge(kernel: MissionKernel, runtime) -> OperatorAgentRuntimeBridge:
+    return OperatorAgentRuntimeBridge(
+        kernel,
+        runtime=runtime,
+        projection_mode=AgentEventProjectionMode.LEGACY_EXPLICITLY_DISABLED,
+    )
 
 
 def _runtime(tmp_path: Path):
@@ -288,7 +296,7 @@ def test_agent_replan_is_escalated_until_a_typed_action_plan_exists(tmp_path: Pa
     result = runtime.execute_replan(
         candidate,
         current_envelope=envelope,
-        agent_bridge=OperatorAgentRuntimeBridge(kernel, runtime=FakeAgentRuntime()),
+        agent_bridge=_test_only_legacy_agent_bridge(kernel, FakeAgentRuntime()),
     )
 
     assert result.decision.kind is ReplanDecisionKind.ESCALATE
@@ -323,7 +331,7 @@ def test_agent_bridge_rejects_envelope_mission_identity_mismatch(tmp_path: Path)
             calls.append(received_envelope.id)
             return SimpleNamespace(success=True)
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=FakeAgentRuntime()).run(
+    result = _test_only_legacy_agent_bridge(kernel, FakeAgentRuntime()).run(
         mission_id,
         envelope=_envelope("mission_other"),
         user_input={"mission_id": mission_id},
@@ -957,7 +965,7 @@ def test_agent_bridge_secret_refs_are_not_persisted(tmp_path: Path) -> None:
                 memory_feedback_result=SimpleNamespace(memory_entry_refs=[raw_secret]),
             )
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=FakeAgentRuntime()).run(
+    result = _test_only_legacy_agent_bridge(kernel, FakeAgentRuntime()).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={},

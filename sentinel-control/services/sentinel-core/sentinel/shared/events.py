@@ -425,15 +425,23 @@ class AgentEvent(SentinelModel):
 # ---------------------------------------------------------------------------
 
 
+AGENT_EVENT_SOURCE_LEDGER_TERMINAL = "AGENT_EVENT_SOURCE_LEDGER_TERMINAL"
+AGENT_EVENT_SOURCE_LEDGER_PROJECTION_FAILED = "AGENT_EVENT_SOURCE_LEDGER_PROJECTION_FAILED"
+
+
+class EventBusAppendRejected(RuntimeError):
+    def __init__(self, code: str, safe_message: str) -> None:
+        super().__init__(safe_message)
+        self.code = code
+        self.safe_message = safe_message
+
+
+class EventBusProjectionError(EventBusAppendRejected):
+    def __init__(self, safe_message: str = "AgentRuntime event projection failed.") -> None:
+        super().__init__(AGENT_EVENT_SOURCE_LEDGER_PROJECTION_FAILED, safe_message)
+
+
 class _TrackedEventList(list["AgentEvent"]):
-    """Private ledger list that marks external mutations dirty.
-
-    EventBus itself appends through ``append_untracked``. Direct private-list
-    mutations in tests or adversarial code mark the list dirty so the next
-    public append can run a full-chain audit without imposing O(n) work on
-    every normal append.
-    """
-
     dirty: bool
 
     def __init__(self) -> None:
@@ -513,6 +521,8 @@ class EventBus:
         self._execution_request_id = execution_request_id
         self._bridge_call_id = bridge_call_id or ""
         self._agent_run_id = agent_run_id or ""
+        self._terminal_seen = False
+        self._projection_failed_code: str | None = None
 
     def append(
         self,
@@ -528,6 +538,7 @@ class EventBus:
         copy_payload: bool = True,
     ) -> AgentEvent:
         self._assert_append_integrity()
+        self._assert_open_for_append()
         sequence = len(self._events)
         event_data = {
             "id": new_id("aev"),
@@ -553,17 +564,32 @@ class EventBus:
         event = AgentEvent(**event_data)
         self._events.append_untracked(event)
         self._last_hash = event_hash
+        if _is_source_terminal_event(event.event_type):
+            self._terminal_seen = True
         if self._execution_event_sink is not None:
-            self._execution_event_sink.emit(
-                AgentExecutionEvent.from_agent_event(
-                    event,
-                    run_id=self._execution_run_id,
-                    execution_request_id=self._execution_request_id,
-                    bridge_call_id=self._bridge_call_id,
-                    agent_run_id=self._agent_run_id,
-                )
+            projection = AgentExecutionEvent.from_agent_event(
+                event,
+                run_id=self._execution_run_id,
+                execution_request_id=self._execution_request_id,
+                bridge_call_id=self._bridge_call_id,
+                agent_run_id=self._agent_run_id,
             )
+            if projection is not None:
+                try:
+                    self._execution_event_sink.emit(projection)
+                except Exception as exc:  # noqa: BLE001
+                    self._projection_failed_code = AGENT_EVENT_SOURCE_LEDGER_PROJECTION_FAILED
+                    raise EventBusProjectionError("AgentRuntime event projection failed.") from exc
         return event
+
+    def _assert_open_for_append(self) -> None:
+        if self._projection_failed_code is not None:
+            raise EventBusProjectionError("AgentRuntime event projection latch is active.")
+        if self._terminal_seen:
+            raise EventBusAppendRejected(
+                AGENT_EVENT_SOURCE_LEDGER_TERMINAL,
+                "AgentRuntime source ledger is terminal; refusing to append.",
+            )
 
     def _assert_append_integrity(self) -> None:
         """Fast integrity gate before linking a new event.
@@ -687,11 +713,28 @@ class EventBus:
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+_SOURCE_TERMINAL_EVENTS = {
+    AgentEventType.AGENT_COMPLETED,
+    AgentEventType.AGENT_FAILED,
+    AgentEventType.AGENT_BLOCKED,
+    AgentEventType.AGENT_REVOKED,
+    AgentEventType.AGENT_ESCALATED,
+}
+
+
+def _is_source_terminal_event(event_type: AgentEventType) -> bool:
+    return event_type in _SOURCE_TERMINAL_EVENTS
+
+
 __all__ = [
+    "AGENT_EVENT_SOURCE_LEDGER_PROJECTION_FAILED",
+    "AGENT_EVENT_SOURCE_LEDGER_TERMINAL",
     "AgentEvent",
     "AgentEventType",
     "AgentPhase",
     "EventBus",
+    "EventBusAppendRejected",
+    "EventBusProjectionError",
     "TraceIntegrityError",
     "utc_now",
 ]

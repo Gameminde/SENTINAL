@@ -18,6 +18,7 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import OperatorMissionStatus, utc_now
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value, sanitize_operator_refs
 from sentinel.operator.safety import assert_data_not_authority, reject_operator_control_payload
+from sentinel.shared.events import AgentEventType, AgentPhase, EventBus
 from sentinel.shared.models import SentinelModel, new_id
 from sentinel.shared.safety_scanner import OrganSafetyScanCategory, scan_forbidden_payload_categorized
 from sentinel.telemetry import TelemetryCertificationError
@@ -1314,10 +1315,56 @@ class _ReadOnlyAgentRuntime:
         self._session = session
         self.last_result: ReadOnlyProductionSpineResult | None = None
 
-    def run(self, envelope: MissionAuthorityEnvelope, user_input: dict[str, Any]) -> Any:
+    def run(
+        self,
+        envelope: MissionAuthorityEnvelope,
+        user_input: dict[str, Any],
+        *,
+        execution_event_sink: Any | None = None,
+        execution_run_id: str,
+        execution_request_id: str | None,
+        bridge_call_id: str,
+        agent_run_id: str,
+    ) -> Any:
         del user_input
-        result = self._session._run_inside_bridge(envelope)
+        event_bus = EventBus(
+            envelope.id,
+            execution_event_sink=execution_event_sink,
+            execution_run_id=execution_run_id,
+            execution_request_id=execution_request_id,
+            bridge_call_id=bridge_call_id,
+            agent_run_id=agent_run_id,
+        )
+        event_bus.append(
+            AgentEventType.AGENT_INITIALIZED,
+            "Read-only operator runtime started.",
+            phase_before=AgentPhase.CREATED,
+            phase_after=AgentPhase.INITIALIZED,
+        )
+        try:
+            result = self._session._run_inside_bridge(envelope)
+        except Exception:
+            event_bus.append(
+                AgentEventType.AGENT_FAILED,
+                "Read-only operator runtime failed.",
+                phase_before=AgentPhase.INITIALIZED,
+                phase_after=AgentPhase.FAILED,
+            )
+            raise
         self.last_result = result
+        if result.status == "completed":
+            terminal_event_type = AgentEventType.AGENT_COMPLETED
+            terminal_phase = AgentPhase.COMPLETED
+        else:
+            terminal_event_type = AgentEventType.AGENT_BLOCKED
+            terminal_phase = AgentPhase.BLOCKED
+        event_bus.append(
+            terminal_event_type,
+            "Read-only operator runtime reached terminal state.",
+            phase_before=AgentPhase.INITIALIZED,
+            phase_after=terminal_phase,
+            trace_refs=list(result.receipt_refs) + list(result.finalgate_refs),
+        )
         finalgate = self._session._load_last_finalgate(result.finalgate_refs)
         return _ReadOnlyRuntimeResult(
             success=result.status == "completed",

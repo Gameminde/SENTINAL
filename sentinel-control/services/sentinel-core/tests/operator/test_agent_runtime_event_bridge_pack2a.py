@@ -9,7 +9,7 @@ import pytest
 from sentinel.agent import AgentEventType, AgentPhase
 from sentinel.agent.event_bus import EventBus
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.agent_bridge import OperatorAgentRuntimeBridge
+from sentinel.operator.agent_bridge import AgentEventProjectionMode, OperatorAgentRuntimeBridge
 from sentinel.operator.agent_event_bridge import AgentEventBridgePersistenceError
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionDraft, OperatorMissionStatus
@@ -59,6 +59,58 @@ def test_agent_runtime_events_project_to_mission_store_in_source_order(tmp_path:
     assert runtime.event_bus.verify_chain() is True
 
 
+def test_governed_route_blocks_runtime_without_explicit_event_sink_support(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = NoSinkRuntime()
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_envelope(mission_id),
+        user_input={"goal": "safe"},
+    )
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == "AGENT_EVENT_SINK_REQUIRED"
+    assert runtime.call_count == 0
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
+
+
+def test_explicit_legacy_mode_is_required_to_execute_without_event_sink(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = NoSinkRuntime()
+
+    result = OperatorAgentRuntimeBridge(
+        kernel,
+        runtime=runtime,
+        projection_mode=AgentEventProjectionMode.LEGACY_EXPLICITLY_DISABLED,
+    ).run(
+        mission_id,
+        envelope=_envelope(mission_id),
+        user_input={"goal": "safe"},
+        update_mission_status=False,
+    )
+
+    assert result.status == "completed"
+    assert result.blocked_reason is None
+    assert runtime.call_count == 1
+    assert result.agent_event_projection_refs == []
+
+
+def test_var_keyword_runtime_is_not_treated_as_sink_capable(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = VarKeywordRuntime()
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_envelope(mission_id),
+        user_input={"goal": "safe"},
+    )
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == "AGENT_EVENT_SINK_REQUIRED"
+    assert runtime.call_count == 0
+
+
 def test_agent_failed_projection_does_not_fabricate_product_success(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
 
@@ -80,8 +132,9 @@ def test_agent_failed_projection_does_not_fabricate_product_success(tmp_path: Pa
 
 def test_agent_event_after_terminal_blocks_bridge_and_is_not_projected(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = DeterministicEventRuntime(emit_after_terminal=True)
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=DeterministicEventRuntime(emit_after_terminal=True)).run(
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={},
@@ -93,6 +146,9 @@ def test_agent_event_after_terminal_blocks_bridge_and_is_not_projected(tmp_path:
     terminal = [event for event in projected if event.metadata["terminal"] is True]
     assert len(terminal) == 1
     assert all(event.metadata["event_kind"] != AgentExecutionEventKind.PHASE_TRANSITION.value for event in projected[projected.index(terminal[0]) + 1 :])
+    assert runtime.event_bus is not None
+    source_events = runtime.event_bus.events()
+    assert source_events[-1].event_type is AgentEventType.AGENT_COMPLETED
 
 
 def test_duplicate_and_cross_mission_agent_events_are_rejected(tmp_path: Path) -> None:
@@ -141,6 +197,184 @@ def test_critical_event_persistence_failure_blocks_safely(tmp_path: Path, monkey
     assert "raw persistence failure" not in event_payload
 
 
+def test_event_bus_rejects_source_append_after_terminal_before_mutation() -> None:
+    bus = EventBus("mission_terminal_latch")
+    bus.append(
+        AgentEventType.AGENT_COMPLETED,
+        "terminal",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.COMPLETED,
+    )
+    before_count = len(bus.events())
+
+    with pytest.raises(RuntimeError, match="terminal"):
+        bus.append(
+            AgentEventType.CONTROLLED_CAPABILITY_EXECUTED,
+            "late",
+            phase_before=AgentPhase.COMPLETED,
+            phase_after=AgentPhase.EXECUTING,
+        )
+
+    assert len(bus.events()) == before_count
+    assert bus.events()[-1].event_type is AgentEventType.AGENT_COMPLETED
+
+
+def test_event_bus_latches_projection_failure_and_rejects_later_source_append() -> None:
+    sink = FailingSink()
+    bus = EventBus(
+        "mission_projection_latch",
+        execution_event_sink=sink,
+        execution_run_id="run_projection_latch",
+        bridge_call_id="bridge_projection_latch",
+        agent_run_id="agent_projection_latch",
+    )
+
+    with pytest.raises(RuntimeError, match="projection"):
+        bus.append(
+            AgentEventType.AGENT_INITIALIZED,
+            "start",
+            phase_before=AgentPhase.CREATED,
+            phase_after=AgentPhase.INITIALIZED,
+        )
+    before_count = len(bus.events())
+
+    with pytest.raises(RuntimeError, match="projection"):
+        bus.append(
+            AgentEventType.CONTROLLED_CAPABILITY_EXECUTED,
+            "late",
+            phase_before=AgentPhase.INITIALIZED,
+            phase_after=AgentPhase.EXECUTING,
+        )
+
+    assert before_count == 1
+    assert len(bus.events()) == before_count
+
+
+def test_projection_summaries_are_deterministic_and_do_not_copy_source_text() -> None:
+    sink = CapturingSink()
+    bus = EventBus(
+        "mission_summary",
+        execution_event_sink=sink,
+        execution_run_id="run_summary",
+        bridge_call_id="bridge_summary",
+        agent_run_id="agent_summary",
+    )
+
+    bus.append(
+        AgentEventType.CONTROLLED_CAPABILITY_EXECUTED,
+        "raw_prompt https://example.test C:\\secret\\file.txt provider_response",
+        phase_before=AgentPhase.INITIALIZED,
+        phase_after=AgentPhase.EXECUTING,
+    )
+
+    assert len(sink.events) == 1
+    assert sink.events[0].event_kind is AgentExecutionEventKind.PHASE_TRANSITION
+    assert sink.events[0].safe_summary == "Agent runtime phase changed from initialized to executing."
+    serialized = sink.events[0].model_dump_json()
+    assert "raw_prompt" not in serialized
+    assert "example.test" not in serialized
+    assert "secret" not in serialized.lower()
+    assert "provider_response" not in serialized
+
+
+def test_unsupported_source_event_creates_no_product_projection() -> None:
+    sink = CapturingSink()
+    bus = EventBus(
+        "mission_unsupported",
+        execution_event_sink=sink,
+        execution_run_id="run_unsupported",
+        bridge_call_id="bridge_unsupported",
+        agent_run_id="agent_unsupported",
+    )
+
+    bus.append(
+        AgentEventType.CONTEXT_BUILT,
+        "internal context detail must remain source-only",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.EXECUTING,
+    )
+
+    assert len(bus.events()) == 1
+    assert sink.events == []
+
+
+def test_projection_refs_are_bounded_and_sanitized() -> None:
+    sink = CapturingSink()
+    bus = EventBus(
+        "mission_refs",
+        execution_event_sink=sink,
+        execution_run_id="run_refs",
+        bridge_call_id="bridge_refs",
+        agent_run_id="agent_refs",
+    )
+
+    bus.append(
+        AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED,
+        "receipt refs",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.EXECUTING,
+        trace_refs=[
+            "receipt:ok",
+            "receipt:another",
+            "https://example.test/receipt",
+            "C:\\secret\\receipt",
+            "receipt:contains whitespace",
+            "raw_prompt",
+            "evidence:ok",
+            "evidence:another",
+            "evidence:third",
+            "evidence:fourth",
+            "evidence:fifth",
+            "evidence:sixth",
+            "evidence:seventh",
+            "evidence:eighth",
+            "evidence:ninth",
+        ],
+    )
+
+    assert len(sink.events) == 1
+    projected = sink.events[0]
+    assert projected.event_kind is AgentExecutionEventKind.RECEIPT_REFS_UPDATED
+    assert projected.receipt_refs == ["receipt:ok", "receipt:another"]
+    assert projected.evidence_refs == [
+        "evidence:ok",
+        "evidence:another",
+        "evidence:third",
+        "evidence:fourth",
+        "evidence:fifth",
+        "evidence:sixth",
+        "evidence:seventh",
+        "evidence:eighth",
+    ]
+    serialized = projected.model_dump_json()
+    assert "example.test" not in serialized
+    assert "secret" not in serialized.lower()
+    assert "raw_prompt" not in serialized
+
+
+def test_every_pack2a_projection_is_truthfully_critical() -> None:
+    sink = CapturingSink()
+    bus = EventBus(
+        "mission_critical",
+        execution_event_sink=sink,
+        execution_run_id="run_critical",
+        bridge_call_id="bridge_critical",
+        agent_run_id="agent_critical",
+    )
+
+    bus.append(
+        AgentEventType.CONTROLLED_CAPABILITY_EXECUTED,
+        "evidence",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.EXECUTING,
+        trace_refs=["evidence:critical"],
+    )
+
+    assert len(sink.events) == 1
+    assert sink.events[0].event_kind is AgentExecutionEventKind.EVIDENCE_REFS_UPDATED
+    assert sink.events[0].critical is True
+
+
 def test_replay_reads_projected_events_without_reexecuting_agent_runtime(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
     runtime = DeterministicEventRuntime()
@@ -159,6 +393,51 @@ def test_replay_reads_projected_events_without_reexecuting_agent_runtime(tmp_pat
     assert replay.mission_id == mission_id
     assert runtime.call_count == call_count
     assert len(kernel.store.load_events(mission_id)) == event_count
+
+
+class CapturingSink:
+    def __init__(self) -> None:
+        self.events: list[AgentExecutionEvent] = []
+
+    def emit(self, event: AgentExecutionEvent) -> None:
+        self.events.append(event)
+
+
+class FailingSink:
+    def emit(self, event: AgentExecutionEvent) -> None:
+        raise RuntimeError("projection persistence unavailable")
+
+
+class NoSinkRuntime:
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def run(self, envelope: MissionAuthorityEnvelope, user_input: dict[str, Any]):
+        self.call_count += 1
+        return SimpleNamespace(
+            success=True,
+            final_phase=AgentPhase.COMPLETED,
+            final_gate_certification=SimpleNamespace(id="finalgate:legacy", accepted=True),
+            memory_feedback_result=SimpleNamespace(memory_entry_refs=[]),
+            receipt_refs=["receipt:legacy"],
+            artifact_paths=[],
+        )
+
+
+class VarKeywordRuntime:
+    def __init__(self) -> None:
+        self.call_count = 0
+
+    def run(self, envelope: MissionAuthorityEnvelope, user_input: dict[str, Any], **kwargs: Any):
+        self.call_count += 1
+        return SimpleNamespace(
+            success=True,
+            final_phase=AgentPhase.COMPLETED,
+            final_gate_certification=SimpleNamespace(id="finalgate:kwargs", accepted=True),
+            memory_feedback_result=SimpleNamespace(memory_entry_refs=[]),
+            receipt_refs=["receipt:kwargs"],
+            artifact_paths=[],
+        )
 
 
 class DeterministicEventRuntime:

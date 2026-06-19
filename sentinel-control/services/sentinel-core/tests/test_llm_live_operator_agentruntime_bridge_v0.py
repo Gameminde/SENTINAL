@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 from sentinel.agent import CoreFinalGateResult
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.agent_bridge import OperatorAgentRuntimeBridge
+from sentinel.operator.agent_bridge import AgentEventProjectionMode, OperatorAgentRuntimeBridge
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionDraft, OperatorMissionStatus
 from sentinel.shared.enums import MissionMode, MissionType
@@ -59,11 +59,19 @@ class RecordingRuntime:
         )
 
 
+def _test_only_legacy_bridge(kernel: MissionKernel, runtime) -> OperatorAgentRuntimeBridge:
+    return OperatorAgentRuntimeBridge(
+        kernel,
+        runtime=runtime,
+        projection_mode=AgentEventProjectionMode.LEGACY_EXPLICITLY_DISABLED,
+    )
+
+
 def test_operator_agent_bridge_uses_public_runtime_api(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
     runtime = RecordingRuntime()
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+    result = _test_only_legacy_bridge(kernel, runtime).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={"goal": "safe"},
@@ -123,7 +131,7 @@ def test_operator_agent_bridge_contains_runtime_failure(tmp_path: Path) -> None:
         def run(self, *_args, **_kwargs):
             raise RuntimeError("raw provider response should not escape")
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=FailingRuntime()).run(
+    result = _test_only_legacy_bridge(kernel, FailingRuntime()).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={},
@@ -141,7 +149,7 @@ def test_operator_agent_bridge_requires_accepted_finalgate_for_completion(tmp_pa
         def run(self, *_args, **_kwargs):
             return SimpleNamespace(success=True, final_gate_certification=None, artifact_paths=[])
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=MissingFinalGateRuntime()).run(
+    result = _test_only_legacy_bridge(kernel, MissingFinalGateRuntime()).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={},
@@ -162,7 +170,7 @@ def test_operator_agent_bridge_hashes_real_finalgate_without_identifier(tmp_path
                 artifact_paths=[],
             )
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=RealFinalGateRuntime()).run(
+    result = _test_only_legacy_bridge(kernel, RealFinalGateRuntime()).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={},
@@ -244,7 +252,7 @@ def test_operator_agent_bridge_does_not_run_killed_mission(tmp_path: Path) -> No
 def test_operator_agent_bridge_records_finalgate_memory_refs(tmp_path: Path) -> None:
     kernel, mission_id = _kernel_with_mission(tmp_path)
 
-    result = OperatorAgentRuntimeBridge(kernel, runtime=RecordingRuntime()).run(
+    result = _test_only_legacy_bridge(kernel, RecordingRuntime()).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={"goal": "safe"},
@@ -260,7 +268,7 @@ def test_operator_agent_bridge_does_not_enable_provider_fallback(tmp_path: Path)
     kernel, mission_id = _kernel_with_mission(tmp_path)
     runtime = RecordingRuntime()
 
-    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+    _test_only_legacy_bridge(kernel, runtime).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={},
@@ -274,7 +282,7 @@ def test_operator_agent_bridge_does_not_directly_dispatch_organs(tmp_path: Path)
     kernel, mission_id = _kernel_with_mission(tmp_path)
     runtime = RecordingRuntime()
 
-    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+    _test_only_legacy_bridge(kernel, runtime).run(
         mission_id,
         envelope=_envelope(mission_id),
         user_input={},

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import inspect
 from datetime import UTC, datetime
+from enum import StrEnum
+import inspect
 from typing import Any
 
 from pydantic import Field
@@ -16,8 +17,17 @@ from sentinel.operator.agent_event_bridge import (
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.redaction import sanitize_operator_refs
+from sentinel.shared.events import EventBusAppendRejected, EventBusProjectionError
 from sentinel.shared.models import SentinelModel, new_id
 from sentinel.telemetry import TelemetryCertificationError
+
+
+AGENT_EVENT_SINK_REQUIRED = "AGENT_EVENT_SINK_REQUIRED"
+
+
+class AgentEventProjectionMode(StrEnum):
+    REQUIRED = "required"
+    LEGACY_EXPLICITLY_DISABLED = "legacy_explicitly_disabled"
 
 
 class OperatorAgentRuntimeBridgeResult(SentinelModel):
@@ -44,10 +54,12 @@ class OperatorAgentRuntimeBridge:
         *,
         runtime: Any | None = None,
         telemetry_sink: object | None = None,
+        projection_mode: AgentEventProjectionMode | str = AgentEventProjectionMode.REQUIRED,
     ) -> None:
         self._kernel = kernel
         self._runtime = runtime
         self._telemetry_sink = telemetry_sink or getattr(kernel, "telemetry_sink", None)
+        self._projection_mode = AgentEventProjectionMode(projection_mode)
 
     def run(
         self,
@@ -117,6 +129,24 @@ class OperatorAgentRuntimeBridge:
                 metadata={"blocked_reason": "missing_agentruntime"},
             )
             return OperatorAgentRuntimeBridgeResult(status="blocked", blocked_reason="missing_agentruntime")
+        runtime_accepts_sink = _runtime_accepts_execution_event_sink(self._runtime)
+        if self._projection_mode is AgentEventProjectionMode.REQUIRED and not runtime_accepts_sink:
+            if update_mission_status:
+                self._kernel.update_status(
+                    mission_id,
+                    OperatorMissionStatus.BLOCKED,
+                    "AgentRuntime bridge blocked: execution event sink required.",
+                )
+            self._kernel.store.append_event(
+                mission_id,
+                event_type="agentruntime_blocked",
+                safe_summary="AgentRuntime bridge blocked because governed routes require event projection.",
+                metadata={
+                    "blocked_reason": AGENT_EVENT_SINK_REQUIRED,
+                    "projection_mode": self._projection_mode.value,
+                },
+            )
+            return OperatorAgentRuntimeBridgeResult(status="blocked", blocked_reason=AGENT_EVENT_SINK_REQUIRED)
 
         if record.status is OperatorMissionStatus.QUEUED:
             self._kernel.update_status(mission_id, OperatorMissionStatus.RUNNING, "AgentRuntime bridge started mission execution.")
@@ -132,11 +162,13 @@ class OperatorAgentRuntimeBridge:
             agent_run_id=agent_run_id,
         )
         try:
-            runtime_result = _run_runtime_with_optional_event_sink(
+            runtime_result = _run_runtime_with_event_projection(
                 self._runtime,
                 envelope,
                 user_input,
                 agent_event_bridge=agent_event_bridge,
+                projection_mode=self._projection_mode,
+                runtime_accepts_sink=runtime_accepts_sink,
                 execution_run_id=record.session_id,
                 execution_request_id=execution_request_id,
                 bridge_call_id=bridge_call_id,
@@ -146,6 +178,8 @@ class OperatorAgentRuntimeBridge:
             blocked_reason = (
                 exc.code
                 if isinstance(exc, AgentEventBridgePersistenceError)
+                else AGENT_EVENT_SPINE_PERSISTENCE_FAILED
+                if isinstance(exc, (EventBusProjectionError, EventBusAppendRejected))
                 else "agentruntime_bridge_failure"
             )
             safe_summary = (
@@ -211,6 +245,9 @@ class OperatorAgentRuntimeBridge:
                 "agent_run_id": agent_run_id,
                 "execution_request_id": execution_request_id,
                 "agent_event_projection_count": agent_event_bridge.projected_count,
+                "agent_event_projection_degraded": False,
+                "agent_event_projection_degradation_count": 0,
+                "agent_event_projection_degradation_codes": [],
             },
         )
         if self._telemetry_sink is not None and hasattr(self._telemetry_sink, "record_agentruntime_result"):
@@ -227,19 +264,23 @@ class OperatorAgentRuntimeBridge:
         )
 
 
-def _run_runtime_with_optional_event_sink(
+def _run_runtime_with_event_projection(
     runtime: Any,
     envelope: MissionAuthorityEnvelope,
     user_input: dict[str, Any],
     *,
     agent_event_bridge: OperatorAgentEventBridge,
+    projection_mode: AgentEventProjectionMode,
+    runtime_accepts_sink: bool,
     execution_run_id: str,
     execution_request_id: str | None,
     bridge_call_id: str,
     agent_run_id: str,
 ) -> Any:
-    if not _runtime_accepts_execution_event_sink(runtime):
+    if projection_mode is AgentEventProjectionMode.LEGACY_EXPLICITLY_DISABLED:
         return runtime.run(envelope, user_input)
+    if not runtime_accepts_sink:
+        raise EventBusProjectionError(AGENT_EVENT_SINK_REQUIRED)
     return runtime.run(
         envelope,
         user_input,
@@ -256,10 +297,7 @@ def _runtime_accepts_execution_event_sink(runtime: Any) -> bool:
         signature = inspect.signature(runtime.run)
     except (TypeError, ValueError):
         return False
-    return "execution_event_sink" in signature.parameters or any(
-        parameter.kind is inspect.Parameter.VAR_KEYWORD
-        for parameter in signature.parameters.values()
-    )
+    return "execution_event_sink" in signature.parameters
 
 
 def _finalgate_refs(runtime_result: Any) -> list[str]:

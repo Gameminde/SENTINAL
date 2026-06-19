@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from enum import StrEnum
 from typing import Any, Protocol
 
@@ -84,11 +85,7 @@ class AgentExecutionEvent(SentinelModel):
 
     @property
     def critical(self) -> bool:
-        return self.terminal or self.event_kind in {
-            AgentExecutionEventKind.RUNTIME_STARTED,
-            AgentExecutionEventKind.PHASE_TRANSITION,
-            AgentExecutionEventKind.RECEIPT_REFS_UPDATED,
-        }
+        return True
 
     @classmethod
     def from_agent_event(
@@ -99,11 +96,15 @@ class AgentExecutionEvent(SentinelModel):
         execution_request_id: str | None,
         bridge_call_id: str,
         agent_run_id: str,
-    ) -> "AgentExecutionEvent":
+    ) -> "AgentExecutionEvent | None":
         event_kind = _kind_from_source_event(agent_event)
+        if event_kind is None:
+            return None
         trace_refs = [str(ref) for ref in getattr(agent_event, "trace_refs", ()) or ()]
-        receipt_refs = [ref for ref in trace_refs if ref.startswith("receipt:")]
-        evidence_refs = [ref for ref in trace_refs if not ref.startswith("receipt:")]
+        receipt_refs = _safe_refs(ref for ref in trace_refs if ref.startswith("receipt:"))
+        evidence_refs = _safe_refs(ref for ref in trace_refs if not ref.startswith("receipt:"))
+        phase_before = _validated_phase(getattr(agent_event, "phase_before", None))
+        phase_after = _validated_phase(getattr(agent_event, "phase_after", None))
         return cls(
             event_kind=event_kind,
             mission_id=str(getattr(agent_event, "mission_id")),
@@ -111,9 +112,9 @@ class AgentExecutionEvent(SentinelModel):
             execution_request_id=execution_request_id,
             bridge_call_id=bridge_call_id,
             agent_run_id=agent_run_id,
-            phase_before=_enum_value(getattr(agent_event, "phase_before", None)),
-            phase_after=_enum_value(getattr(agent_event, "phase_after", None)),
-            safe_summary=_safe_summary(getattr(agent_event, "summary", "")),
+            phase_before=phase_before,
+            phase_after=phase_after,
+            safe_summary=_deterministic_summary(event_kind, phase_before=phase_before, phase_after=phase_after),
             evidence_refs=evidence_refs,
             receipt_refs=receipt_refs,
             source_event_id=str(getattr(agent_event, "id")),
@@ -143,11 +144,13 @@ class AgentExecutionEvent(SentinelModel):
         }
 
 
-def _kind_from_source_event(agent_event: Any) -> AgentExecutionEventKind:
+def _kind_from_source_event(agent_event: Any) -> AgentExecutionEventKind | None:
     event_type = _enum_value(getattr(agent_event, "event_type", ""))
-    phase_before = _enum_value(getattr(agent_event, "phase_before", None))
-    phase_after = _enum_value(getattr(agent_event, "phase_after", None))
+    phase_before = _validated_phase(getattr(agent_event, "phase_before", None))
+    phase_after = _validated_phase(getattr(agent_event, "phase_after", None))
     trace_refs = [str(ref) for ref in getattr(agent_event, "trace_refs", ()) or ()]
+    receipt_refs = _safe_refs(ref for ref in trace_refs if ref.startswith("receipt:"))
+    evidence_refs = _safe_refs(ref for ref in trace_refs if not ref.startswith("receipt:"))
 
     if event_type == "agent_initialized":
         return AgentExecutionEventKind.RUNTIME_STARTED
@@ -161,13 +164,13 @@ def _kind_from_source_event(agent_event: Any) -> AgentExecutionEventKind:
         return AgentExecutionEventKind.RUNTIME_REVOKED
     if event_type == "agent_escalated":
         return AgentExecutionEventKind.RUNTIME_ESCALATED
-    if event_type.endswith("_receipt_recorded") or any(ref.startswith("receipt:") for ref in trace_refs):
-        return AgentExecutionEventKind.RECEIPT_REFS_UPDATED
     if phase_before is not None and phase_after is not None and phase_before != phase_after:
         return AgentExecutionEventKind.PHASE_TRANSITION
-    if trace_refs:
+    if receipt_refs:
+        return AgentExecutionEventKind.RECEIPT_REFS_UPDATED
+    if evidence_refs:
         return AgentExecutionEventKind.EVIDENCE_REFS_UPDATED
-    return AgentExecutionEventKind.PHASE_TRANSITION
+    return None
 
 
 def _enum_value(value: Any) -> str | None:
@@ -177,11 +180,106 @@ def _enum_value(value: Any) -> str | None:
     return str(rendered)
 
 
-def _safe_summary(value: Any, *, limit: int = 280) -> str:
-    text = " ".join(str(value or "").replace("\r", " ").replace("\n", " ").split())
-    if len(text) <= limit:
-        return text
-    return text[: limit - 13].rstrip() + "...[truncated]"
+_KNOWN_PHASE_VALUES = {
+    "created",
+    "initialized",
+    "context_building",
+    "orienting",
+    "method_selecting",
+    "capability_selecting",
+    "tool_selecting",
+    "hypothesis_verifying",
+    "action_scoring",
+    "effort_routing",
+    "planning",
+    "plan_reviewing",
+    "executing",
+    "artifact_reviewing",
+    "repairing",
+    "success_evaluating",
+    "learning_proposing",
+    "organ_dispatching",
+    "completed",
+    "escalated",
+    "paused",
+    "stopped",
+    "revoked",
+    "blocked",
+    "failed",
+}
+
+
+def _validated_phase(value: Any) -> str | None:
+    rendered = _enum_value(value)
+    if rendered in _KNOWN_PHASE_VALUES:
+        return rendered
+    return None
+
+
+_SAFE_REF_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,79}$")
+_UNSAFE_REF_MARKERS = (
+    "://",
+    "\\",
+    "/",
+    "?",
+    "&",
+    "=",
+    "authorization",
+    "bearer",
+    "password",
+    "provider_response",
+    "raw_prompt",
+    "raw_response",
+    "reasoning",
+    "secret",
+    "token",
+)
+
+
+def _safe_refs(values: Any, *, limit: int = 8) -> list[str]:
+    refs: list[str] = []
+    for value in values:
+        text = str(value or "").strip()
+        lowered = text.lower()
+        if not text or len(text) > 80:
+            continue
+        if any(char.isspace() for char in text):
+            continue
+        if any(marker in lowered for marker in _UNSAFE_REF_MARKERS):
+            continue
+        if not _SAFE_REF_PATTERN.fullmatch(text):
+            continue
+        refs.append(text)
+        if len(refs) >= limit:
+            break
+    return refs
+
+
+def _deterministic_summary(
+    event_kind: AgentExecutionEventKind,
+    *,
+    phase_before: str | None,
+    phase_after: str | None,
+) -> str:
+    if event_kind is AgentExecutionEventKind.RUNTIME_STARTED:
+        return "Agent runtime started."
+    if event_kind is AgentExecutionEventKind.PHASE_TRANSITION:
+        return f"Agent runtime phase changed from {phase_before} to {phase_after}."
+    if event_kind is AgentExecutionEventKind.RECEIPT_REFS_UPDATED:
+        return "Agent runtime receipt references were updated."
+    if event_kind is AgentExecutionEventKind.EVIDENCE_REFS_UPDATED:
+        return "Agent runtime evidence references were updated."
+    if event_kind is AgentExecutionEventKind.RUNTIME_COMPLETED:
+        return "Agent runtime reached completed terminal state."
+    if event_kind is AgentExecutionEventKind.RUNTIME_FAILED:
+        return "Agent runtime reached failed terminal state."
+    if event_kind is AgentExecutionEventKind.RUNTIME_BLOCKED:
+        return "Agent runtime reached blocked terminal state."
+    if event_kind is AgentExecutionEventKind.RUNTIME_REVOKED:
+        return "Agent runtime reached revoked terminal state."
+    if event_kind is AgentExecutionEventKind.RUNTIME_ESCALATED:
+        return "Agent runtime reached escalated terminal state."
+    return "Agent runtime event observed."
 
 
 def _hash_event_projection(event: AgentExecutionEvent) -> str:
