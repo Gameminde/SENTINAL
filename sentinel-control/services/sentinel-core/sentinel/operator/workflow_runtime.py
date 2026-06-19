@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 from datetime import UTC, datetime
+from typing import Callable
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
@@ -50,11 +51,13 @@ class DurableMissionWorkflowRuntime:
         kernel: MissionKernel,
         *,
         policy: ReplanExecutionPolicy | None = None,
+        power_bridge_factory: Callable[[MissionKernel], OperatorPowerRuntimeBridge] | None = None,
     ) -> None:
         self.kernel = kernel
         self.policy = policy or ReplanExecutionPolicy()
         self.guard = ReplanExecutionGuard(self.policy)
         self.store = DurableWorkflowStore(kernel.store)
+        self._power_bridge_factory = power_bridge_factory or (lambda kernel_arg: OperatorPowerRuntimeBridge(kernel_arg))
 
     def create_power_workflow(
         self,
@@ -226,7 +229,7 @@ class DurableMissionWorkflowRuntime:
                 )
                 return self._guard_failure(record, decision, current_envelope, states)
             try:
-                runtime_result = OperatorPowerRuntimeBridge(self.kernel).run(
+                runtime_result = self._power_bridge_factory(self.kernel).run(
                     record.mission_id,
                     projected,
                     envelope=current_envelope,

@@ -111,13 +111,17 @@ class MissionKernel:
         session_id: str,
         draft: MissionDraft,
         authority_summary: MissionAuthoritySummary | None = None,
+        mission_id: str | None = None,
     ) -> MissionRecord:
-        record = MissionRecord(
-            session_id=session_id,
-            draft=draft,
-            authority_summary=authority_summary,
-            run_dir=str(self.store.run_root),
-        )
+        record_payload = {
+            "session_id": session_id,
+            "draft": draft,
+            "authority_summary": authority_summary,
+            "run_dir": str(self.store.run_root),
+        }
+        if mission_id is not None:
+            record_payload["mission_id"] = mission_id
+        record = MissionRecord(**record_payload)
         return self.store.create_record(record)
 
     def list_missions(self) -> list[MissionRecord]:

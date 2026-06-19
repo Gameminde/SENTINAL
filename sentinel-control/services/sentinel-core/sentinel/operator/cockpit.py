@@ -7,7 +7,9 @@ from pydantic import ValidationError
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.conversation import OperatorConversationEngine
+from sentinel.operator.authority_issuer import MissionAuthorityPolicy
 from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
+from sentinel.operator.mission_lifecycle_service import MissionLifecycleService
 from sentinel.operator.models import (
     OperatorConversationSession,
     OperatorConversationState,
@@ -33,9 +35,15 @@ class LLMLiveOperatorCockpit:
         persistent_memory_recall_adapter: PersistentMemoryRecallAdapter | None = None,
         persistent_memory_owner_user_id: str | None = None,
         telemetry_sink: object | None = None,
+        lifecycle_service: MissionLifecycleService | None = None,
     ) -> None:
         self.session = OperatorConversationSession(mode=mode)
-        self.kernel = MissionKernel(run_root=run_root, telemetry_sink=telemetry_sink)
+        self._lifecycle_service = lifecycle_service
+        self.kernel = (
+            lifecycle_service.kernel
+            if lifecycle_service is not None
+            else MissionKernel(run_root=run_root, telemetry_sink=telemetry_sink)
+        )
         self._telemetry_sink = self.kernel.telemetry_sink
         self.engine = OperatorConversationEngine(
             mode=mode,
@@ -108,12 +116,46 @@ class LLMLiveOperatorCockpit:
                 reply="J'ai besoin d'une mission et d'un resume d'autorite avant de commencer.",
                 intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="start"),
             )
-        record = self.kernel.create_mission(
-            session_id=self.session.session_id,
-            draft=self.session.current_draft,
-            authority_summary=self.session.current_authority_summary,
-        )
-        record = self.kernel.enqueue(record.mission_id)
+        if self._lifecycle_service is not None:
+            lifecycle_result = self._lifecycle_service.create_mission(
+                session_id=self.session.session_id,
+                draft=self.session.current_draft,
+                authority_summary=self.session.current_authority_summary,
+                policy=_default_authority_policy(self.session.current_authority_summary),
+                capability_id=str(
+                    self.session.current_authority_summary.metadata.get(
+                        "capability_id",
+                        "read_only_research",
+                    )
+                ),
+                operation=str(
+                    self.session.current_authority_summary.metadata.get(
+                        "operation",
+                        "inspect_repository",
+                    )
+                ),
+                parameters={"mission_draft_id": self.session.current_draft.draft_id},
+                workspace_ref=str(
+                    self.session.current_authority_summary.metadata.get(
+                        "workspace_ref",
+                        "snapshot:operator_session",
+                    )
+                ),
+                model_contract_ref=str(
+                    self.session.current_authority_summary.metadata.get(
+                        "model_contract_ref",
+                        "model_contract:operator_session",
+                    )
+                ),
+            )
+            record = lifecycle_result.record
+        else:
+            record = self.kernel.create_mission(
+                session_id=self.session.session_id,
+                draft=self.session.current_draft,
+                authority_summary=self.session.current_authority_summary,
+            )
+            record = self.kernel.enqueue(record.mission_id)
         self.active_mission_id = record.mission_id
         if record.mission_id not in self.active_mission_ids:
             self.active_mission_ids.append(record.mission_id)
@@ -209,3 +251,20 @@ def _state_for_record_status(
     if status is OperatorMissionStatus.RUNNING:
         return OperatorConversationState.MISSION_RUNNING
     return fallback
+
+
+def _default_authority_policy(summary) -> MissionAuthorityPolicy:
+    max_duration = summary.metadata.get("max_duration_minutes", 30)
+    max_actions = summary.metadata.get("max_actions", 10)
+    max_cost = summary.metadata.get("max_cost_usd", 0.0)
+    return MissionAuthorityPolicy(
+        user_id=str(summary.metadata.get("user_id", "operator_user")),
+        allowed_systems=["local_workspace"],
+        allowed_tools=["read_only_observation"],
+        allowed_actions=list(dict.fromkeys(summary.allowed_actions)),
+        forbidden_actions=list(dict.fromkeys(summary.forbidden_actions)),
+        allowed_paths=["."],
+        max_duration_minutes=max_duration if isinstance(max_duration, int) else 30,
+        max_actions=max_actions if isinstance(max_actions, int) else 10,
+        max_cost_usd=float(max_cost) if isinstance(max_cost, int | float) else 0.0,
+    )
