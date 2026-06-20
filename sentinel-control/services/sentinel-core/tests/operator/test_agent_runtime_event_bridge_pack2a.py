@@ -6,8 +6,9 @@ from typing import Any
 
 import pytest
 
-from sentinel.agent import AgentEventType, AgentPhase
+from sentinel.agent import AgentEventType, AgentPhase, AgentRuntime
 from sentinel.agent.event_bus import EventBus
+from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionConfig, OrganRuntimeExecutionMode
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.agent_bridge import AgentEventProjectionMode, OperatorAgentRuntimeBridge
 from sentinel.operator.agent_event_bridge import AgentEventBridgePersistenceError
@@ -37,7 +38,6 @@ def test_agent_runtime_events_project_to_mission_store_in_source_order(tmp_path:
     assert kinds == [
         AgentExecutionEventKind.RUNTIME_STARTED.value,
         AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED.value,
-        AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED.value,
         AgentExecutionEventKind.RUNTIME_COMPLETED.value,
     ]
     assert projected[0].sequence < projected[-1].sequence
@@ -48,9 +48,8 @@ def test_agent_runtime_events_project_to_mission_store_in_source_order(tmp_path:
     assert projected[0].metadata["agent_run_id"].startswith("agent_run_")
     assert projected[1].metadata["phase_before"] == AgentPhase.INITIALIZED.value
     assert projected[1].metadata["phase_after"] == AgentPhase.EXECUTING.value
-    assert projected[2].receipt_refs == ["receipt:agent"]
-    assert projected[3].metadata["source_event_id"] == runtime.events[-1].id
-    assert projected[3].metadata["source_event_hash"] == runtime.events[-1].event_hash
+    assert projected[2].metadata["source_event_id"] == runtime.events[-1].id
+    assert projected[2].metadata["source_event_hash"] == runtime.events[-1].event_hash
     serialized = "\n".join(event.model_dump_json() for event in projected)
     assert "raw_prompt" not in serialized
     assert "raw provider" not in serialized.lower()
@@ -309,7 +308,7 @@ def test_projection_refs_are_bounded_and_sanitized() -> None:
     )
 
     bus.append(
-        AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED,
+        AgentEventType.CONTROLLED_CAPABILITY_EXECUTED,
         "receipt refs",
         phase_before=AgentPhase.EXECUTING,
         phase_after=AgentPhase.EXECUTING,
@@ -334,7 +333,7 @@ def test_projection_refs_are_bounded_and_sanitized() -> None:
 
     assert len(sink.events) == 1
     projected = sink.events[0]
-    assert projected.event_kind is AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED
+    assert projected.event_kind is AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED
     assert projected.receipt_refs == ["receipt:ok", "receipt:another"]
     assert projected.evidence_refs == [
         "evidence:ok",
@@ -415,7 +414,6 @@ def test_pack2b_material_activity_projects_real_emitters_with_source_order(tmp_p
         "worker_started",
         "controlled_capability_executed",
         "artifact_captured",
-        "organ_receipt_recorded",
         "runtime_completed",
     ]
     material = projected[1:-1]
@@ -423,11 +421,18 @@ def test_pack2b_material_activity_projects_real_emitters_with_source_order(tmp_p
     assert [event.metadata["source_sequence"] for event in projected] == sorted(
         event.metadata["source_sequence"] for event in projected
     )
-    assert [event.metadata["source_sequence"] for event in projected] == [event.sequence for event in runtime.events]
+    projected_source_events = [
+        event
+        for event in runtime.events
+        if event.event_type is not AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED
+    ]
+    assert [event.metadata["source_sequence"] for event in projected] == [
+        event.sequence for event in projected_source_events
+    ]
     assert all(event.metadata["source_ledger"] == "agent_runtime_event_bus" for event in projected)
     assert projected[2].metadata["capability_refs"] == ["capability:local_file"]
     assert projected[3].metadata["artifact_refs"] == ["artifact:captured"]
-    assert projected[4].receipt_refs == ["receipt:organ"]
+    assert all("receipt:organ" not in event.receipt_refs for event in projected)
     assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.RUNNING
     serialized = "\n".join(event.model_dump_json() for event in projected)
     assert "https://example.test" not in serialized
@@ -480,6 +485,216 @@ def test_pack2b_unsupported_browser_and_memory_source_events_remain_source_only(
     )
 
     assert len(bus.events()) == 2
+    assert sink.events == []
+
+
+def test_pack2b1_canonical_agentruntime_projects_real_worker_and_controlled_activity(
+    tmp_path: Path,
+) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={
+            "idea": "Sentinel SPINE",
+            "tool_calls": [
+                {
+                    "tool_id": "safe_local_markdown_tool",
+                    "action": "create_markdown_file",
+                    "capability": "local_markdown_write",
+                    "arguments": {
+                        "path": "runtime/decision.md",
+                        "content": "# Decision\n\nThis content must stay out of product projections.",
+                    },
+                }
+            ],
+        },
+        execution_request_id="mission_exec_req_pack2b1_canonical",
+        update_mission_status=False,
+    )
+
+    assert result.status == "completed"
+    projected = _projected_events(kernel, mission_id)
+    metadata = [event.metadata for event in projected]
+    kinds = [item["event_kind"] for item in metadata]
+    assert AgentExecutionEventKind.WORKER_STARTED.value in kinds
+    assert AgentExecutionEventKind.WORKER_COMPLETED.value in kinds
+    assert AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED.value in kinds
+    assert AgentExecutionEventKind.ARTIFACT_CAPTURED.value in kinds
+    worker_closed = next(item for item in metadata if item["event_kind"] == "worker_completed")
+    assert worker_closed["activity_outcome"] == "succeeded"
+    assert worker_closed["safe_summary"] == "Agent worker lifecycle closed successfully."
+    artifact = next(item for item in metadata if item["event_kind"] == "artifact_captured")
+    assert artifact["ref_verification_status"] == "unverified_source_refs"
+    assert artifact["artifact_refs"] or artifact["source_event_type"] == "artifact_captured"
+    serialized = "\n".join(event.model_dump_json() for event in projected)
+    assert "This content must stay out" not in serialized
+    assert "raw_prompt" not in serialized
+    assert "provider_response" not in serialized
+    assert "reasoning" not in serialized.lower()
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.RUNNING
+
+
+def test_pack2b1_canonical_agentruntime_projects_failed_worker_without_success(
+    tmp_path: Path,
+) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+    definition = runtime.worker_coordinator.runner.registry.get(MissionType.GTM)
+
+    def fail_execute(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("raw executor exception must not escape")
+
+    definition.executor.execute = fail_execute
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b1_worker_failed",
+        update_mission_status=False,
+    )
+
+    assert result.status == "blocked"
+    projected = _projected_events(kernel, mission_id)
+    worker_closed = [
+        event.metadata
+        for event in projected
+        if event.metadata["event_kind"] == AgentExecutionEventKind.WORKER_COMPLETED.value
+    ]
+    assert worker_closed
+    assert worker_closed[-1]["activity_outcome"] == "failed"
+    assert worker_closed[-1]["safe_summary"] == "Agent worker lifecycle closed with failure."
+    assert "raw executor exception" not in "\n".join(event.model_dump_json() for event in projected)
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.RUNNING
+
+
+def test_pack2b1_canonical_agentruntime_projects_real_organ_dispatch_skipped(
+    tmp_path: Path,
+) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(
+        project_root=tmp_path / "runtime",
+        organ_execution_config=_organ_skipped_config(),
+    )
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b1_organ_skip",
+        update_mission_status=False,
+    )
+
+    assert result.status == "completed"
+    metadata = [event.metadata for event in _projected_events(kernel, mission_id)]
+    dispatch = [item for item in metadata if item["event_kind"] == AgentExecutionEventKind.ORGAN_DISPATCH_SKIPPED.value]
+    assert dispatch
+    assert dispatch[-1]["activity_outcome"] == "skipped"
+    assert dispatch[-1]["ref_verification_status"] == "unverified_source_refs"
+
+
+def test_pack2b1_mission_trace_timeline_projects_safe_material_milestones(
+    tmp_path: Path,
+) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+
+    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b1_timeline",
+        update_mission_status=False,
+    )
+
+    projected = _projected_events(kernel, mission_id)
+    metadata = [event.metadata for event in projected]
+    timeline = [item for item in metadata if item["source_ledger"] == "mission_trace_timeline"]
+    assert timeline
+    kinds = {item["event_kind"] for item in timeline}
+    assert "action_routed" in kinds
+    assert "action_executed" in kinds
+    assert "mission_runner_completed" in kinds
+    assert all(item["source_event_id"].startswith("mev_") for item in timeline)
+    assert all(item["ref_verification_status"] == "unverified_source_refs" for item in timeline)
+    assert any(item["action_refs"] for item in timeline)
+    serialized = "\n".join(event.model_dump_json() for event in projected)
+    assert "data/generated_projects" not in serialized
+    assert "folder_path" not in serialized
+    assert "Trace exists" not in serialized
+
+
+def test_pack2b1_mission_trace_blocked_action_projects_without_raw_error(
+    tmp_path: Path,
+) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+    definition = runtime.worker_coordinator.runner.registry.get(MissionType.GTM)
+
+    def fail_execute(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise RuntimeError("sensitive target C:\\secret\\boom.txt")
+
+    definition.executor.execute = fail_execute
+
+    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b1_timeline_block",
+        update_mission_status=False,
+    )
+
+    projected = _projected_events(kernel, mission_id)
+    blocked = [
+        event.metadata
+        for event in projected
+        if event.metadata["source_ledger"] == "mission_trace_timeline"
+        and event.metadata["event_kind"] == "action_blocked"
+    ]
+    assert blocked
+    assert blocked[-1]["activity_outcome"] == "blocked"
+    serialized = "\n".join(event.model_dump_json() for event in projected)
+    assert "sensitive target" not in serialized
+    assert "C:\\secret" not in serialized
+    assert "raw executor exception" not in serialized
+
+
+def test_pack2b1_ghost_projection_families_are_not_claimed_without_canonical_reach() -> None:
+    sink = CapturingSink()
+    bus = EventBus(
+        "mission_pack2b1_unclaimed",
+        execution_event_sink=sink,
+        execution_run_id="run_pack2b1_unclaimed",
+        bridge_call_id="bridge_pack2b1_unclaimed",
+        agent_run_id="agent_pack2b1_unclaimed",
+    )
+
+    bus.append(
+        AgentEventType.ORGAN_EXECUTION_RECEIPT_RECORDED,
+        "Organ receipt source event remains source-only until canonical reach is proven.",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.EXECUTING,
+        trace_refs=["receipt:organ"],
+    )
+    bus.append(
+        AgentEventType.ARTIFACT_CAPTURE_DUPLICATE,
+        "Duplicate artifact source event remains source-only in Pack 2B.1.",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.EXECUTING,
+        trace_refs=["artifact:dupe"],
+    )
+    bus.append(
+        AgentEventType.ARTIFACT_CAPTURE_INDEX_WRITTEN,
+        "Index-written source event remains source-only in Pack 2B.1.",
+        phase_before=AgentPhase.EXECUTING,
+        phase_after=AgentPhase.EXECUTING,
+        trace_refs=["artifact:index"],
+    )
+
+    assert len(bus.events()) == 3
     assert sink.events == []
 
 
@@ -803,4 +1018,47 @@ def _envelope(mission_id: str) -> MissionAuthorityEnvelope:
         max_duration_minutes=10,
         max_actions=5,
         max_cost_usd=0.01,
+    )
+
+
+def _runtime_envelope(mission_id: str) -> MissionAuthorityEnvelope:
+    return MissionAuthorityEnvelope(
+        id=mission_id,
+        user_id="operator_user",
+        mission_type=MissionType.GTM,
+        mission_title="Operator agent runtime canonical path",
+        mission_objective="Run through real AgentRuntime material execution path.",
+        success_criteria=["GTM files exist", "Trace exists"],
+        mode=MissionMode.POWER,
+        allowed_systems=["local_workspace"],
+        allowed_tools=["safe_file_writer", "safe_local_markdown_tool"],
+        allowed_actions=[
+            "create_project_folder",
+            "create_markdown_file",
+            "export_json",
+            "generate_gtm_pack",
+            "generate_landing_copy",
+            "generate_outreach_drafts_without_sending",
+            "create_watchlist",
+            "generate_research_questions",
+            "write_trace",
+        ],
+        forbidden_actions=["send_email", "run_shell_command", "browser_submit_form", "credential_access"],
+        allowed_paths=["data/generated_projects"],
+        max_duration_minutes=30,
+        max_actions=20,
+        max_cost_usd=1.0,
+    )
+
+
+def _organ_skipped_config() -> OrganRuntimeExecutionConfig:
+    return OrganRuntimeExecutionConfig(
+        enabled=True,
+        organ_dispatch_enabled=True,
+        temporary_candidate_bridge_enabled=True,
+        mode=OrganRuntimeExecutionMode.L2_L3_LOCAL_ONLY,
+        allowed_action_levels=["L2", "L3"],
+        allowed_organs=["local_artifact", "reversible_workspace"],
+        allow_l2=True,
+        allow_l3=True,
     )

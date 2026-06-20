@@ -582,6 +582,34 @@ class EventBus:
                     raise EventBusProjectionError("AgentRuntime event projection failed.") from exc
         return event
 
+    def project_mission_trace_event(self, mission_trace_event: Any) -> None:
+        """Relay a safe MissionTraceTimeline milestone to the execution sink.
+
+        The mission timeline is a separate source ledger from this EventBus.
+        This method projects safe typed observations only; it does not append
+        to the AgentRuntime source ledger and it does not mutate MissionKernel
+        or MissionRunStore directly.
+        """
+
+        self._assert_append_integrity()
+        self._assert_open_for_append()
+        if self._execution_event_sink is None:
+            return
+        projection = AgentExecutionEvent.from_mission_trace_event(
+            mission_trace_event,
+            run_id=self._execution_run_id,
+            execution_request_id=self._execution_request_id,
+            bridge_call_id=self._bridge_call_id,
+            agent_run_id=self._agent_run_id,
+        )
+        if projection is None:
+            return
+        try:
+            self._execution_event_sink.emit(projection)
+        except Exception as exc:  # noqa: BLE001
+            self._projection_failed_code = AGENT_EVENT_SOURCE_LEDGER_PROJECTION_FAILED
+            raise EventBusProjectionError("AgentRuntime mission timeline projection failed.") from exc
+
     def _assert_open_for_append(self) -> None:
         if self._projection_failed_code is not None:
             raise EventBusProjectionError("AgentRuntime event projection latch is active.")

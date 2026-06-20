@@ -63,6 +63,8 @@ class WorkerCoordinator:
             for event in result.trace_events
             if event.event_type == MissionTraceEventType.ACTION_EXECUTED and event.action_id
         ]
+        for trace_event in result.trace_events:
+            event_bus.project_mission_trace_event(trace_event)
         event_bus.append(
             AgentEventType.WORKER_COMPLETED,
             "Mission worker completed.",

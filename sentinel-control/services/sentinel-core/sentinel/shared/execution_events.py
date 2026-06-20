@@ -23,15 +23,33 @@ class AgentExecutionEventKind(StrEnum):
     WORKER_COMPLETED = "worker_completed"
     ORGAN_DISPATCH_COMPLETED = "organ_dispatch_completed"
     ORGAN_DISPATCH_SKIPPED = "organ_dispatch_skipped"
-    ORGAN_RECEIPT_RECORDED = "organ_receipt_recorded"
     CONTROLLED_CAPABILITY_EXECUTED = "controlled_capability_executed"
     CONTROLLED_CAPABILITY_REJECTED = "controlled_capability_rejected"
     ARTIFACT_CAPTURED = "artifact_captured"
-    ARTIFACT_CAPTURE_DUPLICATE = "artifact_capture_duplicate"
     ARTIFACT_CAPTURE_REJECTED = "artifact_capture_rejected"
-    ARTIFACT_CAPTURE_INDEX_WRITTEN = "artifact_capture_index_written"
+    ACTION_ROUTED = "action_routed"
+    ACTION_EXECUTED = "action_executed"
+    ACTION_BLOCKED = "action_blocked"
+    ACTION_ESCALATED = "action_escalated"
+    MISSION_RUNNER_COMPLETED = "mission_runner_completed"
+    MISSION_RUNNER_FAILED = "mission_runner_failed"
     EVIDENCE_REFS_UPDATED = "evidence_refs_updated"
     RECEIPT_REFS_UPDATED = "receipt_refs_updated"
+
+
+class ExecutionActivityOutcome(StrEnum):
+    STARTED = "started"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+    SKIPPED = "skipped"
+    REJECTED = "rejected"
+    ESCALATED = "escalated"
+    CLOSED_UNKNOWN = "closed_unknown"
+
+
+class RefVerificationStatus(StrEnum):
+    UNVERIFIED_SOURCE_REFS = "unverified_source_refs"
 
 
 class ExecutionEventSink(Protocol):
@@ -75,6 +93,7 @@ class AgentExecutionEvent(SentinelModel):
     capability_refs: list[str] = Field(default_factory=list)
     worker_refs: list[str] = Field(default_factory=list)
     organ_refs: list[str] = Field(default_factory=list)
+    action_refs: list[str] = Field(default_factory=list)
     source_ledger: str = "agent_runtime_event_bus"
     source_event_id: str
     source_event_hash: str
@@ -83,6 +102,8 @@ class AgentExecutionEvent(SentinelModel):
     source_logical_time: int = Field(ge=0)
     source_parent_event_id: str | None = None
     activity_kind: str
+    activity_outcome: ExecutionActivityOutcome = ExecutionActivityOutcome.CLOSED_UNKNOWN
+    ref_verification_status: RefVerificationStatus = RefVerificationStatus.UNVERIFIED_SOURCE_REFS
     event_hash: str = ""
     data_not_authority: bool = True
     authority_effect: str = "none"
@@ -135,14 +156,16 @@ class AgentExecutionEvent(SentinelModel):
         capability_refs = _safe_prefixed_refs(trace_refs, "capability:")
         worker_refs = _safe_prefixed_refs(trace_refs, "worker:")
         organ_refs = _safe_prefixed_refs(trace_refs, "organ:")
+        action_refs = _safe_prefixed_refs(trace_refs, "action:")
         evidence_refs = _safe_refs(
             ref
             for ref in trace_refs
-            if not ref.startswith(("receipt:", "artifact:", "capability:", "worker:", "organ:"))
+            if not ref.startswith(("receipt:", "artifact:", "capability:", "worker:", "organ:", "action:"))
         )
         phase_before = _validated_phase(getattr(agent_event, "phase_before", None))
         phase_after = _validated_phase(getattr(agent_event, "phase_after", None))
         source_event_type = str(_enum_value(getattr(agent_event, "event_type", "")) or "")
+        activity_outcome = _activity_outcome_from_agent_event(event_kind, agent_event)
         return cls(
             event_kind=event_kind,
             mission_id=str(getattr(agent_event, "mission_id")),
@@ -152,13 +175,13 @@ class AgentExecutionEvent(SentinelModel):
             agent_run_id=agent_run_id,
             phase_before=phase_before,
             phase_after=phase_after,
-            safe_summary=_deterministic_summary(event_kind, phase_before=phase_before, phase_after=phase_after),
             evidence_refs=evidence_refs,
             receipt_refs=receipt_refs,
             artifact_refs=artifact_refs,
             capability_refs=capability_refs,
             worker_refs=worker_refs,
             organ_refs=organ_refs,
+            action_refs=action_refs,
             source_event_id=str(getattr(agent_event, "id")),
             source_event_hash=str(getattr(agent_event, "event_hash")),
             source_event_type=_safe_source_event_label(source_event_type),
@@ -166,12 +189,73 @@ class AgentExecutionEvent(SentinelModel):
             source_logical_time=int(getattr(agent_event, "logical_time")),
             source_parent_event_id=getattr(agent_event, "parent_event_id", None),
             activity_kind=event_kind.value,
+            activity_outcome=activity_outcome,
+            safe_summary=_deterministic_summary(
+                event_kind,
+                phase_before=phase_before,
+                phase_after=phase_after,
+                activity_outcome=activity_outcome,
+            ),
+        )
+
+    @classmethod
+    def from_mission_trace_event(
+        cls,
+        mission_trace_event: Any,
+        *,
+        run_id: str,
+        execution_request_id: str | None,
+        bridge_call_id: str,
+        agent_run_id: str,
+    ) -> "AgentExecutionEvent | None":
+        event_kind = _kind_from_mission_trace_event(mission_trace_event)
+        if event_kind is None:
+            return None
+        source_event_type = str(_enum_value(getattr(mission_trace_event, "event_type", "")) or "")
+        activity_outcome = _activity_outcome_from_mission_trace_event(event_kind)
+        action_refs = _safe_refs(
+            [f"action:{getattr(mission_trace_event, 'action_id', '')}"]
+            if getattr(mission_trace_event, "action_id", None)
+            else []
+        )
+        return cls(
+            event_kind=event_kind,
+            mission_id=str(getattr(mission_trace_event, "mission_id")),
+            run_id=run_id,
+            execution_request_id=execution_request_id,
+            bridge_call_id=bridge_call_id,
+            agent_run_id=agent_run_id,
+            phase_before=None,
+            phase_after=None,
+            safe_summary=_deterministic_summary(
+                event_kind,
+                phase_before=None,
+                phase_after=None,
+                activity_outcome=activity_outcome,
+            ),
+            evidence_refs=[],
+            receipt_refs=[],
+            artifact_refs=[],
+            capability_refs=[],
+            worker_refs=[],
+            organ_refs=[],
+            action_refs=action_refs,
+            source_ledger="mission_trace_timeline",
+            source_event_id=str(getattr(mission_trace_event, "id")),
+            source_event_hash=str(getattr(mission_trace_event, "event_hash")),
+            source_event_type=_safe_source_event_label(source_event_type),
+            source_sequence=int(getattr(mission_trace_event, "sequence")),
+            source_logical_time=int(getattr(mission_trace_event, "logical_time")),
+            source_parent_event_id=None,
+            activity_kind=event_kind.value,
+            activity_outcome=activity_outcome,
         )
 
     def operator_metadata(self) -> dict[str, Any]:
         return {
             "event_id": self.event_id,
             "event_kind": self.event_kind.value,
+            "safe_summary": self.safe_summary,
             "mission_id": self.mission_id,
             "run_id": self.run_id,
             "execution_request_id": self.execution_request_id,
@@ -185,6 +269,7 @@ class AgentExecutionEvent(SentinelModel):
             "capability_refs": list(self.capability_refs),
             "worker_refs": list(self.worker_refs),
             "organ_refs": list(self.organ_refs),
+            "action_refs": list(self.action_refs),
             "source_ledger": self.source_ledger,
             "source_event_id": self.source_event_id,
             "source_event_hash": self.source_event_hash,
@@ -193,6 +278,8 @@ class AgentExecutionEvent(SentinelModel):
             "source_logical_time": self.source_logical_time,
             "source_parent_event_id": self.source_parent_event_id,
             "activity_kind": self.activity_kind,
+            "activity_outcome": self.activity_outcome.value,
+            "ref_verification_status": self.ref_verification_status.value,
             "event_hash": self.event_hash,
             "terminal": self.terminal,
             "critical": self.critical,
@@ -245,15 +332,24 @@ def _material_kind_from_source_type(event_type: str | None) -> AgentExecutionEve
         "worker_completed": AgentExecutionEventKind.WORKER_COMPLETED,
         "organ_dispatch_completed": AgentExecutionEventKind.ORGAN_DISPATCH_COMPLETED,
         "organ_dispatch_skipped": AgentExecutionEventKind.ORGAN_DISPATCH_SKIPPED,
-        "organ_execution_receipt_recorded": AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED,
         "controlled_capability_executed": AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED,
         "controlled_capability_rejected": AgentExecutionEventKind.CONTROLLED_CAPABILITY_REJECTED,
         "artifact_captured": AgentExecutionEventKind.ARTIFACT_CAPTURED,
-        "artifact_capture_duplicate": AgentExecutionEventKind.ARTIFACT_CAPTURE_DUPLICATE,
         "artifact_capture_rejected": AgentExecutionEventKind.ARTIFACT_CAPTURE_REJECTED,
-        "artifact_capture_index_written": AgentExecutionEventKind.ARTIFACT_CAPTURE_INDEX_WRITTEN,
     }
     return mapping.get(event_type or "")
+
+
+def _kind_from_mission_trace_event(mission_trace_event: Any) -> AgentExecutionEventKind | None:
+    mapping = {
+        "action_routed": AgentExecutionEventKind.ACTION_ROUTED,
+        "action_executed": AgentExecutionEventKind.ACTION_EXECUTED,
+        "action_blocked": AgentExecutionEventKind.ACTION_BLOCKED,
+        "action_escalated": AgentExecutionEventKind.ACTION_ESCALATED,
+        "mission_completed": AgentExecutionEventKind.MISSION_RUNNER_COMPLETED,
+        "mission_failed": AgentExecutionEventKind.MISSION_RUNNER_FAILED,
+    }
+    return mapping.get(str(_enum_value(getattr(mission_trace_event, "event_type", "")) or ""))
 
 
 def _source_event_is_pack2b_source_only(event_type: str | None) -> bool:
@@ -261,7 +357,69 @@ def _source_event_is_pack2b_source_only(event_type: str | None) -> bool:
         return False
     if event_type.startswith("browser_"):
         return True
-    return event_type in {"learning_proposed"}
+    return event_type in {
+        "artifact_capture_duplicate",
+        "artifact_capture_index_written",
+        "learning_proposed",
+        "organ_execution_receipt_recorded",
+    }
+
+
+def _activity_outcome_from_agent_event(event_kind: AgentExecutionEventKind, agent_event: Any) -> ExecutionActivityOutcome:
+    if event_kind is AgentExecutionEventKind.WORKER_STARTED:
+        return ExecutionActivityOutcome.STARTED
+    if event_kind is AgentExecutionEventKind.WORKER_COMPLETED:
+        payload = getattr(agent_event, "payload", {}) or {}
+        success = payload.get("success") if hasattr(payload, "get") else None
+        if success is True:
+            return ExecutionActivityOutcome.SUCCEEDED
+        if success is False:
+            return ExecutionActivityOutcome.FAILED
+        return ExecutionActivityOutcome.CLOSED_UNKNOWN
+    if event_kind in {
+        AgentExecutionEventKind.RUNTIME_STARTED,
+        AgentExecutionEventKind.PHASE_TRANSITION,
+    }:
+        return ExecutionActivityOutcome.STARTED
+    if event_kind in {
+        AgentExecutionEventKind.RUNTIME_COMPLETED,
+        AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED,
+        AgentExecutionEventKind.ARTIFACT_CAPTURED,
+        AgentExecutionEventKind.ORGAN_DISPATCH_COMPLETED,
+    }:
+        return ExecutionActivityOutcome.SUCCEEDED
+    if event_kind in {
+        AgentExecutionEventKind.RUNTIME_FAILED,
+        AgentExecutionEventKind.MISSION_RUNNER_FAILED,
+    }:
+        return ExecutionActivityOutcome.FAILED
+    if event_kind is AgentExecutionEventKind.RUNTIME_BLOCKED:
+        return ExecutionActivityOutcome.BLOCKED
+    if event_kind is AgentExecutionEventKind.RUNTIME_ESCALATED:
+        return ExecutionActivityOutcome.ESCALATED
+    if event_kind in {
+        AgentExecutionEventKind.CONTROLLED_CAPABILITY_REJECTED,
+        AgentExecutionEventKind.ARTIFACT_CAPTURE_REJECTED,
+    }:
+        return ExecutionActivityOutcome.REJECTED
+    if event_kind is AgentExecutionEventKind.ORGAN_DISPATCH_SKIPPED:
+        return ExecutionActivityOutcome.SKIPPED
+    return ExecutionActivityOutcome.CLOSED_UNKNOWN
+
+
+def _activity_outcome_from_mission_trace_event(event_kind: AgentExecutionEventKind) -> ExecutionActivityOutcome:
+    if event_kind in {
+        AgentExecutionEventKind.ACTION_EXECUTED,
+        AgentExecutionEventKind.MISSION_RUNNER_COMPLETED,
+    }:
+        return ExecutionActivityOutcome.SUCCEEDED
+    if event_kind is AgentExecutionEventKind.ACTION_BLOCKED:
+        return ExecutionActivityOutcome.BLOCKED
+    if event_kind is AgentExecutionEventKind.ACTION_ESCALATED:
+        return ExecutionActivityOutcome.ESCALATED
+    if event_kind is AgentExecutionEventKind.MISSION_RUNNER_FAILED:
+        return ExecutionActivityOutcome.FAILED
+    return ExecutionActivityOutcome.CLOSED_UNKNOWN
 
 
 def _enum_value(value: Any) -> str | None:
@@ -352,7 +510,7 @@ def _safe_prefixed_refs(values: Any, prefix: str, *, limit: int = 8) -> list[str
 
 def _safe_source_event_label(event_type: str) -> str:
     if event_type == "organ_execution_receipt_recorded":
-        return AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED.value
+        return "organ_receipt_recorded"
     return event_type
 
 
@@ -361,6 +519,7 @@ def _deterministic_summary(
     *,
     phase_before: str | None,
     phase_after: str | None,
+    activity_outcome: ExecutionActivityOutcome = ExecutionActivityOutcome.CLOSED_UNKNOWN,
 ) -> str:
     if event_kind is AgentExecutionEventKind.RUNTIME_STARTED:
         return "Agent runtime started."
@@ -373,35 +532,45 @@ def _deterministic_summary(
     if event_kind is AgentExecutionEventKind.WORKER_STARTED:
         return "Agent runtime worker started."
     if event_kind is AgentExecutionEventKind.WORKER_COMPLETED:
-        return "Agent runtime worker completed."
+        if activity_outcome is ExecutionActivityOutcome.SUCCEEDED:
+            return "Agent worker lifecycle closed successfully."
+        if activity_outcome is ExecutionActivityOutcome.FAILED:
+            return "Agent worker lifecycle closed with failure."
+        return "Agent worker lifecycle closed with unknown outcome."
     if event_kind is AgentExecutionEventKind.ORGAN_DISPATCH_COMPLETED:
         return "Agent runtime organ dispatch completed."
     if event_kind is AgentExecutionEventKind.ORGAN_DISPATCH_SKIPPED:
         return "Agent runtime organ dispatch skipped."
-    if event_kind is AgentExecutionEventKind.ORGAN_RECEIPT_RECORDED:
-        return "Agent runtime organ execution receipt was recorded."
     if event_kind is AgentExecutionEventKind.CONTROLLED_CAPABILITY_EXECUTED:
         return "Agent runtime controlled capability executed."
     if event_kind is AgentExecutionEventKind.CONTROLLED_CAPABILITY_REJECTED:
         return "Agent runtime controlled capability rejected."
     if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURED:
         return "Agent runtime artifact captured."
-    if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURE_DUPLICATE:
-        return "Agent runtime duplicate artifact capture observed."
     if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURE_REJECTED:
         return "Agent runtime artifact capture rejected."
-    if event_kind is AgentExecutionEventKind.ARTIFACT_CAPTURE_INDEX_WRITTEN:
-        return "Agent runtime artifact capture index written."
+    if event_kind is AgentExecutionEventKind.ACTION_ROUTED:
+        return "Mission runner action routed."
+    if event_kind is AgentExecutionEventKind.ACTION_EXECUTED:
+        return "Mission runner action executed."
+    if event_kind is AgentExecutionEventKind.ACTION_BLOCKED:
+        return "Mission runner action blocked."
+    if event_kind is AgentExecutionEventKind.ACTION_ESCALATED:
+        return "Mission runner action escalated."
+    if event_kind is AgentExecutionEventKind.MISSION_RUNNER_COMPLETED:
+        return "Mission runner completed."
+    if event_kind is AgentExecutionEventKind.MISSION_RUNNER_FAILED:
+        return "Mission runner failed."
     if event_kind is AgentExecutionEventKind.RUNTIME_COMPLETED:
-        return "Agent runtime reached completed terminal state."
+        return "Agent runtime reached completed final state."
     if event_kind is AgentExecutionEventKind.RUNTIME_FAILED:
-        return "Agent runtime reached failed terminal state."
+        return "Agent runtime reached failed final state."
     if event_kind is AgentExecutionEventKind.RUNTIME_BLOCKED:
-        return "Agent runtime reached blocked terminal state."
+        return "Agent runtime reached blocked final state."
     if event_kind is AgentExecutionEventKind.RUNTIME_REVOKED:
-        return "Agent runtime reached revoked terminal state."
+        return "Agent runtime reached revoked final state."
     if event_kind is AgentExecutionEventKind.RUNTIME_ESCALATED:
-        return "Agent runtime reached escalated terminal state."
+        return "Agent runtime reached escalated final state."
     return "Agent runtime event observed."
 
 
@@ -415,5 +584,7 @@ def _hash_event_projection(event: AgentExecutionEvent) -> str:
 __all__ = [
     "AgentExecutionEvent",
     "AgentExecutionEventKind",
+    "ExecutionActivityOutcome",
     "ExecutionEventSink",
+    "RefVerificationStatus",
 ]
