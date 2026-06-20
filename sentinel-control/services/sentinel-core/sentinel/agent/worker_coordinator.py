@@ -7,9 +7,17 @@ from sentinel.agent.evidence_ranker import sanitize_context_text
 from sentinel.agent.events import AgentEventType
 from sentinel.agent.models import AgentContext, WorkerResult, WorkerTask
 from sentinel.agent.phases import AgentPhase
-from sentinel.mission.models import MissionPlan
+from sentinel.mission.models import MissionPlan, MissionTraceEvent
 from sentinel.mission.runner import MissionRunner
 from sentinel.shared.enums import MissionTraceEventType
+
+
+class _EventBusMissionTraceEventSink:
+    def __init__(self, event_bus: EventBus) -> None:
+        self._event_bus = event_bus
+
+    def emit_mission_trace_event(self, event: MissionTraceEvent) -> None:
+        self._event_bus.project_mission_trace_event(event)
 
 
 class WorkerCoordinator:
@@ -40,6 +48,7 @@ class WorkerCoordinator:
                 idea=context.user_input.get("idea"),
                 evidence_refs=context.evidence_refs,
                 plan=plan,
+                mission_trace_event_sink=_EventBusMissionTraceEventSink(event_bus),
             )
         except Exception as exc:
             event_bus.append(
@@ -63,8 +72,6 @@ class WorkerCoordinator:
             for event in result.trace_events
             if event.event_type == MissionTraceEventType.ACTION_EXECUTED and event.action_id
         ]
-        for trace_event in result.trace_events:
-            event_bus.project_mission_trace_event(trace_event)
         event_bus.append(
             AgentEventType.WORKER_COMPLETED,
             "Mission worker completed.",

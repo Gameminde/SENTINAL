@@ -9,6 +9,7 @@ from pydantic import Field
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.mission.trace_timeline import MissionTraceProjectionError
 from sentinel.operator.agent_event_bridge import (
     AGENT_EVENT_SPINE_PERSISTENCE_FAILED,
     AgentEventBridgePersistenceError,
@@ -179,7 +180,7 @@ class OperatorAgentRuntimeBridge:
                 exc.code
                 if isinstance(exc, AgentEventBridgePersistenceError)
                 else AGENT_EVENT_SPINE_PERSISTENCE_FAILED
-                if isinstance(exc, (EventBusProjectionError, EventBusAppendRejected))
+                if isinstance(exc, (EventBusProjectionError, EventBusAppendRejected, MissionTraceProjectionError))
                 else "agentruntime_bridge_failure"
             )
             safe_summary = (

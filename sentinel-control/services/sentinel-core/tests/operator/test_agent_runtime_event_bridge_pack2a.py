@@ -9,13 +9,32 @@ import pytest
 from sentinel.agent import AgentEventType, AgentPhase, AgentRuntime
 from sentinel.agent.event_bus import EventBus
 from sentinel.agent.organs.runtime_execution import OrganRuntimeExecutionConfig, OrganRuntimeExecutionMode
+from sentinel.mission import (
+    MissionAction,
+    MissionArtifactSchema,
+    MissionDefinition,
+    MissionPlan,
+    MissionPlanStep,
+    MissionRegistry,
+    MissionRunner,
+    MissionTraceTimeline,
+    ReviewResult,
+)
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.agent_bridge import AgentEventProjectionMode, OperatorAgentRuntimeBridge
 from sentinel.operator.agent_event_bridge import AgentEventBridgePersistenceError
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionDraft, OperatorMissionStatus
 from sentinel.operator.replay import MissionReplayBuilder
-from sentinel.shared.enums import MissionMode, MissionType
+from sentinel.shared.enums import (
+    ConfidenceLevel,
+    ExternalityLevel,
+    MissionMode,
+    MissionTraceEventType,
+    MissionType,
+    ReversibilityLevel,
+    SensitivityLevel,
+)
 from sentinel.shared.execution_events import AgentExecutionEvent, AgentExecutionEventKind
 
 
@@ -681,14 +700,14 @@ def test_pack2b1_ghost_projection_families_are_not_claimed_without_canonical_rea
     )
     bus.append(
         AgentEventType.ARTIFACT_CAPTURE_DUPLICATE,
-        "Duplicate artifact source event remains source-only in Pack 2B.1.",
+        "Duplicate artifact source event remains source-only in Pack 2B.2.",
         phase_before=AgentPhase.EXECUTING,
         phase_after=AgentPhase.EXECUTING,
         trace_refs=["artifact:dupe"],
     )
     bus.append(
         AgentEventType.ARTIFACT_CAPTURE_INDEX_WRITTEN,
-        "Index-written source event remains source-only in Pack 2B.1.",
+        "Index-written source event remains source-only in Pack 2B.2.",
         phase_before=AgentPhase.EXECUTING,
         phase_after=AgentPhase.EXECUTING,
         trace_refs=["artifact:index"],
@@ -696,6 +715,211 @@ def test_pack2b1_ghost_projection_families_are_not_claimed_without_canonical_rea
 
     assert len(bus.events()) == 3
     assert sink.events == []
+
+
+def test_pack2b2_action_routed_is_projected_before_executor_starts(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+    definition = runtime.worker_coordinator.runner.registry.get(MissionType.GTM)
+    original_execute = definition.executor.execute
+    route_seen_before_execute: list[bool] = []
+
+    def execute_with_projection_check(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        action = args[0]
+        route_seen_before_execute.append(
+            _has_projected_action(kernel, mission_id, "action_routed", action.id)
+        )
+        return original_execute(*args, **kwargs)
+
+    definition.executor.execute = execute_with_projection_check
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b2_route_live",
+        update_mission_status=False,
+    )
+
+    assert result.status in {"completed", "blocked"}
+    assert route_seen_before_execute
+    assert all(route_seen_before_execute)
+
+
+def test_pack2b2_action_executed_for_step_one_is_visible_before_step_two_starts(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+    definition = runtime.worker_coordinator.runner.registry.get(MissionType.GTM)
+    original_execute = definition.executor.execute
+    executed_action_ids: list[str] = []
+    second_step_saw_first_projection: list[bool] = []
+
+    def execute_with_projection_check(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        action = args[0]
+        if executed_action_ids:
+            second_step_saw_first_projection.append(
+                _has_projected_action(kernel, mission_id, "action_executed", executed_action_ids[-1])
+            )
+        result = original_execute(*args, **kwargs)
+        executed_action_ids.append(action.id)
+        return result
+
+    definition.executor.execute = execute_with_projection_check
+
+    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b2_execute_live",
+        update_mission_status=False,
+    )
+
+    assert second_step_saw_first_projection
+    assert all(second_step_saw_first_projection)
+
+
+def test_pack2b2_action_blocked_is_visible_before_next_independent_step(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+    definition = runtime.worker_coordinator.runner.registry.get(MissionType.GTM)
+    original_execute = definition.executor.execute
+    plan = _two_step_plan(mission_id)
+    runtime.planner_bridge.create_plan = lambda *args, **kwargs: plan
+    call_count = 0
+    second_step_saw_blocked_projection: list[bool] = []
+
+    def execute_with_first_failure(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        nonlocal call_count
+        action = args[0]
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("first step failed inside fake executor")
+        second_step_saw_blocked_projection.append(
+            _has_projected_action(kernel, mission_id, "action_blocked", plan.steps[0].action.id)
+        )
+        return original_execute(*args, **kwargs)
+
+    definition.executor.execute = execute_with_first_failure
+
+    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b2_block_live",
+        update_mission_status=False,
+    )
+
+    assert call_count == 2
+    assert second_step_saw_blocked_projection == [True]
+
+
+def test_pack2b2_terminal_timeline_precedes_worker_completed_and_has_no_duplicate_projection(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+
+    OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b2_completion_live",
+        update_mission_status=False,
+    )
+
+    projected = _projected_events(kernel, mission_id)
+    metadata = [event.metadata for event in projected]
+    worker_completed_index = next(index for index, item in enumerate(metadata) if item["event_kind"] == "worker_completed")
+    terminal_indices = [
+        index
+        for index, item in enumerate(metadata)
+        if item["event_kind"] in {"mission_runner_completed", "mission_runner_failed"}
+    ]
+    assert terminal_indices
+    assert max(terminal_indices) < worker_completed_index
+    source_ids = [item["source_event_id"] for item in metadata]
+    assert len(source_ids) == len(set(source_ids))
+
+
+def test_pack2b2_projection_failure_on_action_routed_prevents_executor_invocation(tmp_path: Path) -> None:
+    env = _runtime_envelope("mission_pack2b2_route_failure")
+    executor = _CountingExecutor()
+    registry = _registry_for_plan(_two_step_plan(env.id), executor)
+    runner = MissionRunner(project_root=tmp_path, registry=registry)
+    sink = _FailingMissionTraceSink(MissionTraceEventType.ACTION_ROUTED)
+
+    with pytest.raises(Exception):
+        runner.run_mission(env, plan=_two_step_plan(env.id), mission_trace_event_sink=sink)
+
+    assert sink.seen_types[-1] == MissionTraceEventType.ACTION_ROUTED
+    assert executor.calls == []
+
+
+def test_pack2b2_product_mission_blocks_after_live_projection_failure(tmp_path: Path) -> None:
+    kernel, mission_id = _kernel_with_mission(tmp_path)
+    runtime = AgentRuntime(project_root=tmp_path / "runtime")
+    original_append_event = kernel.store.append_event
+
+    def fail_first_routed_projection(*args: Any, **kwargs: Any) -> Any:
+        metadata = kwargs.get("metadata") or {}
+        if (
+            kwargs.get("event_type") == "agentruntime_execution_event_observed"
+            and metadata.get("event_kind") == "action_routed"
+        ):
+            raise ValueError("operator projection store unavailable")
+        return original_append_event(*args, **kwargs)
+
+    kernel.store.append_event = fail_first_routed_projection
+
+    result = OperatorAgentRuntimeBridge(kernel, runtime=runtime).run(
+        mission_id,
+        envelope=_runtime_envelope(mission_id),
+        user_input={"idea": "Sentinel SPINE"},
+        execution_request_id="mission_exec_req_pack2b2_projection_failure",
+        update_mission_status=True,
+    )
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == "AGENT_EVENT_SPINE_PERSISTENCE_FAILED"
+    assert kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
+    projected_kinds = [event.metadata["event_kind"] for event in _projected_events(kernel, mission_id)]
+    assert "action_executed" not in projected_kinds
+    assert "mission_runner_completed" not in projected_kinds
+
+
+def test_pack2b2_projection_failure_on_action_executed_blocks_later_steps(tmp_path: Path) -> None:
+    env = _runtime_envelope("mission_pack2b2_executed_failure")
+    executor = _CountingExecutor()
+    plan = _two_step_plan(env.id)
+    registry = _registry_for_plan(plan, executor)
+    runner = MissionRunner(project_root=tmp_path, registry=registry)
+    sink = _FailingMissionTraceSink(MissionTraceEventType.ACTION_EXECUTED)
+
+    with pytest.raises(Exception):
+        runner.run_mission(env, plan=plan, mission_trace_event_sink=sink)
+
+    assert MissionTraceEventType.ACTION_EXECUTED in sink.seen_types
+    assert [action.id for action in executor.calls] == [plan.steps[0].action.id]
+
+
+def test_pack2b2_timeline_projection_failure_latches_before_later_mutation(tmp_path: Path) -> None:
+    sink = _FailingMissionTraceSink(MissionTraceEventType.ACTION_ROUTED)
+    timeline = MissionTraceTimeline("mission_pack2b2_latch", tmp_path, event_sink=sink)
+
+    with pytest.raises(Exception):
+        timeline.emit_route("action_one", "auto_execute", 1.0, ["inside scope"])
+
+    assert [event.event_type for event in timeline.events] == [MissionTraceEventType.ACTION_ROUTED]
+    first_hash = timeline.events[0].event_hash
+
+    with pytest.raises(Exception):
+        timeline.emit_executed(
+            "action_one",
+            "should not mutate after projection failure",
+            {"path": "data/generated_projects/demo/out.md"},
+            ReversibilityLevel.LOCAL_WRITE_REVERSIBLE,
+        )
+
+    assert len(timeline.events) == 1
+    assert timeline.events[0].event_hash == first_hash
 
 
 class CapturingSink:
@@ -709,6 +933,61 @@ class CapturingSink:
 class FailingSink:
     def emit(self, event: AgentExecutionEvent) -> None:
         raise RuntimeError("projection persistence unavailable")
+
+
+class _FailingMissionTraceSink:
+    def __init__(self, fail_on: MissionTraceEventType) -> None:
+        self.fail_on = fail_on
+        self.seen_types: list[MissionTraceEventType] = []
+
+    def emit_mission_trace_event(self, event: Any) -> None:
+        self.seen_types.append(event.event_type)
+        if event.event_type == self.fail_on:
+            raise RuntimeError("projection failure from test sink")
+
+
+class _CountingExecutor:
+    def __init__(self) -> None:
+        self.calls: list[MissionAction] = []
+
+    def execute(self, action: MissionAction, project_dir: str | Path, artifact_index: Any, timeline: Any = None) -> dict[str, Any]:
+        self.calls.append(action)
+        return {
+            "path": action.input.get("path", "data/generated_projects/demo/out.md"),
+            "type": "markdown",
+            "cost": 0.0,
+        }
+
+
+class _StaticPlanner:
+    def __init__(self, plan: MissionPlan) -> None:
+        self.plan = plan
+
+    def create_plan(self, *args: Any, **kwargs: Any) -> MissionPlan:
+        return self.plan
+
+
+class _ReadyReviewer:
+    def review(
+        self,
+        envelope: MissionAuthorityEnvelope,
+        project_dir: str | Path,
+        artifacts: list[Any],
+        *,
+        unresolved_critical_escalations: int = 0,
+    ) -> ReviewResult:
+        return ReviewResult(mission_id=envelope.id, ready=True)
+
+
+class _AlwaysSuccessfulEvaluator:
+    def evaluate(
+        self,
+        project_dir: str | Path,
+        review: ReviewResult,
+        *,
+        unresolved_critical_escalations: int = 0,
+    ) -> tuple[bool, list[str]]:
+        return True, []
 
 
 class NoSinkRuntime:
@@ -991,6 +1270,14 @@ def _projected_events(kernel: MissionKernel, mission_id: str):
     ]
 
 
+def _has_projected_action(kernel: MissionKernel, mission_id: str, event_kind: str, action_id: str) -> bool:
+    return any(
+        event.metadata.get("event_kind") == event_kind
+        and f"action:{action_id}" in event.metadata.get("action_refs", [])
+        for event in _projected_events(kernel, mission_id)
+    )
+
+
 def _kernel_with_mission(tmp_path: Path) -> tuple[MissionKernel, str]:
     kernel = MissionKernel(run_root=tmp_path)
     record = kernel.create_mission(
@@ -1049,6 +1336,64 @@ def _runtime_envelope(mission_id: str) -> MissionAuthorityEnvelope:
         max_actions=20,
         max_cost_usd=1.0,
     )
+
+
+def _two_step_plan(mission_id: str) -> MissionPlan:
+    return MissionPlan(
+        mission_id=mission_id,
+        steps=[
+            MissionPlanStep(
+                id="step_one",
+                action=_runtime_action(
+                    mission_id,
+                    "pack2b2_action_one",
+                    "data/generated_projects/demo/one.md",
+                ),
+                expected_artifact="one.md",
+            ),
+            MissionPlanStep(
+                id="step_two",
+                action=_runtime_action(
+                    mission_id,
+                    "pack2b2_action_two",
+                    "data/generated_projects/demo/two.md",
+                ),
+                expected_artifact="two.md",
+            ),
+        ],
+    )
+
+
+def _runtime_action(mission_id: str, action_id: str, path: str) -> MissionAction:
+    return MissionAction(
+        id=action_id,
+        mission_id=mission_id,
+        action_type="create_markdown_file",
+        tool="safe_file_writer",
+        intent="Create a bounded markdown artifact.",
+        target=path,
+        input={"path": path, "content": "# Pack 2B.2\n\nLive timeline proof."},
+        expected_output="markdown file",
+        reversibility=ReversibilityLevel.LOCAL_WRITE_REVERSIBLE,
+        externality=ExternalityLevel.INTERNAL_LOCAL,
+        sensitivity=SensitivityLevel.INTERNAL,
+        confidence=ConfidenceLevel.HIGH,
+    )
+
+
+def _registry_for_plan(plan: MissionPlan, executor: Any) -> MissionRegistry:
+    registry = MissionRegistry()
+    registry.register(
+        MissionDefinition(
+            mission_type=MissionType.GTM,
+            planner=_StaticPlanner(plan),
+            executor=executor,
+            reviewer=_ReadyReviewer(),
+            success_evaluator=_AlwaysSuccessfulEvaluator(),
+            artifact_schema=MissionArtifactSchema(mission_type=MissionType.GTM),
+        )
+    )
+    return registry
 
 
 def _organ_skipped_config() -> OrganRuntimeExecutionConfig:

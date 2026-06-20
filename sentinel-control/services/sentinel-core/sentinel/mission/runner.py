@@ -14,7 +14,7 @@ from sentinel.mission.models import MissionAuthorityEnvelope, MissionPlan, Missi
 from sentinel.mission.posture import MissionExecutionPosturePolicy
 from sentinel.mission.registry import MissionRegistry, default_mission_registry
 from sentinel.mission.safe_executors import SafeMissionExecutors, mission_slug
-from sentinel.mission.trace_timeline import MissionTraceTimeline
+from sentinel.mission.trace_timeline import MissionTraceEventSink, MissionTraceTimeline
 from sentinel.shared.enums import MissionActionRoute, MissionStatus, MissionTraceEventType
 
 
@@ -69,6 +69,7 @@ class MissionRunner:
         evidence_refs: list[str] | None = None,
         plan: MissionPlan | None = None,
         cancellation_token: CancellationToken | None = None,
+        mission_trace_event_sink: MissionTraceEventSink | None = None,
     ) -> MissionRunResult:
         return self.run_mission(
             envelope,
@@ -76,6 +77,7 @@ class MissionRunner:
             evidence_refs=evidence_refs,
             plan=plan,
             cancellation_token=cancellation_token,
+            mission_trace_event_sink=mission_trace_event_sink,
         )
 
     def run_mission(
@@ -86,6 +88,7 @@ class MissionRunner:
         evidence_refs: list[str] | None = None,
         plan: MissionPlan | None = None,
         cancellation_token: CancellationToken | None = None,
+        mission_trace_event_sink: MissionTraceEventSink | None = None,
     ) -> MissionRunResult:
         # Emit mission-start trace if profiler is injected
         _profiler_handle: str | None = None
@@ -111,6 +114,7 @@ class MissionRunner:
                 evidence_refs=evidence_refs,
                 plan=plan,
                 cancellation_token=cancellation_token,
+                mission_trace_event_sink=mission_trace_event_sink,
             )
             return result
         except BaseException:
@@ -135,10 +139,11 @@ class MissionRunner:
         evidence_refs: list[str] | None = None,
         plan: MissionPlan | None = None,
         cancellation_token: CancellationToken | None = None,
+        mission_trace_event_sink: MissionTraceEventSink | None = None,
     ) -> MissionRunResult:
         definition = self.registry.get(envelope.mission_type)
         project_dir = self.executors.project_dir_for(envelope.mission_title)
-        timeline = MissionTraceTimeline(envelope.id)
+        timeline = MissionTraceTimeline(envelope.id, event_sink=mission_trace_event_sink)
         timeline.emit(MissionTraceEventType.MISSION_CREATED, "Mission authority envelope accepted.")
         timeline.bind_project_dir(project_dir)
 

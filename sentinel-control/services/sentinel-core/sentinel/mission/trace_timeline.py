@@ -6,19 +6,42 @@ from collections.abc import Iterable
 from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from sentinel.mission.models import MissionTraceEvent
 from sentinel.shared.enums import MissionTraceEventType, ReversibilityLevel
 from sentinel.shared.models import new_id
 
 
+MISSION_TRACE_PROJECTION_FAILED = "MISSION_TRACE_PROJECTION_FAILED"
+
+
+class MissionTraceProjectionError(RuntimeError):
+    def __init__(self, code: str = MISSION_TRACE_PROJECTION_FAILED, safe_message: str = "Mission trace projection failed.") -> None:
+        super().__init__(safe_message)
+        self.code = code
+        self.safe_message = safe_message
+
+
+class MissionTraceEventSink(Protocol):
+    def emit_mission_trace_event(self, event: MissionTraceEvent) -> None:
+        ...
+
+
 class MissionTraceTimeline:
-    def __init__(self, mission_id: str, project_dir: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        mission_id: str,
+        project_dir: str | Path | None = None,
+        *,
+        event_sink: MissionTraceEventSink | None = None,
+    ) -> None:
         self.mission_id = mission_id
         self.project_dir = Path(project_dir).resolve() if project_dir else None
         self.events: list[MissionTraceEvent] = []
         self._last_hash: str | None = None
+        self._event_sink = event_sink
+        self._projection_failed_code: str | None = None
 
     @property
     def timeline_path(self) -> Path | None:
@@ -44,6 +67,11 @@ class MissionTraceTimeline:
         reversible: bool = True,
         cost: float = 0.0,
     ) -> MissionTraceEvent:
+        if self._projection_failed_code is not None:
+            raise MissionTraceProjectionError(
+                self._projection_failed_code,
+                "Mission trace timeline is closed after projection failure.",
+            )
         sequence = len(self.events)
         event_data = {
             "id": new_id("mev"),
@@ -69,6 +97,12 @@ class MissionTraceTimeline:
         self._last_hash = event_hash
         if self.project_dir is not None:
             self.persist()
+        if self._event_sink is not None:
+            try:
+                self._event_sink.emit_mission_trace_event(event)
+            except Exception as exc:  # noqa: BLE001
+                self._projection_failed_code = MISSION_TRACE_PROJECTION_FAILED
+                raise MissionTraceProjectionError() from exc
         return event
 
     def emit_action_planned(self, action_id: str, summary: str, target: str | None = None) -> MissionTraceEvent:

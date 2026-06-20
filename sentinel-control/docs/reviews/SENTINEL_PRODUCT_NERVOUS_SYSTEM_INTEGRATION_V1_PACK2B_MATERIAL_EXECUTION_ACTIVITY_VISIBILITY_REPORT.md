@@ -1,16 +1,17 @@
 # Sentinel Product Nervous System Integration V1
 
-## Pack 2B.1 Canonical Execution Visibility Fix Report
+## Pack 2B.2 Live Mission Timeline Streaming Fix Report
 
 Date: 2026-06-20
 
-Base Pack 2B commit: `176ee3c6a5e0d843317fe1558e9e80327a6d8c01`
+Base Pack 2B.2 commit: `90e0869851e5b92ef04ba32b93bc9a4c6cfd5f39`
 
 Scope:
 
 - Correct Pack 2B material execution visibility so product claims are backed by real canonical emitters, not projector-only mappings.
 - Preserve the existing Sentinel spine: `OperatorAgentRuntimeBridge -> AgentRuntime -> EventBus -> OperatorAgentEventBridge -> MissionRunStore`.
-- Add a generic shared observation boundary for `MissionTraceTimeline` milestones without importing operator modules into `MissionRunner`.
+- Stream `MissionTraceTimeline` material milestones synchronously while `MissionRunner` is still executing.
+- Add a neutral mission-layer `MissionTraceEventSink` boundary without importing operator modules into `MissionRunner` or `MissionTraceTimeline`.
 - Add honest worker outcome semantics and source-ref trust labels.
 - Remove unsupported product visibility claims for source events that remain unproven in the canonical path.
 
@@ -23,9 +24,9 @@ Explicit non-goals:
 
 ## Verdict
 
-`PACK_2B_1_CANONICAL_EXECUTION_VISIBILITY_FIX = LOCAL_COMMIT_CANDIDATE`
+`PACK_2B_2_LIVE_MISSION_TIMELINE_STREAMING_FIX = LOCAL_COMMIT_CANDIDATE`
 
-Pack 2B.1 makes product execution activity more truthful:
+Pack 2B.2 closes the Pack 2B timing gap:
 
 ```text
 AgentRuntime material source events
@@ -33,14 +34,26 @@ AgentRuntime material source events
 -> OperatorAgentEventBridge
 -> MissionRunStore
 
-MissionRunner trace timeline events
--> EventBus.project_mission_trace_event()
+MissionTraceTimeline.emit(...)
+-> source event appended and hash-linked
+-> source timeline persisted when configured
+-> injected MissionTraceEventSink.emit_mission_trace_event(...)
+-> EventBus.project_mission_trace_event(...)
 -> safe typed AgentExecutionEvent with source_ledger=mission_trace_timeline
 -> OperatorAgentEventBridge
 -> MissionRunStore
+-> MissionRunner continues only after projection returns
 ```
 
 Material observations remain data only. They do not complete missions, certify receipts, create authority, or bypass FinalGate.
+
+MissionRunner material timeline visibility is now:
+
+```text
+LIVE_SYNCHRONOUS_PROJECTION
+```
+
+This is not atomic across ledgers. A source timeline event may already exist when product projection fails. The containment guarantee is that later timeline emits are latched closed before mutation, no later plan step starts after a live projection failure, and the operator bridge blocks product success.
 
 ## Visibility Classification
 
@@ -49,26 +62,26 @@ Material observations remain data only. They do not complete missions, certify r
 | `worker_started` | `END_TO_END_PROVEN` | Real `AgentRuntime` calls real `WorkerCoordinator`; projected through `OperatorAgentRuntimeBridge` into `MissionRunStore`. |
 | `worker_completed` | `END_TO_END_PROVEN` | Success and failure closures are tested through real `WorkerCoordinator`; outcome is explicit and non-authoritative. |
 | `controlled_capability_executed` | `END_TO_END_PROVEN` | Real direct controlled local tool call emits through `LocalControlledCapabilityRunner` and projects into `MissionRunStore`. |
-| `controlled_capability_rejected` | `CANONICAL_REACH_PROVEN` | Existing canonical runtime tests exercise rejection; Pack 2B.1 keeps the safe projection contract. |
+| `controlled_capability_rejected` | `CANONICAL_REACH_PROVEN` | Existing canonical runtime tests exercise rejection; Pack 2B.2 keeps the safe projection contract. |
 | `artifact_captured` | `END_TO_END_PROVEN` | Real controlled local tool call captures an artifact through `ArtifactCaptureSandbox` and projects it. |
 | `artifact_capture_rejected` | `CANONICAL_REACH_PROVEN` | Existing artifact/capability paths retain rejection events; product projection stays safe and non-authoritative. |
 | `organ_dispatch_skipped` | `END_TO_END_PROVEN` | Real `AgentRuntime` with explicit organ-dispatch opt-in and no candidates projects a skip milestone. |
-| `organ_dispatch_completed` | `CANONICAL_REACH_PROVEN` | Real emitter exists in `AgentRuntime`; Pack 2B.1 keeps mapping, but focused proof used the skipped branch. |
-| `action_routed` | `END_TO_END_PROVEN` | Real `MissionRunner` timeline `ACTION_ROUTED` is relayed from worker result to product store. |
-| `action_executed` | `END_TO_END_PROVEN` | Real `MissionRunner` timeline `ACTION_EXECUTED` is relayed with safe action refs only. |
-| `action_blocked` | `END_TO_END_PROVEN` | Real executor failure produces sanitized `ACTION_BLOCKED`; raw error text is not projected. |
+| `organ_dispatch_completed` | `CANONICAL_REACH_PROVEN` | Real emitter exists in `AgentRuntime`; Pack 2B.2 keeps mapping, but focused proof used the skipped branch. |
+| `action_routed` | `LIVE_END_TO_END_PROVEN` | Real `MissionRunner` timeline `ACTION_ROUTED` is projected before the executor starts. |
+| `action_executed` | `LIVE_END_TO_END_PROVEN` | Real `MissionRunner` timeline `ACTION_EXECUTED` for step N is visible before step N+1 starts. |
+| `action_blocked` | `LIVE_END_TO_END_PROVEN` | Real executor failure produces sanitized `ACTION_BLOCKED`, projected before the next independent step. |
 | `action_escalated` | `CANONICAL_REACH_PROVEN` | Real `MissionTraceTimeline` event type exists and is mapped; focused route/block tests cover the shared boundary. |
-| `mission_runner_completed` | `END_TO_END_PROVEN` | Real successful `MissionRunner` emits `MISSION_COMPLETED`; product sees `mission_runner_completed`. |
-| `mission_runner_failed` | `END_TO_END_PROVEN` | Real failed `MissionRunner` emits `MISSION_FAILED`; product sees failed worker and blocked action path. |
+| `mission_runner_completed` | `LIVE_END_TO_END_PROVEN` | Real successful `MissionRunner` emits and projects `MISSION_COMPLETED` before `worker_completed`. |
+| `mission_runner_failed` | `LIVE_END_TO_END_PROVEN` | Failed `MissionRunner` terminal projection occurs before failed worker closure when the runner returns a failed result. |
 | `organ_receipt_recorded` | `NOT_CONNECTED` | Removed from Pack 2B product projection until canonical AgentRuntime organ receipt path is proven. |
-| `artifact_capture_duplicate` | `PROJECTOR_ONLY` | Source event remains in `EventBus`; Pack 2B.1 does not claim product visibility without canonical reach proof. |
-| `artifact_capture_index_written` | `PROJECTOR_ONLY` | Source event remains in `EventBus`; Pack 2B.1 does not claim product visibility without canonical reach proof. |
-| browser source events | `NOT_CONNECTED` | Browser product visibility remains out of scope for Pack 2B.1. |
-| memory source events | `NOT_CONNECTED` | Memory product visibility remains out of scope for Pack 2B.1. |
+| `artifact_capture_duplicate` | `PROJECTOR_ONLY` | Source event remains in `EventBus`; Pack 2B.2 does not claim product visibility without canonical reach proof. |
+| `artifact_capture_index_written` | `PROJECTOR_ONLY` | Source event remains in `EventBus`; Pack 2B.2 does not claim product visibility without canonical reach proof. |
+| browser source events | `NOT_CONNECTED` | Browser product visibility remains out of scope for Pack 2B.2. |
+| memory source events | `NOT_CONNECTED` | Memory product visibility remains out of scope for Pack 2B.2. |
 
 ## Before And After Execution Visibility Graph
 
-Before Pack 2B.1:
+Before Pack 2B.2:
 
 ```text
 AgentRuntime EventBus
@@ -76,11 +89,12 @@ AgentRuntime EventBus
 -> MissionRunStore
 
 MissionRunner MissionTraceTimeline
--> WorkerCoordinator trace_refs only
--> no product-level step visibility
+-> MissionRunner completes
+-> WorkerCoordinator iterates returned trace_events
+-> product sees timeline after the run
 ```
 
-After Pack 2B.1:
+After Pack 2B.2:
 
 ```text
 OperatorAgentRuntimeBridge
@@ -92,10 +106,13 @@ OperatorAgentRuntimeBridge
 
 MissionRunner
 -> MissionTraceTimeline
--> WorkerCoordinator relays safe trace events via EventBus.project_mission_trace_event()
+-> MissionTraceEventSink.emit_mission_trace_event()
+-> WorkerCoordinator EventBus live timeline adapter
+-> EventBus.project_mission_trace_event()
 -> AgentExecutionEvent.from_mission_trace_event()
 -> OperatorAgentEventBridge
 -> MissionRunStore
+-> MissionRunner continues to the next material action
 ```
 
 ## Worker Outcome Semantics
@@ -125,17 +142,24 @@ Only the allowlisted boolean `success` is read from the source payload. Raw work
 Shared boundary:
 
 ```text
-EventBus.project_mission_trace_event(mission_trace_event)
+MissionTraceEventSink.emit_mission_trace_event(mission_trace_event)
 ```
 
-This method:
+The canonical WorkerCoordinator route supplies a tiny adapter:
+
+```text
+_EventBusMissionTraceEventSink
+-> EventBus.project_mission_trace_event(...)
+```
+
+This path:
 
 - projects only safe typed timeline events;
 - uses `source_ledger = mission_trace_timeline`;
 - preserves source event id, source sequence, source logical time, source hash, mission id, and safe action refs;
 - never appends to the AgentRuntime source ledger;
-- never imports `MissionRunStore`, `MissionKernel`, or operator modules into `MissionRunner`;
-- latches projection failure through the existing critical EventBus projection path.
+- never imports `MissionRunStore`, `MissionKernel`, or operator modules into `MissionRunner` or `MissionTraceTimeline`;
+- latches projection failure through `MissionTraceProjectionError` and the existing `AGENT_EVENT_SPINE_PERSISTENCE_FAILED` bridge path.
 
 Projected timeline families:
 
@@ -173,16 +197,16 @@ Every projected material event carries:
 ref_verification_status = unverified_source_refs
 ```
 
-Pack 2B.1 validates only:
+Pack 2B.2 validates only:
 
 - source event correlation;
 - source event hash/sequence/logical-time anchors;
 - safe ref grammar and family splitting;
 - product observation ordering.
 
-Pack 2B.1 does not verify that referenced artifacts, receipts, or evidence objects exist. FinalGate, proof closeout, and replay remain responsible for proof verification.
+Pack 2B.2 does not verify that referenced artifacts, receipts, or evidence objects exist. FinalGate, proof closeout, and replay remain responsible for proof verification.
 
-No Pack 2B.1 ref can mark an action, worker, runtime, or mission successful.
+No Pack 2B.2 ref can mark an action, worker, runtime, or mission successful.
 
 ## Ordering And Failure Behavior
 
@@ -199,6 +223,26 @@ bridge blocks safely on material projection failure
 ```
 
 Sequence tracking remains scoped to each `OperatorAgentEventBridge` invocation and source ledger.
+
+Live ordering proven for the governed WorkerCoordinator route:
+
+```text
+worker_started
+-> live action_routed
+-> live action_executed / action_blocked / action_escalated
+-> live mission_runner_completed / mission_runner_failed
+-> worker_completed
+```
+
+Failure containment:
+
+| Failure point | Source event state | Later action behavior | Product result |
+| --- | --- | --- | --- |
+| `ACTION_ROUTED` projection fails | `ACTION_ROUTED` may exist in source timeline | executor is not invoked | bridge returns blocked with `AGENT_EVENT_SPINE_PERSISTENCE_FAILED` |
+| `ACTION_EXECUTED` projection fails | current action already executed and source event may exist | no later plan step starts | bridge returns blocked with `AGENT_EVENT_SPINE_PERSISTENCE_FAILED` |
+| later timeline emit after projection failure | rejected before source mutation | no new source event | stable mission trace projection failure |
+
+No rollback is claimed for an action whose `ACTION_EXECUTED` event describes work that already completed.
 
 ## Sanitized Examples
 
@@ -260,9 +304,20 @@ Focused coverage in:
 sentinel-control/services/sentinel-core/tests/operator/test_agent_runtime_event_bridge_pack2a.py
 ```
 
-Pack 2B.1 proof coverage:
+Pack 2B.2 proof coverage:
 
 - real `OperatorAgentRuntimeBridge -> AgentRuntime -> WorkerCoordinator -> EventBus -> MissionRunStore`;
+- neutral `MissionTraceEventSink` injection into `MissionTraceTimeline`;
+- `action_routed` visible before executor invocation;
+- `action_executed` visible before the next plan step;
+- `action_blocked` visible before the next independent plan step;
+- `mission_runner_completed` visible before `worker_completed`;
+- no post-run duplicate relay;
+- projection failure on `ACTION_ROUTED` prevents executor invocation;
+- projection failure on `ACTION_EXECUTED` prevents later steps;
+- source event remains in `MissionTraceTimeline` when projection fails;
+- projection-failure latch rejects later emits before mutation;
+- product mission cannot become completed after live projection failure;
 - successful worker closure projects `activity_outcome=succeeded`;
 - failed worker closure projects `activity_outcome=failed`, not success;
 - real controlled capability execution projects material activity;
@@ -277,16 +332,16 @@ Pack 2B.1 proof coverage:
 
 ## Validation Evidence
 
-Commands run during Pack 2B.1:
+Commands run during Pack 2B.2:
 
 ```text
-py -3.13 -m pytest -q tests/operator/test_agent_runtime_event_bridge_pack2a.py -k "pack2b1"
+py -3.13 -m pytest -q tests/operator/test_agent_runtime_event_bridge_pack2a.py -k "pack2b2"
 ```
 
 Result:
 
 ```text
-6 passed
+8 passed
 ```
 
 ```text
@@ -296,7 +351,7 @@ py -3.13 -m pytest -q tests/operator/test_agent_runtime_event_bridge_pack2a.py
 Result:
 
 ```text
-24 passed
+32 passed
 ```
 
 Additional focused validations are recorded in the final response for the local commit.
@@ -304,9 +359,10 @@ Additional focused validations are recorded in the final response for the local 
 ## Honest Limits
 
 - `organ_dispatch_completed` remains canonical-reach-proven, while focused end-to-end proof used the skipped branch.
-- `controlled_capability_rejected` and `artifact_capture_rejected` remain canonical-reach-proven from existing source paths, not re-proven as the central Pack 2B.1 happy path.
-- `organ_receipt_recorded` is not claimed as product-visible in Pack 2B.1.
-- Duplicate artifact capture and index-written source events are not claimed as product-visible in Pack 2B.1.
+- `controlled_capability_rejected` and `artifact_capture_rejected` remain canonical-reach-proven from existing source paths, not re-proven as the central Pack 2B.2 happy path.
+- `organ_receipt_recorded` is not claimed as product-visible in Pack 2B.2.
+- Duplicate artifact capture and index-written source events are not claimed as product-visible in Pack 2B.2.
+- Browser and memory product projection remain excluded.
 - Unified dispatcher execution and Pack 3 are not implemented.
 
 ## Next Pack Boundary
