@@ -41,8 +41,8 @@ class DeterministicOperatorTestMode:
                 mission_draft=draft,
                 authority_summary=MissionAuthoritySummary(
                     mission_id="mission_deterministic_test",
-                    allowed_actions=["research", "draft"],
-                    forbidden_actions=["payment", "send_email", "credential_access"],
+                    allowed_actions=["list_directory", "read_file_segment", "search_text", "finish_exploration"],
+                    forbidden_actions=["payment", "send_email", "credential_access", "shell", "write_file"],
                     summary="Test mode only; no execution authority.",
                 ),
                 metadata=metadata,

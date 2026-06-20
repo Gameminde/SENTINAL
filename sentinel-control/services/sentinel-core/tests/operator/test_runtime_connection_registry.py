@@ -23,7 +23,8 @@ def test_default_runtime_connection_registry_declares_core_product_routes() -> N
     assert read_only.authority_actions == (
         "list_directory",
         "read_file_segment",
-        "finish_report",
+        "search_text",
+        "finish_exploration",
     )
     assert read_only.telemetry_required is True
     assert read_only.receipt_contract == "ReadOnlyActionReceipt"

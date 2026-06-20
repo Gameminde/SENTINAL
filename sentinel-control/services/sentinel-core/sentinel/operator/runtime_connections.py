@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
+from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel
 
@@ -49,6 +50,8 @@ class RuntimeConnectionProfile(SentinelModel):
     owner_symbol: str | None = None
     bridge_module: str | None = None
     bridge_symbol: str | None = None
+    adapter_id: str | None = None
+    supported_operations: tuple[str, ...] = Field(default_factory=tuple)
     tool_registry_refs: tuple[str, ...] = Field(default_factory=tuple)
     organ_registry_refs: tuple[str, ...] = Field(default_factory=tuple)
     authority_requirement: str
@@ -81,6 +84,10 @@ class RuntimeConnectionProfile(SentinelModel):
             can_execute=self.can_execute,
         )
         return self
+
+    @property
+    def profile_hash(self) -> str:
+        return stable_hash(self.model_dump(mode="json"))
 
 
 class RuntimeConnectionRegistry(SentinelModel):
@@ -199,14 +206,16 @@ def build_default_runtime_connection_registry() -> RuntimeConnectionRegistry:
                         owner_symbol="ReadOnlyProductionSpineSession",
                         bridge_module="sentinel.operator.agent_bridge",
                         bridge_symbol="OperatorAgentRuntimeBridge",
+                        adapter_id="read_only_research_adapter",
+                        supported_operations=("inspect_repository",),
                         tool_registry_refs=("read_only_observation",),
                         authority_requirement="MissionAuthorityEnvelope with read-only actions and snapshot scope",
-                        authority_actions=("list_directory", "read_file_segment", "finish_report"),
+                        authority_actions=("list_directory", "read_file_segment", "search_text", "finish_exploration"),
                         receipt_contract="ReadOnlyActionReceipt",
                         finalgate_contract="ReadOnlyFinalGateCertificate",
                         replay_adapter="ReadOnlyReplayView",
                         production_reachable=True,
-                        limitations=("separate long-form report lane remains future work",),
+                        limitations=("only read_only_research is wired to the Pack 3 dispatcher",),
                         test_refs=("tests/test_real_model_read_only_operator_production_spine_v1.py",),
                     ),
                     RuntimeConnectionProfile(
@@ -322,6 +331,8 @@ def _validate_connection(connection: RuntimeConnectionProfile) -> list[Connectio
         findings.append(_finding(connection, "P1", "authority_requirement_missing", "Authority requirement is absent."))
     if not connection.authority_actions:
         findings.append(_finding(connection, "P1", "authority_actions_missing", "Authority actions are absent."))
+    if connection.production_reachable and connection.connection_id == "read_only_research" and not connection.supported_operations:
+        findings.append(_finding(connection, "P1", "supported_operations_missing", "Supported operations are absent."))
     if not connection.receipt_contract.strip():
         findings.append(_finding(connection, "P1", "receipt_contract_missing", "Receipt contract is absent."))
     if not connection.finalgate_contract.strip():

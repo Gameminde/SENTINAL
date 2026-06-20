@@ -14,18 +14,13 @@ from sentinel.operator.runtime_connections import (
 def test_coordinator_selects_read_only_research_product_route() -> None:
     coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
 
-    decision = coordinator.decide(
-        MissionExecutionRequest(
-            mission_id="mission_connection_1",
-            capability_id="read_only_research",
-            requested_action="read_file_segment",
-        )
-    )
+    decision = coordinator.decide(_request("mission_connection_1"))
 
     assert decision.status is MissionExecutionDecisionStatus.ROUTED
     assert decision.connection_id == "read_only_research"
     assert decision.authoritative_route is RuntimeConnectionRoute.AGENT_RUNTIME
     assert decision.bridge_id == "agent_runtime_bridge"
+    assert decision.adapter_id == "read_only_research_adapter"
     assert decision.data_not_authority is True
     assert decision.can_execute is False
 
@@ -33,49 +28,31 @@ def test_coordinator_selects_read_only_research_product_route() -> None:
 def test_coordinator_rejects_experimental_only_route() -> None:
     coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
 
-    decision = coordinator.decide(
-        MissionExecutionRequest(
-            mission_id="mission_connection_2",
-            capability_id="interactive_exploration",
-            requested_action="search_text",
-        )
-    )
+    decision = coordinator.decide(_request("mission_connection_2", capability_id="interactive_exploration"))
 
     assert decision.status is MissionExecutionDecisionStatus.REJECTED
     assert decision.rejection_reason == "experimental_route_not_product_reachable"
     assert decision.authoritative_route is RuntimeConnectionRoute.EXPERIMENTAL_ONLY
 
 
-def test_coordinator_rejects_search_text_until_read_only_adapter_is_product_scoped() -> None:
+def test_coordinator_rejects_operation_not_declared_by_connection() -> None:
     coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
 
-    decision = coordinator.decide(
-        MissionExecutionRequest(
-            mission_id="mission_connection_3",
-            capability_id="read_only_research",
-            requested_action="search_text",
-        )
-    )
+    decision = coordinator.decide(_request("mission_connection_3", operation="search_text"))
 
     assert decision.status is MissionExecutionDecisionStatus.REJECTED
     assert decision.connection_id == "read_only_research"
     assert decision.authoritative_route is RuntimeConnectionRoute.AGENT_RUNTIME
-    assert decision.rejection_reason == "action_not_declared_for_connection"
+    assert decision.rejection_reason == "operation_not_supported"
 
 
-def test_coordinator_rejects_action_not_declared_by_connection() -> None:
+def test_coordinator_rejects_mutating_operation_not_declared_by_connection() -> None:
     coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
 
-    decision = coordinator.decide(
-        MissionExecutionRequest(
-            mission_id="mission_connection_3b",
-            capability_id="read_only_research",
-            requested_action="write_file",
-        )
-    )
+    decision = coordinator.decide(_request("mission_connection_3b", operation="write_file"))
 
     assert decision.status is MissionExecutionDecisionStatus.REJECTED
-    assert decision.rejection_reason == "action_not_declared_for_connection"
+    assert decision.rejection_reason == "operation_not_supported"
 
 
 def test_coordinator_rejects_when_health_gate_fails() -> None:
@@ -83,13 +60,24 @@ def test_coordinator_rejects_when_health_gate_fails() -> None:
     broken = registry.get("read_only_research").model_copy(update={"finalgate_contract": ""})
     coordinator = MissionExecutionCoordinator(registry.with_connection(broken))
 
-    decision = coordinator.decide(
-        MissionExecutionRequest(
-            mission_id="mission_connection_4",
-            capability_id="read_only_research",
-            requested_action="read_file_segment",
-        )
-    )
+    decision = coordinator.decide(_request("mission_connection_4"))
 
     assert decision.status is MissionExecutionDecisionStatus.REJECTED
     assert decision.rejection_reason == "runtime_connection_health_failed"
+
+
+def _request(
+    mission_id: str,
+    *,
+    capability_id: str = "read_only_research",
+    operation: str = "inspect_repository",
+) -> MissionExecutionRequest:
+    return MissionExecutionRequest(
+        mission_id=mission_id,
+        capability_id=capability_id,
+        operation=operation,
+        parameter_hash="param_hash",
+        workspace_ref="workspace:C:/sentinel/fixture",
+        model_contract_ref="model_contract:fake",
+        authority_envelope_ref="mission_authority_envelope_ref",
+    ).with_hash()

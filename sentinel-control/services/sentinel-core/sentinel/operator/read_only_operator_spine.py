@@ -32,15 +32,23 @@ SENSITIVE_SNAPSHOT_NAMES = frozenset(
         ".sentinel-runs",
         "credentials.json",
         "read_only_spine",
+        "secret",
+        "secrets",
         "secrets.json",
     }
 )
 READ_ONLY_SAFE_EXCERPT_MAX_CHARS = 4_000
+READ_ONLY_SEARCH_QUERY_MAX_CHARS = 80
+READ_ONLY_SEARCH_MAX_FILES = 80
+READ_ONLY_SEARCH_MAX_MATCHES = 40
+READ_ONLY_SEARCH_EXCERPT_MAX_CHARS = 240
 
 
 class ReadOnlyActionKind(StrEnum):
     LIST_DIRECTORY = "list_directory"
     READ_FILE_SEGMENT = "read_file_segment"
+    SEARCH_TEXT = "search_text"
+    FINISH_EXPLORATION = "finish_exploration"
     FINISH_REPORT = "finish_report"
 
 
@@ -122,6 +130,45 @@ class ReadOnlyDecisionClient:
         if not self._decisions:
             raise ReadOnlySpineError(ReadOnlyFailureCode.READ_DECISION_EXHAUSTED, phase="model_decision")
         return self._decisions.pop(0)
+
+
+class ReadOnlyReportResult(SentinelModel):
+    report_text: str
+    evidence_refs: list[str] = Field(default_factory=list)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _report_result_is_data_only(self) -> "ReadOnlyReportResult":
+        assert_data_not_authority(
+            context="read_only_report_result",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+
+class ReadOnlyReportClient:
+    def __init__(self, *, report_template: str | None = None, forced_evidence_refs: list[str] | None = None) -> None:
+        self.report_template = report_template or "Report cites {refs}: read-only research completed."
+        self.forced_evidence_refs = forced_evidence_refs
+        self.call_count = 0
+
+    def complete(self, context: dict[str, Any]) -> ReadOnlyReportResult:
+        self.call_count += 1
+        evidence_refs = list(self.forced_evidence_refs) if self.forced_evidence_refs is not None else [
+            str(item.get("evidence_ref"))
+            for item in context.get("observations", [])
+            if item.get("evidence_ref")
+        ]
+        return ReadOnlyReportResult(
+            report_text=self.report_template.format(refs=", ".join(evidence_refs)),
+            evidence_refs=evidence_refs,
+        )
 
 
 class ReadOnlyActionReceipt(SentinelModel):
@@ -413,8 +460,11 @@ class ReadOnlyProductionSpineResult(SentinelModel):
     status: str
     bridge_status: str | None = None
     receipt_refs: list[str] = Field(default_factory=list)
+    failed_attempt_refs: list[str] = Field(default_factory=list)
     finalgate_refs: list[str] = Field(default_factory=list)
     finalgate_status: str | None = None
+    artifact_refs: list[str] = Field(default_factory=list)
+    live_event_refs: list[str] = Field(default_factory=list)
     blocked_reason: str | None = None
 
 
@@ -453,10 +503,12 @@ class ReadOnlyProductionSpineSession:
         mission_id: str,
         snapshot_root: Path | str,
         decision_client: ReadOnlyDecisionClient,
+        report_client: ReadOnlyReportClient | None = None,
         max_turns: int = 16,
         deadline_at: datetime | None = None,
         now_provider: Callable[[], datetime] = utc_now,
         excluded_paths: list[str | Path] | None = None,
+        owns_kernel_terminal: bool = True,
     ) -> None:
         self.cockpit = cockpit
         self.kernel: MissionKernel = cockpit.kernel
@@ -464,6 +516,7 @@ class ReadOnlyProductionSpineSession:
         self.run_id = new_id("readonly_run")
         self.snapshot_root = Path(snapshot_root).resolve()
         self.decision_client = decision_client
+        self.report_client = report_client or ReadOnlyReportClient()
         self.max_turns = max_turns
         self.deadline_at = deadline_at
         self._now_provider = now_provider
@@ -475,6 +528,7 @@ class ReadOnlyProductionSpineSession:
         self._failed_attempt_refs: list[str] = []
         self._emergency_terminal_refs: list[str] = []
         self._active_envelope: MissionAuthorityEnvelope | None = None
+        self._owns_kernel_terminal = owns_kernel_terminal
         self.tool_call_count = 0
         self._evidence_ref_by_hash: dict[str, str] = {}
         self._excluded_roots = [
@@ -519,6 +573,15 @@ class ReadOnlyProductionSpineSession:
                 return blocked.model_copy(update={"bridge_status": bridge_result.status})
             blocked = self._record_blocked(str(blocked_reason or "agentruntime_bridge_blocked"))
             return blocked.model_copy(update={"bridge_status": bridge_result.status})
+        if runtime.last_result is not None:
+            return runtime.last_result.model_copy(
+                update={
+                    "bridge_status": bridge_result.status,
+                    "receipt_refs": list(runtime.last_result.receipt_refs),
+                    "finalgate_refs": list(runtime.last_result.finalgate_refs),
+                    "finalgate_status": "accepted",
+                }
+            )
         return ReadOnlyProductionSpineResult(
             mission_id=self.mission_id,
             status="completed",
@@ -590,17 +653,71 @@ class ReadOnlyProductionSpineSession:
                             phase="finalgate_persistence",
                             exception_class=exc.__class__.__name__,
                         ) from exc
-                    self.kernel.update_status(
-                        self.mission_id,
-                        OperatorMissionStatus.COMPLETED,
-                        "Read-only spine mission completed with terminal FinalGate.",
-                    )
+                    self._finalize_completed_status_if_owned()
                     return ReadOnlyProductionSpineResult(
                         mission_id=self.mission_id,
                         status="completed",
                         receipt_refs=[*self._receipt_refs],
                         finalgate_refs=[certificate.certificate_id],
                         finalgate_status="accepted" if certificate.accepted else "rejected",
+                    )
+
+                if decision.action is ReadOnlyActionKind.FINISH_EXPLORATION:
+                    if not self._observations:
+                        raise ReadOnlySpineError("terminal_report_requires_successful_observation")
+                    self.kernel.store.append_event(
+                        self.mission_id,
+                        event_type="read_only_report_generation_started",
+                        safe_summary="Read-only final report generation started.",
+                        metadata={"observation_count": len(self._observations)},
+                    )
+                    report_result = self.report_client.complete(self._context())
+                    self._validate_terminal_report(report_result.report_text, report_result.evidence_refs)
+                    report_ref = self._record_report_artifact(report_result.report_text, report_result.evidence_refs)
+                    self.kernel.store.append_event(
+                        self.mission_id,
+                        event_type="read_only_report_generation_completed",
+                        safe_summary="Read-only final report generation completed.",
+                        metadata={
+                            "report_ref": report_ref,
+                            "report_hash": text_hash(report_result.report_text),
+                            "evidence_refs": sanitize_operator_refs(report_result.evidence_refs),
+                        },
+                    )
+                    try:
+                        receipt = self._record_receipt(
+                            action=decision.action,
+                            status="success",
+                            observation={"report_ref": report_ref, "report_hash": text_hash(report_result.report_text)},
+                            evidence_refs=list(report_result.evidence_refs),
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        raise ReadOnlySpineError(
+                            ReadOnlyFailureCode.RECEIPT_PERSISTENCE_FAILED,
+                            phase="receipt_persistence",
+                            exception_class=exc.__class__.__name__,
+                        ) from exc
+                    try:
+                        certificate = self._record_finalgate(
+                            receipt_refs=[*self._receipt_refs, receipt.receipt_id],
+                            status="accepted",
+                            accepted=True,
+                            reason="terminal_read_only_report_has_action_receipts",
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        raise ReadOnlySpineError(
+                            ReadOnlyFailureCode.FINALGATE_PERSISTENCE_FAILED,
+                            phase="finalgate_persistence",
+                            exception_class=exc.__class__.__name__,
+                        ) from exc
+                    self._finalize_completed_status_if_owned()
+                    return ReadOnlyProductionSpineResult(
+                        mission_id=self.mission_id,
+                        status="completed",
+                        receipt_refs=[*self._receipt_refs],
+                        finalgate_refs=[certificate.certificate_id],
+                        finalgate_status="accepted" if certificate.accepted else "rejected",
+                        artifact_refs=[report_ref],
                     )
 
                 observation = self._execute_read_only_action(decision)
@@ -645,8 +762,16 @@ class ReadOnlyProductionSpineSession:
             return None
         return self._last_finalgate
 
+    def _finalize_completed_status_if_owned(self) -> None:
+        if self._owns_kernel_terminal and not self.kernel.is_terminal(self.mission_id):
+            self.kernel.update_status(
+                self.mission_id,
+                OperatorMissionStatus.COMPLETED,
+                "Read-only spine mission completed with terminal FinalGate.",
+            )
+
     def _finalize_blocked_status_if_open(self) -> None:
-        if not self.kernel.is_terminal(self.mission_id):
+        if self._owns_kernel_terminal and not self.kernel.is_terminal(self.mission_id):
             self.kernel.update_status(
                 self.mission_id,
                 OperatorMissionStatus.BLOCKED,
@@ -709,6 +834,7 @@ class ReadOnlyProductionSpineSession:
             mission_id=self.mission_id,
             status="blocked",
             receipt_refs=[*self._receipt_refs],
+            failed_attempt_refs=[*self._failed_attempt_refs],
             finalgate_refs=finalgate_refs,
             finalgate_status="rejected",
             blocked_reason=reason,
@@ -935,6 +1061,21 @@ class ReadOnlyProductionSpineSession:
                     "safe_excerpt_char_count": len(safe_excerpt),
                     "safe_excerpt_truncated": truncated,
                 }
+            elif decision.action is ReadOnlyActionKind.SEARCH_TEXT:
+                path = self._resolve_path(str(decision.arguments.get("path", ".")))
+                query = str(decision.arguments.get("query", ""))
+                if not query.strip() or len(query) > READ_ONLY_SEARCH_QUERY_MAX_CHARS:
+                    raise ReadOnlySpineError(
+                        ReadOnlyFailureCode.READ_SEGMENT_INVALID,
+                        phase="action_validation",
+                        legacy_reason="search_text_query_invalid",
+                    )
+                self._require_directory_target(path)
+                observation = {
+                    "path": self._relative(path),
+                    "query_hash": text_hash(query),
+                    "matches": self._search_text(path, query),
+                }
             else:
                 raise ReadOnlySpineError(
                     ReadOnlyFailureCode.READ_ACCESS_BLOCKED,
@@ -997,6 +1138,42 @@ class ReadOnlyProductionSpineSession:
     def _read_file_lines(self, path: Path) -> list[str]:
         return path.read_text(encoding="utf-8").splitlines()
 
+    def _search_text(self, root: Path, query: str) -> list[dict[str, Any]]:
+        matches: list[dict[str, Any]] = []
+        inspected = 0
+        for walk_root, dirnames, filenames in os.walk(root, followlinks=False):
+            walk_path = Path(walk_root)
+            dirnames[:] = [
+                dirname
+                for dirname in sorted(dirnames)
+                if not self._is_sensitive_or_excluded_snapshot_entry(walk_path / dirname)
+            ]
+            for filename in sorted(filenames):
+                file_path = walk_path / filename
+                if self._is_sensitive_or_excluded_snapshot_entry(file_path) or file_path.is_symlink() or not file_path.is_file():
+                    continue
+                inspected += 1
+                if inspected > READ_ONLY_SEARCH_MAX_FILES:
+                    return matches
+                try:
+                    lines = file_path.read_text(encoding="utf-8").splitlines()
+                except (OSError, UnicodeError):
+                    continue
+                for line_number, line in enumerate(lines, start=1):
+                    if query not in line:
+                        continue
+                    matches.append(
+                        {
+                            "path": self._relative(file_path),
+                            "line": line_number,
+                            "excerpt_hash": text_hash(line),
+                            "safe_excerpt": redact_operator_text(line.strip())[:READ_ONLY_SEARCH_EXCERPT_MAX_CHARS],
+                        }
+                    )
+                    if len(matches) >= READ_ONLY_SEARCH_MAX_MATCHES:
+                        return matches
+        return matches
+
     def _typed_backend_exception(self, exc: OSError | UnicodeError) -> ReadOnlySpineError:
         if self._calculate_snapshot_fingerprint() != self._snapshot_fingerprint:
             return ReadOnlySpineError(
@@ -1037,6 +1214,12 @@ class ReadOnlyProductionSpineSession:
                 ReadOnlyFailureCode.READ_SEGMENT_INVALID,
                 phase="action_validation",
                 legacy_reason="read_file_segment_path_required",
+            )
+        if decision.action is ReadOnlyActionKind.SEARCH_TEXT and "query" not in decision.arguments:
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_SEGMENT_INVALID,
+                phase="action_validation",
+                legacy_reason="search_text_query_required",
             )
 
     def _record_receipt(
@@ -1104,6 +1287,24 @@ class ReadOnlyProductionSpineSession:
         known_refs = {obs["evidence_ref"] for obs in self._observations}
         if any(ref not in known_refs for ref in evidence_refs):
             raise ReadOnlySpineError("terminal_report_unknown_evidence_ref")
+        if not self._observations:
+            raise ReadOnlySpineError("terminal_report_requires_successful_observation")
+
+    def _record_report_artifact(self, report_text: str, evidence_refs: list[str]) -> str:
+        report_ref = new_id("readonly_report")
+        payload = {
+            "report_ref": report_ref,
+            "mission_id": self.mission_id,
+            "safe_report": redact_operator_text(report_text),
+            "report_hash": text_hash(report_text),
+            "evidence_refs": sanitize_operator_refs(evidence_refs),
+            "data_not_authority": True,
+            "authority_effect": "none",
+            "can_grant_authority": False,
+            "can_execute": False,
+        }
+        self._write_artifact("reports", report_ref, payload)
+        return report_ref
 
     def _record_finalgate(
         self,

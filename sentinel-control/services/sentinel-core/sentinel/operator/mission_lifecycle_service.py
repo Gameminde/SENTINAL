@@ -31,6 +31,8 @@ class MissionExecutionRequestState(StrEnum):
     PREPARED = "prepared"
     QUEUED = "queued"
     CLAIMED = "claimed"
+    DISPATCH_DECIDED = "dispatch_decided"
+    DISPATCH_RUNNING = "dispatch_running"
     COMPLETED = "completed"
     BLOCKED = "blocked"
     ORPHANED_PREPARED = "orphaned_prepared"
@@ -263,7 +265,24 @@ class MissionLifecycleService:
             if event.metadata.get("execution_request_id") == request.request_id
             or event.metadata.get("request_id") == request.request_id
         ]
-        if "mission_execution_request_claimed" in event_types:
+        closeout_statuses = [
+            str(event.metadata.get("status") or "")
+            for event in events
+            if event.event_type == "mission_dispatch_closeout_persisted"
+            and (
+                event.metadata.get("execution_request_id") == request.request_id
+                or event.metadata.get("request_id") == request.request_id
+            )
+        ]
+        if "completed" in closeout_statuses:
+            state = MissionExecutionRequestState.COMPLETED
+        elif closeout_statuses or "mission_dispatch_failed" in event_types:
+            state = MissionExecutionRequestState.BLOCKED
+        elif "mission_dispatch_started" in event_types:
+            state = MissionExecutionRequestState.DISPATCH_RUNNING
+        elif "mission_dispatch_decision_persisted" in event_types:
+            state = MissionExecutionRequestState.DISPATCH_DECIDED
+        elif "mission_execution_request_claimed" in event_types:
             state = MissionExecutionRequestState.CLAIMED
         elif "mission_queued" in event_types:
             state = MissionExecutionRequestState.QUEUED

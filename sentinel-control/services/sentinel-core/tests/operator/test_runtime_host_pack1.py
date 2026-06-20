@@ -12,14 +12,17 @@ from sentinel.operator.mission_lifecycle_service import MissionExecutionRequestS
 from sentinel.operator.models import (
     MissionAuthoritySummary,
     MissionDraft,
+    OperatorMissionStatus,
     OperatorConversationState,
     OperatorMode,
 )
 from sentinel.operator.runtime_host import RuntimeHostStatus, SentinelRuntimeHost
+from sentinel.operator.unified_execution_dispatcher import DispatchStatus
 
 
 def test_runtime_host_start_shutdown_and_deterministic_daemon_pickup(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs")
+    workspace = _workspace(tmp_path)
 
     started = host.start()
     assert started.status is RuntimeHostStatus.STARTED
@@ -31,23 +34,29 @@ def test_runtime_host_start_shutdown_and_deterministic_daemon_pickup(tmp_path: P
         authority_summary=_summary(),
         approval_scope=_approval_scope(),
         policy=_policy(),
-        capability_id="read_only_research",
-        operation="inspect_repository",
-        parameters={"workspace": "."},
-        workspace_ref="snapshot:host",
-        model_contract_ref="model_contract:host",
-    )
+            capability_id="read_only_research",
+            operation="inspect_repository",
+            parameters={"workspace": "."},
+            workspace_ref=f"workspace:{workspace}",
+            model_contract_ref="model_contract:host",
+        )
 
     pickup = host.pump_daemon_once(mission.record.mission_id)
 
     assert pickup.claimed is True
     assert pickup.execution_request_ref == mission.execution_request.request_id
-    assert pickup.tick_result.executed is False
+    assert pickup.tick_result is None
+    assert pickup.dispatch_result is not None
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.COMPLETED
+    state = host.lifecycle.derive_request_state(mission.record.mission_id, mission.execution_request.request_id)
+    assert state.state is MissionExecutionRequestState.COMPLETED
     queue_record = host.daemon.store.load_queue_record(mission.record.mission_id)
     assert queue_record.metadata["execution_request_id"] == mission.execution_request.request_id
-    assert "daemon_lease_claimed" in [
-        event.event_type for event in host.kernel.store.load_events(mission.record.mission_id)
-    ]
+    events = [event.event_type for event in host.kernel.store.load_events(mission.record.mission_id)]
+    assert "daemon_lease_claimed" in events
+    assert "mission_dispatch_decision_persisted" in events
+    assert "mission_dispatch_closeout_persisted" in events
 
     stopped = host.shutdown()
     assert stopped.status is RuntimeHostStatus.STOPPED
@@ -173,7 +182,7 @@ def _draft() -> MissionDraft:
 def _summary(*, allowed_actions: list[str] | None = None) -> MissionAuthoritySummary:
     return MissionAuthoritySummary(
         mission_id="pending",
-        allowed_actions=allowed_actions or ["list_directory", "read_file_segment", "search_text", "finish_report"],
+        allowed_actions=allowed_actions or ["list_directory", "read_file_segment", "search_text", "finish_exploration"],
         forbidden_actions=["write_file", "shell"],
         summary="Read-only authority only.",
     )
@@ -184,7 +193,7 @@ def _policy() -> MissionAuthorityPolicy:
         user_id="operator_user",
         allowed_systems=["local_workspace"],
         allowed_tools=["read_only_observation"],
-        allowed_actions=["list_directory", "read_file_segment", "search_text", "finish_report"],
+        allowed_actions=["list_directory", "read_file_segment", "search_text", "finish_exploration"],
         forbidden_actions=["write_file", "shell"],
         allowed_paths=["."],
         max_duration_minutes=15,
@@ -198,10 +207,17 @@ def _approval_scope(*, allowed_actions: list[str] | None = None, max_actions: in
         user_id="operator_user",
         allowed_systems=["local_workspace"],
         allowed_tools=["read_only_observation"],
-        allowed_actions=allowed_actions or ["list_directory", "read_file_segment", "search_text", "finish_report"],
+        allowed_actions=allowed_actions or ["list_directory", "read_file_segment", "search_text", "finish_exploration"],
         forbidden_actions=["write_file", "shell"],
         allowed_paths=["."],
         max_duration_minutes=15,
         max_actions=max_actions,
         max_cost_usd=0.0,
     )
+
+
+def _workspace(tmp_path: Path) -> Path:
+    root = tmp_path / "workspace"
+    root.mkdir()
+    (root / "README.md").write_text("Fixture repository for read-only research.\n", encoding="utf-8")
+    return root

@@ -55,20 +55,23 @@ def test_cli_product_route_uses_single_runtime_host_lifecycle_and_pumps_daemon(
     queue_record = host.daemon.store.load_queue_record(mission_id)
     events = [event.event_type for event in host.kernel.store.load_events(mission_id)]
 
-    assert state.state is MissionExecutionRequestState.CLAIMED
+    assert state.state is MissionExecutionRequestState.BLOCKED
     assert queue_record.status is DaemonQueueStatus.RUNNING
     assert active.allowed_systems == ["local_workspace"]
     assert active.allowed_tools == ["read_only_observation"]
-    assert active.allowed_actions == ["research", "draft"]
+    assert active.allowed_actions == ["list_directory", "read_file_segment", "search_text", "finish_exploration"]
     assert active.allowed_paths == ["."]
     assert active.max_actions == 4
     assert events.index("mission_authority_envelope_issued") < events.index("mission_execution_request_prepared")
     assert events.index("mission_execution_request_prepared") < events.index("mission_queued")
     assert "mission_execution_request_claimed" in events
-    assert "daemon_tick_completed" in events
+    assert "mission_dispatch_decision_persisted" in events
+    assert "mission_dispatch_closeout_persisted" in events
     assert turns[-1]["metadata"]["internal_access_classification"] == "production_route"
     assert turns[-1]["metadata"]["runtime_host_lifecycle_ref"] == f"lifecycle:{id(host.lifecycle)}"
     assert turns[-1]["metadata"]["daemon_pickup"]["claimed"] is True
+    assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "blocked"
+    assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_adapter_id"] == "read_only_research_adapter"
 
 
 def test_cli_product_route_missing_scope_blocks_before_mission_creation(
@@ -300,7 +303,7 @@ def _approval_scope_payload() -> dict[str, object]:
         "user_id": "operator_user",
         "allowed_systems": ["local_workspace"],
         "allowed_tools": ["read_only_observation"],
-        "allowed_actions": ["research", "draft"],
+        "allowed_actions": ["list_directory", "read_file_segment", "search_text", "finish_exploration"],
         "forbidden_actions": ["payment", "send_email", "credential_access", "shell", "write_file"],
         "allowed_paths": ["."],
         "allowed_domains": [],

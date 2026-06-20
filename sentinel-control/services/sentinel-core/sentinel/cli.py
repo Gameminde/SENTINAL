@@ -455,6 +455,8 @@ def _run_cockpit_turn_loop(
                     "claimed": pickup.claimed,
                     "tick_executed": bool(getattr(pickup.tick_result, "executed", False)),
                     "tick_status": getattr(getattr(pickup.tick_result, "status", None), "value", None),
+                    "dispatch_status": getattr(getattr(pickup.dispatch_result, "status", None), "value", None),
+                    "dispatch_adapter_id": getattr(pickup.dispatch_result, "adapter_id", None),
                 },
             )
         safe_turn = turn.safe_model_dump()
