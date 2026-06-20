@@ -82,6 +82,37 @@ def test_catalog_model_client_calls_user_selected_local_openai_compatible_backen
     assert recorder.calls[0]["json"]["model"] == "llama3.2"
 
 
+def test_catalog_model_client_calls_aliyun_dashscope_openai_compatible_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SENTINEL_CERT_MODEL_API_KEY", "unit-aliyun-key")
+    monkeypatch.setenv(
+        "SENTINEL_ALIYUN_DASHSCOPE_BASE_URL",
+        "https://unit-workspace.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+    )
+    recorder = RecordingHttpxClient(_provider_payload(_valid_output(), model="deepseek-v4-pro"))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model="deepseek-v4-pro",
+    )
+
+    result = OperatorLLMConversationAdapter(
+        mode=OperatorMode.LLM_OPERATOR,
+        user_model_contract=contract,
+        model_client=OperatorCatalogModelClient(user_model_contract=contract),
+    ).complete(_frame())
+
+    assert result.mission_draft is not None
+    assert recorder.calls[0]["url"] == (
+        "https://unit-workspace.ap-southeast-1.maas.aliyuncs.com"
+        "/compatible-mode/v1/chat/completions"
+    )
+    assert recorder.calls[0]["headers"]["Authorization"] == "Bearer unit-aliyun-key"
+    assert recorder.calls[0]["json"]["model"] == "deepseek-v4-pro"
+
+
 def test_catalog_model_client_missing_remote_credential_fails_closed_without_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -181,10 +212,10 @@ def _contract(*, provider_id: str, backend_id: str, model: str) -> UserModelCont
     )
 
 
-def _provider_payload(content: dict[str, object]) -> dict[str, object]:
+def _provider_payload(content: dict[str, object], *, model: str = "llama3.2") -> dict[str, object]:
     return {
         "id": "chatcmpl_unit",
-        "model": "llama3.2",
+        "model": model,
         "choices": [{"message": {"content": json.dumps(content)}}],
         "usage": {"prompt_tokens": 10, "completion_tokens": 12},
     }

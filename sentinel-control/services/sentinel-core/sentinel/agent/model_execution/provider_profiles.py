@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+from urllib.parse import urlparse
+
 from sentinel.agent.model_execution.catalog import (
     ProviderBackendProfile,
     ProviderCapabilityFlags,
@@ -97,6 +100,37 @@ def _default_entries() -> list[ProviderCatalogEntry]:
                 avoid_for=["short smoke tests"],
                 reliability_class="diagnostic",
                 notes=["Hosted diagnostics observed timeout; local NIM policy remains separate."],
+            ),
+        ),
+        _entry(
+            provider_id="aliyun_dashscope",
+            display_name="Aliyun DashScope / Model Studio",
+            family=ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+            backend_id="aliyun_openai_compatible_chat",
+            endpoint=_aliyun_dashscope_endpoint(),
+            env_var="SENTINEL_CERT_MODEL_API_KEY",
+            supported_models=["deepseek-v4-pro"],
+            status=ProviderCatalogStatus.DIAGNOSTIC,
+            real_status=ProviderRealTestStatusKind.DIAGNOSTIC_ONLY,
+            diagnostic_outcomes=["PRODUCT_ROUTE_NOT_YET_RUN"],
+            docs=["https://help.aliyun.com/zh/model-studio/developer-reference/compatibility-of-openai-with-dashscope"],
+            timeout=ProviderTimeoutProfile(read_timeout_seconds=60.0, total_timeout_seconds=70.0),
+            capability=ProviderCapabilityFlags(
+                chat=True,
+                streaming=False,
+                json_mode=False,
+                json_schema=False,
+                tool_calling=False,
+                server_side_tools=False,
+            ),
+            recommendation=ProviderRecommendation(
+                recommended_for=["explicit Aliyun-hosted DeepSeek V4 Pro product-route experiments"],
+                avoid_for=["default routing", "silent fallback target", "provider-native tools"],
+                reliability_class="diagnostic",
+                notes=[
+                    "OpenAI-compatible request shape on Aliyun/DashScope infrastructure.",
+                    "Endpoint override is restricted to Aliyun/DashScope hosts and must be explicit.",
+                ],
             ),
         ),
         _entry(
@@ -242,6 +276,26 @@ def _default_entries() -> list[ProviderCatalogEntry]:
             required_for_real_call=False,
         ),
     ]
+
+
+def _aliyun_dashscope_endpoint() -> str:
+    base_url = os.environ.get(
+        "SENTINEL_ALIYUN_DASHSCOPE_BASE_URL",
+        "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    ).rstrip("/")
+    parsed = urlparse(base_url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https":
+        raise ValueError("aliyun dashscope endpoint must use https")
+    if not (
+        host == "dashscope.aliyuncs.com"
+        or host.endswith(".dashscope.aliyuncs.com")
+        or host.endswith(".maas.aliyuncs.com")
+    ):
+        raise ValueError("aliyun dashscope endpoint host not allowed")
+    if base_url.endswith("/chat/completions"):
+        return base_url
+    return f"{base_url}/chat/completions"
 
 
 def _entry(

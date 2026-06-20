@@ -32,6 +32,7 @@ REQUIRED_PROVIDER_IDS = {
     "groq",
     "openrouter",
     "nvidia",
+    "aliyun_dashscope",
     "deepseek",
     "mistral",
     "xai",
@@ -51,6 +52,39 @@ def test_default_provider_catalog_registers_required_entries() -> None:
     assert set(catalog.provider_ids()) == REQUIRED_PROVIDER_IDS
     assert catalog.get("groq").family is ProviderFamily.OPENAI_COMPATIBLE_CHAT
     assert catalog.get("anthropic").family is ProviderFamily.ANTHROPIC_MESSAGES_NATIVE
+
+
+def test_aliyun_dashscope_catalog_pins_openai_compatible_deepseek_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "SENTINEL_ALIYUN_DASHSCOPE_BASE_URL",
+        "https://unit-workspace.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+    )
+
+    entry = build_default_provider_catalog().get("aliyun_dashscope")
+    backend = entry.backends[0]
+
+    assert entry.display_name == "Aliyun DashScope / Model Studio"
+    assert entry.family is ProviderFamily.OPENAI_COMPATIBLE_CHAT
+    assert entry.credential_policy.credential_env_var == "SENTINEL_CERT_MODEL_API_KEY"
+    assert backend.backend_id == "aliyun_openai_compatible_chat"
+    assert backend.endpoint_template == (
+        "https://unit-workspace.ap-southeast-1.maas.aliyuncs.com"
+        "/compatible-mode/v1/chat/completions"
+    )
+    assert backend.supports_model("deepseek-v4-pro")
+    assert entry.capability_flags.grants_tool_execution is False
+    assert entry.capability_flags.server_side_tools_enabled_by_default is False
+
+
+def test_aliyun_dashscope_endpoint_override_rejects_non_aliyun_hosts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SENTINEL_ALIYUN_DASHSCOPE_BASE_URL", "https://example.invalid/compatible-mode/v1")
+
+    with pytest.raises(ValueError, match="aliyun dashscope endpoint host not allowed"):
+        build_default_provider_catalog()
 
 
 def test_provider_catalog_rejects_unknown_disabled_and_fake_providers() -> None:
