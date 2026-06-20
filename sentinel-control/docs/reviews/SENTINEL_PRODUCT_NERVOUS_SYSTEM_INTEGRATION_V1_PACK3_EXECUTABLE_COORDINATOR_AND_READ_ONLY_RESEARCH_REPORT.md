@@ -3,7 +3,7 @@
 
 ## Verdict
 
-`PACK_3_EXECUTABLE_COORDINATOR_DISPATCHER_AND_READ_ONLY_RESEARCH_ROUTE` is locally implemented for one capability:
+`PACK_3_EXECUTABLE_COORDINATOR_DISPATCHER_AND_READ_ONLY_RESEARCH_ROUTE` proved the first deterministic executable product vertical slice for exactly one capability:
 
 ```text
 capability_id = read_only_research
@@ -11,7 +11,9 @@ operation = inspect_repository
 adapter_id = read_only_research_adapter
 ```
 
-No browser, desktop, channel, credential, finance, voice, memory, or provider surface was connected in this pack.
+`PACK_3_1_REAL_MODEL_WIRING_AND_PROOF_CLOSEOUT_FIX` then closes the focused Pack 3 gap: governed LLM product mode now injects provider-backed read-only exploration and report clients from the explicit `UserModelContract`, and dispatcher completion is gated on persisted proof verification rather than trusted refs.
+
+No browser, desktop, channel, credential, finance, voice, memory, or additional capability surface was connected. No real provider call was made in Pack 3.1.
 
 ## Before Product Call Graph
 
@@ -24,13 +26,18 @@ CLI / cockpit
 -> placeholder / deterministic pump boundary
 ```
 
-The coordinator existed as data-only route selection, and runtime connections described maturity, but no Pack 3 product route executed an adapter through a dispatcher.
+Before Pack 3, the coordinator was data-only route selection and runtime connections described maturity, but no product route executed an adapter through a dispatcher.
+
+Before Pack 3.1, Pack 3 had a deterministic vertical slice, but governed LLM product mode still used deterministic Pack 3 execution clients after cockpit mission interpretation. A real provider could understand the cockpit mission while not controlling exploration or the final report lane.
 
 ## After Product Call Graph
 
 ```text
 CLI / application
+-> validated UserModelContract
+-> cockpit mission understanding
 -> SentinelRuntimeHost
+-> read-only provider execution factories
 -> MissionLifecycleService
 -> immutable MissionExecutionRequest
 -> daemon claim
@@ -40,15 +47,55 @@ CLI / application
 -> explicit adapter registry
 -> ReadOnlyResearchAdapter
 -> ReadOnlyProductionSpineSession
--> list_directory / read_file_segment / search_text / finish_exploration
--> separate ReadOnlyReportClient lane
+-> ReadOnlyProviderDecisionClient
+-> governed list_directory / read_file_segment / search_text / finish_exploration
+-> separate ReadOnlyProviderReportClient lane
 -> sanitized report artifact
 -> read-only receipt / failed-attempt evidence
 -> read-only FinalGate
+-> dispatcher proof verification
 -> dispatch closeout
 -> MissionKernel terminal transition
 -> replay without re-execution
 ```
+
+## Provider-Backed Product Wiring
+
+Governed LLM mode now uses the explicit contract already selected by `--model-contract`:
+
+```text
+CLI --model-contract
+-> validated UserModelContract
+-> OperatorCatalogModelClient
+-> SentinelRuntimeHost factories
+-> ReadOnlyProviderDecisionClient
+-> ReadOnlyResearchAdapter
+-> ReadOnlyProviderReportClient
+```
+
+The exploration lane and report lane are separate calls. The focused CLI test proves:
+
+```text
+cockpit model call
+-> exploration_decision call
+-> exploration_decision call
+-> final_report call
+```
+
+All calls use the same explicit `user_model_contract_id` in the current Pack 3.1 product wiring proof. A future pack may support explicitly declared separate contracts, but Pack 3.1 does not silently select or override model identity.
+
+Provider-backed read-only clients:
+
+```text
+use no provider-native tools
+use no fallback / AUTO
+use bounded timeout and output budgets
+keep prompt text in memory only
+strip provider wrapper / raw response / reasoning-like keys before typed validation
+persist no raw prompt, raw provider response, raw reasoning, credential, or authorization header
+```
+
+Deterministic clients remain available only for deterministic tests, explicit injected local tests, and `DETERMINISTIC_TEST` behavior. `SentinelRuntimeHost(require_read_only_model_clients=True)` fails closed if either provider execution factory is missing.
 
 ## Component Classification
 
@@ -56,19 +103,21 @@ CLI / application
 | --- | --- | --- |
 | `MissionKernel` | REUSED | Owns authoritative mission status. |
 | `MissionRunStore` | REUSED | Owns canonical event ordering and artifacts. |
-| `MissionLifecycleService` | EXTENDED | Derives `DISPATCH_DECIDED`, `DISPATCH_RUNNING`, `COMPLETED`, `BLOCKED` from dispatch events. |
+| `MissionLifecycleService` | EXTENDED | Derives `DISPATCH_DECIDED`, `DISPATCH_RUNNING`, `COMPLETED`, and `BLOCKED` from dispatch events. |
 | `MissionExecutionRequest` | REUSED | The dispatcher consumes the persisted immutable request; no second request model was added. |
 | `MissionExecutionCoordinator` | EXTENDED | Data-only, hash-bound route decisions over the canonical request. |
-| `UnifiedExecutionDispatcher` | NEW | Owns live adapter resolution, decision persistence, dispatch closeout, and terminal handoff. |
-| `ReadOnlyResearchAdapter` | NEW | Wraps the existing read-only production spine. |
-| `ReadOnlyProductionSpineSession` | EXTENDED | Adds `search_text`, `finish_exploration`, separate report lane, and optional proof-only mode for dispatcher ownership. |
-| `RuntimeHost` | EXTENDED | Owns coordinator, dispatcher, adapter registry, and deterministic daemon pump. |
-| `CLI cockpit route` | EXTENDED | Reports dispatch status/adapter safely when the host pumps a mission. |
+| `UnifiedExecutionDispatcher` | EXTENDED | Owns adapter resolution, decision persistence, proof verification, dispatch closeout, and terminal handoff. |
+| `ReadOnlyResearchAdapter` | EXTENDED | Wraps the existing read-only production spine. |
+| `ReadOnlyProviderDecisionClient` | NEW | Provider-backed exploration lane built from the explicit `UserModelContract`. |
+| `ReadOnlyProviderReportClient` | NEW | Separate provider-backed report lane built from the explicit `UserModelContract`. |
+| `ReadOnlyProductionSpineSession` | EXTENDED | Supports `search_text`, `finish_exploration`, separate report lane, and proof-only mode for dispatcher ownership. |
+| `SentinelRuntimeHost` | EXTENDED | Owns coordinator, dispatcher, adapter registry, and deterministic daemon pump; enforces provider execution factories in LLM mode. |
+| `CLI cockpit route` | EXTENDED | Builds Pack 3 execution factories from the explicit model contract and reports dispatch status safely. |
 | Other Sentinel capabilities | NOT_CONNECTED | Left as legacy/internal/not connected for later packs. |
 
 ## Coordinator Decision Contract
 
-`MissionExecutionCoordinator` now accepts the persisted `MissionExecutionRequest` and emits a serializable `MissionExecutionDecision` with:
+`MissionExecutionCoordinator` accepts the persisted `MissionExecutionRequest` and emits a serializable `MissionExecutionDecision` with:
 
 ```text
 decision_id
@@ -114,9 +163,15 @@ adapter id mismatch
 capability mismatch
 operation mismatch
 request state mismatch
+request hash mismatch
+decision hash mismatch
+authority mission mismatch
 authority ref mismatch
+revoked or expired authority
+decision persistence failure
 adapter exception
 adapter result correlation failure
+persisted proof verification failure
 ```
 
 No silent fallback to legacy workflow, direct kernel execution, PowerRuntime, another adapter, AUTO routing, or provider-native tools was added.
@@ -137,26 +192,76 @@ mission_dispatch_closeout_persisted(status=blocked/failed) -> BLOCKED
 
 The immutable request artifact is not rewritten.
 
-## Authority Validation
+## Authority Revalidation
 
-The dispatcher validates that the active authority envelope reference matches the request and decision before adapter execution. The read-only adapter then relies on the existing spine and Gate behavior for allowed actions. Revoked or expired authority blocks before dispatch.
+The dispatcher independently verifies before adapter execution:
+
+```text
+request hash verifies
+decision hash verifies
+authority mission id matches request mission id
+authority envelope ref matches request and decision
+authority is not revoked
+authority is not expired
+```
+
+`RuntimeHost.resolve_active()` remains defense in depth, but Pack 3.1 no longer relies on the host resolver alone.
 
 ## Adapter Proof Ownership
 
 | Proof Surface | Owner | Dispatcher Behavior |
 | --- | --- | --- |
-| Successful read-only action receipts | Read-only spine | Relays refs only. |
+| Successful read-only action receipts | Read-only spine | Loads, verifies, and relays refs only. |
 | Failed action-attempt evidence | Read-only spine | Relays refs only. |
-| Read-only FinalGate certificates | Read-only spine | Relays refs only. |
+| Read-only FinalGate certificates | Read-only spine | Loads, verifies, and relays refs only on successful adapter routes. |
 | Dispatch decision artifact | Dispatcher | Persists before adapter execution. |
+| Dispatch terminal certificate | Dispatcher | Creates exactly one rejected terminal certificate for pre-adapter blocks or proof failures that lack a read-only FinalGate. |
 | Dispatch closeout artifact | Dispatcher | Persists normalized result and terminal status. |
-| Mission terminal transition | Dispatcher for Pack 3 route | Occurs after dispatch closeout and accepted FinalGate. |
+| Mission terminal transition | Dispatcher for Pack 3 route | Occurs after dispatch closeout and accepted proof or rejected terminal certificate. |
 
-The adapter does not duplicate receipts, and the dispatcher does not create replacement FinalGate certificates.
+The adapter does not duplicate receipts, and the dispatcher does not create replacement successful FinalGate certificates.
+
+## Proof Verification Contract
+
+Mission completion requires a typed proof verification pass over persisted artifacts:
+
+```text
+every receipt ref exists
+receipt hash verifies
+receipt mission_id matches
+at least one successful material observation receipt exists
+
+report artifact exists
+report hash verifies against persisted safe report
+report mission_id matches
+report evidence refs are known
+
+FinalGate ref exists
+certificate hash verifies
+certificate mission_id matches
+certificate accepted is true
+certificate receipt refs match the validated receipt set
+```
+
+If proof verification fails, dispatch status becomes `BLOCKED`, MissionKernel does not become `COMPLETED`, and a stable safe failure code is written without raw artifact content.
+
+## Pre-Adapter Terminal Certificate Contract
+
+Pre-adapter blocks, including coordinator rejection, unknown adapter, capability mismatch, request-state mismatch, authority mismatch, inactive authority, and decision persistence failure, now close with one dispatcher-owned rejected terminal certificate:
+
+```text
+successful action receipts = 0
+dispatcher terminal certificate accepted = false
+dispatch closeout count = 1
+MissionKernel = BLOCKED or FAILED
+terminal MissionKernel transition count = 1
+```
+
+If the read-only spine has already produced a terminal FinalGate, the dispatcher relays and verifies it instead of creating another terminal certificate. Exactly one terminal certificate exists per dispatch route.
 
 ## Bounded `search_text`
 
-The read-only spine now supports bounded `search_text`:
+The read-only spine supports bounded `search_text`:
 
 ```text
 snapshot-root bounded
@@ -186,7 +291,7 @@ Example safe observation shape:
 
 ## Separate Report Lane
 
-Exploration decisions remain one-action read-only decisions. The final report is produced through `ReadOnlyReportClient` after `finish_exploration`, not parsed as an action decision.
+Exploration decisions remain one-action read-only decisions. The final report is produced through `ReadOnlyReportClient` or `ReadOnlyProviderReportClient` after `finish_exploration`, not parsed as an action decision.
 
 Report validation requires:
 
@@ -203,7 +308,7 @@ The persisted report is a sanitized product artifact, not a raw provider respons
 
 ## Live Event Sequence
 
-The Pack 3 end-to-end fixture observed:
+The Pack 3 end-to-end fixture observes:
 
 ```text
 mission_execution_request_claimed
@@ -218,6 +323,8 @@ mission_dispatch_closeout_persisted
 mission_completed
 ```
 
+Blocked pre-adapter routes observe no `mission_dispatch_started` event and still produce one dispatch closeout plus one rejected dispatcher terminal certificate.
+
 ## Terminal Closeout Rules
 
 ```text
@@ -227,11 +334,46 @@ adapter return != mission success
 report generated != mission success
 ```
 
-`MissionKernel` reaches `COMPLETED` only after dispatch closeout, required receipt refs, report artifact validation, and accepted FinalGate. Blocked routes end with `BLOCKED`, rejected FinalGate, no fabricated successful receipt, and one product terminal path.
+`MissionKernel` reaches `COMPLETED` only after request correlation, dispatch closeout, required receipt verification, report artifact verification, and accepted FinalGate verification. Blocked routes end with `BLOCKED`, no fabricated successful receipt, one terminal certificate, one dispatch closeout, and one MissionKernel terminal transition.
+
+Focused terminal-count proof:
+
+```text
+success:
+  dispatch decisions = 1
+  dispatch started events = 1
+  dispatch closeouts = 1
+  terminal certificates = 1
+  terminal MissionKernel events = ["mission_completed"]
+
+pre-adapter block:
+  dispatch decisions = 1
+  dispatch started events = 0
+  dispatch closeouts = 1
+  terminal certificates = 1
+  successful receipts = 0
+  terminal MissionKernel events = ["mission_blocked"]
+```
 
 ## Replay Proof
 
-Pack 3 uses existing replay builder behavior. The focused end-to-end test records event count before replay, builds replay, and verifies event count is unchanged and `reexecuted_actions` is false.
+Pack 3.1 keeps replay as reconstruction only. The focused replay test captures counters before and after `MissionReplayBuilder.build()` and proves zero deltas for:
+
+```text
+coordinator calls
+exploration decision client calls
+report client calls
+MissionRunStore events
+receipt writes
+failed-attempt writes
+report artifact writes
+FinalGate writes
+dispatch decision writes
+dispatch closeout writes
+dispatcher terminal certificate writes
+MissionKernel status
+timeline verification
+```
 
 Replay does not call the coordinator, dispatcher, adapter, runtime, model, tool, report lane, receipt writer, FinalGate writer, or MissionKernel transitions.
 
@@ -261,6 +403,7 @@ RuntimeHost
 -> report lane
 -> receipts
 -> FinalGate
+-> dispatcher proof verification
 -> MissionKernel completed
 -> replay no-reexecution
 ```
@@ -283,25 +426,29 @@ legacy direct internal paths = LEGACY_INTERNAL / TEST_ONLY as previously classif
 
 ## Validation
 
-Focused tests run:
+Focused validation for the final Pack 3.1 commit:
 
 ```text
-py -3.13 -m pytest -q tests/operator/test_product_nervous_system_pack3.py
-7 passed
+py -3.13 -m pytest -q tests\operator\test_product_nervous_system_pack3.py tests\test_cli_runtime_host_product_wiring_pack1b.py
+25 passed
 
-py -3.13 -m pytest -q tests/operator/test_mission_execution_coordinator.py tests/operator/test_runtime_host_pack1.py tests/test_cli_runtime_host_product_wiring_pack1b.py
-16 passed
+py -3.13 -m pytest -q tests\operator\test_mission_execution_coordinator.py tests\operator\test_runtime_connection_registry.py tests\operator\test_runtime_host_pack1.py tests\operator\test_mission_lifecycle_service.py tests\test_production_mission_daemon_and_scheduler_v1.py
+33 passed
 
-py -3.13 -m pytest -q tests/test_real_model_read_only_operator_production_spine_v1.py tests/operator/test_agent_runtime_event_bridge_pack2a.py tests/test_mission_kernel.py tests/test_llm_live_operator_replay_v0.py
-passed
+py -3.13 -m pytest -q tests\test_real_model_read_only_operator_production_spine_v1.py tests\operator\test_agent_runtime_event_bridge_pack2a.py tests\test_mission_kernel.py tests\test_low_risk_execution_finalgate_receipts.py tests\test_llm_live_operator_replay_v0.py
+PASS; quiet output printed progress dots but no final numeric count.
 
-py -3.13 -O -m pytest -q tests/operator/test_product_nervous_system_pack3.py tests/operator/test_mission_execution_coordinator.py tests/operator/test_runtime_host_pack1.py tests/test_cli_runtime_host_product_wiring_pack1b.py
-23 passed
+py -3.13 -O -m pytest -q tests\operator\test_product_nervous_system_pack3.py tests\test_cli_runtime_host_product_wiring_pack1b.py tests\operator\test_mission_execution_coordinator.py tests\operator\test_runtime_host_pack1.py tests\operator\test_mission_lifecycle_service.py tests\test_real_model_read_only_operator_production_spine_v1.py tests\test_llm_live_operator_replay_v0.py
+PASS; quiet output printed progress dots plus the expected Python -O pytest warning.
 
-py -3.13 -m pytest -q tests/operator/test_mission_lifecycle_service.py tests/operator/test_runtime_connection_registry.py
-12 passed
+py -3.13 -m compileall -q sentinel\operator\read_only_model_clients.py sentinel\operator\unified_execution_dispatcher.py sentinel\operator\runtime_host.py sentinel\cli.py
+PASS
 
-py -3.13 -m pytest -q tests/operator/test_product_nervous_system_pack3.py tests/operator/test_mission_execution_coordinator.py tests/operator/test_runtime_host_pack1.py tests/test_cli_runtime_host_product_wiring_pack1b.py tests/operator/test_mission_lifecycle_service.py tests/operator/test_runtime_connection_registry.py
-35 passed
+git diff --check
+PASS; only Windows LF-to-CRLF working-copy warnings were printed.
+
+targeted provider-material / secret / fallback / AUTO / provider-native-tool / direct-bypass scans
+PASS; hits were limited to defensive deny-list keys, tests asserting non-persistence, and documentation statements.
 ```
+
 No real provider call was made.

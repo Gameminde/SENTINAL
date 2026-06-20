@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
 from sentinel.operator.mission_lifecycle_service import MissionExecutionRequestState
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
@@ -106,7 +105,8 @@ def test_pack3_coordinator_decision_is_persisted_before_adapter_execution(tmp_pa
 
     pickup = host.pump_daemon_once(mission.record.mission_id)
 
-    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert pickup.dispatch_result.blocked_reason == "proof_receipt_missing"
     assert adapter.decision_file_existed_before_execution is True
     decision_payload = adapter.decision_payload_before_execution
     assert decision_payload["can_execute"] is False
@@ -114,6 +114,58 @@ def test_pack3_coordinator_decision_is_persisted_before_adapter_execution(tmp_pa
     assert decision_payload["adapter_id"] == "read_only_research_adapter"
     assert "callable" not in json.dumps(decision_payload).lower()
     assert "runtime instance" not in json.dumps(decision_payload).lower()
+
+
+def test_pack3_1_valid_persisted_receipts_report_and_finalgate_are_verified_before_completion(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    host = _host(tmp_path)
+    host.start()
+    mission = _create_mission(host, workspace)
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    mission_id = mission.record.mission_id
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert host.kernel.store.load_record(mission_id).status is OperatorMissionStatus.COMPLETED
+    assert len(_json_payloads(host, mission_id, "dispatch_closeout")) == 1
+    assert len(_json_payloads(host, mission_id, "read_only_spine", "receipts")) >= 2
+    assert len(_json_payloads(host, mission_id, "read_only_spine", "reports")) == 1
+    assert len(_json_payloads(host, mission_id, "read_only_spine", "finalgate")) == 1
+    assert _terminal_event_types(host, mission_id)[-1] == "mission_completed"
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_reason"),
+    [
+        ("fake_receipt", "proof_receipt_missing"),
+        ("tamper_receipt", "proof_receipt_hash_mismatch"),
+        ("missing_report", "proof_report_missing"),
+        ("tamper_report", "proof_report_hash_mismatch"),
+        ("fake_finalgate", "proof_finalgate_missing"),
+        ("reject_finalgate", "proof_finalgate_rejected"),
+    ],
+)
+def test_pack3_1_invalid_persisted_proof_blocks_completion(
+    tmp_path: Path,
+    mutator: str,
+    expected_reason: str,
+) -> None:
+    workspace = _workspace(tmp_path)
+    adapter = _MutatingProofAdapter(mutator)
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        adapter_registry=UnifiedExecutionAdapterRegistry({"read_only_research_adapter": adapter}),
+    )
+    host.start()
+    mission = _create_mission(host, workspace)
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert pickup.dispatch_result.blocked_reason == expected_reason
+    assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.BLOCKED
+    assert len(_json_payloads(host, mission.record.mission_id, "dispatch_closeout")) == 1
+    assert _terminal_event_types(host, mission.record.mission_id)[-1] == "mission_blocked"
 
 
 def test_pack3_unknown_adapter_blocks_before_runtime_execution(tmp_path: Path) -> None:
@@ -128,6 +180,90 @@ def test_pack3_unknown_adapter_blocks_before_runtime_execution(tmp_path: Path) -
     assert pickup.dispatch_result.blocked_reason == "unknown_adapter"
     assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.BLOCKED
     assert not (host.kernel.store.mission_dir(mission.record.mission_id) / "read_only_spine").exists()
+    certificates = _json_payloads(host, mission.record.mission_id, "dispatch_terminal_certificates")
+    assert len(certificates) == 1
+    assert certificates[0]["accepted"] is False
+    assert certificates[0]["reason_code"] == "unknown_adapter"
+    assert len(_json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")) == 0
+    assert _terminal_event_types(host, mission.record.mission_id)[-1] == "mission_blocked"
+
+
+def test_pack3_1_success_and_failure_have_exact_terminal_counts(tmp_path: Path) -> None:
+    success_workspace = _workspace(tmp_path / "success")
+    success_host = _host(tmp_path / "success")
+    success_host.start()
+    success_mission = _create_mission(success_host, success_workspace)
+    success_pickup = success_host.pump_daemon_once(success_mission.record.mission_id)
+
+    assert success_pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert _terminal_certificate_count(success_host, success_mission.record.mission_id) == 1
+    assert _terminal_event_types(success_host, success_mission.record.mission_id) == ["mission_completed"]
+    assert _event_count(success_host, success_mission.record.mission_id, "mission_dispatch_started") == 1
+    assert len(_json_payloads(success_host, success_mission.record.mission_id, "dispatch_closeout")) == 1
+
+    failure_workspace = _workspace(tmp_path / "failure")
+    failure_host = SentinelRuntimeHost(run_root=tmp_path / "failure" / "runs", adapter_registry=UnifiedExecutionAdapterRegistry({}))
+    failure_host.start()
+    failure_mission = _create_mission(failure_host, failure_workspace)
+    failure_pickup = failure_host.pump_daemon_once(failure_mission.record.mission_id)
+
+    assert failure_pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert _terminal_certificate_count(failure_host, failure_mission.record.mission_id) == 1
+    assert _terminal_event_types(failure_host, failure_mission.record.mission_id) == ["mission_blocked"]
+    assert _event_count(failure_host, failure_mission.record.mission_id, "mission_dispatch_started") == 0
+    assert len(_json_payloads(failure_host, failure_mission.record.mission_id, "dispatch_closeout")) == 1
+
+
+def test_pack3_1_replay_has_zero_execution_and_write_deltas(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ]
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: replay proof.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = _create_mission(host, workspace)
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+    before = _replay_counter_snapshot(host, mission.record.mission_id, decision_client, report_client)
+
+    replay = MissionReplayBuilder(host.kernel.store).build(mission.record.mission_id)
+
+    after = _replay_counter_snapshot(host, mission.record.mission_id, decision_client, report_client)
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert replay.reexecuted_actions is False
+    assert after == before
+
+
+def test_pack3_1_dispatcher_revalidates_expired_authority_itself(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    adapter = _CountingAdapter()
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        adapter_registry=UnifiedExecutionAdapterRegistry({"read_only_research_adapter": adapter}),
+    )
+    host.start()
+    mission = _create_mission(host, workspace)
+    request = host.lifecycle.latest_execution_request(mission.record.mission_id)
+    expired = mission.authority.envelope.model_copy(update={"expires_at": mission.authority.envelope.created_at})
+
+    result = host.dispatcher.dispatch(request=request, authority=expired)
+
+    assert result.status is DispatchStatus.BLOCKED
+    assert result.blocked_reason == "authority_inactive"
+    assert adapter.execute_count == 0
+    assert _terminal_event_types(host, mission.record.mission_id)[-1] == "mission_blocked"
+
+
+def test_pack3_1_llm_product_host_requires_provider_execution_factories(tmp_path: Path) -> None:
+    with pytest.raises(RuntimeError, match="read_only_provider_execution_factories_required"):
+        SentinelRuntimeHost(run_root=tmp_path / "runs", require_read_only_model_clients=True)
 
 
 def test_pack3_unauthorized_capability_blocks_before_execution(tmp_path: Path) -> None:
@@ -351,3 +487,120 @@ class _AssertingAdapter(UnifiedExecutionAdapter):
             finalgate_refs=["finalgate_fake"],
             artifact_refs=["artifact_fake"],
         )
+
+
+class _MutatingProofAdapter(ReadOnlyResearchAdapter):
+    def __init__(self, mutator: str) -> None:
+        super().__init__(
+            decision_client_factory=lambda _request, _authority: ReadOnlyDecisionClient(
+                [
+                    ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+                    ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+                ]
+            ),
+            report_client_factory=lambda _request, _authority: ReadOnlyReportClient(
+                report_template="Report cites {refs}: proof verifier target.",
+            ),
+        )
+        self.mutator = mutator
+
+    def execute(self, request, decision, authority, context):  # noqa: ANN001, ANN201
+        result = super().execute(request, decision, authority, context)
+        mission_dir = context.kernel.store.mission_dir(request.mission_id)
+        if self.mutator == "fake_receipt":
+            return result.model_copy(update={"receipt_refs": ["missing_receipt_ref"]})
+        if self.mutator == "tamper_receipt":
+            receipt_path = mission_dir / "read_only_spine" / "receipts" / f"{result.receipt_refs[0]}.json"
+            payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+            payload["status"] = "tampered"
+            receipt_path.write_text(json.dumps(payload), encoding="utf-8")
+        elif self.mutator == "missing_report":
+            report_path = mission_dir / "read_only_spine" / "reports" / f"{result.artifact_refs[0]}.json"
+            report_path.unlink()
+        elif self.mutator == "tamper_report":
+            report_path = mission_dir / "read_only_spine" / "reports" / f"{result.artifact_refs[0]}.json"
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+            payload["safe_report"] = "tampered report"
+            report_path.write_text(json.dumps(payload), encoding="utf-8")
+        elif self.mutator == "fake_finalgate":
+            return result.model_copy(update={"finalgate_refs": ["missing_finalgate_ref"]})
+        elif self.mutator == "reject_finalgate":
+            finalgate_path = mission_dir / "read_only_spine" / "finalgate" / f"{result.finalgate_refs[0]}.json"
+            payload = json.loads(finalgate_path.read_text(encoding="utf-8"))
+            payload["accepted"] = False
+            payload["status"] = "blocked"
+            payload["certificate_hash"] = ""
+            from sentinel.agent.model_execution.redaction import stable_hash
+
+            payload["certificate_hash"] = stable_hash(payload)
+            finalgate_path.write_text(json.dumps(payload), encoding="utf-8")
+        return result
+
+
+class _CountingAdapter(UnifiedExecutionAdapter):
+    adapter_id = "read_only_research_adapter"
+    capability_id = "read_only_research"
+    operation = "inspect_repository"
+
+    def __init__(self) -> None:
+        self.execute_count = 0
+
+    def execute(self, request, decision, authority, context):  # noqa: ANN001, ANN201
+        self.execute_count += 1
+        return context.completed_result(
+            request=request,
+            decision=decision,
+            adapter_id=self.adapter_id,
+            receipt_refs=["receipt_fake"],
+            finalgate_refs=["finalgate_fake"],
+            artifact_refs=["artifact_fake"],
+        )
+
+
+def _json_payloads(host: SentinelRuntimeHost, mission_id: str, *parts: str) -> list[dict[str, Any]]:
+    root = host.kernel.store.mission_dir(mission_id) / Path(*parts)
+    if not root.exists():
+        return []
+    return [json.loads(path.read_text(encoding="utf-8")) for path in sorted(root.glob("*.json"))]
+
+
+def _event_count(host: SentinelRuntimeHost, mission_id: str, event_type: str) -> int:
+    return sum(1 for event in host.kernel.store.load_events(mission_id) if event.event_type == event_type)
+
+
+def _terminal_event_types(host: SentinelRuntimeHost, mission_id: str) -> list[str]:
+    mission_terminal_types = {"mission_completed", "mission_blocked", "mission_failed", "mission_killed", "mission_revoked"}
+    return [
+        event.event_type
+        for event in host.kernel.store.load_events(mission_id)
+        if event.event_type in mission_terminal_types
+    ]
+
+
+def _terminal_certificate_count(host: SentinelRuntimeHost, mission_id: str) -> int:
+    return len(_json_payloads(host, mission_id, "read_only_spine", "finalgate")) + len(
+        _json_payloads(host, mission_id, "dispatch_terminal_certificates")
+    )
+
+
+def _replay_counter_snapshot(
+    host: SentinelRuntimeHost,
+    mission_id: str,
+    decision_client: ReadOnlyDecisionClient,
+    report_client: ReadOnlyReportClient,
+) -> dict[str, object]:
+    return {
+        "coordinator_calls": getattr(host.coordinator, "call_count", None),
+        "decision_client_calls": decision_client.call_count,
+        "report_client_calls": report_client.call_count,
+        "events": len(host.kernel.store.load_events(mission_id)),
+        "receipt_writes": len(_json_payloads(host, mission_id, "read_only_spine", "receipts")),
+        "failed_attempt_writes": len(_json_payloads(host, mission_id, "read_only_spine", "failed_attempts")),
+        "report_artifact_writes": len(_json_payloads(host, mission_id, "read_only_spine", "reports")),
+        "finalgate_writes": len(_json_payloads(host, mission_id, "read_only_spine", "finalgate")),
+        "dispatch_decision_writes": len(_json_payloads(host, mission_id, "execution_decisions")),
+        "dispatch_closeout_writes": len(_json_payloads(host, mission_id, "dispatch_closeout")),
+        "dispatch_terminal_writes": len(_json_payloads(host, mission_id, "dispatch_terminal_certificates")),
+        "mission_status": host.kernel.store.load_record(mission_id).status.value,
+        "timeline_ok": host.kernel.store.verify_timeline(mission_id),
+    }

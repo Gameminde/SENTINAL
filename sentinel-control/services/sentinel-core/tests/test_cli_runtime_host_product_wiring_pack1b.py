@@ -6,6 +6,13 @@ from typing import Any
 
 import pytest
 
+from sentinel.agent.model_contract import (
+    ContextBudgetPolicy,
+    ModelCapabilityProfile,
+    QualityExpectationContract,
+    UserModelContract,
+)
+from sentinel.agent.model_cost import ModelCostProfile
 from sentinel import cli
 from sentinel.operator.daemon_models import DaemonQueueStatus
 from sentinel.operator.daemon_runtime import MissionDaemonRuntimeError
@@ -72,6 +79,58 @@ def test_cli_product_route_uses_single_runtime_host_lifecycle_and_pumps_daemon(
     assert turns[-1]["metadata"]["daemon_pickup"]["claimed"] is True
     assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "blocked"
     assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_adapter_id"] == "read_only_research_adapter"
+
+
+def test_cli_llm_product_route_wires_same_model_contract_into_pack3_execution_clients(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Research target\ncommand registry lives here\n", encoding="utf-8")
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = tmp_path / "script.txt"
+    script_path.write_text("Understand this repo\noui commence\n", encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, workspace))
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--script",
+            str(script_path),
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    turns = json.loads(output.out)
+    assert code == 0
+    assert output.err == ""
+    assert len(model_clients) == 1
+    client = model_clients[0]
+    lanes = [call.request_metadata.get("read_only_lane") for call in client.calls]
+    assert lanes == [None, "exploration_decision", "exploration_decision", "final_report"]
+    assert {call.user_model_contract_id for call in client.calls} == {_model_contract().id}
+    assert client.decision_calls == 2
+    assert client.report_calls == 1
+    assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "completed"
+    run_root = tmp_path / "runs"
+    mission_id = turns[-1]["mission_record"]["mission_id"]
+    persisted = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((run_root / "missions" / mission_id).rglob("*.json"))
+    )
+    assert "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST" not in persisted
+    assert "RAW_REASONING_SHOULD_NOT_PERSIST" not in persisted
 
 
 def test_cli_product_route_missing_scope_blocks_before_mission_creation(
@@ -296,6 +355,105 @@ def _write_approval_scope(tmp_path: Path) -> Path:
     scope_path = tmp_path / "approval-scope.json"
     scope_path.write_text(json.dumps(_approval_scope_payload()), encoding="utf-8")
     return scope_path
+
+
+def _model_contract() -> UserModelContract:
+    model = "unit/read-only-model"
+    return UserModelContract(
+        id="umodel_pack3_cli",
+        selected_provider_id="unit_provider",
+        selected_backend_id="unit_backend",
+        selected_model=model,
+        cost_profile=ModelCostProfile(
+            model_name=model,
+            input_usd_per_1m=0.0,
+            output_usd_per_1m=0.0,
+            context_window_tokens=32_000,
+        ),
+        capability_profile=ModelCapabilityProfile(
+            model_name=model,
+            context_window_tokens=32_000,
+            supports_tool_calling=False,
+        ),
+        context_budget_policy=ContextBudgetPolicy(
+            max_decision_frame_tokens=4_000,
+            max_tool_schema_tokens=500,
+            max_evidence_tokens=2_000,
+            reserve_output_tokens=500,
+        ),
+        quality_expectation=QualityExpectationContract(
+            expected_quality="pack3_product_wiring",
+            minimum_evidence_refs=0,
+            retry_budget=0,
+        ),
+    )
+
+
+class RecordingProductModelClient:
+    def __init__(self, *, user_model_contract: UserModelContract, workspace: Path) -> None:
+        self.contract = user_model_contract
+        self.workspace = workspace
+        self.calls = []
+        self.decision_calls = 0
+        self.report_calls = 0
+
+    def complete(self, request):  # noqa: ANN001, ANN201
+        self.calls.append(request)
+        lane = request.request_metadata.get("read_only_lane")
+        if lane == "exploration_decision":
+            self.decision_calls += 1
+            if self.decision_calls == 1:
+                return {
+                    "action": "list_directory",
+                    "arguments": {"path": "."},
+                    "evidence_refs": [],
+                    "raw_provider_response": "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST",
+                    "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
+                }
+            return {
+                "action": "finish_exploration",
+                "arguments": {},
+                "evidence_refs": [],
+                "raw_provider_response": "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST",
+                "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
+            }
+        if lane == "final_report":
+            self.report_calls += 1
+            evidence_refs = list(request.request_metadata["evidence_refs"])
+            return {
+                "report_text": f"Report cites {', '.join(evidence_refs)}: repository overview completed.",
+                "evidence_refs": evidence_refs,
+                "raw_provider_response": "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST",
+                "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
+            }
+        return {
+            "reply": "Mission draft ready.",
+            "mission_draft": {
+                "title": "Read-only product mission",
+                "objective": "Inspect the repository and produce an evidence-linked report.",
+                "constraints": ["read-only"],
+                "expected_artifacts": ["evidence-linked report"],
+            },
+            "authority_summary": {
+                "mission_id": "pending",
+                "allowed_actions": ["list_directory", "read_file_segment", "search_text", "finish_exploration"],
+                "forbidden_actions": ["write_file", "shell", "credential_access"],
+                "summary": "Read-only repository research.",
+                "metadata": {
+                    "workspace_ref": f"workspace:{self.workspace}",
+                    "model_contract_ref": f"model_contract:{self.contract.id}",
+                },
+            },
+        }
+
+
+def _product_model_client_factory(model_clients: list[RecordingProductModelClient], workspace: Path):
+    def factory(*, user_model_contract: UserModelContract, **_kwargs) -> RecordingProductModelClient:  # noqa: ANN001
+        client = RecordingProductModelClient(user_model_contract=user_model_contract, workspace=workspace)
+        model_clients.append(client)
+        return client
+
+    return factory
 
 
 def _approval_scope_payload() -> dict[str, object]:

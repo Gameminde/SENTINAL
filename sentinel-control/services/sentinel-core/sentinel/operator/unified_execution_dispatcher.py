@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from pydantic import Field, model_validator
 
-from sentinel.agent.model_execution.redaction import text_hash
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
@@ -19,7 +20,10 @@ from sentinel.operator.mission_execution_coordinator import (
 from sentinel.operator.mission_lifecycle_service import MissionExecutionRequest, MissionExecutionRequestState, MissionLifecycleService
 from sentinel.operator.models import OperatorMissionStatus, OperatorMode
 from sentinel.operator.read_only_operator_spine import (
+    ReadOnlyActionKind,
+    ReadOnlyActionReceipt,
     ReadOnlyDecisionClient,
+    ReadOnlyFinalGateCertificate,
     ReadOnlyProductionSpineResult,
     ReadOnlyProductionSpineSession,
     ReadOnlyReportClient,
@@ -47,6 +51,7 @@ class UnifiedDispatchResult(SentinelModel):
     receipt_refs: list[str] = Field(default_factory=list)
     failed_attempt_refs: list[str] = Field(default_factory=list)
     finalgate_refs: list[str] = Field(default_factory=list)
+    terminal_certificate_refs: list[str] = Field(default_factory=list)
     artifact_refs: list[str] = Field(default_factory=list)
     live_event_refs: list[str] = Field(default_factory=list)
     finalgate_status: str | None = None
@@ -81,6 +86,7 @@ class UnifiedDispatchResult(SentinelModel):
             "receipt_refs": sanitize_operator_refs(self.receipt_refs),
             "failed_attempt_refs": sanitize_operator_refs(self.failed_attempt_refs),
             "finalgate_refs": sanitize_operator_refs(self.finalgate_refs),
+            "terminal_certificate_refs": sanitize_operator_refs(self.terminal_certificate_refs),
             "artifact_refs": sanitize_operator_refs(self.artifact_refs),
             "live_event_refs": sanitize_operator_refs(self.live_event_refs),
             "finalgate_status": redact_operator_text(self.finalgate_status or "") or None,
@@ -91,6 +97,70 @@ class UnifiedDispatchResult(SentinelModel):
             "can_grant_authority": self.can_grant_authority,
             "can_execute": self.can_execute,
         }
+
+
+class DispatcherTerminalCertificate(SentinelModel):
+    certificate_id: str = Field(default_factory=lambda: new_id("dispatch_terminal"))
+    mission_id: str
+    execution_request_id: str
+    decision_id: str | None = None
+    dispatch_id: str
+    adapter_id: str | None = None
+    status: str = "blocked"
+    accepted: bool = False
+    reason_code: str
+    certificate_hash: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _terminal_certificate_is_data_only(self) -> "DispatcherTerminalCertificate":
+        assert_data_not_authority(
+            context="dispatcher_terminal_certificate",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        if self.accepted:
+            raise ValueError("dispatcher terminal certificate cannot accept blocked routes")
+        return self
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "certificate_id": self.certificate_id,
+            "mission_id": self.mission_id,
+            "execution_request_id": self.execution_request_id,
+            "decision_id": self.decision_id,
+            "dispatch_id": self.dispatch_id,
+            "adapter_id": redact_operator_text(self.adapter_id or "") or None,
+            "status": self.status,
+            "accepted": self.accepted,
+            "reason_code": redact_operator_text(self.reason_code),
+            "certificate_hash": self.certificate_hash,
+            "created_at": self.created_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+    def with_hash(self) -> "DispatcherTerminalCertificate":
+        payload = self.safe_model_dump()
+        payload["certificate_hash"] = ""
+        return self.model_copy(update={"certificate_hash": stable_hash(payload)})
+
+
+class DispatchProofVerificationResult(SentinelModel):
+    ok: bool
+    failure_code: str | None = None
+    receipt_refs: list[str] = Field(default_factory=list)
+    report_refs: list[str] = Field(default_factory=list)
+    finalgate_refs: list[str] = Field(default_factory=list)
+    material_observation_receipt_count: int = 0
 
 
 class MissionExecutionDecisionStore:
@@ -264,35 +334,29 @@ class UnifiedExecutionDispatcher:
         )
         if decision.status is not MissionExecutionDecisionStatus.ROUTED:
             result = self._block(request, decision, decision.rejection_reason or "coordinator_rejected")
-            self._persist_closeout(result)
-            return result
+            return self._persist_closeout(result)
         state = self.lifecycle.derive_request_state(request.mission_id, request.request_id)
         if state.state is not MissionExecutionRequestState.DISPATCH_DECIDED:
             result = self._block(request, decision, f"request_state_not_dispatchable:{state.state.value}")
-            self._persist_closeout(result)
-            return result
-        if authority.id != request.mission_id or request.authority_envelope_ref != decision.authority_envelope_ref:
-            result = self._block(request, decision, "authority_ref_mismatch")
-            self._persist_closeout(result)
-            return result
+            return self._persist_closeout(result)
+        authority_failure = self._dispatch_authority_failure(request=request, decision=decision, authority=authority)
+        if authority_failure is not None:
+            result = self._block(request, decision, authority_failure)
+            return self._persist_closeout(result)
         try:
             adapter = self.adapter_registry.get(decision.adapter_id or "")
         except KeyError:
             result = self._block(request, decision, "unknown_adapter")
-            self._persist_closeout(result)
-            return result
+            return self._persist_closeout(result)
         if adapter.adapter_id != decision.adapter_id:
             result = self._block(request, decision, "adapter_id_mismatch")
-            self._persist_closeout(result)
-            return result
+            return self._persist_closeout(result)
         if adapter.capability_id != request.capability_id:
             result = self._block(request, decision, "capability_mismatch")
-            self._persist_closeout(result)
-            return result
+            return self._persist_closeout(result)
         if adapter.operation != request.operation:
             result = self._block(request, decision, "operation_mismatch")
-            self._persist_closeout(result)
-            return result
+            return self._persist_closeout(result)
         self.kernel.store.append_event(
             request.mission_id,
             event_type="mission_dispatch_started",
@@ -321,13 +385,34 @@ class UnifiedExecutionDispatcher:
             result = self._block(request, decision, f"adapter_exception:{exc.__class__.__name__}")
         if result.mission_id != request.mission_id or result.execution_request_id != request.request_id:
             result = self._block(request, decision, "adapter_result_correlation_failure")
-        self._persist_closeout(result)
-        return result
+        return self._persist_closeout(result)
 
     def _block(self, request: MissionExecutionRequest, decision: MissionExecutionDecision | None, reason: str) -> UnifiedDispatchResult:
         return _blocked_result(request, decision, adapter_id=decision.adapter_id if decision else None, reason=reason)
 
-    def _persist_closeout(self, result: UnifiedDispatchResult) -> None:
+    def _dispatch_authority_failure(
+        self,
+        *,
+        request: MissionExecutionRequest,
+        decision: MissionExecutionDecision,
+        authority: MissionAuthorityEnvelope,
+    ) -> str | None:
+        if not request.verify_hash():
+            return "request_hash_mismatch"
+        if not decision.verify_hash():
+            return "decision_hash_mismatch"
+        if authority.id != request.mission_id:
+            return "authority_mission_mismatch"
+        if request.authority_envelope_ref != decision.authority_envelope_ref:
+            return "authority_ref_mismatch"
+        if authority.revoked_at is not None:
+            return "authority_inactive"
+        if datetime.now(UTC) > authority.resolved_expires_at():
+            return "authority_inactive"
+        return None
+
+    def _persist_closeout(self, result: UnifiedDispatchResult) -> UnifiedDispatchResult:
+        result = self._verified_closeout_result(result)
         self.kernel.store.atomic_write_json(
             self.kernel.store.mission_dir(result.mission_id, create=True) / "dispatch_closeout" / f"{result.dispatch_id}.json",
             result.safe_model_dump(),
@@ -341,9 +426,10 @@ class UnifiedExecutionDispatcher:
                 "execution_request_id": result.execution_request_id,
                 "decision_id": result.decision_id,
                 "dispatch_id": result.dispatch_id,
-                "adapter_id": result.adapter_id,
+                "adapter_id_hash": text_hash(result.adapter_id or ""),
                 "status": result.status.value,
                 "blocked_reason_hash": blocked_reason_hash,
+                "terminal_certificate_ref_hashes": [text_hash(ref) for ref in sanitize_operator_refs(result.terminal_certificate_refs)],
             },
             receipt_refs=result.receipt_refs,
             finalgate_certificate_refs=result.finalgate_refs,
@@ -355,7 +441,7 @@ class UnifiedExecutionDispatcher:
                     OperatorMissionStatus.COMPLETED,
                     "Mission completed after dispatch closeout and accepted FinalGate.",
                 )
-            return
+            return result
         if not self.kernel.is_terminal(result.mission_id):
             try:
                 self.kernel.update_status(
@@ -365,6 +451,168 @@ class UnifiedExecutionDispatcher:
                 )
             except MissionLifecycleError:
                 pass
+        return result
+
+    def _verified_closeout_result(self, result: UnifiedDispatchResult) -> UnifiedDispatchResult:
+        if result.status is DispatchStatus.COMPLETED:
+            proof = self._verify_completed_proof(result)
+            if proof.ok:
+                return result.model_copy(
+                    update={
+                        "receipt_refs": proof.receipt_refs,
+                        "artifact_refs": proof.report_refs,
+                        "finalgate_refs": proof.finalgate_refs,
+                        "terminal_certificate_refs": proof.finalgate_refs,
+                    }
+                )
+            blocked = result.model_copy(
+                update={
+                    "status": DispatchStatus.BLOCKED,
+                    "finalgate_status": "rejected",
+                    "blocked_reason": proof.failure_code,
+                }
+            )
+            if not result.finalgate_refs:
+                return self._with_dispatch_terminal_certificate(blocked, reason=proof.failure_code or "proof_verification_failed")
+            return blocked
+        if not result.finalgate_refs and not result.terminal_certificate_refs:
+            return self._with_dispatch_terminal_certificate(result, reason=result.blocked_reason or "dispatch_blocked")
+        return result
+
+    def _verify_completed_proof(self, result: UnifiedDispatchResult) -> DispatchProofVerificationResult:
+        receipt_result = self._load_and_verify_receipts(result)
+        if not receipt_result.ok:
+            return receipt_result
+        report_result = self._load_and_verify_reports(result, known_evidence_refs=self._receipt_evidence_refs(result))
+        if not report_result.ok:
+            return report_result
+        finalgate_result = self._load_and_verify_finalgate(result, validated_receipt_refs=receipt_result.receipt_refs)
+        if not finalgate_result.ok:
+            return finalgate_result
+        return DispatchProofVerificationResult(
+            ok=True,
+            receipt_refs=receipt_result.receipt_refs,
+            report_refs=report_result.report_refs,
+            finalgate_refs=finalgate_result.finalgate_refs,
+            material_observation_receipt_count=receipt_result.material_observation_receipt_count,
+        )
+
+    def _load_and_verify_receipts(self, result: UnifiedDispatchResult) -> DispatchProofVerificationResult:
+        if not result.receipt_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
+        material_count = 0
+        for receipt_ref in result.receipt_refs:
+            path = self._read_only_artifact_path(result.mission_id, "receipts", receipt_ref)
+            if not path.exists():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
+            receipt = ReadOnlyActionReceipt.model_validate(json.loads(path.read_text(encoding="utf-8")))
+            if receipt.mission_id != result.mission_id:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_mission_mismatch")
+            if not receipt.verify_hash():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_hash_mismatch")
+            if receipt.status == "success" and receipt.action in {
+                ReadOnlyActionKind.LIST_DIRECTORY,
+                ReadOnlyActionKind.READ_FILE_SEGMENT,
+                ReadOnlyActionKind.SEARCH_TEXT,
+            }:
+                material_count += 1
+        if material_count < 1:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_material_observation_missing")
+        return DispatchProofVerificationResult(
+            ok=True,
+            receipt_refs=list(dict.fromkeys(result.receipt_refs)),
+            material_observation_receipt_count=material_count,
+        )
+
+    def _load_and_verify_reports(
+        self,
+        result: UnifiedDispatchResult,
+        *,
+        known_evidence_refs: set[str],
+    ) -> DispatchProofVerificationResult:
+        if not result.artifact_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_report_missing")
+        for report_ref in result.artifact_refs:
+            path = self._read_only_artifact_path(result.mission_id, "reports", report_ref)
+            if not path.exists():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_report_missing")
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if payload.get("mission_id") != result.mission_id:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_report_mission_mismatch")
+            safe_report = str(payload.get("safe_report") or "")
+            if not safe_report.strip():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_report_empty")
+            if text_hash(safe_report) != payload.get("report_hash"):
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_report_hash_mismatch")
+            evidence_refs = set(sanitize_operator_refs(payload.get("evidence_refs") or []))
+            if not evidence_refs.issubset(known_evidence_refs):
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_report_unknown_evidence")
+        return DispatchProofVerificationResult(ok=True, report_refs=list(dict.fromkeys(result.artifact_refs)))
+
+    def _load_and_verify_finalgate(
+        self,
+        result: UnifiedDispatchResult,
+        *,
+        validated_receipt_refs: list[str],
+    ) -> DispatchProofVerificationResult:
+        if not result.finalgate_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
+        for finalgate_ref in result.finalgate_refs:
+            path = self._read_only_artifact_path(result.mission_id, "finalgate", finalgate_ref)
+            if not path.exists():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
+            certificate = ReadOnlyFinalGateCertificate.model_validate(json.loads(path.read_text(encoding="utf-8")))
+            if certificate.mission_id != result.mission_id:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_mission_mismatch")
+            if not certificate.verify_hash():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_hash_mismatch")
+            if not certificate.accepted:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_rejected")
+            if set(certificate.receipt_refs) != set(validated_receipt_refs):
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_receipt_mismatch")
+        return DispatchProofVerificationResult(ok=True, finalgate_refs=list(dict.fromkeys(result.finalgate_refs)))
+
+    def _receipt_evidence_refs(self, result: UnifiedDispatchResult) -> set[str]:
+        refs: set[str] = set()
+        for receipt_ref in result.receipt_refs:
+            path = self._read_only_artifact_path(result.mission_id, "receipts", receipt_ref)
+            if not path.exists():
+                continue
+            receipt = ReadOnlyActionReceipt.model_validate(json.loads(path.read_text(encoding="utf-8")))
+            refs.update(sanitize_operator_refs(receipt.evidence_refs))
+        return refs
+
+    def _with_dispatch_terminal_certificate(self, result: UnifiedDispatchResult, *, reason: str) -> UnifiedDispatchResult:
+        certificate = DispatcherTerminalCertificate(
+            mission_id=result.mission_id,
+            execution_request_id=result.execution_request_id,
+            decision_id=result.decision_id,
+            dispatch_id=result.dispatch_id,
+            adapter_id=result.adapter_id,
+            reason_code=reason,
+        ).with_hash()
+        self.kernel.store.atomic_write_json(
+            self.kernel.store.mission_dir(result.mission_id, create=True)
+            / "dispatch_terminal_certificates"
+            / f"{certificate.certificate_id}.json",
+            certificate.safe_model_dump(),
+        )
+        self.kernel.store.append_event(
+            result.mission_id,
+            event_type="mission_dispatch_terminal_certified",
+            safe_summary="Dispatcher terminal certificate recorded for blocked route.",
+            metadata={
+                "execution_request_id": result.execution_request_id,
+                "dispatch_id": result.dispatch_id,
+                "blocked": True,
+                "proof_ref_hash": text_hash(certificate.certificate_id),
+                "proof_reason_hash": text_hash(certificate.reason_code),
+            },
+        )
+        return result.model_copy(update={"terminal_certificate_refs": [certificate.certificate_id]})
+
+    def _read_only_artifact_path(self, mission_id: str, collection: str, ref: str) -> Path:
+        return self.kernel.store.mission_dir(mission_id, create=True) / "read_only_spine" / collection / f"{ref}.json"
 
 
 def _blocked_result(
@@ -397,7 +645,9 @@ def _workspace_from_ref(workspace_ref: str) -> Path:
 
 
 __all__ = [
+    "DispatcherTerminalCertificate",
     "DispatchStatus",
+    "DispatchProofVerificationResult",
     "MissionExecutionDecisionStore",
     "ReadOnlyResearchAdapter",
     "UnifiedDispatchResult",

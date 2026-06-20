@@ -45,6 +45,7 @@ from sentinel.operator.legacy_classification import InternalAccessClassification
 from sentinel.operator.model_client import OperatorCatalogModelClient
 from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
 from sentinel.operator.replay import MissionReplayBuilder
+from sentinel.operator.read_only_model_clients import ReadOnlyProviderDecisionClient, ReadOnlyProviderReportClient
 from sentinel.operator.runtime_host import SentinelRuntimeHost
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
@@ -344,8 +345,28 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
         return 2
 
     host = None
+    read_only_decision_factory = None
+    read_only_report_factory = None
+    require_read_only_model_clients = mode is OperatorMode.LLM_OPERATOR
+    if mode is OperatorMode.LLM_OPERATOR:
+        if user_model_contract is None or model_client is None:
+            print("sentinel cockpit: read_only_provider_execution_factories_required", file=sys.stderr)
+            return 2
+        read_only_decision_factory = lambda _request, _authority: ReadOnlyProviderDecisionClient(
+            user_model_contract=user_model_contract,
+            model_client=model_client,
+        )
+        read_only_report_factory = lambda _request, _authority: ReadOnlyProviderReportClient(
+            user_model_contract=user_model_contract,
+            model_client=model_client,
+        )
     try:
-        host = SentinelRuntimeHost(run_root=Path(args.run_root))
+        host = SentinelRuntimeHost(
+            run_root=Path(args.run_root),
+            read_only_decision_client_factory=read_only_decision_factory,
+            read_only_report_client_factory=read_only_report_factory,
+            require_read_only_model_clients=require_read_only_model_clients,
+        )
     except Exception as exc:  # noqa: BLE001
         print(f"sentinel cockpit: runtime_host_construction_failed:{exc.__class__.__name__}", file=sys.stderr)
         return 2

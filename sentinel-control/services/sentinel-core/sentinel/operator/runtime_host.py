@@ -62,7 +62,12 @@ class SentinelRuntimeHost:
         adapter_registry: UnifiedExecutionAdapterRegistry | None = None,
         read_only_decision_client_factory: Callable[[MissionExecutionRequest, MissionAuthorityEnvelope], ReadOnlyDecisionClient] | None = None,
         read_only_report_client_factory: Callable[[MissionExecutionRequest, MissionAuthorityEnvelope], ReadOnlyReportClient] | None = None,
+        require_read_only_model_clients: bool = False,
     ) -> None:
+        if require_read_only_model_clients and (
+            read_only_decision_client_factory is None or read_only_report_client_factory is None
+        ):
+            raise RuntimeError("read_only_provider_execution_factories_required")
         self.kernel = MissionKernel(run_root=run_root, telemetry_sink=telemetry_sink)
         self.connection_registry = connection_registry or build_default_runtime_connection_registry()
         self.coordinator = MissionExecutionCoordinator(self.connection_registry)
