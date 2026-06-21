@@ -459,6 +459,7 @@ def _run_cockpit_turn_loop(
             and turn.mission_record is not None
             and getattr(turn.mission_record, "mission_id", None)
             and turn.mission_record.mission_id not in pumped_mission_ids
+            and not turn.metadata.get("legacy_deterministic_scope_compatibility")
         ):
             try:
                 pickup = host.pump_daemon_once(turn.mission_record.mission_id)
@@ -486,8 +487,38 @@ def _run_cockpit_turn_loop(
             print(f"Sentinel: {safe_turn['reply']}")
 
     if args.json:
+        if turns:
+            metadata = dict(turns[-1].get("metadata", {}))
+            metadata["conversation_outcome"] = _classify_cockpit_conversation(turns)
+            turns[-1]["metadata"] = metadata
         print(json.dumps(turns, sort_keys=True, default=str))
     return 0
+
+
+def _classify_cockpit_conversation(turns: list[dict[str, object]]) -> str:
+    if not turns:
+        return "conversation_completed"
+    final = turns[-1]
+    mission_record = final.get("mission_record")
+    if isinstance(mission_record, dict):
+        status = mission_record.get("status")
+        if status in {"completed", "failed", "blocked", "killed", "revoked"}:
+            return "mission_terminal"
+        if status in {"queued", "running", "paused"}:
+            return "mission_dispatched" if _has_daemon_pickup(turns) else "mission_queued"
+    if _has_daemon_pickup(turns):
+        return "mission_dispatched"
+    if any(isinstance(turn.get("mission_record"), dict) for turn in turns):
+        return "mission_queued"
+    return "mission_not_created"
+
+
+def _has_daemon_pickup(turns: list[dict[str, object]]) -> bool:
+    for turn in turns:
+        metadata = turn.get("metadata")
+        if isinstance(metadata, dict) and isinstance(metadata.get("daemon_pickup"), dict):
+            return True
+    return False
 
 
 _REQUIRED_APPROVAL_SCOPE_FIELDS = frozenset(

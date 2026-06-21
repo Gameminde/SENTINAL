@@ -21,6 +21,7 @@ from sentinel.operator.models import (
 )
 from sentinel.memory.integration import PersistentMemoryRecallAdapter
 from sentinel.memory.models import PersistentMemoryRetrievalResult
+from sentinel.operator.structured_output import READ_ONLY_RESEARCH_ACTIONS, READ_ONLY_RESEARCH_CAPABILITY
 from sentinel.operator.models import utc_now
 
 
@@ -59,10 +60,11 @@ class LLMLiveOperatorCockpit:
         self._persistent_memory_owner_user_id = persistent_memory_owner_user_id
         self.last_persistent_memory_retrieval: PersistentMemoryRetrievalResult | None = None
         self.last_persistent_memory_error_hash: str | None = None
+        self._legacy_deterministic_scope_compatibility = False
 
     def handle(self, text: str) -> OperatorTurnResult:
         normalized = text.strip().lower()
-        if normalized in {"start", "commence", "go", "oui commence"}:
+        if _is_start_confirmation(normalized):
             return self._start()
         if normalized in {"pause", "/pause", "stop for now"}:
             return self._control("pause")
@@ -74,11 +76,12 @@ class LLMLiveOperatorCockpit:
             return self._status()
         persistent_memory_context = self._recall_persistent_memory(text)
         try:
-            return self.engine.handle_user_message(
+            result = self.engine.handle_user_message(
                 self.session,
                 text,
                 persistent_memory_context=persistent_memory_context,
             )
+            return self._apply_approval_scope(result)
         except ValidationError:
             return OperatorTurnResult(
                 session_id=self.session.session_id,
@@ -87,6 +90,45 @@ class LLMLiveOperatorCockpit:
                 intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="rejected unsafe operator output"),
                 metadata={"blocked_reason": "llm_operator_output_rejected"},
             )
+
+    def _apply_approval_scope(self, result: OperatorTurnResult) -> OperatorTurnResult:
+        if result.authority_summary is None or self.authority_approval_scope is None:
+            return result
+        action_scopes = [result.authority_summary.allowed_actions, self.authority_approval_scope.allowed_actions]
+        if result.authority_summary.metadata.get("capability_id") == READ_ONLY_RESEARCH_CAPABILITY:
+            action_scopes.insert(1, list(READ_ONLY_RESEARCH_ACTIONS))
+        allowed = _ordered_intersection(*action_scopes)
+        if not allowed and result.metadata.get("non_product_mode") is True:
+            allowed = [
+                action
+                for action in self.authority_approval_scope.allowed_actions
+                if action not in self.authority_approval_scope.forbidden_actions
+            ]
+            result = result.model_copy(
+                update={
+                    "metadata": {
+                        **result.metadata,
+                        "legacy_deterministic_scope_compatibility": True,
+                    }
+                }
+            )
+            self._legacy_deterministic_scope_compatibility = True
+        forbidden = list(
+            dict.fromkeys(
+                [
+                    *result.authority_summary.forbidden_actions,
+                    *self.authority_approval_scope.forbidden_actions,
+                ]
+            )
+        )
+        summary = result.authority_summary.model_copy(
+            update={
+                "allowed_actions": allowed,
+                "forbidden_actions": forbidden,
+            }
+        )
+        self.session.current_authority_summary = summary
+        return result.model_copy(update={"authority_summary": summary})
 
     def _recall_persistent_memory(self, text: str) -> str | None:
         self.last_persistent_memory_retrieval = None
@@ -172,6 +214,11 @@ class LLMLiveOperatorCockpit:
             self.active_mission_ids.append(record.mission_id)
         self.session.active_mission_id = record.mission_id
         self.session.state = OperatorConversationState.MISSION_QUEUED
+        metadata = (
+            {"legacy_deterministic_scope_compatibility": True}
+            if self._legacy_deterministic_scope_compatibility
+            else {}
+        )
         return OperatorTurnResult(
             session_id=self.session.session_id,
             state=OperatorConversationState.MISSION_QUEUED,
@@ -179,6 +226,7 @@ class LLMLiveOperatorCockpit:
             mission_draft=self.session.current_draft,
             authority_summary=self.session.current_authority_summary,
             mission_record=record,
+            metadata=metadata,
         )
 
     def _control(self, command: str) -> OperatorTurnResult:
@@ -205,7 +253,18 @@ class LLMLiveOperatorCockpit:
             state = _state_for_record_status(record.status, fallback=self.session.state)
             reply = f"Mission cannot change state: {exc}"
         self.session.state = state
-        return OperatorTurnResult(session_id=self.session.session_id, state=state, reply=reply, mission_record=record)
+        metadata = (
+            {"legacy_deterministic_scope_compatibility": True}
+            if self._legacy_deterministic_scope_compatibility
+            else {}
+        )
+        return OperatorTurnResult(
+            session_id=self.session.session_id,
+            state=state,
+            reply=reply,
+            mission_record=record,
+            metadata=metadata,
+        )
 
     def _status(self) -> OperatorTurnResult:
         mission_id = self._single_active_mission_id()
@@ -262,6 +321,21 @@ def _state_for_record_status(
     if status is OperatorMissionStatus.RUNNING:
         return OperatorConversationState.MISSION_RUNNING
     return fallback
+
+
+def _is_start_confirmation(normalized: str) -> bool:
+    if normalized in {"start", "commence", "go", "oui commence", "approve", "approved"}:
+        return True
+    return normalized.startswith("oui") and "commence" in normalized and (
+        "approuv" in normalized or "autorit" in normalized or "authority" in normalized
+    )
+
+
+def _ordered_intersection(*collections: list[str]) -> list[str]:
+    if not collections:
+        return []
+    allowed_sets = [set(collection) for collection in collections[1:]]
+    return [item for item in collections[0] if all(item in allowed for allowed in allowed_sets)]
 
 
 def _default_authority_policy(summary) -> MissionAuthorityPolicy:

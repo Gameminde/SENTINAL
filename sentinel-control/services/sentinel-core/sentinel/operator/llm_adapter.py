@@ -87,7 +87,7 @@ class OperatorLLMConversationAdapter:
                 schema_invalid=False,
             )
             return result
-        except OperatorStructuredOutputError:
+        except OperatorStructuredOutputError as exc:
             self._record_model_completion(
                 frame=frame,
                 request=request,
@@ -95,12 +95,14 @@ class OperatorLLMConversationAdapter:
                 provider_response_hash=None,
                 reasoning_hash=None,
                 schema_invalid=True,
+                diagnostics=exc.diagnostics,
             )
             return _fail_closed(
                 mode=self._mode,
                 contract=self._contract,
                 reason="invalid_structured_output",
                 reply="I could not validate the LLM operator output, so I will ask for a safer clarification instead.",
+                diagnostics=exc.diagnostics,
             )
 
     def _record_model_start(self, *, request: RealModelRequest, frame: OperatorConversationFrame) -> None:
@@ -122,6 +124,7 @@ class OperatorLLMConversationAdapter:
         provider_response_hash: str | None = None,
         reasoning_hash: str | None = None,
         schema_invalid: bool,
+        diagnostics: dict[str, Any] | None = None,
     ) -> None:
         if self._telemetry_sink is None:
             return
@@ -139,6 +142,7 @@ class OperatorLLMConversationAdapter:
                 session_id=frame.session_id,
                 blocked_reason=blocked_reason,
                 schema_invalid=schema_invalid,
+                diagnostics=diagnostics,
             )
 
 
@@ -205,11 +209,15 @@ def _fail_closed(
     contract: UserModelContract,
     reason: str,
     reply: str,
+    diagnostics: dict[str, Any] | None = None,
 ) -> OperatorLLMDecisionResult:
+    metadata: dict[str, Any] = {"blocked_reason": reason}
+    if diagnostics:
+        metadata["structured_output_diagnostics"] = diagnostics
     return OperatorLLMDecisionResult(
         mode=mode,
         reply=reply,
-        metadata={"blocked_reason": reason},
+        metadata=metadata,
         provider_id=contract.selected_provider_id,
         backend_id=contract.selected_backend_id,
         model_id=contract.selected_model,

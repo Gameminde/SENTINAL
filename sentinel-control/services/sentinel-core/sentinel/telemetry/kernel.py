@@ -159,6 +159,7 @@ class TelemetryKernel:
         session_id: str | None = None,
         blocked_reason: str | None = None,
         schema_invalid: bool = False,
+        diagnostics: dict[str, Any] | None = None,
     ) -> TelemetryEventRecord:
         if schema_invalid:
             event_kind = TelemetryEventKind.MODEL_SCHEMA_INVALID
@@ -184,6 +185,9 @@ class TelemetryKernel:
                     "reasoning_hash": reasoning_hash,
                     "blocked_reason": blocked_reason,
                     "decision_kind": getattr(getattr(decision, "intent", None), "kind", None),
+                    "structured_output_diagnostics": sanitize_telemetry_value(diagnostics)
+                    if diagnostics
+                    else None,
                 },
             )
         )

@@ -113,6 +113,120 @@ def test_catalog_model_client_calls_aliyun_dashscope_openai_compatible_backend(
     assert recorder.calls[0]["json"]["model"] == "deepseek-v4-pro"
 
 
+def test_catalog_model_client_accepts_single_fenced_mission_understanding_v2_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recorder = RecordingHttpxClient(
+        _provider_payload(
+            "```json\n"
+            + json.dumps(
+                {
+                    "protocol_version": "cockpit_mission_understanding_v2",
+                    "kind": "draft_mission",
+                    "reply": "Mission draft ready.",
+                    "title": "Repository architecture research",
+                    "objective": "Map packages and command execution flow.",
+                    "requested_capability": "read_only_research",
+                    "expected_artifacts": ["evidence-linked report"],
+                }
+            )
+            + "\n```"
+        )
+    )
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="ollama", backend_id="ollama_openai_compatible_chat", model="llama3.2")
+
+    result = OperatorLLMConversationAdapter(
+        mode=OperatorMode.LLM_OPERATOR,
+        user_model_contract=contract,
+        model_client=OperatorCatalogModelClient(user_model_contract=contract),
+    ).complete(_frame())
+
+    assert result.mission_draft is not None
+    assert result.mission_draft.title == "Repository architecture research"
+    assert result.authority_summary is not None
+    assert result.authority_summary.metadata["capability_id"] == "read_only_research"
+
+
+def test_catalog_model_client_accepts_harmless_formatting_around_one_v2_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recorder = RecordingHttpxClient(
+        _provider_payload(
+            "\n\n"
+            + json.dumps(
+                {
+                    "protocol_version": "cockpit_mission_understanding_v2",
+                    "kind": "draft_mission",
+                    "reply": "Mission draft ready.",
+                    "title": "Repository architecture research",
+                    "objective": "Map packages and command execution flow.",
+                    "requested_capability": "read_only_research",
+                }
+            )
+            + "\n\n"
+        )
+    )
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="ollama", backend_id="ollama_openai_compatible_chat", model="llama3.2")
+
+    result = OperatorLLMConversationAdapter(
+        mode=OperatorMode.LLM_OPERATOR,
+        user_model_contract=contract,
+        model_client=OperatorCatalogModelClient(user_model_contract=contract),
+    ).complete(_frame())
+
+    assert result.mission_draft is not None
+    assert result.metadata["understanding_protocol"] == "cockpit_mission_understanding_v2"
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        (
+            json.dumps(
+                {
+                    "protocol_version": "cockpit_mission_understanding_v2",
+                    "kind": "draft_mission",
+                    "reply": "one",
+                    "title": "one",
+                    "objective": "one",
+                    "requested_capability": "read_only_research",
+                }
+            )
+            + "\n"
+            + json.dumps(
+                {
+                    "protocol_version": "cockpit_mission_understanding_v2",
+                    "kind": "draft_mission",
+                    "reply": "two",
+                    "title": "two",
+                    "objective": "two",
+                    "requested_capability": "read_only_research",
+                }
+            )
+        ),
+        '{"protocol_version":"cockpit_mission_understanding_v2","kind":"draft_mission"',
+    ],
+)
+def test_catalog_model_client_rejects_ambiguous_or_truncated_v2_json(
+    monkeypatch: pytest.MonkeyPatch,
+    content: str,
+) -> None:
+    recorder = RecordingHttpxClient(_provider_payload(content))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="ollama", backend_id="ollama_openai_compatible_chat", model="llama3.2")
+
+    result = OperatorLLMConversationAdapter(
+        mode=OperatorMode.LLM_OPERATOR,
+        user_model_contract=contract,
+        model_client=OperatorCatalogModelClient(user_model_contract=contract),
+    ).complete(_frame())
+
+    assert result.mission_draft is None
+    assert result.metadata["blocked_reason"] == "invalid_structured_output"
+
+
 def test_catalog_model_client_missing_remote_credential_fails_closed_without_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -212,11 +326,11 @@ def _contract(*, provider_id: str, backend_id: str, model: str) -> UserModelCont
     )
 
 
-def _provider_payload(content: dict[str, object], *, model: str = "llama3.2") -> dict[str, object]:
+def _provider_payload(content: dict[str, object] | str, *, model: str = "llama3.2") -> dict[str, object]:
     return {
         "id": "chatcmpl_unit",
         "model": model,
-        "choices": [{"message": {"content": json.dumps(content)}}],
+        "choices": [{"message": {"content": content if isinstance(content, str) else json.dumps(content)}}],
         "usage": {"prompt_tokens": 10, "completion_tokens": 12},
     }
 
