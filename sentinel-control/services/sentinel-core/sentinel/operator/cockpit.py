@@ -19,6 +19,7 @@ from sentinel.operator.models import (
     OperatorMode,
     OperatorTurnResult,
 )
+from sentinel.operator.product_execution_binding import ProductExecutionBinding
 from sentinel.memory.integration import PersistentMemoryRecallAdapter
 from sentinel.memory.models import PersistentMemoryRetrievalResult
 from sentinel.operator.structured_output import READ_ONLY_RESEARCH_ACTIONS, READ_ONLY_RESEARCH_CAPABILITY
@@ -38,6 +39,7 @@ class LLMLiveOperatorCockpit:
         telemetry_sink: object | None = None,
         lifecycle_service: MissionLifecycleService | None = None,
         authority_approval_scope: MissionAuthorityApprovalScope | None = None,
+        product_execution_binding: ProductExecutionBinding | None = None,
     ) -> None:
         self.session = OperatorConversationSession(mode=mode)
         self._lifecycle_service = lifecycle_service
@@ -48,6 +50,7 @@ class LLMLiveOperatorCockpit:
             else MissionKernel(run_root=run_root, telemetry_sink=telemetry_sink)
         )
         self._telemetry_sink = self.kernel.telemetry_sink
+        self.product_execution_binding = product_execution_binding
         self.engine = OperatorConversationEngine(
             mode=mode,
             user_model_contract=user_model_contract,
@@ -169,37 +172,68 @@ class LLMLiveOperatorCockpit:
                     intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="explicit authority approval required"),
                     metadata={"blocked_reason": "explicit_authority_approval_scope_required"},
                 )
+            capability_id = str(
+                self.session.current_authority_summary.metadata.get(
+                    "capability_id",
+                    "read_only_research",
+                )
+            )
+            operation = str(
+                self.session.current_authority_summary.metadata.get(
+                    "operation",
+                    "inspect_repository",
+                )
+            )
+            binding = self.product_execution_binding
+            if binding is not None and (
+                binding.capability_id != capability_id or binding.operation != operation
+            ):
+                return OperatorTurnResult(
+                    session_id=self.session.session_id,
+                    state=OperatorConversationState.ASKING_CLARIFICATIONS,
+                    reply="Product execution binding does not match the approved mission capability.",
+                    intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="product binding mismatch"),
+                    metadata={"blocked_reason": "product_execution_binding_mismatch"},
+                )
+            if binding is None and self.session.mode is OperatorMode.LLM_OPERATOR:
+                return OperatorTurnResult(
+                    session_id=self.session.session_id,
+                    state=OperatorConversationState.ASKING_CLARIFICATIONS,
+                    reply="A validated workspace binding is required before Sentinel can start this product mission.",
+                    intent=OperatorIntent(kind=OperatorIntentKind.ASK_CLARIFICATION, text="workspace binding required"),
+                    metadata={"blocked_reason": "workspace_binding_required"},
+                )
+            workspace_ref = (
+                binding.workspace_ref
+                if binding is not None
+                else str(
+                    self.session.current_authority_summary.metadata.get(
+                        "workspace_ref",
+                        "snapshot:operator_session",
+                    )
+                )
+            )
+            model_contract_ref = (
+                binding.model_contract_ref
+                if binding is not None
+                else str(
+                    self.session.current_authority_summary.metadata.get(
+                        "model_contract_ref",
+                        "model_contract:operator_session",
+                    )
+                )
+            )
             lifecycle_result = self._lifecycle_service.create_mission(
                 session_id=self.session.session_id,
                 draft=self.session.current_draft,
                 authority_summary=self.session.current_authority_summary,
                 approval_scope=self.authority_approval_scope,
                 policy=_default_authority_policy(self.session.current_authority_summary),
-                capability_id=str(
-                    self.session.current_authority_summary.metadata.get(
-                        "capability_id",
-                        "read_only_research",
-                    )
-                ),
-                operation=str(
-                    self.session.current_authority_summary.metadata.get(
-                        "operation",
-                        "inspect_repository",
-                    )
-                ),
+                capability_id=capability_id,
+                operation=operation,
                 parameters={"mission_draft_id": self.session.current_draft.draft_id},
-                workspace_ref=str(
-                    self.session.current_authority_summary.metadata.get(
-                        "workspace_ref",
-                        "snapshot:operator_session",
-                    )
-                ),
-                model_contract_ref=str(
-                    self.session.current_authority_summary.metadata.get(
-                        "model_contract_ref",
-                        "model_contract:operator_session",
-                    )
-                ),
+                workspace_ref=workspace_ref,
+                model_contract_ref=model_contract_ref,
             )
             record = lifecycle_result.record
         else:

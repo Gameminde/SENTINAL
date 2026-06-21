@@ -30,6 +30,8 @@ def test_cli_product_route_uses_single_runtime_host_lifecycle_and_pumps_daemon(
     monkeypatch.setattr(cli, "SentinelRuntimeHost", _recording_host_factory(hosts))
     scope_path = _write_approval_scope(tmp_path)
     script_path = _write_script(tmp_path)
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
 
     code = cli.main(
         [
@@ -39,6 +41,8 @@ def test_cli_product_route_uses_single_runtime_host_lifecycle_and_pumps_daemon(
             "--deterministic-test-mode",
             "--authority-scope",
             str(scope_path),
+            "--workspace",
+            str(workspace),
             "--script",
             str(script_path),
             "--json",
@@ -62,7 +66,8 @@ def test_cli_product_route_uses_single_runtime_host_lifecycle_and_pumps_daemon(
     queue_record = host.daemon.store.load_queue_record(mission_id)
     events = [event.event_type for event in host.kernel.store.load_events(mission_id)]
 
-    assert state.state is MissionExecutionRequestState.BLOCKED
+    assert state.state is MissionExecutionRequestState.COMPLETED
+    assert request.workspace_ref == f"workspace:{workspace.resolve()}"
     assert queue_record.status is DaemonQueueStatus.RUNNING
     assert active.allowed_systems == ["local_workspace"]
     assert active.allowed_tools == ["read_only_observation"]
@@ -77,7 +82,7 @@ def test_cli_product_route_uses_single_runtime_host_lifecycle_and_pumps_daemon(
     assert turns[-1]["metadata"]["internal_access_classification"] == "production_route"
     assert turns[-1]["metadata"]["runtime_host_lifecycle_ref"] == f"lifecycle:{id(host.lifecycle)}"
     assert turns[-1]["metadata"]["daemon_pickup"]["claimed"] is True
-    assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "blocked"
+    assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "completed"
     assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_adapter_id"] == "read_only_research_adapter"
 
 
@@ -105,6 +110,8 @@ def test_cli_llm_product_route_wires_same_model_contract_into_pack3_execution_cl
             str(contract_path),
             "--authority-scope",
             str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
             "--script",
             str(script_path),
             "--json",
@@ -125,12 +132,133 @@ def test_cli_llm_product_route_wires_same_model_contract_into_pack3_execution_cl
     assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "completed"
     run_root = tmp_path / "runs"
     mission_id = turns[-1]["mission_record"]["mission_id"]
+    request_file = next(run_root.rglob("mission_exec_req_*.json"))
+    request_payload = json.loads(request_file.read_text(encoding="utf-8"))
+    assert request_payload["workspace_ref"] == f"workspace:{workspace.resolve()}"
+    assert request_payload["model_contract_ref"].startswith(
+        "model_contract:unit_provider:unit_backend:unit/read-only-model:"
+    )
+    assert request_payload["model_contract_ref"] != "model_contract:operator_session"
     persisted = "\n".join(
         path.read_text(encoding="utf-8")
         for path in sorted((run_root / "missions" / mission_id).rglob("*.json"))
     )
     assert "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST" not in persisted
     assert "RAW_REASONING_SHOULD_NOT_PERSIST" not in persisted
+
+
+def test_cli_llm_product_route_missing_workspace_blocks_before_request_creation(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, tmp_path))
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--script",
+            str(_write_script(tmp_path)),
+            "--json",
+        ]
+    )
+
+    turns = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert len(model_clients) == 1
+    assert len(model_clients[0].calls) == 1
+    assert turns[-1]["metadata"]["blocked_reason"] == "workspace_binding_required"
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created_workspace_missing"
+    assert not (tmp_path / "runs" / "missions").exists()
+
+
+def test_cli_product_workspace_binding_rejects_file_and_outside_scope(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    missing_workspace = tmp_path / "missing-workspace"
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs-missing"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(missing_workspace),
+            "--script",
+            str(_write_script(tmp_path)),
+            "--json",
+        ]
+    )
+    turns = json.loads(capsys.readouterr().out)
+    assert code == 2
+    assert turns[-1]["metadata"]["blocked_reason"] == "workspace_not_found"
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created_workspace_missing"
+
+    file_workspace = tmp_path / "not-a-dir.txt"
+    file_workspace.write_text("not a workspace", encoding="utf-8")
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs-file"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(file_workspace),
+            "--script",
+            str(_write_script(tmp_path)),
+            "--json",
+        ]
+    )
+    turns = json.loads(capsys.readouterr().out)
+    assert code == 2
+    assert turns[-1]["metadata"]["blocked_reason"] == "workspace_not_directory"
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created_workspace_missing"
+
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    outside_scope = tmp_path / "outside-scope"
+    outside_scope.mkdir()
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs-scope"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path, allowed_paths=[str(outside_scope)])),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(_write_script(tmp_path)),
+            "--json",
+        ]
+    )
+    turns = json.loads(capsys.readouterr().out)
+    assert code == 2
+    assert turns[-1]["metadata"]["blocked_reason"] == "workspace_outside_approved_scope"
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created_workspace_outside_scope"
 
 
 def test_cli_product_route_missing_scope_blocks_before_mission_creation(
@@ -351,9 +479,9 @@ def _write_script(tmp_path: Path) -> Path:
     return script_path
 
 
-def _write_approval_scope(tmp_path: Path) -> Path:
+def _write_approval_scope(tmp_path: Path, *, allowed_paths: list[str] | None = None) -> Path:
     scope_path = tmp_path / "approval-scope.json"
-    scope_path.write_text(json.dumps(_approval_scope_payload()), encoding="utf-8")
+    scope_path.write_text(json.dumps(_approval_scope_payload(allowed_paths=allowed_paths)), encoding="utf-8")
     return scope_path
 
 
@@ -427,23 +555,15 @@ class RecordingProductModelClient:
                 "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
             }
         return {
+            "protocol_version": "cockpit_mission_understanding_v2",
+            "kind": "draft_mission",
             "reply": "Mission draft ready.",
-            "mission_draft": {
-                "title": "Read-only product mission",
-                "objective": "Inspect the repository and produce an evidence-linked report.",
-                "constraints": ["read-only"],
-                "expected_artifacts": ["evidence-linked report"],
-            },
-            "authority_summary": {
-                "mission_id": "pending",
-                "allowed_actions": ["list_directory", "read_file_segment", "search_text", "finish_exploration"],
-                "forbidden_actions": ["write_file", "shell", "credential_access"],
-                "summary": "Read-only repository research.",
-                "metadata": {
-                    "workspace_ref": f"workspace:{self.workspace}",
-                    "model_contract_ref": f"model_contract:{self.contract.id}",
-                },
-            },
+            "title": "Read-only product mission",
+            "objective": "Inspect the repository and produce an evidence-linked report.",
+            "constraints": ["read-only"],
+            "expected_artifacts": ["evidence-linked report"],
+            "requested_capability": "read_only_research",
+            "clarification_questions": [],
         }
 
 
@@ -456,14 +576,14 @@ def _product_model_client_factory(model_clients: list[RecordingProductModelClien
     return factory
 
 
-def _approval_scope_payload() -> dict[str, object]:
+def _approval_scope_payload(*, allowed_paths: list[str] | None = None) -> dict[str, object]:
     return {
         "user_id": "operator_user",
         "allowed_systems": ["local_workspace"],
         "allowed_tools": ["read_only_observation"],
         "allowed_actions": ["list_directory", "read_file_segment", "search_text", "finish_exploration"],
         "forbidden_actions": ["payment", "send_email", "credential_access", "shell", "write_file"],
-        "allowed_paths": ["."],
+        "allowed_paths": allowed_paths or ["."],
         "allowed_domains": [],
         "allowed_accounts": [],
         "allowed_data_types": [],

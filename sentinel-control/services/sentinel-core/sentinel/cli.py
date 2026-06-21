@@ -44,9 +44,14 @@ from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.legacy_classification import InternalAccessClassification
 from sentinel.operator.model_client import OperatorCatalogModelClient
 from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
+from sentinel.operator.product_execution_binding import (
+    ProductExecutionBindingError,
+    build_product_execution_binding,
+)
 from sentinel.operator.replay import MissionReplayBuilder
 from sentinel.operator.read_only_model_clients import ReadOnlyProviderDecisionClient, ReadOnlyProviderReportClient
 from sentinel.operator.runtime_host import SentinelRuntimeHost
+from sentinel.operator.structured_output import READ_ONLY_RESEARCH_CAPABILITY
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
 from sentinel.power_lab import PowerLabMissionRejected, load_power_lab_mission_file, run_power_lab_mission
@@ -95,6 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
         )
         cockpit_parser.add_argument("--once", default=None, help="Process one user message and exit.")
         cockpit_parser.add_argument("--script", default=None, help="Read newline-delimited user messages from a text file.")
+        cockpit_parser.add_argument(
+            "--workspace",
+            default=None,
+            help="Explicit governed local workspace directory for product read-only research missions.",
+        )
         cockpit_parser.add_argument(
             "--authority-scope",
             default=None,
@@ -321,16 +331,19 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
     if not args.deterministic_test_mode and args.model_contract is None:
         print("sentinel cockpit: --model-contract is required for llm_operator_mode", file=sys.stderr)
         return 2
+    if args.legacy_internal_direct and args.workspace is not None:
+        print("sentinel cockpit: workspace_binding_not_allowed_for_legacy_internal_direct", file=sys.stderr)
+        return 2
 
     mode = OperatorMode.DETERMINISTIC_TEST if args.deterministic_test_mode else OperatorMode.LLM_OPERATOR
     user_model_contract = _load_user_model_contract(Path(args.model_contract)) if args.model_contract else None
-    model_client = (
-        OperatorCatalogModelClient(user_model_contract=user_model_contract)
-        if user_model_contract is not None and mode is OperatorMode.LLM_OPERATOR
-        else None
-    )
 
     if args.legacy_internal_direct:
+        model_client = (
+            OperatorCatalogModelClient(user_model_contract=user_model_contract)
+            if user_model_contract is not None and mode is OperatorMode.LLM_OPERATOR
+            else None
+        )
         return _run_legacy_internal_cockpit_command(
             args,
             mode=mode,
@@ -343,6 +356,29 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"sentinel cockpit: authority_scope_invalid:{exc}", file=sys.stderr)
         return 2
+
+    product_execution_binding = None
+    if approval_scope is not None and args.workspace is not None:
+        try:
+            product_execution_binding = build_product_execution_binding(
+                workspace=Path(args.workspace),
+                run_root=Path(args.run_root),
+                approval_scope=approval_scope,
+                user_model_contract=user_model_contract,
+                capability_id=READ_ONLY_RESEARCH_CAPABILITY,
+                operation="inspect_repository",
+            )
+        except ProductExecutionBindingError as exc:
+            return _emit_cockpit_product_block(
+                args,
+                reason=exc.reason,
+                outcome=_conversation_outcome_for_block_reason(exc.reason),
+            )
+    model_client = (
+        OperatorCatalogModelClient(user_model_contract=user_model_contract)
+        if user_model_contract is not None and mode is OperatorMode.LLM_OPERATOR
+        else None
+    )
 
     host = None
     read_only_decision_factory = None
@@ -385,6 +421,7 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             model_client=model_client,
             lifecycle_service=host.lifecycle,
             authority_approval_scope=approval_scope,
+            product_execution_binding=product_execution_binding,
         )
         return _run_cockpit_turn_loop(
             args,
@@ -499,6 +536,11 @@ def _classify_cockpit_conversation(turns: list[dict[str, object]]) -> str:
     if not turns:
         return "conversation_completed"
     final = turns[-1]
+    metadata = final.get("metadata")
+    if isinstance(metadata, dict):
+        blocked_outcome = _conversation_outcome_for_block_reason(str(metadata.get("blocked_reason", "")))
+        if blocked_outcome != "mission_not_created":
+            return blocked_outcome
     mission_record = final.get("mission_record")
     if isinstance(mission_record, dict):
         status = mission_record.get("status")
@@ -513,12 +555,41 @@ def _classify_cockpit_conversation(turns: list[dict[str, object]]) -> str:
     return "mission_not_created"
 
 
+def _conversation_outcome_for_block_reason(reason: str) -> str:
+    if reason in {"workspace_binding_required", "workspace_not_found", "workspace_not_directory"}:
+        return "mission_not_created_workspace_missing"
+    if reason == "workspace_outside_approved_scope":
+        return "mission_not_created_workspace_outside_scope"
+    return "mission_not_created"
+
+
 def _has_daemon_pickup(turns: list[dict[str, object]]) -> bool:
     for turn in turns:
         metadata = turn.get("metadata")
         if isinstance(metadata, dict) and isinstance(metadata.get("daemon_pickup"), dict):
             return True
     return False
+
+
+def _emit_cockpit_product_block(args: argparse.Namespace, *, reason: str, outcome: str) -> int:
+    payload = [
+        {
+            "state": OperatorConversationState.ASKING_CLARIFICATIONS.value,
+            "reply": "Sentinel cannot start this governed product mission without a valid explicit workspace binding.",
+            "metadata": {
+                "blocked_reason": reason,
+                "conversation_outcome": outcome,
+                "internal_access_classification": InternalAccessClassification.PRODUCTION_ROUTE.value,
+                "production_runtime_host_used": False,
+            },
+            "mission_record": None,
+        }
+    ]
+    if args.json:
+        print(json.dumps(payload, sort_keys=True, default=str))
+    else:
+        print(f"sentinel cockpit: {reason}", file=sys.stderr)
+    return 2
 
 
 _REQUIRED_APPROVAL_SCOPE_FIELDS = frozenset(
