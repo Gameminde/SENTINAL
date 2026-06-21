@@ -422,6 +422,7 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             lifecycle_service=host.lifecycle,
             authority_approval_scope=approval_scope,
             product_execution_binding=product_execution_binding,
+            require_mission_understanding_v2=mode is OperatorMode.LLM_OPERATOR,
         )
         return _run_cockpit_turn_loop(
             args,

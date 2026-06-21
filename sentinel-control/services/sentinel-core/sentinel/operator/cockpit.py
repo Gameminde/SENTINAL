@@ -40,6 +40,7 @@ class LLMLiveOperatorCockpit:
         lifecycle_service: MissionLifecycleService | None = None,
         authority_approval_scope: MissionAuthorityApprovalScope | None = None,
         product_execution_binding: ProductExecutionBinding | None = None,
+        require_mission_understanding_v2: bool = False,
     ) -> None:
         self.session = OperatorConversationSession(mode=mode)
         self._lifecycle_service = lifecycle_service
@@ -56,6 +57,7 @@ class LLMLiveOperatorCockpit:
             user_model_contract=user_model_contract,
             model_client=model_client,
             telemetry_sink=self._telemetry_sink,
+            require_mission_understanding_v2=require_mission_understanding_v2,
         )
         self.active_mission_id: str | None = None
         self.active_mission_ids: list[str] = []

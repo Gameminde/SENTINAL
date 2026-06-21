@@ -153,13 +153,21 @@ def validate_operator_structured_output(
     provider_id: str,
     backend_id: str,
     model_id: str,
+    required_protocol_version: str | None = None,
 ) -> OperatorLLMDecisionResult:
     if not isinstance(raw_output, dict):
         raise OperatorStructuredOutputError(
             "operator LLM output must be an object",
-            diagnostics=build_structured_output_diagnostics(raw_output, parse_stage="top_level_type"),
+            diagnostics=build_structured_output_diagnostics(
+                raw_output,
+                parse_stage="top_level_type",
+                expected_protocol_version=required_protocol_version,
+            ),
         )
-    if raw_output.get("protocol_version") == COCKPIT_MISSION_UNDERSTANDING_V2:
+    if (
+        required_protocol_version == COCKPIT_MISSION_UNDERSTANDING_V2
+        or raw_output.get("protocol_version") == COCKPIT_MISSION_UNDERSTANDING_V2
+    ):
         return _validate_mission_understanding_v2(
             raw_output,
             mode=mode,
@@ -175,6 +183,7 @@ def validate_operator_structured_output(
                 raw_output,
                 parse_stage="legacy_operator_decision_validation",
                 missing_required_field_names=["reply"],
+                expected_protocol_version=required_protocol_version,
             ),
         )
 
@@ -220,9 +229,16 @@ def build_structured_output_diagnostics(
     parse_stage: str,
     validation_error: ValidationError | None = None,
     missing_required_field_names: list[str] | None = None,
+    expected_protocol_version: str | None = None,
 ) -> dict[str, Any]:
     payload = raw_output if isinstance(raw_output, dict) else {}
-    protocol_version = payload.get("protocol_version") if payload.get("protocol_version") == COCKPIT_MISSION_UNDERSTANDING_V2 else "unknown"
+    actual_protocol = payload.get("protocol_version")
+    if actual_protocol == COCKPIT_MISSION_UNDERSTANDING_V2:
+        protocol_version = COCKPIT_MISSION_UNDERSTANDING_V2
+    elif expected_protocol_version == COCKPIT_MISSION_UNDERSTANDING_V2:
+        protocol_version = COCKPIT_MISSION_UNDERSTANDING_V2
+    else:
+        protocol_version = "unknown"
     top_level_keys = sorted(str(key) for key in payload if str(key) not in _SAFE_PROVIDER_METADATA_FIELDS)
     allowed = (
         _V2_ALLOWED_FIELDS | _SAFE_PROVIDER_METADATA_FIELDS
@@ -281,6 +297,7 @@ def _validate_mission_understanding_v2(
             raw_output,
             parse_stage="mission_understanding_v2_validation",
             missing_required_field_names=[],
+            expected_protocol_version=COCKPIT_MISSION_UNDERSTANDING_V2,
         )
         diagnostics["unknown_field_names"] = sorted(dict.fromkeys([*diagnostics["unknown_field_names"], "reasoning"]))
         raise OperatorStructuredOutputError("operator LLM output contained raw reasoning", diagnostics=diagnostics)
@@ -298,6 +315,7 @@ def _validate_mission_understanding_v2(
                 raw_output,
                 parse_stage="mission_understanding_v2_validation",
                 validation_error=exc,
+                expected_protocol_version=COCKPIT_MISSION_UNDERSTANDING_V2,
             ),
         ) from None
     if understanding.kind == "draft_mission" and understanding.requested_capability != READ_ONLY_RESEARCH_CAPABILITY:

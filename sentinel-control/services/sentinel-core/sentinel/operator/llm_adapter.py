@@ -14,6 +14,7 @@ from sentinel.operator.llm_frame import OperatorConversationFrame
 from sentinel.operator.models import OperatorLLMDecisionResult, OperatorMode
 from sentinel.operator.prompt_renderer import OperatorPromptRenderer
 from sentinel.operator.structured_output import (
+    COCKPIT_MISSION_UNDERSTANDING_V2,
     OperatorStructuredOutputError,
     validate_operator_structured_output,
 )
@@ -37,6 +38,7 @@ class OperatorLLMConversationAdapter:
         model_client: OperatorModelClient | None = None,
         prompt_renderer: OperatorPromptRenderer | None = None,
         telemetry_sink: object | None = None,
+        require_mission_understanding_v2: bool = False,
     ) -> None:
         if mode is OperatorMode.LLM_OPERATOR and user_model_contract is None:
             raise OperatorLLMModeError("llm_operator_mode requires explicit UserModelContract")
@@ -45,6 +47,9 @@ class OperatorLLMConversationAdapter:
         self._client = model_client
         self._renderer = prompt_renderer or OperatorPromptRenderer()
         self._telemetry_sink = telemetry_sink
+        self._required_protocol_version = (
+            COCKPIT_MISSION_UNDERSTANDING_V2 if require_mission_understanding_v2 else None
+        )
 
     def complete(self, frame: OperatorConversationFrame) -> OperatorLLMDecisionResult:
         if self._mode is not OperatorMode.LLM_OPERATOR:
@@ -77,6 +82,7 @@ class OperatorLLMConversationAdapter:
                 provider_id=self._contract.selected_provider_id,
                 backend_id=self._contract.selected_backend_id,
                 model_id=self._contract.selected_model,
+                required_protocol_version=self._required_protocol_version,
             )
             self._record_model_completion(
                 frame=frame,

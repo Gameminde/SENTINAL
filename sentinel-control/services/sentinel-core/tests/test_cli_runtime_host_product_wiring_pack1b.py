@@ -147,6 +147,173 @@ def test_cli_llm_product_route_wires_same_model_contract_into_pack3_execution_cl
     assert "RAW_REASONING_SHOULD_NOT_PERSIST" not in persisted
 
 
+def test_cli_llm_product_route_requires_v2_mission_understanding_diagnostics(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = tmp_path / "script.txt"
+    script_path.write_text("Understand this repository deeply.\noui commence\n", encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(
+        cli,
+        "OperatorCatalogModelClient",
+        _product_model_client_factory(model_clients, workspace, cockpit_output={}),
+    )
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    turns = json.loads(output.out)
+    diagnostic_turn = next(
+        turn for turn in turns if "structured_output_diagnostics" in turn.get("metadata", {})
+    )
+    diagnostics = diagnostic_turn["metadata"]["structured_output_diagnostics"]
+    assert code == 0
+    assert output.err == ""
+    assert len(model_clients) == 1
+    assert len(model_clients[0].calls) == 1
+    assert diagnostics["protocol_version"] == "cockpit_mission_understanding_v2"
+    assert diagnostics["parse_stage"] == "mission_understanding_v2_validation"
+    assert "protocol_version" in diagnostics["missing_required_field_names"]
+    assert "kind" in diagnostics["missing_required_field_names"]
+    assert "reply" in diagnostics["missing_required_field_names"]
+    assert diagnostics["top_level_key_names"] == []
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created"
+    assert "legacy_operator_decision_validation" not in json.dumps(turns, sort_keys=True)
+    assert not (tmp_path / "runs" / "missions").exists()
+
+
+def test_cli_llm_product_route_rejects_model_supplied_bindings_with_v2_diagnostics(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = tmp_path / "script.txt"
+    script_path.write_text("Understand this repository deeply.\noui commence\n", encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(
+        cli,
+        "OperatorCatalogModelClient",
+        _product_model_client_factory(
+            model_clients,
+            workspace,
+            cockpit_output={
+                "protocol_version": "cockpit_mission_understanding_v2",
+                "kind": "draft_mission",
+                "reply": "Mission draft ready.",
+                "title": "Repository architecture research",
+                "objective": "Map repository packages.",
+                "requested_capability": "read_only_research",
+                "workspace_ref": f"workspace:{workspace}",
+                "model_contract_ref": "model_contract:model_supplied",
+                "approval_scope": {"allowed_actions": ["write_file"]},
+                "can_execute": True,
+            },
+        ),
+    )
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--json",
+        ]
+    )
+
+    turns = json.loads(capsys.readouterr().out)
+    diagnostic_turn = next(
+        turn for turn in turns if "structured_output_diagnostics" in turn.get("metadata", {})
+    )
+    diagnostics = diagnostic_turn["metadata"]["structured_output_diagnostics"]
+    assert code == 0
+    assert len(model_clients) == 1
+    assert len(model_clients[0].calls) == 1
+    assert diagnostics["parse_stage"] == "mission_understanding_v2_validation"
+    assert diagnostics["protocol_version"] == "cockpit_mission_understanding_v2"
+    assert diagnostics["unknown_field_names"] == [
+        "approval_scope",
+        "can_execute",
+        "model_contract_ref",
+        "workspace_ref",
+    ]
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created"
+    assert not (tmp_path / "runs" / "missions").exists()
+
+
+def test_cli_llm_product_route_prompt_is_v2_product_protocol(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = tmp_path / "script.txt"
+    script_path.write_text("Understand this repository deeply.\noui commence\n", encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, workspace))
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--json",
+        ]
+    )
+
+    capsys.readouterr()
+    assert code == 0
+    first_prompt = model_clients[0].calls[0].prompt_text_in_memory_only
+    assert "cockpit_mission_understanding_v2" in first_prompt
+    assert "Use protocol_version exactly \"cockpit_mission_understanding_v2\"." in first_prompt
+    assert "Do not emit legacy OperatorLLMDecisionResult" in first_prompt
+    assert "\"required_fields\": [\"protocol_version\", \"kind\", \"reply\"]" in first_prompt
+    assert "\"draft_mission_required_fields\": [\"title\", \"objective\", \"requested_capability\"]" in first_prompt
+
+
 def test_cli_llm_product_route_missing_workspace_blocks_before_request_creation(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -518,9 +685,16 @@ def _model_contract() -> UserModelContract:
 
 
 class RecordingProductModelClient:
-    def __init__(self, *, user_model_contract: UserModelContract, workspace: Path) -> None:
+    def __init__(
+        self,
+        *,
+        user_model_contract: UserModelContract,
+        workspace: Path,
+        cockpit_output: dict[str, object] | None = None,
+    ) -> None:
         self.contract = user_model_contract
         self.workspace = workspace
+        self.cockpit_output = cockpit_output
         self.calls = []
         self.decision_calls = 0
         self.report_calls = 0
@@ -554,6 +728,8 @@ class RecordingProductModelClient:
                 "raw_provider_response": "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST",
                 "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
             }
+        if self.cockpit_output is not None:
+            return dict(self.cockpit_output)
         return {
             "protocol_version": "cockpit_mission_understanding_v2",
             "kind": "draft_mission",
@@ -567,9 +743,18 @@ class RecordingProductModelClient:
         }
 
 
-def _product_model_client_factory(model_clients: list[RecordingProductModelClient], workspace: Path):
+def _product_model_client_factory(
+    model_clients: list[RecordingProductModelClient],
+    workspace: Path,
+    *,
+    cockpit_output: dict[str, object] | None = None,
+):
     def factory(*, user_model_contract: UserModelContract, **_kwargs) -> RecordingProductModelClient:  # noqa: ANN001
-        client = RecordingProductModelClient(user_model_contract=user_model_contract, workspace=workspace)
+        client = RecordingProductModelClient(
+            user_model_contract=user_model_contract,
+            workspace=workspace,
+            cockpit_output=cockpit_output,
+        )
         model_clients.append(client)
         return client
 
