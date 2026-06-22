@@ -965,15 +965,14 @@ class RecordingProductModelClient:
                     "action": "list_directory",
                     "arguments": {"path": "."},
                     "evidence_refs": [],
-                    "raw_provider_response": "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST",
-                    "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
+                    "reasoning_char_count": 24,
+                    "provider_response_hash": "hash_cli_decision_1",
                 }
             return {
                 "action": "finish_exploration",
                 "arguments": {},
                 "evidence_refs": [],
-                "raw_provider_response": "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST",
-                "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
+                "provider_response_hash": "hash_cli_decision_2",
             }
         if lane == "final_report":
             self.report_calls += 1
@@ -981,8 +980,7 @@ class RecordingProductModelClient:
             return {
                 "report_text": f"Report cites {', '.join(evidence_refs)}: repository overview completed.",
                 "evidence_refs": evidence_refs,
-                "raw_provider_response": "RAW_PROVIDER_WRAPPER_SHOULD_NOT_PERSIST",
-                "reasoning_content": "RAW_REASONING_SHOULD_NOT_PERSIST",
+                "provider_response_hash": "hash_cli_report",
             }
         if self.cockpit_output is not None:
             return dict(self.cockpit_output)

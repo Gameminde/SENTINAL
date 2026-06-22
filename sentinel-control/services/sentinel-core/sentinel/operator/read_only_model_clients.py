@@ -42,8 +42,10 @@ _SAFE_PROVIDER_METADATA_KEYS = frozenset(
         "provider_response_hash",
         "reasoning_present",
         "reasoning_hash",
+        "reasoning_char_count",
         "reasoning_token_count",
         "reasoning_character_count",
+        "visible_content_length",
         "visible_content_char_count",
         "visible_content_estimated_tokens",
         "finish_reason",
@@ -59,6 +61,7 @@ _SAFE_PROVIDER_METADATA_KEYS = frozenset(
         "multiple_json_objects_detected",
     }
 )
+_FILTERED_SAFE_METADATA_KEYS = _SAFE_PROVIDER_METADATA_KEYS - {"provider_response_hash"}
 
 _DECISION_FIELDS = frozenset({"action", "arguments", "evidence_refs", "operator_message"})
 _REPORT_FIELDS = frozenset({"report_text", "evidence_refs"})
@@ -174,6 +177,12 @@ class ReadOnlyProviderDecisionClient:
             request,
             context,
             provider_response_hash=_provider_response_hash(raw),
+            diagnostics=_success_diagnostics_if_metadata_filtered(
+                raw,
+                parse_stage="read_only_decision_validation",
+                allowed_fields=_DECISION_FIELDS,
+                required_fields={"action"},
+            ),
         )
         return decision
 
@@ -320,9 +329,10 @@ def _decision_prompt(context: dict[str, Any]) -> str:
             "Do not wrap in Markdown.",
             "Do not include explanations outside JSON.",
             "Do not include reasoning.",
-            "Do not include legacy OperatorLLMDecisionResult.",
-            "Do not include MissionStartProposal, OperatorIntent, MissionDraft, or MissionAuthoritySummary.",
-            "Do not include workspace, workspace_ref, model_contract_ref, paths outside arguments, credentials, budget, approval scope, authority, allowed_actions, or can_execute.",
+            "Allowed top-level keys are exactly: action, arguments, evidence_refs, operator_message.",
+            "Do not include reasoning_char_count or any diagnostic/metadata fields.",
+            "Do not include workspace/model/authority fields such as workspace_ref, model_contract_ref, authority, can_execute.",
+            "Do not include shell/write/credential/payment/email/browser-click actions.",
             "Choose exactly one action.",
             "If exploration has enough evidence, use finish_exploration.",
         ],
@@ -449,8 +459,60 @@ def _typed_visible_content(raw: dict[str, Any], *, allowed_fields: frozenset[str
 def _unknown_field_names(raw: dict[str, Any], allowed_fields: frozenset[str]) -> list[str]:
     if not isinstance(raw, dict):
         return []
-    known = allowed_fields | _SAFE_PROVIDER_METADATA_KEYS | _PROVIDER_MATERIAL_KEYS
-    return sorted(str(key) for key in raw if key not in known or key in _FORBIDDEN_CONTROL_FIELDS)
+    return _unsafe_unknown_field_names(raw, allowed_fields)
+
+
+def _unsafe_unknown_field_names(raw: dict[str, Any], allowed_fields: frozenset[str]) -> list[str]:
+    unknown: list[str] = []
+    for key, value in raw.items():
+        key_name = str(key)
+        if key in allowed_fields:
+            continue
+        if key in _SAFE_PROVIDER_METADATA_KEYS and _is_safe_scalar_metadata(value):
+            continue
+        if key in _SAFE_PROVIDER_METADATA_KEYS:
+            unknown.append(key_name)
+            continue
+        if key in _PROVIDER_MATERIAL_KEYS or key in _FORBIDDEN_CONTROL_FIELDS:
+            unknown.append(key_name)
+            continue
+        unknown.append(key_name)
+    return sorted(dict.fromkeys(unknown))
+
+
+def _filtered_safe_metadata_keys(raw: dict[str, Any]) -> list[str]:
+    if not isinstance(raw, dict):
+        return []
+    return sorted(
+        str(key)
+        for key, value in raw.items()
+        if key in _FILTERED_SAFE_METADATA_KEYS and _is_safe_scalar_metadata(value)
+    )
+
+
+def _is_safe_scalar_metadata(value: Any) -> bool:
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
+def _validation_payload_key_names(payload: dict[str, Any], *, allowed_fields: frozenset[str]) -> list[str]:
+    return sorted(str(key) for key in _typed_visible_content(payload, allowed_fields=allowed_fields))
+
+
+def _success_diagnostics_if_metadata_filtered(
+    raw_output: dict[str, Any],
+    *,
+    parse_stage: str,
+    allowed_fields: frozenset[str],
+    required_fields: set[str],
+) -> dict[str, Any] | None:
+    if not _filtered_safe_metadata_keys(raw_output):
+        return None
+    return _build_read_only_diagnostics(
+        raw_output,
+        parse_stage=parse_stage,
+        allowed_fields=allowed_fields,
+        required_fields=required_fields,
+    )
 
 
 def _build_read_only_diagnostics(
@@ -463,12 +525,14 @@ def _build_read_only_diagnostics(
     extra_error_codes: list[str] | None = None,
 ) -> dict[str, Any]:
     payload = raw_output if isinstance(raw_output, dict) else {}
+    filtered_safe_metadata = _filtered_safe_metadata_keys(payload)
+    validation_payload_key_names = _validation_payload_key_names(payload, allowed_fields=allowed_fields)
+    unsafe_unknown_fields = _unsafe_unknown_field_names(payload, allowed_fields)
     top_level_keys = [
         str(key)
         for key in sorted(payload)
         if key not in _SAFE_PROVIDER_METADATA_KEYS and key not in _PROVIDER_MATERIAL_KEYS
     ]
-    unknown_fields = _unknown_field_names(payload, allowed_fields)
     validation_codes = list(extra_error_codes or [])
     validation_paths: list[str] = []
     required_missing = {field for field in required_fields if field not in payload}
@@ -494,9 +558,14 @@ def _build_read_only_diagnostics(
         if isinstance(payload.get("json_object_detected"), bool)
         else isinstance(raw_output, dict),
         "top_level_type": "dict" if isinstance(raw_output, dict) else type(raw_output).__name__,
+        "original_top_level_key_names": sorted(str(key) for key in payload if key != "provider_response_hash"),
         "top_level_key_names": top_level_keys,
         "missing_required_field_names": sorted(required_missing),
-        "unknown_field_names": unknown_fields,
+        "unknown_field_names": unsafe_unknown_fields,
+        "unsafe_unknown_field_names": unsafe_unknown_fields,
+        "safe_metadata_filtered": bool(filtered_safe_metadata),
+        "filtered_safe_metadata_keys": filtered_safe_metadata,
+        "validation_payload_key_names": validation_payload_key_names,
         "validation_error_codes": sorted(dict.fromkeys(validation_codes)),
         "validation_error_paths": sorted(dict.fromkeys(validation_paths)),
         "markdown_fence_detected": payload.get("markdown_fence_detected")

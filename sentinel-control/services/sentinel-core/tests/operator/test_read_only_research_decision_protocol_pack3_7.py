@@ -23,6 +23,7 @@ from sentinel.operator.read_only_model_clients import (
 from sentinel.operator.read_only_operator_spine import (
     ReadOnlyActionKind,
     ReadOnlyProductionSpineSession,
+    ReadOnlyReportClient,
     ReadOnlySpineError,
 )
 from sentinel.shared.enums import MissionMode, MissionType
@@ -162,6 +163,149 @@ def test_pack3_7_safe_provider_metadata_is_not_treated_as_decision_fields() -> N
     assert decision.can_grant_authority is False
 
 
+def test_pack3_10_reasoning_char_count_is_filtered_as_safe_scalar_metadata() -> None:
+    model = _SequenceModelClient(
+        {
+            "action": "list_directory",
+            "arguments": {"path": "."},
+            "evidence_refs": [],
+            "operator_message": "Inspect repository root.",
+            "reasoning_char_count": 123,
+            "provider_response_hash": "hash_reasoning_count",
+        }
+    )
+    telemetry = _RecordingTelemetry()
+    client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=model,
+        telemetry_sink=telemetry,
+    )
+
+    decision = client.complete(_context())
+
+    assert decision.action is ReadOnlyActionKind.LIST_DIRECTORY
+    assert decision.arguments == {"path": "."}
+    assert telemetry.completed_lanes == ["exploration_decision"]
+    assert telemetry.completed_diagnostics[-1]["safe_metadata_filtered"] is True
+    assert telemetry.completed_diagnostics[-1]["filtered_safe_metadata_keys"] == ["reasoning_char_count"]
+    assert telemetry.completed_diagnostics[-1]["validation_payload_key_names"] == [
+        "action",
+        "arguments",
+        "evidence_refs",
+        "operator_message",
+    ]
+
+
+def test_pack3_10_search_text_reasoning_char_count_is_filtered() -> None:
+    model = _SequenceModelClient(
+        {
+            "action": "search_text",
+            "arguments": {"query": "register", "path": "."},
+            "evidence_refs": [],
+            "reasoning_char_count": 55,
+            "provider_response_hash": "hash_search_reasoning_count",
+        }
+    )
+    client = ReadOnlyProviderDecisionClient(user_model_contract=_contract(), model_client=model)
+
+    decision = client.complete(_context())
+
+    assert decision.action is ReadOnlyActionKind.SEARCH_TEXT
+    assert decision.arguments == {"query": "register", "path": "."}
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        {"reasoning_char_count": 123, "provider_response_hash": "hash_metadata_only"},
+        {"operator_message": "ready", "reasoning_char_count": 123, "provider_response_hash": "hash_message_only"},
+    ],
+)
+def test_pack3_10_safe_metadata_filter_does_not_invent_missing_action(raw: dict[str, Any]) -> None:
+    model = _SequenceModelClient(raw)
+    client = ReadOnlyProviderDecisionClient(user_model_contract=_contract(), model_client=model)
+
+    with pytest.raises(ReadOnlySpineError) as raised:
+        client.complete(_context())
+
+    diagnostics = raised.value.diagnostics
+    assert "action" in diagnostics["missing_required_field_names"]
+    assert diagnostics["safe_metadata_filtered"] is True
+    assert diagnostics["filtered_safe_metadata_keys"] == ["reasoning_char_count"]
+    assert diagnostics["unknown_field_names"] == []
+
+
+@pytest.mark.parametrize("forbidden_field", ["reasoning", "reasoning_content", "metadata"])
+def test_pack3_10_raw_reasoning_and_metadata_objects_remain_rejected(forbidden_field: str) -> None:
+    model = _SequenceModelClient(
+        {
+            "action": "list_directory",
+            "arguments": {"path": "."},
+            forbidden_field: {"private": "do not persist"},
+            "provider_response_hash": "hash_forbidden_metadata",
+        }
+    )
+    client = ReadOnlyProviderDecisionClient(user_model_contract=_contract(), model_client=model)
+
+    with pytest.raises(ReadOnlySpineError) as raised:
+        client.complete(_context())
+
+    diagnostics = raised.value.diagnostics
+    assert forbidden_field in diagnostics["unsafe_unknown_field_names"]
+    assert "unknown_field" in diagnostics["validation_error_codes"]
+
+
+def test_pack3_10_safe_metadata_filter_reaches_governed_action_and_replay_stays_pure(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(
+            {
+                "action": "list_directory",
+                "arguments": {"path": "."},
+                "reasoning_char_count": 41,
+                "provider_response_hash": "hash_filtered_action",
+            },
+            {
+                "action": "finish_exploration",
+                "arguments": {},
+                "evidence_refs": ["evidence_1"],
+                "provider_response_hash": "hash_finish",
+            },
+        ),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    report_client = ReadOnlyReportClient(
+        report_template="Report cites {refs}: read-only inspection completed.",
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+        report_client=report_client,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    assert result.status == "completed"
+    assert result.receipt_refs
+    assert result.finalgate_status == "accepted"
+    assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.COMPLETED
+    assert replay.reexecuted is False
+    assert report_client.call_count == 1
+    assert replay.model_calls_before_replay == decision_client.call_count
+    assert replay.model_calls_after_replay == decision_client.call_count
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+    assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+
+
 def test_pack3_7_report_lane_has_separate_provider_counter_and_telemetry() -> None:
     model = _SequenceModelClient(
         {
@@ -250,6 +394,7 @@ class _RecordingTelemetry:
         self.started_lanes: list[str] = []
         self.completed_lanes: list[str] = []
         self.schema_invalid_lanes: list[str] = []
+        self.completed_diagnostics: list[dict[str, Any]] = []
 
     def record_model_call_started(self, request: RealModelRequest, **_: Any) -> None:
         self.started_lanes.append(str(request.request_metadata["read_only_lane"]))
@@ -266,6 +411,9 @@ class _RecordingTelemetry:
             self.schema_invalid_lanes.append(lane)
         else:
             self.completed_lanes.append(lane)
+        diagnostics = _.get("diagnostics")
+        if isinstance(diagnostics, dict):
+            self.completed_diagnostics.append(diagnostics)
 
 
 def _context() -> dict[str, Any]:
