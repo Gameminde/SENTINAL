@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -422,6 +423,62 @@ def test_pack3_11_model_client_validation_error_retains_partial_safe_diagnostics
     assert "raw" not in str(diagnostics).lower()
 
 
+def test_pack3_12_bridge_preserves_read_only_validation_diagnostics_with_forbidden_field_name(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(
+            {
+                "provider_response_hash": "hash_forbidden_field",
+                "visible_content_char_count": 42,
+                "json_object_detected": True,
+                "normalization_strategy": "plain_json_object",
+                "content_extraction_source": "choices[0].message.content",
+                "reasoning_content": "not persisted",
+            }
+        ),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == "read_only_decision_schema_invalid"
+    assert result.receipt_refs == []
+    assert len(result.finalgate_refs) == 1
+    assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
+    blocked_event = [
+        event for event in cockpit.kernel.store.load_events(mission_id)
+        if event.event_type == "read_only_spine_blocked"
+    ][0]
+    assert blocked_event.metadata["typed_failure_code"] == "READ_MODEL_DECISION_ERROR"
+    assert blocked_event.metadata["runtime_phase"] == "model_decision"
+    diagnostics = blocked_event.metadata["read_only_model_diagnostics"]
+    assert diagnostics is not None
+    assert diagnostics["parse_stage"] == "read_only_decision_validation"
+    assert diagnostics["provider_response_hash"] == "hash_forbidden_field"
+    assert diagnostics["diagnostic_retention_status"] == "retained"
+    assert diagnostics["unsafe_unknown_field_names"][0].startswith("diagnostic_label_hash:")
+    assert "reasoning_content" not in str(diagnostics)
+    assert "not persisted" not in str(diagnostics)
+    finalgate_reasons = [
+        payload["reason"]
+        for payload in _json_payloads(session, "finalgate")
+    ]
+    assert finalgate_reasons == ["read_only_decision_schema_invalid"]
+
+
 class _SequenceModelClient:
     def __init__(self, *outputs: dict[str, Any]) -> None:
         self.outputs = list(outputs)
@@ -442,6 +499,16 @@ class _RaisingModelClient:
         self.requests.append(request)
         self.callback(self.payload)
         raise AssertionError("callback should have raised")
+
+
+def _json_payloads(session: ReadOnlyProductionSpineSession, collection: str) -> list[dict[str, Any]]:
+    root = session.kernel.store.mission_dir(session.mission_id) / "read_only_spine" / collection
+    if not root.exists():
+        return []
+    return [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(root.glob("*.json"))
+    ]
 
 
 class _RecordingTelemetry:

@@ -790,7 +790,7 @@ class ReadOnlyProductionSpineSession:
             reason = error.legacy_reason or error.failure_code
             phase = error.phase
             exception_class = error.exception_class
-            diagnostics = error.diagnostics
+            diagnostics = _event_safe_read_only_diagnostics(error.diagnostics)
         else:
             reason = str(error)
             phase = "unknown"
@@ -1612,6 +1612,8 @@ def _dedupe(values: Any) -> list[str]:
 _LEGACY_FAILURE_CODE_MAP = {
     "model_decision_error": ReadOnlyFailureCode.READ_MODEL_DECISION_ERROR.value,
     "model_decision_timeout": ReadOnlyFailureCode.READ_MODEL_DECISION_TIMEOUT.value,
+    "read_only_decision_schema_invalid": ReadOnlyFailureCode.READ_MODEL_DECISION_ERROR.value,
+    "read_only_report_schema_invalid": ReadOnlyFailureCode.READ_MODEL_DECISION_ERROR.value,
     "read_only_decision_exhausted": ReadOnlyFailureCode.READ_DECISION_EXHAUSTED.value,
     "read_only_max_turns_exhausted": ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED.value,
     "snapshot_drift_detected": ReadOnlyFailureCode.SNAPSHOT_CHANGED.value,
@@ -1651,6 +1653,83 @@ def _proof_kind(reason: str, phase: str) -> str:
 
 def _safe_runtime_phase(phase: str) -> str:
     return phase if phase.replace("_", "").isalnum() else "runtime_terminal"
+
+
+_DIAGNOSTIC_UNSAFE_LABEL_MARKERS = (
+    "authorization",
+    "bearer",
+    "chain_of_thought",
+    "credential",
+    "password",
+    "provider_response",
+    "raw_prompt",
+    "raw_reasoning",
+    "raw_response",
+    "reasoning",
+    "reasoning_content",
+    "secret",
+    "token",
+)
+
+_DIAGNOSTIC_CANONICAL_FIELD_NAMES = frozenset(
+    {
+        "content_extraction_error",
+        "content_extraction_source",
+        "conversation_or_phase",
+        "diagnostic_missing_fields",
+        "diagnostic_missing_reason",
+        "diagnostic_retention_status",
+        "filtered_safe_metadata_keys",
+        "finish_reason",
+        "json_object_detected",
+        "markdown_fence_detected",
+        "missing_required_field_names",
+        "multiple_json_objects_detected",
+        "normalization_strategy",
+        "original_top_level_key_names",
+        "output_truncated",
+        "parse_stage",
+        "protocol_version",
+        "provider_response_hash",
+        "safe_metadata_filtered",
+        "top_level_key_names",
+        "top_level_type",
+        "unknown_field_names",
+        "unsafe_unknown_field_names",
+        "validation_error_codes",
+        "validation_error_paths",
+        "validation_payload_key_names",
+        "visible_content_length",
+    }
+)
+
+
+def _event_safe_read_only_diagnostics(diagnostics: dict[str, Any]) -> dict[str, Any]:
+    if not diagnostics:
+        return {}
+    return _sanitize_diagnostic_value(redact_operator_value(diagnostics), preserve_keys=True)
+
+
+def _sanitize_diagnostic_value(value: Any, *, preserve_keys: bool = False) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key) if preserve_keys else _sanitize_diagnostic_label(str(key)): _sanitize_diagnostic_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list | tuple | set):
+        return [_sanitize_diagnostic_value(item) for item in value]
+    if isinstance(value, str):
+        return _sanitize_diagnostic_label(value)
+    return value
+
+
+def _sanitize_diagnostic_label(value: str) -> str:
+    if value in _DIAGNOSTIC_CANONICAL_FIELD_NAMES:
+        return value
+    lowered = value.lower()
+    if any(marker in lowered for marker in _DIAGNOSTIC_UNSAFE_LABEL_MARKERS):
+        return f"diagnostic_label_hash:{text_hash(value)}"
+    return value
 
 
 def _mission_action_from_decision(mission_id: str, decision: ReadOnlyDecision) -> MissionAction:
