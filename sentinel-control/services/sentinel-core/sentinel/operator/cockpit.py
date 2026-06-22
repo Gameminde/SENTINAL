@@ -11,6 +11,8 @@ from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, Mi
 from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
 from sentinel.operator.mission_lifecycle_service import MissionLifecycleService
 from sentinel.operator.models import (
+    MissionAuthoritySummary,
+    MissionDraft,
     OperatorConversationSession,
     OperatorConversationState,
     OperatorIntent,
@@ -66,6 +68,67 @@ class LLMLiveOperatorCockpit:
         self.last_persistent_memory_retrieval: PersistentMemoryRetrievalResult | None = None
         self.last_persistent_memory_error_hash: str | None = None
         self._legacy_deterministic_scope_compatibility = False
+
+    def bootstrap_explicit_product_mission(self, text: str) -> OperatorTurnResult:
+        """Create a Sentinel-owned read-only mission draft from explicit product inputs."""
+
+        stripped = text.strip()
+        title = _title_from_mission_text(stripped)
+        draft = MissionDraft(
+            title=title,
+            objective=stripped,
+            constraints=[
+                "read-only",
+                "governed workspace",
+                "explicit authority scope",
+                "explicit user model contract",
+            ],
+            expected_artifacts=["evidence-linked technical report"],
+            metadata={
+                "bootstrap_protocol": "explicit_product_mission_bootstrap_v1",
+                "mission_text_hash": stable_hash({"mission_text": stripped}),
+                "requested_capability": READ_ONLY_RESEARCH_CAPABILITY,
+            },
+        )
+        authority_summary = MissionAuthoritySummary(
+            mission_id="mission_summary_explicit_bootstrap",
+            allowed_actions=list(READ_ONLY_RESEARCH_ACTIONS),
+            forbidden_actions=[
+                "write_file",
+                "shell",
+                "credential_access",
+                "browser_click",
+                "payment",
+                "send_email",
+            ],
+            summary="Explicit product-script bootstrap for read-only repository research only.",
+            metadata={
+                "bootstrap_protocol": "explicit_product_mission_bootstrap_v1",
+                "capability_id": READ_ONLY_RESEARCH_CAPABILITY,
+                "operation": "inspect_repository",
+            },
+        )
+        self.session.current_draft = draft
+        self.session.current_authority_summary = authority_summary
+        self.session.state = OperatorConversationState.AWAITING_START_CONFIRMATION
+        turn = OperatorTurnResult(
+            session_id=self.session.session_id,
+            state=OperatorConversationState.AWAITING_START_CONFIRMATION,
+            reply="Explicit product mission draft created. Awaiting ASCII approval: start.",
+            intent=OperatorIntent(
+                kind=OperatorIntentKind.DRAFT_MISSION,
+                text="explicit product-script mission bootstrap",
+                metadata={"bootstrap_protocol": "explicit_product_mission_bootstrap_v1"},
+            ),
+            mission_draft=draft,
+            authority_summary=authority_summary,
+            metadata={
+                "bootstrap_protocol": "explicit_product_mission_bootstrap_v1",
+                "conversation_outcome": "explicit_bootstrap_draft_created",
+                "provider_call_boundary": "cockpit_provider_not_called",
+            },
+        )
+        return self._apply_approval_scope(turn)
 
     def handle(self, text: str) -> OperatorTurnResult:
         normalized = text.strip().lower()
@@ -365,6 +428,18 @@ def _is_start_confirmation(normalized: str) -> bool:
     return normalized.startswith("oui") and "commence" in normalized and (
         "approuv" in normalized or "autorit" in normalized or "authority" in normalized
     )
+
+
+def _title_from_mission_text(text: str) -> str:
+    normalized = " ".join(text.split())
+    if not normalized:
+        return "Explicit read-only research mission"
+    sentence = normalized.split(".", 1)[0].strip()
+    if not sentence:
+        sentence = normalized
+    if len(sentence) > 80:
+        sentence = sentence[:77].rstrip() + "..."
+    return sentence
 
 
 def _ordered_intersection(*collections: list[str]) -> list[str]:

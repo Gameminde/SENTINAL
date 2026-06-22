@@ -115,6 +115,14 @@ def build_parser() -> argparse.ArgumentParser:
             action="store_true",
             help="Use the old direct-kernel cockpit path. Classified LEGACY_INTERNAL and not a product route.",
         )
+        cockpit_parser.add_argument(
+            "--explicit-mission-bootstrap",
+            action="store_true",
+            help=(
+                "Create a governed product-script mission draft from explicit local inputs. "
+                "Requires --script, --workspace, --authority-scope, --model-contract and --json."
+            ),
+        )
         cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
@@ -328,6 +336,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _run_cockpit_command(args: argparse.Namespace) -> int:
+    explicit_bootstrap_turns: list[str] | None = None
+    if args.explicit_mission_bootstrap:
+        reason = _explicit_bootstrap_preflight_reason(args)
+        if reason is not None:
+            return _emit_cockpit_product_block(
+                args,
+                reason=reason,
+                outcome=_conversation_outcome_for_block_reason(reason),
+            )
+        explicit_bootstrap_turns = _explicit_bootstrap_script_turns(Path(args.script))
     if not args.deterministic_test_mode and args.model_contract is None:
         print("sentinel cockpit: --model-contract is required for llm_operator_mode", file=sys.stderr)
         return 2
@@ -431,6 +449,7 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             cockpit,
             classification=InternalAccessClassification.PRODUCTION_ROUTE,
             host=host,
+            explicit_bootstrap_turns=explicit_bootstrap_turns,
         )
     except Exception as exc:  # noqa: BLE001
         print(f"sentinel cockpit: cockpit_product_route_failed:{exc.__class__.__name__}", file=sys.stderr)
@@ -469,6 +488,7 @@ def _run_cockpit_turn_loop(
     *,
     classification: InternalAccessClassification,
     host: SentinelRuntimeHost | None,
+    explicit_bootstrap_turns: list[str] | None = None,
 ) -> int:
     turns: list[dict[str, object]] = []
     pumped_mission_ids: set[str] = set()
@@ -476,13 +496,21 @@ def _run_cockpit_turn_loop(
     if args.once is None and args.script is None and not args.json:
         print("Sentinel: Bonjour, je suis la. Qu'est-ce que tu veux faire ?")
 
-    for line in _cockpit_input_lines(args):
+    input_lines = explicit_bootstrap_turns if explicit_bootstrap_turns is not None else _cockpit_input_lines(args)
+    for turn_index, line in enumerate(input_lines):
         normalized = line.strip().lower()
         if not normalized:
             continue
-        if normalized in {"/exit", "exit", "quit"}:
+        if explicit_bootstrap_turns is not None and turn_index == 0:
+            turn = cockpit.bootstrap_explicit_product_mission(line)
+        elif explicit_bootstrap_turns is not None:
+            if _is_explicit_bootstrap_approval(normalized):
+                turn = cockpit.handle(line)
+            else:
+                turn = _explicit_bootstrap_approval_missing_turn(cockpit)
+        elif normalized in {"/exit", "exit", "quit"}:
             break
-        if normalized in {"/help", "help"}:
+        elif normalized in {"/help", "help"}:
             turn = _cockpit_help_turn(cockpit)
         elif normalized in {"/missions", "missions"}:
             turn = _cockpit_missions_turn(cockpit)
@@ -544,6 +572,9 @@ def _classify_cockpit_conversation(turns: list[dict[str, object]]) -> str:
         blocked_outcome = _conversation_outcome_for_block_reason(str(metadata.get("blocked_reason", "")))
         if blocked_outcome != "mission_not_created":
             return blocked_outcome
+        explicit_outcome = str(metadata.get("conversation_outcome", ""))
+        if explicit_outcome == "explicit_bootstrap_draft_created":
+            return explicit_outcome
     mission_record = final.get("mission_record")
     if isinstance(mission_record, dict):
         status = mission_record.get("status")
@@ -563,6 +594,11 @@ def _conversation_outcome_for_block_reason(reason: str) -> str:
         return "mission_not_created_workspace_missing"
     if reason == "workspace_outside_approved_scope":
         return "mission_not_created_workspace_outside_scope"
+    if reason in {
+        "explicit_bootstrap_requires_two_script_turns",
+        "explicit_bootstrap_approval_missing_or_ambiguous",
+    }:
+        return "mission_not_created_approval_missing"
     return "mission_not_created"
 
 
@@ -593,6 +629,52 @@ def _emit_cockpit_product_block(args: argparse.Namespace, *, reason: str, outcom
     else:
         print(f"sentinel cockpit: {reason}", file=sys.stderr)
     return 2
+
+
+def _explicit_bootstrap_preflight_reason(args: argparse.Namespace) -> str | None:
+    if args.legacy_internal_direct:
+        return "explicit_bootstrap_not_allowed_for_legacy_internal_direct"
+    if args.deterministic_test_mode:
+        return "explicit_bootstrap_requires_llm_product_mode"
+    if not args.json:
+        return "explicit_bootstrap_requires_json_output"
+    if args.script is None:
+        return "explicit_bootstrap_requires_script"
+    if args.workspace is None:
+        return "explicit_bootstrap_requires_workspace"
+    if args.authority_scope is None:
+        return "explicit_bootstrap_requires_authority_scope"
+    if args.model_contract is None:
+        return "explicit_bootstrap_requires_model_contract"
+    try:
+        turns = _explicit_bootstrap_script_turns(Path(args.script))
+    except OSError:
+        return "explicit_bootstrap_script_read_failed"
+    if len(turns) != 2:
+        return "explicit_bootstrap_requires_two_script_turns"
+    return None
+
+
+def _explicit_bootstrap_script_turns(path: Path) -> list[str]:
+    return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def _is_explicit_bootstrap_approval(normalized: str) -> bool:
+    return normalized == "start"
+
+
+def _explicit_bootstrap_approval_missing_turn(cockpit: LLMLiveOperatorCockpit) -> OperatorTurnResult:
+    return OperatorTurnResult(
+        session_id=cockpit.session.session_id,
+        state=OperatorConversationState.ASKING_CLARIFICATIONS,
+        reply="Explicit product mission bootstrap requires ASCII approval: start.",
+        metadata={
+            "blocked_reason": "explicit_bootstrap_approval_missing_or_ambiguous",
+            "conversation_outcome": "mission_not_created_approval_missing",
+            "bootstrap_protocol": "explicit_product_mission_bootstrap_v1",
+            "provider_call_boundary": "cockpit_provider_not_called",
+        },
+    )
 
 
 _REQUIRED_APPROVAL_SCOPE_FIELDS = frozenset(

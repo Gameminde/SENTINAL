@@ -147,6 +147,169 @@ def test_cli_llm_product_route_wires_same_model_contract_into_pack3_execution_cl
     assert "RAW_REASONING_SHOULD_NOT_PERSIST" not in persisted
 
 
+def test_cli_explicit_bootstrap_creates_mission_without_cockpit_provider_call(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Research target\ncommand registry lives here\n", encoding="utf-8")
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, workspace))
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    turns = json.loads(output.out)
+    assert code == 0
+    assert output.err == ""
+    assert len(model_clients) == 1
+    client = model_clients[0]
+    lanes = [call.request_metadata.get("read_only_lane") for call in client.calls]
+    assert lanes == ["exploration_decision", "exploration_decision", "final_report"]
+    assert "read_only_research_decision_v1" in client.calls[0].prompt_text_in_memory_only
+    assert client.decision_calls == 2
+    assert client.report_calls == 1
+    assert turns[0]["metadata"]["conversation_outcome"] == "explicit_bootstrap_draft_created"
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_dispatched"
+    assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "completed"
+
+    mission_id = turns[-1]["mission_record"]["mission_id"]
+    request_payload = json.loads(next((tmp_path / "runs").rglob("mission_exec_req_*.json")).read_text(encoding="utf-8"))
+    assert request_payload["capability_id"] == "read_only_research"
+    assert request_payload["operation"] == "inspect_repository"
+    assert request_payload["workspace_ref"] == f"workspace:{workspace.resolve()}"
+    assert request_payload["model_contract_ref"].startswith(
+        "model_contract:unit_provider:unit_backend:unit/read-only-model:"
+    )
+    assert request_payload["workspace_ref"] != "snapshot:operator_session"
+    assert request_payload["model_contract_ref"] != "model_contract:operator_session"
+
+    authority = turns[-1]["mission_record"]["authority_summary"]
+    assert authority["allowed_actions"] == ["list_directory", "read_file_segment", "search_text", "finish_exploration"]
+    assert "write_file" in authority["forbidden_actions"]
+    assert authority["metadata"]["bootstrap_protocol"] == "explicit_product_mission_bootstrap_v1"
+
+
+@pytest.mark.parametrize(
+    ("argv_remove", "expected_reason"),
+    [
+        ("--workspace", "explicit_bootstrap_requires_workspace"),
+        ("--authority-scope", "explicit_bootstrap_requires_authority_scope"),
+        ("--model-contract", "explicit_bootstrap_requires_model_contract"),
+    ],
+)
+def test_cli_explicit_bootstrap_requires_product_bindings(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    argv_remove: str,
+    expected_reason: str,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, workspace))
+    argv = [
+        "cockpit",
+        "--run-root",
+        str(tmp_path / "runs"),
+        "--model-contract",
+        str(contract_path),
+        "--authority-scope",
+        str(_write_approval_scope(tmp_path)),
+        "--workspace",
+        str(workspace),
+        "--script",
+        str(_write_explicit_bootstrap_script(tmp_path)),
+        "--explicit-mission-bootstrap",
+        "--json",
+    ]
+    index = argv.index(argv_remove)
+    del argv[index : index + 2]
+
+    code = cli.main(argv)
+
+    turns = json.loads(capsys.readouterr().out)
+    assert code == 2
+    assert turns[-1]["metadata"]["blocked_reason"] == expected_reason
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created"
+    assert model_clients == []
+    assert not (tmp_path / "runs" / "missions").exists()
+
+
+@pytest.mark.parametrize(
+    ("script_text", "expected_reason"),
+    [
+        ("Understand this repository deeply.\n", "explicit_bootstrap_requires_two_script_turns"),
+        ("Understand this repository deeply.\nmaybe later\n", "explicit_bootstrap_approval_missing_or_ambiguous"),
+    ],
+)
+def test_cli_explicit_bootstrap_requires_exact_script_and_ascii_start(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    script_text: str,
+    expected_reason: str,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = tmp_path / "script.txt"
+    script_path.write_text(script_text, encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, workspace))
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--json",
+        ]
+    )
+
+    turns = json.loads(capsys.readouterr().out)
+    expected_code = 0 if expected_reason == "explicit_bootstrap_approval_missing_or_ambiguous" else 2
+    assert code == expected_code
+    assert turns[-1]["metadata"]["blocked_reason"] == expected_reason
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created_approval_missing"
+    assert model_clients == [] or model_clients[0].calls == []
+    assert not (tmp_path / "runs" / "missions").exists()
+
+
 def test_cli_llm_product_route_requires_v2_mission_understanding_diagnostics(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -721,6 +884,21 @@ def _raise_cockpit_failure(self, text: str):  # noqa: ANN001
 def _write_script(tmp_path: Path) -> Path:
     script_path = tmp_path / "script.txt"
     script_path.write_text("Je veux lancer un business\noui commence\n", encoding="utf-8")
+    return script_path
+
+
+def _write_explicit_bootstrap_script(tmp_path: Path) -> Path:
+    script_path = tmp_path / "explicit-bootstrap-script.txt"
+    script_path.write_text(
+        (
+            "Understand this repository deeply. Map its major packages and responsibilities. "
+            "Trace how commands are declared, registered, parsed and executed. Identify at least one "
+            "high-impact architectural risk, defect or maintainability gap. Produce an evidence-linked "
+            "technical report with prioritized engineering recommendations. Use governed read-only research only.\n"
+            "start\n"
+        ),
+        encoding="utf-8",
+    )
     return script_path
 
 
