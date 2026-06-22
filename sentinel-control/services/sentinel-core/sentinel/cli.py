@@ -391,10 +391,12 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
         read_only_decision_factory = lambda _request, _authority: ReadOnlyProviderDecisionClient(
             user_model_contract=user_model_contract,
             model_client=model_client,
+            telemetry_sink=host.kernel.telemetry_sink if host is not None else None,
         )
         read_only_report_factory = lambda _request, _authority: ReadOnlyProviderReportClient(
             user_model_contract=user_model_contract,
             model_client=model_client,
+            telemetry_sink=host.kernel.telemetry_sink if host is not None else None,
         )
     try:
         host = SentinelRuntimeHost(

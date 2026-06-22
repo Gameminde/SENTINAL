@@ -87,12 +87,14 @@ class ReadOnlySpineError(RuntimeError):
         phase: str = "unknown",
         exception_class: str | None = None,
         legacy_reason: str | None = None,
+        diagnostics: dict[str, Any] | None = None,
     ) -> None:
         code = failure_code.value if isinstance(failure_code, ReadOnlyFailureCode) else str(failure_code)
         self.failure_code = code
         self.phase = phase
         self.exception_class = exception_class
         self.legacy_reason = legacy_reason
+        self.diagnostics = redact_operator_value(diagnostics or {})
         super().__init__(code)
 
 
@@ -788,10 +790,12 @@ class ReadOnlyProductionSpineSession:
             reason = error.legacy_reason or error.failure_code
             phase = error.phase
             exception_class = error.exception_class
+            diagnostics = error.diagnostics
         else:
             reason = str(error)
             phase = "unknown"
             exception_class = None
+            diagnostics = {}
         proof_code = _proof_failure_code(reason)
         if self._latest_decision_checkpoint_ref is not None:
             self._record_failed_attempt(
@@ -825,6 +829,7 @@ class ReadOnlyProductionSpineSession:
                 "typed_failure_code": proof_code,
                 "runtime_phase": _safe_runtime_phase(phase),
                 "exception_class": exception_class,
+                "read_only_model_diagnostics": diagnostics or None,
             },
             finalgate_certificate_refs=finalgate_refs,
         )
