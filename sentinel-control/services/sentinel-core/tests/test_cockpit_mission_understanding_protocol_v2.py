@@ -16,7 +16,10 @@ from sentinel.agent.model_execution.models import RealModelRequest
 from sentinel.cli import _classify_cockpit_conversation
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
+from sentinel.operator.llm_frame import OperatorConversationFrame
 from sentinel.operator.models import OperatorConversationState, OperatorMode
+from sentinel.operator.models import OperatorMessage, OperatorMessageRole
+from sentinel.operator.prompt_renderer import OperatorPromptRenderer
 
 
 class SequenceClient:
@@ -99,6 +102,63 @@ def test_v2_rejects_model_supplied_control_or_authority_fields(
     diagnostics = result.metadata["structured_output_diagnostics"]
     assert unsafe_field in diagnostics["unknown_field_names"]
     assert "True" not in json.dumps(diagnostics)
+
+
+def test_v2_provider_metadata_is_filtered_before_validation(tmp_path: Path) -> None:
+    client = SequenceClient(
+        {
+            **_v2_draft(),
+            "provider_response_hash": "hash_safe",
+            "visible_content_char_count": 321,
+            "finish_reason": "stop",
+            "output_truncated": False,
+            "json_object_detected": True,
+            "normalization_strategy": "plain_json_object",
+            "content_extraction_source": "choices[0].message.content",
+        }
+    )
+    cockpit = _cockpit(tmp_path, client)
+
+    result = cockpit.handle("Research this repository.")
+
+    assert result.state is OperatorConversationState.AWAITING_START_CONFIRMATION
+    assert result.mission_draft is not None
+    assert result.metadata["understanding_protocol"] == "cockpit_mission_understanding_v2"
+
+
+def test_v2_model_owned_metadata_is_rejected_and_classified(tmp_path: Path) -> None:
+    client = SequenceClient({"reply": "Mission draft ready.", "metadata": {"kind": "draft_mission"}})
+    cockpit = _cockpit(tmp_path, client)
+
+    result = cockpit.handle("Research this repository.")
+
+    diagnostics = result.metadata["structured_output_diagnostics"]
+    assert result.state is OperatorConversationState.UNDERSTANDING_REQUEST
+    assert result.mission_draft is None
+    assert diagnostics["parse_stage"] == "mission_understanding_v2_validation"
+    assert diagnostics["metadata_origin"] == "model_output"
+    assert diagnostics["adapter_metadata_filtered"] is False
+    assert diagnostics["top_level_key_names"] == ["metadata", "reply"]
+    assert diagnostics["unknown_field_names"] == ["metadata"]
+    assert "kind" in diagnostics["missing_required_field_names"]
+    assert "protocol_version" in diagnostics["missing_required_field_names"]
+    assert "draft_mission" not in json.dumps(diagnostics)
+
+
+def test_v2_reply_only_is_rejected_without_mission_creation(tmp_path: Path) -> None:
+    client = SequenceClient({"reply": "Mission draft ready."})
+    cockpit = _cockpit(tmp_path, client)
+
+    result = cockpit.handle("Research this repository.")
+
+    diagnostics = result.metadata["structured_output_diagnostics"]
+    assert result.state is OperatorConversationState.UNDERSTANDING_REQUEST
+    assert result.mission_draft is None
+    assert diagnostics["parse_stage"] == "mission_understanding_v2_validation"
+    assert diagnostics["top_level_key_names"] == ["reply"]
+    assert diagnostics["unknown_field_names"] == []
+    assert "kind" in diagnostics["missing_required_field_names"]
+    assert "protocol_version" in diagnostics["missing_required_field_names"]
 
 
 def test_safe_diagnostics_expose_structure_without_values(tmp_path: Path) -> None:
@@ -184,6 +244,35 @@ def test_script_outcome_classification_does_not_treat_exit_as_mission_created() 
     ) == "mission_dispatched"
 
 
+def test_v2_prompt_is_positive_schema_first_without_legacy_names() -> None:
+    frame = OperatorConversationFrame.build(
+        session_id="session_prompt",
+        user_message=OperatorMessage(
+            session_id="session_prompt",
+            role=OperatorMessageRole.USER,
+            content="Understand this repository deeply.",
+        ),
+    )
+
+    prompt = OperatorPromptRenderer().render(frame)
+
+    skeleton_index = prompt.index('"protocol_version": "cockpit_mission_understanding_v2"')
+    no_authority_index = prompt.index("No authority.")
+    assert skeleton_index < no_authority_index
+    assert "Allowed top-level keys are exactly:" in prompt
+    assert "protocol_version" in prompt
+    assert "requested_capability" in prompt
+    assert "Return exactly one JSON object." in prompt
+    assert "No Markdown." in prompt
+    assert "No prose outside JSON." in prompt
+    assert "No reasoning." in prompt
+    assert "OperatorLLMDecisionResult" not in prompt
+    assert "MissionStartProposal" not in prompt
+    assert "OperatorIntent" not in prompt
+    assert "MissionDraft" not in prompt
+    assert "MissionAuthoritySummary" not in prompt
+
+
 def _cockpit(
     tmp_path: Path,
     client: SequenceClient,
@@ -196,6 +285,7 @@ def _cockpit(
         user_model_contract=_contract(),
         model_client=client,
         authority_approval_scope=approval_scope,
+        require_mission_understanding_v2=True,
     )
 
 

@@ -240,6 +240,15 @@ def build_structured_output_diagnostics(
     expected_protocol_version: str | None = None,
 ) -> dict[str, Any]:
     payload = raw_output if isinstance(raw_output, dict) else {}
+    safe_metadata_present = any(key in payload for key in _SAFE_PROVIDER_METADATA_FIELDS)
+    model_metadata_present = "metadata" in payload
+    metadata_origin = (
+        "model_output"
+        if model_metadata_present
+        else "adapter_metadata"
+        if safe_metadata_present
+        else "unknown"
+    )
     actual_protocol = payload.get("protocol_version")
     if actual_protocol == COCKPIT_MISSION_UNDERSTANDING_V2:
         protocol_version = COCKPIT_MISSION_UNDERSTANDING_V2
@@ -289,6 +298,8 @@ def build_structured_output_diagnostics(
         "unknown_field_names": unknown_fields,
         "validation_error_codes": sorted(dict.fromkeys(validation_codes)),
         "validation_error_paths": sorted(dict.fromkeys(validation_paths)),
+        "adapter_metadata_filtered": safe_metadata_present,
+        "metadata_origin": metadata_origin,
         "markdown_fence_detected": payload.get("markdown_fence_detected") if isinstance(payload.get("markdown_fence_detected"), bool) else None,
         "multiple_json_objects_detected": payload.get("multiple_json_objects_detected") if isinstance(payload.get("multiple_json_objects_detected"), bool) else None,
         "normalization_strategy": _safe_normalization_strategy(payload),

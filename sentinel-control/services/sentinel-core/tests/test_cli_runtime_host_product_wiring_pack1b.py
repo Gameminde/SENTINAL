@@ -372,17 +372,24 @@ def test_cli_llm_product_route_prompt_is_v2_product_protocol(
     assert code == 0
     first_prompt = model_clients[0].calls[0].prompt_text_in_memory_only
     assert "cockpit_mission_understanding_v2" in first_prompt
-    assert "Use protocol_version exactly \"cockpit_mission_understanding_v2\"." in first_prompt
-    assert "Do not emit legacy OperatorLLMDecisionResult" in first_prompt
+    assert "Allowed top-level keys are exactly:" in first_prompt
+    assert "Use this minimal JSON skeleton for a read-only research mission:" in first_prompt
     assert "Return exactly one JSON object." in first_prompt
-    assert "Do not wrap in Markdown." in first_prompt
-    assert "Do not include explanations outside JSON." in first_prompt
-    assert "Do not include workspace, workspace_ref, path, allowed_paths, model_contract_ref" in first_prompt
+    assert "No Markdown." in first_prompt
+    assert "No prose outside JSON." in first_prompt
+    assert "No authority." in first_prompt
+    assert "No workspace." in first_prompt
+    assert "No credentials." in first_prompt
     assert '"kind": "draft_mission"' in first_prompt
     assert '"reply": "Mission draft ready for approval."' in first_prompt
     assert '"requested_capability": "read_only_research"' in first_prompt
     assert "\"required_fields\": [\"protocol_version\", \"kind\", \"reply\"]" in first_prompt
     assert "\"draft_mission_required_fields\": [\"title\", \"objective\", \"requested_capability\"]" in first_prompt
+    assert "OperatorLLMDecisionResult" not in first_prompt
+    assert "MissionStartProposal" not in first_prompt
+    assert "OperatorIntent" not in first_prompt
+    assert "MissionDraft" not in first_prompt
+    assert "MissionAuthoritySummary" not in first_prompt
 
 
 def test_cli_llm_product_route_missing_workspace_blocks_before_request_creation(
