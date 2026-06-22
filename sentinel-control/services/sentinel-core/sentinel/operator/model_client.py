@@ -14,7 +14,7 @@ from sentinel.agent.model_execution.openai_compatible import (
     OpenAICompatibleProviderConfig,
 )
 from sentinel.agent.model_execution.provider_profiles import build_default_provider_catalog
-from sentinel.agent.model_execution.redaction import text_hash
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 
 
 class OperatorCatalogModelClient:
@@ -66,6 +66,22 @@ class OperatorCatalogModelClient:
                 backend_profile=backend,
             )
         )
+        if request.runtime == "operator_llm_conversation" and backend.supports_json_mode:
+            request_metadata = {
+                **request.request_metadata,
+                "response_format_json_object": True,
+            }
+            request = request.model_copy(
+                update={
+                    "request_metadata": request_metadata,
+                    "request_hash": stable_hash(
+                        {
+                            "previous_request_hash": request.request_hash,
+                            "request_metadata": request_metadata,
+                        }
+                    ),
+                }
+            )
         credential = _credential(entry.provider_id, entry.credential_policy.credential_env_var)
         response = provider.execute(request, timeout=provider.default_timeout_policy(), credential=credential)
         if response is None:

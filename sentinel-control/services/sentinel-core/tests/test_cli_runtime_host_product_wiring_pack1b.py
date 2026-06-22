@@ -203,6 +203,70 @@ def test_cli_llm_product_route_requires_v2_mission_understanding_diagnostics(
     assert not (tmp_path / "runs" / "missions").exists()
 
 
+def test_cli_llm_product_route_v2_failure_diagnostics_include_extraction_metadata(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = tmp_path / "script.txt"
+    script_path.write_text("Understand this repository deeply.\noui commence\n", encoding="utf-8")
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(
+        cli,
+        "OperatorCatalogModelClient",
+        _product_model_client_factory(
+            model_clients,
+            workspace,
+            cockpit_output={
+                "raw_text_hash": "unit_hash",
+                "visible_content_char_count": 0,
+                "content_extraction_source": "choices[0].message.content",
+                "normalization_strategy": "empty_visible_content",
+                "finish_reason": "stop",
+                "output_truncated": False,
+            },
+        ),
+    )
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--json",
+        ]
+    )
+
+    turns = json.loads(capsys.readouterr().out)
+    diagnostics = next(
+        turn["metadata"]["structured_output_diagnostics"]
+        for turn in turns
+        if "structured_output_diagnostics" in turn.get("metadata", {})
+    )
+    rendered = json.dumps(diagnostics, sort_keys=True)
+    assert code == 0
+    assert diagnostics["parse_stage"] == "mission_understanding_v2_validation"
+    assert diagnostics["content_extraction_source"] == "choices[0].message.content"
+    assert diagnostics["normalization_strategy"] == "empty_visible_content"
+    assert diagnostics["visible_content_length"] == 0
+    assert diagnostics["finish_reason"] == "stop"
+    assert diagnostics["output_truncated"] is False
+    assert "raw_text_hash" not in rendered
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created"
+
+
 def test_cli_llm_product_route_rejects_model_supplied_bindings_with_v2_diagnostics(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -310,6 +374,13 @@ def test_cli_llm_product_route_prompt_is_v2_product_protocol(
     assert "cockpit_mission_understanding_v2" in first_prompt
     assert "Use protocol_version exactly \"cockpit_mission_understanding_v2\"." in first_prompt
     assert "Do not emit legacy OperatorLLMDecisionResult" in first_prompt
+    assert "Return exactly one JSON object." in first_prompt
+    assert "Do not wrap in Markdown." in first_prompt
+    assert "Do not include explanations outside JSON." in first_prompt
+    assert "Do not include workspace, workspace_ref, path, allowed_paths, model_contract_ref" in first_prompt
+    assert '"kind": "draft_mission"' in first_prompt
+    assert '"reply": "Mission draft ready for approval."' in first_prompt
+    assert '"requested_capability": "read_only_research"' in first_prompt
     assert "\"required_fields\": [\"protocol_version\", \"kind\", \"reply\"]" in first_prompt
     assert "\"draft_mission_required_fields\": [\"title\", \"objective\", \"requested_capability\"]" in first_prompt
 

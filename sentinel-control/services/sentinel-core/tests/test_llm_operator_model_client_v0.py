@@ -23,6 +23,17 @@ from sentinel.agent.model_execution.catalog import (
     ProviderFamily,
     ProviderRealTestStatus,
 )
+from sentinel.agent.model_execution.models import RealModelRequest
+from sentinel.agent.model_execution.openai_compatible import (
+    OpenAICompatibleChatProvider,
+    OpenAICompatibleProviderConfig,
+)
+from sentinel.agent.model_execution.policy import (
+    ModelExecutionBudgetPolicy,
+    ModelRetryPolicy,
+    ModelTimeoutPolicy,
+)
+from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.llm_adapter import OperatorLLMConversationAdapter
 from sentinel.operator.llm_frame import OperatorConversationFrame
 from sentinel.operator.model_client import OperatorCatalogModelClient
@@ -227,6 +238,94 @@ def test_catalog_model_client_rejects_ambiguous_or_truncated_v2_json(
     assert result.metadata["blocked_reason"] == "invalid_structured_output"
 
 
+def test_catalog_model_client_diagnoses_empty_visible_content_separately(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recorder = RecordingHttpxClient(_provider_payload(""))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="ollama", backend_id="ollama_openai_compatible_chat", model="llama3.2")
+
+    result = OperatorLLMConversationAdapter(
+        mode=OperatorMode.LLM_OPERATOR,
+        user_model_contract=contract,
+        model_client=OperatorCatalogModelClient(user_model_contract=contract),
+        require_mission_understanding_v2=True,
+    ).complete(_frame())
+
+    diagnostics = result.metadata["structured_output_diagnostics"]
+    assert result.mission_draft is None
+    assert diagnostics["normalization_strategy"] == "empty_visible_content"
+    assert diagnostics["content_extraction_source"] == "choices[0].message.content"
+    assert diagnostics["visible_content_length"] == 0
+    assert diagnostics["json_object_detected"] is False
+
+
+def test_catalog_model_client_diagnoses_empty_json_object_separately(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    recorder = RecordingHttpxClient(_provider_payload("{}"))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="ollama", backend_id="ollama_openai_compatible_chat", model="llama3.2")
+
+    result = OperatorLLMConversationAdapter(
+        mode=OperatorMode.LLM_OPERATOR,
+        user_model_contract=contract,
+        model_client=OperatorCatalogModelClient(user_model_contract=contract),
+        require_mission_understanding_v2=True,
+    ).complete(_frame())
+
+    diagnostics = result.metadata["structured_output_diagnostics"]
+    assert result.mission_draft is None
+    assert diagnostics["normalization_strategy"] == "plain_json_object"
+    assert diagnostics["content_extraction_source"] == "choices[0].message.content"
+    assert diagnostics["visible_content_length"] == 2
+    assert diagnostics["json_object_detected"] is True
+    assert diagnostics["top_level_key_names"] == []
+
+
+def test_openai_compatible_provider_extraction_failures_are_safe_diagnostics() -> None:
+    provider = _openai_provider(supports_json_mode=False)
+    request = _real_model_request()
+
+    missing_choices = provider.map_payload(request, {"id": "missing", "model": "unit/model"})
+    non_string = provider.map_payload(
+        request,
+        {
+            "id": "bad-content",
+            "model": "unit/model",
+            "choices": [{"message": {"content": {"not": "a string"}}, "finish_reason": "stop"}],
+        },
+    )
+    length_finish = provider.map_payload(
+        request,
+        {
+            "id": "length",
+            "model": "unit/model",
+            "choices": [{"message": {"content": '{"protocol_version":'}, "finish_reason": "length"}],
+        },
+    )
+
+    assert missing_choices.error_class == "INVALID_RESPONSE_SCHEMA"
+    assert missing_choices.content["content_extraction_source"] == "choices[0].message.content"
+    assert missing_choices.content["content_extraction_error"] == "missing_choices_or_message"
+    assert non_string.error_class == "INVALID_RESPONSE_SCHEMA"
+    assert non_string.content["content_extraction_error"] == "content_not_string"
+    assert non_string.content["finish_reason"] == "stop"
+    assert length_finish.content["finish_reason"] == "length"
+    assert length_finish.content["output_truncated"] is True
+    assert length_finish.content["normalization_strategy"] == "truncated_or_invalid_json"
+
+
+def test_openai_compatible_provider_json_response_format_is_catalog_gated() -> None:
+    request = _real_model_request(metadata={"response_format_json_object": True})
+
+    body_without_support = _openai_provider(supports_json_mode=False)._request_body(request)
+    body_with_support = _openai_provider(supports_json_mode=True)._request_body(request)
+
+    assert "response_format" not in body_without_support
+    assert body_with_support["response_format"] == {"type": "json_object"}
+
+
 def test_catalog_model_client_missing_remote_credential_fails_closed_without_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -380,4 +479,64 @@ def _local_catalog(*, endpoint: str) -> ProviderCatalog:
                 real_test_status=ProviderRealTestStatus(),
             )
         ]
+    )
+
+
+def _openai_provider(*, supports_json_mode: bool) -> OpenAICompatibleChatProvider:
+    backend = ProviderBackendProfile(
+        backend_id="unit_backend",
+        family=ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+        endpoint_template="https://example.invalid/v1/chat/completions",
+        runtime="unit",
+        supported_models=["unit/model"],
+        supports_json_mode=supports_json_mode,
+    )
+    return OpenAICompatibleChatProvider(
+        config=OpenAICompatibleProviderConfig(
+            provider_id="unit_provider",
+            backend_id="unit_backend",
+            base_url="https://example.invalid/v1",
+            credential_env=None,
+            default_model_id="unit/model",
+            backend_profile=backend,
+        )
+    )
+
+
+def _real_model_request(metadata: dict[str, object] | None = None) -> RealModelRequest:
+    timeout = ModelTimeoutPolicy(
+        connect_timeout_seconds=2.0,
+        read_timeout_seconds=10.0,
+        total_timeout_seconds=12.0,
+    )
+    retry = ModelRetryPolicy(max_attempts=1, retryable_outcomes=[])
+    budget = ModelExecutionBudgetPolicy(
+        max_input_tokens=1000,
+        max_output_tokens=1000,
+        max_total_estimated_usd=0.0,
+    )
+    request_metadata = metadata or {}
+    request_hash_payload = {
+        "provider_id": "unit_provider",
+        "backend_id": "unit_backend",
+        "model_id": "unit/model",
+        "metadata": request_metadata,
+    }
+    return RealModelRequest(
+        provider_id="unit_provider",
+        backend_id="unit_backend",
+        backend="unit_backend",
+        model_id="unit/model",
+        runtime="unit_test",
+        prompt_hash=stable_hash({"prompt": "unit"}),
+        frame_hash=stable_hash({"frame": "unit"}),
+        user_model_contract_id="umodel_unit",
+        estimated_input_tokens=10,
+        estimated_output_tokens=20,
+        prompt_text_in_memory_only="Return JSON.",
+        request_metadata=request_metadata,
+        timeout_policy_id=timeout.id,
+        retry_policy_id=retry.id,
+        budget_policy_id=budget.id,
+        request_hash=stable_hash(request_hash_payload),
     )

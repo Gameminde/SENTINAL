@@ -60,6 +60,14 @@ _SAFE_PROVIDER_METADATA_FIELDS = {
     "output_truncated",
     "raw_text_hash",
     "raw_text_transport",
+    "content_extraction_source",
+    "content_extraction_error",
+    "normalization_strategy",
+    "json_object_detected",
+    "visible_content_char_count",
+    "visible_content_estimated_tokens",
+    "markdown_fence_detected",
+    "multiple_json_objects_detected",
 }
 _LEGACY_ALLOWED_FIELDS = {
     "reply",
@@ -272,7 +280,9 @@ def build_structured_output_diagnostics(
         "visible_content_length": _safe_int(payload.get("visible_content_char_count")),
         "finish_reason": _safe_finish_reason(payload),
         "output_truncated": payload.get("output_truncated") if isinstance(payload.get("output_truncated"), bool) else None,
-        "json_object_detected": isinstance(raw_output, dict),
+        "json_object_detected": payload.get("json_object_detected")
+        if isinstance(payload.get("json_object_detected"), bool)
+        else isinstance(raw_output, dict),
         "top_level_type": type(raw_output).__name__,
         "top_level_key_names": top_level_keys,
         "missing_required_field_names": sorted(required_missing),
@@ -281,6 +291,9 @@ def build_structured_output_diagnostics(
         "validation_error_paths": sorted(dict.fromkeys(validation_paths)),
         "markdown_fence_detected": payload.get("markdown_fence_detected") if isinstance(payload.get("markdown_fence_detected"), bool) else None,
         "multiple_json_objects_detected": payload.get("multiple_json_objects_detected") if isinstance(payload.get("multiple_json_objects_detected"), bool) else None,
+        "normalization_strategy": _safe_normalization_strategy(payload),
+        "content_extraction_source": _safe_content_extraction_source(payload),
+        "content_extraction_error": _safe_content_extraction_error(payload),
     }
 
 
@@ -428,3 +441,29 @@ def _safe_finish_reason(payload: dict[str, Any]) -> str | None:
         return value
     value = payload.get("finish_reason_hash")
     return value if isinstance(value, str) else None
+
+
+def _safe_normalization_strategy(payload: dict[str, Any]) -> str | None:
+    value = payload.get("normalization_strategy")
+    allowed = {
+        "empty_visible_content",
+        "plain_json_object",
+        "single_json_markdown_fence",
+        "truncated_or_invalid_json",
+        "no_json_object_detected",
+        "strict_json_rejected",
+        "json_value_not_object",
+        "raw_text_transport",
+    }
+    return value if isinstance(value, str) and value in allowed else None
+
+
+def _safe_content_extraction_source(payload: dict[str, Any]) -> str | None:
+    value = payload.get("content_extraction_source")
+    return value if value == "choices[0].message.content" else None
+
+
+def _safe_content_extraction_error(payload: dict[str, Any]) -> str | None:
+    value = payload.get("content_extraction_error")
+    allowed = {"missing_choices_or_message", "message_not_object", "content_not_string"}
+    return value if isinstance(value, str) and value in allowed else None

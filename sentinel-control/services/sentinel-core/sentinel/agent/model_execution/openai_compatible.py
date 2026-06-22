@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 import httpx
@@ -121,6 +122,11 @@ class OpenAICompatibleChatProvider(RealModelProvider):
             self._config.max_tokens_field: max(1, request.estimated_output_tokens),
             "temperature": 0,
         }
+        if (
+            request.request_metadata.get("response_format_json_object") is True
+            and self.backend_profile.supports_json_mode
+        ):
+            body["response_format"] = {"type": "json_object"}
         reasoning_request = self._reasoning_request()
         if reasoning_request:
             body["reasoning"] = reasoning_request
@@ -138,27 +144,62 @@ class OpenAICompatibleChatProvider(RealModelProvider):
             choice = payload["choices"][0]
             message = choice["message"]
         except (KeyError, IndexError, TypeError):
-            return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA,
+                diagnostic={
+                    "content_extraction_source": "choices[0].message.content",
+                    "content_extraction_error": "missing_choices_or_message",
+                },
+            )
         if not isinstance(message, dict):
-            return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA,
+                diagnostic={
+                    "content_extraction_source": "choices[0].message.content",
+                    "content_extraction_error": "message_not_object",
+                },
+            )
 
         content = message.get("content")
         if not isinstance(content, str):
-            return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+            finish_reason, finish_reason_hash = _safe_provider_label(choice.get("finish_reason"))
+            diagnostic = {
+                "content_extraction_source": "choices[0].message.content",
+                "content_extraction_error": "content_not_string",
+            }
+            if finish_reason:
+                diagnostic["finish_reason"] = finish_reason
+            if finish_reason_hash:
+                diagnostic["finish_reason_hash"] = finish_reason_hash
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA,
+                diagnostic=diagnostic,
+            )
 
         strict_json_only = request.request_metadata.get("strict_json_only") is True
         raw_text_transport = request.request_metadata.get("raw_text_transport")
         raw_text_in_memory_only: str | None = None
+        finish_reason, finish_reason_hash = _safe_provider_label(choice.get("finish_reason"))
+        output_truncated = finish_reason == "length"
         if raw_text_transport in {"mutation_patch_v2", "read_only_audit_report_v1"}:
             parsed_content = {
                 "raw_text_hash": text_hash(content),
                 "raw_text_transport": raw_text_transport,
                 "visible_content_char_count": len(content),
                 "visible_content_estimated_tokens": max(1, (len(content) + 3) // 4),
+                "content_extraction_source": "choices[0].message.content",
+                "normalization_strategy": "raw_text_transport",
             }
             raw_text_in_memory_only = content
         else:
-            parsed_content = _parse_content(content, strict_json_only=strict_json_only)
+            parsed_content = _parse_content(
+                content,
+                strict_json_only=strict_json_only,
+                output_truncated=output_truncated,
+            )
         if not isinstance(parsed_content, dict):
             return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
 
@@ -176,9 +217,11 @@ class OpenAICompatibleChatProvider(RealModelProvider):
             parsed_content["reasoning_token_count"] = reasoning_tokens
         response_id = payload.get("id")
         response_model = payload.get("model")
-        finish_reason, finish_reason_hash = _safe_provider_label(choice.get("finish_reason"))
         if finish_reason_hash:
             parsed_content["finish_reason_hash"] = finish_reason_hash
+        if finish_reason:
+            parsed_content["finish_reason"] = finish_reason
+        parsed_content["output_truncated"] = output_truncated
         if response_model is not None and str(response_model) != request.model_id:
             return self._error_response(
                 request,
@@ -193,7 +236,7 @@ class OpenAICompatibleChatProvider(RealModelProvider):
             raw_text_in_memory_only=raw_text_in_memory_only,
             refusal=bool(message.get("refusal")),
             finish_reason=finish_reason,
-            output_truncated=finish_reason == "length",
+            output_truncated=output_truncated,
             input_tokens=_safe_int(_get_path({"usage": usage}, self.backend_profile.usage_mapping.input_tokens_path)),
             output_tokens=_safe_int(_get_path({"usage": usage}, self.backend_profile.usage_mapping.output_tokens_path)),
         )
@@ -231,28 +274,93 @@ class OpenAICompatibleChatProvider(RealModelProvider):
         )
 
 
-def _parse_content(content: str, *, strict_json_only: bool = False) -> dict[str, Any]:
+def _parse_content(
+    content: str,
+    *,
+    strict_json_only: bool = False,
+    output_truncated: bool = False,
+) -> dict[str, Any]:
+    base = {
+        "content_extraction_source": "choices[0].message.content",
+        "visible_content_char_count": len(content),
+        "visible_content_estimated_tokens": max(1, (len(content) + 3) // 4),
+    }
+    if not content:
+        return {
+            **base,
+            "raw_text_hash": text_hash(content),
+            "json_object_detected": False,
+            "normalization_strategy": "empty_visible_content",
+        }
     try:
         parsed_content = json.loads(content)
     except json.JSONDecodeError:
         if strict_json_only:
-            return {"raw_text_hash": text_hash(content)}
-        parsed_content = _extract_json_object(content)
+            return {
+                **base,
+                "raw_text_hash": text_hash(content),
+                "json_object_detected": False,
+                "normalization_strategy": "strict_json_rejected",
+            }
+        parsed_content = _extract_single_allowed_json_object(content, output_truncated=output_truncated)
         if parsed_content is None:
-            return {"raw_text_hash": text_hash(content)}
-    return parsed_content if isinstance(parsed_content, dict) else {}
+            return {
+                **base,
+                "raw_text_hash": text_hash(content),
+                "json_object_detected": False,
+                "normalization_strategy": "truncated_or_invalid_json"
+                if output_truncated
+                else "no_json_object_detected",
+                "multiple_json_objects_detected": _looks_like_multiple_json_objects(content),
+                "markdown_fence_detected": _has_markdown_fence(content),
+            }
+        return {
+            **parsed_content,
+            **base,
+        }
+    if not isinstance(parsed_content, dict):
+        return {
+            **base,
+            "raw_text_hash": text_hash(content),
+            "json_object_detected": False,
+            "normalization_strategy": "json_value_not_object",
+        }
+    return {
+        **parsed_content,
+        **base,
+        "json_object_detected": True,
+        "normalization_strategy": "plain_json_object",
+    }
 
 
-def _extract_json_object(content: str) -> dict[str, Any] | None:
-    start = content.find("{")
-    end = content.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+def _extract_single_allowed_json_object(content: str, *, output_truncated: bool) -> dict[str, Any] | None:
+    stripped = content.strip()
+    fence_match = re.fullmatch(r"```(?:json)?\s*(\{.*\})\s*```", stripped, flags=re.DOTALL | re.IGNORECASE)
+    if fence_match is not None:
+        inner = fence_match.group(1)
+        try:
+            parsed = json.loads(inner)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(parsed, dict):
+            return {
+                **parsed,
+                "json_object_detected": True,
+                "markdown_fence_detected": True,
+                "normalization_strategy": "single_json_markdown_fence",
+            }
         return None
-    try:
-        parsed = json.loads(content[start : end + 1])
-    except json.JSONDecodeError:
+    if output_truncated or _looks_like_multiple_json_objects(content):
         return None
-    return parsed if isinstance(parsed, dict) else None
+    return None
+
+
+def _looks_like_multiple_json_objects(content: str) -> bool:
+    return re.search(r"\}\s*\{", content.strip()) is not None
+
+
+def _has_markdown_fence(content: str) -> bool:
+    return "```" in content
 
 
 def _render_reasoning_value(value: Any) -> str | None:
