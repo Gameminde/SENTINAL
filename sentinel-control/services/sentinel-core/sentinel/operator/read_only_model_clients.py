@@ -104,7 +104,7 @@ _ALLOWED_NORMALIZATION_STRATEGIES = frozenset(
     }
 )
 _ALLOWED_CONTENT_EXTRACTION_ERRORS = frozenset(
-    {"missing_choices_or_message", "message_not_object", "content_not_string"}
+    {"missing_choices_or_message", "message_not_object", "content_not_string", "model_client_exception"}
 )
 
 
@@ -144,7 +144,28 @@ class ReadOnlyProviderDecisionClient:
             },
         )
         _record_model_started(self._telemetry_sink, request, context)
-        raw = self._model_client.complete(request)
+        try:
+            raw = self._model_client.complete(request)
+        except Exception as exc:  # noqa: BLE001
+            diagnostics = _build_exception_diagnostics(
+                parse_stage="read_only_decision_validation",
+                allowed_fields=_DECISION_FIELDS,
+                exception_class=exc.__class__.__name__,
+            )
+            _record_model_completed(
+                self._telemetry_sink,
+                request,
+                context,
+                schema_invalid=True,
+                diagnostics=diagnostics,
+            )
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_MODEL_DECISION_ERROR,
+                phase="model_decision",
+                exception_class=exc.__class__.__name__,
+                legacy_reason="read_only_decision_schema_invalid",
+                diagnostics=diagnostics,
+            ) from exc
         _raise_if_blocked(raw, phase="model_decision", telemetry_sink=self._telemetry_sink, request=request, context=context)
         try:
             decision = _validate_decision(raw)
@@ -225,7 +246,28 @@ class ReadOnlyProviderReportClient:
             },
         )
         _record_model_started(self._telemetry_sink, request, context)
-        raw = self._model_client.complete(request)
+        try:
+            raw = self._model_client.complete(request)
+        except Exception as exc:  # noqa: BLE001
+            diagnostics = _build_exception_diagnostics(
+                parse_stage="read_only_report_validation",
+                allowed_fields=_REPORT_FIELDS,
+                exception_class=exc.__class__.__name__,
+            )
+            _record_model_completed(
+                self._telemetry_sink,
+                request,
+                context,
+                schema_invalid=True,
+                diagnostics=diagnostics,
+            )
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_MODEL_DECISION_ERROR,
+                phase="final_report",
+                exception_class=exc.__class__.__name__,
+                legacy_reason="read_only_report_schema_invalid",
+                diagnostics=diagnostics,
+            ) from exc
         _raise_if_blocked(raw, phase="final_report", telemetry_sink=self._telemetry_sink, request=request, context=context)
         try:
             report = _validate_report(raw)
@@ -577,7 +619,67 @@ def _build_read_only_diagnostics(
         "normalization_strategy": _safe_normalization_strategy(payload),
         "content_extraction_source": _safe_content_extraction_source(payload),
         "content_extraction_error": _safe_content_extraction_error(payload),
+        "conversation_or_phase": _conversation_or_phase(parse_stage),
+        "diagnostic_retention_status": "retained",
+        "diagnostic_missing_fields": [],
+        "diagnostic_missing_reason": [],
     }
+
+
+def _build_exception_diagnostics(
+    *,
+    parse_stage: str,
+    allowed_fields: frozenset[str],
+    exception_class: str,
+) -> dict[str, Any]:
+    missing_fields = {
+        "provider_response_hash",
+        "json_object_detected",
+        "top_level_type",
+        "original_top_level_key_names",
+        "validation_payload_key_names",
+        "finish_reason",
+        "output_truncated",
+        "normalization_strategy",
+        "content_extraction_source",
+    }
+    return {
+        "protocol_version": READ_ONLY_REPORT_PROTOCOL_VERSION
+        if allowed_fields == _REPORT_FIELDS
+        else READ_ONLY_DECISION_PROTOCOL_VERSION,
+        "parse_stage": parse_stage,
+        "provider_response_hash": None,
+        "visible_content_length": None,
+        "finish_reason": None,
+        "output_truncated": None,
+        "json_object_detected": None,
+        "top_level_type": None,
+        "original_top_level_key_names": [],
+        "top_level_key_names": [],
+        "missing_required_field_names": [],
+        "unknown_field_names": [],
+        "unsafe_unknown_field_names": [],
+        "safe_metadata_filtered": False,
+        "filtered_safe_metadata_keys": [],
+        "validation_payload_key_names": [],
+        "validation_error_codes": sorted({"model_client_exception", exception_class}),
+        "validation_error_paths": [],
+        "markdown_fence_detected": None,
+        "multiple_json_objects_detected": None,
+        "normalization_strategy": None,
+        "content_extraction_source": None,
+        "content_extraction_error": "model_client_exception",
+        "conversation_or_phase": _conversation_or_phase(parse_stage),
+        "diagnostic_retention_status": "partial",
+        "diagnostic_missing_fields": {field: True for field in sorted(missing_fields)},
+        "diagnostic_missing_reason": {"model_client_exception_before_visible_payload": True},
+    }
+
+
+def _conversation_or_phase(parse_stage: str) -> str:
+    if "report" in parse_stage:
+        return "read_only_final_report"
+    return "read_only_exploration_decision"
 
 
 def _record_model_started(telemetry_sink: object | None, request: RealModelRequest, context: dict[str, Any]) -> None:
@@ -600,15 +702,18 @@ def _record_model_completed(
     recorder = getattr(telemetry_sink, "record_model_call_completed", None)
     if not callable(recorder):
         return
-    recorder(
-        request,
-        provider_response_hash=provider_response_hash if isinstance(provider_response_hash, str) else None,
-        reasoning_hash=None,
-        session_id=_safe_session_id(context),
-        blocked_reason=blocked_reason,
-        schema_invalid=schema_invalid,
-        diagnostics=diagnostics,
-    )
+    try:
+        recorder(
+            request,
+            provider_response_hash=provider_response_hash if isinstance(provider_response_hash, str) else None,
+            reasoning_hash=None,
+            session_id=_safe_session_id(context),
+            blocked_reason=blocked_reason,
+            schema_invalid=schema_invalid,
+            diagnostics=diagnostics,
+        )
+    except Exception:  # noqa: BLE001
+        return
 
 
 def _safe_session_id(context: dict[str, Any]) -> str | None:

@@ -22,6 +22,7 @@ from sentinel.operator.read_only_model_clients import (
 )
 from sentinel.operator.read_only_operator_spine import (
     ReadOnlyActionKind,
+    ReadOnlyDecision,
     ReadOnlyProductionSpineSession,
     ReadOnlyReportClient,
     ReadOnlySpineError,
@@ -105,6 +106,7 @@ def test_pack3_7_decision_schema_failures_have_safe_structure_diagnostics(
     diagnostics = raised.value.diagnostics
     assert diagnostics["protocol_version"] == "read_only_research_decision_v1"
     assert diagnostics["parse_stage"] == "read_only_decision_validation"
+    assert diagnostics["diagnostic_retention_status"] == "retained"
     assert diagnostics["provider_response_hash"] == raw["provider_response_hash"]
     assert diagnostics["visible_content_length"] == raw["visible_content_char_count"]
     assert diagnostics["finish_reason"] == "stop"
@@ -232,6 +234,7 @@ def test_pack3_10_safe_metadata_filter_does_not_invent_missing_action(raw: dict[
     assert "action" in diagnostics["missing_required_field_names"]
     assert diagnostics["safe_metadata_filtered"] is True
     assert diagnostics["filtered_safe_metadata_keys"] == ["reasoning_char_count"]
+    assert diagnostics["diagnostic_retention_status"] == "retained"
     assert diagnostics["unknown_field_names"] == []
 
 
@@ -379,6 +382,46 @@ def test_pack3_7_invalid_provider_decision_blocks_with_rejected_finalgate_and_re
     assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
 
 
+def test_pack3_11_model_client_validation_error_retains_partial_safe_diagnostics(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_RaisingModelClient(ReadOnlyDecision.model_validate, {}),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+
+    assert result.status == "blocked"
+    assert result.finalgate_status == "rejected"
+    assert result.receipt_refs == []
+    assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
+    blocked_event = [
+        event for event in cockpit.kernel.store.load_events(mission_id)
+        if event.event_type == "read_only_spine_blocked"
+    ][0]
+    diagnostics = blocked_event.metadata["read_only_model_diagnostics"]
+    assert diagnostics is not None
+    assert diagnostics["protocol_version"] == "read_only_research_decision_v1"
+    assert diagnostics["parse_stage"] == "read_only_decision_validation"
+    assert diagnostics["diagnostic_retention_status"] == "partial"
+    assert "provider_response_hash" in diagnostics["diagnostic_missing_fields"]
+    assert diagnostics["conversation_or_phase"] == "read_only_exploration_decision"
+    assert diagnostics["content_extraction_error"] == "model_client_exception"
+    assert "raw" not in str(diagnostics).lower()
+
+
 class _SequenceModelClient:
     def __init__(self, *outputs: dict[str, Any]) -> None:
         self.outputs = list(outputs)
@@ -387,6 +430,18 @@ class _SequenceModelClient:
     def complete(self, request: RealModelRequest) -> dict[str, Any]:
         self.requests.append(request)
         return self.outputs.pop(0)
+
+
+class _RaisingModelClient:
+    def __init__(self, callback: Any, payload: dict[str, Any]) -> None:
+        self.callback = callback
+        self.payload = payload
+        self.requests: list[RealModelRequest] = []
+
+    def complete(self, request: RealModelRequest) -> dict[str, Any]:
+        self.requests.append(request)
+        self.callback(self.payload)
+        raise AssertionError("callback should have raised")
 
 
 class _RecordingTelemetry:
