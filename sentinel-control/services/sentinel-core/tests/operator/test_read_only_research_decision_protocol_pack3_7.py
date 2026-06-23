@@ -479,6 +479,144 @@ def test_pack3_12_bridge_preserves_read_only_validation_diagnostics_with_forbidd
     assert finalgate_reasons == ["read_only_decision_schema_invalid"]
 
 
+def test_pack3_13_diagnostic_hash_extra_field_no_longer_blocks_governed_receipt(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(
+            {
+                "action": "list_directory",
+                "arguments": {"path": "."},
+                "evidence_refs": [],
+                "operator_message": "Inspect repository root.",
+                "provider_response_hash": "hash_5i_shape",
+                "finish_reason": "stop",
+                "json_object_detected": True,
+                "normalization_strategy": "plain_json_object",
+                "content_extraction_source": "choices[0].message.content",
+                "visible_content_char_count": 141,
+                "diagnostic_label_hash:05763843d85a01fe39c833dde0246e733d28a1174e7e4a31e9437eaf01f314ef": 7,
+            },
+            {
+                "action": "finish_exploration",
+                "arguments": {},
+                "evidence_refs": ["readonly_evidence_1"],
+                "provider_response_hash": "hash_finish_after_extraction",
+            },
+        ),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: extraction completed.")
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+        report_client=report_client,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    assert result.status == "completed"
+    assert result.receipt_refs
+    assert result.finalgate_status == "accepted"
+    assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.COMPLETED
+    assert replay.reexecuted is False
+    assert replay.model_calls_before_replay == decision_client.call_count
+    assert replay.model_calls_after_replay == decision_client.call_count
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+    assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+
+
+def test_pack3_13_tool_params_dialect_reaches_governed_action_receipt(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(
+            {
+                "tool": "list_directory",
+                "params": {"path": "."},
+                "provider_response_hash": "hash_tool_params",
+            },
+            {
+                "action": "finish_exploration",
+                "arguments": {},
+                "evidence_refs": ["readonly_evidence_1"],
+                "provider_response_hash": "hash_finish",
+            },
+        ),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+
+    assert result.status == "completed"
+    assert result.receipt_refs
+    assert "list_directory" in {payload["action"] for payload in _json_payloads(session, "receipts")}
+
+
+def test_pack3_13_unsafe_extracted_decision_blocks_finalgate_and_replay_purity(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(
+            {
+                "tool": "write_file",
+                "params": {"path": "README.md"},
+                "provider_response_hash": "hash_unsafe_write",
+            }
+        ),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    assert result.status == "blocked"
+    assert result.receipt_refs == []
+    assert result.finalgate_status == "rejected"
+    assert cockpit.kernel.store.load_record(mission_id).status is OperatorMissionStatus.BLOCKED
+    blocked_event = [
+        event for event in cockpit.kernel.store.load_events(mission_id)
+        if event.event_type == "read_only_spine_blocked"
+    ][0]
+    diagnostics = blocked_event.metadata["read_only_model_diagnostics"]
+    assert diagnostics["parse_stage"] == "read_only_decision_validation"
+    assert diagnostics["extraction_failed"] is True
+    assert "write_file" in diagnostics["unsafe_action_names"]
+    assert replay.reexecuted is False
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+    assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+
+
 class _SequenceModelClient:
     def __init__(self, *outputs: dict[str, Any]) -> None:
         self.outputs = list(outputs)

@@ -10,6 +10,10 @@ from sentinel.agent.model_execution.models import RealModelRequest
 from sentinel.agent.model_execution.policy import ModelExecutionBudgetPolicy, ModelRetryPolicy, ModelTimeoutPolicy
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.llm_adapter import OperatorModelClient
+from sentinel.operator.model_decision_extractor import (
+    ModelDecisionExtractionError,
+    extract_read_only_decision_payload,
+)
 from sentinel.operator.read_only_operator_spine import (
     ReadOnlyDecision,
     ReadOnlyFailureCode,
@@ -178,6 +182,8 @@ class ReadOnlyProviderDecisionClient:
                 validation_error=exc if isinstance(exc, ValidationError) else None,
                 extra_error_codes=["unknown_field"] if _unknown_field_names(raw, _DECISION_FIELDS) else [],
             )
+            if isinstance(exc, ModelDecisionExtractionError):
+                diagnostics = _merge_extraction_diagnostics(diagnostics, exc.diagnostics)
             _record_model_completed(
                 self._telemetry_sink,
                 request,
@@ -475,10 +481,8 @@ def _raise_if_blocked(
 
 
 def _validate_decision(raw: dict[str, Any]) -> ReadOnlyDecision:
-    unknown = _unknown_field_names(raw, _DECISION_FIELDS)
-    if unknown:
-        raise ValueError("read_only_decision_unknown_field")
-    return ReadOnlyDecision.model_validate(_typed_visible_content(raw, allowed_fields=_DECISION_FIELDS))
+    extraction = extract_read_only_decision_payload(raw)
+    return ReadOnlyDecision.model_validate(extraction.payload)
 
 
 def _validate_report(raw: dict[str, Any]) -> ReadOnlyReportResult:
@@ -624,6 +628,36 @@ def _build_read_only_diagnostics(
         "diagnostic_missing_fields": [],
         "diagnostic_missing_reason": [],
     }
+
+
+def _merge_extraction_diagnostics(base: dict[str, Any], extraction: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key in (
+        "extraction_failed",
+        "model_top_level_type",
+        "model_top_level_key_names",
+        "detected_action_field_names",
+        "detected_argument_field_names",
+        "detected_evidence_field_names",
+        "detected_operator_message_field_names",
+        "unsafe_field_names",
+        "unsafe_action_names",
+        "missing_required_canonical_fields",
+    ):
+        if key in extraction:
+            merged[key] = extraction[key]
+    extraction_codes = [
+        str(code)
+        for code in extraction.get("validation_error_codes", [])
+        if isinstance(code, str) and code
+    ]
+    merged["validation_error_codes"] = sorted(
+        dict.fromkeys([*merged.get("validation_error_codes", []), *extraction_codes])
+    )
+    provider_hash = extraction.get("provider_response_hash")
+    if isinstance(provider_hash, str) and provider_hash:
+        merged["provider_response_hash"] = provider_hash
+    return merged
 
 
 def _build_exception_diagnostics(
