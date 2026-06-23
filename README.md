@@ -21,12 +21,12 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 ## Current Snapshot
 
 ```text
-snapshot_date = 2026-06-18
+snapshot_date = 2026-06-23
 canonical_locked_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
 active_experimental_lane = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
-latest_local_hardening = READ_ONLY_OPERATOR_REAL_PROVIDER_FAILURE_HARDENING_V1
+latest_local_hardening = PACK_3_13_MODEL_DECISION_EXTRACTION_LAYER_V1
 branch = experimental/real-model-lab-freeze-v1
-next_work = review pushed experimental hardening, then decide next controlled run
+next_work = ATTEMPT_5J_EXTRACTION_LAYER_REAL_READ_ONLY_RECEIPT
 doctrine = product power under provable authority
 ```
 
@@ -54,13 +54,33 @@ integrity-verified 5 ms get gate, and restores the full sentinel-core suite to
 green: 2,749 passed, 3 skipped, 0 failed. It does not start the real-model
 provider run. No new actuator family or special-authority surface was added.
 
-The active experimental branch now contains an additional local hardening commit
-for the read-only operator production spine. That hardening adds typed
-read-only failure taxonomy, post-parse/pre-tool decision checkpoints, failed
-action-attempt evidence, emergency terminal records when FinalGate persistence
-fails, replay counters that prove no re-execution, and a Windows-safe
-`MissionRunStore` atomic-write path for deep run directories. This is a generic
-failure-hardening pack, not a score increase and not a new capability surface.
+The active experimental branch now contains the Pack 3 product nervous-system
+vertical slice plus the Pack 3.13 read-only model decision extraction layer.
+The route has progressed from setup and schema failures into a real
+provider-facing read-only decision lane. Pack 3.13 translates common model
+dialects such as `tool/params`, `tool_name/args`, `next_step.name/input`, and
+`function.name/arguments` into Sentinel's canonical `ReadOnlyDecision` before
+strict validation and governed execution. Unsafe action, authority, credential,
+workspace, raw provider, and reasoning fields remain blocked. This is not
+fallback, not AUTO routing, not provider-native tools, and not a new capability
+surface.
+
+The next experimental threshold is deliberately small and power-focused:
+
+```text
+real provider
+-> explicit bootstrap
+-> read-only decision lane
+-> extraction / normalization
+-> canonical ReadOnlyDecision
+-> strict validation
+-> governed read-only action
+-> receipt
+```
+
+Pack 4 does not begin until at least one real governed read-only action creates
+a receipt while the workspace remains unchanged and replay material purity
+holds.
 
 The current top-level lock report is:
 
@@ -74,6 +94,7 @@ The current experimental read-only operator reports are:
 sentinel-control/docs/reviews/REAL_MODEL_READ_ONLY_OPERATOR_PRODUCTION_SPINE_V1_FAKE_MODEL_GATE_REPORT.md
 sentinel-control/docs/reviews/SENTINEL_REAL_MODEL_BEHAVIORAL_EXHAUSTIVE_REMEDIATION_LOCK_REPORT_V1.md
 sentinel-control/docs/reviews/STAGE_B_SANITIZED_REPORT_CAPTURE_AND_INDEPENDENT_VERIFICATION_V1_REPORT.md
+sentinel-control/docs/reviews/SENTINEL_PRODUCT_NERVOUS_SYSTEM_INTEGRATION_V1_PACK3_13_MODEL_DECISION_EXTRACTION_LAYER_V1_REPORT.md
 ```
 
 The canonical state truth is:
