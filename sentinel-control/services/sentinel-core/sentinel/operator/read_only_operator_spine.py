@@ -42,6 +42,7 @@ READ_ONLY_SEARCH_QUERY_MAX_CHARS = 80
 READ_ONLY_SEARCH_MAX_FILES = 80
 READ_ONLY_SEARCH_MAX_MATCHES = 40
 READ_ONLY_SEARCH_EXCERPT_MAX_CHARS = 240
+READ_ONLY_ROOT_PATH_ALIASES = frozenset({".", "snapshot_root", "workspace_root"})
 
 
 class ReadOnlyActionKind(StrEnum):
@@ -1028,7 +1029,7 @@ class ReadOnlyProductionSpineSession:
         path_value = decision.arguments.get("path")
         if not isinstance(path_value, str) or not path_value.strip():
             return "none"
-        if path_value == ".":
+        if path_value.strip() in READ_ONLY_ROOT_PATH_ALIASES:
             return "snapshot_root"
         suffix = Path(path_value).suffix.lower().lstrip(".")
         if suffix:
@@ -1197,9 +1198,13 @@ class ReadOnlyProductionSpineSession:
         if self._active_envelope is not None:
             gate_result = GateSequence.default(
                 project_root=self.snapshot_root,
-                known_tools={"read_only_observation"},
+                known_tools={"read_only_observation", "read_only_research_adapter"},
             ).evaluate(
-                _mission_action_from_decision(self.mission_id, decision),
+                _mission_action_from_decision(
+                    self.mission_id,
+                    decision,
+                    tool=_gate_tool_for_envelope(self._active_envelope),
+                ),
                 self._active_envelope,
                 MissionState(mission_id=self.mission_id),
             )
@@ -1451,7 +1456,7 @@ class ReadOnlyProductionSpineSession:
             raise ReadOnlySpineError(ReadOnlyFailureCode.SNAPSHOT_CHANGED, phase="snapshot_validation")
 
     def _resolve_path(self, requested: str) -> Path:
-        raw = Path(requested)
+        raw = Path(_normalize_root_alias(requested))
         if raw.is_absolute():
             raise ReadOnlySpineError("absolute_path_blocked")
         path = (self.snapshot_root / raw).resolve()
@@ -1732,14 +1737,31 @@ def _sanitize_diagnostic_label(value: str) -> str:
     return value
 
 
-def _mission_action_from_decision(mission_id: str, decision: ReadOnlyDecision) -> MissionAction:
-    target = str(decision.arguments.get("path", ".")) if decision.arguments else "."
+def _gate_tool_for_envelope(envelope: MissionAuthorityEnvelope) -> str:
+    tools = set(envelope.allowed_tools)
+    if "read_only_observation" in tools:
+        return "read_only_observation"
+    if "read_only_research_adapter" in tools:
+        return "read_only_research_adapter"
+    return "read_only_observation"
+
+
+def _normalize_root_alias(value: object) -> str:
+    text = str(value).strip()
+    return "." if not text or text in READ_ONLY_ROOT_PATH_ALIASES else text
+
+
+def _mission_action_from_decision(mission_id: str, decision: ReadOnlyDecision, *, tool: str) -> MissionAction:
+    target = _normalize_root_alias(decision.arguments.get("path", ".")) if decision.arguments else "."
+    gate_input = dict(redact_operator_value(decision.arguments))
+    if "path" in gate_input:
+        gate_input["path"] = target
     return MissionAction(
         mission_id=mission_id,
         action_type=decision.action.value,
-        tool="read_only_observation",
+        tool=tool,
         intent=f"read-only {decision.action.value}",
         target=target,
-        input=redact_operator_value(decision.arguments),
+        input=gate_input,
         expected_output="bounded read-only evidence",
     )

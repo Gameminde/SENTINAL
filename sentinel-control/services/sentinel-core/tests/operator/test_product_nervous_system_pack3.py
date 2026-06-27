@@ -93,6 +93,158 @@ def test_pack3_product_route_executes_read_only_research_end_to_end(tmp_path: Pa
     }
 
 
+def test_pack3_14_approved_workspace_scope_allows_adapter_routed_read_only_receipts(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    host = _host(
+        tmp_path,
+        decisions=[
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.SEARCH_TEXT, arguments={"query": "register", "path": "."}),
+            ReadOnlyDecision(
+                action=ReadOnlyActionKind.READ_FILE_SEGMENT,
+                arguments={"path": "src/commands.py", "start_line": 1, "line_count": 2},
+            ),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ],
+        report_text="Report cites {refs}: read-only adapter-routed workspace scope completed.",
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_14",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert pickup.dispatch_result.receipt_refs
+    assert pickup.dispatch_result.finalgate_status == "accepted"
+    assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.COMPLETED
+    assert mission.authority.envelope.allowed_tools == ["read_only_research_adapter"]
+    assert mission.authority.envelope.allowed_paths == [str(workspace.resolve())]
+    receipts = _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")
+    assert {receipt["action"] for receipt in receipts} >= {
+        "list_directory",
+        "search_text",
+        "read_file_segment",
+    }
+
+
+def test_pack3_14_snapshot_root_alias_reaches_receipt_under_approved_workspace_scope(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    host = _host(
+        tmp_path,
+        decisions=[
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "snapshot_root"}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ],
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_14_alias",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    receipts = _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")
+    assert any(receipt["action"] == "list_directory" for receipt in receipts)
+
+
+@pytest.mark.parametrize("path_value", ["../outside", str(Path("..") / "outside")])
+def test_pack3_14_path_escape_still_blocks_without_fake_receipt(
+    tmp_path: Path,
+    path_value: str,
+) -> None:
+    workspace = _workspace(tmp_path)
+    host = _host(
+        tmp_path,
+        decisions=[
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": path_value}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ],
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_14_escape",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.BLOCKED
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts") == []
+    failed = _json_payloads(host, mission.record.mission_id, "read_only_spine", "failed_attempts")
+    assert len(failed) == 1
+    assert failed[0]["successful_action_receipt_ref"] is None
+
+
+def test_pack3_14_absolute_outside_path_still_blocks_without_fake_receipt(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    host = _host(
+        tmp_path,
+        decisions=[
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": str(outside.resolve())}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ],
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_14_absolute_escape",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts") == []
+    failed = _json_payloads(host, mission.record.mission_id, "read_only_spine", "failed_attempts")
+    assert len(failed) == 1
+    assert failed[0]["successful_action_receipt_ref"] is None
+
+
 def test_pack3_coordinator_decision_is_persisted_before_adapter_execution(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     adapter = _AssertingAdapter()
@@ -460,6 +612,20 @@ def _approval_scope() -> MissionAuthorityApprovalScope:
         allowed_actions=["list_directory", "read_file_segment", "search_text", "finish_exploration"],
         forbidden_actions=["write_file", "shell", "browser_click", "credential_access"],
         allowed_paths=["."],
+        max_duration_minutes=15,
+        max_actions=12,
+        max_cost_usd=0.0,
+    )
+
+
+def _attempt5j_approval_scope(workspace: Path) -> MissionAuthorityApprovalScope:
+    return MissionAuthorityApprovalScope(
+        user_id="operator_user",
+        allowed_systems=["local_workspace"],
+        allowed_tools=["read_only_research_adapter"],
+        allowed_actions=["list_directory", "read_file_segment", "search_text", "finish_exploration"],
+        forbidden_actions=["write_file", "shell", "browser_click", "credential_access", "delete_file"],
+        allowed_paths=[str(workspace.resolve())],
         max_duration_minutes=15,
         max_actions=12,
         max_cost_usd=0.0,

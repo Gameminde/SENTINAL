@@ -527,10 +527,10 @@ def _build_envelope(
         success_criteria=list(record.draft.expected_artifacts),
         mode=_restrictive_mode(approval_scope.mode, policy.mode),
         allowed_systems=_ordered_intersection(approval_scope.allowed_systems, policy.allowed_systems),
-        allowed_tools=_ordered_intersection(approval_scope.allowed_tools, policy.allowed_tools),
+        allowed_tools=_ordered_tool_intersection(approval_scope.allowed_tools, policy.allowed_tools),
         allowed_actions=_ordered_intersection(summary.allowed_actions, approval_scope.allowed_actions, policy.allowed_actions),
         forbidden_actions=list(dict.fromkeys([*summary.forbidden_actions, *approval_scope.forbidden_actions, *policy.forbidden_actions])),
-        allowed_paths=_ordered_intersection(approval_scope.allowed_paths, policy.allowed_paths),
+        allowed_paths=_ordered_path_intersection(approval_scope.allowed_paths, policy.allowed_paths),
         allowed_domains=_ordered_intersection(approval_scope.allowed_domains, policy.allowed_domains),
         allowed_accounts=_ordered_intersection(approval_scope.allowed_accounts, policy.allowed_accounts),
         allowed_data_types=_ordered_intersection(approval_scope.allowed_data_types, policy.allowed_data_types),
@@ -564,6 +564,52 @@ def _ordered_intersection(*values: list[str]) -> list[str]:
     for value in values[1:]:
         allowed &= set(value)
     return [item for item in dict.fromkeys(values[0]) if item in allowed]
+
+
+def _ordered_tool_intersection(approval_tools: list[str], policy_tools: list[str]) -> list[str]:
+    result = _ordered_intersection(approval_tools, policy_tools)
+    policy = set(policy_tools)
+    for tool in approval_tools:
+        if tool in result:
+            continue
+        if tool == "read_only_research_adapter" and "read_only_observation" in policy:
+            result.append(tool)
+    return result
+
+
+def _ordered_path_intersection(approval_paths: list[str], policy_paths: list[str]) -> list[str]:
+    result = _ordered_intersection(approval_paths, policy_paths)
+    for approved in approval_paths:
+        for policy in policy_paths:
+            narrowed = _narrower_overlapping_path(approved, policy)
+            if narrowed is not None and narrowed not in result:
+                result.append(narrowed)
+    return result
+
+
+def _narrower_overlapping_path(approved: str, policy: str) -> str | None:
+    if approved == policy:
+        return approved
+    approved_path = Path(approved)
+    policy_path = Path(policy)
+    if policy == "." and approved_path.is_absolute():
+        return approved
+    if approved == "." and policy_path.is_absolute():
+        return policy
+    if not approved_path.is_absolute() or not policy_path.is_absolute():
+        return None
+    approved_resolved = approved_path.resolve(strict=False)
+    policy_resolved = policy_path.resolve(strict=False)
+    try:
+        approved_resolved.relative_to(policy_resolved)
+        return str(approved_resolved)
+    except ValueError:
+        pass
+    try:
+        policy_resolved.relative_to(approved_resolved)
+        return str(policy_resolved)
+    except ValueError:
+        return None
 
 
 def _intersect_grants(approval_grants: list[dict[str, Any]], policy_grants: list[dict[str, Any]]) -> list[dict[str, Any]]:
