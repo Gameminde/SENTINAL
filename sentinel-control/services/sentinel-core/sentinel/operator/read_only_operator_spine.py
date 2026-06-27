@@ -1693,6 +1693,8 @@ _LEGACY_FAILURE_CODE_MAP = {
 def _proof_failure_code(reason: str) -> str:
     if reason in {item.value for item in ReadOnlyFailureCode}:
         return reason
+    if reason.startswith("PROVIDER_"):
+        return reason
     if reason in _LEGACY_FAILURE_CODE_MAP:
         return _LEGACY_FAILURE_CODE_MAP[reason]
     if reason.startswith("operator_mission_terminal:"):
@@ -1705,6 +1707,8 @@ def _proof_failure_code(reason: str) -> str:
 
 
 def _proof_kind(reason: str, phase: str) -> str:
+    if reason.startswith("PROVIDER_") or "provider" in phase.lower():
+        return "provider_failure"
     if reason.startswith("gate_sequence:"):
         return "gate_denial"
     if "gate" in phase.lower():

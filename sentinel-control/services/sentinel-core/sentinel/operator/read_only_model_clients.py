@@ -66,6 +66,32 @@ _SAFE_PROVIDER_METADATA_KEYS = frozenset(
     }
 )
 _FILTERED_SAFE_METADATA_KEYS = _SAFE_PROVIDER_METADATA_KEYS - {"provider_response_hash"}
+_PROVIDER_FAILURE_SAFE_KEYS = frozenset(
+    {
+        "provider_failure",
+        "provider_failure_category",
+        "provider_error_class",
+        "provider_id",
+        "backend_id",
+        "model_id",
+        "endpoint_hash",
+        "http_status",
+        "provider_error_code",
+        "provider_error_type",
+        "provider_error_code_hash",
+        "provider_error_type_hash",
+        "provider_error_message_hash",
+        "provider_error_message_redacted",
+        "provider_error_body_hash",
+        "rejected_reason",
+        "provider_response_hash",
+        "diagnostic_retention_status",
+        "data_not_authority",
+        "can_execute",
+        "content_extraction_source",
+        "content_extraction_error",
+    }
+)
 
 _DECISION_FIELDS = frozenset({"action", "arguments", "evidence_refs", "operator_message"})
 _REPORT_FIELDS = frozenset({"report_text", "evidence_refs"})
@@ -484,6 +510,25 @@ def _raise_if_blocked(
     request: RealModelRequest | None = None,
     context: dict[str, Any] | None = None,
 ) -> None:
+    if raw.get("provider_failure") is True:
+        category = str(raw.get("provider_failure_category") or "PROVIDER_UNKNOWN_ERROR")
+        diagnostics = _build_provider_failure_diagnostics(raw)
+        if request is not None:
+            _record_model_completed(
+                telemetry_sink,
+                request,
+                context or {},
+                schema_invalid=True,
+                diagnostics=diagnostics,
+                provider_response_hash=diagnostics.get("provider_response_hash"),
+                blocked_reason=category,
+            )
+        raise ReadOnlySpineError(
+            category,
+            phase="provider_transport",
+            legacy_reason=category,
+            diagnostics=diagnostics,
+        )
     blocked_reason = None
     if isinstance(raw.get("metadata"), dict):
         blocked_reason = raw["metadata"].get("blocked_reason")
@@ -511,6 +556,64 @@ def _raise_if_blocked(
             legacy_reason=str(blocked_reason),
             diagnostics=diagnostics,
         )
+
+
+def _build_provider_failure_diagnostics(raw: dict[str, Any]) -> dict[str, Any]:
+    diagnostics: dict[str, Any] = {
+        "protocol_version": READ_ONLY_DECISION_PROTOCOL_VERSION,
+        "parse_stage": "read_only_provider_failure",
+        "provider_response_hash": _provider_response_hash(raw),
+        "provider_failure": True,
+        "provider_failure_category": str(raw.get("provider_failure_category") or "PROVIDER_UNKNOWN_ERROR"),
+        "provider_error_class": str(raw.get("provider_error_class") or ""),
+        "diagnostic_retention_status": str(raw.get("diagnostic_retention_status") or "retained"),
+        "json_object_detected": None,
+        "top_level_type": "provider_failure",
+        "original_top_level_key_names": sorted(
+            str(key)
+            for key in raw
+            if key in _PROVIDER_FAILURE_SAFE_KEYS and key != "provider_response_hash"
+        ),
+        "top_level_key_names": [],
+        "missing_required_field_names": [],
+        "unknown_field_names": [],
+        "unsafe_unknown_field_names": [],
+        "safe_metadata_filtered": False,
+        "filtered_safe_metadata_keys": [],
+        "validation_payload_key_names": [],
+        "validation_error_codes": [],
+        "validation_error_paths": [],
+        "markdown_fence_detected": None,
+        "multiple_json_objects_detected": None,
+        "normalization_strategy": None,
+        "content_extraction_source": _safe_content_extraction_source(raw),
+        "content_extraction_error": _safe_content_extraction_error(raw),
+        "finish_reason": None,
+        "output_truncated": None,
+        "conversation_or_phase": "read_only_exploration_decision",
+        "diagnostic_missing_fields": [],
+        "diagnostic_missing_reason": [],
+    }
+    for key in (
+        "http_status",
+        "provider_error_code",
+        "provider_error_type",
+        "provider_error_code_hash",
+        "provider_error_type_hash",
+        "provider_error_message_hash",
+        "provider_error_message_redacted",
+        "provider_error_body_hash",
+        "rejected_reason",
+        "endpoint_hash",
+        "provider_id",
+        "backend_id",
+        "model_id",
+    ):
+        value = raw.get(key)
+        if isinstance(value, (str, int, bool)) or value is None:
+            if value is not None:
+                diagnostics[key] = value
+    return diagnostics
 
 
 def _validate_decision(raw: dict[str, Any]) -> tuple[ReadOnlyDecision, dict[str, Any] | None]:

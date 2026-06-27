@@ -87,6 +87,13 @@ class OperatorCatalogModelClient:
         if response is None:
             return _blocked("MODEL_EXECUTION_DEFERRED")
         if response.error_class:
+            if response.content:
+                return _provider_failure_payload(
+                    entry=entry,
+                    backend=backend,
+                    request=request,
+                    response=response,
+                )
             return _blocked(response.error_class, provider_response_hash=response.sanitized_response_hash)
         content = dict(response.content)
         content.setdefault("raw_provider_response", response.content)
@@ -143,6 +150,108 @@ def _is_loopback_endpoint(endpoint: str) -> bool:
         return ipaddress.ip_address(normalized).is_loopback
     except ValueError:
         return False
+
+
+def _provider_failure_payload(
+    *,
+    entry: Any,
+    backend: Any,
+    request: RealModelRequest,
+    response: Any,
+) -> dict[str, Any]:
+    diagnostic = response.content if isinstance(response.content, dict) else {}
+    payload: dict[str, Any] = {
+        "provider_failure": True,
+        "provider_failure_category": _provider_failure_category(response.error_class, diagnostic),
+        "provider_error_class": str(response.error_class or "PROVIDER_ERROR"),
+        "provider_id": entry.provider_id,
+        "backend_id": backend.backend_id,
+        "model_id": request.model_id,
+        "endpoint_hash": text_hash(str(getattr(backend, "endpoint_template", ""))),
+        "provider_response_hash": response.sanitized_response_hash,
+        "diagnostic_retention_status": "retained",
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+    for key in (
+        "http_status",
+        "provider_error_code",
+        "provider_error_type",
+        "provider_error_code_hash",
+        "provider_error_type_hash",
+        "provider_error_message_hash",
+        "provider_error_message_redacted",
+        "provider_error_body_hash",
+        "rejected_reason",
+        "content_extraction_source",
+        "content_extraction_error",
+    ):
+        value = diagnostic.get(key)
+        if isinstance(value, (str, int, bool)) or value is None:
+            if value is not None:
+                payload[key] = value
+    return payload
+
+
+def _provider_failure_category(error_class: str | None, diagnostic: dict[str, Any]) -> str:
+    if error_class == "RATE_LIMIT":
+        return "PROVIDER_RATE_LIMIT"
+    if error_class == "MISSING_CREDENTIAL":
+        return "PROVIDER_AUTH_ERROR"
+    status = diagnostic.get("http_status")
+    if status in {401, 403}:
+        return "PROVIDER_AUTH_ERROR"
+    if status == 429:
+        return "PROVIDER_RATE_LIMIT"
+    if status == 400:
+        return "PROVIDER_BAD_REQUEST"
+    if isinstance(status, int) and 500 <= status:
+        return "PROVIDER_MODEL_UNAVAILABLE"
+    if error_class == "TIMEOUT":
+        return "PROVIDER_TRANSPORT_ERROR"
+    if error_class == "INVALID_RESPONSE_SCHEMA":
+        return "PROVIDER_TRANSPORT_ERROR"
+    return "PROVIDER_UNKNOWN_ERROR"
+
+
+def build_safe_provider_inventory(*, provider_catalog: ProviderCatalog | None = None) -> dict[str, Any]:
+    catalog = provider_catalog or build_default_provider_catalog()
+    providers: dict[str, Any] = {}
+    plain_chat_families = {
+        ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+        ProviderFamily.LOCAL_OPENAI_COMPATIBLE,
+        ProviderFamily.DEEPSEEK_COMPATIBLE,
+        ProviderFamily.MISTRAL_NATIVE_OR_COMPATIBLE,
+        ProviderFamily.XAI_COMPATIBLE_OR_NATIVE,
+    }
+    for provider_id in catalog.provider_ids():
+        entry = catalog.get(provider_id)
+        backend_ids = [backend.backend_id for backend in entry.backends]
+        model_ids: list[str] = []
+        endpoint_hashes: dict[str, str] = {}
+        for backend in entry.backends:
+            model_ids.extend(backend.supported_models)
+            endpoint_hashes[backend.backend_id] = text_hash(backend.endpoint_template)
+        credential_env = entry.credential_policy.credential_env_var
+        providers[provider_id] = {
+            "provider_id": provider_id,
+            "backend_ids": backend_ids,
+            "model_ids": sorted(dict.fromkeys(model_ids)),
+            "plain_chat_completion": entry.family in plain_chat_families,
+            "provider_native_tools_disabled": not entry.capability_flags.server_side_tools_enabled_by_default,
+            "process_scoped_credentials": entry.credential_policy.credential_source_type == "env",
+            "credential_present": bool(credential_env and os.environ.get(credential_env)),
+            "credential_env_var": credential_env,
+            "endpoint_hashes": endpoint_hashes,
+            "status": entry.status.value,
+        }
+    return {
+        "schema_version": "provider_inventory_safe/v1",
+        "data_not_authority": True,
+        "can_execute": False,
+        "fallback_auto_enabled": False,
+        "providers": providers,
+    }
 
 
 def _blocked(reason: str, *, provider_response_hash: str | None = None) -> dict[str, Any]:

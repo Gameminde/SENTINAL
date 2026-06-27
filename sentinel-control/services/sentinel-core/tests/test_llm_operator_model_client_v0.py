@@ -41,8 +41,9 @@ from sentinel.operator.models import OperatorMessage, OperatorMessageRole, Opera
 
 
 class RecordingHttpxClient:
-    def __init__(self, payload: dict[str, Any]) -> None:
+    def __init__(self, payload: dict[str, Any], *, status_code: int = 200) -> None:
         self.payload = payload
+        self.status_code = status_code
         self.calls: list[dict[str, Any]] = []
 
     def __call__(self, *_args: Any, **_kwargs: Any) -> RecordingHttpxClient:
@@ -56,13 +57,13 @@ class RecordingHttpxClient:
 
     def post(self, url: str, *, headers: dict[str, str], json: dict[str, Any]) -> Any:
         self.calls.append({"url": url, "headers": headers, "json": json})
-        return _Response(self.payload)
+        return _Response(self.payload, status_code=self.status_code)
 
 
 class _Response:
-    def __init__(self, payload: dict[str, Any]) -> None:
+    def __init__(self, payload: dict[str, Any], *, status_code: int = 200) -> None:
         self._payload = payload
-        self.status_code = 200
+        self.status_code = status_code
         self.text = json.dumps(payload)
         self.request = httpx.Request("POST", "http://localhost:11434")
 
@@ -70,6 +71,12 @@ class _Response:
         return self._payload
 
     def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise httpx.HTTPStatusError(
+                "unit http error",
+                request=self.request,
+                response=httpx.Response(self.status_code, json=self._payload, request=self.request),
+            )
         return None
 
 
@@ -345,6 +352,42 @@ def test_catalog_model_client_missing_remote_credential_fails_closed_without_net
     assert recorder.calls == []
 
 
+def test_pack3_18_provider_http_error_is_not_wrapped_as_model_authored_reply(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "unit-openai-key")
+    recorder = RecordingHttpxClient(
+        {
+            "error": {
+                "type": "invalid_request_error",
+                "code": "unsupported_parameter",
+                "message": "redacted by hash only",
+            }
+        },
+        status_code=400,
+    )
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="openai_chat", backend_id="openai_chat_completions", model="gpt-5.4")
+
+    result = OperatorCatalogModelClient(user_model_contract=contract).complete(_real_model_request_for_contract(contract))
+
+    assert result["provider_failure"] is True
+    assert result["provider_failure_category"] == "PROVIDER_BAD_REQUEST"
+    assert result["provider_error_class"] == "PROVIDER_ERROR"
+    assert result["http_status"] == 400
+    assert result["provider_error_code"] == "unsupported_parameter"
+    assert result["provider_error_type"] == "invalid_request_error"
+    assert result["diagnostic_retention_status"] == "retained"
+    assert result["provider_id"] == "openai_chat"
+    assert result["backend_id"] == "openai_chat_completions"
+    assert result["model_id"] == "gpt-5.4"
+    assert "endpoint_hash" in result
+    assert "provider_response_hash" in result
+    assert "reply" not in result
+    assert "metadata" not in result
+    assert "redacted by hash only" not in str(result)
+
+
 def test_catalog_model_client_rejects_unsupported_model_without_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -422,6 +465,39 @@ def _contract(*, provider_id: str, backend_id: str, model: str) -> UserModelCont
             minimum_evidence_refs=0,
             retry_budget=0,
         ),
+    )
+
+
+def _real_model_request_for_contract(contract: UserModelContract) -> RealModelRequest:
+    timeout = ModelTimeoutPolicy(
+        connect_timeout_seconds=2.0,
+        read_timeout_seconds=10.0,
+        total_timeout_seconds=12.0,
+    )
+    retry = ModelRetryPolicy(max_attempts=1, retryable_outcomes=[])
+    budget = ModelExecutionBudgetPolicy(
+        max_input_tokens=1000,
+        max_output_tokens=1000,
+        max_total_estimated_usd=0.0,
+    )
+    metadata = {"routing_policy": "explicit_user_model_contract_only"}
+    return RealModelRequest(
+        provider_id=contract.selected_provider_id,
+        backend_id=contract.selected_backend_id,
+        backend=contract.selected_backend_id,
+        model_id=contract.selected_model,
+        runtime="read_only_research_product",
+        prompt_hash=stable_hash({"prompt": "unit"}),
+        frame_hash=stable_hash({"frame": "unit"}),
+        user_model_contract_id=contract.id,
+        estimated_input_tokens=10,
+        estimated_output_tokens=20,
+        prompt_text_in_memory_only="Return one action.",
+        request_metadata=metadata,
+        timeout_policy_id=timeout.id,
+        retry_policy_id=retry.id,
+        budget_policy_id=budget.id,
+        request_hash=stable_hash(metadata),
     )
 
 

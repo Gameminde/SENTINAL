@@ -25,6 +25,7 @@ from sentinel.agent.model_execution.catalog import (
     ProviderUsageMapping,
 )
 from sentinel.agent.model_execution.provider_profiles import build_default_provider_catalog
+from sentinel.operator.model_client import build_safe_provider_inventory
 from sentinel.perf.caches.model_call_optimizer import ModelCallPlan
 
 
@@ -119,6 +120,33 @@ def test_provider_catalog_metadata_is_secret_free() -> None:
     assert "OPENROUTER_API_KEY" in str(dumped)
     for forbidden in ("gsk_", "nvapi-", "sk-or-v1", "Authorization: Bearer", "raw_prompt", "raw_response"):
         assert forbidden not in str(dumped)
+
+
+def test_pack3_18_provider_inventory_reports_safe_facts_without_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "unit-openai-secret")
+    monkeypatch.delenv("SENTINEL_CERT_MODEL_API_KEY", raising=False)
+
+    inventory = build_safe_provider_inventory(provider_catalog=build_default_provider_catalog())
+    openai_chat = inventory["providers"]["openai_chat"]
+    aliyun = inventory["providers"]["aliyun_dashscope"]
+
+    assert openai_chat["credential_present"] is True
+    assert aliyun["credential_present"] is False
+    assert "openai_chat_completions" in openai_chat["backend_ids"]
+    assert "gpt-5.4" in openai_chat["model_ids"]
+    assert openai_chat["plain_chat_completion"] is True
+    assert openai_chat["provider_native_tools_disabled"] is True
+    assert openai_chat["process_scoped_credentials"] is True
+    assert "endpoint_hashes" in openai_chat
+    rendered = str(inventory)
+    assert "unit-openai-secret" not in rendered
+    assert "Authorization" not in rendered
+    assert "https://" not in rendered
+    assert inventory["data_not_authority"] is True
+    assert inventory["can_execute"] is False
+    assert inventory["fallback_auto_enabled"] is False
 
 
 def test_recommendation_cannot_mutate_contract_or_plan_or_execute() -> None:

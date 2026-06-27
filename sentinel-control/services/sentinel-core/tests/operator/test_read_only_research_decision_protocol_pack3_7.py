@@ -383,6 +383,71 @@ def test_pack3_7_invalid_provider_decision_blocks_with_rejected_finalgate_and_re
     assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
 
 
+def test_pack3_18_provider_failure_blocks_with_provider_truth_not_model_schema(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(
+            {
+                "provider_failure": True,
+                "provider_failure_category": "PROVIDER_BAD_REQUEST",
+                "provider_error_class": "PROVIDER_ERROR",
+                "http_status": 400,
+                "provider_error_code": "unsupported_parameter",
+                "provider_error_type": "invalid_request_error",
+                "endpoint_hash": "endpoint_hash_unit",
+                "provider_response_hash": "hash_provider_failure",
+                "diagnostic_retention_status": "retained",
+            }
+        ),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+        stop_after_first_material_receipt=True,
+        low_friction_read_only_power_mode=True,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    assert result.status == "blocked"
+    assert result.blocked_reason == "PROVIDER_BAD_REQUEST"
+    assert result.receipt_refs == []
+    assert _json_payloads(session, "receipts") == []
+    assert result.finalgate_status == "rejected"
+    blocked_event = [
+        event for event in cockpit.kernel.store.load_events(mission_id)
+        if event.event_type == "read_only_spine_blocked"
+    ][0]
+    assert blocked_event.metadata["typed_failure_code"] == "PROVIDER_BAD_REQUEST"
+    assert blocked_event.metadata["runtime_phase"] == "provider_transport"
+    diagnostics = blocked_event.metadata["read_only_model_diagnostics"]
+    assert diagnostics["parse_stage"] == "read_only_provider_failure"
+    assert diagnostics["provider_failure_category"] == "PROVIDER_BAD_REQUEST"
+    assert diagnostics["provider_error_class"] == "PROVIDER_ERROR"
+    assert diagnostics["http_status"] == 400
+    assert diagnostics["provider_error_code"] == "unsupported_parameter"
+    assert diagnostics["provider_error_type"] == "invalid_request_error"
+    assert diagnostics["provider_response_hash"] == "hash_provider_failure"
+    assert diagnostics["content_extraction_source"] is None
+    assert diagnostics["validation_error_codes"] == []
+    assert "read_only_decision_schema_invalid" not in result.blocked_reason
+    finalgate_reasons = [payload["reason"] for payload in _json_payloads(session, "finalgate")]
+    assert finalgate_reasons == ["PROVIDER_BAD_REQUEST"]
+    assert replay.reexecuted is False
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+    assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+
+
 def test_pack3_11_model_client_validation_error_retains_partial_safe_diagnostics(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir()
