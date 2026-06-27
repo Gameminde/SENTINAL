@@ -211,6 +211,56 @@ def test_cli_explicit_bootstrap_creates_mission_without_cockpit_provider_call(
     assert authority["metadata"]["bootstrap_protocol"] == "explicit_product_mission_bootstrap_v1"
 
 
+def test_cli_explicit_bootstrap_can_stop_after_first_material_receipt(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Research target\ncommand registry lives here\n", encoding="utf-8")
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, workspace))
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--stop-after-first-material-receipt",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    turns = json.loads(output.out)
+    assert code == 0
+    assert output.err == ""
+    client = model_clients[0]
+    assert client.decision_calls == 1
+    assert client.report_calls == 0
+    assert turns[-1]["metadata"]["daemon_pickup"]["dispatch_status"] == "completed"
+
+    mission_id = turns[-1]["mission_record"]["mission_id"]
+    request_payload = json.loads(next((tmp_path / "runs").rglob("mission_exec_req_*.json")).read_text(encoding="utf-8"))
+    assert request_payload["execution_options"] == {"stop_after_first_material_receipt": True}
+    events = [event.event_type for event in MissionKernel(run_root=tmp_path / "runs").store.load_events(mission_id)]
+    assert "read_only_spine_first_material_receipt_terminal" in events
+    assert "read_only_report_generation_started" not in events
+
+
 @pytest.mark.parametrize(
     ("argv_remove", "expected_reason"),
     [

@@ -245,6 +245,126 @@ def test_pack3_14_absolute_outside_path_still_blocks_without_fake_receipt(
     assert failed[0]["successful_action_receipt_ref"] is None
 
 
+def test_pack3_15_first_receipt_mode_stops_after_one_material_receipt(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.SEARCH_TEXT, arguments={"query": "register", "path": "."}),
+        ]
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: should not be called.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_15",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={"stop_after_first_material_receipt": True},
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert decision_client.call_count == 1
+    assert report_client.call_count == 0
+    assert pickup.dispatch_result.finalgate_status == "accepted"
+    assert len(pickup.dispatch_result.receipt_refs) == 1
+    assert len(_json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")) == 1
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "reports") == []
+    assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.COMPLETED
+    assert _terminal_event_types(host, mission.record.mission_id) == ["mission_completed"]
+    events = [event.event_type for event in host.kernel.store.load_events(mission.record.mission_id)]
+    assert "read_only_report_generation_started" not in events
+    assert "read_only_spine_first_material_receipt_terminal" in events
+
+
+def test_pack3_15_default_behavior_continues_after_first_receipt(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ]
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: default still reports.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = _create_mission(host, workspace)
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert decision_client.call_count == 2
+    assert report_client.call_count == 1
+    assert len(_json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")) == 2
+    events = [event.event_type for event in host.kernel.store.load_events(mission.record.mission_id)]
+    assert "read_only_report_generation_started" in events
+    assert "read_only_spine_first_material_receipt_terminal" not in events
+
+
+def test_pack3_15_first_receipt_mode_gate_denial_creates_no_fake_receipt(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "../outside"}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+        ]
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: should not be called.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_15_denied",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={"stop_after_first_material_receipt": True},
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert decision_client.call_count == 1
+    assert report_client.call_count == 0
+    assert pickup.dispatch_result.receipt_refs == []
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts") == []
+    failed = _json_payloads(host, mission.record.mission_id, "read_only_spine", "failed_attempts")
+    assert len(failed) == 1
+    assert failed[0]["successful_action_receipt_ref"] is None
+
+
 def test_pack3_coordinator_decision_is_persisted_before_adapter_execution(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     adapter = _AssertingAdapter()

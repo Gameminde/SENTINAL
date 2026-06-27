@@ -123,6 +123,11 @@ def build_parser() -> argparse.ArgumentParser:
                 "Requires --script, --workspace, --authority-scope, --model-contract and --json."
             ),
         )
+        cockpit_parser.add_argument(
+            "--stop-after-first-material-receipt",
+            action="store_true",
+            help="Explicit product run mode: terminalize after the first governed material read-only receipt.",
+        )
         cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
@@ -337,6 +342,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _run_cockpit_command(args: argparse.Namespace) -> int:
     explicit_bootstrap_turns: list[str] | None = None
+    if args.stop_after_first_material_receipt and not args.explicit_mission_bootstrap:
+        return _emit_cockpit_product_block(
+            args,
+            reason="first_receipt_mode_requires_explicit_bootstrap",
+            outcome="mission_not_created",
+        )
     if args.explicit_mission_bootstrap:
         reason = _explicit_bootstrap_preflight_reason(args)
         if reason is not None:
@@ -442,6 +453,7 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             lifecycle_service=host.lifecycle,
             authority_approval_scope=approval_scope,
             product_execution_binding=product_execution_binding,
+            mission_execution_options=_mission_execution_options_from_args(args),
             require_mission_understanding_v2=mode is OperatorMode.LLM_OPERATOR,
         )
         return _run_cockpit_turn_loop(
@@ -632,6 +644,8 @@ def _emit_cockpit_product_block(args: argparse.Namespace, *, reason: str, outcom
 
 
 def _explicit_bootstrap_preflight_reason(args: argparse.Namespace) -> str | None:
+    if args.stop_after_first_material_receipt and not args.explicit_mission_bootstrap:
+        return "first_receipt_mode_requires_explicit_bootstrap"
     if args.legacy_internal_direct:
         return "explicit_bootstrap_not_allowed_for_legacy_internal_direct"
     if args.deterministic_test_mode:
@@ -653,6 +667,13 @@ def _explicit_bootstrap_preflight_reason(args: argparse.Namespace) -> str | None
     if len(turns) != 2:
         return "explicit_bootstrap_requires_two_script_turns"
     return None
+
+
+def _mission_execution_options_from_args(args: argparse.Namespace) -> dict[str, object]:
+    options: dict[str, object] = {}
+    if getattr(args, "stop_after_first_material_receipt", False):
+        options["stop_after_first_material_receipt"] = True
+    return options
 
 
 def _explicit_bootstrap_script_turns(path: Path) -> list[str]:

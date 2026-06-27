@@ -42,6 +42,7 @@ class LLMLiveOperatorCockpit:
         lifecycle_service: MissionLifecycleService | None = None,
         authority_approval_scope: MissionAuthorityApprovalScope | None = None,
         product_execution_binding: ProductExecutionBinding | None = None,
+        mission_execution_options: dict[str, object] | None = None,
         require_mission_understanding_v2: bool = False,
     ) -> None:
         self.session = OperatorConversationSession(mode=mode)
@@ -54,6 +55,7 @@ class LLMLiveOperatorCockpit:
         )
         self._telemetry_sink = self.kernel.telemetry_sink
         self.product_execution_binding = product_execution_binding
+        self.mission_execution_options = dict(mission_execution_options or {})
         self.engine = OperatorConversationEngine(
             mode=mode,
             user_model_contract=user_model_contract,
@@ -299,6 +301,7 @@ class LLMLiveOperatorCockpit:
                 parameters={"mission_draft_id": self.session.current_draft.draft_id},
                 workspace_ref=workspace_ref,
                 model_contract_ref=model_contract_ref,
+                execution_options=self.mission_execution_options,
             )
             record = lifecycle_result.record
         else:

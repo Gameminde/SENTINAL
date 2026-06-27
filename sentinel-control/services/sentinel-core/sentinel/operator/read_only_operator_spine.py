@@ -512,6 +512,7 @@ class ReadOnlyProductionSpineSession:
         now_provider: Callable[[], datetime] = utc_now,
         excluded_paths: list[str | Path] | None = None,
         owns_kernel_terminal: bool = True,
+        stop_after_first_material_receipt: bool = False,
     ) -> None:
         self.cockpit = cockpit
         self.kernel: MissionKernel = cockpit.kernel
@@ -532,6 +533,7 @@ class ReadOnlyProductionSpineSession:
         self._emergency_terminal_refs: list[str] = []
         self._active_envelope: MissionAuthorityEnvelope | None = None
         self._owns_kernel_terminal = owns_kernel_terminal
+        self._stop_after_first_material_receipt = stop_after_first_material_receipt
         self.tool_call_count = 0
         self._evidence_ref_by_hash: dict[str, str] = {}
         self._excluded_roots = [
@@ -727,7 +729,7 @@ class ReadOnlyProductionSpineSession:
                 self._require_runtime_open()
                 self._observations.append(observation)
                 try:
-                    self._record_receipt(
+                    receipt = self._record_receipt(
                         action=decision.action,
                         status="success",
                         observation=observation,
@@ -739,6 +741,8 @@ class ReadOnlyProductionSpineSession:
                         phase="receipt_persistence",
                         exception_class=exc.__class__.__name__,
                     ) from exc
+                if self._stop_after_first_material_receipt:
+                    return self._complete_after_first_material_receipt(receipt)
 
             raise ReadOnlySpineError(ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED, phase="turn_budget")
         except ReadOnlySpineError as exc:
@@ -772,6 +776,41 @@ class ReadOnlyProductionSpineSession:
                 OperatorMissionStatus.COMPLETED,
                 "Read-only spine mission completed with terminal FinalGate.",
             )
+
+    def _complete_after_first_material_receipt(self, receipt: ReadOnlyActionReceipt) -> ReadOnlyProductionSpineResult:
+        try:
+            certificate = self._record_finalgate(
+                receipt_refs=list(self._receipt_refs),
+                status="accepted",
+                accepted=True,
+                reason="first_material_receipt_run_mode",
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.FINALGATE_PERSISTENCE_FAILED,
+                phase="finalgate_persistence",
+                exception_class=exc.__class__.__name__,
+            ) from exc
+        self.kernel.store.append_event(
+            self.mission_id,
+            event_type="read_only_spine_first_material_receipt_terminal",
+            safe_summary="Read-only spine stopped after the first governed material receipt.",
+            metadata={
+                "receipt_ref_hash": text_hash(receipt.receipt_id),
+                "receipt_count": len(self._receipt_refs),
+                "tool_call_count": self.tool_call_count,
+            },
+            receipt_refs=[receipt.receipt_id],
+            finalgate_certificate_refs=[certificate.certificate_id],
+        )
+        self._finalize_completed_status_if_owned()
+        return ReadOnlyProductionSpineResult(
+            mission_id=self.mission_id,
+            status="completed",
+            receipt_refs=list(self._receipt_refs),
+            finalgate_refs=[certificate.certificate_id],
+            finalgate_status="accepted" if certificate.accepted else "rejected",
+        )
 
     def _finalize_blocked_status_if_open(self) -> None:
         if self._owns_kernel_terminal and not self.kernel.is_terminal(self.mission_id):

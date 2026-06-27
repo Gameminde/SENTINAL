@@ -281,6 +281,7 @@ class ReadOnlyResearchAdapter:
             report_client=self._report_client_factory(request, authority),
             excluded_paths=["sentinel_internal"],
             owns_kernel_terminal=False,
+            stop_after_first_material_receipt=_stop_after_first_material_receipt(request),
         )
         result = session.run_via_agent_runtime(envelope=authority)
         status = DispatchStatus.COMPLETED if result.status == "completed" and result.finalgate_status == "accepted" else DispatchStatus.BLOCKED
@@ -334,29 +335,29 @@ class UnifiedExecutionDispatcher:
         )
         if decision.status is not MissionExecutionDecisionStatus.ROUTED:
             result = self._block(request, decision, decision.rejection_reason or "coordinator_rejected")
-            return self._persist_closeout(result)
+            return self._persist_closeout(result, request=request)
         state = self.lifecycle.derive_request_state(request.mission_id, request.request_id)
         if state.state is not MissionExecutionRequestState.DISPATCH_DECIDED:
             result = self._block(request, decision, f"request_state_not_dispatchable:{state.state.value}")
-            return self._persist_closeout(result)
+            return self._persist_closeout(result, request=request)
         authority_failure = self._dispatch_authority_failure(request=request, decision=decision, authority=authority)
         if authority_failure is not None:
             result = self._block(request, decision, authority_failure)
-            return self._persist_closeout(result)
+            return self._persist_closeout(result, request=request)
         try:
             adapter = self.adapter_registry.get(decision.adapter_id or "")
         except KeyError:
             result = self._block(request, decision, "unknown_adapter")
-            return self._persist_closeout(result)
+            return self._persist_closeout(result, request=request)
         if adapter.adapter_id != decision.adapter_id:
             result = self._block(request, decision, "adapter_id_mismatch")
-            return self._persist_closeout(result)
+            return self._persist_closeout(result, request=request)
         if adapter.capability_id != request.capability_id:
             result = self._block(request, decision, "capability_mismatch")
-            return self._persist_closeout(result)
+            return self._persist_closeout(result, request=request)
         if adapter.operation != request.operation:
             result = self._block(request, decision, "operation_mismatch")
-            return self._persist_closeout(result)
+            return self._persist_closeout(result, request=request)
         self.kernel.store.append_event(
             request.mission_id,
             event_type="mission_dispatch_started",
@@ -385,7 +386,7 @@ class UnifiedExecutionDispatcher:
             result = self._block(request, decision, f"adapter_exception:{exc.__class__.__name__}")
         if result.mission_id != request.mission_id or result.execution_request_id != request.request_id:
             result = self._block(request, decision, "adapter_result_correlation_failure")
-        return self._persist_closeout(result)
+        return self._persist_closeout(result, request=request)
 
     def _block(self, request: MissionExecutionRequest, decision: MissionExecutionDecision | None, reason: str) -> UnifiedDispatchResult:
         return _blocked_result(request, decision, adapter_id=decision.adapter_id if decision else None, reason=reason)
@@ -411,8 +412,13 @@ class UnifiedExecutionDispatcher:
             return "authority_inactive"
         return None
 
-    def _persist_closeout(self, result: UnifiedDispatchResult) -> UnifiedDispatchResult:
-        result = self._verified_closeout_result(result)
+    def _persist_closeout(
+        self,
+        result: UnifiedDispatchResult,
+        *,
+        request: MissionExecutionRequest | None = None,
+    ) -> UnifiedDispatchResult:
+        result = self._verified_closeout_result(result, request=request)
         self.kernel.store.atomic_write_json(
             self.kernel.store.mission_dir(result.mission_id, create=True) / "dispatch_closeout" / f"{result.dispatch_id}.json",
             result.safe_model_dump(),
@@ -453,9 +459,14 @@ class UnifiedExecutionDispatcher:
                 pass
         return result
 
-    def _verified_closeout_result(self, result: UnifiedDispatchResult) -> UnifiedDispatchResult:
+    def _verified_closeout_result(
+        self,
+        result: UnifiedDispatchResult,
+        *,
+        request: MissionExecutionRequest | None = None,
+    ) -> UnifiedDispatchResult:
         if result.status is DispatchStatus.COMPLETED:
-            proof = self._verify_completed_proof(result)
+            proof = self._verify_completed_proof(result, request=request)
             if proof.ok:
                 return result.model_copy(
                     update={
@@ -479,10 +490,26 @@ class UnifiedExecutionDispatcher:
             return self._with_dispatch_terminal_certificate(result, reason=result.blocked_reason or "dispatch_blocked")
         return result
 
-    def _verify_completed_proof(self, result: UnifiedDispatchResult) -> DispatchProofVerificationResult:
+    def _verify_completed_proof(
+        self,
+        result: UnifiedDispatchResult,
+        *,
+        request: MissionExecutionRequest | None = None,
+    ) -> DispatchProofVerificationResult:
         receipt_result = self._load_and_verify_receipts(result)
         if not receipt_result.ok:
             return receipt_result
+        if request is not None and _stop_after_first_material_receipt(request):
+            finalgate_result = self._load_and_verify_finalgate(result, validated_receipt_refs=receipt_result.receipt_refs)
+            if not finalgate_result.ok:
+                return finalgate_result
+            return DispatchProofVerificationResult(
+                ok=True,
+                receipt_refs=receipt_result.receipt_refs,
+                report_refs=[],
+                finalgate_refs=finalgate_result.finalgate_refs,
+                material_observation_receipt_count=receipt_result.material_observation_receipt_count,
+            )
         report_result = self._load_and_verify_reports(result, known_evidence_refs=self._receipt_evidence_refs(result))
         if not report_result.ok:
             return report_result
@@ -642,6 +669,10 @@ def _workspace_from_ref(workspace_ref: str) -> Path:
     if not path.exists() or not path.is_dir():
         raise ValueError("workspace_ref_not_found")
     return path
+
+
+def _stop_after_first_material_receipt(request: MissionExecutionRequest) -> bool:
+    return request.execution_options.get("stop_after_first_material_receipt") is True
 
 
 __all__ = [

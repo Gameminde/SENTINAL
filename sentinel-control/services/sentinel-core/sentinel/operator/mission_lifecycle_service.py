@@ -38,6 +38,10 @@ class MissionExecutionRequestState(StrEnum):
     ORPHANED_PREPARED = "orphaned_prepared"
 
 
+_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT = "stop_after_first_material_receipt"
+_SAFE_EXECUTION_OPTION_KEYS = frozenset({_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT})
+
+
 class MissionExecutionRequest(SentinelModel):
     request_id: str = Field(default_factory=lambda: new_id("mission_exec_req"))
     mission_id: str
@@ -47,6 +51,7 @@ class MissionExecutionRequest(SentinelModel):
     workspace_ref: str
     model_contract_ref: str
     authority_envelope_ref: str
+    execution_options: dict[str, Any] = Field(default_factory=dict)
     prepared: bool = True
     request_hash: str = ""
     data_not_authority: bool = True
@@ -65,6 +70,7 @@ class MissionExecutionRequest(SentinelModel):
         )
         if not self.capability_id.strip() or not self.operation.strip():
             raise ValueError("mission execution request requires capability and operation")
+        self.execution_options = _normalize_execution_options(self.execution_options)
         return self
 
     def safe_model_dump(self) -> dict[str, Any]:
@@ -77,6 +83,7 @@ class MissionExecutionRequest(SentinelModel):
             "workspace_ref": redact_operator_text(self.workspace_ref),
             "model_contract_ref": redact_operator_text(self.model_contract_ref),
             "authority_envelope_ref": self.authority_envelope_ref,
+            "execution_options": redact_operator_value(self.execution_options),
             "prepared": self.prepared,
             "request_hash": self.request_hash,
             "data_not_authority": self.data_not_authority,
@@ -137,8 +144,10 @@ class MissionLifecycleService:
         parameters: dict[str, Any],
         workspace_ref: str,
         model_contract_ref: str,
+        execution_options: dict[str, Any] | None = None,
     ) -> MissionLifecycleCreateResult:
         reject_operator_control_payload(parameters, context="mission_execution_request_parameters")
+        normalized_execution_options = _normalize_execution_options(execution_options or {})
         mission_id = new_id("mission")
         bound_summary = authority_summary.model_copy(update={"mission_id": mission_id})
         record = self.kernel.create_mission(
@@ -156,6 +165,7 @@ class MissionLifecycleService:
             workspace_ref=workspace_ref,
             model_contract_ref=model_contract_ref,
             authority_envelope_ref=authority.record.envelope_id,
+            execution_options=normalized_execution_options,
         ).with_hash()
         self._persist_execution_request(execution_request)
         self.kernel.store.append_event(
@@ -169,6 +179,8 @@ class MissionLifecycleService:
                 "parameter_hash": execution_request.parameter_hash,
                 "authority_envelope_ref": execution_request.authority_envelope_ref,
                 "request_hash": execution_request.request_hash,
+                "execution_option_keys": sorted(normalized_execution_options),
+                "execution_options_hash": stable_hash(redact_operator_value(normalized_execution_options)),
             },
         )
         try:
@@ -180,6 +192,8 @@ class MissionLifecycleService:
                     "operation": execution_request.operation,
                     "authority_envelope_ref": execution_request.authority_envelope_ref,
                     "request_hash": execution_request.request_hash,
+                    "execution_option_keys": sorted(normalized_execution_options),
+                    "execution_options_hash": stable_hash(redact_operator_value(normalized_execution_options)),
                 },
             )
         except Exception:
@@ -326,6 +340,21 @@ class MissionLifecycleService:
 
     def _request_path(self, mission_id: str, request_id: str) -> Path:
         return self._request_root(mission_id) / f"{request_id}.json"
+
+
+def _normalize_execution_options(options: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(options, dict):
+        raise ValueError("mission execution options must be a JSON object")
+    unknown = sorted(str(key) for key in options if str(key) not in _SAFE_EXECUTION_OPTION_KEYS)
+    if unknown:
+        raise ValueError(f"mission execution options contain unsupported keys: {','.join(unknown)}")
+    normalized: dict[str, Any] = {}
+    if _EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT in options:
+        value = options[_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT]
+        if not isinstance(value, bool):
+            raise ValueError("stop_after_first_material_receipt must be boolean")
+        normalized[_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT] = value
+    return normalized
 
 
 __all__ = [
