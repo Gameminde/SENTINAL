@@ -110,6 +110,36 @@ _ALLOWED_NORMALIZATION_STRATEGIES = frozenset(
 _ALLOWED_CONTENT_EXTRACTION_ERRORS = frozenset(
     {"missing_choices_or_message", "message_not_object", "content_not_string", "model_client_exception"}
 )
+_DECISION_ENVELOPE_KEYS = ("reply", "message", "content", "output", "result", "response")
+_UNSAFE_ENVELOPE_FIELD_NAMES = frozenset(
+    {
+        "shell",
+        "write_file",
+        "delete_file",
+        "modify_file",
+        "credential_access",
+        "payment",
+        "send_email",
+        "browser_click",
+        "network_request",
+        "authority",
+        "authority_scope",
+        "approval_scope",
+        "can_execute",
+        "can_grant_authority",
+        "workspace_ref",
+        "model_contract_ref",
+        "budget",
+        "credentials",
+        "authorization",
+        "raw_prompt",
+        "raw_response",
+        "raw_reasoning",
+        "reasoning",
+        "reasoning_content",
+        "provider_wrapper",
+    }
+)
 
 
 class ReadOnlyProviderDecisionClient:
@@ -172,7 +202,7 @@ class ReadOnlyProviderDecisionClient:
             ) from exc
         _raise_if_blocked(raw, phase="model_decision", telemetry_sink=self._telemetry_sink, request=request, context=context)
         try:
-            decision = _validate_decision(raw)
+            decision, success_diagnostics = _validate_decision(raw)
         except Exception as exc:  # noqa: BLE001
             diagnostics = _build_read_only_diagnostics(
                 raw,
@@ -204,11 +234,14 @@ class ReadOnlyProviderDecisionClient:
             request,
             context,
             provider_response_hash=_provider_response_hash(raw),
-            diagnostics=_success_diagnostics_if_metadata_filtered(
-                raw,
-                parse_stage="read_only_decision_validation",
-                allowed_fields=_DECISION_FIELDS,
-                required_fields={"action"},
+            diagnostics=_merge_optional_diagnostics(
+                success_diagnostics,
+                _success_diagnostics_if_metadata_filtered(
+                    raw,
+                    parse_stage="read_only_decision_validation",
+                    allowed_fields=_DECISION_FIELDS,
+                    required_fields={"action"},
+                ),
             ),
         )
         return decision
@@ -480,9 +513,271 @@ def _raise_if_blocked(
         )
 
 
-def _validate_decision(raw: dict[str, Any]) -> ReadOnlyDecision:
-    extraction = extract_read_only_decision_payload(raw)
-    return ReadOnlyDecision.model_validate(extraction.payload)
+def _validate_decision(raw: dict[str, Any]) -> tuple[ReadOnlyDecision, dict[str, Any] | None]:
+    validation_payload = raw
+    envelope_diagnostics: dict[str, Any] | None = None
+    envelope = _extract_decision_envelope(raw)
+    if envelope is not None:
+        validation_payload, envelope_diagnostics = envelope
+    try:
+        extraction = extract_read_only_decision_payload(validation_payload)
+    except ModelDecisionExtractionError as exc:
+        if envelope_diagnostics is not None:
+            raise ModelDecisionExtractionError(
+                _merge_envelope_extraction_diagnostics(envelope_diagnostics, exc.diagnostics)
+            ) from exc
+        raise
+    decision = ReadOnlyDecision.model_validate(extraction.payload)
+    if envelope_diagnostics is None:
+        return decision, None
+    return decision, _merge_envelope_extraction_diagnostics(envelope_diagnostics, extraction.diagnostics)
+
+
+def _extract_decision_envelope(raw: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    if not isinstance(raw, dict):
+        return None
+    present_keys = [key for key in _DECISION_ENVELOPE_KEYS if key in raw]
+    metadata_key_present = "metadata" in raw
+    if not present_keys and not metadata_key_present:
+        return None
+
+    safe_metadata_ignored = False
+    if metadata_key_present:
+        metadata_value = raw.get("metadata")
+        if isinstance(metadata_value, dict) and metadata_value.get("blocked_reason"):
+            return None
+        if not _is_safe_scalar_metadata(metadata_value):
+            diagnostics = _envelope_diagnostics(
+                raw,
+                envelope_key=present_keys[0] if present_keys else None,
+                envelope_value=raw.get(present_keys[0]) if present_keys else None,
+                envelope_parse_status="failed",
+                validation_error_codes=["extraction_failed", "unsafe_envelope_metadata"],
+            )
+            diagnostics["unsafe_field_name_hashes"] = sorted(
+                dict.fromkeys([*diagnostics["unsafe_field_name_hashes"], _hash_field_name("metadata")])
+            )
+            raise ModelDecisionExtractionError(diagnostics)
+        safe_metadata_ignored = True
+
+    unsafe_wrapper_hashes = _unsafe_wrapper_field_hashes(raw)
+    if unsafe_wrapper_hashes:
+        diagnostics = _envelope_diagnostics(
+            raw,
+            envelope_key=present_keys[0] if present_keys else None,
+            envelope_value=raw.get(present_keys[0]) if present_keys else None,
+            envelope_parse_status="failed",
+            validation_error_codes=["extraction_failed", "unsafe_envelope_wrapper"],
+            safe_metadata_ignored=safe_metadata_ignored,
+        )
+        diagnostics["unsafe_field_name_hashes"] = sorted(
+            dict.fromkeys([*diagnostics["unsafe_field_name_hashes"], *unsafe_wrapper_hashes])
+        )
+        raise ModelDecisionExtractionError(diagnostics)
+
+    if len(present_keys) != 1:
+        diagnostics = _envelope_diagnostics(
+            raw,
+            envelope_key=present_keys[0] if present_keys else None,
+            envelope_value=raw.get(present_keys[0]) if present_keys else None,
+            envelope_parse_status="failed",
+            validation_error_codes=["extraction_failed", "ambiguous_or_missing_envelope_reply"],
+            safe_metadata_ignored=safe_metadata_ignored,
+        )
+        diagnostics["missing_required_canonical_fields"] = ["action"]
+        raise ModelDecisionExtractionError(diagnostics)
+
+    envelope_key = present_keys[0]
+    envelope_value = raw.get(envelope_key)
+    payload, parse_status, json_detected = _parse_envelope_value(envelope_value)
+    if payload is None:
+        diagnostics = _envelope_diagnostics(
+            raw,
+            envelope_key=envelope_key,
+            envelope_value=envelope_value,
+            envelope_parse_status=parse_status,
+            envelope_json_detected=json_detected,
+            validation_error_codes=["extraction_failed", "envelope_reply_not_json"],
+            safe_metadata_ignored=safe_metadata_ignored,
+        )
+        diagnostics["missing_required_canonical_fields"] = ["action"]
+        raise ModelDecisionExtractionError(diagnostics)
+
+    unsafe_payload_hashes = _unsafe_envelope_field_hashes(payload)
+    if unsafe_payload_hashes:
+        diagnostics = _envelope_diagnostics(
+            raw,
+            envelope_key=envelope_key,
+            envelope_value=envelope_value,
+            envelope_parse_status=parse_status,
+            envelope_json_detected=json_detected,
+            validation_error_codes=["extraction_failed", "unsafe_envelope_reply"],
+            safe_metadata_ignored=safe_metadata_ignored,
+        )
+        diagnostics["unsafe_field_name_hashes"] = unsafe_payload_hashes
+        raise ModelDecisionExtractionError(diagnostics)
+
+    diagnostics = _envelope_diagnostics(
+        raw,
+        envelope_key=envelope_key,
+        envelope_value=envelope_value,
+        envelope_parse_status=parse_status,
+        envelope_json_detected=json_detected,
+        safe_metadata_ignored=safe_metadata_ignored,
+    )
+    return payload, diagnostics
+
+
+def _parse_envelope_value(value: Any) -> tuple[dict[str, Any] | None, str, bool]:
+    if isinstance(value, dict):
+        return value, "parsed", True
+    if not isinstance(value, str):
+        return None, "failed", False
+    candidate = value.strip()
+    if not candidate:
+        return None, "not_json", False
+    parse_status = "parsed"
+    if candidate.startswith("```"):
+        first_break = candidate.find("\n")
+        last_fence = candidate.rfind("```")
+        if first_break < 0 or last_fence <= first_break:
+            return None, "failed", False
+        if candidate[last_fence + 3 :].strip():
+            return None, "failed", False
+        candidate = candidate[first_break + 1 : last_fence].strip()
+        parse_status = "fenced_json"
+    if not candidate.startswith("{"):
+        return None, "not_json", False
+    try:
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError:
+        return None, "failed", False
+    if not isinstance(parsed, dict):
+        return None, "failed", True
+    return parsed, parse_status, True
+
+
+def _envelope_diagnostics(
+    raw: dict[str, Any],
+    *,
+    envelope_key: str | None,
+    envelope_value: Any,
+    envelope_parse_status: str,
+    envelope_json_detected: bool | None = None,
+    validation_error_codes: list[str] | None = None,
+    safe_metadata_ignored: bool = False,
+) -> dict[str, Any]:
+    return {
+        "envelope_detected": True,
+        "envelope_key": envelope_key,
+        "envelope_value_type": _envelope_value_type(envelope_value),
+        "envelope_json_detected": envelope_json_detected
+        if isinstance(envelope_json_detected, bool)
+        else isinstance(envelope_value, dict),
+        "envelope_parse_status": envelope_parse_status,
+        "model_top_level_key_names": _safe_key_names(raw),
+        "metadata_key_present": "metadata" in raw,
+        "safe_metadata_ignored": safe_metadata_ignored,
+        "detected_action_field_names": [],
+        "detected_argument_field_names": [],
+        "missing_required_canonical_fields": [],
+        "unsafe_field_name_hashes": _unsafe_envelope_field_hashes(raw),
+        "provider_response_hash": _provider_response_hash(raw),
+        "diagnostic_retention_status": "retained",
+        "validation_error_codes": list(validation_error_codes or []),
+        "unknown_field_names": [],
+        "unsafe_unknown_field_names": [],
+    }
+
+
+def _merge_envelope_extraction_diagnostics(
+    envelope: dict[str, Any],
+    extraction: dict[str, Any],
+) -> dict[str, Any]:
+    merged = dict(extraction)
+    for key, value in envelope.items():
+        if key in {
+            "detected_action_field_names",
+            "detected_argument_field_names",
+            "missing_required_canonical_fields",
+            "validation_error_codes",
+        }:
+            continue
+        merged[key] = value
+    merged["provider_response_hash"] = envelope["provider_response_hash"]
+    merged["validation_error_codes"] = sorted(
+        dict.fromkeys(
+            [
+                *envelope.get("validation_error_codes", []),
+                *extraction.get("validation_error_codes", []),
+            ]
+        )
+    )
+    if not extraction.get("missing_required_canonical_fields"):
+        merged["missing_required_canonical_fields"] = envelope.get("missing_required_canonical_fields", [])
+    merged["unsafe_field_name_hashes"] = sorted(
+        dict.fromkeys(
+            [
+                *envelope.get("unsafe_field_name_hashes", []),
+                *extraction.get("unsafe_field_names", []),
+            ]
+        )
+    )
+    merged.setdefault("unknown_field_names", [])
+    merged.setdefault("unsafe_unknown_field_names", [])
+    return merged
+
+
+def _envelope_value_type(value: Any) -> str:
+    if isinstance(value, dict):
+        return "dict"
+    if isinstance(value, str):
+        return "string"
+    return "other"
+
+
+def _safe_key_names(payload: dict[str, Any]) -> list[str]:
+    return sorted(_safe_envelope_key_name(str(key)) for key in payload if str(key) != "provider_response_hash")
+
+
+def _safe_envelope_key_name(key: str) -> str:
+    lowered = key.lower()
+    if lowered in _UNSAFE_ENVELOPE_FIELD_NAMES or key in _PROVIDER_MATERIAL_KEYS:
+        return f"diagnostic_label_hash:{text_hash(key)}"
+    return key
+
+
+def _unsafe_envelope_field_hashes(value: Any) -> list[str]:
+    hashes: list[str] = []
+
+    def visit(item: Any) -> None:
+        if isinstance(item, dict):
+            for key, nested in item.items():
+                key_name = str(key)
+                if key_name.lower() in _UNSAFE_ENVELOPE_FIELD_NAMES or key_name in _PROVIDER_MATERIAL_KEYS:
+                    hashes.append(_hash_field_name(key_name))
+                visit(nested)
+        elif isinstance(item, list | tuple | set):
+            for nested in item:
+                visit(nested)
+
+    visit(value)
+    return sorted(dict.fromkeys(hashes))
+
+
+def _unsafe_wrapper_field_hashes(raw: dict[str, Any]) -> list[str]:
+    hashes: list[str] = []
+    for key, value in raw.items():
+        if key in _DECISION_ENVELOPE_KEYS or key == "metadata":
+            continue
+        if key in _SAFE_PROVIDER_METADATA_KEYS and _is_safe_scalar_metadata(value):
+            continue
+        hashes.append(_hash_field_name(str(key)))
+    return sorted(dict.fromkeys(hashes))
+
+
+def _hash_field_name(key: str) -> str:
+    return f"diagnostic_label_hash:{text_hash(key)}"
 
 
 def _validate_report(raw: dict[str, Any]) -> ReadOnlyReportResult:
@@ -643,6 +938,14 @@ def _merge_extraction_diagnostics(base: dict[str, Any], extraction: dict[str, An
         "unsafe_field_names",
         "unsafe_action_names",
         "missing_required_canonical_fields",
+        "envelope_detected",
+        "envelope_key",
+        "envelope_value_type",
+        "envelope_json_detected",
+        "envelope_parse_status",
+        "metadata_key_present",
+        "safe_metadata_ignored",
+        "unsafe_field_name_hashes",
     ):
         if key in extraction:
             merged[key] = extraction[key]
@@ -658,6 +961,14 @@ def _merge_extraction_diagnostics(base: dict[str, Any], extraction: dict[str, An
     if isinstance(provider_hash, str) and provider_hash:
         merged["provider_response_hash"] = provider_hash
     return merged
+
+
+def _merge_optional_diagnostics(*diagnostics: dict[str, Any] | None) -> dict[str, Any] | None:
+    merged: dict[str, Any] = {}
+    for item in diagnostics:
+        if isinstance(item, dict):
+            merged.update(item)
+    return merged or None
 
 
 def _build_exception_diagnostics(

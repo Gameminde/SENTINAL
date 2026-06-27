@@ -617,6 +617,178 @@ def test_pack3_13_unsafe_extracted_decision_blocks_finalgate_and_replay_purity(t
     assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
 
 
+def test_pack3_16_metadata_reply_dict_envelope_reaches_first_receipt(tmp_path: Path) -> None:
+    result, session = _run_first_receipt_envelope(
+        tmp_path,
+        {
+            "metadata": "safe provider envelope",
+            "reply": {"tool": "list_directory", "params": {"path": "."}},
+            "provider_response_hash": "hash_envelope_dict",
+        },
+    )
+    replay = session.build_replay()
+
+    assert result.status == "completed"
+    assert len(result.receipt_refs) == 1
+    assert "list_directory" in {payload["action"] for payload in _json_payloads(session, "receipts")}
+    assert replay.reexecuted is False
+    assert replay.model_calls_before_replay == replay.model_calls_after_replay
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+
+
+def test_pack3_16_successful_envelope_retains_safe_structural_diagnostics() -> None:
+    model = _SequenceModelClient(
+        {
+            "metadata": "safe provider envelope",
+            "reply": {"tool": "list_directory", "params": {"path": "."}},
+            "provider_response_hash": "hash_envelope_success_diagnostics",
+        }
+    )
+    telemetry = _RecordingTelemetry()
+    client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=model,
+        telemetry_sink=telemetry,
+    )
+
+    decision = client.complete(_context())
+
+    assert decision.action is ReadOnlyActionKind.LIST_DIRECTORY
+    diagnostics = telemetry.completed_diagnostics[-1]
+    assert diagnostics["envelope_detected"] is True
+    assert diagnostics["envelope_key"] == "reply"
+    assert diagnostics["envelope_value_type"] == "dict"
+    assert diagnostics["provider_response_hash"] == "hash_envelope_success_diagnostics"
+    assert "safe provider envelope" not in str(diagnostics)
+
+
+def test_pack3_16_metadata_reply_json_string_envelope_reaches_first_receipt(tmp_path: Path) -> None:
+    result, session = _run_first_receipt_envelope(
+        tmp_path,
+        {
+            "metadata": "safe provider envelope",
+            "reply": '{"tool":"list_directory","params":{"path":"."}}',
+            "provider_response_hash": "hash_envelope_json_string",
+        },
+    )
+
+    assert result.status == "completed"
+    assert len(result.receipt_refs) == 1
+    assert "list_directory" in {payload["action"] for payload in _json_payloads(session, "receipts")}
+
+
+def test_pack3_16_fenced_reply_envelope_reaches_first_receipt(tmp_path: Path) -> None:
+    result, session = _run_first_receipt_envelope(
+        tmp_path,
+        {
+            "metadata": "safe provider envelope",
+            "reply": '```json\n{"tool":"list_directory","params":{"path":"."}}\n```',
+            "provider_response_hash": "hash_envelope_fenced_json",
+        },
+    )
+
+    assert result.status == "completed"
+    assert len(result.receipt_refs) == 1
+    assert "list_directory" in {payload["action"] for payload in _json_payloads(session, "receipts")}
+
+
+def test_pack3_16_message_dict_envelope_reaches_first_receipt(tmp_path: Path) -> None:
+    result, session = _run_first_receipt_envelope(
+        tmp_path,
+        {
+            "message": {"next_step": {"name": "list_directory", "input": {"path": "."}}},
+            "provider_response_hash": "hash_envelope_message",
+        },
+    )
+
+    assert result.status == "completed"
+    assert len(result.receipt_refs) == 1
+    assert "list_directory" in {payload["action"] for payload in _json_payloads(session, "receipts")}
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected_code"),
+    [
+        (
+            {"metadata": "safe", "reply": "List the directory first.", "provider_response_hash": "hash_prose_reply"},
+            "envelope_reply_not_json",
+        ),
+        (
+            {"metadata": {"tool": "list_directory", "params": {"path": "."}}, "provider_response_hash": "hash_metadata_action"},
+            "unsafe_envelope_metadata",
+        ),
+        (
+            {"metadata": "safe", "reply": {"tool": "write_file", "params": {"path": "README.md"}}, "provider_response_hash": "hash_unsafe_action_reply"},
+            "unsafe_model_decision",
+        ),
+        (
+            {"metadata": "safe", "reply": {"tool": "list_directory", "params": {"path": "."}, "workspace_ref": "workspace:/tmp"}, "provider_response_hash": "hash_unsafe_authority_reply"},
+            "unsafe_envelope_reply",
+        ),
+        (
+            {"metadata": "safe", "reply": {"tool": "list_directory", "params": {"path": "."}, "reasoning_content": "hidden"}, "provider_response_hash": "hash_unsafe_reasoning_reply"},
+            "unsafe_envelope_reply",
+        ),
+        (
+            {"metadata": {"notes": "object metadata is not executable"}, "reply": {"tool": "list_directory", "params": {"path": "."}}, "provider_response_hash": "hash_metadata_object"},
+            "unsafe_envelope_metadata",
+        ),
+    ],
+)
+def test_pack3_16_reply_envelope_blocks_without_fake_receipt(
+    tmp_path: Path,
+    raw: dict[str, Any],
+    expected_code: str,
+) -> None:
+    result, session = _run_first_receipt_envelope(tmp_path, raw)
+    replay = session.build_replay()
+
+    assert result.status == "blocked"
+    assert result.receipt_refs == []
+    assert _json_payloads(session, "receipts") == []
+    assert result.finalgate_status == "rejected"
+    blocked_event = [
+        event for event in session.kernel.store.load_events(session.mission_id)
+        if event.event_type == "read_only_spine_blocked"
+    ][0]
+    diagnostics = blocked_event.metadata["read_only_model_diagnostics"]
+    assert diagnostics["envelope_detected"] is True
+    assert expected_code in diagnostics["validation_error_codes"]
+    assert "hidden" not in str(diagnostics)
+    assert "object metadata is not executable" not in str(diagnostics)
+    assert replay.reexecuted is False
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+    assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+
+
+def _run_first_receipt_envelope(
+    tmp_path: Path,
+    raw: dict[str, Any],
+) -> tuple[Any, ReadOnlyProductionSpineSession]:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(raw),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+        report_client=ReadOnlyReportClient(report_template="Report cites {refs}: should not be called."),
+        stop_after_first_material_receipt=True,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    return result, session
+
+
 class _SequenceModelClient:
     def __init__(self, *outputs: dict[str, Any]) -> None:
         self.outputs = list(outputs)
