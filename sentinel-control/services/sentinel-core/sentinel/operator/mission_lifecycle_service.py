@@ -39,7 +39,13 @@ class MissionExecutionRequestState(StrEnum):
 
 
 _EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT = "stop_after_first_material_receipt"
-_SAFE_EXECUTION_OPTION_KEYS = frozenset({_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT})
+_EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE = "low_friction_read_only_power_mode"
+_SAFE_EXECUTION_OPTION_KEYS = frozenset(
+    {
+        _EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT,
+        _EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE,
+    }
+)
 
 
 class MissionExecutionRequest(SentinelModel):
@@ -148,6 +154,11 @@ class MissionLifecycleService:
     ) -> MissionLifecycleCreateResult:
         reject_operator_control_payload(parameters, context="mission_execution_request_parameters")
         normalized_execution_options = _normalize_execution_options(execution_options or {})
+        _validate_execution_options_for_route(
+            normalized_execution_options,
+            capability_id=capability_id,
+            operation=operation,
+        )
         mission_id = new_id("mission")
         bound_summary = authority_summary.model_copy(update={"mission_id": mission_id})
         record = self.kernel.create_mission(
@@ -354,7 +365,30 @@ def _normalize_execution_options(options: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(value, bool):
             raise ValueError("stop_after_first_material_receipt must be boolean")
         normalized[_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT] = value
+    if _EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE in options:
+        value = options[_EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE]
+        if not isinstance(value, bool):
+            raise ValueError("low_friction_read_only_power_mode must be boolean")
+        normalized[_EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE] = value
     return normalized
+
+
+def _validate_execution_options_for_route(
+    options: dict[str, Any],
+    *,
+    capability_id: str,
+    operation: str,
+) -> None:
+    if options.get(_EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE) is not True:
+        return
+    if (
+        options.get(_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT) is not True
+        or capability_id != "read_only_research"
+        or operation != "inspect_repository"
+    ):
+        raise ValueError(
+            "low_friction_read_only_power_mode requires read_only_research inspect_repository first-receipt mode"
+        )
 
 
 __all__ = [

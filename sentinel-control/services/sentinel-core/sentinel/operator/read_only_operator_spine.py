@@ -513,7 +513,10 @@ class ReadOnlyProductionSpineSession:
         excluded_paths: list[str | Path] | None = None,
         owns_kernel_terminal: bool = True,
         stop_after_first_material_receipt: bool = False,
+        low_friction_read_only_power_mode: bool = False,
     ) -> None:
+        if low_friction_read_only_power_mode and not stop_after_first_material_receipt:
+            raise ValueError("low_friction_read_only_power_mode requires stop_after_first_material_receipt")
         self.cockpit = cockpit
         self.kernel: MissionKernel = cockpit.kernel
         self.mission_id = mission_id
@@ -534,6 +537,7 @@ class ReadOnlyProductionSpineSession:
         self._active_envelope: MissionAuthorityEnvelope | None = None
         self._owns_kernel_terminal = owns_kernel_terminal
         self._stop_after_first_material_receipt = stop_after_first_material_receipt
+        self._low_friction_read_only_power_mode = low_friction_read_only_power_mode
         self.tool_call_count = 0
         self._evidence_ref_by_hash: dict[str, str] = {}
         self._excluded_roots = [
@@ -1269,6 +1273,25 @@ class ReadOnlyProductionSpineSession:
                 ReadOnlyFailureCode.READ_SEGMENT_INVALID,
                 phase="action_validation",
                 legacy_reason="search_text_query_required",
+            )
+        if self._low_friction_read_only_power_mode and decision.action in {
+            ReadOnlyActionKind.LIST_DIRECTORY,
+            ReadOnlyActionKind.READ_FILE_SEGMENT,
+            ReadOnlyActionKind.SEARCH_TEXT,
+            ReadOnlyActionKind.FINISH_EXPLORATION,
+        }:
+            self.kernel.store.append_event(
+                self.mission_id,
+                event_type="read_only_low_friction_gate_passed",
+                safe_summary="Approved in-scope read-only action passed without additional human escalation.",
+                metadata={
+                    "action": decision.action.value,
+                    "safe_target_kind": self._safe_target_kind(decision),
+                    "authority_boundary": "approved_workspace_read_only",
+                    "human_escalation_required": False,
+                    "gate_sequence_passed": True,
+                    "receipt_required": True,
+                },
             )
 
     def _record_receipt(

@@ -365,6 +365,196 @@ def test_pack3_15_first_receipt_mode_gate_denial_creates_no_fake_receipt(
     assert failed[0]["successful_action_receipt_ref"] is None
 
 
+@pytest.mark.parametrize(
+    ("decision", "expected_action"),
+    [
+        (
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            "list_directory",
+        ),
+        (
+            ReadOnlyDecision(action=ReadOnlyActionKind.SEARCH_TEXT, arguments={"query": "register", "path": "."}),
+            "search_text",
+        ),
+        (
+            ReadOnlyDecision(
+                action=ReadOnlyActionKind.READ_FILE_SEGMENT,
+                arguments={"path": "src/commands.py", "start_line": 1, "line_count": 2},
+            ),
+            "read_file_segment",
+        ),
+    ],
+)
+def test_pack3_17_low_friction_read_only_actions_execute_with_receipts_without_escalation(
+    tmp_path: Path,
+    decision: ReadOnlyDecision,
+    expected_action: str,
+) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient([decision, ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION)])
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: should not be called.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_17_low_friction",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "stop_after_first_material_receipt": True,
+            "low_friction_read_only_power_mode": True,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert pickup.dispatch_result.finalgate_status == "accepted"
+    assert decision_client.call_count == 1
+    assert report_client.call_count == 0
+    receipts = _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")
+    assert len(receipts) == 1
+    assert receipts[0]["action"] == expected_action
+    events = host.kernel.store.load_events(mission.record.mission_id)
+    low_friction_events = [
+        event for event in events
+        if event.event_type == "read_only_low_friction_gate_passed"
+    ]
+    assert len(low_friction_events) == 1
+    assert low_friction_events[0].metadata["action"] == expected_action
+    assert low_friction_events[0].metadata["human_escalation_required"] is False
+    assert low_friction_events[0].metadata["authority_boundary"] == "approved_workspace_read_only"
+    event_types = [event.event_type for event in events]
+    assert event_types.index("read_only_low_friction_gate_passed") < event_types.index("read_only_spine_action_receipted")
+
+
+@pytest.mark.parametrize("path_value", ["../outside", str(Path("..") / "outside")])
+def test_pack3_17_low_friction_path_traversal_still_blocks_without_fake_receipt(
+    tmp_path: Path,
+    path_value: str,
+) -> None:
+    workspace = _workspace(tmp_path)
+    host = _host(
+        tmp_path,
+        decisions=[
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": path_value}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+        ],
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_17_traversal_block",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "stop_after_first_material_receipt": True,
+            "low_friction_read_only_power_mode": True,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert pickup.dispatch_result.receipt_refs == []
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts") == []
+    assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.BLOCKED
+
+
+def test_pack3_17_low_friction_absolute_outside_path_still_blocks_without_fake_receipt(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    host = _host(
+        tmp_path,
+        decisions=[
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": str(outside.resolve())}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+        ],
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack3_17_absolute_block",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "stop_after_first_material_receipt": True,
+            "low_friction_read_only_power_mode": True,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert pickup.dispatch_result.receipt_refs == []
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts") == []
+
+
+def test_pack3_17_low_friction_requires_first_receipt_read_only_route(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    host = _host(tmp_path)
+    host.start()
+
+    with pytest.raises(ValueError, match="low_friction_read_only_power_mode"):
+        host.lifecycle.create_mission(
+            session_id="session_pack3_17_requires_first_receipt",
+            draft=_draft(),
+            authority_summary=_summary(),
+            approval_scope=_attempt5j_approval_scope(workspace),
+            policy=_policy(),
+            capability_id="read_only_research",
+            operation="inspect_repository",
+            parameters={"workspace": "fixture"},
+            workspace_ref=f"workspace:{workspace}",
+            model_contract_ref="model_contract:fake_read_only_research",
+            execution_options={"low_friction_read_only_power_mode": True},
+        )
+
+
+def test_pack3_17_default_strict_route_does_not_enter_low_friction_mode(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    host = _host(
+        tmp_path,
+        decisions=[
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ],
+    )
+    host.start()
+    mission = _create_mission(host, workspace)
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    events = [event.event_type for event in host.kernel.store.load_events(mission.record.mission_id)]
+    assert "read_only_low_friction_gate_passed" not in events
+
+
 def test_pack3_coordinator_decision_is_persisted_before_adapter_execution(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     adapter = _AssertingAdapter()

@@ -617,6 +617,74 @@ def test_pack3_13_unsafe_extracted_decision_blocks_finalgate_and_replay_purity(t
     assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
 
 
+@pytest.mark.parametrize(
+    "unsafe_tool",
+    [
+        "write_file",
+        "delete_file",
+        "shell",
+        "credential_access",
+        "network",
+        "browser_click",
+        "send_email",
+        "payment",
+    ],
+)
+def test_pack3_17_unsafe_tools_remain_blocked_before_receipt(
+    tmp_path: Path,
+    unsafe_tool: str,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    cockpit = _started_cockpit(tmp_path / "runs")
+    mission_id = cockpit.active_mission_id
+    assert mission_id is not None
+    decision_client = ReadOnlyProviderDecisionClient(
+        user_model_contract=_contract(),
+        model_client=_SequenceModelClient(
+            {
+                "tool": unsafe_tool,
+                "params": {"path": "README.md"},
+                "provider_response_hash": f"hash_unsafe_{unsafe_tool}",
+            }
+        ),
+        telemetry_sink=cockpit.kernel.telemetry_sink,
+    )
+    session = ReadOnlyProductionSpineSession(
+        cockpit=cockpit,
+        mission_id=mission_id,
+        snapshot_root=workspace,
+        decision_client=decision_client,
+        stop_after_first_material_receipt=True,
+        low_friction_read_only_power_mode=True,
+    )
+
+    result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
+    replay = session.build_replay()
+
+    assert result.status == "blocked"
+    assert result.receipt_refs == []
+    assert _json_payloads(session, "receipts") == []
+    assert result.finalgate_status == "rejected"
+    diagnostics = [
+        event.metadata["read_only_model_diagnostics"]
+        for event in cockpit.kernel.store.load_events(mission_id)
+        if event.event_type == "read_only_spine_blocked"
+    ][0]
+    if diagnostics is not None:
+        assert diagnostics["parse_stage"] == "read_only_decision_validation"
+        assert diagnostics.get("extraction_failed") is True or "unknown_field" in diagnostics["validation_error_codes"]
+        if diagnostics.get("unsafe_action_names"):
+            assert (
+                unsafe_tool in diagnostics["unsafe_action_names"]
+                or diagnostics["unsafe_action_names"][0].startswith("diagnostic_label_hash:")
+            )
+    assert replay.reexecuted is False
+    assert replay.receipt_writes_before_replay == replay.receipt_writes_after_replay
+    assert replay.finalgate_writes_before_replay == replay.finalgate_writes_after_replay
+
+
 def test_pack3_16_metadata_reply_dict_envelope_reaches_first_receipt(tmp_path: Path) -> None:
     result, session = _run_first_receipt_envelope(
         tmp_path,

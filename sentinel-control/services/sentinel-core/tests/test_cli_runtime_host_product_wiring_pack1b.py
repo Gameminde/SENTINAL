@@ -261,6 +261,80 @@ def test_cli_explicit_bootstrap_can_stop_after_first_material_receipt(
     assert "read_only_report_generation_started" not in events
 
 
+def test_cli_explicit_bootstrap_can_enable_low_friction_read_only_power_mode(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Research target\ncommand registry lives here\n", encoding="utf-8")
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", _product_model_client_factory(model_clients, workspace))
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--stop-after-first-material-receipt",
+            "--low-friction-read-only-power-mode",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    turns = json.loads(output.out)
+    assert code == 0
+    assert output.err == ""
+    assert model_clients[0].decision_calls == 1
+    assert model_clients[0].report_calls == 0
+    mission_id = turns[-1]["mission_record"]["mission_id"]
+    request_payload = json.loads(next((tmp_path / "runs").rglob("mission_exec_req_*.json")).read_text(encoding="utf-8"))
+    assert request_payload["execution_options"] == {
+        "low_friction_read_only_power_mode": True,
+        "stop_after_first_material_receipt": True,
+    }
+    events = MissionKernel(run_root=tmp_path / "runs").store.load_events(mission_id)
+    event_types = [event.event_type for event in events]
+    assert "read_only_low_friction_gate_passed" in event_types
+    assert "read_only_report_generation_started" not in event_types
+
+
+def test_cli_low_friction_mode_requires_explicit_first_receipt_bootstrap(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--deterministic-test-mode",
+            "--low-friction-read-only-power-mode",
+            "--json",
+        ]
+    )
+
+    turns = json.loads(capsys.readouterr().out)
+    assert code == 2
+    assert turns[-1]["metadata"]["blocked_reason"] == "low_friction_mode_requires_explicit_first_receipt_bootstrap"
+    assert turns[-1]["metadata"]["conversation_outcome"] == "mission_not_created"
+    assert not (tmp_path / "runs" / "missions").exists()
+
+
 @pytest.mark.parametrize(
     ("argv_remove", "expected_reason"),
     [

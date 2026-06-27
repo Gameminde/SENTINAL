@@ -282,6 +282,7 @@ class ReadOnlyResearchAdapter:
             excluded_paths=["sentinel_internal"],
             owns_kernel_terminal=False,
             stop_after_first_material_receipt=_stop_after_first_material_receipt(request),
+            low_friction_read_only_power_mode=_low_friction_read_only_power_mode(request),
         )
         result = session.run_via_agent_runtime(envelope=authority)
         status = DispatchStatus.COMPLETED if result.status == "completed" and result.finalgate_status == "accepted" else DispatchStatus.BLOCKED
@@ -673,6 +674,10 @@ def _workspace_from_ref(workspace_ref: str) -> Path:
 
 def _stop_after_first_material_receipt(request: MissionExecutionRequest) -> bool:
     return request.execution_options.get("stop_after_first_material_receipt") is True
+
+
+def _low_friction_read_only_power_mode(request: MissionExecutionRequest) -> bool:
+    return request.execution_options.get("low_friction_read_only_power_mode") is True
 
 
 __all__ = [

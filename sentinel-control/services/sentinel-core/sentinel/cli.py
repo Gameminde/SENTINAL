@@ -128,6 +128,14 @@ def build_parser() -> argparse.ArgumentParser:
             action="store_true",
             help="Explicit product run mode: terminalize after the first governed material read-only receipt.",
         )
+        cockpit_parser.add_argument(
+            "--low-friction-read-only-power-mode",
+            action="store_true",
+            help=(
+                "Explicit product run mode: allow autonomous in-scope read-only exploration after upfront "
+                "workspace authority. Requires --explicit-mission-bootstrap and --stop-after-first-material-receipt."
+            ),
+        )
         cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
@@ -342,6 +350,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _run_cockpit_command(args: argparse.Namespace) -> int:
     explicit_bootstrap_turns: list[str] | None = None
+    if args.low_friction_read_only_power_mode and not (
+        args.explicit_mission_bootstrap and args.stop_after_first_material_receipt
+    ):
+        return _emit_cockpit_product_block(
+            args,
+            reason="low_friction_mode_requires_explicit_first_receipt_bootstrap",
+            outcome="mission_not_created",
+        )
     if args.stop_after_first_material_receipt and not args.explicit_mission_bootstrap:
         return _emit_cockpit_product_block(
             args,
@@ -673,6 +689,8 @@ def _mission_execution_options_from_args(args: argparse.Namespace) -> dict[str, 
     options: dict[str, object] = {}
     if getattr(args, "stop_after_first_material_receipt", False):
         options["stop_after_first_material_receipt"] = True
+    if getattr(args, "low_friction_read_only_power_mode", False):
+        options["low_friction_read_only_power_mode"] = True
     return options
 
 
