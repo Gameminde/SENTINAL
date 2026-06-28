@@ -751,11 +751,14 @@ def test_model_decision_timeout_is_classified_without_tool_action(tmp_path: Path
     result = session.run_via_agent_runtime(envelope=_authority_envelope(mission_id))
 
     assert result.status == "blocked"
-    assert result.blocked_reason == "model_decision_timeout"
+    assert result.blocked_reason == "TIMEOUT"
     assert result.receipt_refs == []
     assert session.tool_call_count == 0
-    event_types = [event.event_type for event in cockpit.kernel.store.load_events(mission_id)]
+    events = cockpit.kernel.store.load_events(mission_id)
+    event_types = [event.event_type for event in events]
     assert "read_only_spine_action_receipted" not in event_types
+    blocked_event = next(event for event in events if event.event_type == "read_only_spine_blocked")
+    assert blocked_event.metadata["typed_failure_code"] == ReadOnlyFailureCode.READ_MODEL_DECISION_TIMEOUT.value
 
 
 def test_authority_scope_narrowing_uses_gate_sequence_before_action(tmp_path: Path) -> None:
