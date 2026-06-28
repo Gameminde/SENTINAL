@@ -21,6 +21,16 @@ class DecisionContextCompiler:
         max_material_actions: int,
     ) -> dict[str, Any]:
         previous = observations[-1] if observations else None
+        workspace_patch_results = [
+            result
+            for result in observations[-6:]
+            if result.capability_id == "workspace_patch" and result.operation == "apply_patch"
+        ]
+        workspace_verification_results = [
+            result
+            for result in observations[-6:]
+            if result.capability_id == "workspace_patch" and result.operation == "run_bounded_check"
+        ]
         return {
             "mission_id": mission_id,
             "mission_objective": mission_objective,
@@ -57,6 +67,27 @@ class DecisionContextCompiler:
             "read_only_workspace_summary": {
                 "allowed_paths_count": len(authority.allowed_paths),
             },
+            "workspace_patch_summary": [
+                {
+                    "operation": result.operation,
+                    "status": result.status,
+                    "receipt_count": len(result.receipt_refs),
+                    "evidence_count": len(result.evidence_refs),
+                    "summary": result.observation_summary[:500],
+                    "result_hash": result.result_hash,
+                }
+                for result in workspace_patch_results
+            ],
+            "workspace_verification_summary": [
+                {
+                    "operation": result.operation,
+                    "status": result.status,
+                    "receipt_count": len(result.receipt_refs),
+                    "summary": result.observation_summary[:500],
+                    "result_hash": result.result_hash,
+                }
+                for result in workspace_verification_results
+            ],
         }
 
 
