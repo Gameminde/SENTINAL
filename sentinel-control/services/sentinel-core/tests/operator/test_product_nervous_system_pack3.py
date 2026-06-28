@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -12,6 +13,7 @@ from sentinel.operator.read_only_operator_spine import (
     ReadOnlyDecision,
     ReadOnlyActionKind,
     ReadOnlyDecisionClient,
+    ReadOnlyProductionSpineSession,
     ReadOnlyReportClient,
 )
 from sentinel.operator.replay import MissionReplayBuilder
@@ -555,6 +557,226 @@ def test_pack3_17_default_strict_route_does_not_enter_low_friction_mode(tmp_path
     assert "read_only_low_friction_gate_passed" not in events
 
 
+def test_pack4a_model_led_autopilot_produces_three_receipts_without_report_lane_and_replays_pure(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = _ContextRecordingDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.SEARCH_TEXT, arguments={"query": "register", "path": "."}),
+            ReadOnlyDecision(
+                action=ReadOnlyActionKind.READ_FILE_SEGMENT,
+                arguments={"path": "src/commands.py", "start_line": 1, "line_count": 2},
+            ),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ]
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: should not be called.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack4a_autopilot",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "model_led_read_only_autopilot": True,
+            "low_friction_read_only_power_mode": True,
+            "max_material_receipts": 3,
+            "max_provider_decision_calls": 3,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert pickup.dispatch_result.finalgate_status == "accepted"
+    assert decision_client.call_count == 3
+    assert report_client.call_count == 0
+    receipts = _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")
+    evidence = _json_payloads(host, mission.record.mission_id, "read_only_spine", "evidence")
+    finalgate = _json_payloads(host, mission.record.mission_id, "read_only_spine", "finalgate")
+    assert {receipt["action"] for receipt in receipts} == {"list_directory", "search_text", "read_file_segment"}
+    assert len(evidence) == 3
+    assert finalgate[0]["accepted"] is True
+    assert finalgate[0]["reason"] == "model_led_read_only_autopilot_material_receipt_budget_reached"
+    assert len(decision_client.contexts) == 3
+    assert len(decision_client.contexts[1]["observations"]) == 1
+    assert len(decision_client.contexts[2]["observations"]) == 2
+    events = host.kernel.store.load_events(mission.record.mission_id)
+    event_types = [event.event_type for event in events]
+    receipt_event_actions = [
+        event.metadata["action"]
+        for event in events
+        if event.event_type == "read_only_spine_action_receipted"
+    ]
+    assert receipt_event_actions == ["list_directory", "search_text", "read_file_segment"]
+    assert event_types.count("read_only_low_friction_gate_passed") == 3
+    assert "read_only_report_generation_started" not in event_types
+    assert "read_only_spine_model_led_autopilot_terminal" in event_types
+    assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.COMPLETED
+
+    replay_before = _replay_counter_snapshot(host, mission.record.mission_id, decision_client, report_client)
+    replay = ReadOnlyProductionSpineSession(
+        cockpit=SimpleNamespace(kernel=host.kernel),
+        mission_id=mission.record.mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient([]),
+        low_friction_read_only_power_mode=True,
+        model_led_read_only_autopilot=True,
+        max_material_receipts=3,
+        max_provider_decision_calls=3,
+    ).build_replay()
+    replay_after = _replay_counter_snapshot(host, mission.record.mission_id, decision_client, report_client)
+    assert replay.reexecuted is False
+    assert replay_before == replay_after
+    assert _workspace_snapshot(workspace)["src/commands.py"] == "def register_commands(registry):\n    registry.add('inspect')\n"
+
+
+def test_pack4a_finish_exploration_completes_without_fake_material_receipt(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.FINISH_EXPLORATION),
+        ]
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: should not be called.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack4a_finish",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "model_led_read_only_autopilot": True,
+            "low_friction_read_only_power_mode": True,
+            "max_material_receipts": 3,
+            "max_provider_decision_calls": 3,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert decision_client.call_count == 2
+    assert report_client.call_count == 0
+    receipts = _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")
+    finalgate = _json_payloads(host, mission.record.mission_id, "read_only_spine", "finalgate")
+    assert len(receipts) == 1
+    assert receipts[0]["action"] == "list_directory"
+    assert finalgate[0]["accepted"] is True
+    assert finalgate[0]["reason"] == "model_led_read_only_autopilot_finish_exploration"
+
+
+def test_pack4a_provider_decision_budget_stops_after_existing_receipt(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.SEARCH_TEXT, arguments={"query": "register", "path": "."}),
+        ]
+    )
+    report_client = ReadOnlyReportClient(report_template="Report cites {refs}: should not be called.")
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: report_client,
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack4a_decision_budget",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "model_led_read_only_autopilot": True,
+            "low_friction_read_only_power_mode": True,
+            "max_material_receipts": 3,
+            "max_provider_decision_calls": 1,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.COMPLETED
+    assert decision_client.call_count == 1
+    assert report_client.call_count == 0
+    receipts = _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")
+    finalgate = _json_payloads(host, mission.record.mission_id, "read_only_spine", "finalgate")
+    assert len(receipts) == 1
+    assert finalgate[0]["reason"] == "model_led_read_only_autopilot_provider_decision_budget_reached"
+
+
+def test_pack4a_autopilot_unsafe_path_blocks_before_receipt(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = ReadOnlyDecisionClient(
+        [
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "../outside"}),
+            ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."}),
+        ]
+    )
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: ReadOnlyReportClient(),
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack4a_scope_block",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "model_led_read_only_autopilot": True,
+            "low_friction_read_only_power_mode": True,
+            "max_material_receipts": 3,
+            "max_provider_decision_calls": 3,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert decision_client.call_count == 1
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts") == []
+    assert _terminal_event_types(host, mission.record.mission_id) == ["mission_blocked"]
+
+
 def test_pack3_coordinator_decision_is_persisted_before_adapter_execution(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     adapter = _AssertingAdapter()
@@ -940,6 +1162,16 @@ def _attempt5j_approval_scope(workspace: Path) -> MissionAuthorityApprovalScope:
         max_actions=12,
         max_cost_usd=0.0,
     )
+
+
+class _ContextRecordingDecisionClient(ReadOnlyDecisionClient):
+    def __init__(self, decisions: list[ReadOnlyDecision]) -> None:
+        super().__init__(decisions)
+        self.contexts: list[dict[str, Any]] = []
+
+    def complete(self, context: dict[str, Any]) -> ReadOnlyDecision:
+        self.contexts.append(json.loads(json.dumps(context, sort_keys=True, default=str)))
+        return super().complete(context)
 
 
 class _AssertingAdapter(UnifiedExecutionAdapter):

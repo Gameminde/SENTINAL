@@ -514,9 +514,16 @@ class ReadOnlyProductionSpineSession:
         owns_kernel_terminal: bool = True,
         stop_after_first_material_receipt: bool = False,
         low_friction_read_only_power_mode: bool = False,
+        model_led_read_only_autopilot: bool = False,
+        max_material_receipts: int | None = None,
+        max_provider_decision_calls: int | None = None,
     ) -> None:
-        if low_friction_read_only_power_mode and not stop_after_first_material_receipt:
-            raise ValueError("low_friction_read_only_power_mode requires stop_after_first_material_receipt")
+        if model_led_read_only_autopilot and stop_after_first_material_receipt:
+            raise ValueError("model_led_read_only_autopilot cannot combine with stop_after_first_material_receipt")
+        if low_friction_read_only_power_mode and not (stop_after_first_material_receipt or model_led_read_only_autopilot):
+            raise ValueError("low_friction_read_only_power_mode requires first-receipt or model-led autopilot mode")
+        if model_led_read_only_autopilot and not low_friction_read_only_power_mode:
+            raise ValueError("model_led_read_only_autopilot requires low_friction_read_only_power_mode")
         self.cockpit = cockpit
         self.kernel: MissionKernel = cockpit.kernel
         self.mission_id = mission_id
@@ -538,6 +545,9 @@ class ReadOnlyProductionSpineSession:
         self._owns_kernel_terminal = owns_kernel_terminal
         self._stop_after_first_material_receipt = stop_after_first_material_receipt
         self._low_friction_read_only_power_mode = low_friction_read_only_power_mode
+        self._model_led_read_only_autopilot = model_led_read_only_autopilot
+        self._max_material_receipts = _positive_int_or_none(max_material_receipts)
+        self._max_provider_decision_calls = _positive_int_or_none(max_provider_decision_calls)
         self.tool_call_count = 0
         self._evidence_ref_by_hash: dict[str, str] = {}
         self._excluded_roots = [
@@ -611,10 +621,20 @@ class ReadOnlyProductionSpineSession:
                 metadata={"snapshot_hash": text_hash(str(self.snapshot_root))},
             )
 
+            provider_decision_calls = 0
             for _ in range(self.max_turns):
+                if (
+                    self._model_led_read_only_autopilot
+                    and self._max_provider_decision_calls is not None
+                    and provider_decision_calls >= self._max_provider_decision_calls
+                ):
+                    return self._complete_model_led_read_only_autopilot(
+                        reason="model_led_read_only_autopilot_provider_decision_budget_reached"
+                    )
                 self._require_runtime_open()
                 try:
                     decision = self.decision_client.complete(self._context())
+                    provider_decision_calls += 1
                 except ReadOnlySpineError:
                     raise
                 except TimeoutError as exc:
@@ -674,6 +694,10 @@ class ReadOnlyProductionSpineSession:
                 if decision.action is ReadOnlyActionKind.FINISH_EXPLORATION:
                     if not self._observations:
                         raise ReadOnlySpineError("terminal_report_requires_successful_observation")
+                    if self._model_led_read_only_autopilot:
+                        return self._complete_model_led_read_only_autopilot(
+                            reason="model_led_read_only_autopilot_finish_exploration"
+                        )
                     self.kernel.store.append_event(
                         self.mission_id,
                         event_type="read_only_report_generation_started",
@@ -747,6 +771,14 @@ class ReadOnlyProductionSpineSession:
                     ) from exc
                 if self._stop_after_first_material_receipt:
                     return self._complete_after_first_material_receipt(receipt)
+                if (
+                    self._model_led_read_only_autopilot
+                    and self._max_material_receipts is not None
+                    and len(self._receipt_refs) >= self._max_material_receipts
+                ):
+                    return self._complete_model_led_read_only_autopilot(
+                        reason="model_led_read_only_autopilot_material_receipt_budget_reached"
+                    )
 
             raise ReadOnlySpineError(ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED, phase="turn_budget")
         except ReadOnlySpineError as exc:
@@ -805,6 +837,50 @@ class ReadOnlyProductionSpineSession:
                 "tool_call_count": self.tool_call_count,
             },
             receipt_refs=[receipt.receipt_id],
+            finalgate_certificate_refs=[certificate.certificate_id],
+        )
+        self._finalize_completed_status_if_owned()
+        return ReadOnlyProductionSpineResult(
+            mission_id=self.mission_id,
+            status="completed",
+            receipt_refs=list(self._receipt_refs),
+            finalgate_refs=[certificate.certificate_id],
+            finalgate_status="accepted" if certificate.accepted else "rejected",
+        )
+
+    def _complete_model_led_read_only_autopilot(self, *, reason: str) -> ReadOnlyProductionSpineResult:
+        if not self._receipt_refs:
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED,
+                phase="model_led_autopilot_budget",
+                legacy_reason=reason,
+            )
+        try:
+            certificate = self._record_finalgate(
+                receipt_refs=list(self._receipt_refs),
+                status="accepted",
+                accepted=True,
+                reason=reason,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.FINALGATE_PERSISTENCE_FAILED,
+                phase="finalgate_persistence",
+                exception_class=exc.__class__.__name__,
+            ) from exc
+        self.kernel.store.append_event(
+            self.mission_id,
+            event_type="read_only_spine_model_led_autopilot_terminal",
+            safe_summary="Model-led read-only autopilot stopped with governed material receipts.",
+            metadata={
+                "reason": reason,
+                "receipt_count": len(self._receipt_refs),
+                "tool_call_count": self.tool_call_count,
+                "max_material_receipts": self._max_material_receipts,
+                "max_provider_decision_calls": self._max_provider_decision_calls,
+                "report_lane_invoked": False,
+            },
+            receipt_refs=list(self._receipt_refs),
             finalgate_certificate_refs=[certificate.certificate_id],
         )
         self._finalize_completed_status_if_owned()
@@ -1064,6 +1140,10 @@ class ReadOnlyProductionSpineSession:
             "observations": list(self._observations),
             "receipt_refs": list(self._receipt_refs),
             "legal_actions": [item.value for item in ReadOnlyActionKind],
+            "model_led_read_only_autopilot": self._model_led_read_only_autopilot,
+            "material_receipt_count": len(self._receipt_refs),
+            "max_material_receipts": self._max_material_receipts,
+            "max_provider_decision_calls": self._max_provider_decision_calls,
         }
 
     def _safe_target_kind(self, decision: ReadOnlyDecision) -> str:
@@ -1815,6 +1895,14 @@ def _gate_tool_for_envelope(envelope: MissionAuthorityEnvelope) -> str:
 def _normalize_root_alias(value: object) -> str:
     text = str(value).strip()
     return "." if not text or text in READ_ONLY_ROOT_PATH_ALIASES else text
+
+
+def _positive_int_or_none(value: int | None) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or int(value) < 1:
+        raise ValueError("read-only autopilot limits must be positive integers")
+    return int(value)
 
 
 def _mission_action_from_decision(mission_id: str, decision: ReadOnlyDecision, *, tool: str) -> MissionAction:

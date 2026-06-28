@@ -313,6 +313,73 @@ def test_cli_explicit_bootstrap_can_enable_low_friction_read_only_power_mode(
     assert "read_only_report_generation_started" not in event_types
 
 
+def test_cli_explicit_bootstrap_can_enable_model_led_read_only_autopilot(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Research target\ncommand registry lives here\n", encoding="utf-8")
+    (workspace / "src").mkdir()
+    (workspace / "src" / "commands.py").write_text("def register_commands(registry):\n    registry.add('inspect')\n", encoding="utf-8")
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(
+        cli,
+        "OperatorCatalogModelClient",
+        _product_model_client_factory(model_clients, workspace, client_type=RecordingAutopilotProductModelClient),
+    )
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--model-led-read-only-autopilot",
+            "--low-friction-read-only-power-mode",
+            "--max-material-receipts",
+            "3",
+            "--max-provider-decision-calls",
+            "3",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    turns = json.loads(output.out)
+    assert code == 0
+    assert output.err == ""
+    assert model_clients[0].decision_calls == 3
+    assert model_clients[0].report_calls == 0
+    mission_id = turns[-1]["mission_record"]["mission_id"]
+    request_payload = json.loads(next((tmp_path / "runs").rglob("mission_exec_req_*.json")).read_text(encoding="utf-8"))
+    assert request_payload["execution_options"] == {
+        "low_friction_read_only_power_mode": True,
+        "max_material_receipts": 3,
+        "max_provider_decision_calls": 3,
+        "model_led_read_only_autopilot": True,
+    }
+    receipts = list((tmp_path / "runs").rglob("read_only_spine/receipts/*.json"))
+    assert len(receipts) == 3
+    events = MissionKernel(run_root=tmp_path / "runs").store.load_events(mission_id)
+    event_types = [event.event_type for event in events]
+    assert event_types.count("read_only_low_friction_gate_passed") == 3
+    assert "read_only_spine_model_led_autopilot_terminal" in event_types
+    assert "read_only_report_generation_started" not in event_types
+
+
 def test_cli_low_friction_mode_requires_explicit_first_receipt_bootstrap(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -1121,14 +1188,51 @@ class RecordingProductModelClient:
         }
 
 
+class RecordingAutopilotProductModelClient(RecordingProductModelClient):
+    def complete(self, request):  # noqa: ANN001, ANN201
+        self.calls.append(request)
+        lane = request.request_metadata.get("read_only_lane")
+        if lane == "exploration_decision":
+            self.decision_calls += 1
+            if self.decision_calls == 1:
+                return {
+                    "action": "list_directory",
+                    "arguments": {"path": "."},
+                    "evidence_refs": [],
+                    "provider_response_hash": "hash_cli_autopilot_decision_1",
+                }
+            if self.decision_calls == 2:
+                return {
+                    "action": "search_text",
+                    "arguments": {"path": ".", "query": "register"},
+                    "evidence_refs": [],
+                    "provider_response_hash": "hash_cli_autopilot_decision_2",
+                }
+            return {
+                "action": "read_file_segment",
+                "arguments": {"path": "src/commands.py", "start_line": 1, "line_count": 2},
+                "evidence_refs": [],
+                "provider_response_hash": "hash_cli_autopilot_decision_3",
+            }
+        if lane == "final_report":
+            self.report_calls += 1
+            return {
+                "report_text": "Report should not be requested in Pack 4A autopilot budget mode.",
+                "evidence_refs": list(request.request_metadata.get("evidence_refs", [])),
+                "provider_response_hash": "hash_cli_autopilot_report",
+            }
+        return super().complete(request)
+
+
 def _product_model_client_factory(
     model_clients: list[RecordingProductModelClient],
     workspace: Path,
     *,
     cockpit_output: dict[str, object] | None = None,
+    client_type: type[RecordingProductModelClient] = RecordingProductModelClient,
 ):
     def factory(*, user_model_contract: UserModelContract, **_kwargs) -> RecordingProductModelClient:  # noqa: ANN001
-        client = RecordingProductModelClient(
+        client = client_type(
             user_model_contract=user_model_contract,
             workspace=workspace,
             cockpit_output=cockpit_output,

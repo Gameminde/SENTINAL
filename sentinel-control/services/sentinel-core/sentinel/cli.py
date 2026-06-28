@@ -133,8 +133,25 @@ def build_parser() -> argparse.ArgumentParser:
             action="store_true",
             help=(
                 "Explicit product run mode: allow autonomous in-scope read-only exploration after upfront "
-                "workspace authority. Requires --explicit-mission-bootstrap and --stop-after-first-material-receipt."
+                "workspace authority. Requires --explicit-mission-bootstrap and first-receipt or model-led autopilot mode."
             ),
+        )
+        cockpit_parser.add_argument(
+            "--model-led-read-only-autopilot",
+            action="store_true",
+            help="Explicit Pack 4A product run mode: continue governed read-only actions until finish or budget.",
+        )
+        cockpit_parser.add_argument(
+            "--max-material-receipts",
+            type=int,
+            default=None,
+            help="Pack 4A model-led autopilot material receipt budget.",
+        )
+        cockpit_parser.add_argument(
+            "--max-provider-decision-calls",
+            type=int,
+            default=None,
+            help="Pack 4A model-led autopilot provider decision-call budget.",
         )
         cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
@@ -350,12 +367,49 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _run_cockpit_command(args: argparse.Namespace) -> int:
     explicit_bootstrap_turns: list[str] | None = None
+    if args.model_led_read_only_autopilot and not args.explicit_mission_bootstrap:
+        return _emit_cockpit_product_block(
+            args,
+            reason="model_led_autopilot_requires_explicit_bootstrap",
+            outcome="mission_not_created",
+        )
+    if args.model_led_read_only_autopilot and args.stop_after_first_material_receipt:
+        return _emit_cockpit_product_block(
+            args,
+            reason="model_led_autopilot_conflicts_with_first_receipt_mode",
+            outcome="mission_not_created",
+        )
+    if args.model_led_read_only_autopilot and not args.low_friction_read_only_power_mode:
+        return _emit_cockpit_product_block(
+            args,
+            reason="model_led_autopilot_requires_low_friction_read_only_power_mode",
+            outcome="mission_not_created",
+        )
     if args.low_friction_read_only_power_mode and not (
-        args.explicit_mission_bootstrap and args.stop_after_first_material_receipt
+        args.explicit_mission_bootstrap
+        and (args.stop_after_first_material_receipt or args.model_led_read_only_autopilot)
     ):
         return _emit_cockpit_product_block(
             args,
             reason="low_friction_mode_requires_explicit_first_receipt_bootstrap",
+            outcome="mission_not_created",
+        )
+    if (args.max_material_receipts is not None or args.max_provider_decision_calls is not None) and not args.model_led_read_only_autopilot:
+        return _emit_cockpit_product_block(
+            args,
+            reason="autopilot_budgets_require_model_led_read_only_autopilot",
+            outcome="mission_not_created",
+        )
+    if args.max_material_receipts is not None and args.max_material_receipts < 1:
+        return _emit_cockpit_product_block(
+            args,
+            reason="max_material_receipts_must_be_positive",
+            outcome="mission_not_created",
+        )
+    if args.max_provider_decision_calls is not None and args.max_provider_decision_calls < 1:
+        return _emit_cockpit_product_block(
+            args,
+            reason="max_provider_decision_calls_must_be_positive",
             outcome="mission_not_created",
         )
     if args.stop_after_first_material_receipt and not args.explicit_mission_bootstrap:
@@ -691,6 +745,12 @@ def _mission_execution_options_from_args(args: argparse.Namespace) -> dict[str, 
         options["stop_after_first_material_receipt"] = True
     if getattr(args, "low_friction_read_only_power_mode", False):
         options["low_friction_read_only_power_mode"] = True
+    if getattr(args, "model_led_read_only_autopilot", False):
+        options["model_led_read_only_autopilot"] = True
+    if getattr(args, "max_material_receipts", None) is not None:
+        options["max_material_receipts"] = int(args.max_material_receipts)
+    if getattr(args, "max_provider_decision_calls", None) is not None:
+        options["max_provider_decision_calls"] = int(args.max_provider_decision_calls)
     return options
 
 

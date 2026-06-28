@@ -283,6 +283,9 @@ class ReadOnlyResearchAdapter:
             owns_kernel_terminal=False,
             stop_after_first_material_receipt=_stop_after_first_material_receipt(request),
             low_friction_read_only_power_mode=_low_friction_read_only_power_mode(request),
+            model_led_read_only_autopilot=_model_led_read_only_autopilot(request),
+            max_material_receipts=_max_material_receipts(request),
+            max_provider_decision_calls=_max_provider_decision_calls(request),
         )
         result = session.run_via_agent_runtime(envelope=authority)
         status = DispatchStatus.COMPLETED if result.status == "completed" and result.finalgate_status == "accepted" else DispatchStatus.BLOCKED
@@ -500,7 +503,7 @@ class UnifiedExecutionDispatcher:
         receipt_result = self._load_and_verify_receipts(result)
         if not receipt_result.ok:
             return receipt_result
-        if request is not None and _stop_after_first_material_receipt(request):
+        if request is not None and (_stop_after_first_material_receipt(request) or _model_led_read_only_autopilot(request)):
             finalgate_result = self._load_and_verify_finalgate(result, validated_receipt_refs=receipt_result.receipt_refs)
             if not finalgate_result.ok:
                 return finalgate_result
@@ -678,6 +681,20 @@ def _stop_after_first_material_receipt(request: MissionExecutionRequest) -> bool
 
 def _low_friction_read_only_power_mode(request: MissionExecutionRequest) -> bool:
     return request.execution_options.get("low_friction_read_only_power_mode") is True
+
+
+def _model_led_read_only_autopilot(request: MissionExecutionRequest) -> bool:
+    return request.execution_options.get("model_led_read_only_autopilot") is True
+
+
+def _max_material_receipts(request: MissionExecutionRequest) -> int | None:
+    value = request.execution_options.get("max_material_receipts")
+    return int(value) if value is not None else None
+
+
+def _max_provider_decision_calls(request: MissionExecutionRequest) -> int | None:
+    value = request.execution_options.get("max_provider_decision_calls")
+    return int(value) if value is not None else None
 
 
 __all__ = [

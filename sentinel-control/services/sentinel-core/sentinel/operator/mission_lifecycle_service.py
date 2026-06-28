@@ -40,10 +40,16 @@ class MissionExecutionRequestState(StrEnum):
 
 _EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT = "stop_after_first_material_receipt"
 _EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE = "low_friction_read_only_power_mode"
+_EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT = "model_led_read_only_autopilot"
+_EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS = "max_material_receipts"
+_EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS = "max_provider_decision_calls"
 _SAFE_EXECUTION_OPTION_KEYS = frozenset(
     {
         _EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT,
         _EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE,
+        _EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT,
+        _EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS,
+        _EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS,
     }
 )
 
@@ -370,7 +376,34 @@ def _normalize_execution_options(options: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(value, bool):
             raise ValueError("low_friction_read_only_power_mode must be boolean")
         normalized[_EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE] = value
+    if _EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT in options:
+        value = options[_EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT]
+        if not isinstance(value, bool):
+            raise ValueError("model_led_read_only_autopilot must be boolean")
+        normalized[_EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT] = value
+    if _EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS in options:
+        normalized[_EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS] = _normalize_positive_execution_limit(
+            options[_EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS],
+            field_name=_EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS,
+        )
+    if _EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS in options:
+        normalized[_EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS] = _normalize_positive_execution_limit(
+            options[_EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS],
+            field_name=_EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS,
+        )
     return normalized
+
+
+def _normalize_positive_execution_limit(value: Any, *, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a positive integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be a positive integer") from exc
+    if parsed < 1:
+        raise ValueError(f"{field_name} must be a positive integer")
+    return parsed
 
 
 def _validate_execution_options_for_route(
@@ -379,12 +412,20 @@ def _validate_execution_options_for_route(
     capability_id: str,
     operation: str,
 ) -> None:
+    read_only_route = capability_id == "read_only_research" and operation == "inspect_repository"
+    if options.get(_EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT) is True:
+        if not read_only_route:
+            raise ValueError("model_led_read_only_autopilot requires read_only_research inspect_repository route")
+        if options.get(_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT) is True:
+            raise ValueError("model_led_read_only_autopilot cannot combine with first-receipt mode")
+        if options.get(_EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE) is not True:
+            raise ValueError("model_led_read_only_autopilot requires low_friction_read_only_power_mode")
+        return
     if options.get(_EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE) is not True:
         return
     if (
         options.get(_EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT) is not True
-        or capability_id != "read_only_research"
-        or operation != "inspect_repository"
+        or not read_only_route
     ):
         raise ValueError(
             "low_friction_read_only_power_mode requires read_only_research inspect_repository first-receipt mode"
