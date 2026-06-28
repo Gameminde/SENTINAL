@@ -1,0 +1,422 @@
+from __future__ import annotations
+
+import hashlib
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
+from sentinel.operator.code_execution_sandbox_models import CodeExecutionReceipt
+from sentinel.operator.code_execution_sandbox_replay import CodeExecutionReplayView
+from sentinel.operator.code_execution_sandbox_runtime import (
+    CodeExecutionProcessResult,
+    CodeExecutionSandboxRuntime,
+    CodeExecutionSandboxRuntimeError,
+)
+from sentinel.operator.decision_context import DecisionContextCompiler
+from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.loop_guard import LoopGuard, LoopGuardConfig
+from sentinel.operator.model_led_task_loop import ModelLedTaskDecisionClient, ModelLedTaskLoop, ModelLedTaskLoopReplay, ModelLedTaskLoopStatus
+from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
+from sentinel.operator.workspace_patch_runtime import WorkspacePatchCheckResult, WorkspacePatchRuntime
+
+
+def test_power_pack3_allowed_fake_pass_and_compileall_profiles_execute_with_receipts(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    before_workspace = _workspace_fingerprint(fixture.workspace)
+
+    fake_result = fixture.code_runtime.execute(
+        ActionEnvelope(capability_id="code_execution_sandbox", operation="code_exec.run_profile", params={"profile_id": "fake_pass"}),
+        authority=fixture.authority,
+        context={},
+    )
+    compile_result = fixture.code_runtime.execute(
+        ActionEnvelope(
+            capability_id="code_execution_sandbox",
+            operation="code_exec.run_profile",
+            params={"profile_id": "python_compileall", "args": ["src"]},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert fake_result.status == "passed"
+    assert compile_result.status == "passed"
+    assert set(fixture.code_runtime.profiles) >= {"fake_pass", "python_compileall", "pytest_file", "python_module_smoke"}
+    assert fake_result.material_action is True
+    assert compile_result.material_action is True
+    assert fixture.code_runtime.command_execution_count == 2
+    assert _workspace_fingerprint(fixture.workspace) == before_workspace
+    assert not list(fixture.workspace.rglob("__pycache__"))
+    assert fixture.load_code_receipt(fake_result.receipt_refs).verify_hash()
+    assert fixture.load_code_receipt(compile_result.receipt_refs).verify_hash()
+
+
+def test_power_pack3_pytest_file_profile_executes_specific_workspace_test(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+
+    result = fixture.code_runtime.execute(
+        ActionEnvelope(
+            capability_id="code_execution_sandbox",
+            operation="code_exec.run_profile",
+            params={"profile_id": "pytest_file", "args": ["tests/test_smoke.py"]},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert result.status == "passed"
+    assert result.receipt_refs[0].startswith("code_exec_receipt_")
+    assert fixture.code_runtime.command_execution_count == 1
+
+
+def test_power_pack3_blocks_unknown_raw_shell_metacharacters_path_escape_network_and_credentials(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    outside = tmp_path / "outside.py"
+    outside.write_text("print('outside')\n", encoding="utf-8")
+
+    blocked_params = [
+        {"profile_id": "unknown", "args": []},
+        {"command": "python -m pytest"},
+        {"profile_id": "fake_pass", "args": ["&&"]},
+        {"profile_id": "python_compileall", "args": ["../outside.py"]},
+        {"profile_id": "python_compileall", "args": [str(outside)]},
+        {"profile_id": "fake_pass", "args": ["https://example.com"]},
+        {"profile_id": "fake_pass", "args": ["Authorization: Bearer token"]},
+    ]
+
+    for params in blocked_params:
+        with pytest.raises((CodeExecutionSandboxRuntimeError, ValueError)):
+            fixture.code_runtime.execute(
+                ActionEnvelope(capability_id="code_execution_sandbox", operation="code_exec.run_profile", params=params),
+                authority=fixture.authority,
+                context={},
+            )
+
+    assert fixture.code_runtime.command_execution_count == 0
+
+
+def test_power_pack3_bounds_and_redacts_stdout_stderr_and_records_timeout_honestly(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, runner=_ScriptedRunner(exit_code=1, stdout="ok " * 200, stderr="secret=hidden\n" * 80, timed_out=True))
+
+    result = fixture.code_runtime.execute(
+        ActionEnvelope(
+            capability_id="code_execution_sandbox",
+            operation="code_exec.run_profile",
+            params={"profile_id": "python_compileall", "args": ["src"]},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_code_receipt(result.receipt_refs)
+
+    assert result.status == "timeout"
+    assert result.blocked_reason == "code_exec_timeout"
+    assert receipt.status == "timeout"
+    assert len(receipt.stdout_excerpt) <= 240
+    assert len(receipt.stderr_excerpt) <= 240
+    assert "secret=hidden" not in receipt.safe_model_dump()["stderr_excerpt"]
+
+
+def test_power_pack3_generic_loop_runs_read_only_code_exec_finish_and_context_summarizes_code_execution(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="read_only_research", operation="list_directory", params={"path": "."}),
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "fake_pass"},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "code execution loop done"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    loop_replay = ModelLedTaskLoopReplay.from_store(fixture.kernel.store, fixture.mission_id)
+    code_replay = CodeExecutionReplayView.from_store(
+        fixture.kernel.store,
+        mission_id=fixture.mission_id,
+        workspace_root=fixture.workspace,
+    )
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert fixture.kernel.store.load_record(fixture.mission_id).status is OperatorMissionStatus.COMPLETED
+    assert result.capability_sequence == (
+        "read_only_research:list_directory",
+        "code_execution_sandbox:code_exec.run_profile",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 2
+    assert decisions.contexts[2]["code_execution_summary"][0]["profile_id"] == "fake_pass"
+    assert fixture.code_runtime.command_execution_count == 1
+    assert loop_replay.command_executions_delta == 0
+    assert code_replay.command_executions_delta == 0
+    assert code_replay.receipt_writes_delta == 0
+    assert code_replay.artifact_hashes_stable is True
+
+
+def test_power_pack3_generic_loop_runs_patch_code_exec_read_only_verify_finish(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    base_hash = fixture.readme_hash()
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO: run sandbox\n",
+                    "new_text": "TODO: sandbox command verified\n",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "python_compileall", "args": ["src"]},
+            ),
+            ActionEnvelope(
+                capability_id="read_only_research",
+                operation="search_text",
+                params={"path": ".", "query": "sandbox command verified"},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "patch plus code exec done"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert "sandbox command verified" in fixture.readme.read_text(encoding="utf-8")
+    assert fixture.patch_runtime.patch_application_count == 1
+    assert fixture.code_runtime.command_execution_count == 1
+    assert fixture.read_only_tool_calls == 1
+    assert any(ref.startswith("workspace_patch_receipt_") for ref in result.receipt_refs)
+    assert any(ref.startswith("code_exec_receipt_") for ref in result.receipt_refs)
+
+
+def test_power_pack3_inspect_result_is_non_material_and_loop_guard_counts_run_profile_as_material(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    run_result = fixture.code_runtime.execute(
+        ActionEnvelope(capability_id="code_execution_sandbox", operation="code_exec.run_profile", params={"profile_id": "fake_pass"}),
+        authority=fixture.authority,
+        context={},
+    )
+    inspect_result = fixture.code_runtime.execute(
+        ActionEnvelope(
+            capability_id="code_execution_sandbox",
+            operation="code_exec.inspect_result",
+            params={"receipt_ref": run_result.receipt_refs[0]},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert inspect_result.status == "completed"
+    assert inspect_result.material_action is False
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="code_execution_sandbox", operation="code_exec.run_profile", params={"profile_id": "fake_pass"}),
+            ActionEnvelope(capability_id="code_execution_sandbox", operation="code_exec.run_profile", params={"profile_id": "fake_pass", "args": ["README.md"]}),
+        ]
+    )
+    result = ModelLedTaskLoop(
+        mission_id=fixture.mission_id,
+        kernel=fixture.kernel,
+        authority=fixture.authority,
+        action_kernel=fixture.action_kernel,
+        decision_client=decisions,
+        decision_context=DecisionContextCompiler(),
+        loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=3, max_material_actions=1)),
+    ).run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_material_budget_reached"
+    assert result.material_action_count == 1
+    assert fixture.code_runtime.command_execution_count == 2
+
+
+class _CodeExecFixture:
+    def __init__(self, tmp_path: Path, runner: object | None = None) -> None:
+        self.workspace = tmp_path / "workspace"
+        self.workspace.mkdir()
+        self.readme = self.workspace / "README.md"
+        self.readme.write_text("# Project\n\nTODO: run sandbox\n", encoding="utf-8")
+        (self.workspace / "src").mkdir()
+        (self.workspace / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+        (self.workspace / "tests").mkdir()
+        (self.workspace / "tests" / "test_smoke.py").write_text("def test_smoke():\n    assert True\n", encoding="utf-8")
+        self.kernel = MissionKernel(run_root=tmp_path / "runs", telemetry_sink=_CertifiedTelemetrySink())
+        record = self.kernel.create_mission(
+            session_id="session_power_pack3",
+            draft=MissionDraft(
+                title="Model-led code execution sandbox",
+                objective="Let the model run bounded local command profiles inside a granted workspace.",
+                constraints=["profile-only", "receipts always", "no ambient shell"],
+                expected_artifacts=["code execution receipt"],
+            ),
+            authority_summary=MissionAuthoritySummary(
+                mission_id="power_pack3",
+                allowed_actions=[
+                    "list_directory",
+                    "search_text",
+                    "workspace_patch.apply_patch",
+                    "code_exec.run_profile",
+                    "code_exec.inspect_result",
+                    "finish",
+                ],
+                forbidden_actions=["shell", "network", "credential_access", "package_install"],
+                summary="Read-only, workspace patching, and bounded code execution profiles are granted.",
+            ),
+        )
+        self.mission_id = record.mission_id
+        self.kernel.enqueue(self.mission_id)
+        self.authority = self.envelope()
+        self.code_runtime = CodeExecutionSandboxRuntime(
+            kernel=self.kernel,
+            mission_id=self.mission_id,
+            workspace_root=self.workspace,
+            runner=runner,
+        )
+        self.patch_runtime = WorkspacePatchRuntime(
+            kernel=self.kernel,
+            mission_id=self.mission_id,
+            workspace_root=self.workspace,
+            check_runner=_FakeBoundedCheckRunner(),
+        )
+        self.read_only_tool_calls = 0
+        self.action_kernel = ActionKernel(
+            executors={
+                "read_only_research": self._execute_read_only,
+                "workspace_patch": lambda envelope, context: self.patch_runtime.execute(
+                    envelope,
+                    authority=self.authority,
+                    context=context,
+                ),
+                "code_execution_sandbox": lambda envelope, context: self.code_runtime.execute(
+                    envelope,
+                    authority=self.authority,
+                    context=context,
+                ),
+            }
+        )
+
+    def envelope(self) -> MissionAuthorityEnvelope:
+        now = datetime.now(UTC)
+        return MissionAuthorityEnvelope(
+            id=self.mission_id,
+            user_id="user_youcef",
+            mission_title="Model-led code execution sandbox",
+            mission_objective="Run bounded command profiles inside the approved workspace.",
+            allowed_tools=["read_only_research", "workspace_patch", "code_execution_sandbox"],
+            allowed_actions=[
+                "list_directory",
+                "search_text",
+                "workspace_patch.apply_patch",
+                "code_exec.run_profile",
+                "code_exec.inspect_result",
+                "finish",
+            ],
+            forbidden_actions=["shell", "network", "credential_access", "package_install"],
+            allowed_paths=[str(self.workspace)],
+            max_actions=12,
+            expires_at=now + timedelta(minutes=30),
+        )
+
+    def loop(self, decision_client: ModelLedTaskDecisionClient) -> ModelLedTaskLoop:
+        return ModelLedTaskLoop(
+            mission_id=self.mission_id,
+            kernel=self.kernel,
+            authority=self.authority,
+            action_kernel=self.action_kernel,
+            decision_client=decision_client,
+            decision_context=DecisionContextCompiler(),
+            loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=8, max_material_actions=6)),
+            available_actions=(
+                "read_only.list_directory",
+                "read_only.search_text",
+                "workspace_patch.apply_patch",
+                "code_exec.run_profile",
+                "code_exec.inspect_result",
+                "finish",
+            ),
+        )
+
+    def readme_hash(self) -> str:
+        return hashlib.sha256(self.readme.read_bytes()).hexdigest()
+
+    def load_code_receipt(self, receipt_refs: tuple[str, ...]) -> CodeExecutionReceipt:
+        receipt_ref = next(ref for ref in receipt_refs if ref.startswith("code_exec_receipt_"))
+        path = self.kernel.store.mission_dir(self.mission_id) / "code_execution_sandbox" / "receipts" / f"{receipt_ref}.json"
+        return CodeExecutionReceipt.model_validate_json(path.read_text(encoding="utf-8"))
+
+    def _execute_read_only(self, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+        del context
+        self.read_only_tool_calls += 1
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id,
+            operation=envelope.operation,
+            status="completed",
+            receipt_refs=(f"readonly_receipt_{self.read_only_tool_calls}",),
+            evidence_refs=(f"readonly_evidence_{self.read_only_tool_calls}",),
+            material_action=True,
+            observation_summary=f"{envelope.operation} completed.",
+        )
+
+
+class _ScriptedRunner:
+    def __init__(self, *, exit_code: int, stdout: str, stderr: str, timed_out: bool = False) -> None:
+        self.exit_code = exit_code
+        self.stdout = stdout
+        self.stderr = stderr
+        self.timed_out = timed_out
+
+    def run(self, *, executable: str, args: tuple[str, ...], cwd: Path, timeout_seconds: int, env: dict[str, str]) -> CodeExecutionProcessResult:
+        del executable, args, cwd, timeout_seconds, env
+        return CodeExecutionProcessResult(
+            exit_code=self.exit_code,
+            duration_ms=12,
+            stdout=self.stdout,
+            stderr=self.stderr,
+            timed_out=self.timed_out,
+        )
+
+
+class _FakeBoundedCheckRunner:
+    def run(self, *, command_id: str, args: tuple[str, ...], cwd: Path) -> WorkspacePatchCheckResult:
+        return WorkspacePatchCheckResult(
+            command_id=command_id,
+            args=args,
+            exit_status=0,
+            duration_ms=3,
+            stdout="fake check passed",
+            stderr="",
+            cwd_hash=str(hash(cwd)),
+        )
+
+
+class _CertifiedTelemetrySink:
+    def require_certified_mode(self) -> None:
+        return None
+
+    def record_metric(self, *args: object, **kwargs: object) -> None:
+        return None
+
+    def record_mission_event(self, *args: object, **kwargs: object) -> None:
+        return None
+
+
+def _workspace_fingerprint(workspace: Path) -> tuple[str, ...]:
+    rows: list[str] = []
+    for path in sorted(workspace.rglob("*")):
+        relative = path.relative_to(workspace).as_posix()
+        if path.is_file():
+            rows.append(f"F|{relative}|{hashlib.sha256(path.read_bytes()).hexdigest()}")
+        elif path.is_dir():
+            rows.append(f"D|{relative}")
+    return tuple(rows)

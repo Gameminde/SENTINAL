@@ -123,6 +123,8 @@ class ModelLedTaskLoop:
             "read_only.search_text",
             "read_only.read_file_segment",
             "channel.send_message",
+            "code_exec.run_profile",
+            "code_exec.inspect_result",
             "finish",
         )
         self.results: list[ActionResult] = []
@@ -293,6 +295,7 @@ class ModelLedTaskLoopReplay(SentinelModel):
     channel_transport_sends_delta: int
     patch_applications_delta: int = 0
     verification_runs_delta: int = 0
+    command_executions_delta: int = 0
     receipt_writes_delta: int
     evidence_writes_delta: int
     finalgate_writes_delta: int
@@ -317,6 +320,7 @@ class ModelLedTaskLoopReplay(SentinelModel):
             channel_transport_sends_delta=0,
             patch_applications_delta=0,
             verification_runs_delta=0,
+            command_executions_delta=0,
             receipt_writes_delta=after["receipts"] - before["receipts"],
             evidence_writes_delta=after["evidence"] - before["evidence"],
             finalgate_writes_delta=after["finalgate"] - before["finalgate"],

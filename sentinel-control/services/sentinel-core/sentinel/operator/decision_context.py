@@ -31,6 +31,11 @@ class DecisionContextCompiler:
             for result in observations[-6:]
             if result.capability_id == "workspace_patch" and result.operation == "run_bounded_check"
         ]
+        code_execution_results = [
+            result
+            for result in observations[-6:]
+            if result.capability_id == "code_execution_sandbox" and result.operation == "code_exec.run_profile"
+        ]
         return {
             "mission_id": mission_id,
             "mission_objective": mission_objective,
@@ -88,7 +93,26 @@ class DecisionContextCompiler:
                 }
                 for result in workspace_verification_results
             ],
+            "code_execution_summary": [
+                {
+                    "operation": result.operation,
+                    "status": result.status,
+                    "profile_id": _profile_id_from_summary(result.observation_summary),
+                    "receipt_count": len(result.receipt_refs),
+                    "summary": result.observation_summary[:500],
+                    "result_hash": result.result_hash,
+                }
+                for result in code_execution_results
+            ],
         }
+
+
+def _profile_id_from_summary(summary: str) -> str:
+    prefix = "code execution profile "
+    if not summary.startswith(prefix):
+        return "unknown"
+    remainder = summary[len(prefix) :]
+    return remainder.split(" ", 1)[0] or "unknown"
 
 
 __all__ = ["DecisionContextCompiler"]
