@@ -234,6 +234,7 @@ class ReadOnlyFinalGateCertificate(SentinelModel):
     status: str
     accepted: bool
     receipt_refs: list[str] = Field(default_factory=list)
+    artifact_refs: list[str] = Field(default_factory=list)
     reason: str
     certificate_hash: str = ""
     created_at: datetime = Field(default_factory=utc_now)
@@ -274,6 +275,7 @@ class ReadOnlyFinalGateCertificate(SentinelModel):
             "status": self.status,
             "accepted": self.accepted,
             "receipt_refs": sanitize_operator_refs(self.receipt_refs),
+            "artifact_refs": sanitize_operator_refs(self.artifact_refs),
             "reason": redact_operator_text(self.reason),
             "certificate_hash": self.certificate_hash,
             "created_at": self.created_at.isoformat(),
@@ -281,6 +283,130 @@ class ReadOnlyFinalGateCertificate(SentinelModel):
             "authority_effect": self.authority_effect,
             "can_grant_authority": self.can_grant_authority,
             "can_execute": self.can_execute,
+        }
+
+
+class ReadOnlyMissionSummaryArtifact(SentinelModel):
+    summary_id: str = Field(default_factory=lambda: new_id("readonly_summary"))
+    mission_id: str
+    workspace_ref: str
+    receipt_refs: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    action_names: list[str] = Field(default_factory=list)
+    observed_paths: list[str] = Field(default_factory=list)
+    safe_summary: str
+    safe_inferences: list[str] = Field(default_factory=list)
+    next_read_only_steps: list[str] = Field(default_factory=list)
+    escalation_note: str
+    summary_hash: str = ""
+    created_at: datetime = Field(default_factory=utc_now)
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _summary_is_data_only(self) -> "ReadOnlyMissionSummaryArtifact":
+        assert_data_not_authority(
+            context="read_only_mission_summary",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        _reject_forbidden_summary_material(self.safe_model_dump(), context="read_only_mission_summary")
+        return self
+
+    def with_hash(self) -> "ReadOnlyMissionSummaryArtifact":
+        payload = self.safe_model_dump()
+        payload["summary_hash"] = ""
+        return self.model_copy(update={"summary_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        return self.with_hash().summary_hash == self.summary_hash
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "summary_id": self.summary_id,
+            "mission_id": self.mission_id,
+            "workspace_ref": redact_operator_text(self.workspace_ref),
+            "receipt_refs": sanitize_operator_refs(self.receipt_refs),
+            "evidence_refs": sanitize_operator_refs(self.evidence_refs),
+            "action_names": [redact_operator_text(item) for item in self.action_names],
+            "observed_paths": [_safe_workspace_relative_path(item) for item in self.observed_paths],
+            "safe_summary": redact_operator_text(self.safe_summary),
+            "safe_inferences": [redact_operator_text(item) for item in self.safe_inferences],
+            "next_read_only_steps": [redact_operator_text(item) for item in self.next_read_only_steps],
+            "escalation_note": redact_operator_text(self.escalation_note),
+            "summary_hash": self.summary_hash,
+            "created_at": self.created_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+
+class ReadOnlyOperatorMemoryCandidateArtifact(SentinelModel):
+    operator_memory_candidate_id: str = Field(default_factory=lambda: new_id("readonly_memory_candidate"))
+    mission_id: str
+    workspace_ref: str
+    receipt_refs: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    summary_ref: str
+    scope: str = "read_only_repository_understanding"
+    confidence: str = "medium"
+    created_at: datetime = Field(default_factory=utc_now)
+    revocable: bool = True
+    authority_granting: bool = False
+    can_execute: bool = False
+    raw_secret_material: bool = False
+    candidate_hash: str = ""
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+
+    @model_validator(mode="after")
+    def _memory_candidate_is_data_only(self) -> "ReadOnlyOperatorMemoryCandidateArtifact":
+        assert_data_not_authority(
+            context="read_only_operator_memory_candidate",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        if self.authority_granting or self.can_execute or self.raw_secret_material:
+            raise ValueError("operator memory candidate cannot grant authority, execute, or store raw secrets")
+        _reject_forbidden_summary_material(self.safe_model_dump(), context="read_only_operator_memory_candidate")
+        return self
+
+    def with_hash(self) -> "ReadOnlyOperatorMemoryCandidateArtifact":
+        payload = self.safe_model_dump()
+        payload["candidate_hash"] = ""
+        return self.model_copy(update={"candidate_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        return self.with_hash().candidate_hash == self.candidate_hash
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "operator_memory_candidate_id": self.operator_memory_candidate_id,
+            "mission_id": self.mission_id,
+            "workspace_ref": redact_operator_text(self.workspace_ref),
+            "receipt_refs": sanitize_operator_refs(self.receipt_refs),
+            "evidence_refs": sanitize_operator_refs(self.evidence_refs),
+            "summary_ref": redact_operator_text(self.summary_ref),
+            "scope": redact_operator_text(self.scope),
+            "confidence": redact_operator_text(self.confidence),
+            "created_at": self.created_at.isoformat(),
+            "revocable": self.revocable,
+            "authority_granting": self.authority_granting,
+            "can_execute": self.can_execute,
+            "raw_secret_material": self.raw_secret_material,
+            "candidate_hash": self.candidate_hash,
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
         }
 
 
@@ -475,8 +601,12 @@ class ReadOnlyReplayView(SentinelModel):
     mission_id: str
     receipt_refs: list[str] = Field(default_factory=list)
     finalgate_refs: list[str] = Field(default_factory=list)
+    summary_refs: list[str] = Field(default_factory=list)
+    operator_memory_candidate_refs: list[str] = Field(default_factory=list)
     receipt_count: int = 0
     finalgate_count: int = 0
+    summary_count: int = 0
+    operator_memory_candidate_count: int = 0
     failed_attempt_count: int = 0
     emergency_terminal_count: int = 0
     model_calls_before_replay: int = 0
@@ -489,6 +619,10 @@ class ReadOnlyReplayView(SentinelModel):
     failed_attempt_writes_after_replay: int = 0
     finalgate_writes_before_replay: int = 0
     finalgate_writes_after_replay: int = 0
+    summary_writes_before_replay: int = 0
+    summary_writes_after_replay: int = 0
+    operator_memory_candidate_writes_before_replay: int = 0
+    operator_memory_candidate_writes_after_replay: int = 0
     emergency_terminal_writes_before_replay: int = 0
     emergency_terminal_writes_after_replay: int = 0
     event_count_before_replay: int = 0
@@ -517,6 +651,8 @@ class ReadOnlyProductionSpineSession:
         model_led_read_only_autopilot: bool = False,
         max_material_receipts: int | None = None,
         max_provider_decision_calls: int | None = None,
+        generate_read_only_mission_summary: bool = False,
+        write_operator_memory_candidate: bool = False,
     ) -> None:
         if model_led_read_only_autopilot and stop_after_first_material_receipt:
             raise ValueError("model_led_read_only_autopilot cannot combine with stop_after_first_material_receipt")
@@ -548,6 +684,10 @@ class ReadOnlyProductionSpineSession:
         self._model_led_read_only_autopilot = model_led_read_only_autopilot
         self._max_material_receipts = _positive_int_or_none(max_material_receipts)
         self._max_provider_decision_calls = _positive_int_or_none(max_provider_decision_calls)
+        self._generate_read_only_mission_summary = generate_read_only_mission_summary
+        self._write_operator_memory_candidate = write_operator_memory_candidate
+        self._summary_refs: list[str] = []
+        self._operator_memory_candidate_refs: list[str] = []
         self.tool_call_count = 0
         self._evidence_ref_by_hash: dict[str, str] = {}
         self._excluded_roots = [
@@ -855,9 +995,11 @@ class ReadOnlyProductionSpineSession:
                 phase="model_led_autopilot_budget",
                 legacy_reason=reason,
             )
+        artifact_refs = self._record_summary_and_memory_artifacts_if_enabled()
         try:
             certificate = self._record_finalgate(
                 receipt_refs=list(self._receipt_refs),
+                artifact_refs=artifact_refs,
                 status="accepted",
                 accepted=True,
                 reason=reason,
@@ -879,6 +1021,8 @@ class ReadOnlyProductionSpineSession:
                 "max_material_receipts": self._max_material_receipts,
                 "max_provider_decision_calls": self._max_provider_decision_calls,
                 "report_lane_invoked": False,
+                "summary_refs": sanitize_operator_refs(self._summary_refs),
+                "operator_memory_candidate_refs": sanitize_operator_refs(self._operator_memory_candidate_refs),
             },
             receipt_refs=list(self._receipt_refs),
             finalgate_certificate_refs=[certificate.certificate_id],
@@ -890,6 +1034,7 @@ class ReadOnlyProductionSpineSession:
             receipt_refs=list(self._receipt_refs),
             finalgate_refs=[certificate.certificate_id],
             finalgate_status="accepted" if certificate.accepted else "rejected",
+            artifact_refs=artifact_refs,
         )
 
     def _finalize_blocked_status_if_open(self) -> None:
@@ -1073,6 +1218,8 @@ class ReadOnlyProductionSpineSession:
         receipt_writes_before = self._artifact_write_count("receipts")
         failed_attempt_writes_before = self._artifact_write_count("failed_attempts")
         finalgate_writes_before = self._artifact_write_count("finalgate")
+        summary_writes_before = self._artifact_write_count("mission_summaries")
+        operator_memory_candidate_writes_before = self._artifact_write_count("operator_memory_candidates")
         emergency_terminal_writes_before = self._artifact_write_count("emergency_terminal")
         events = self.kernel.store.load_events(self.mission_id)
         receipt_refs = _dedupe(
@@ -1093,6 +1240,18 @@ class ReadOnlyProductionSpineSession:
             if event.event_type == "read_only_spine_finalgate_certified"
             for ref in event.finalgate_certificate_refs
         )
+        summary_refs = _dedupe(
+            str(event.metadata.get("summary_id") or "")
+            for event in events
+            if event.event_type == "read_only_mission_summary_persisted"
+        )
+        summary_refs = [ref for ref in summary_refs if ref]
+        operator_memory_candidate_refs = _dedupe(
+            str(event.metadata.get("operator_memory_candidate_id") or "")
+            for event in events
+            if event.event_type == "read_only_operator_memory_candidate_persisted"
+        )
+        operator_memory_candidate_refs = [ref for ref in operator_memory_candidate_refs if ref]
         emergency_terminal_refs = _dedupe(
             str(event.metadata.get("emergency_id") or "")
             for event in events
@@ -1104,13 +1263,19 @@ class ReadOnlyProductionSpineSession:
             finalgate_refs=finalgate_refs,
             failed_attempt_refs=failed_attempt_refs,
             emergency_terminal_refs=emergency_terminal_refs,
+            summary_refs=summary_refs,
+            operator_memory_candidate_refs=operator_memory_candidate_refs,
         )
         return ReadOnlyReplayView(
             mission_id=self.mission_id,
             receipt_refs=receipt_refs,
             finalgate_refs=finalgate_refs,
+            summary_refs=summary_refs,
+            operator_memory_candidate_refs=operator_memory_candidate_refs,
             receipt_count=len(receipt_refs),
             finalgate_count=len(finalgate_refs),
+            summary_count=len(summary_refs),
+            operator_memory_candidate_count=len(operator_memory_candidate_refs),
             failed_attempt_count=len(failed_attempt_refs),
             emergency_terminal_count=len(emergency_terminal_refs),
             model_calls_before_replay=model_calls_before,
@@ -1123,6 +1288,10 @@ class ReadOnlyProductionSpineSession:
             failed_attempt_writes_after_replay=self._artifact_write_count("failed_attempts"),
             finalgate_writes_before_replay=finalgate_writes_before,
             finalgate_writes_after_replay=self._artifact_write_count("finalgate"),
+            summary_writes_before_replay=summary_writes_before,
+            summary_writes_after_replay=self._artifact_write_count("mission_summaries"),
+            operator_memory_candidate_writes_before_replay=operator_memory_candidate_writes_before,
+            operator_memory_candidate_writes_after_replay=self._artifact_write_count("operator_memory_candidates"),
             emergency_terminal_writes_before_replay=emergency_terminal_writes_before,
             emergency_terminal_writes_after_replay=self._artifact_write_count("emergency_terminal"),
             event_count_before_replay=event_count_before,
@@ -1458,10 +1627,101 @@ class ReadOnlyProductionSpineSession:
         self._write_artifact("reports", report_ref, payload)
         return report_ref
 
+    def _record_summary_and_memory_artifacts_if_enabled(self) -> list[str]:
+        if not (self._generate_read_only_mission_summary or self._write_operator_memory_candidate):
+            return []
+        if not self._receipt_refs or not self._observations:
+            raise ReadOnlySpineError(
+                ReadOnlyFailureCode.READ_MAX_TURNS_EXHAUSTED,
+                phase="summary_generation",
+                legacy_reason="read_only_summary_requires_material_receipts",
+            )
+        summary = self._record_mission_summary_artifact()
+        artifact_refs = [summary.summary_id]
+        if self._write_operator_memory_candidate:
+            memory = self._record_operator_memory_candidate_artifact(summary)
+            artifact_refs.append(memory.operator_memory_candidate_id)
+        return artifact_refs
+
+    def _record_mission_summary_artifact(self) -> ReadOnlyMissionSummaryArtifact:
+        evidence_refs = _dedupe(str(obs.get("evidence_ref") or "") for obs in self._observations)
+        action_names = _dedupe(str(obs.get("action") or "") for obs in self._observations)
+        observed_paths = _dedupe(
+            _safe_workspace_relative_path(str(obs.get("path") or ""))
+            for obs in self._observations
+            if obs.get("path") is not None
+        )
+        summary = ReadOnlyMissionSummaryArtifact(
+            mission_id=self.mission_id,
+            workspace_ref=f"workspace:{self.snapshot_root}",
+            receipt_refs=list(self._receipt_refs),
+            evidence_refs=[ref for ref in evidence_refs if ref],
+            action_names=[name for name in action_names if name],
+            observed_paths=[path for path in observed_paths if path],
+            safe_summary=(
+                f"Sentinel observed {len(self._observations)} governed read-only action(s) "
+                f"over {len(observed_paths)} workspace path(s)."
+            ),
+            safe_inferences=[
+                "Repository structure and bounded file evidence were inspected through read-only receipts.",
+                "Findings remain evidence-linked and do not grant execution authority.",
+            ],
+            next_read_only_steps=[
+                "Continue searching for command registration and execution entry points.",
+                "Read bounded segments from files identified by prior receipts.",
+            ],
+            escalation_note="Non-read-only powers require separate explicit operator authority.",
+        ).with_hash()
+        self._write_artifact("mission_summaries", summary.summary_id, summary.safe_model_dump())
+        self._summary_refs.append(summary.summary_id)
+        self.kernel.store.append_event(
+            self.mission_id,
+            event_type="read_only_mission_summary_persisted",
+            safe_summary="Read-only mission summary artifact persisted from receipts and evidence.",
+            metadata={
+                "summary_id": summary.summary_id,
+                "summary_hash": summary.summary_hash,
+                "receipt_count": len(summary.receipt_refs),
+                "evidence_count": len(summary.evidence_refs),
+            },
+            receipt_refs=list(summary.receipt_refs),
+        )
+        return summary
+
+    def _record_operator_memory_candidate_artifact(
+        self,
+        summary: ReadOnlyMissionSummaryArtifact,
+    ) -> ReadOnlyOperatorMemoryCandidateArtifact:
+        candidate = ReadOnlyOperatorMemoryCandidateArtifact(
+            mission_id=self.mission_id,
+            workspace_ref=f"workspace:{self.snapshot_root}",
+            receipt_refs=list(summary.receipt_refs),
+            evidence_refs=list(summary.evidence_refs),
+            summary_ref=summary.summary_id,
+            confidence="receipt_backed",
+        ).with_hash()
+        self._write_artifact("operator_memory_candidates", candidate.operator_memory_candidate_id, candidate.safe_model_dump())
+        self._operator_memory_candidate_refs.append(candidate.operator_memory_candidate_id)
+        self.kernel.store.append_event(
+            self.mission_id,
+            event_type="read_only_operator_memory_candidate_persisted",
+            safe_summary="Read-only operator memory candidate persisted as non-authority mission artifact.",
+            metadata={
+                "operator_memory_candidate_id": candidate.operator_memory_candidate_id,
+                "candidate_hash": candidate.candidate_hash,
+                "summary_ref": candidate.summary_ref,
+                "authority_granting": candidate.authority_granting,
+                "can_execute": candidate.can_execute,
+            },
+            receipt_refs=list(candidate.receipt_refs),
+        )
+        return candidate
+
     def _record_finalgate(
         self,
         *,
         receipt_refs: list[str],
+        artifact_refs: list[str] | None = None,
         status: str,
         accepted: bool,
         reason: str,
@@ -1471,6 +1731,7 @@ class ReadOnlyProductionSpineSession:
             status=status,
             accepted=accepted,
             receipt_refs=receipt_refs,
+            artifact_refs=artifact_refs or [],
             reason=reason,
         ).with_hash()
         self._write_artifact("finalgate", certificate.certificate_id, certificate.safe_model_dump())
@@ -1480,7 +1741,11 @@ class ReadOnlyProductionSpineSession:
             self.mission_id,
             event_type="read_only_spine_finalgate_certified",
             safe_summary="Read-only spine terminal FinalGate certificate recorded.",
-            metadata={"accepted": certificate.accepted, "certificate_hash": certificate.certificate_hash},
+            metadata={
+                "accepted": certificate.accepted,
+                "certificate_hash": certificate.certificate_hash,
+                "artifact_refs": sanitize_operator_refs(certificate.artifact_refs),
+            },
             receipt_refs=receipt_refs,
             finalgate_certificate_refs=[certificate.certificate_id],
         )
@@ -1490,13 +1755,13 @@ class ReadOnlyProductionSpineSession:
         return self.kernel.store.mission_dir(self.mission_id, create=True) / "read_only_spine"
 
     def _write_artifact(self, collection: str, item_id: str, payload: dict[str, Any]) -> None:
-        self.kernel.store.atomic_write_json(self._artifact_root() / collection / f"{item_id}.json", payload)
+        self.kernel.store.atomic_write_json(self._artifact_path(collection, item_id), payload)
 
     def _artifact_path(self, collection: str, item_id: str) -> Path:
-        return self._artifact_root() / collection / f"{item_id}.json"
+        return self._artifact_root() / _artifact_collection_dir(collection) / f"{item_id}.json"
 
     def _artifact_write_count(self, collection: str) -> int:
-        root = self._artifact_root() / collection
+        root = self._artifact_root() / _artifact_collection_dir(collection)
         if not root.exists():
             return 0
         return len(list(root.glob("*.json")))
@@ -1508,13 +1773,18 @@ class ReadOnlyProductionSpineSession:
         finalgate_refs: list[str],
         failed_attempt_refs: list[str],
         emergency_terminal_refs: list[str],
+        summary_refs: list[str],
+        operator_memory_candidate_refs: list[str],
     ) -> None:
+        known_receipts = set(receipt_refs)
+        known_evidence_refs: set[str] = set()
         for receipt_ref in receipt_refs:
             receipt = self._load_receipt(receipt_ref)
             if receipt.mission_id != self.mission_id:
                 raise ReadOnlySpineError("read_only_replay_receipt_mission_mismatch")
             if not receipt.verify_hash():
                 raise ReadOnlySpineError("read_only_replay_receipt_hash_mismatch")
+            known_evidence_refs.update(sanitize_operator_refs(receipt.evidence_refs))
         for failed_attempt_ref in failed_attempt_refs:
             failed_attempt = self._load_failed_attempt(failed_attempt_ref)
             if failed_attempt.mission_id != self.mission_id:
@@ -1533,6 +1803,28 @@ class ReadOnlyProductionSpineSession:
                 raise ReadOnlySpineError("read_only_replay_emergency_terminal_mission_mismatch")
             if not emergency.verify_hash():
                 raise ReadOnlySpineError("read_only_replay_emergency_terminal_hash_mismatch")
+        known_summaries: set[str] = set()
+        for summary_ref in summary_refs:
+            summary = self._load_mission_summary(summary_ref)
+            if summary.mission_id != self.mission_id:
+                raise ReadOnlySpineError("read_only_replay_summary_mission_mismatch")
+            if not summary.verify_hash():
+                raise ReadOnlySpineError("read_only_replay_summary_hash_mismatch")
+            if not set(summary.receipt_refs).issubset(known_receipts):
+                raise ReadOnlySpineError("read_only_replay_summary_receipt_mismatch")
+            if not set(summary.evidence_refs).issubset(known_evidence_refs):
+                raise ReadOnlySpineError("read_only_replay_summary_evidence_mismatch")
+            known_summaries.add(summary.summary_id)
+        for memory_ref in operator_memory_candidate_refs:
+            candidate = self._load_operator_memory_candidate(memory_ref)
+            if candidate.mission_id != self.mission_id:
+                raise ReadOnlySpineError("read_only_replay_memory_candidate_mission_mismatch")
+            if not candidate.verify_hash():
+                raise ReadOnlySpineError("read_only_replay_memory_candidate_hash_mismatch")
+            if candidate.summary_ref not in known_summaries:
+                raise ReadOnlySpineError("read_only_replay_memory_candidate_summary_mismatch")
+            if candidate.authority_granting or candidate.can_execute or candidate.raw_secret_material:
+                raise ReadOnlySpineError("read_only_replay_memory_candidate_authority_violation")
 
     def _load_receipt(self, receipt_ref: str) -> ReadOnlyActionReceipt:
         path = self._artifact_path("receipts", receipt_ref)
@@ -1551,6 +1843,18 @@ class ReadOnlyProductionSpineSession:
         if not path.exists():
             raise ReadOnlySpineError("read_only_replay_missing_finalgate")
         return ReadOnlyFinalGateCertificate.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+    def _load_mission_summary(self, summary_ref: str) -> ReadOnlyMissionSummaryArtifact:
+        path = self._artifact_path("mission_summaries", summary_ref)
+        if not path.exists():
+            raise ReadOnlySpineError("read_only_replay_missing_mission_summary")
+        return ReadOnlyMissionSummaryArtifact.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+    def _load_operator_memory_candidate(self, memory_ref: str) -> ReadOnlyOperatorMemoryCandidateArtifact:
+        path = self._artifact_path("operator_memory_candidates", memory_ref)
+        if not path.exists():
+            raise ReadOnlySpineError("read_only_replay_missing_operator_memory_candidate")
+        return ReadOnlyOperatorMemoryCandidateArtifact.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
     def _load_emergency_terminal(self, emergency_terminal_ref: str) -> ReadOnlyEmergencyTerminalRecord:
         path = self._artifact_path("emergency_terminal", emergency_terminal_ref)
@@ -1749,11 +2053,41 @@ def _dedupe(values: Any) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
     for value in values:
+        value = str(value)
         if value in seen:
             continue
         seen.add(value)
         result.append(value)
     return result
+
+
+def _artifact_collection_dir(collection: str) -> str:
+    if collection == "operator_memory_candidates":
+        return "memory"
+    return collection
+
+
+def _safe_workspace_relative_path(value: str) -> str:
+    path = _normalize_root_alias(value).replace("\\", "/").strip()
+    if not path or path == ".":
+        return "."
+    if path.startswith("/") or path.startswith("../") or "/../" in path or path == "..":
+        raise ValueError("read-only summary path must stay workspace-relative")
+    return redact_operator_text(path[:240])
+
+
+def _reject_forbidden_summary_material(payload: dict[str, Any], *, context: str) -> None:
+    reject_operator_control_payload(payload, context=context)
+    scan = scan_forbidden_payload_categorized(payload, path=f"$.{context}")
+    rejected = [
+        *scan[OrganSafetyScanCategory.SECRET.value],
+        *scan[OrganSafetyScanCategory.AUTHORITY_EXPANSION.value],
+        *scan[OrganSafetyScanCategory.EXTERNAL_ACTION.value],
+        *scan[OrganSafetyScanCategory.CREDENTIAL_DANGEROUS.value],
+        *scan[OrganSafetyScanCategory.UNSAFE_PAYLOAD.value],
+    ]
+    if rejected:
+        raise ValueError(f"{context} contains forbidden material")
 
 
 _LEGACY_FAILURE_CODE_MAP = {

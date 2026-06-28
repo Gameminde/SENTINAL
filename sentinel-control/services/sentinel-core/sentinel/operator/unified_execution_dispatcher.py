@@ -24,6 +24,8 @@ from sentinel.operator.read_only_operator_spine import (
     ReadOnlyActionReceipt,
     ReadOnlyDecisionClient,
     ReadOnlyFinalGateCertificate,
+    ReadOnlyMissionSummaryArtifact,
+    ReadOnlyOperatorMemoryCandidateArtifact,
     ReadOnlyProductionSpineResult,
     ReadOnlyProductionSpineSession,
     ReadOnlyReportClient,
@@ -286,6 +288,8 @@ class ReadOnlyResearchAdapter:
             model_led_read_only_autopilot=_model_led_read_only_autopilot(request),
             max_material_receipts=_max_material_receipts(request),
             max_provider_decision_calls=_max_provider_decision_calls(request),
+            generate_read_only_mission_summary=_generate_read_only_mission_summary(request),
+            write_operator_memory_candidate=_write_operator_memory_candidate(request),
         )
         result = session.run_via_agent_runtime(envelope=authority)
         status = DispatchStatus.COMPLETED if result.status == "completed" and result.finalgate_status == "accepted" else DispatchStatus.BLOCKED
@@ -507,10 +511,18 @@ class UnifiedExecutionDispatcher:
             finalgate_result = self._load_and_verify_finalgate(result, validated_receipt_refs=receipt_result.receipt_refs)
             if not finalgate_result.ok:
                 return finalgate_result
+            artifact_result = self._load_and_verify_autopilot_artifacts(
+                result,
+                request=request,
+                known_receipt_refs=set(receipt_result.receipt_refs),
+                known_evidence_refs=self._receipt_evidence_refs(result),
+            )
+            if not artifact_result.ok:
+                return artifact_result
             return DispatchProofVerificationResult(
                 ok=True,
                 receipt_refs=receipt_result.receipt_refs,
-                report_refs=[],
+                report_refs=artifact_result.report_refs,
                 finalgate_refs=finalgate_result.finalgate_refs,
                 material_observation_receipt_count=receipt_result.material_observation_receipt_count,
             )
@@ -580,6 +592,65 @@ class UnifiedExecutionDispatcher:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_report_unknown_evidence")
         return DispatchProofVerificationResult(ok=True, report_refs=list(dict.fromkeys(result.artifact_refs)))
 
+    def _load_and_verify_autopilot_artifacts(
+        self,
+        result: UnifiedDispatchResult,
+        *,
+        request: MissionExecutionRequest,
+        known_receipt_refs: set[str],
+        known_evidence_refs: set[str],
+    ) -> DispatchProofVerificationResult:
+        summary_required = _generate_read_only_mission_summary(request)
+        memory_required = _write_operator_memory_candidate(request)
+        if not summary_required and not memory_required:
+            return DispatchProofVerificationResult(ok=True, report_refs=[])
+        if not result.artifact_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_read_only_summary_missing")
+
+        verified_artifact_refs: list[str] = []
+        summary_refs: set[str] = set()
+        memory_refs: set[str] = set()
+        for artifact_ref in result.artifact_refs:
+            summary_path = self._read_only_artifact_path(result.mission_id, "mission_summaries", artifact_ref)
+            if summary_path.exists():
+                summary = ReadOnlyMissionSummaryArtifact.model_validate(json.loads(summary_path.read_text(encoding="utf-8")))
+                if summary.mission_id != result.mission_id:
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_read_only_summary_mission_mismatch")
+                if not summary.verify_hash():
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_read_only_summary_hash_mismatch")
+                if not set(summary.receipt_refs).issubset(known_receipt_refs):
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_read_only_summary_receipt_mismatch")
+                if not set(summary.evidence_refs).issubset(known_evidence_refs):
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_read_only_summary_evidence_mismatch")
+                summary_refs.add(summary.summary_id)
+                verified_artifact_refs.append(summary.summary_id)
+                continue
+
+            memory_path = self._read_only_artifact_path(result.mission_id, "operator_memory_candidates", artifact_ref)
+            if memory_path.exists():
+                candidate = ReadOnlyOperatorMemoryCandidateArtifact.model_validate(json.loads(memory_path.read_text(encoding="utf-8")))
+                if candidate.mission_id != result.mission_id:
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_operator_memory_candidate_mission_mismatch")
+                if not candidate.verify_hash():
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_operator_memory_candidate_hash_mismatch")
+                if candidate.authority_granting or candidate.can_execute or candidate.raw_secret_material:
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_operator_memory_candidate_authority_violation")
+                if not set(candidate.receipt_refs).issubset(known_receipt_refs):
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_operator_memory_candidate_receipt_mismatch")
+                if not set(candidate.evidence_refs).issubset(known_evidence_refs):
+                    return DispatchProofVerificationResult(ok=False, failure_code="proof_operator_memory_candidate_evidence_mismatch")
+                memory_refs.add(candidate.operator_memory_candidate_id)
+                verified_artifact_refs.append(candidate.operator_memory_candidate_id)
+                continue
+
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_read_only_autopilot_artifact_unknown")
+
+        if summary_required and not summary_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_read_only_summary_missing")
+        if memory_required and not memory_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_operator_memory_candidate_missing")
+        return DispatchProofVerificationResult(ok=True, report_refs=list(dict.fromkeys(verified_artifact_refs)))
+
     def _load_and_verify_finalgate(
         self,
         result: UnifiedDispatchResult,
@@ -643,7 +714,12 @@ class UnifiedExecutionDispatcher:
         return result.model_copy(update={"terminal_certificate_refs": [certificate.certificate_id]})
 
     def _read_only_artifact_path(self, mission_id: str, collection: str, ref: str) -> Path:
-        return self.kernel.store.mission_dir(mission_id, create=True) / "read_only_spine" / collection / f"{ref}.json"
+        return (
+            self.kernel.store.mission_dir(mission_id, create=True)
+            / "read_only_spine"
+            / _read_only_artifact_collection_dir(collection)
+            / f"{ref}.json"
+        )
 
 
 def _blocked_result(
@@ -695,6 +771,20 @@ def _max_material_receipts(request: MissionExecutionRequest) -> int | None:
 def _max_provider_decision_calls(request: MissionExecutionRequest) -> int | None:
     value = request.execution_options.get("max_provider_decision_calls")
     return int(value) if value is not None else None
+
+
+def _generate_read_only_mission_summary(request: MissionExecutionRequest) -> bool:
+    return request.execution_options.get("generate_read_only_mission_summary") is True
+
+
+def _write_operator_memory_candidate(request: MissionExecutionRequest) -> bool:
+    return request.execution_options.get("write_operator_memory_candidate") is True
+
+
+def _read_only_artifact_collection_dir(collection: str) -> str:
+    if collection == "operator_memory_candidates":
+        return "memory"
+    return collection
 
 
 __all__ = [

@@ -153,6 +153,16 @@ def build_parser() -> argparse.ArgumentParser:
             default=None,
             help="Pack 4A model-led autopilot provider decision-call budget.",
         )
+        cockpit_parser.add_argument(
+            "--generate-read-only-mission-summary",
+            action="store_true",
+            help="Pack 4B model-led autopilot option: persist a safe non-authority read-only mission summary artifact.",
+        )
+        cockpit_parser.add_argument(
+            "--write-operator-memory-candidate",
+            action="store_true",
+            help="Pack 4B model-led autopilot option: persist a revocable non-authority operator memory candidate artifact.",
+        )
         cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
@@ -398,6 +408,20 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
         return _emit_cockpit_product_block(
             args,
             reason="autopilot_budgets_require_model_led_read_only_autopilot",
+            outcome="mission_not_created",
+        )
+    if (
+        args.generate_read_only_mission_summary or args.write_operator_memory_candidate
+    ) and not args.model_led_read_only_autopilot:
+        return _emit_cockpit_product_block(
+            args,
+            reason="read_only_summary_artifacts_require_model_led_read_only_autopilot",
+            outcome="mission_not_created",
+        )
+    if args.write_operator_memory_candidate and not args.generate_read_only_mission_summary:
+        return _emit_cockpit_product_block(
+            args,
+            reason="operator_memory_candidate_requires_read_only_mission_summary",
             outcome="mission_not_created",
         )
     if args.max_material_receipts is not None and args.max_material_receipts < 1:
@@ -751,6 +775,10 @@ def _mission_execution_options_from_args(args: argparse.Namespace) -> dict[str, 
         options["max_material_receipts"] = int(args.max_material_receipts)
     if getattr(args, "max_provider_decision_calls", None) is not None:
         options["max_provider_decision_calls"] = int(args.max_provider_decision_calls)
+    if getattr(args, "generate_read_only_mission_summary", False):
+        options["generate_read_only_mission_summary"] = True
+    if getattr(args, "write_operator_memory_candidate", False):
+        options["write_operator_memory_candidate"] = True
     return options
 
 

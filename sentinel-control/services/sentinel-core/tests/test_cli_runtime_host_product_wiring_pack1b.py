@@ -380,6 +380,124 @@ def test_cli_explicit_bootstrap_can_enable_model_led_read_only_autopilot(
     assert "read_only_report_generation_started" not in event_types
 
 
+def test_cli_model_led_autopilot_can_request_read_only_summary_and_memory_candidate(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Research target\ncommand registry lives here\n", encoding="utf-8")
+    (workspace / "src").mkdir()
+    (workspace / "src" / "commands.py").write_text("def register_commands(registry):\n    registry.add('inspect')\n", encoding="utf-8")
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(
+        cli,
+        "OperatorCatalogModelClient",
+        _product_model_client_factory(model_clients, workspace, client_type=RecordingAutopilotProductModelClient),
+    )
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--model-led-read-only-autopilot",
+            "--low-friction-read-only-power-mode",
+            "--max-material-receipts",
+            "3",
+            "--max-provider-decision-calls",
+            "3",
+            "--generate-read-only-mission-summary",
+            "--write-operator-memory-candidate",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    turns = json.loads(output.out)
+    assert code == 0
+    assert output.err == ""
+    assert model_clients[0].decision_calls == 3
+    assert model_clients[0].report_calls == 0
+    mission_id = turns[-1]["mission_record"]["mission_id"]
+    request_payload = json.loads(next((tmp_path / "runs").rglob("mission_exec_req_*.json")).read_text(encoding="utf-8"))
+    assert request_payload["execution_options"] == {
+        "generate_read_only_mission_summary": True,
+        "low_friction_read_only_power_mode": True,
+        "max_material_receipts": 3,
+        "max_provider_decision_calls": 3,
+        "model_led_read_only_autopilot": True,
+        "write_operator_memory_candidate": True,
+    }
+    summaries = list((tmp_path / "runs").rglob("read_only_spine/mission_summaries/*.json"))
+    memory_candidates = list((tmp_path / "runs").rglob("read_only_spine/memory/*.json"))
+    finalgate = json.loads(next((tmp_path / "runs").rglob("read_only_spine/finalgate/*.json")).read_text(encoding="utf-8"))
+    assert len(summaries) == 1
+    assert len(memory_candidates) == 1
+    assert finalgate["accepted"] is True
+    assert json.loads(summaries[0].read_text(encoding="utf-8"))["summary_id"] in finalgate["artifact_refs"]
+    assert (
+        json.loads(memory_candidates[0].read_text(encoding="utf-8"))["operator_memory_candidate_id"]
+        in finalgate["artifact_refs"]
+    )
+    events = MissionKernel(run_root=tmp_path / "runs").store.load_events(mission_id)
+    event_types = [event.event_type for event in events]
+    assert "read_only_mission_summary_persisted" in event_types
+    assert "read_only_operator_memory_candidate_persisted" in event_types
+
+
+def test_cli_operator_memory_candidate_requires_summary_option(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--model-led-read-only-autopilot",
+            "--low-friction-read-only-power-mode",
+            "--write-operator-memory-candidate",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert code == 2
+    assert output.err == ""
+    assert payload[0]["metadata"]["blocked_reason"] == "operator_memory_candidate_requires_read_only_mission_summary"
+    assert payload[0]["metadata"]["conversation_outcome"] == "mission_not_created"
+
+
 def test_cli_low_friction_mode_requires_explicit_first_receipt_bootstrap(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

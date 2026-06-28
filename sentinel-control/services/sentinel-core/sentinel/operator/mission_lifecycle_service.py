@@ -43,6 +43,8 @@ _EXECUTION_OPTION_LOW_FRICTION_READ_ONLY_POWER_MODE = "low_friction_read_only_po
 _EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT = "model_led_read_only_autopilot"
 _EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS = "max_material_receipts"
 _EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS = "max_provider_decision_calls"
+_EXECUTION_OPTION_GENERATE_READ_ONLY_MISSION_SUMMARY = "generate_read_only_mission_summary"
+_EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE = "write_operator_memory_candidate"
 _SAFE_EXECUTION_OPTION_KEYS = frozenset(
     {
         _EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT,
@@ -50,6 +52,8 @@ _SAFE_EXECUTION_OPTION_KEYS = frozenset(
         _EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT,
         _EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS,
         _EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS,
+        _EXECUTION_OPTION_GENERATE_READ_ONLY_MISSION_SUMMARY,
+        _EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE,
     }
 )
 
@@ -391,6 +395,16 @@ def _normalize_execution_options(options: dict[str, Any]) -> dict[str, Any]:
             options[_EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS],
             field_name=_EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS,
         )
+    if _EXECUTION_OPTION_GENERATE_READ_ONLY_MISSION_SUMMARY in options:
+        value = options[_EXECUTION_OPTION_GENERATE_READ_ONLY_MISSION_SUMMARY]
+        if not isinstance(value, bool):
+            raise ValueError("generate_read_only_mission_summary must be boolean")
+        normalized[_EXECUTION_OPTION_GENERATE_READ_ONLY_MISSION_SUMMARY] = value
+    if _EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE in options:
+        value = options[_EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE]
+        if not isinstance(value, bool):
+            raise ValueError("write_operator_memory_candidate must be boolean")
+        normalized[_EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE] = value
     return normalized
 
 
