@@ -3,89 +3,46 @@
 ## Verdict
 
 ```text
-REAL_POWER_ATTEMPT_1_MODEL_LED_WORKSPACE_LOOP_V1 = CONFIG_MISSING
-provider_call = 0
-source_changes = none
+REAL_POWER_ATTEMPT_1_MODEL_LED_WORKSPACE_LOOP_V1 = SUCCESS
+provider_calls = 4
+source_runtime_changes_after_provider_call = 0
 push = not performed
+Power Pack 3 = not started
 ```
 
-## Reason
+This supersedes the earlier static-preflight report for the same attempt. The
+first static preflight stopped before provider because endpoint configuration
+was missing. After the validated Aliyun/DashScope compatible endpoint was
+restored locally, the same attempt was rerun once.
 
-The real-provider attempt was stopped before the first provider call because
-the validated Aliyun/DashScope workspace-specific endpoint contract was not
-available in the process or user environment.
-
-This follows the attempt rule:
-
-```text
-If provider env/config is missing, stop honestly with REAL_PROVIDER_CONFIG_MISSING.
-```
-
-## Source State
-
-```text
-source_commit = 013ec0c489906ba6f0536a39d3b336841fee4c27
-branch = experimental/real-model-lab-freeze-v1
-working_tree_before_report = clean
-```
-
-## Provider Preflight Facts
+## Real Provider Used
 
 ```text
 provider_id = aliyun_dashscope
 backend_id = aliyun_openai_compatible_chat
 model_id = deepseek-v4-pro
-credential_present = true
-endpoint_config_present = false
-provider-native_tools = not enabled
-fallback_AUTO = not enabled
+endpoint_hash = 96fd7aa96afa8bb6bae02001907b8b4f598bfe3ca55b04ced7961ebf42e95497
 ```
 
-Expected environment/config names, values omitted:
-
-```text
-SENTINEL_CERT_MODEL_API_KEY
-SENTINEL_ALIYUN_DASHSCOPE_BASE_URL
-SENTINEL_CERT_MODEL_BASE_URL
-```
-
-Observed safe availability:
-
-```text
-SENTINEL_CERT_MODEL_API_KEY process = true
-SENTINEL_CERT_MODEL_API_KEY user = true
-SENTINEL_ALIYUN_DASHSCOPE_BASE_URL process = false
-SENTINEL_ALIYUN_DASHSCOPE_BASE_URL user = false
-SENTINEL_CERT_MODEL_BASE_URL process = false
-SENTINEL_CERT_MODEL_BASE_URL user = false
-```
-
-No raw endpoint URL, API key, Authorization header, prompt, response, reasoning,
-or provider wrapper payload was printed or persisted.
+No endpoint value, API key, Authorization header, raw provider output, raw
+prompt, raw reasoning, or provider wrapper payload is persisted in this report.
 
 ## Mission Objective
-
-The planned mission fixture was not launched because provider configuration was
-incomplete.
-
-Intended mission objective:
 
 ```text
 Update README.md by replacing the TODO marker with a short sentence saying the Sentinel model-led patch loop worked. Then run the bounded fake/local check and verify the marker changed.
 ```
 
-Intended fixture:
+Temporary local fixture:
 
 ```text
-README.md contains:
+README.md initially contained:
 TODO: replace this marker with a model-led Sentinel patch
 ```
 
 ## Decision Context Shape
 
-The real model was not called, so no live decision context was sent.
-
-The intended context would have exposed only safe Power Pack 1/2 fields:
+The real model received safe context only. The context shape contained:
 
 ```text
 mission_id
@@ -96,51 +53,121 @@ previous_receipt_refs
 bounded_observation_summaries
 last_action_status
 budget_remaining
+channel_grant_summary
 read_only_workspace_summary
 workspace_patch_summary
 workspace_verification_summary
+workspace_targets
 ```
 
-Allowed actions for the intended attempt:
+The `workspace_targets` entry was safe fixture metadata:
 
 ```text
-read_only_research.read_file_segment
-read_only_research.list_directory
-read_only_research.search_text
-workspace_patch.apply_patch
-workspace_patch.run_bounded_check
-sentinel_loop.finish
+path = README.md
+current_sha256 = hash only
+known_marker = fixture marker text
+desired_replacement_hint = Sentinel model-led patch loop worked.
+```
+
+No raw model output was persisted.
+
+## Parsed Action Sequence
+
+The real model produced canonical `ActionEnvelope` objects for:
+
+```text
+1. workspace_patch.apply_patch
+2. workspace_patch.run_bounded_check
+3. read_only_research.search_text
+4. sentinel_loop.finish
+```
+
+Important note:
+
+```text
+The model did not choose an initial read_only.read_file_segment/list_directory action.
+It patched first using safe fixture context and the provided current file hash.
+```
+
+This is still accepted as a real power success because the core product proof
+crossed the intended threshold:
+
+```text
+real model decision
+-> canonical ActionEnvelope extraction
+-> workspace patch applied
+-> bounded check run
+-> read-only verification action
+-> finish
 ```
 
 ## Execution Results
 
 ```text
-provider_decision_calls = 0
-model_extraction_failures = 0
-actions_chosen_by_model = []
-material_actions_executed = 0
-patch_applied = false
-bounded_check_run = false
-verification_action = false
-finish = false
-receipts_created = 0
-finalgate_or_certificates_created = 0
+provider decision calls = 4
+model extraction failures = 0
+provider failure = none
+material actions executed = 3
+patch applied = true
+bounded check run = true
+verification action = true
+finish = true
+mission status = completed
+loop final reason = model_led_task_loop_finish
 ```
 
-No raw model output exists for this attempt because no model call occurred.
-
-## Workspace Diff
+Receipt and certificate counts:
 
 ```text
-workspace_fixture_created = false
-workspace_mutated = false
-workspace_final_diff = not_applicable
+receipt_count = 2
+workspace_patch_receipts = 1
+workspace_patch_verification_receipts = 1
+model_led_loop_finalgate_certificates = 1
+receipt_hash_verified = true
 ```
 
-## Replay
+Receipt refs:
 
-Replay is not applicable because no mission run was created and no material
-action occurred.
+```text
+workspace_patch_receipt_9568da450532472a925b78fc909de10f
+workspace_patch_verification_6b6b89181648441cb932f5d949468cef
+```
+
+Loop certificate:
+
+```text
+model_led_loop_finalgate_36c644a5ea9d496fb9524c62ae4cccdf
+```
+
+Mission id:
+
+```text
+mission_fea4ae7460f640a284a379f2b96e0d82
+```
+
+Run root:
+
+```text
+C:\Users\youcef cheriet\.sentinel-runs\real-power-attempts\real-power-attempt1-20260628-225303
+```
+
+## Workspace Final Diff
+
+```diff
+--- README.before
++++ README.after
+@@ -1,3 +1,3 @@
+ # Real Power Attempt 1
+
+-TODO: replace this marker with a model-led Sentinel patch
++Sentinel model-led patch loop worked.
+```
+
+Workspace mutation was limited to the temporary fixture file `README.md`.
+
+## Replay Proof
+
+Replay view reconstructed from persisted artifacts and workspace fingerprint.
 
 ```text
 model_calls_delta = 0
@@ -149,49 +176,48 @@ patch_application_delta = 0
 bounded_check_delta = 0
 workspace_mutation_delta = 0
 receipt_writes_delta = 0
-artifact_hashes_stable = not_applicable
+artifact_hashes_stable = true
 ```
 
-## Failure Reason
+Replay did not re-call the model, re-run the read-only action, reapply the
+patch, rerun the bounded check, mutate the workspace, or write new receipts.
+
+## Safety / Persistence Scan
 
 ```text
-failure_reason = REAL_PROVIDER_CONFIG_MISSING
-missing_config = process/user endpoint environment for Aliyun/DashScope compatible base URL
+credential values persisted = false
+Authorization persisted = false
+raw provider output persisted = false
+raw prompt persisted = false
+raw reasoning persisted = false
+provider wrapper payload persisted = false
+fallback/AUTO used = false
+provider-native tools used = false
+browser/shell/desktop/network/payment used = false
 ```
 
-This is not a model/schema/action-loop failure. It is not a Gate failure. It is
-not a workspace patch runtime failure. The attempt never reached provider.
+The only live external interaction was the real provider decision lane.
 
-## Next Fix
+## Verdict Rationale
+
+This run proves that the Power Pack 1 + Power Pack 2 generic loop is usable by a
+real provider model:
 
 ```text
-recommended_next_action = RESTORE_PROCESS_SCOPED_ALIYUN_ENDPOINT_CONFIG_AND_RERUN_REAL_POWER_ATTEMPT_1_ONCE
+real provider model -> ActionEnvelope decisions -> ActionKernel -> workspace_patch runtime -> bounded check -> read-only verification -> loop finish
 ```
 
-Expected local-only setup before the next attempt:
+The model did not need provider-native tools. It did not rely on fallback/AUTO.
+Receipts and replay remained in the background.
 
-```powershell
-$env:SENTINEL_ALIYUN_DASHSCOPE_BASE_URL = "<VALIDATED_ALIYUN_COMPATIBLE_BASE_URL_LOCAL_ONLY>"
-```
-
-If using the certification-compatible alias as the source, set it locally only:
-
-```powershell
-$env:SENTINEL_CERT_MODEL_BASE_URL = "<VALIDATED_ALIYUN_COMPATIBLE_BASE_URL_LOCAL_ONLY>"
-```
-
-Do not paste endpoint credentials or API keys in chat. Do not persist provider
-secrets in source or report artifacts.
-
-## Confirmation
+## Recommended Next Action
 
 ```text
-provider_call = 0
-retry = 0
-fallback_AUTO = not used
-provider_native_tools = not used
-raw_provider_reasoning_persisted = false
-credential_persisted = false
-push = not performed
-Power Pack 3 = not started
+START_POWER_PACK_3_SHELL_AND_CODE_EXECUTION_SANDBOX_V1
 ```
+
+Rationale:
+
+The first real provider workspace mutation loop has crossed the product proof
+threshold. The next power muscle should be bounded shell/code execution in a
+sandbox, with receipts and replay no-rerun.
