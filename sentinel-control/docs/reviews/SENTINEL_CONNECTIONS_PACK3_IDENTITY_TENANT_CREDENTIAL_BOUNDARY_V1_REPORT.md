@@ -2,7 +2,9 @@
 
 ## Verdict
 
-Status: implementation pending local commit after focused validation.
+Status: LOCALLY_COMMITTED
+
+Commit: `6ed5f18022f39c655b45050bd4d3bda42c70e30a`
 
 Pack 3 adds a data-only identity, tenant, and credential boundary registry on top of the Pack 2 connection manifest registry.
 
@@ -221,7 +223,7 @@ Focused validation run:
 
 ## Commit
 
-Local commit hash: recorded in the final Pack 3 closeout response after this report is committed.
+Local commit hash: `6ed5f18022f39c655b45050bd4d3bda42c70e30a`
 
 ## Recommended Next Action
 
