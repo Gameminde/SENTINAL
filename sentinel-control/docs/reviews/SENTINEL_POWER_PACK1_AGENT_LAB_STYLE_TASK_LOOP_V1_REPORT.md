@@ -353,7 +353,7 @@ POWER_PACK_5_REAL_CHANNEL_TRANSPORT_SEND_V1
 ## Commit
 
 ```text
-commit = 977fc3180f2a408df2fafbcdf3107ef565828d66
+commit = c3654b0fe0e4dc17a3790e0b7290da434466a58d
 ```
 
 ## Confirmation
