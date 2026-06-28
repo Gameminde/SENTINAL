@@ -45,8 +45,10 @@ class RecordingHttpxClient:
         self.payload = payload
         self.status_code = status_code
         self.calls: list[dict[str, Any]] = []
+        self.client_kwargs: list[dict[str, Any]] = []
 
     def __call__(self, *_args: Any, **_kwargs: Any) -> RecordingHttpxClient:
+        self.client_kwargs.append(dict(_kwargs))
         return self
 
     def __enter__(self) -> RecordingHttpxClient:
@@ -386,6 +388,61 @@ def test_pack3_18_provider_http_error_is_not_wrapped_as_model_authored_reply(
     assert "reply" not in result
     assert "metadata" not in result
     assert "redacted by hash only" not in str(result)
+
+
+def test_catalog_model_client_uses_read_only_decision_timeout_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "unit-openai-key")
+    recorder = RecordingHttpxClient(_provider_payload(_valid_output(), model="gpt-5.4"))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="openai_chat", backend_id="openai_chat_completions", model="gpt-5.4")
+    request = _real_model_request_for_contract(contract).model_copy(
+        update={
+            "runtime": "read_only_research_product",
+            "request_metadata": {
+                "read_only_lane": "exploration_decision",
+                "timeout_policy": {
+                    "connect_timeout_seconds": 2.0,
+                    "read_timeout_seconds": 90.0,
+                    "total_timeout_seconds": 92.0,
+                },
+            },
+        }
+    )
+
+    OperatorCatalogModelClient(user_model_contract=contract).complete(request)
+
+    timeout = recorder.client_kwargs[0]["timeout"]
+    assert timeout.read == 90.0
+    assert timeout.connect == 2.0
+
+
+def test_catalog_model_client_rejects_invalid_read_only_decision_timeout_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "unit-openai-key")
+    recorder = RecordingHttpxClient(_provider_payload(_valid_output(), model="gpt-5.4"))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(provider_id="openai_chat", backend_id="openai_chat_completions", model="gpt-5.4")
+    request = _real_model_request_for_contract(contract).model_copy(
+        update={
+            "runtime": "read_only_research_product",
+            "request_metadata": {
+                "read_only_lane": "exploration_decision",
+                "timeout_policy": {
+                    "connect_timeout_seconds": 2.0,
+                    "read_timeout_seconds": 0.0,
+                    "total_timeout_seconds": 0.0,
+                },
+            },
+        }
+    )
+
+    result = OperatorCatalogModelClient(user_model_contract=contract).complete(request)
+
+    assert result["metadata"]["blocked_reason"] == "READ_ONLY_TIMEOUT_POLICY_INVALID"
+    assert recorder.calls == []
 
 
 def test_catalog_model_client_rejects_unsupported_model_without_fallback(

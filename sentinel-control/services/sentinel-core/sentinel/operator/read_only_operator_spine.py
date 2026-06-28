@@ -1056,11 +1056,13 @@ class ReadOnlyProductionSpineSession:
             phase = error.phase
             exception_class = error.exception_class
             diagnostics = _event_safe_read_only_diagnostics(error.diagnostics)
+            public_reason = _public_blocked_reason(reason, error.failure_code)
         else:
             reason = str(error)
             phase = "unknown"
             exception_class = None
             diagnostics = {}
+            public_reason = _public_blocked_reason(reason, None)
         proof_code = _proof_failure_code(reason)
         if self._latest_decision_checkpoint_ref is not None:
             self._record_failed_attempt(
@@ -1075,7 +1077,7 @@ class ReadOnlyProductionSpineSession:
                 receipt_refs=[*self._receipt_refs],
                 status="blocked",
                 accepted=False,
-                reason=reason,
+                reason=public_reason,
             )
             finalgate_refs = [certificate.certificate_id]
         except Exception as exc:  # noqa: BLE001
@@ -1090,7 +1092,7 @@ class ReadOnlyProductionSpineSession:
             safe_summary="Read-only production-spine session blocked before material action.",
             metadata={
                 "blocked": True,
-                "blocked_reason_hash": text_hash(reason),
+                "blocked_reason_hash": text_hash(public_reason),
                 "typed_failure_code": proof_code,
                 "runtime_phase": _safe_runtime_phase(phase),
                 "exception_class": exception_class,
@@ -1107,7 +1109,7 @@ class ReadOnlyProductionSpineSession:
             failed_attempt_refs=[*self._failed_attempt_refs],
             finalgate_refs=finalgate_refs,
             finalgate_status="rejected",
-            blocked_reason=reason,
+            blocked_reason=public_reason,
         )
 
     def _record_decision_checkpoint(self, decision: ReadOnlyDecision) -> ReadOnlyDecisionCheckpoint:
@@ -2102,6 +2104,12 @@ _LEGACY_FAILURE_CODE_MAP = {
     "terminal_report_unsupported_action_claim": ReadOnlyFailureCode.REPORT_UNSAFE_CLAIM.value,
     "terminal_report_unknown_evidence_ref": ReadOnlyFailureCode.REPORT_UNKNOWN_EVIDENCE.value,
 }
+
+
+def _public_blocked_reason(reason: str, failure_code: str | None) -> str:
+    if reason == "model_decision_timeout" or failure_code == ReadOnlyFailureCode.READ_MODEL_DECISION_TIMEOUT.value:
+        return "TIMEOUT"
+    return reason
 
 
 def _proof_failure_code(reason: str) -> str:

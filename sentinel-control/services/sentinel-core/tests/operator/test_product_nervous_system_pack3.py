@@ -979,6 +979,63 @@ def test_pack4b_summary_and_memory_artifacts_reject_raw_or_authority_material() 
         )
 
 
+def test_pack4b_1_timeout_after_first_receipt_blocks_without_fake_summary_or_memory(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    decision_client = _TimeoutAfterFirstDecisionClient()
+    host = SentinelRuntimeHost(
+        run_root=tmp_path / "runs",
+        read_only_decision_client_factory=lambda _request, _authority: decision_client,
+        read_only_report_client_factory=lambda _request, _authority: ReadOnlyReportClient(),
+    )
+    host.start()
+    mission = host.lifecycle.create_mission(
+        session_id="session_pack4b_1_timeout",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_attempt5j_approval_scope(workspace),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "fixture"},
+        workspace_ref=f"workspace:{workspace}",
+        model_contract_ref="model_contract:fake_read_only_research",
+        execution_options={
+            "model_led_read_only_autopilot": True,
+            "low_friction_read_only_power_mode": True,
+            "max_material_receipts": 3,
+            "max_provider_decision_calls": 3,
+            "generate_read_only_mission_summary": True,
+            "write_operator_memory_candidate": True,
+            "provider_decision_timeout_seconds": 90,
+        },
+    )
+
+    pickup = host.pump_daemon_once(mission.record.mission_id)
+
+    assert pickup.dispatch_result.status is DispatchStatus.BLOCKED
+    assert pickup.dispatch_result.blocked_reason == "TIMEOUT"
+    assert len(_json_payloads(host, mission.record.mission_id, "read_only_spine", "receipts")) == 1
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "mission_summaries") == []
+    assert _json_payloads(host, mission.record.mission_id, "read_only_spine", "operator_memory_candidates") == []
+    finalgate = _json_payloads(host, mission.record.mission_id, "read_only_spine", "finalgate")
+    assert finalgate[0]["accepted"] is False
+    assert finalgate[0]["reason"] == "TIMEOUT"
+    before = _replay_counter_snapshot(host, mission.record.mission_id, decision_client, ReadOnlyReportClient())
+    replay = ReadOnlyProductionSpineSession(
+        cockpit=SimpleNamespace(kernel=host.kernel),
+        mission_id=mission.record.mission_id,
+        snapshot_root=workspace,
+        decision_client=ReadOnlyDecisionClient([]),
+        low_friction_read_only_power_mode=True,
+        model_led_read_only_autopilot=True,
+        max_material_receipts=3,
+        max_provider_decision_calls=3,
+    ).build_replay()
+    after = _replay_counter_snapshot(host, mission.record.mission_id, decision_client, ReadOnlyReportClient())
+    assert replay.reexecuted is False
+    assert before == after
+
+
 def test_pack3_coordinator_decision_is_persisted_before_adapter_execution(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     adapter = _AssertingAdapter()
@@ -1373,6 +1430,17 @@ class _ContextRecordingDecisionClient(ReadOnlyDecisionClient):
 
     def complete(self, context: dict[str, Any]) -> ReadOnlyDecision:
         self.contexts.append(json.loads(json.dumps(context, sort_keys=True, default=str)))
+        return super().complete(context)
+
+
+class _TimeoutAfterFirstDecisionClient(ReadOnlyDecisionClient):
+    def __init__(self) -> None:
+        super().__init__([ReadOnlyDecision(action=ReadOnlyActionKind.LIST_DIRECTORY, arguments={"path": "."})])
+
+    def complete(self, context: dict[str, Any]) -> ReadOnlyDecision:
+        if self.call_count >= 1:
+            self.call_count += 1
+            raise TimeoutError("simulated provider timeout")
         return super().complete(context)
 
 

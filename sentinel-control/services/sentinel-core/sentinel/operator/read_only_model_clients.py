@@ -396,6 +396,7 @@ def _request(
         "selected_backend_id": contract.selected_backend_id,
         "selected_model": contract.selected_model,
         "routing_policy": "explicit_user_model_contract_only",
+        "timeout_policy": timeout_policy.model_dump(mode="json"),
         **redact_operator_value(metadata),
     }
     payload = {

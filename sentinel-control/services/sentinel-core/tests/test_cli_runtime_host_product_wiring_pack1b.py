@@ -363,6 +363,12 @@ def test_cli_explicit_bootstrap_can_enable_model_led_read_only_autopilot(
     assert output.err == ""
     assert model_clients[0].decision_calls == 3
     assert model_clients[0].report_calls == 0
+    decision_requests = [
+        request for request in model_clients[0].calls if request.request_metadata.get("read_only_lane") == "exploration_decision"
+    ]
+    timeout_policies = [request.request_metadata["timeout_policy"] for request in decision_requests]
+    assert {policy["read_timeout_seconds"] for policy in timeout_policies} == {20.0}
+    assert {policy["total_timeout_seconds"] for policy in timeout_policies} == {22.0}
     mission_id = turns[-1]["mission_record"]["mission_id"]
     request_payload = json.loads(next((tmp_path / "runs").rglob("mission_exec_req_*.json")).read_text(encoding="utf-8"))
     assert request_payload["execution_options"] == {
@@ -457,6 +463,145 @@ def test_cli_model_led_autopilot_can_request_read_only_summary_and_memory_candid
     event_types = [event.event_type for event in events]
     assert "read_only_mission_summary_persisted" in event_types
     assert "read_only_operator_memory_candidate_persisted" in event_types
+
+
+def test_cli_model_led_autopilot_can_configure_provider_decision_timeout(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Research target\ncommand registry lives here\n", encoding="utf-8")
+    (workspace / "src").mkdir()
+    (workspace / "src" / "commands.py").write_text("def register_commands(registry):\n    registry.add('inspect')\n", encoding="utf-8")
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    model_clients: list[RecordingProductModelClient] = []
+    monkeypatch.setattr(
+        cli,
+        "OperatorCatalogModelClient",
+        _product_model_client_factory(model_clients, workspace, client_type=RecordingAutopilotProductModelClient),
+    )
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--model-led-read-only-autopilot",
+            "--low-friction-read-only-power-mode",
+            "--max-material-receipts",
+            "3",
+            "--max-provider-decision-calls",
+            "3",
+            "--provider-decision-timeout-seconds",
+            "90",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    assert code == 0
+    assert output.err == ""
+    decision_requests = [
+        request for request in model_clients[0].calls if request.request_metadata.get("read_only_lane") == "exploration_decision"
+    ]
+    assert decision_requests
+    timeout_policies = [request.request_metadata["timeout_policy"] for request in decision_requests]
+    assert {policy["read_timeout_seconds"] for policy in timeout_policies} == {90.0}
+    assert {policy["total_timeout_seconds"] for policy in timeout_policies} == {92.0}
+    request_payload = json.loads(next((tmp_path / "runs").rglob("mission_exec_req_*.json")).read_text(encoding="utf-8"))
+    assert request_payload["execution_options"]["provider_decision_timeout_seconds"] == 90
+
+
+def test_cli_provider_decision_timeout_requires_model_led_autopilot(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--low-friction-read-only-power-mode",
+            "--provider-decision-timeout-seconds",
+            "90",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert code == 2
+    assert output.err == ""
+    assert payload[0]["metadata"]["blocked_reason"] == "provider_decision_timeout_requires_model_led_read_only_autopilot"
+    assert payload[0]["metadata"]["conversation_outcome"] == "mission_not_created"
+
+
+def test_cli_provider_decision_timeout_is_bounded(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    script_path = _write_explicit_bootstrap_script(tmp_path)
+    contract_path = tmp_path / "model-contract.json"
+    contract_path.write_text(json.dumps(_model_contract().model_dump(mode="json")), encoding="utf-8")
+
+    code = cli.main(
+        [
+            "cockpit",
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--model-contract",
+            str(contract_path),
+            "--authority-scope",
+            str(_write_approval_scope(tmp_path)),
+            "--workspace",
+            str(workspace),
+            "--script",
+            str(script_path),
+            "--explicit-mission-bootstrap",
+            "--model-led-read-only-autopilot",
+            "--low-friction-read-only-power-mode",
+            "--provider-decision-timeout-seconds",
+            "181",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert code == 2
+    assert output.err == ""
+    assert payload[0]["metadata"]["blocked_reason"] == "provider_decision_timeout_seconds_out_of_bounds"
+    assert payload[0]["metadata"]["conversation_outcome"] == "mission_not_created"
 
 
 def test_cli_operator_memory_candidate_requires_summary_option(

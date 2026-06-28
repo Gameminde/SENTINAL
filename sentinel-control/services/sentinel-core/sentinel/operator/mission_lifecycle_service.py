@@ -45,6 +45,9 @@ _EXECUTION_OPTION_MAX_MATERIAL_RECEIPTS = "max_material_receipts"
 _EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS = "max_provider_decision_calls"
 _EXECUTION_OPTION_GENERATE_READ_ONLY_MISSION_SUMMARY = "generate_read_only_mission_summary"
 _EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE = "write_operator_memory_candidate"
+_EXECUTION_OPTION_PROVIDER_DECISION_TIMEOUT_SECONDS = "provider_decision_timeout_seconds"
+PROVIDER_DECISION_TIMEOUT_SECONDS_MIN = 5
+PROVIDER_DECISION_TIMEOUT_SECONDS_MAX = 180
 _SAFE_EXECUTION_OPTION_KEYS = frozenset(
     {
         _EXECUTION_OPTION_STOP_AFTER_FIRST_RECEIPT,
@@ -54,6 +57,7 @@ _SAFE_EXECUTION_OPTION_KEYS = frozenset(
         _EXECUTION_OPTION_MAX_PROVIDER_DECISION_CALLS,
         _EXECUTION_OPTION_GENERATE_READ_ONLY_MISSION_SUMMARY,
         _EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE,
+        _EXECUTION_OPTION_PROVIDER_DECISION_TIMEOUT_SECONDS,
     }
 )
 
@@ -405,6 +409,13 @@ def _normalize_execution_options(options: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(value, bool):
             raise ValueError("write_operator_memory_candidate must be boolean")
         normalized[_EXECUTION_OPTION_WRITE_OPERATOR_MEMORY_CANDIDATE] = value
+    if _EXECUTION_OPTION_PROVIDER_DECISION_TIMEOUT_SECONDS in options:
+        normalized[_EXECUTION_OPTION_PROVIDER_DECISION_TIMEOUT_SECONDS] = _normalize_bounded_execution_limit(
+            options[_EXECUTION_OPTION_PROVIDER_DECISION_TIMEOUT_SECONDS],
+            field_name=_EXECUTION_OPTION_PROVIDER_DECISION_TIMEOUT_SECONDS,
+            minimum=PROVIDER_DECISION_TIMEOUT_SECONDS_MIN,
+            maximum=PROVIDER_DECISION_TIMEOUT_SECONDS_MAX,
+        )
     return normalized
 
 
@@ -420,6 +431,13 @@ def _normalize_positive_execution_limit(value: Any, *, field_name: str) -> int:
     return parsed
 
 
+def _normalize_bounded_execution_limit(value: Any, *, field_name: str, minimum: int, maximum: int) -> int:
+    parsed = _normalize_positive_execution_limit(value, field_name=field_name)
+    if parsed < minimum or parsed > maximum:
+        raise ValueError(f"{field_name} must be between {minimum} and {maximum}")
+    return parsed
+
+
 def _validate_execution_options_for_route(
     options: dict[str, Any],
     *,
@@ -427,6 +445,11 @@ def _validate_execution_options_for_route(
     operation: str,
 ) -> None:
     read_only_route = capability_id == "read_only_research" and operation == "inspect_repository"
+    if (
+        _EXECUTION_OPTION_PROVIDER_DECISION_TIMEOUT_SECONDS in options
+        and options.get(_EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT) is not True
+    ):
+        raise ValueError("provider_decision_timeout_seconds requires model_led_read_only_autopilot")
     if options.get(_EXECUTION_OPTION_MODEL_LED_READ_ONLY_AUTOPILOT) is True:
         if not read_only_route:
             raise ValueError("model_led_read_only_autopilot requires read_only_research inspect_repository route")

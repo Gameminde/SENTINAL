@@ -13,6 +13,7 @@ from sentinel.agent.model_execution.openai_compatible import (
     OpenAICompatibleChatProvider,
     OpenAICompatibleProviderConfig,
 )
+from sentinel.agent.model_execution.policy import ModelTimeoutPolicy
 from sentinel.agent.model_execution.provider_profiles import build_default_provider_catalog
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 
@@ -83,7 +84,11 @@ class OperatorCatalogModelClient:
                 }
             )
         credential = _credential(entry.provider_id, entry.credential_policy.credential_env_var)
-        response = provider.execute(request, timeout=provider.default_timeout_policy(), credential=credential)
+        try:
+            timeout_policy = _provider_timeout_policy(provider=provider, request=request)
+        except ValueError:
+            return _blocked("READ_ONLY_TIMEOUT_POLICY_INVALID")
+        response = provider.execute(request, timeout=timeout_policy, credential=credential)
         if response is None:
             return _blocked("MODEL_EXECUTION_DEFERRED")
         if response.error_class:
@@ -150,6 +155,18 @@ def _is_loopback_endpoint(endpoint: str) -> bool:
         return ipaddress.ip_address(normalized).is_loopback
     except ValueError:
         return False
+
+
+def _provider_timeout_policy(*, provider: OpenAICompatibleChatProvider, request: RealModelRequest) -> ModelTimeoutPolicy:
+    if request.request_metadata.get("read_only_lane") != "exploration_decision":
+        return provider.default_timeout_policy()
+    timeout_payload = request.request_metadata.get("timeout_policy")
+    if not isinstance(timeout_payload, dict):
+        return provider.default_timeout_policy()
+    try:
+        return ModelTimeoutPolicy.model_validate(timeout_payload)
+    except ValueError:
+        raise ValueError("invalid read-only timeout policy") from None
 
 
 def _provider_failure_payload(

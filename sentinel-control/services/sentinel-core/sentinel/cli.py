@@ -42,6 +42,10 @@ from sentinel.agent.model_contract import UserModelContract
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.legacy_classification import InternalAccessClassification
+from sentinel.operator.mission_lifecycle_service import (
+    PROVIDER_DECISION_TIMEOUT_SECONDS_MAX,
+    PROVIDER_DECISION_TIMEOUT_SECONDS_MIN,
+)
 from sentinel.operator.model_client import OperatorCatalogModelClient
 from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
 from sentinel.operator.product_execution_binding import (
@@ -152,6 +156,15 @@ def build_parser() -> argparse.ArgumentParser:
             type=int,
             default=None,
             help="Pack 4A model-led autopilot provider decision-call budget.",
+        )
+        cockpit_parser.add_argument(
+            "--provider-decision-timeout-seconds",
+            type=int,
+            default=None,
+            help=(
+                "Pack 4B.1 model-led autopilot read-only provider decision timeout "
+                f"({PROVIDER_DECISION_TIMEOUT_SECONDS_MIN}-{PROVIDER_DECISION_TIMEOUT_SECONDS_MAX} seconds)."
+            ),
         )
         cockpit_parser.add_argument(
             "--generate-read-only-mission-summary",
@@ -395,6 +408,12 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             reason="model_led_autopilot_requires_low_friction_read_only_power_mode",
             outcome="mission_not_created",
         )
+    if args.provider_decision_timeout_seconds is not None and not args.model_led_read_only_autopilot:
+        return _emit_cockpit_product_block(
+            args,
+            reason="provider_decision_timeout_requires_model_led_read_only_autopilot",
+            outcome="mission_not_created",
+        )
     if args.low_friction_read_only_power_mode and not (
         args.explicit_mission_bootstrap
         and (args.stop_after_first_material_receipt or args.model_led_read_only_autopilot)
@@ -434,6 +453,16 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
         return _emit_cockpit_product_block(
             args,
             reason="max_provider_decision_calls_must_be_positive",
+            outcome="mission_not_created",
+        )
+    if args.provider_decision_timeout_seconds is not None and not (
+        PROVIDER_DECISION_TIMEOUT_SECONDS_MIN
+        <= args.provider_decision_timeout_seconds
+        <= PROVIDER_DECISION_TIMEOUT_SECONDS_MAX
+    ):
+        return _emit_cockpit_product_block(
+            args,
+            reason="provider_decision_timeout_seconds_out_of_bounds",
             outcome="mission_not_created",
         )
     if args.stop_after_first_material_receipt and not args.explicit_mission_bootstrap:
@@ -515,6 +544,7 @@ def _run_cockpit_command(args: argparse.Namespace) -> int:
             user_model_contract=user_model_contract,
             model_client=model_client,
             telemetry_sink=host.kernel.telemetry_sink if host is not None else None,
+            timeout_seconds=_provider_decision_timeout_seconds(_request),
         )
         read_only_report_factory = lambda _request, _authority: ReadOnlyProviderReportClient(
             user_model_contract=user_model_contract,
@@ -775,11 +805,19 @@ def _mission_execution_options_from_args(args: argparse.Namespace) -> dict[str, 
         options["max_material_receipts"] = int(args.max_material_receipts)
     if getattr(args, "max_provider_decision_calls", None) is not None:
         options["max_provider_decision_calls"] = int(args.max_provider_decision_calls)
+    if getattr(args, "provider_decision_timeout_seconds", None) is not None:
+        options["provider_decision_timeout_seconds"] = int(args.provider_decision_timeout_seconds)
     if getattr(args, "generate_read_only_mission_summary", False):
         options["generate_read_only_mission_summary"] = True
     if getattr(args, "write_operator_memory_candidate", False):
         options["write_operator_memory_candidate"] = True
     return options
+
+
+def _provider_decision_timeout_seconds(request: object) -> float:
+    execution_options = getattr(request, "execution_options", {}) or {}
+    value = execution_options.get("provider_decision_timeout_seconds")
+    return float(value) if value is not None else 20.0
 
 
 def _explicit_bootstrap_script_turns(path: Path) -> list[str]:
