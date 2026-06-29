@@ -134,25 +134,23 @@ class ModelLedTaskLoop:
 
     def run(self) -> ModelLedTaskLoopResult:
         self._append_event("model_led_task_loop_started", "Model-led task loop started.")
+        finish_only_due_to_material_budget = False
         try:
             if self.kernel.store.load_record(self.mission_id).status is OperatorMissionStatus.QUEUED:
                 self.kernel.update_status(self.mission_id, OperatorMissionStatus.RUNNING, "Model-led task loop started.")
             while True:
                 self._assert_mission_and_authority_open()
                 self.loop_guard.check_before_model_call(self.model_calls_used)
-                context = self.decision_context.compile(
-                    mission_id=self.mission_id,
-                    mission_objective=self.authority.mission_objective,
-                    authority=self.authority,
-                    observations=self.results,
-                    available_actions=self.available_actions,
-                    model_calls_used=self.model_calls_used,
-                    material_actions_used=self.material_actions_used,
-                    max_model_calls=self.loop_guard.config.max_model_calls,
-                    max_material_actions=self.loop_guard.config.max_material_actions,
-                )
+                available_actions = ("finish",) if finish_only_due_to_material_budget else self.available_actions
+                context = self._compile_context(available_actions=available_actions)
+                if finish_only_due_to_material_budget:
+                    context["finish_only_due_to_material_budget"] = True
                 envelope = self.decision_client.complete(context)
                 self.model_calls_used += 1
+                if finish_only_due_to_material_budget and not (
+                    envelope.capability_id == "sentinel_loop" and envelope.operation == "finish"
+                ):
+                    raise ActionKernelError("model_led_task_loop_finish_required_after_objective_satisfied")
                 self.loop_guard.check_before_action(envelope)
                 self._assert_mission_and_authority_open()
                 result = self.action_kernel.execute(envelope, authority=self.authority, context=context)
@@ -165,9 +163,30 @@ class ModelLedTaskLoop:
                 if envelope.capability_id == "sentinel_loop" and envelope.operation == "finish":
                     return self._complete("model_led_task_loop_finish")
                 if self.loop_guard.material_budget_reached(self.material_actions_used):
+                    post_action_context = self._compile_context(available_actions=("finish",))
+                    if (
+                        post_action_context.get("objective_satisfied") is True
+                        and not finish_only_due_to_material_budget
+                        and "finish" in self.available_actions
+                    ):
+                        finish_only_due_to_material_budget = True
+                        continue
                     return self._complete("model_led_task_loop_material_budget_reached")
         except (ActionKernelError, LoopGuardError) as exc:
             return self._block(str(exc) or exc.__class__.__name__)
+
+    def _compile_context(self, *, available_actions: tuple[str, ...]) -> dict[str, Any]:
+        return self.decision_context.compile(
+            mission_id=self.mission_id,
+            mission_objective=self.authority.mission_objective,
+            authority=self.authority,
+            observations=self.results,
+            available_actions=available_actions,
+            model_calls_used=self.model_calls_used,
+            material_actions_used=self.material_actions_used,
+            max_model_calls=self.loop_guard.config.max_model_calls,
+            max_material_actions=self.loop_guard.config.max_material_actions,
+        )
 
     def _complete(self, reason: str) -> ModelLedTaskLoopResult:
         certificate = self._write_certificate(status=ModelLedTaskLoopStatus.COMPLETED, accepted=True, reason=reason)

@@ -199,6 +199,94 @@ def test_power_pack3_generic_loop_runs_patch_code_exec_read_only_verify_finish(t
     assert any(ref.startswith("code_exec_receipt_") for ref in result.receipt_refs)
 
 
+def test_power_pack3_finish_only_turn_available_when_objective_satisfied_at_material_budget(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    base_hash = fixture.readme_hash()
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "python_compileall", "args": ["src"]},
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO: run sandbox\n",
+                    "new_text": "TODO: sandbox command verified\n",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="read_only_research",
+                operation="search_text",
+                params={"path": ".", "query": "sandbox command verified"},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "objective satisfied"}),
+        ]
+    )
+    loop = ModelLedTaskLoop(
+        mission_id=fixture.mission_id,
+        kernel=fixture.kernel,
+        authority=fixture.authority,
+        action_kernel=fixture.action_kernel,
+        decision_client=decisions,
+        decision_context=DecisionContextCompiler(),
+        loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=5, max_material_actions=3)),
+        available_actions=(
+            "read_only.search_text",
+            "workspace_patch.apply_patch",
+            "code_exec.run_profile",
+            "finish",
+        ),
+    )
+
+    result = loop.run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_finish"
+    assert result.material_action_count == 3
+    assert result.model_call_count == 4
+    assert result.capability_sequence[-1] == "sentinel_loop:finish"
+    finish_context = decisions.contexts[-1]
+    assert finish_context["objective_satisfied"] is True
+    assert finish_context["recommended_next_action"] == "sentinel_loop.finish"
+    assert finish_context["finish_available"] is True
+    assert finish_context["available_actions"] == ["finish"]
+
+
+def test_power_pack3_budget_without_objective_satisfied_still_closes_honestly(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "fake_pass"},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "should not be reached"}),
+        ]
+    )
+    loop = ModelLedTaskLoop(
+        mission_id=fixture.mission_id,
+        kernel=fixture.kernel,
+        authority=fixture.authority,
+        action_kernel=fixture.action_kernel,
+        decision_client=decisions,
+        decision_context=DecisionContextCompiler(),
+        loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=3, max_material_actions=1)),
+    )
+
+    result = loop.run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_material_budget_reached"
+    assert result.material_action_count == 1
+    assert result.model_call_count == 1
+
+
 def test_power_pack3_inspect_result_is_non_material_and_loop_guard_counts_run_profile_as_material(tmp_path: Path) -> None:
     fixture = _CodeExecFixture(tmp_path)
     run_result = fixture.code_runtime.execute(

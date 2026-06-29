@@ -31,15 +31,36 @@ class DecisionContextCompiler:
             for result in observations[-6:]
             if result.capability_id == "workspace_patch" and result.operation == "run_bounded_check"
         ]
+        read_only_verification_results = [
+            result
+            for result in observations[-6:]
+            if result.capability_id == "read_only_research"
+            and result.operation in {"search_text", "read_file_segment", "list_directory"}
+            and result.receipt_refs
+        ]
         code_execution_results = [
             result
             for result in observations[-6:]
             if result.capability_id == "code_execution_sandbox" and result.operation == "code_exec.run_profile"
         ]
+        objective_satisfied = _objective_satisfied(
+            code_execution_results=code_execution_results,
+            workspace_patch_results=workspace_patch_results,
+            workspace_verification_results=workspace_verification_results,
+            read_only_verification_results=read_only_verification_results,
+        )
         return {
             "mission_id": mission_id,
             "mission_objective": mission_objective,
             "available_actions": list(available_actions),
+            "objective_satisfied": objective_satisfied,
+            "finish_available": objective_satisfied,
+            "recommended_next_action": "sentinel_loop.finish" if objective_satisfied else None,
+            "finish_instruction": (
+                "Objective receipts are satisfied. Emit sentinel_loop.finish now; do not spend another material action."
+                if objective_satisfied
+                else ""
+            ),
             "authority_summary": {
                 "allowed_actions": list(authority.allowed_actions),
                 "allowed_tools": list(authority.allowed_tools),
@@ -93,6 +114,16 @@ class DecisionContextCompiler:
                 }
                 for result in workspace_verification_results
             ],
+            "read_only_verification_summary": [
+                {
+                    "operation": result.operation,
+                    "status": result.status,
+                    "receipt_count": len(result.receipt_refs),
+                    "summary": result.observation_summary[:500],
+                    "result_hash": result.result_hash,
+                }
+                for result in read_only_verification_results
+            ],
             "code_execution_summary": [
                 {
                     "operation": result.operation,
@@ -105,6 +136,22 @@ class DecisionContextCompiler:
                 for result in code_execution_results
             ],
         }
+
+
+def _objective_satisfied(
+    *,
+    code_execution_results: list[ActionResult],
+    workspace_patch_results: list[ActionResult],
+    workspace_verification_results: list[ActionResult],
+    read_only_verification_results: list[ActionResult],
+) -> bool:
+    has_code_execution = any(result.receipt_refs and result.status in {"passed", "completed"} for result in code_execution_results)
+    has_patch = any(result.receipt_refs and result.status in {"completed", "passed"} for result in workspace_patch_results)
+    has_verification = any(
+        result.receipt_refs and result.status in {"completed", "passed"}
+        for result in [*workspace_verification_results, *read_only_verification_results]
+    )
+    return has_code_execution and has_patch and has_verification
 
 
 def _profile_id_from_summary(summary: str) -> str:
