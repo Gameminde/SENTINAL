@@ -163,6 +163,52 @@ def test_power_pack5_real_transport_config_names_are_metadata_not_values(monkeyp
         build_webhook_channel_transport_from_env()
 
 
+def test_power_pack5_telegram_transport_requires_process_scoped_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sentinel.operator.channel_adapter import build_telegram_channel_transport_from_env
+
+    monkeypatch.delenv("SENTINEL_TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SENTINEL_TELEGRAM_CHAT_ID", raising=False)
+
+    with pytest.raises(ChannelConnectorRuntimeError, match="real_channel_transport_config_missing:SENTINEL_TELEGRAM_BOT_TOKEN"):
+        build_telegram_channel_transport_from_env()
+
+    monkeypatch.setenv("SENTINEL_TELEGRAM_BOT_TOKEN", "token-value")
+    with pytest.raises(ChannelConnectorRuntimeError, match="real_channel_transport_config_missing:SENTINEL_TELEGRAM_CHAT_ID"):
+        build_telegram_channel_transport_from_env()
+
+
+def test_power_pack5_telegram_transport_posts_send_message_without_persisting_token_or_chat_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sentinel.operator.channel_adapter import build_telegram_channel_transport_from_env
+
+    requests: list[object] = []
+
+    class _Response:
+        status = 200
+
+        def read(self, _limit: int = -1) -> bytes:
+            return b'{"ok":true,"result":{"message_id":123}}'
+
+    def opener(request: object, timeout: float) -> _Response:
+        requests.append((request, timeout))
+        return _Response()
+
+    monkeypatch.setenv("SENTINEL_TELEGRAM_BOT_TOKEN", "telegram-token-value")
+    monkeypatch.setenv("SENTINEL_TELEGRAM_CHAT_ID", "telegram-chat-id")
+    transport = build_telegram_channel_transport_from_env(opener=opener)
+
+    receipt = transport(type("Request", (), {"body": "Bounded Telegram message."})())
+
+    assert receipt.delivery_ref == "telegram:123"
+    assert len(requests) == 1
+    request, timeout = requests[0]
+    assert timeout == 15.0
+    assert request.full_url.endswith("/sendMessage")
+    assert "telegram-token-value" in request.full_url
+    body = request.data.decode("utf-8")
+    assert '"chat_id": "telegram-chat-id"' in body
+    assert '"text": "Bounded Telegram message."' in body
+
+
 class _ChannelPowerFixture:
     def __init__(self, tmp_path: Path) -> None:
         self.transport_calls = 0

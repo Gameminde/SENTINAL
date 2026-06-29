@@ -27,6 +27,7 @@ mission-level destination grant
 - Added a reusable `ModelLedLiveChannelActionRuntime.execute_action_envelope(...)` bridge so generic `ActionEnvelope` loops can invoke bounded channel sends directly.
 - Added `ModelLedLiveChannelActionRuntime.as_action_executor(...)` so `ActionKernel` can inject the channel power path without hand-written per-test wrappers.
 - Added `WebhookChannelTransport` and `build_webhook_channel_transport_from_env(...)` to support a real webhook transport from process-scoped environment configuration.
+- Added `TelegramBotChannelTransport` and `build_telegram_channel_transport_from_env(...)` to support Telegram Bot API `sendMessage` from process-scoped environment configuration.
 - Added channel-mode progress/context handling in `DecisionContextCompiler`:
   - after a receipt-backed channel send, `objective_satisfied = true`;
   - `finish_available = true`;
@@ -44,6 +45,15 @@ SENTINEL_CHANNEL_WEBHOOK_TOKEN
 
 `SENTINEL_CHANNEL_WEBHOOK_URL` is required for the webhook transport builder.
 `SENTINEL_CHANNEL_WEBHOOK_TOKEN` is optional.
+
+Telegram process-scoped config names:
+
+```text
+SENTINEL_TELEGRAM_BOT_TOKEN
+SENTINEL_TELEGRAM_CHAT_ID
+```
+
+Both are required for the Telegram transport builder. They are read from the process environment only and are not written to mission artifacts or reports.
 
 The transport object may hold raw URL/token in memory for the outbound call, but runtime artifacts persist only hashes and delivery references through the existing channel adapter receipt path.
 
@@ -110,7 +120,7 @@ py -3.13 -m pytest tests/operator/test_power_pack5_real_channel_transport_send.p
 Result:
 
 ```text
-7 passed
+9 passed
 ```
 
 ```text

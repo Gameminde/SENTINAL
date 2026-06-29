@@ -43,6 +43,8 @@ from sentinel.telemetry import TelemetryDomain, TelemetryMetricKind, TelemetryMe
 ChannelTransport = Callable[[Any], Any]
 DEFAULT_WEBHOOK_URL_ENV = "SENTINEL_CHANNEL_WEBHOOK_URL"
 DEFAULT_WEBHOOK_TOKEN_ENV = "SENTINEL_CHANNEL_WEBHOOK_TOKEN"
+DEFAULT_TELEGRAM_BOT_TOKEN_ENV = "SENTINEL_TELEGRAM_BOT_TOKEN"
+DEFAULT_TELEGRAM_CHAT_ID_ENV = "SENTINEL_TELEGRAM_CHAT_ID"
 
 
 class ChannelConnectorRuntimeError(ValueError):
@@ -114,6 +116,74 @@ def build_webhook_channel_transport_from_env(
     return WebhookChannelTransport(
         url=url,
         token=os.environ.get(token_env),
+        timeout_seconds=timeout_seconds,
+        opener=opener,
+    )
+
+
+class TelegramBotChannelTransport:
+    """Telegram Bot API sendMessage transport for one bounded granted chat."""
+
+    def __init__(
+        self,
+        *,
+        bot_token: str,
+        chat_id: str,
+        timeout_seconds: float = 15.0,
+        opener: Callable[[urllib_request.Request, float], Any] | None = None,
+    ) -> None:
+        if not bot_token.strip():
+            raise ChannelConnectorRuntimeError(f"real_channel_transport_config_missing:{DEFAULT_TELEGRAM_BOT_TOKEN_ENV}")
+        if not chat_id.strip():
+            raise ChannelConnectorRuntimeError(f"real_channel_transport_config_missing:{DEFAULT_TELEGRAM_CHAT_ID_ENV}")
+        self._bot_token = bot_token.strip()
+        self._chat_id = chat_id.strip()
+        self._timeout_seconds = timeout_seconds
+        self._opener = opener or _default_urlopen
+
+    def __call__(self, request: Any) -> ChannelSendTransportReceipt:
+        payload = {
+            "chat_id": self._chat_id,
+            "text": str(getattr(request, "body", "")),
+        }
+        body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+        outbound = urllib_request.Request(
+            f"https://api.telegram.org/bot{self._bot_token}/sendMessage",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            response = self._opener(outbound, self._timeout_seconds)
+            status = int(getattr(response, "status", getattr(response, "code", 200)) or 200)
+            response_body = response.read(8192).decode("utf-8", errors="replace") if hasattr(response, "read") else ""
+        except urllib_error.HTTPError as exc:
+            raise ChannelConnectorRuntimeError(f"real_channel_transport_failed:telegram_http_status:{exc.code}") from exc
+        except urllib_error.URLError as exc:
+            raise ChannelConnectorRuntimeError("real_channel_transport_failed:telegram_network") from exc
+        except TimeoutError as exc:
+            raise ChannelConnectorRuntimeError("real_channel_transport_failed:telegram_timeout") from exc
+        if status >= 400:
+            raise ChannelConnectorRuntimeError(f"real_channel_transport_failed:telegram_http_status:{status}")
+        return ChannelSendTransportReceipt(delivery_ref=_telegram_delivery_ref(status=status, response_body=response_body))
+
+
+def build_telegram_channel_transport_from_env(
+    *,
+    token_env: str = DEFAULT_TELEGRAM_BOT_TOKEN_ENV,
+    chat_id_env: str = DEFAULT_TELEGRAM_CHAT_ID_ENV,
+    timeout_seconds: float = 15.0,
+    opener: Callable[[urllib_request.Request, float], Any] | None = None,
+) -> TelegramBotChannelTransport:
+    bot_token = os.environ.get(token_env)
+    if not bot_token:
+        raise ChannelConnectorRuntimeError(f"real_channel_transport_config_missing:{token_env}")
+    chat_id = os.environ.get(chat_id_env)
+    if not chat_id:
+        raise ChannelConnectorRuntimeError(f"real_channel_transport_config_missing:{chat_id_env}")
+    return TelegramBotChannelTransport(
+        bot_token=bot_token,
+        chat_id=chat_id,
         timeout_seconds=timeout_seconds,
         opener=opener,
     )
@@ -721,6 +791,20 @@ def _safe_delivery_ref(*, status: int, response_body: str) -> str:
             if isinstance(value, str) and value.strip():
                 return value.strip()
     return f"webhook:{status}:{stable_hash({'response_body_hash': stable_hash(response_body), 'status': status})}"
+
+
+def _telegram_delivery_ref(*, status: int, response_body: str) -> str:
+    try:
+        payload = json.loads(response_body) if response_body.strip() else {}
+    except json.JSONDecodeError:
+        payload = {}
+    if isinstance(payload, dict):
+        result = payload.get("result")
+        if isinstance(result, dict):
+            message_id = result.get("message_id")
+            if message_id is not None:
+                return f"telegram:{message_id}"
+    return f"telegram:{status}:{stable_hash({'response_body_hash': stable_hash(response_body), 'status': status})}"
 
 
 def _domain_for_recipient(recipient: str) -> str:
