@@ -49,6 +49,11 @@ class DecisionContextCompiler:
             for result in observations[-6:]
             if result.capability_id == "browser_control"
         ]
+        real_browser_results = [
+            result
+            for result in observations[-6:]
+            if result.capability_id == "real_browser_control"
+        ]
         channel_results = [
             result
             for result in observations[-6:]
@@ -69,6 +74,17 @@ class DecisionContextCompiler:
             for result in browser_results
             if result.operation == "browser.assert_text" and result.status == "passed" and result.receipt_refs
         ]
+        real_browser_action_results = [
+            result
+            for result in real_browser_results
+            if result.operation in {"real_browser.click", "real_browser.type_text", "real_browser.select_option"}
+            and result.receipt_refs
+        ]
+        real_browser_assertion_results = [
+            result
+            for result in real_browser_results
+            if result.operation == "real_browser.assert_text" and result.status == "passed" and result.receipt_refs
+        ]
         latest_patch_index = _latest_success_index(
             sequenced_observations,
             capability_id="workspace_patch",
@@ -79,20 +95,30 @@ class DecisionContextCompiler:
             latest_patch_index=latest_patch_index,
         )
         browser_mode = _is_browser_mode(available_actions=available_actions, observations=observations)
+        real_browser_mode = _is_real_browser_mode(available_actions=available_actions, observations=observations)
         patch_objective_satisfied = _objective_satisfied(
             code_execution_results=code_execution_results,
             workspace_patch_results=workspace_patch_results,
             post_patch_verification_results=post_patch_verification_results,
         )
         channel_mode = _is_channel_mode(available_actions=available_actions, observations=observations)
-        if browser_mode:
+        if real_browser_mode:
+            objective_satisfied = bool(real_browser_assertion_results)
+        elif browser_mode:
             objective_satisfied = bool(browser_assertion_results)
         elif channel_mode:
             objective_satisfied = bool(channel_delivery_results)
         else:
             objective_satisfied = patch_objective_satisfied
         progress_guidance = (
-            _browser_progress_guidance(
+            _real_browser_progress_guidance(
+                objective_satisfied=objective_satisfied,
+                real_browser_results=real_browser_results,
+                real_browser_action_results=real_browser_action_results,
+                real_browser_assertion_results=real_browser_assertion_results,
+            )
+            if real_browser_mode
+            else _browser_progress_guidance(
                 objective_satisfied=objective_satisfied,
                 browser_results=browser_results,
                 browser_action_results=browser_action_results,
@@ -203,6 +229,7 @@ class DecisionContextCompiler:
                 for result in code_execution_results
             ],
             "browser_control_summary": _browser_summary(browser_results),
+            "real_browser_control_summary": _real_browser_summary(real_browser_results),
             "channel_delivery_summary": _channel_summary(channel_results),
         }
 
@@ -363,6 +390,12 @@ def _is_browser_mode(*, available_actions: tuple[str, ...], observations: list[A
     return any(action.startswith("browser_control.") for action in available_actions)
 
 
+def _is_real_browser_mode(*, available_actions: tuple[str, ...], observations: list[ActionResult]) -> bool:
+    if any(result.capability_id == "real_browser_control" for result in observations):
+        return True
+    return any(action.startswith("real_browser_control.") for action in available_actions)
+
+
 def _is_channel_mode(*, available_actions: tuple[str, ...], observations: list[ActionResult]) -> bool:
     if any(result.capability_id in {"bounded_channel", "channel_transport"} for result in observations):
         return True
@@ -453,6 +486,77 @@ def _browser_progress_guidance(
     }
 
 
+def _real_browser_progress_guidance(
+    *,
+    objective_satisfied: bool,
+    real_browser_results: list[ActionResult],
+    real_browser_action_results: list[ActionResult],
+    real_browser_assertion_results: list[ActionResult],
+) -> dict[str, Any]:
+    has_open = any(
+        result.operation == "real_browser.open" and result.receipt_refs and result.status in {"completed", "passed", "success"}
+        for result in real_browser_results
+    )
+    has_observation = any(
+        result.operation == "real_browser.observe" and result.receipt_refs and result.status in {"completed", "passed", "success"}
+        for result in real_browser_results
+    )
+    has_action = any(result.status in {"completed", "passed", "success"} for result in real_browser_action_results)
+    has_assertion = any(result.status == "passed" for result in real_browser_assertion_results)
+    completion_requirements = {
+        "requires_real_browser_open_receipt": not has_open,
+        "requires_real_browser_observation_receipt": not has_observation,
+        "requires_real_browser_action_receipt": not has_action,
+        "requires_real_browser_assertion_receipt": not has_assertion,
+        "requires_finish_action": True,
+        "has_real_browser_open_receipt": has_open,
+        "has_real_browser_observation_receipt": has_observation,
+        "has_real_browser_action_receipt": has_action,
+        "has_real_browser_assertion_receipt": has_assertion,
+    }
+    if objective_satisfied:
+        return {
+            "progress_state": "real_browser_objective_satisfied",
+            "next_recommended_actions": ["sentinel_loop.finish"],
+            "objective_remaining_steps": [],
+            "completion_requirements": completion_requirements,
+        }
+    if has_action and not has_assertion:
+        return {
+            "progress_state": "real_browser_action_needs_assertion",
+            "next_recommended_actions": [
+                "real_browser_control.real_browser.assert_text",
+                "real_browser_control.real_browser.extract_text",
+            ],
+            "objective_remaining_steps": ["assert bounded real browser state changed", "finish"],
+            "completion_requirements": completion_requirements,
+        }
+    if has_observation and not has_action:
+        return {
+            "progress_state": "real_browser_observed_needs_action",
+            "next_recommended_actions": [
+                "real_browser_control.real_browser.type_text",
+                "real_browser_control.real_browser.click",
+                "real_browser_control.real_browser.select_option",
+            ],
+            "objective_remaining_steps": ["act using stable ref", "assert bounded real browser state changed", "finish"],
+            "completion_requirements": completion_requirements,
+        }
+    if has_open and not has_observation:
+        return {
+            "progress_state": "real_browser_opened_needs_observation",
+            "next_recommended_actions": ["real_browser_control.real_browser.observe"],
+            "objective_remaining_steps": ["observe bounded page", "act using stable ref", "assert state changed", "finish"],
+            "completion_requirements": completion_requirements,
+        }
+    return {
+        "progress_state": "real_browser_not_started",
+        "next_recommended_actions": ["real_browser_control.real_browser.open"],
+        "objective_remaining_steps": ["open bounded page", "observe stable refs", "act using stable ref", "assert state changed", "finish"],
+        "completion_requirements": completion_requirements,
+    }
+
+
 def _browser_summary(browser_results: list[ActionResult]) -> dict[str, Any]:
     latest_observation = next((result for result in reversed(browser_results) if result.operation == "browser.observe"), None)
     latest_action = next(
@@ -485,6 +589,27 @@ def _browser_result_summary(result: ActionResult | None, *, include_element_coun
     if include_element_count:
         payload["element_count"] = _element_count_from_summary(result.observation_summary)
     return payload
+
+
+def _real_browser_summary(real_browser_results: list[ActionResult]) -> dict[str, Any]:
+    latest_open = next((result for result in reversed(real_browser_results) if result.operation == "real_browser.open"), None)
+    latest_observation = next((result for result in reversed(real_browser_results) if result.operation == "real_browser.observe"), None)
+    latest_action = next(
+        (
+            result
+            for result in reversed(real_browser_results)
+            if result.operation in {"real_browser.click", "real_browser.type_text", "real_browser.select_option"}
+        ),
+        None,
+    )
+    latest_assertion = next((result for result in reversed(real_browser_results) if result.operation == "real_browser.assert_text"), None)
+    return {
+        "latest_open": _browser_result_summary(latest_open),
+        "latest_observation": _browser_result_summary(latest_observation, include_element_count=True),
+        "latest_action": _browser_result_summary(latest_action),
+        "latest_assertion": _browser_result_summary(latest_assertion),
+        "receipt_count": sum(len(result.receipt_refs) for result in real_browser_results),
+    }
 
 
 def _element_count_from_summary(summary: str) -> int:

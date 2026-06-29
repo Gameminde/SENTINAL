@@ -138,6 +138,7 @@ class ModelLedTaskLoop:
         self._append_event("model_led_task_loop_started", "Model-led task loop started.")
         finish_only_due_to_material_budget = False
         browser_assertion_due_to_material_budget = False
+        real_browser_assertion_due_to_material_budget = False
         try:
             if self.kernel.store.load_record(self.mission_id).status is OperatorMissionStatus.QUEUED:
                 self.kernel.update_status(self.mission_id, OperatorMissionStatus.RUNNING, "Model-led task loop started.")
@@ -148,6 +149,8 @@ class ModelLedTaskLoop:
                     available_actions = _finish_only_actions(self.available_actions)
                 elif browser_assertion_due_to_material_budget:
                     available_actions = ("browser_control.browser.assert_text",)
+                elif real_browser_assertion_due_to_material_budget:
+                    available_actions = ("real_browser_control.real_browser.assert_text",)
                 else:
                     available_actions = self.available_actions
                 context = self._compile_context(available_actions=available_actions)
@@ -155,6 +158,8 @@ class ModelLedTaskLoop:
                     context["finish_only_due_to_material_budget"] = True
                 if browser_assertion_due_to_material_budget:
                     context["browser_assertion_due_to_material_budget"] = True
+                if real_browser_assertion_due_to_material_budget:
+                    context["real_browser_assertion_due_to_material_budget"] = True
                 envelope = self.decision_client.complete(context)
                 self.model_calls_used += 1
                 self._validate_model_action_envelope(envelope, context=context, turn_index=self.model_calls_used)
@@ -168,10 +173,16 @@ class ModelLedTaskLoop:
                     envelope.capability_id == "browser_control" and envelope.operation == "browser.assert_text"
                 ):
                     raise ActionKernelError("model_led_task_loop_browser_assertion_required_after_action_budget")
+                if real_browser_assertion_due_to_material_budget and not (
+                    envelope.capability_id == "real_browser_control" and envelope.operation == "real_browser.assert_text"
+                ):
+                    raise ActionKernelError("model_led_task_loop_real_browser_assertion_required_after_action_budget")
                 if _is_premature_patch_finish(envelope, context):
                     raise ActionKernelError("MODEL_FINISH_BEFORE_POST_PATCH_VERIFICATION")
                 if _is_premature_browser_finish(envelope, context):
                     raise ActionKernelError("MODEL_FINISH_BEFORE_BROWSER_ASSERTION")
+                if _is_premature_real_browser_finish(envelope, context):
+                    raise ActionKernelError("MODEL_FINISH_BEFORE_REAL_BROWSER_ASSERTION")
                 self.loop_guard.check_before_action(envelope)
                 self._assert_mission_and_authority_open()
                 result = self.action_kernel.execute(envelope, authority=self.authority, context=context)
@@ -183,6 +194,8 @@ class ModelLedTaskLoop:
                     self.material_actions_used += 1
                 if envelope.capability_id == "browser_control" and envelope.operation == "browser.assert_text":
                     browser_assertion_due_to_material_budget = False
+                if envelope.capability_id == "real_browser_control" and envelope.operation == "real_browser.assert_text":
+                    real_browser_assertion_due_to_material_budget = False
                 if envelope.capability_id == "sentinel_loop" and envelope.operation == "finish":
                     return self._complete("model_led_task_loop_finish")
                 if self.loop_guard.material_budget_reached(self.material_actions_used):
@@ -196,6 +209,9 @@ class ModelLedTaskLoop:
                         continue
                     if _needs_browser_assertion_at_budget(post_action_context) and not browser_assertion_due_to_material_budget:
                         browser_assertion_due_to_material_budget = True
+                        continue
+                    if _needs_real_browser_assertion_at_budget(post_action_context) and not real_browser_assertion_due_to_material_budget:
+                        real_browser_assertion_due_to_material_budget = True
                         continue
                     return self._complete("model_led_task_loop_material_budget_reached")
         except (ActionKernelError, LoopGuardError) as exc:
@@ -365,6 +381,11 @@ class ModelLedTaskLoopReplay(SentinelModel):
     browser_click_delta: int = 0
     browser_type_delta: int = 0
     browser_assert_delta: int = 0
+    real_browser_open_delta: int = 0
+    real_browser_observe_delta: int = 0
+    real_browser_click_delta: int = 0
+    real_browser_type_delta: int = 0
+    real_browser_assert_delta: int = 0
     receipt_writes_delta: int
     evidence_writes_delta: int
     finalgate_writes_delta: int
@@ -394,6 +415,11 @@ class ModelLedTaskLoopReplay(SentinelModel):
             browser_click_delta=0,
             browser_type_delta=0,
             browser_assert_delta=0,
+            real_browser_open_delta=0,
+            real_browser_observe_delta=0,
+            real_browser_click_delta=0,
+            real_browser_type_delta=0,
+            real_browser_assert_delta=0,
             receipt_writes_delta=after["receipts"] - before["receipts"],
             evidence_writes_delta=after["evidence"] - before["evidence"],
             finalgate_writes_delta=after["finalgate"] - before["finalgate"],
@@ -503,6 +529,20 @@ def _is_premature_browser_finish(envelope: ActionEnvelope, context: dict[str, An
     )
 
 
+def _is_premature_real_browser_finish(envelope: ActionEnvelope, context: dict[str, Any]) -> bool:
+    if envelope.capability_id != "sentinel_loop" or envelope.operation != "finish":
+        return False
+    if context.get("objective_satisfied") is True:
+        return False
+    completion_requirements = context.get("completion_requirements")
+    if not isinstance(completion_requirements, dict):
+        return False
+    return bool(
+        completion_requirements.get("has_real_browser_action_receipt") is True
+        and completion_requirements.get("requires_real_browser_assertion_receipt") is True
+    )
+
+
 def _needs_browser_assertion_at_budget(context: dict[str, Any]) -> bool:
     completion_requirements = context.get("completion_requirements")
     if not isinstance(completion_requirements, dict):
@@ -510,6 +550,16 @@ def _needs_browser_assertion_at_budget(context: dict[str, Any]) -> bool:
     return bool(
         completion_requirements.get("has_browser_action_receipt") is True
         and completion_requirements.get("requires_browser_assertion_receipt") is True
+    )
+
+
+def _needs_real_browser_assertion_at_budget(context: dict[str, Any]) -> bool:
+    completion_requirements = context.get("completion_requirements")
+    if not isinstance(completion_requirements, dict):
+        return False
+    return bool(
+        completion_requirements.get("has_real_browser_action_receipt") is True
+        and completion_requirements.get("requires_real_browser_assertion_receipt") is True
     )
 
 
