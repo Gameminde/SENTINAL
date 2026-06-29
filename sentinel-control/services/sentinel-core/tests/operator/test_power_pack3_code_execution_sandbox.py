@@ -292,6 +292,73 @@ def test_power_pack3_production_read_only_receipt_satisfies_objective_and_unlock
     assert finish_context["available_actions"] == ["finish"]
 
 
+def test_power_pack3_empty_action_envelope_blocks_before_action_kernel_dispatch_with_safe_diagnostics(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="", operation="", params={}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    events = fixture.kernel.store.load_events(fixture.mission_id)
+    blocked_event = next(event for event in reversed(events) if event.event_type == "model_led_task_loop_blocked")
+
+    assert result.status is ModelLedTaskLoopStatus.BLOCKED
+    assert result.blocked_reason == "MODEL_ACTION_EMPTY_ENVELOPE"
+    assert fixture.read_only_tool_calls == 0
+    assert fixture.code_runtime.command_execution_count == 0
+    assert fixture.patch_runtime.patch_application_count == 0
+    assert result.failure_diagnostics["failure_code"] == "MODEL_ACTION_EMPTY_ENVELOPE"
+    assert result.failure_diagnostics["turn_index"] == 1
+    assert result.failure_diagnostics["allowed_operations"]
+    assert result.failure_diagnostics["last_receipt_refs"] == []
+    assert blocked_event.metadata["failure_diagnostics"]["failure_code"] == "MODEL_ACTION_EMPTY_ENVELOPE"
+    assert "raw_provider" not in str(blocked_event.metadata).lower()
+    assert "reasoning" not in str(blocked_event.metadata).lower()
+
+
+def test_power_pack3_blank_capability_or_operation_blocks_with_typed_reason(tmp_path: Path) -> None:
+    for envelope in [
+        ActionEnvelope(capability_id="   ", operation="list_directory", params={"path": "."}),
+        ActionEnvelope(capability_id="read_only_research", operation="   ", params={"path": "."}),
+    ]:
+        case_root = tmp_path / envelope.action_id
+        case_root.mkdir()
+        fixture = _CodeExecFixture(case_root)
+        decisions = ModelLedTaskDecisionClient([envelope])
+
+        result = fixture.loop(decisions).run()
+
+        assert result.status is ModelLedTaskLoopStatus.BLOCKED
+        assert result.blocked_reason == "MODEL_ACTION_EMPTY_ENVELOPE"
+        assert "action_executor_missing" not in result.blocked_reason
+        assert result.failure_diagnostics["failure_code"] == "MODEL_ACTION_EMPTY_ENVELOPE"
+
+
+def test_power_pack3_context_after_read_only_receipt_guides_next_power_actions(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, production_read_only=True)
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="read_only_research", operation="list_directory", params={"path": "."}),
+            ActionEnvelope(capability_id="", operation="", params={}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+
+    assert result.status is ModelLedTaskLoopStatus.BLOCKED
+    next_context = decisions.contexts[1]
+    assert next_context["progress_state"] == "initial_observation_collected"
+    assert "code_execution_sandbox.code_exec.run_profile" in next_context["next_recommended_actions"]
+    assert "workspace_patch.apply_patch" in next_context["next_recommended_actions"]
+    assert "read_only_research.search_text" in next_context["next_recommended_actions"]
+    assert "sentinel_loop.finish" not in next_context["next_recommended_actions"]
+    assert "run bounded code execution" in next_context["objective_remaining_steps"]
+    assert next_context["completion_requirements"]["requires_code_execution_receipt"] is True
+    assert next_context["available_actions"]
+
+
 def test_power_pack3_finish_only_turn_available_when_objective_satisfied_at_material_budget(tmp_path: Path) -> None:
     fixture = _CodeExecFixture(tmp_path)
     base_hash = fixture.readme_hash()

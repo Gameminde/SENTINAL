@@ -96,6 +96,7 @@ class ModelLedTaskLoopResult(SentinelModel):
     material_action_count: int = 0
     model_call_count: int = 0
     capability_sequence: tuple[str, ...] = Field(default_factory=tuple)
+    failure_diagnostics: dict[str, Any] = Field(default_factory=dict)
 
 
 class ModelLedTaskLoop:
@@ -131,6 +132,7 @@ class ModelLedTaskLoop:
         self.capability_sequence: list[str] = []
         self.model_calls_used = 0
         self.material_actions_used = 0
+        self._last_failure_diagnostics: dict[str, Any] = {}
 
     def run(self) -> ModelLedTaskLoopResult:
         self._append_event("model_led_task_loop_started", "Model-led task loop started.")
@@ -147,6 +149,7 @@ class ModelLedTaskLoop:
                     context["finish_only_due_to_material_budget"] = True
                 envelope = self.decision_client.complete(context)
                 self.model_calls_used += 1
+                self._validate_model_action_envelope(envelope, context=context, turn_index=self.model_calls_used)
                 if finish_only_due_to_material_budget and not (
                     envelope.capability_id == "sentinel_loop" and envelope.operation == "finish"
                 ):
@@ -206,7 +209,11 @@ class ModelLedTaskLoop:
         self._append_event(
             "model_led_task_loop_blocked",
             "Model-led task loop blocked before unsafe or unproductive continuation.",
-            metadata={"safe_stop_hash": stable_hash(reason), "safe_stop_code": _safe_reason_code(reason)},
+            metadata={
+                "safe_stop_hash": stable_hash(reason),
+                "safe_stop_code": _safe_reason_code(reason),
+                "failure_diagnostics": self._last_failure_diagnostics or None,
+            },
             certificate_refs=[certificate.certificate_id],
         )
         return self._result(
@@ -214,6 +221,7 @@ class ModelLedTaskLoop:
             "model_led_task_loop_blocked",
             blocked_reason=reason,
             certificate_refs=(certificate.certificate_id,),
+            failure_diagnostics=self._last_failure_diagnostics,
         )
 
     def _result(
@@ -223,6 +231,7 @@ class ModelLedTaskLoop:
         *,
         blocked_reason: str | None = None,
         certificate_refs: tuple[str, ...] = (),
+        failure_diagnostics: dict[str, Any] | None = None,
     ) -> ModelLedTaskLoopResult:
         return ModelLedTaskLoopResult(
             mission_id=self.mission_id,
@@ -236,7 +245,21 @@ class ModelLedTaskLoop:
             material_action_count=self.material_actions_used,
             model_call_count=self.model_calls_used,
             capability_sequence=tuple(self.capability_sequence),
+            failure_diagnostics=dict(failure_diagnostics or self._last_failure_diagnostics)
+            if status is ModelLedTaskLoopStatus.BLOCKED
+            else {},
         )
+
+    def _validate_model_action_envelope(self, envelope: ActionEnvelope, *, context: dict[str, Any], turn_index: int) -> None:
+        if envelope.capability_id.strip() and envelope.operation.strip():
+            return
+        self._last_failure_diagnostics = _empty_envelope_diagnostics(
+            envelope,
+            context=context,
+            turn_index=turn_index,
+            observations=self.results,
+        )
+        raise ActionKernelError("MODEL_ACTION_EMPTY_ENVELOPE")
 
     def _assert_mission_and_authority_open(self) -> None:
         terminal_reason = self.kernel.terminal_block_reason(self.mission_id)
@@ -371,6 +394,54 @@ def _safe_reason_code(reason: str) -> str:
     if ":" in reason:
         return reason.split(":", 1)[0]
     return reason
+
+
+def _empty_envelope_diagnostics(
+    envelope: ActionEnvelope,
+    *,
+    context: dict[str, Any],
+    turn_index: int,
+    observations: list[ActionResult],
+) -> dict[str, Any]:
+    available_actions = [str(item) for item in context.get("available_actions", [])]
+    last_success = next(
+        (
+            f"{result.capability_id}:{result.operation}"
+            for result in reversed(observations)
+            if result.status in {"completed", "passed", "success"} and result.receipt_refs
+        ),
+        None,
+    )
+    last_receipts = next(
+        (list(result.receipt_refs) for result in reversed(observations) if result.receipt_refs),
+        [],
+    )
+    return {
+        "decision_ref": envelope.decision_ref or envelope.action_id,
+        "turn_index": turn_index,
+        "allowed_capabilities": _allowed_capabilities_from_actions(available_actions),
+        "allowed_operations": available_actions,
+        "last_successful_action": last_success,
+        "last_receipt_refs": sanitize_operator_refs(last_receipts),
+        "failure_code": "MODEL_ACTION_EMPTY_ENVELOPE",
+        "capability_present": bool(envelope.capability_id.strip()),
+        "operation_present": bool(envelope.operation.strip()),
+    }
+
+
+def _allowed_capabilities_from_actions(available_actions: list[str]) -> list[str]:
+    aliases = {
+        "read_only": "read_only_research",
+        "code_exec": "code_execution_sandbox",
+        "finish": "sentinel_loop",
+    }
+    capabilities: list[str] = []
+    for action in available_actions:
+        prefix = action.split(".", 1)[0] if "." in action else action
+        capability = aliases.get(prefix, prefix)
+        if capability and capability not in capabilities:
+            capabilities.append(capability)
+    return capabilities
 
 
 __all__ = [
