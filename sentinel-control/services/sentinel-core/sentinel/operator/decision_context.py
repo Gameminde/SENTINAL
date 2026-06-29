@@ -19,6 +19,10 @@ class DecisionContextCompiler:
         material_actions_used: int,
         max_model_calls: int,
         max_material_actions: int,
+        recovery_turns_used: int = 0,
+        max_recovery_turns: int = 0,
+        correction_turns_used: int = 0,
+        max_correction_turns: int = 0,
     ) -> dict[str, Any]:
         previous = observations[-1] if observations else None
         sequenced_observations = list(enumerate(observations))
@@ -64,6 +68,8 @@ class DecisionContextCompiler:
             for result in channel_results
             if result.operation == "send_message" and result.status in {"completed", "passed", "success"} and result.receipt_refs
         ]
+        recoverable_results = [result for result in observations[-6:] if result.recoverable]
+        latest_recoverable = recoverable_results[-1] if recoverable_results else None
         browser_action_results = [
             result
             for result in browser_results
@@ -196,6 +202,8 @@ class DecisionContextCompiler:
             "budget_remaining": {
                 "model_calls": max(max_model_calls - model_calls_used, 0),
                 "material_actions": max(max_material_actions - material_actions_used, 0),
+                "recovery_turns": max(max_recovery_turns - recovery_turns_used, 0),
+                "correction_turns": max(max_correction_turns - correction_turns_used, 0),
             },
             "channel_grant_summary": {
                 "allowed_domains": list(authority.allowed_domains),
@@ -250,6 +258,10 @@ class DecisionContextCompiler:
             "real_browser_control_summary": _real_browser_summary(real_browser_results),
             "browser_world_model_summary": real_browser_cards.get("browser_world_model_summary") if real_browser_mode else {},
             "browser_decision_frame": real_browser_cards.get("browser_decision_frame") if real_browser_mode else {},
+            "browser_actionability_registry": real_browser_cards.get("browser_actionability_registry") if real_browser_mode else {},
+            "actionability_frame": real_browser_cards.get("actionability_frame") if real_browser_mode else {},
+            "last_recoverable_failure": _recoverable_failure_summary(latest_recoverable),
+            "recoverable_failure_history": [_recoverable_failure_summary(result) for result in recoverable_results],
             "top_stable_refs": _top_stable_refs(real_browser_cards),
             "top_action_candidates": _top_action_candidates(real_browser_cards),
             "top_link_candidates": _top_link_candidates(real_browser_cards),
@@ -270,6 +282,22 @@ def _objective_satisfied(
     has_patch = any(result.receipt_refs and result.status in {"completed", "passed"} for result in workspace_patch_results)
     has_verification = any(result.receipt_refs and result.status in {"completed", "passed"} for result in post_patch_verification_results)
     return has_code_execution and has_patch and has_verification
+
+
+def _recoverable_failure_summary(result: ActionResult | None) -> dict[str, Any]:
+    if result is None:
+        return {}
+    return {
+        "capability_id": result.capability_id,
+        "operation": result.operation,
+        "status": result.status,
+        "failure_class": result.failure_class.value if result.failure_class else None,
+        "failure_code": result.failure_code,
+        "blocked_reason": result.blocked_reason,
+        "summary": result.observation_summary[:500],
+        "recommended_next_actions": list(result.recommended_next_actions),
+        "recovery_observation": result.recovery_observation,
+    }
 
 
 def _latest_success_index(

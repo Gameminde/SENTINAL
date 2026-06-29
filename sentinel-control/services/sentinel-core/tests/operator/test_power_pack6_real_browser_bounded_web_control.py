@@ -140,8 +140,16 @@ def test_power_pack6_real_browser_blocks_unknown_secret_disabled_and_unbounded_m
         context={},
     )
 
-    blocked = [
+    recoverable = fixture.real_browser_runtime.execute(
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", params={"ref": "button:missing"}),
+        authority=fixture.authority,
+        context={},
+    )
+    assert recoverable.status == "recoverable_failed"
+    assert recoverable.recoverable is True
+    assert recoverable.blocked_reason == "real_browser_element_ref_unknown"
+
+    blocked = [
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", params={"ref": "button:hidden"}),
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", params={"ref": "button:disabled"}),
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.type_text", params={"ref": "input:masked", "text": "hello"}),

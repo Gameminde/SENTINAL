@@ -10,6 +10,7 @@ from pydantic import Field, model_validator
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
+from sentinel.operator.action_power_contract import ActionAliasNormalizer, ActionFailureClass, recoverable_action_observation
 from sentinel.operator.decision_context import DecisionContextCompiler
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.loop_guard import LoopGuard, LoopGuardConfig, LoopGuardError
@@ -132,7 +133,10 @@ class ModelLedTaskLoop:
         self.capability_sequence: list[str] = []
         self.model_calls_used = 0
         self.material_actions_used = 0
+        self.recovery_turns_used = 0
+        self.correction_turns_used = 0
         self._last_failure_diagnostics: dict[str, Any] = {}
+        self._normalizer = ActionAliasNormalizer()
 
     def run(self) -> ModelLedTaskLoopResult:
         self._append_event("model_led_task_loop_started", "Model-led task loop started.")
@@ -160,9 +164,14 @@ class ModelLedTaskLoop:
                     context["browser_assertion_due_to_material_budget"] = True
                 if real_browser_assertion_due_to_material_budget:
                     context["real_browser_assertion_due_to_material_budget"] = True
-                envelope = self.decision_client.complete(context)
+                envelope = self._normalizer.normalize(self.decision_client.complete(context))
                 self.model_calls_used += 1
-                self._validate_model_action_envelope(envelope, context=context, turn_index=self.model_calls_used)
+                validation_result = self._validate_model_action_envelope(envelope, context=context, turn_index=self.model_calls_used)
+                if validation_result is not None:
+                    blocked_reason = self._record_recoverable_result(validation_result)
+                    if blocked_reason:
+                        return self._block(blocked_reason)
+                    continue
                 if finish_only_due_to_material_budget and not (
                     envelope.capability_id == "sentinel_loop" and envelope.operation == "finish"
                 ):
@@ -190,6 +199,11 @@ class ModelLedTaskLoop:
                 self.capability_sequence.append(f"{envelope.capability_id}:{envelope.operation}")
                 self.loop_guard.record_result(result)
                 self._append_action_event(result)
+                if result.recoverable:
+                    blocked_reason = self._apply_recoverable_budget(result)
+                    if blocked_reason:
+                        return self._block(blocked_reason)
+                    continue
                 if result.material_action:
                     self.material_actions_used += 1
                 if envelope.capability_id == "browser_control" and envelope.operation == "browser.assert_text":
@@ -215,7 +229,13 @@ class ModelLedTaskLoop:
                         continue
                     return self._complete("model_led_task_loop_material_budget_reached")
         except (ActionKernelError, LoopGuardError) as exc:
-            return self._block(str(exc) or exc.__class__.__name__)
+            reason = str(exc) or exc.__class__.__name__
+            if reason == "model_led_task_decision_exhausted":
+                if self.correction_turns_used:
+                    reason = "MODEL_CORRECTION_BUDGET_EXHAUSTED"
+                elif self.recovery_turns_used:
+                    reason = "RECOVERY_BUDGET_EXHAUSTED"
+            return self._block(reason)
 
     def _compile_context(self, *, available_actions: tuple[str, ...]) -> dict[str, Any]:
         return self.decision_context.compile(
@@ -228,6 +248,10 @@ class ModelLedTaskLoop:
             material_actions_used=self.material_actions_used,
             max_model_calls=self.loop_guard.config.max_model_calls,
             max_material_actions=self.loop_guard.config.max_material_actions,
+            recovery_turns_used=self.recovery_turns_used,
+            max_recovery_turns=self.loop_guard.config.max_recovery_turns,
+            correction_turns_used=self.correction_turns_used,
+            max_correction_turns=self.loop_guard.config.max_correction_turns,
         )
 
     def _complete(self, reason: str) -> ModelLedTaskLoopResult:
@@ -289,16 +313,68 @@ class ModelLedTaskLoop:
             else {},
         )
 
-    def _validate_model_action_envelope(self, envelope: ActionEnvelope, *, context: dict[str, Any], turn_index: int) -> None:
+    def _record_recoverable_result(self, result: ActionResult) -> str | None:
+        self.results.append(result)
+        self.capability_sequence.append(f"{result.capability_id}:{result.operation}")
+        self.loop_guard.record_result(result)
+        self._append_action_event(result)
+        return self._apply_recoverable_budget(result)
+
+    def _apply_recoverable_budget(self, result: ActionResult) -> str | None:
+        if result.failure_class is ActionFailureClass.RECOVERABLE_MODEL_PROTOCOL_FAILURE:
+            self.correction_turns_used += 1
+            if self.correction_turns_used > self.loop_guard.config.max_correction_turns:
+                self._last_failure_diagnostics = result.recovery_observation
+                return "MODEL_CORRECTION_BUDGET_EXHAUSTED"
+            return None
+        self.recovery_turns_used += 1
+        if self.recovery_turns_used > self.loop_guard.config.max_recovery_turns:
+            self._last_failure_diagnostics = result.recovery_observation
+            return "RECOVERY_BUDGET_EXHAUSTED"
+        return None
+
+    def _validate_model_action_envelope(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        context: dict[str, Any],
+        turn_index: int,
+    ) -> ActionResult | None:
         if envelope.capability_id.strip() and envelope.operation.strip():
-            return
-        self._last_failure_diagnostics = _empty_envelope_diagnostics(
+            return None
+        diagnostics = _empty_envelope_diagnostics(
             envelope,
             context=context,
             turn_index=turn_index,
             observations=self.results,
         )
-        raise ActionKernelError("MODEL_ACTION_EMPTY_ENVELOPE")
+        self._last_failure_diagnostics = diagnostics
+        observation = recoverable_action_observation(
+            failure_class=ActionFailureClass.RECOVERABLE_MODEL_PROTOCOL_FAILURE,
+            failure_code="MODEL_ACTION_EMPTY_ENVELOPE",
+            attempted_action_hash=envelope.action_hash,
+            safe_summary="Model did not emit an actionable envelope; exact schema and executable actions are available.",
+            recommended_next_actions=tuple(str(action) for action in context.get("available_actions", ())[:6]),
+            refreshed_candidate_refs=tuple(str(ref) for ref in context.get("top_stable_refs", ())[:8]),
+        )
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id or "model_protocol",
+            operation=envelope.operation or "empty_action_envelope",
+            status="recoverable_failed",
+            material_action=False,
+            blocked_reason="MODEL_ACTION_EMPTY_ENVELOPE",
+            failure_class=ActionFailureClass.RECOVERABLE_MODEL_PROTOCOL_FAILURE,
+            failure_code="MODEL_ACTION_EMPTY_ENVELOPE",
+            recoverable=True,
+            recovery_observation=observation.safe_model_dump(),
+            recommended_next_actions=tuple(str(action) for action in context.get("available_actions", ())[:6]),
+            observation_summary="recoverable model protocol miss: empty action envelope.",
+            context_cards={
+                "actionability_frame": context.get("actionability_frame") or {},
+                "browser_actionability_registry": context.get("browser_actionability_registry") or {},
+            },
+        )
 
     def _assert_mission_and_authority_open(self) -> None:
         terminal_reason = self.kernel.terminal_block_reason(self.mission_id)

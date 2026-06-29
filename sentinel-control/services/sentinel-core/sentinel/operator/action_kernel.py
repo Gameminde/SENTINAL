@@ -7,6 +7,7 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_power_contract import ActionAliasNormalizer, ActionFailureClass
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel, new_id
 
@@ -101,6 +102,11 @@ class ActionResult(SentinelModel):
     material_action: bool = False
     observation_summary: str = ""
     blocked_reason: str | None = None
+    failure_class: ActionFailureClass | None = None
+    failure_code: str | None = None
+    recoverable: bool = False
+    recovery_observation: dict[str, Any] = Field(default_factory=dict)
+    recommended_next_actions: tuple[str, ...] = Field(default_factory=tuple)
     result_hash: str = ""
     context_cards: dict[str, Any] = Field(default_factory=dict)
     data_not_authority: bool = True
@@ -134,6 +140,11 @@ class ActionResult(SentinelModel):
             "material_action": self.material_action,
             "observation_summary": self.observation_summary[:500],
             "blocked_reason": self.blocked_reason,
+            "failure_class": self.failure_class.value if self.failure_class else None,
+            "failure_code": self.failure_code,
+            "recoverable": self.recoverable,
+            "recovery_observation_hash": stable_hash(self.recovery_observation) if self.recovery_observation else None,
+            "recommended_next_actions": list(self.recommended_next_actions),
             "result_hash": self.result_hash,
             "context_card_names": sorted(self.context_cards),
             "context_card_hashes": {
@@ -149,6 +160,7 @@ ActionExecutor = Callable[[ActionEnvelope, dict[str, Any]], ActionResult]
 class ActionKernel:
     def __init__(self, executors: dict[str, ActionExecutor] | None = None) -> None:
         self._executors = dict(executors or {})
+        self._normalizer = ActionAliasNormalizer()
 
     def register(self, capability_id: str, executor: ActionExecutor) -> None:
         if not capability_id.strip():
@@ -164,6 +176,7 @@ class ActionKernel:
     ) -> ActionResult:
         if authority.revoked_at is not None:
             raise ActionKernelError("mission_authority_inactive")
+        envelope = self._normalizer.normalize(envelope)
         if envelope.capability_id == "sentinel_loop" and envelope.operation == "finish":
             return ActionResult(
                 action_id=envelope.action_id,

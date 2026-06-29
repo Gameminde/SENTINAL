@@ -9,6 +9,13 @@ from urllib.parse import urlparse
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
+from sentinel.operator.action_power_contract import (
+    ActionAliasNormalizer,
+    ActionFailureClass,
+    build_browser_actionability_frame,
+    build_browser_actionability_registry,
+    recoverable_action_observation,
+)
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.kernel import MissionKernel
@@ -268,6 +275,7 @@ class RealBrowserControlRuntime:
         authority: MissionAuthorityEnvelope,
         context: dict[str, Any],
     ) -> ActionResult:
+        envelope = ActionAliasNormalizer().normalize(envelope)
         if envelope.capability_id != "real_browser_control":
             raise RealBrowserControlRuntimeError("real_browser_control_capability_required")
         if envelope.operation == "real_browser.open":
@@ -275,17 +283,17 @@ class RealBrowserControlRuntime:
         if envelope.operation == "real_browser.observe":
             return self._observe(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.click":
-            return self._click(envelope, authority=authority)
+            return self._click(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.type_text":
-            return self._type_text(envelope, authority=authority)
+            return self._type_text(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.select_option":
-            return self._select_option(envelope, authority=authority)
+            return self._select_option(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.assert_text":
             return self._assert_text(envelope, authority=authority)
         if envelope.operation == "real_browser.extract_text":
             return self._extract_text(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.press_key":
-            return self._press_key(envelope, authority=authority)
+            return self._press_key(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.wait_for_text":
             return self._wait_for_text(envelope, authority=authority)
         if envelope.operation == "real_browser.wait_for_load":
@@ -387,10 +395,12 @@ class RealBrowserControlRuntime:
             context_cards=context_cards,
         )
 
-    def _click(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+    def _click(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.click")
-        ref = _param_ref(envelope)
-        before = self.engine.observe().state_hash
+        resolved = self._resolve_ref_or_recover(envelope, authority=authority, context=context)
+        if isinstance(resolved, ActionResult):
+            return resolved
+        ref, before = resolved
         snapshot = self.engine.click(ref)
         return self._record_action(
             envelope,
@@ -402,12 +412,14 @@ class RealBrowserControlRuntime:
             summary=f"real browser click completed on stable ref {ref}.",
         )
 
-    def _type_text(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+    def _type_text(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.type_text")
-        ref = _param_ref(envelope)
+        resolved = self._resolve_ref_or_recover(envelope, authority=authority, context=context)
+        if isinstance(resolved, ActionResult):
+            return resolved
+        ref, before = resolved
         text = str(envelope.params.get("text") or "")
         _reject_sensitive_text(text)
-        before = self.engine.observe().state_hash
         snapshot = self.engine.type_text(ref, text)
         return self._record_action(
             envelope,
@@ -419,12 +431,14 @@ class RealBrowserControlRuntime:
             summary=f"real browser type_text completed on stable ref {ref}.",
         )
 
-    def _select_option(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+    def _select_option(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.select_option")
-        ref = _param_ref(envelope)
+        resolved = self._resolve_ref_or_recover(envelope, authority=authority, context=context)
+        if isinstance(resolved, ActionResult):
+            return resolved
+        ref, before = resolved
         option = str(envelope.params.get("option") or envelope.params.get("value") or "")
         _reject_sensitive_text(option)
-        before = self.engine.observe().state_hash
         snapshot = self.engine.select_option(ref, option)
         return self._record_action(
             envelope,
@@ -502,13 +516,15 @@ class RealBrowserControlRuntime:
             ),
         )
 
-    def _press_key(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+    def _press_key(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.press_key")
-        ref = _param_ref(envelope)
+        resolved = self._resolve_ref_or_recover(envelope, authority=authority, context=context)
+        if isinstance(resolved, ActionResult):
+            return resolved
+        ref, before = resolved
         key = str(envelope.params.get("key") or envelope.params.get("keyboard_key") or "")
         if key not in {"Enter", "Tab", "Escape", "ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"}:
             raise RealBrowserControlRuntimeError("real_browser_key_not_allowed")
-        before = self.engine.observe().state_hash
         snapshot = self.engine.press_key(ref, key)
         return self._record_action(
             envelope,
@@ -633,6 +649,87 @@ class RealBrowserControlRuntime:
             context_cards=context_cards or {},
         )
 
+    def _resolve_ref_or_recover(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        authority: MissionAuthorityEnvelope,
+        context: dict[str, Any],
+    ) -> tuple[str, str] | ActionResult:
+        raw_ref = _param_ref(envelope)
+        snapshot = self.engine.observe()
+        elements = {element.ref: element for element in snapshot.elements}
+        element = elements.get(raw_ref)
+        if element is not None:
+            if not element.visible:
+                raise RealBrowserControlRuntimeError("real_browser_element_hidden")
+            if not element.enabled:
+                raise RealBrowserControlRuntimeError("real_browser_element_disabled")
+            if bool(getattr(element, "secret", False)):
+                raise RealBrowserControlRuntimeError("real_browser_secret_field_blocked")
+            return raw_ref, snapshot.state_hash
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_ref_recovery_world_model_ready",
+        )
+        registry = context_cards["browser_actionability_registry"]
+        alias_map = registry.get("accepted_aliases", {}) if isinstance(registry, dict) else {}
+        canonical = alias_map.get(raw_ref)
+        if isinstance(canonical, str) and canonical in elements:
+            return canonical, snapshot.state_hash
+        return self._recoverable_ref_failure(
+            envelope,
+            raw_ref=raw_ref,
+            context_cards=context_cards,
+            browser_state_hash=snapshot.state_hash,
+        )
+
+    def _recoverable_ref_failure(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        raw_ref: str,
+        context_cards: dict[str, Any],
+        browser_state_hash: str,
+    ) -> ActionResult:
+        actionability_frame = context_cards.get("actionability_frame") if isinstance(context_cards, dict) else {}
+        executable_refs = tuple(
+            str(ref)
+            for ref in (actionability_frame.get("executable_refs") if isinstance(actionability_frame, dict) else () or ())
+        )
+        recommended = tuple(
+            str(action)
+            for action in (actionability_frame.get("recovery_actions") if isinstance(actionability_frame, dict) else () or ())
+        )
+        observation = recoverable_action_observation(
+            failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
+            failure_code="real_browser_element_ref_unknown",
+            attempted_action_hash=envelope.action_hash,
+            safe_summary=(
+                "Browser ref was not executable in the current bounded page state; "
+                "refreshed candidates are available for the next model turn."
+            ),
+            recommended_next_actions=recommended,
+            refreshed_candidate_refs=executable_refs,
+        )
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id,
+            operation=envelope.operation,
+            status="recoverable_failed",
+            material_action=False,
+            blocked_reason="real_browser_element_ref_unknown",
+            failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
+            failure_code="real_browser_element_ref_unknown",
+            recoverable=True,
+            recovery_observation=observation.safe_model_dump(),
+            recommended_next_actions=recommended,
+            observation_summary=f"recoverable browser ref miss ref_hash={text_hash(raw_ref)} state_hash={browser_state_hash}.",
+            context_cards=context_cards,
+        )
+
     def _world_context_cards(
         self,
         snapshot: RealBrowserEngineSnapshot,
@@ -656,14 +753,29 @@ class RealBrowserControlRuntime:
             progress_state=progress_state,
             completion_requirements=completion_requirements if isinstance(completion_requirements, dict) else None,
         )
+        registry = build_browser_actionability_registry(
+            browser_state_hash=snapshot.state_hash,
+            world_model=world_model,
+            decision_frame=frame,
+            generated_at_turn=int(context.get("model_calls_used") or 0) if isinstance(context, dict) else 0,
+        )
+        actionability_frame = build_browser_actionability_frame(
+            browser_state_hash=snapshot.state_hash,
+            registry=registry,
+            decision_frame=frame,
+        )
         world_dump = world_model.model_dump(mode="json")
         frame_dump = frame.model_dump(mode="json")
+        registry_dump = registry.safe_model_dump()
+        actionability_dump = actionability_frame.safe_model_dump()
         self._write_artifact("world_models", world_model.world_model_id, world_dump)
         self._write_artifact("decision_frames", frame.frame_id, frame_dump)
         return {
             "browser_world_model": world_dump,
             "browser_world_model_summary": world_model.compact_summary(),
             "browser_decision_frame": frame_dump,
+            "browser_actionability_registry": registry_dump,
+            "actionability_frame": actionability_dump,
         }
 
     def _require_authorized(self, authority: MissionAuthorityEnvelope, action_name: str) -> None:

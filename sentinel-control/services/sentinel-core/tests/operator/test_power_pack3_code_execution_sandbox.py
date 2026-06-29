@@ -305,7 +305,7 @@ def test_power_pack3_empty_action_envelope_blocks_before_action_kernel_dispatch_
     blocked_event = next(event for event in reversed(events) if event.event_type == "model_led_task_loop_blocked")
 
     assert result.status is ModelLedTaskLoopStatus.BLOCKED
-    assert result.blocked_reason == "MODEL_ACTION_EMPTY_ENVELOPE"
+    assert result.blocked_reason == "MODEL_CORRECTION_BUDGET_EXHAUSTED"
     assert fixture.read_only_tool_calls == 0
     assert fixture.code_runtime.command_execution_count == 0
     assert fixture.patch_runtime.patch_application_count == 0
@@ -331,7 +331,7 @@ def test_power_pack3_blank_capability_or_operation_blocks_with_typed_reason(tmp_
         result = fixture.loop(decisions).run()
 
         assert result.status is ModelLedTaskLoopStatus.BLOCKED
-        assert result.blocked_reason == "MODEL_ACTION_EMPTY_ENVELOPE"
+        assert result.blocked_reason == "MODEL_CORRECTION_BUDGET_EXHAUSTED"
         assert "action_executor_missing" not in result.blocked_reason
         assert result.failure_diagnostics["failure_code"] == "MODEL_ACTION_EMPTY_ENVELOPE"
 

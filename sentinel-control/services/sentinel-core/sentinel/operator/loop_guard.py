@@ -18,6 +18,10 @@ class LoopGuardConfig:
     max_repeated_target: int = 4
     max_no_progress_turns: int = 3
     deadline_seconds: int = 120
+    max_recovery_turns: int = 2
+    max_correction_turns: int = 2
+    max_proof_turns: int = 2
+    max_finish_turns: int = 2
 
 
 @dataclass
