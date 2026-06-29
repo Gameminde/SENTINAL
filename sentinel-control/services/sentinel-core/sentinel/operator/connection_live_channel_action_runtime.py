@@ -70,7 +70,10 @@ class ModelLedLiveChannelActionRuntime:
             evidence_refs=tuple(result.evidence_refs),
             finalgate_refs=tuple(result.finalgate_refs),
             material_action=True,
-            observation_summary=f"bounded channel send completed with {len(result.receipt_refs)} receipt(s).",
+            observation_summary=(
+                f"bounded channel send sent with {len(result.receipt_refs)} receipt(s); "
+                f"delivery_ref_hash={result.delivery_ref_hash or 'none'}."
+            ),
         )
 
     def execute_send_decision(

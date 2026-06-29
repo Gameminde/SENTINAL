@@ -130,9 +130,86 @@ def test_power_pack5_context_carries_delivery_observation_to_next_model_turn(tmp
 
     assert result.status is ModelLedTaskLoopStatus.COMPLETED
     assert second_turn_context["channel_delivery_summary"]["send_count"] == 1
-    assert second_turn_context["channel_delivery_summary"]["latest_send"]["receipt_count"] >= 1
+    latest_send = second_turn_context["channel_delivery_summary"]["latest_send"]
+    assert latest_send["receipt_count"] >= 1
+    assert latest_send["delivery_status"] == "sent"
+    assert latest_send["delivery_receipt_ref"].startswith("channel_adapter_receipt_")
+    assert latest_send["delivery_ref_hash"]
     assert second_turn_context["recommended_next_action"] == "sentinel_loop.finish"
     assert second_turn_context["finish_available"] is True
+    assert second_turn_context["progress_state"] == "channel_delivery_succeeded_needs_finish"
+
+
+def test_power_pack5_material_budget_after_channel_send_allows_canonical_finish_only_turn(tmp_path: Path) -> None:
+    fixture = _ChannelPowerFixture(tmp_path)
+    fixture.register_transport(_RecordingRealTransport(fixture))
+    decision_client = ModelLedTaskDecisionClient(
+        [
+            _send_action(fixture),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Channel delivery observed and finished."},
+            ),
+        ]
+    )
+    loop = ModelLedTaskLoop(
+        mission_id=fixture.mission_id,
+        kernel=fixture.kernel,
+        authority=fixture.authority,
+        action_kernel=fixture.action_kernel,
+        decision_client=decision_client,
+        decision_context=DecisionContextCompiler(),
+        loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=3, max_material_actions=1)),
+        available_actions=("bounded_channel.send_message", "sentinel_loop.finish"),
+    )
+
+    result = loop.run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_finish"
+    assert result.capability_sequence == ("bounded_channel:send_message", "sentinel_loop:finish")
+    assert result.material_action_count == 1
+    assert result.model_call_count == 2
+    assert fixture.transport_calls == 1
+    finish_context = decision_client.contexts[-1]
+    assert finish_context["finish_only_due_to_material_budget"] is True
+    assert finish_context["objective_satisfied"] is True
+    assert finish_context["finish_available"] is True
+    assert finish_context["recommended_next_action"] == "sentinel_loop.finish"
+    assert finish_context["available_actions"] == ["sentinel_loop.finish"]
+    assert finish_context["progress_state"] == "channel_delivery_succeeded_needs_finish"
+
+
+def test_power_pack5_finish_only_turn_blocks_non_finish_after_channel_delivery(tmp_path: Path) -> None:
+    fixture = _ChannelPowerFixture(tmp_path)
+    fixture.register_transport(_RecordingRealTransport(fixture))
+    decision_client = ModelLedTaskDecisionClient(
+        [
+            _send_action(fixture),
+            _send_action(fixture, idempotency_key="second-send"),
+        ]
+    )
+    loop = ModelLedTaskLoop(
+        mission_id=fixture.mission_id,
+        kernel=fixture.kernel,
+        authority=fixture.authority,
+        action_kernel=fixture.action_kernel,
+        decision_client=decision_client,
+        decision_context=DecisionContextCompiler(),
+        loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=3, max_material_actions=1)),
+        available_actions=("bounded_channel.send_message", "sentinel_loop.finish"),
+    )
+
+    result = loop.run()
+
+    assert result.status is ModelLedTaskLoopStatus.BLOCKED
+    assert result.blocked_reason == "MODEL_FINISH_REQUIRED_AFTER_CHANNEL_DELIVERY"
+    assert fixture.transport_calls == 1
+    assert result.capability_sequence == ("bounded_channel:send_message",)
+    finish_context = decision_client.contexts[-1]
+    assert finish_context["finish_only_due_to_material_budget"] is True
+    assert finish_context["available_actions"] == ["sentinel_loop.finish"]
 
 
 def test_power_pack5_no_raw_credentials_authorization_or_message_body_persisted(tmp_path: Path) -> None:

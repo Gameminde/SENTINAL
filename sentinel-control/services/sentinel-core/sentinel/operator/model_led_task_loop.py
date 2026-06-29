@@ -145,7 +145,7 @@ class ModelLedTaskLoop:
                 self._assert_mission_and_authority_open()
                 self.loop_guard.check_before_model_call(self.model_calls_used)
                 if finish_only_due_to_material_budget:
-                    available_actions = ("finish",)
+                    available_actions = _finish_only_actions(self.available_actions)
                 elif browser_assertion_due_to_material_budget:
                     available_actions = ("browser_control.browser.assert_text",)
                 else:
@@ -161,6 +161,8 @@ class ModelLedTaskLoop:
                 if finish_only_due_to_material_budget and not (
                     envelope.capability_id == "sentinel_loop" and envelope.operation == "finish"
                 ):
+                    if _is_channel_finish_required(context):
+                        raise ActionKernelError("MODEL_FINISH_REQUIRED_AFTER_CHANNEL_DELIVERY")
                     raise ActionKernelError("model_led_task_loop_finish_required_after_objective_satisfied")
                 if browser_assertion_due_to_material_budget and not (
                     envelope.capability_id == "browser_control" and envelope.operation == "browser.assert_text"
@@ -188,7 +190,7 @@ class ModelLedTaskLoop:
                     if (
                         post_action_context.get("objective_satisfied") is True
                         and not finish_only_due_to_material_budget
-                        and "finish" in self.available_actions
+                        and _finish_only_actions(self.available_actions)
                     ):
                         finish_only_due_to_material_budget = True
                         continue
@@ -509,6 +511,18 @@ def _needs_browser_assertion_at_budget(context: dict[str, Any]) -> bool:
         completion_requirements.get("has_browser_action_receipt") is True
         and completion_requirements.get("requires_browser_assertion_receipt") is True
     )
+
+
+def _finish_only_actions(available_actions: tuple[str, ...]) -> tuple[str, ...]:
+    if "sentinel_loop.finish" in available_actions:
+        return ("sentinel_loop.finish",)
+    if "finish" in available_actions:
+        return ("finish",)
+    return ()
+
+
+def _is_channel_finish_required(context: dict[str, Any]) -> bool:
+    return context.get("progress_state") == "channel_delivery_succeeded_needs_finish"
 
 
 __all__ = [

@@ -386,7 +386,7 @@ def _channel_progress_guidance(
     }
     if objective_satisfied:
         return {
-            "progress_state": "channel_delivery_satisfied",
+            "progress_state": "channel_delivery_succeeded_needs_finish",
             "next_recommended_actions": ["sentinel_loop.finish"],
             "objective_remaining_steps": [],
             "completion_requirements": completion_requirements,
@@ -513,11 +513,22 @@ def _channel_result_summary(result: ActionResult | None) -> dict[str, Any] | Non
     return {
         "operation": result.operation,
         "status": result.status,
+        "delivery_status": "sent" if result.status in {"completed", "passed", "success"} and result.receipt_refs else result.status,
+        "delivery_receipt_ref": result.receipt_refs[0] if result.receipt_refs else None,
+        "delivery_ref_hash": _delivery_ref_hash_from_summary(result.observation_summary),
         "receipt_count": len(result.receipt_refs),
         "finalgate_count": len(result.finalgate_refs),
         "summary": result.observation_summary[:500],
         "result_hash": result.result_hash,
     }
+
+
+def _delivery_ref_hash_from_summary(summary: str) -> str | None:
+    marker = "delivery_ref_hash="
+    if marker not in summary:
+        return None
+    value = summary.split(marker, 1)[1].split(".", 1)[0].strip()
+    return value or None
 
 
 def _profile_id_from_summary(summary: str) -> str:
