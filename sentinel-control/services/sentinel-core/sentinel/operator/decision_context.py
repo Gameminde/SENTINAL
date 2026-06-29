@@ -49,6 +49,16 @@ class DecisionContextCompiler:
             for result in observations[-6:]
             if result.capability_id == "browser_control"
         ]
+        channel_results = [
+            result
+            for result in observations[-6:]
+            if result.capability_id in {"bounded_channel", "channel_transport"}
+        ]
+        channel_delivery_results = [
+            result
+            for result in channel_results
+            if result.operation == "send_message" and result.status in {"completed", "passed", "success"} and result.receipt_refs
+        ]
         browser_action_results = [
             result
             for result in browser_results
@@ -74,7 +84,13 @@ class DecisionContextCompiler:
             workspace_patch_results=workspace_patch_results,
             post_patch_verification_results=post_patch_verification_results,
         )
-        objective_satisfied = bool(browser_assertion_results) if browser_mode else patch_objective_satisfied
+        channel_mode = _is_channel_mode(available_actions=available_actions, observations=observations)
+        if browser_mode:
+            objective_satisfied = bool(browser_assertion_results)
+        elif channel_mode:
+            objective_satisfied = bool(channel_delivery_results)
+        else:
+            objective_satisfied = patch_objective_satisfied
         progress_guidance = (
             _browser_progress_guidance(
                 objective_satisfied=objective_satisfied,
@@ -83,6 +99,11 @@ class DecisionContextCompiler:
                 browser_assertion_results=browser_assertion_results,
             )
             if browser_mode
+            else _channel_progress_guidance(
+                objective_satisfied=objective_satisfied,
+                channel_delivery_results=channel_delivery_results,
+            )
+            if channel_mode
             else _progress_guidance(
                 objective_satisfied=objective_satisfied,
                 code_execution_results=code_execution_results,
@@ -182,6 +203,7 @@ class DecisionContextCompiler:
                 for result in code_execution_results
             ],
             "browser_control_summary": _browser_summary(browser_results),
+            "channel_delivery_summary": _channel_summary(channel_results),
         }
 
 
@@ -341,6 +363,42 @@ def _is_browser_mode(*, available_actions: tuple[str, ...], observations: list[A
     return any(action.startswith("browser_control.") for action in available_actions)
 
 
+def _is_channel_mode(*, available_actions: tuple[str, ...], observations: list[ActionResult]) -> bool:
+    if any(result.capability_id in {"bounded_channel", "channel_transport"} for result in observations):
+        return True
+    return any(action.startswith(("bounded_channel.", "channel_transport.", "channel.")) for action in available_actions)
+
+
+def _channel_progress_guidance(
+    *,
+    objective_satisfied: bool,
+    channel_delivery_results: list[ActionResult],
+) -> dict[str, Any]:
+    has_send = any(
+        result.receipt_refs and result.status in {"completed", "passed", "success"}
+        for result in channel_delivery_results
+    )
+    completion_requirements = {
+        "requires_channel_send_receipt": not has_send,
+        "requires_finish_action": True,
+        "has_channel_send_receipt": has_send,
+        "channel_send_receipt_count": sum(1 for result in channel_delivery_results if result.receipt_refs),
+    }
+    if objective_satisfied:
+        return {
+            "progress_state": "channel_delivery_satisfied",
+            "next_recommended_actions": ["sentinel_loop.finish"],
+            "objective_remaining_steps": [],
+            "completion_requirements": completion_requirements,
+        }
+    return {
+        "progress_state": "channel_send_not_started",
+        "next_recommended_actions": ["bounded_channel.send_message"],
+        "objective_remaining_steps": ["send one bounded message to the granted destination", "finish"],
+        "completion_requirements": completion_requirements,
+    }
+
+
 def _browser_progress_guidance(
     *,
     objective_satisfied: bool,
@@ -438,6 +496,28 @@ def _element_count_from_summary(summary: str) -> int:
             except ValueError:
                 return 0
     return 0
+
+
+def _channel_summary(channel_results: list[ActionResult]) -> dict[str, Any]:
+    latest_send = next((result for result in reversed(channel_results) if result.operation == "send_message"), None)
+    return {
+        "latest_send": _channel_result_summary(latest_send),
+        "send_count": sum(1 for result in channel_results if result.operation == "send_message" and result.receipt_refs),
+        "receipt_count": sum(len(result.receipt_refs) for result in channel_results),
+    }
+
+
+def _channel_result_summary(result: ActionResult | None) -> dict[str, Any] | None:
+    if result is None:
+        return None
+    return {
+        "operation": result.operation,
+        "status": result.status,
+        "receipt_count": len(result.receipt_refs),
+        "finalgate_count": len(result.finalgate_refs),
+        "summary": result.observation_summary[:500],
+        "result_hash": result.result_hash,
+    }
 
 
 def _profile_id_from_summary(summary: str) -> str:

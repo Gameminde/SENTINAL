@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
+import json
+import os
 from pathlib import Path
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.agent.organs.channel_draft_send_organ_v1 import (
@@ -37,10 +41,82 @@ from sentinel.telemetry import TelemetryDomain, TelemetryMetricKind, TelemetryMe
 
 
 ChannelTransport = Callable[[Any], Any]
+DEFAULT_WEBHOOK_URL_ENV = "SENTINEL_CHANNEL_WEBHOOK_URL"
+DEFAULT_WEBHOOK_TOKEN_ENV = "SENTINEL_CHANNEL_WEBHOOK_TOKEN"
 
 
 class ChannelConnectorRuntimeError(ValueError):
     """Raised when channel execution would violate authority or connector policy."""
+
+
+class WebhookChannelTransport:
+    """Small real webhook transport for bounded channel sends.
+
+    The raw URL/token stay process-local inside this callable. Runtime artifacts
+    persist only provider/delivery hashes through ChannelConnectorRuntime.
+    """
+
+    def __init__(
+        self,
+        *,
+        url: str,
+        token: str | None = None,
+        timeout_seconds: float = 15.0,
+        opener: Callable[[urllib_request.Request, float], Any] | None = None,
+    ) -> None:
+        if not url.strip():
+            raise ChannelConnectorRuntimeError("real_channel_transport_config_missing:SENTINEL_CHANNEL_WEBHOOK_URL")
+        self._url = url.strip()
+        self._token = token.strip() if token and token.strip() else None
+        self._timeout_seconds = timeout_seconds
+        self._opener = opener or _default_urlopen
+
+    def __call__(self, request: Any) -> ChannelSendTransportReceipt:
+        payload = {
+            "mission_id": getattr(request, "mission_id", None),
+            "channel": getattr(request, "channel", None),
+            "subject": getattr(request, "subject", None),
+            "body": getattr(request, "body", None),
+            "recipients": list(getattr(request, "recipients", []) or []),
+            "evidence_refs": list(getattr(request, "evidence_refs", []) or []),
+            "objective_tags": list(getattr(request, "objective_tags", []) or []),
+        }
+        body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        outbound = urllib_request.Request(self._url, data=body, headers=headers, method="POST")
+        try:
+            response = self._opener(outbound, self._timeout_seconds)
+            status = int(getattr(response, "status", getattr(response, "code", 200)) or 200)
+            response_body = response.read(8192).decode("utf-8", errors="replace") if hasattr(response, "read") else ""
+        except urllib_error.HTTPError as exc:
+            raise ChannelConnectorRuntimeError(f"real_channel_transport_failed:http_status:{exc.code}") from exc
+        except urllib_error.URLError as exc:
+            raise ChannelConnectorRuntimeError("real_channel_transport_failed:network") from exc
+        except TimeoutError as exc:
+            raise ChannelConnectorRuntimeError("real_channel_transport_failed:timeout") from exc
+        if status >= 400:
+            raise ChannelConnectorRuntimeError(f"real_channel_transport_failed:http_status:{status}")
+        return ChannelSendTransportReceipt(delivery_ref=_safe_delivery_ref(status=status, response_body=response_body))
+
+
+def build_webhook_channel_transport_from_env(
+    *,
+    url_env: str = DEFAULT_WEBHOOK_URL_ENV,
+    token_env: str = DEFAULT_WEBHOOK_TOKEN_ENV,
+    timeout_seconds: float = 15.0,
+    opener: Callable[[urllib_request.Request, float], Any] | None = None,
+) -> WebhookChannelTransport:
+    url = os.environ.get(url_env)
+    if not url:
+        raise ChannelConnectorRuntimeError(f"real_channel_transport_config_missing:{url_env}")
+    return WebhookChannelTransport(
+        url=url,
+        token=os.environ.get(token_env),
+        timeout_seconds=timeout_seconds,
+        opener=opener,
+    )
 
 
 class ChannelConnectorRegistry:
@@ -628,6 +704,23 @@ def _organ_sender(transport: ChannelTransport):
         return ChannelSendTransportReceipt(delivery_ref=stable_hash(str(result)))
 
     return _sender
+
+
+def _default_urlopen(request: urllib_request.Request, timeout_seconds: float) -> Any:
+    return urllib_request.urlopen(request, timeout=timeout_seconds)  # noqa: S310
+
+
+def _safe_delivery_ref(*, status: int, response_body: str) -> str:
+    try:
+        payload = json.loads(response_body) if response_body.strip() else {}
+    except json.JSONDecodeError:
+        payload = {}
+    if isinstance(payload, dict):
+        for key in ("delivery_ref", "delivery_id", "message_id", "id"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return f"webhook:{status}:{stable_hash({'response_body_hash': stable_hash(response_body), 'status': status})}"
 
 
 def _domain_for_recipient(recipient: str) -> str:

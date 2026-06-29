@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from typing import Any
+
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_kernel import ActionEnvelope, ActionExecutor, ActionResult
 from sentinel.operator.channel_adapter import ChannelConnectorRuntime, ChannelConnectorRuntimeError
 from sentinel.operator.channel_adapter_models import ChannelOutboundRequest, ChannelOutboundSendRequest
 from sentinel.operator.connection_live_channel_action_models import (
@@ -16,6 +19,59 @@ class ModelLedLiveChannelActionRuntime:
 
     def __init__(self, channel_runtime: ChannelConnectorRuntime) -> None:
         self.channel_runtime = channel_runtime
+
+    def as_action_executor(
+        self,
+        *,
+        mission_id: str,
+        authority: MissionAuthorityEnvelope,
+    ) -> ActionExecutor:
+        def _execute(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+            del context
+            return self.execute_action_envelope(mission_id=mission_id, envelope=envelope, authority=authority)
+
+        return _execute
+
+    def execute_action_envelope(
+        self,
+        *,
+        mission_id: str,
+        envelope: ActionEnvelope,
+        authority: MissionAuthorityEnvelope,
+    ) -> ActionResult:
+        if envelope.capability_id not in {"bounded_channel", "channel_transport"}:
+            raise ChannelConnectorRuntimeError("unsupported_channel_capability")
+        if envelope.operation != "send_message":
+            raise ChannelConnectorRuntimeError("unsupported_channel_operation")
+        params = dict(envelope.params)
+        result = self.execute_send_decision(
+            mission_id=mission_id,
+            decision=LiveChannelSendDecision(
+                decision_id=envelope.decision_ref or envelope.action_id,
+                action="send_message",
+                adapter_id=str(params["adapter_id"]),
+                channel=str(params["channel"]),
+                body=str(params["body"]),
+                recipients=tuple(params["recipients"]),
+                recipient_provenance=dict(params.get("recipient_provenance") or {}),
+                subject=str(params["subject"]) if params.get("subject") is not None else None,
+                thread_ref=str(params["thread_ref"]) if params.get("thread_ref") is not None else None,
+                evidence_refs=tuple(params["evidence_refs"]),
+                idempotency_key=envelope.idempotency_key,
+            ),
+            envelope=authority,
+        )
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id,
+            operation=envelope.operation,
+            status="completed",
+            receipt_refs=tuple(result.receipt_refs),
+            evidence_refs=tuple(result.evidence_refs),
+            finalgate_refs=tuple(result.finalgate_refs),
+            material_action=True,
+            observation_summary=f"bounded channel send completed with {len(result.receipt_refs)} receipt(s).",
+        )
 
     def execute_send_decision(
         self,
