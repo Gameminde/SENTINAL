@@ -102,6 +102,7 @@ class ActionResult(SentinelModel):
     observation_summary: str = ""
     blocked_reason: str | None = None
     result_hash: str = ""
+    context_cards: dict[str, Any] = Field(default_factory=dict)
     data_not_authority: bool = True
     authority_effect: str = "none"
     can_grant_authority: bool = False
@@ -134,6 +135,11 @@ class ActionResult(SentinelModel):
             "observation_summary": self.observation_summary[:500],
             "blocked_reason": self.blocked_reason,
             "result_hash": self.result_hash,
+            "context_card_names": sorted(self.context_cards),
+            "context_card_hashes": {
+                key: stable_hash(value)
+                for key, value in sorted(self.context_cards.items())
+            },
         }
 
 

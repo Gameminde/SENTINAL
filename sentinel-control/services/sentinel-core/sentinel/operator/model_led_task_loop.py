@@ -386,6 +386,11 @@ class ModelLedTaskLoopReplay(SentinelModel):
     real_browser_click_delta: int = 0
     real_browser_type_delta: int = 0
     real_browser_assert_delta: int = 0
+    real_browser_select_delta: int = 0
+    real_browser_extract_delta: int = 0
+    real_browser_press_delta: int = 0
+    real_browser_wait_delta: int = 0
+    real_browser_scroll_delta: int = 0
     receipt_writes_delta: int
     evidence_writes_delta: int
     finalgate_writes_delta: int
@@ -420,6 +425,11 @@ class ModelLedTaskLoopReplay(SentinelModel):
             real_browser_click_delta=0,
             real_browser_type_delta=0,
             real_browser_assert_delta=0,
+            real_browser_select_delta=0,
+            real_browser_extract_delta=0,
+            real_browser_press_delta=0,
+            real_browser_wait_delta=0,
+            real_browser_scroll_delta=0,
             receipt_writes_delta=after["receipts"] - before["receipts"],
             evidence_writes_delta=after["evidence"] - before["evidence"],
             finalgate_writes_delta=after["finalgate"] - before["finalgate"],
@@ -534,12 +544,17 @@ def _is_premature_real_browser_finish(envelope: ActionEnvelope, context: dict[st
         return False
     if context.get("objective_satisfied") is True:
         return False
+    if str(context.get("progress_state") or "").startswith("real_browser_"):
+        return True
     completion_requirements = context.get("completion_requirements")
     if not isinstance(completion_requirements, dict):
         return False
     return bool(
         completion_requirements.get("has_real_browser_action_receipt") is True
-        and completion_requirements.get("requires_real_browser_assertion_receipt") is True
+        and (
+            completion_requirements.get("requires_real_browser_assertion_or_extraction_receipt") is True
+            or completion_requirements.get("requires_real_browser_assertion_receipt") is True
+        )
     )
 
 
@@ -559,7 +574,10 @@ def _needs_real_browser_assertion_at_budget(context: dict[str, Any]) -> bool:
         return False
     return bool(
         completion_requirements.get("has_real_browser_action_receipt") is True
-        and completion_requirements.get("requires_real_browser_assertion_receipt") is True
+        and (
+            completion_requirements.get("requires_real_browser_assertion_or_extraction_receipt") is True
+            or completion_requirements.get("requires_real_browser_assertion_receipt") is True
+        )
     )
 
 

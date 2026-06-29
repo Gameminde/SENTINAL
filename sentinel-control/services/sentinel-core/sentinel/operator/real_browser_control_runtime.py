@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
+from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
+from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.real_browser_control_models import (
     RealBrowserActionReceipt,
@@ -55,6 +57,9 @@ class RealBrowserEngine(Protocol):
     assert_count: int
     select_count: int
     extract_count: int
+    press_count: int
+    wait_count: int
+    scroll_count: int
 
     @property
     def safe_url_origin_hash(self) -> str:
@@ -81,6 +86,18 @@ class RealBrowserEngine(Protocol):
     def extract_text(self) -> tuple[str, RealBrowserEngineSnapshot]:
         ...
 
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        ...
+
+    def wait_for_text(self, text: str, timeout_ms: int = 1000) -> tuple[bool, RealBrowserEngineSnapshot]:
+        ...
+
+    def wait_for_load(self) -> RealBrowserEngineSnapshot:
+        ...
+
+    def scroll(self, delta_y: int = 600) -> RealBrowserEngineSnapshot:
+        ...
+
 
 class InMemoryRealBrowserEngine:
     def __init__(self) -> None:
@@ -96,6 +113,9 @@ class InMemoryRealBrowserEngine:
         self.assert_count = 0
         self.select_count = 0
         self.extract_count = 0
+        self.press_count = 0
+        self.wait_count = 0
+        self.scroll_count = 0
 
     @property
     def safe_url_origin_hash(self) -> str:
@@ -125,11 +145,7 @@ class InMemoryRealBrowserEngine:
 
     def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
         self._require_open()
-        element = self._require_interactable(ref)
-        if element.role not in {"textbox", "combobox"}:
-            raise RealBrowserControlRuntimeError("real_browser_type_ref_not_textbox")
-        if element.secret:
-            raise RealBrowserControlRuntimeError("real_browser_secret_field_blocked")
+        self._require_editable(ref)
         self.status_value = text
         self.display_text = text
         self.type_count += 1
@@ -154,6 +170,31 @@ class InMemoryRealBrowserEngine:
         self.extract_count += 1
         return "\n".join(part for part in (self.display_text, self.status_value) if part), self._snapshot()
 
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        self._require_open()
+        self._require_editable(ref)
+        self.press_count += 1
+        if key == "Enter" and self.status_value:
+            self.display_text = self.status_value
+        return self._snapshot()
+
+    def wait_for_text(self, text: str, timeout_ms: int = 1000) -> tuple[bool, RealBrowserEngineSnapshot]:
+        del timeout_ms
+        self._require_open()
+        self.wait_count += 1
+        return text in self.display_text or text in self.status_value, self._snapshot()
+
+    def wait_for_load(self) -> RealBrowserEngineSnapshot:
+        self._require_open()
+        self.wait_count += 1
+        return self._snapshot()
+
+    def scroll(self, delta_y: int = 600) -> RealBrowserEngineSnapshot:
+        del delta_y
+        self._require_open()
+        self.scroll_count += 1
+        return self._snapshot()
+
     def _require_open(self) -> None:
         if not self.opened:
             raise RealBrowserControlRuntimeError("real_browser_not_open")
@@ -167,7 +208,15 @@ class InMemoryRealBrowserEngine:
             raise RealBrowserControlRuntimeError("real_browser_element_hidden")
         if not element.enabled:
             raise RealBrowserControlRuntimeError("real_browser_element_disabled")
-        if element.secret:
+        if bool(getattr(element, "secret", False)):
+            raise RealBrowserControlRuntimeError("real_browser_secret_field_blocked")
+        return element
+
+    def _require_editable(self, ref: str) -> RealBrowserEngineElement:
+        element = self._require_interactable(ref)
+        if element.role not in {"textbox", "combobox", "searchbox"}:
+            raise RealBrowserControlRuntimeError("real_browser_type_ref_not_textbox")
+        if bool(getattr(element, "secret", False)):
             raise RealBrowserControlRuntimeError("real_browser_secret_field_blocked")
         return element
 
@@ -219,13 +268,12 @@ class RealBrowserControlRuntime:
         authority: MissionAuthorityEnvelope,
         context: dict[str, Any],
     ) -> ActionResult:
-        del context
         if envelope.capability_id != "real_browser_control":
             raise RealBrowserControlRuntimeError("real_browser_control_capability_required")
         if envelope.operation == "real_browser.open":
-            return self._open(envelope, authority=authority)
+            return self._open(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.observe":
-            return self._observe(envelope, authority=authority)
+            return self._observe(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.click":
             return self._click(envelope, authority=authority)
         if envelope.operation == "real_browser.type_text":
@@ -235,7 +283,15 @@ class RealBrowserControlRuntime:
         if envelope.operation == "real_browser.assert_text":
             return self._assert_text(envelope, authority=authority)
         if envelope.operation == "real_browser.extract_text":
-            return self._extract_text(envelope, authority=authority)
+            return self._extract_text(envelope, authority=authority, context=context)
+        if envelope.operation == "real_browser.press_key":
+            return self._press_key(envelope, authority=authority)
+        if envelope.operation == "real_browser.wait_for_text":
+            return self._wait_for_text(envelope, authority=authority)
+        if envelope.operation == "real_browser.wait_for_load":
+            return self._wait_for_load(envelope, authority=authority)
+        if envelope.operation == "real_browser.scroll":
+            return self._scroll(envelope, authority=authority)
         raise RealBrowserControlRuntimeError(f"real_browser_control_operation_unsupported:{envelope.operation}")
 
     def as_action_executor(self, *, authority: MissionAuthorityEnvelope) -> Callable[[ActionEnvelope, dict[str, Any]], ActionResult]:
@@ -244,11 +300,17 @@ class RealBrowserControlRuntime:
 
         return _execute
 
-    def _open(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+    def _open(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.open")
         if envelope.params.get("url"):
             raise RealBrowserControlRuntimeError("real_browser_unbounded_url_blocked")
         snapshot = self.engine.open()
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_opened_world_model_ready",
+        )
         receipt = RealBrowserOpenReceipt(
             mission_id=self.mission_id,
             browser_session_ref=self.session_ref,
@@ -272,14 +334,28 @@ class RealBrowserControlRuntime:
             status="completed",
             receipt_refs=(receipt.receipt_id,),
             material_action=False,
-            observation_summary="bounded real browser page opened.",
+            observation_summary=(
+                "bounded real browser page opened with browser world model "
+                f"stable_ref_count={context_cards['browser_world_model_summary']['stable_ref_count']}."
+            ),
             result_hash=receipt.receipt_hash,
+            context_cards=context_cards,
         )
 
-    def _observe(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+    def _observe(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.observe")
         snapshot = self.engine.observe()
-        elements = tuple(_snapshot_element(element) for element in snapshot.elements if element.visible and element.enabled and not element.secret)
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_observed_world_model_ready",
+        )
+        elements = tuple(
+            _snapshot_element(element)
+            for element in snapshot.elements
+            if element.visible and element.enabled and not bool(getattr(element, "secret", False))
+        )
         summary_hash = stable_hash({"title_hash": text_hash(snapshot.page_title), "elements": [element.safe_model_dump() for element in elements]})
         receipt = RealBrowserObservationReceipt(
             mission_id=self.mission_id,
@@ -308,6 +384,7 @@ class RealBrowserControlRuntime:
             material_action=False,
             observation_summary=f"real browser observed with {len(elements)} stable element refs.",
             result_hash=receipt.receipt_hash,
+            context_cards=context_cards,
         )
 
     def _click(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
@@ -404,7 +481,7 @@ class RealBrowserControlRuntime:
             result_hash=receipt.result_hash,
         )
 
-    def _extract_text(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+    def _extract_text(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.extract_text")
         text, snapshot = self.engine.extract_text()
         return self._record_action(
@@ -416,6 +493,77 @@ class RealBrowserControlRuntime:
             status="completed",
             summary=f"real browser text extracted with char_count={len(text)} text_hash={text_hash(text)}.",
             material_action=False,
+            context_cards=self._world_context_cards(
+                snapshot,
+                authority=authority,
+                context=context,
+                progress_state="real_browser_extraction_world_model_ready",
+                extracted_text=text,
+            ),
+        )
+
+    def _press_key(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+        self._require_authorized(authority, "real_browser.press_key")
+        ref = _param_ref(envelope)
+        key = str(envelope.params.get("key") or envelope.params.get("keyboard_key") or "")
+        if key not in {"Enter", "Tab", "Escape", "ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight"}:
+            raise RealBrowserControlRuntimeError("real_browser_key_not_allowed")
+        before = self.engine.observe().state_hash
+        snapshot = self.engine.press_key(ref, key)
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.press_key",
+            element_ref=ref,
+            before_state_hash=before,
+            after_state_hash=snapshot.state_hash,
+            status="completed",
+            summary=f"real browser press_key completed on stable ref {ref} key={key}.",
+        )
+
+    def _wait_for_text(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+        self._require_authorized(authority, "real_browser.wait_for_text")
+        text = str(envelope.params.get("text") or envelope.params.get("expected_text") or "")
+        _reject_sensitive_text(text)
+        passed, snapshot = self.engine.wait_for_text(text, timeout_ms=int(envelope.params.get("timeout_ms") or 1000))
+        status = "passed" if passed else "failed"
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.wait_for_text",
+            element_ref="page:text",
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            status=status,
+            summary=f"real browser wait_for_text {status} text_hash={text_hash(text)}.",
+            material_action=False,
+        )
+
+    def _wait_for_load(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+        self._require_authorized(authority, "real_browser.wait_for_load")
+        snapshot = self.engine.wait_for_load()
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.wait_for_load",
+            element_ref="page:load",
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            status="completed",
+            summary="real browser wait_for_load completed.",
+            material_action=False,
+        )
+
+    def _scroll(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
+        self._require_authorized(authority, "real_browser.scroll")
+        delta_y = int(envelope.params.get("delta_y") or 600)
+        before = self.engine.observe().state_hash
+        snapshot = self.engine.scroll(delta_y=delta_y)
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.scroll",
+            element_ref="page:viewport",
+            before_state_hash=before,
+            after_state_hash=snapshot.state_hash,
+            status="completed",
+            summary=f"real browser scroll completed delta_y={delta_y}.",
         )
 
     def _record_action(
@@ -429,6 +577,7 @@ class RealBrowserControlRuntime:
         status: str,
         summary: str,
         material_action: bool = True,
+        context_cards: dict[str, Any] | None = None,
     ) -> ActionResult:
         receipt = RealBrowserActionReceipt(
             mission_id=self.mission_id,
@@ -481,7 +630,41 @@ class RealBrowserControlRuntime:
             material_action=material_action,
             observation_summary=summary,
             result_hash=receipt.result_hash,
+            context_cards=context_cards or {},
         )
+
+    def _world_context_cards(
+        self,
+        snapshot: RealBrowserEngineSnapshot,
+        *,
+        authority: MissionAuthorityEnvelope,
+        context: dict[str, Any],
+        progress_state: str,
+        extracted_text: str = "",
+    ) -> dict[str, Any]:
+        world_model = BrowserWorldModelBuilder().build_from_snapshot(
+            snapshot,
+            mission_objective=authority.mission_objective,
+            origin_hash=self.engine.safe_url_origin_hash,
+            extracted_text=extracted_text,
+        )
+        completion_requirements = context.get("completion_requirements") if isinstance(context, dict) else None
+        frame = BrowserDecisionFrameCompiler().compile(
+            mission_objective=authority.mission_objective,
+            world_model=world_model,
+            available_actions=tuple(context.get("available_actions") or _authority_available_actions(authority)),
+            progress_state=progress_state,
+            completion_requirements=completion_requirements if isinstance(completion_requirements, dict) else None,
+        )
+        world_dump = world_model.model_dump(mode="json")
+        frame_dump = frame.model_dump(mode="json")
+        self._write_artifact("world_models", world_model.world_model_id, world_dump)
+        self._write_artifact("decision_frames", frame.frame_id, frame_dump)
+        return {
+            "browser_world_model": world_dump,
+            "browser_world_model_summary": world_model.compact_summary(),
+            "browser_decision_frame": frame_dump,
+        }
 
     def _require_authorized(self, authority: MissionAuthorityEnvelope, action_name: str) -> None:
         if authority.revoked_at is not None:
@@ -499,7 +682,11 @@ class RealBrowserControlRuntime:
                 "safe_url_origin_hash": self.engine.safe_url_origin_hash,
                 "page_title_hash": text_hash(snapshot.page_title),
                 "state_hash": snapshot.state_hash,
-                "observable_refs": [element.ref for element in snapshot.elements if element.visible and element.enabled and not element.secret],
+                "observable_refs": [
+                    element.ref
+                    for element in snapshot.elements
+                    if element.visible and element.enabled and not bool(getattr(element, "secret", False))
+                ],
             }
         )
 
@@ -540,6 +727,9 @@ class PlaywrightRealBrowserEngine:
         self.assert_count = 0
         self.select_count = 0
         self.extract_count = 0
+        self.press_count = 0
+        self.wait_count = 0
+        self.scroll_count = 0
         self._headless = headless
 
     @property
@@ -643,6 +833,38 @@ class PlaywrightRealBrowserEngine:
         text = page.locator("body").inner_text(timeout=2000)[:4000]
         return text, self.observe()
 
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        page = self._require_page()
+        selector = self._selector(ref)
+        page.locator(selector).press(key)
+        self.press_count += 1
+        return self.observe()
+
+    def wait_for_text(self, text: str, timeout_ms: int = 1000) -> tuple[bool, RealBrowserEngineSnapshot]:
+        page = self._require_page()
+        self.wait_count += 1
+        try:
+            page.locator("body").wait_for(state="visible", timeout=timeout_ms)
+            body = page.locator("body").inner_text(timeout=timeout_ms)
+            return text in body, self.observe()
+        except Exception:  # noqa: BLE001
+            return False, self.observe()
+
+    def wait_for_load(self) -> RealBrowserEngineSnapshot:
+        page = self._require_page()
+        self.wait_count += 1
+        try:
+            page.wait_for_load_state("networkidle", timeout=5000)
+        except Exception:  # noqa: BLE001
+            page.wait_for_load_state("domcontentloaded", timeout=5000)
+        return self.observe()
+
+    def scroll(self, delta_y: int = 600) -> RealBrowserEngineSnapshot:
+        page = self._require_page()
+        page.mouse.wheel(0, delta_y)
+        self.scroll_count += 1
+        return self.observe()
+
     def _require_page(self) -> Any:
         if self._page is None:
             raise RealBrowserControlRuntimeError("real_browser_not_open")
@@ -720,6 +942,18 @@ def _reject_sensitive_text(value: str) -> None:
     )
     if any(marker in lowered for marker in markers):
         raise RealBrowserControlRuntimeError("real_browser_sensitive_text_blocked")
+
+
+def _authority_available_actions(authority: MissionAuthorityEnvelope) -> tuple[str, ...]:
+    actions: list[str] = []
+    for action in authority.allowed_actions:
+        if action == "finish":
+            actions.append("sentinel_loop.finish")
+        elif action.startswith("real_browser."):
+            actions.append(f"real_browser_control.{action}")
+        else:
+            actions.append(action)
+    return tuple(dict.fromkeys(actions))
 
 
 def _nth_selector(role: str, index: int) -> str:

@@ -7,6 +7,9 @@ import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel
+from sentinel.operator.browser_action_candidates import BrowserActionExtractionError, extract_browser_action_envelope
+from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
+from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.decision_context import DecisionContextCompiler
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.loop_guard import LoopGuard, LoopGuardConfig
@@ -193,6 +196,7 @@ def test_power_pack6_generic_loop_executes_real_browser_open_observe_type_assert
     assert decisions.contexts[3]["next_recommended_actions"] == [
         "real_browser_control.real_browser.assert_text",
         "real_browser_control.real_browser.extract_text",
+        "real_browser_control.real_browser.wait_for_text",
     ]
     assert decisions.contexts[-1]["objective_satisfied"] is True
     assert decisions.contexts[-1]["finish_available"] is True
@@ -273,8 +277,183 @@ def test_power_pack6_playwright_engine_requires_process_scoped_bounded_url(monke
         build_playwright_real_browser_engine_from_env()
 
 
+def test_power_pack6b_world_model_after_open_exposes_search_refs_candidates_and_product_cards(tmp_path: Path) -> None:
+    fixture = _RealBrowserFixture(tmp_path, engine=_HardSearchBrowserEngine())
+
+    opened = fixture.real_browser_runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    world_model = opened.context_cards["browser_world_model"]
+    decision_frame = opened.context_cards["browser_decision_frame"]
+
+    assert opened.status == "completed"
+    assert world_model["page_kind_guess"] in {"catalog_search", "search_results", "product_listing"}
+    assert world_model["search_like_refs"] == ["input:search"]
+    assert "button:search" in world_model["button_refs"]
+    assert "link:glasses_card" in world_model["link_refs"]
+    assert world_model["product_or_result_candidate_cards"][0]["title"] == "Polarized sunglasses"
+    assert world_model["product_or_result_candidate_cards"][0]["visible_price"] == "$4.80"
+    assert world_model["product_or_result_candidate_cards"][0]["minimum_order"] == "10 pieces"
+    assert "real_browser.type_text" in world_model["recommended_browser_actions"]
+    assert decision_frame["current_progress_state"] == "real_browser_opened_world_model_ready"
+    assert "real_browser_control.real_browser.press_key" in decision_frame["allowed_actions"]
+    assert decision_frame["exact_action_envelope_examples"]
+
+
+def test_power_pack6b_decision_context_after_open_exposes_browser_world_model_frame_and_schema(tmp_path: Path) -> None:
+    fixture = _RealBrowserFixture(tmp_path, engine=_HardSearchBrowserEngine())
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "too early"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    context = decisions.contexts[1]
+
+    assert result.status is ModelLedTaskLoopStatus.BLOCKED
+    assert context["progress_state"] == "real_browser_opened_world_model_ready"
+    assert context["recommended_next_action"] == "real_browser_control.real_browser.observe"
+    assert context["finish_available"] is False
+    assert context["objective_satisfied"] is False
+    assert context["browser_world_model_summary"]["search_like_refs"] == ["input:search"]
+    assert context["browser_decision_frame"]["current_progress_state"] == "real_browser_opened_world_model_ready"
+    assert context["top_stable_refs"]
+    assert context["top_action_candidates"]
+    assert context["top_link_candidates"] == ["link:glasses_card"]
+    assert context["search_like_controls"] == ["input:search"]
+    assert context["blocker_signals"] == []
+    assert context["allowed_action_schema"]["capability_id"] == "real_browser_control"
+
+
+def test_power_pack6b_decision_frame_compiler_includes_exact_action_schema() -> None:
+    snapshot = _HardSearchBrowserEngine().open()
+    world_model = BrowserWorldModelBuilder().build_from_snapshot(
+        snapshot,
+        mission_objective="Find glasses under 5 EUR.",
+        origin_hash="origin_hash",
+    )
+
+    frame = BrowserDecisionFrameCompiler().compile(
+        mission_objective="Find glasses under 5 EUR.",
+        world_model=world_model,
+        available_actions=(
+            "real_browser_control.real_browser.observe",
+            "real_browser_control.real_browser.type_text",
+            "real_browser_control.real_browser.press_key",
+            "real_browser_control.real_browser.extract_text",
+            "sentinel_loop.finish",
+        ),
+        progress_state="real_browser_opened_world_model_ready",
+    )
+
+    dumped = frame.safe_model_dump()
+    assert dumped["allowed_actions"][0] == "real_browser_control.real_browser.observe"
+    assert dumped["top_refs"][0]["ref"] == "input:search"
+    assert dumped["candidate_extractions"][0]["title"] == "Polarized sunglasses"
+    assert dumped["exact_action_envelope_examples"][0]["capability_id"] == "real_browser_control"
+    assert dumped["completion_requirements"]
+
+
+def test_power_pack6b_model_action_extractor_rejects_metadata_only_with_typed_diagnostic() -> None:
+    with pytest.raises(BrowserActionExtractionError) as excinfo:
+        extract_browser_action_envelope(
+            {
+                "metadata": {"provider_response_hash": "hash_only"},
+                "reply": "I can help with that.",
+                "visible_content_char_count": 25,
+                "content_source": "choices[0].message.content",
+            },
+            allowed_actions=("real_browser_control.real_browser.observe", "sentinel_loop.finish"),
+            last_successful_browser_action="real_browser.open",
+        )
+
+    diagnostics = excinfo.value.diagnostics
+    assert diagnostics["visible_content_present"] is True
+    assert diagnostics["json_object_detected"] is True
+    assert diagnostics["action_object_detected"] is False
+    assert diagnostics["content_source"] == "choices[0].message.content"
+    assert diagnostics["top_level_keys"] == ["metadata", "reply", "visible_content_char_count", "content_source"]
+    assert diagnostics["failure_code"] == "MODEL_ACTION_SCHEMA_INVALID"
+    assert diagnostics["recommended_next_action"] == "real_browser_control.real_browser.observe"
+    assert diagnostics["last_successful_browser_action"] == "real_browser.open"
+
+
+def test_power_pack6b_model_action_extractor_parses_valid_visible_json_without_raw_provider_material() -> None:
+    extracted = extract_browser_action_envelope(
+        {
+            "capability_id": "real_browser_control",
+            "operation": "real_browser.type_text",
+            "params": {"ref": "input:search", "text": "glasses under 5 euro"},
+            "visible_content_char_count": 104,
+            "content_source": "choices[0].message.content",
+        },
+        allowed_actions=(
+            "real_browser_control.real_browser.type_text",
+            "real_browser_control.real_browser.press_key",
+        ),
+        last_successful_browser_action="real_browser.observe",
+    )
+
+    assert extracted.envelope.capability_id == "real_browser_control"
+    assert extracted.envelope.operation == "real_browser.type_text"
+    assert extracted.envelope.params == {"ref": "input:search", "text": "glasses under 5 euro"}
+    assert extracted.diagnostics["action_object_detected"] is True
+    assert "raw_provider" not in str(extracted.safe_model_dump())
+    assert "reasoning_content" not in str(extracted.safe_model_dump())
+
+
+def test_power_pack6b_hard_browser_mission_can_search_extract_and_finish_with_replay_purity(tmp_path: Path) -> None:
+    fixture = _RealBrowserFixture(tmp_path, engine=_HardSearchBrowserEngine())
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.observe"),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.type_text",
+                params={"ref": "input:search", "text": "glasses under 5 euro"},
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.press_key",
+                params={"ref": "input:search", "key": "Enter"},
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.wait_for_text",
+                params={"text": "MOQ"},
+            ),
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_text"),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "browser search extracted"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    replay = RealBrowserControlReplayView.from_store(fixture.kernel.store, mission_id=fixture.mission_id)
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert fixture.engine.type_count == 1
+    assert fixture.engine.press_count == 1
+    assert fixture.engine.wait_count == 1
+    assert fixture.engine.extract_count == 1
+    assert decisions.contexts[-1]["objective_satisfied"] is True
+    assert decisions.contexts[-1]["finish_available"] is True
+    assert decisions.contexts[-2]["browser_world_model_summary"]["product_or_result_candidate_count"] >= 1
+    assert replay.browser_open_delta == 0
+    assert replay.browser_click_delta == 0
+    assert replay.browser_type_delta == 0
+    assert replay.browser_press_delta == 0
+    assert replay.browser_wait_delta == 0
+    assert replay.browser_extract_delta == 0
+    assert replay.artifact_hashes_stable is True
+
+
 class _RealBrowserFixture:
-    def __init__(self, tmp_path: Path) -> None:
+    def __init__(self, tmp_path: Path, *, engine: InMemoryRealBrowserEngine | None = None) -> None:
         self.kernel = MissionKernel(run_root=tmp_path / "runs", telemetry_sink=_CertifiedTelemetrySink())
         record = self.kernel.create_mission(
             session_id="session_power_pack6",
@@ -294,6 +473,10 @@ class _RealBrowserFixture:
                     "real_browser.select_option",
                     "real_browser.assert_text",
                     "real_browser.extract_text",
+                    "real_browser.press_key",
+                    "real_browser.wait_for_text",
+                    "real_browser.wait_for_load",
+                    "real_browser.scroll",
                     "finish",
                 ],
                 forbidden_actions=["payment", "credential_access", "arbitrary_internet", "desktop"],
@@ -303,7 +486,7 @@ class _RealBrowserFixture:
         self.mission_id = record.mission_id
         self.kernel.enqueue(self.mission_id)
         self.authority = self.envelope()
-        self.engine = InMemoryRealBrowserEngine()
+        self.engine = engine or InMemoryRealBrowserEngine()
         self.real_browser_runtime = RealBrowserControlRuntime(
             kernel=self.kernel,
             mission_id=self.mission_id,
@@ -327,6 +510,10 @@ class _RealBrowserFixture:
             "real_browser_control.real_browser.select_option",
             "real_browser_control.real_browser.assert_text",
             "real_browser_control.real_browser.extract_text",
+            "real_browser_control.real_browser.press_key",
+            "real_browser_control.real_browser.wait_for_text",
+            "real_browser_control.real_browser.wait_for_load",
+            "real_browser_control.real_browser.scroll",
             "sentinel_loop.finish",
         )
 
@@ -346,6 +533,10 @@ class _RealBrowserFixture:
                 "real_browser.select_option",
                 "real_browser.assert_text",
                 "real_browser.extract_text",
+                "real_browser.press_key",
+                "real_browser.wait_for_text",
+                "real_browser.wait_for_load",
+                "real_browser.scroll",
                 "finish",
             ],
             forbidden_actions=["payment", "credential_access", "arbitrary_internet", "desktop"],
@@ -386,6 +577,86 @@ class _RealBrowserFixture:
 def _mission_text(kernel: MissionKernel, mission_id: str) -> str:
     root = kernel.store.mission_dir(mission_id)
     return "\n".join(path.read_text(encoding="utf-8") for path in root.rglob("*.json*"))
+
+
+class _HardSearchBrowserEngine(InMemoryRealBrowserEngine):
+    def __init__(self) -> None:
+        super().__init__()
+        self.title = "Alibaba Search Fixture"
+        self.search_query = ""
+        self.results_visible = True
+        self.press_count = 0
+        self.wait_count = 0
+        self.scroll_count = 0
+        self.display_text = (
+            "Search products. Polarized sunglasses, visible price $4.80 per piece, "
+            "MOQ 10 pieces, supplier Yiwu Test Store, caveat shipping not included."
+        )
+
+    def _elements(self):  # type: ignore[no-untyped-def]
+        from sentinel.operator.real_browser_control_models import RealBrowserElementSnapshot
+
+        elements = [
+            RealBrowserElementSnapshot(
+                ref="input:search",
+                role="textbox",
+                name="Search products",
+                visible=True,
+                enabled=True,
+                value_preview=self.search_query,
+            ),
+            RealBrowserElementSnapshot(
+                ref="button:search",
+                role="button",
+                name="Search",
+                visible=True,
+                enabled=True,
+            ),
+        ]
+        if self.results_visible:
+            elements.append(
+                RealBrowserElementSnapshot(
+                    ref="link:glasses_card",
+                    role="link",
+                    name="Polarized sunglasses $4.80 MOQ 10 pieces",
+                    visible=True,
+                    enabled=True,
+                    text_preview="Polarized sunglasses $4.80 MOQ 10 pieces Yiwu Test Store",
+                )
+            )
+        return elements
+
+    def type_text(self, ref: str, text: str):  # type: ignore[no-untyped-def]
+        if ref != "input:search":
+            return super().type_text(ref, text)
+        self._require_editable(ref)
+        self.type_count += 1
+        self.search_query = text
+        return self.observe()
+
+    def press_key(self, ref: str, key: str):  # type: ignore[no-untyped-def]
+        self._require_editable(ref)
+        self.press_count += 1
+        if key == "Enter" and self.search_query:
+            self.results_visible = True
+            self.display_text = (
+                "Search results for glasses under 5 euro. Polarized sunglasses. "
+                "Price $4.80 per piece. MOQ 10 pieces. Supplier Yiwu Test Store. "
+                "Caveats: shipping not included, customization unclear."
+            )
+        return self.observe()
+
+    def wait_for_text(self, text: str, timeout_ms: int = 1000):  # type: ignore[no-untyped-def]
+        self.wait_count += 1
+        return text in self.display_text, self.observe()
+
+    def wait_for_load(self):  # type: ignore[no-untyped-def]
+        self.wait_count += 1
+        return self.observe()
+
+    def scroll(self, delta_y: int = 600):  # type: ignore[no-untyped-def]
+        self.scroll_count += 1
+        return self.observe()
 
 
 class _CertifiedTelemetrySink:

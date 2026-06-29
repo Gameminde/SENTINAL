@@ -16,6 +16,9 @@ class RealBrowserControlReplayView(SentinelModel):
     browser_select_delta: int
     browser_assert_delta: int
     browser_extract_delta: int
+    browser_press_delta: int
+    browser_wait_delta: int
+    browser_scroll_delta: int
     receipt_writes_delta: int
     finalgate_writes_delta: int
     workspace_mutations_delta: int
@@ -40,6 +43,9 @@ class RealBrowserControlReplayView(SentinelModel):
             browser_select_delta=0,
             browser_assert_delta=0,
             browser_extract_delta=0,
+            browser_press_delta=0,
+            browser_wait_delta=0,
+            browser_scroll_delta=0,
             receipt_writes_delta=after_counts["receipts"] - before_counts["receipts"],
             finalgate_writes_delta=after_counts["finalgate"] - before_counts["finalgate"],
             workspace_mutations_delta=0,

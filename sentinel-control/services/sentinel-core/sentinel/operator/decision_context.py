@@ -77,7 +77,14 @@ class DecisionContextCompiler:
         real_browser_action_results = [
             result
             for result in real_browser_results
-            if result.operation in {"real_browser.click", "real_browser.type_text", "real_browser.select_option"}
+            if result.operation
+            in {
+                "real_browser.click",
+                "real_browser.type_text",
+                "real_browser.select_option",
+                "real_browser.press_key",
+                "real_browser.scroll",
+            }
             and result.receipt_refs
         ]
         real_browser_assertion_results = [
@@ -85,6 +92,12 @@ class DecisionContextCompiler:
             for result in real_browser_results
             if result.operation == "real_browser.assert_text" and result.status == "passed" and result.receipt_refs
         ]
+        real_browser_extraction_results = [
+            result
+            for result in real_browser_results
+            if result.operation == "real_browser.extract_text" and result.status in {"completed", "passed", "success"} and result.receipt_refs
+        ]
+        real_browser_cards = _latest_real_browser_context_cards(real_browser_results)
         latest_patch_index = _latest_success_index(
             sequenced_observations,
             capability_id="workspace_patch",
@@ -103,7 +116,7 @@ class DecisionContextCompiler:
         )
         channel_mode = _is_channel_mode(available_actions=available_actions, observations=observations)
         if real_browser_mode:
-            objective_satisfied = bool(real_browser_assertion_results)
+            objective_satisfied = bool(real_browser_assertion_results or real_browser_extraction_results)
         elif browser_mode:
             objective_satisfied = bool(browser_assertion_results)
         elif channel_mode:
@@ -116,6 +129,7 @@ class DecisionContextCompiler:
                 real_browser_results=real_browser_results,
                 real_browser_action_results=real_browser_action_results,
                 real_browser_assertion_results=real_browser_assertion_results,
+                real_browser_extraction_results=real_browser_extraction_results,
             )
             if real_browser_mode
             else _browser_progress_guidance(
@@ -144,7 +158,11 @@ class DecisionContextCompiler:
             "available_actions": list(available_actions),
             "objective_satisfied": objective_satisfied,
             "finish_available": objective_satisfied,
-            "recommended_next_action": "sentinel_loop.finish" if objective_satisfied else None,
+            "recommended_next_action": (
+                "sentinel_loop.finish"
+                if objective_satisfied
+                else (progress_guidance["next_recommended_actions"][0] if progress_guidance["next_recommended_actions"] else None)
+            ),
             "progress_state": progress_guidance["progress_state"],
             "next_recommended_actions": progress_guidance["next_recommended_actions"],
             "objective_remaining_steps": progress_guidance["objective_remaining_steps"],
@@ -230,6 +248,14 @@ class DecisionContextCompiler:
             ],
             "browser_control_summary": _browser_summary(browser_results),
             "real_browser_control_summary": _real_browser_summary(real_browser_results),
+            "browser_world_model_summary": real_browser_cards.get("browser_world_model_summary") if real_browser_mode else {},
+            "browser_decision_frame": real_browser_cards.get("browser_decision_frame") if real_browser_mode else {},
+            "top_stable_refs": _top_stable_refs(real_browser_cards),
+            "top_action_candidates": _top_action_candidates(real_browser_cards),
+            "top_link_candidates": _top_link_candidates(real_browser_cards),
+            "search_like_controls": _search_like_controls(real_browser_cards),
+            "blocker_signals": _blocker_signals(real_browser_cards),
+            "allowed_action_schema": _allowed_action_schema(real_browser_mode=real_browser_mode),
             "channel_delivery_summary": _channel_summary(channel_results),
         }
 
@@ -492,6 +518,7 @@ def _real_browser_progress_guidance(
     real_browser_results: list[ActionResult],
     real_browser_action_results: list[ActionResult],
     real_browser_assertion_results: list[ActionResult],
+    real_browser_extraction_results: list[ActionResult],
 ) -> dict[str, Any]:
     has_open = any(
         result.operation == "real_browser.open" and result.receipt_refs and result.status in {"completed", "passed", "success"}
@@ -503,16 +530,18 @@ def _real_browser_progress_guidance(
     )
     has_action = any(result.status in {"completed", "passed", "success"} for result in real_browser_action_results)
     has_assertion = any(result.status == "passed" for result in real_browser_assertion_results)
+    has_extraction = any(result.status in {"completed", "passed", "success"} for result in real_browser_extraction_results)
     completion_requirements = {
         "requires_real_browser_open_receipt": not has_open,
         "requires_real_browser_observation_receipt": not has_observation,
         "requires_real_browser_action_receipt": not has_action,
-        "requires_real_browser_assertion_receipt": not has_assertion,
+        "requires_real_browser_assertion_or_extraction_receipt": not (has_assertion or has_extraction),
         "requires_finish_action": True,
         "has_real_browser_open_receipt": has_open,
         "has_real_browser_observation_receipt": has_observation,
         "has_real_browser_action_receipt": has_action,
         "has_real_browser_assertion_receipt": has_assertion,
+        "has_real_browser_extraction_receipt": has_extraction,
     }
     if objective_satisfied:
         return {
@@ -527,8 +556,9 @@ def _real_browser_progress_guidance(
             "next_recommended_actions": [
                 "real_browser_control.real_browser.assert_text",
                 "real_browser_control.real_browser.extract_text",
+                "real_browser_control.real_browser.wait_for_text",
             ],
-            "objective_remaining_steps": ["assert bounded real browser state changed", "finish"],
+            "objective_remaining_steps": ["assert or extract bounded real browser state", "finish"],
             "completion_requirements": completion_requirements,
         }
     if has_observation and not has_action:
@@ -538,15 +568,20 @@ def _real_browser_progress_guidance(
                 "real_browser_control.real_browser.type_text",
                 "real_browser_control.real_browser.click",
                 "real_browser_control.real_browser.select_option",
+                "real_browser_control.real_browser.press_key",
+                "real_browser_control.real_browser.extract_text",
             ],
-            "objective_remaining_steps": ["act using stable ref", "assert bounded real browser state changed", "finish"],
+            "objective_remaining_steps": ["act using stable ref", "assert or extract browser state", "finish"],
             "completion_requirements": completion_requirements,
         }
     if has_open and not has_observation:
         return {
-            "progress_state": "real_browser_opened_needs_observation",
-            "next_recommended_actions": ["real_browser_control.real_browser.observe"],
-            "objective_remaining_steps": ["observe bounded page", "act using stable ref", "assert state changed", "finish"],
+            "progress_state": "real_browser_opened_world_model_ready",
+            "next_recommended_actions": [
+                "real_browser_control.real_browser.observe",
+                "real_browser_control.real_browser.extract_text",
+            ],
+            "objective_remaining_steps": ["use browser world model", "act or extract with stable refs", "finish"],
             "completion_requirements": completion_requirements,
         }
     return {
@@ -598,7 +633,17 @@ def _real_browser_summary(real_browser_results: list[ActionResult]) -> dict[str,
         (
             result
             for result in reversed(real_browser_results)
-            if result.operation in {"real_browser.click", "real_browser.type_text", "real_browser.select_option"}
+            if result.operation
+            in {
+                "real_browser.click",
+                "real_browser.type_text",
+                "real_browser.select_option",
+                "real_browser.press_key",
+                "real_browser.scroll",
+                "real_browser.wait_for_text",
+                "real_browser.wait_for_load",
+                "real_browser.extract_text",
+            }
         ),
         None,
     )
@@ -609,6 +654,78 @@ def _real_browser_summary(real_browser_results: list[ActionResult]) -> dict[str,
         "latest_action": _browser_result_summary(latest_action),
         "latest_assertion": _browser_result_summary(latest_assertion),
         "receipt_count": sum(len(result.receipt_refs) for result in real_browser_results),
+    }
+
+
+def _latest_real_browser_context_cards(real_browser_results: list[ActionResult]) -> dict[str, Any]:
+    for result in reversed(real_browser_results):
+        if result.context_cards:
+            return result.context_cards
+    return {}
+
+
+def _top_stable_refs(cards: dict[str, Any]) -> list[dict[str, Any]]:
+    frame = cards.get("browser_decision_frame")
+    if isinstance(frame, dict):
+        top_refs = frame.get("top_refs")
+        if isinstance(top_refs, list):
+            return top_refs[:12]
+    world = cards.get("browser_world_model")
+    if isinstance(world, dict):
+        refs = world.get("stable_refs")
+        if isinstance(refs, list):
+            return refs[:12]
+    return []
+
+
+def _top_action_candidates(cards: dict[str, Any]) -> list[dict[str, Any]]:
+    frame = cards.get("browser_decision_frame")
+    if not isinstance(frame, dict):
+        return []
+    candidates = frame.get("candidate_actions")
+    return candidates[:12] if isinstance(candidates, list) else []
+
+
+def _top_link_candidates(cards: dict[str, Any]) -> list[str]:
+    world = cards.get("browser_world_model")
+    if not isinstance(world, dict):
+        return []
+    refs = world.get("link_refs")
+    return refs[:12] if isinstance(refs, list) else []
+
+
+def _search_like_controls(cards: dict[str, Any]) -> list[str]:
+    world = cards.get("browser_world_model")
+    if not isinstance(world, dict):
+        return []
+    refs = world.get("search_like_refs")
+    return refs[:12] if isinstance(refs, list) else []
+
+
+def _blocker_signals(cards: dict[str, Any]) -> list[str]:
+    frame = cards.get("browser_decision_frame")
+    if isinstance(frame, dict):
+        blockers = frame.get("blockers")
+        if isinstance(blockers, list):
+            return blockers
+    world = cards.get("browser_world_model")
+    if not isinstance(world, dict):
+        return []
+    blockers: list[str] = []
+    for key in ("modal_or_consent_signals", "captcha_or_login_signals", "dynamic_loading_signals"):
+        value = world.get(key)
+        if isinstance(value, list):
+            blockers.extend(str(item) for item in value)
+    return blockers
+
+
+def _allowed_action_schema(*, real_browser_mode: bool) -> dict[str, Any]:
+    if not real_browser_mode:
+        return {}
+    return {
+        "capability_id": "real_browser_control",
+        "operation": "real_browser.open | real_browser.observe | real_browser.click | real_browser.type_text | real_browser.press_key | real_browser.wait_for_text | real_browser.wait_for_load | real_browser.scroll | real_browser.extract_text | real_browser.assert_text",
+        "params": {"ref": "stable ref when needed", "text": "bounded text when needed"},
     }
 
 
