@@ -10,10 +10,12 @@ channel_transport_calls = 0
 
 This is a static preflight stop, not a consumed provider attempt.
 
+This report was refreshed after the operator accepted Power Pack 5 and requested a rerun once process-scoped channel transport config was restored. The process environment still does not contain the required real channel webhook endpoint, so the attempt stopped again before any model/provider or channel transport call.
+
 ## Source
 
 ```text
-source_commit = 1e21683b96f1d559fb07e1196fb4fa84d64d27ad
+source_commit = 638fabb6304633ebb91ede8d8514cd64b7a57102
 pack_under_test = POWER_PACK_5_REAL_CHANNEL_TRANSPORT_SEND_V1
 ```
 
@@ -49,6 +51,7 @@ Safe facts only:
 ```text
 SENTINEL_CHANNEL_WEBHOOK_URL present = false
 SENTINEL_CHANNEL_WEBHOOK_TOKEN present = false
+SENTINEL_CHANNEL_WEBHOOK_URL hash = null
 ```
 
 `SENTINEL_CHANNEL_WEBHOOK_URL` is required for the current real channel transport builder.
