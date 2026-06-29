@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
 from sentinel.operator.code_execution_sandbox_models import CodeExecutionReceipt
 from sentinel.operator.code_execution_sandbox_replay import CodeExecutionReplayView
 from sentinel.operator.code_execution_sandbox_runtime import (
@@ -21,6 +21,7 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.loop_guard import LoopGuard, LoopGuardConfig
 from sentinel.operator.model_led_task_loop import ModelLedTaskDecisionClient, ModelLedTaskLoop, ModelLedTaskLoopReplay, ModelLedTaskLoopStatus
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
+from sentinel.operator.read_only_operator_spine import ReadOnlyActionKind, ReadOnlyDecision, ReadOnlyDecisionClient, ReadOnlyProductionSpineSession
 from sentinel.operator.workspace_patch_runtime import WorkspacePatchCheckResult, WorkspacePatchRuntime
 
 
@@ -199,6 +200,98 @@ def test_power_pack3_generic_loop_runs_patch_code_exec_read_only_verify_finish(t
     assert any(ref.startswith("code_exec_receipt_") for ref in result.receipt_refs)
 
 
+def test_power_pack3_production_read_only_verification_uses_granted_workspace_authority(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, production_read_only=True)
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="read_only_research", operation="list_directory", params={"path": "."}),
+            ActionEnvelope(capability_id="read_only_research", operation="read_file_segment", params={"path": "README.md", "start_line": 1, "line_count": 5}),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "read-only verification succeeded"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_finish"
+    assert fixture.read_only_tool_calls == 2
+    assert len([ref for ref in result.receipt_refs if ref.startswith("readonly_receipt_")]) == 2
+
+
+def test_power_pack3_production_read_only_verification_still_blocks_path_escape(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, production_read_only=True)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside\n", encoding="utf-8")
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="read_only_research", operation="read_file_segment", params={"path": "../outside.txt", "start_line": 1, "line_count": 5}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+
+    assert result.status is ModelLedTaskLoopStatus.BLOCKED
+    assert fixture.read_only_tool_calls == 1
+    assert not result.receipt_refs
+    assert result.blocked_reason == "read_only_action_blocked:gate_sequence:out_of_scope:escalate"
+
+
+def test_power_pack3_production_read_only_receipt_satisfies_objective_and_unlocks_finish_only_turn(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, production_read_only=True)
+    base_hash = fixture.readme_hash()
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "python_compileall", "args": ["src"]},
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO: run sandbox\n",
+                    "new_text": "TODO: sandbox command verified\n",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="read_only_research",
+                operation="search_text",
+                params={"path": ".", "query": "sandbox command verified"},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "objective satisfied"}),
+        ]
+    )
+    loop = ModelLedTaskLoop(
+        mission_id=fixture.mission_id,
+        kernel=fixture.kernel,
+        authority=fixture.authority,
+        action_kernel=fixture.action_kernel,
+        decision_client=decisions,
+        decision_context=DecisionContextCompiler(),
+        loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=5, max_material_actions=3)),
+        available_actions=(
+            "read_only.search_text",
+            "workspace_patch.apply_patch",
+            "code_exec.run_profile",
+            "finish",
+        ),
+    )
+
+    result = loop.run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_finish"
+    assert result.material_action_count == 3
+    assert fixture.read_only_tool_calls == 1
+    assert any(ref.startswith("readonly_receipt_") for ref in result.receipt_refs)
+    finish_context = decisions.contexts[-1]
+    assert finish_context["objective_satisfied"] is True
+    assert finish_context["available_actions"] == ["finish"]
+
+
 def test_power_pack3_finish_only_turn_available_when_objective_satisfied_at_material_budget(tmp_path: Path) -> None:
     fixture = _CodeExecFixture(tmp_path)
     base_hash = fixture.readme_hash()
@@ -329,7 +422,8 @@ def test_power_pack3_inspect_result_is_non_material_and_loop_guard_counts_run_pr
 
 
 class _CodeExecFixture:
-    def __init__(self, tmp_path: Path, runner: object | None = None) -> None:
+    def __init__(self, tmp_path: Path, runner: object | None = None, production_read_only: bool = False) -> None:
+        self.production_read_only = production_read_only
         self.workspace = tmp_path / "workspace"
         self.workspace.mkdir()
         self.readme = self.workspace / "README.md"
@@ -351,6 +445,7 @@ class _CodeExecFixture:
                 mission_id="power_pack3",
                 allowed_actions=[
                     "list_directory",
+                    "read_file_segment",
                     "search_text",
                     "workspace_patch.apply_patch",
                     "code_exec.run_profile",
@@ -403,6 +498,7 @@ class _CodeExecFixture:
             allowed_tools=["read_only_research", "workspace_patch", "code_execution_sandbox"],
             allowed_actions=[
                 "list_directory",
+                "read_file_segment",
                 "search_text",
                 "workspace_patch.apply_patch",
                 "code_exec.run_profile",
@@ -426,6 +522,7 @@ class _CodeExecFixture:
             loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=8, max_material_actions=6)),
             available_actions=(
                 "read_only.list_directory",
+                "read_only.read_file_segment",
                 "read_only.search_text",
                 "workspace_patch.apply_patch",
                 "code_exec.run_profile",
@@ -445,6 +542,36 @@ class _CodeExecFixture:
     def _execute_read_only(self, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
         del context
         self.read_only_tool_calls += 1
+        if self.production_read_only:
+            session = ReadOnlyProductionSpineSession(
+                cockpit=_KernelBackedCockpit(self.kernel),
+                mission_id=self.mission_id,
+                snapshot_root=self.workspace,
+                decision_client=ReadOnlyDecisionClient(
+                    [
+                        ReadOnlyDecision(
+                            action=ReadOnlyActionKind(envelope.operation),
+                            arguments=dict(envelope.params),
+                        )
+                    ]
+                ),
+                stop_after_first_material_receipt=True,
+                low_friction_read_only_power_mode=True,
+                owns_kernel_terminal=False,
+            )
+            result = session.run_via_agent_runtime(envelope=self.authority)
+            if result.status != "completed":
+                raise ActionKernelError(f"read_only_action_blocked:{result.blocked_reason}")
+            return ActionResult(
+                action_id=envelope.action_id,
+                capability_id=envelope.capability_id,
+                operation=envelope.operation,
+                status="completed",
+                receipt_refs=tuple(result.receipt_refs),
+                finalgate_refs=tuple(result.finalgate_refs),
+                material_action=True,
+                observation_summary=f"{envelope.operation} completed with {len(result.receipt_refs)} receipt(s).",
+            )
         return ActionResult(
             action_id=envelope.action_id,
             capability_id=envelope.capability_id,
@@ -455,6 +582,14 @@ class _CodeExecFixture:
             material_action=True,
             observation_summary=f"{envelope.operation} completed.",
         )
+
+
+class _KernelBackedCockpit:
+    def __init__(self, kernel: MissionKernel) -> None:
+        self.kernel = kernel
+
+    def handle(self, _message: str) -> None:
+        return None
 
 
 class _ScriptedRunner:

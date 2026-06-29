@@ -1492,7 +1492,7 @@ class ReadOnlyProductionSpineSession:
         if self._active_envelope is not None:
             gate_result = GateSequence.default(
                 project_root=self.snapshot_root,
-                known_tools={"read_only_observation", "read_only_research_adapter"},
+                known_tools={"read_only_observation", "read_only_research", "read_only_research_adapter"},
             ).evaluate(
                 _mission_action_from_decision(
                     self.mission_id,
@@ -2227,6 +2227,8 @@ def _sanitize_diagnostic_label(value: str) -> str:
 
 def _gate_tool_for_envelope(envelope: MissionAuthorityEnvelope) -> str:
     tools = set(envelope.allowed_tools)
+    if "read_only_research" in tools:
+        return "read_only_research"
     if "read_only_observation" in tools:
         return "read_only_observation"
     if "read_only_research_adapter" in tools:
