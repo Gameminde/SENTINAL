@@ -359,6 +359,158 @@ def test_power_pack3_context_after_read_only_receipt_guides_next_power_actions(t
     assert next_context["available_actions"]
 
 
+def test_power_pack3_pre_patch_read_only_receipt_does_not_satisfy_patch_verification(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, production_read_only=True)
+    base_hash = fixture.readme_hash()
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="read_only_research", operation="list_directory", params={"path": "."}),
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "python_compileall", "args": ["src"]},
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO: run sandbox\n",
+                    "new_text": "TODO: sandbox command verified\n",
+                },
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "too early"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    post_patch_context = decisions.contexts[3]
+
+    assert result.status is ModelLedTaskLoopStatus.BLOCKED
+    assert result.blocked_reason == "MODEL_FINISH_BEFORE_POST_PATCH_VERIFICATION"
+    assert post_patch_context["objective_satisfied"] is False
+    assert post_patch_context["finish_available"] is False
+    assert "sentinel_loop.finish" not in post_patch_context["next_recommended_actions"]
+    assert "workspace_patch.run_bounded_check" in post_patch_context["next_recommended_actions"]
+    assert "read_only_research.search_text" in post_patch_context["next_recommended_actions"]
+    assert post_patch_context["completion_requirements"]["requires_verification_receipt"] is True
+
+
+def test_power_pack3_post_patch_read_only_search_text_satisfies_verification(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, production_read_only=True)
+    base_hash = fixture.readme_hash()
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(capability_id="read_only_research", operation="list_directory", params={"path": "."}),
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "python_compileall", "args": ["src"]},
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO: run sandbox\n",
+                    "new_text": "TODO: sandbox command verified\n",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="read_only_research",
+                operation="search_text",
+                params={"path": ".", "query": "sandbox command verified"},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "verified"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    finish_context = decisions.contexts[-1]
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert finish_context["objective_satisfied"] is True
+    assert finish_context["finish_available"] is True
+    assert finish_context["recommended_next_action"] == "sentinel_loop.finish"
+
+
+def test_power_pack3_post_patch_read_file_segment_satisfies_verification(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path, production_read_only=True)
+    base_hash = fixture.readme_hash()
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "python_compileall", "args": ["src"]},
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO: run sandbox\n",
+                    "new_text": "TODO: sandbox command verified\n",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="read_only_research",
+                operation="read_file_segment",
+                params={"path": "README.md", "start_line": 1, "line_count": 5},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "verified"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    finish_context = decisions.contexts[-1]
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert finish_context["objective_satisfied"] is True
+    assert finish_context["completion_requirements"]["requires_verification_receipt"] is False
+
+
+def test_power_pack3_post_patch_bounded_check_satisfies_verification(tmp_path: Path) -> None:
+    fixture = _CodeExecFixture(tmp_path)
+    base_hash = fixture.readme_hash()
+    decisions = ModelLedTaskDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "python_compileall", "args": ["src"]},
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO: run sandbox\n",
+                    "new_text": "TODO: sandbox command verified\n",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="run_bounded_check",
+                params={"command_id": "fake_pass", "args": ["README.md"]},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "verified"}),
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    finish_context = decisions.contexts[-1]
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert fixture.patch_runtime.verification_run_count == 1
+    assert finish_context["objective_satisfied"] is True
+    assert finish_context["next_recommended_actions"] == ["sentinel_loop.finish"]
+
+
 def test_power_pack3_finish_only_turn_available_when_objective_satisfied_at_material_budget(tmp_path: Path) -> None:
     fixture = _CodeExecFixture(tmp_path)
     base_hash = fixture.readme_hash()
@@ -515,6 +667,7 @@ class _CodeExecFixture:
                     "read_file_segment",
                     "search_text",
                     "workspace_patch.apply_patch",
+                    "workspace_patch.run_bounded_check",
                     "code_exec.run_profile",
                     "code_exec.inspect_result",
                     "finish",
@@ -568,6 +721,7 @@ class _CodeExecFixture:
                 "read_file_segment",
                 "search_text",
                 "workspace_patch.apply_patch",
+                "workspace_patch.run_bounded_check",
                 "code_exec.run_profile",
                 "code_exec.inspect_result",
                 "finish",
@@ -592,6 +746,7 @@ class _CodeExecFixture:
                 "read_only.read_file_segment",
                 "read_only.search_text",
                 "workspace_patch.apply_patch",
+                "workspace_patch.run_bounded_check",
                 "code_exec.run_profile",
                 "code_exec.inspect_result",
                 "finish",

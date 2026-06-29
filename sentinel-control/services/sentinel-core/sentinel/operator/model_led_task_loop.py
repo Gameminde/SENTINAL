@@ -154,6 +154,8 @@ class ModelLedTaskLoop:
                     envelope.capability_id == "sentinel_loop" and envelope.operation == "finish"
                 ):
                     raise ActionKernelError("model_led_task_loop_finish_required_after_objective_satisfied")
+                if _is_premature_patch_finish(envelope, context):
+                    raise ActionKernelError("MODEL_FINISH_BEFORE_POST_PATCH_VERIFICATION")
                 self.loop_guard.check_before_action(envelope)
                 self._assert_mission_and_authority_open()
                 result = self.action_kernel.execute(envelope, authority=self.authority, context=context)
@@ -442,6 +444,20 @@ def _allowed_capabilities_from_actions(available_actions: list[str]) -> list[str
         if capability and capability not in capabilities:
             capabilities.append(capability)
     return capabilities
+
+
+def _is_premature_patch_finish(envelope: ActionEnvelope, context: dict[str, Any]) -> bool:
+    if envelope.capability_id != "sentinel_loop" or envelope.operation != "finish":
+        return False
+    if context.get("objective_satisfied") is True:
+        return False
+    completion_requirements = context.get("completion_requirements")
+    if not isinstance(completion_requirements, dict):
+        return False
+    return bool(
+        completion_requirements.get("has_workspace_patch_receipt") is True
+        and completion_requirements.get("requires_verification_receipt") is True
+    )
 
 
 __all__ = [

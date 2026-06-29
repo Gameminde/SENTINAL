@@ -21,6 +21,7 @@ class DecisionContextCompiler:
         max_material_actions: int,
     ) -> dict[str, Any]:
         previous = observations[-1] if observations else None
+        sequenced_observations = list(enumerate(observations))
         workspace_patch_results = [
             result
             for result in observations[-6:]
@@ -43,18 +44,26 @@ class DecisionContextCompiler:
             for result in observations[-6:]
             if result.capability_id == "code_execution_sandbox" and result.operation == "code_exec.run_profile"
         ]
+        latest_patch_index = _latest_success_index(
+            sequenced_observations,
+            capability_id="workspace_patch",
+            operation="apply_patch",
+        )
+        post_patch_verification_results = _post_patch_verification_results(
+            sequenced_observations,
+            latest_patch_index=latest_patch_index,
+        )
         objective_satisfied = _objective_satisfied(
             code_execution_results=code_execution_results,
             workspace_patch_results=workspace_patch_results,
-            workspace_verification_results=workspace_verification_results,
-            read_only_verification_results=read_only_verification_results,
+            post_patch_verification_results=post_patch_verification_results,
         )
         progress_guidance = _progress_guidance(
             objective_satisfied=objective_satisfied,
             code_execution_results=code_execution_results,
             workspace_patch_results=workspace_patch_results,
-            workspace_verification_results=workspace_verification_results,
             read_only_verification_results=read_only_verification_results,
+            post_patch_verification_results=post_patch_verification_results,
         )
         return {
             "mission_id": mission_id,
@@ -153,16 +162,55 @@ def _objective_satisfied(
     *,
     code_execution_results: list[ActionResult],
     workspace_patch_results: list[ActionResult],
-    workspace_verification_results: list[ActionResult],
-    read_only_verification_results: list[ActionResult],
+    post_patch_verification_results: list[ActionResult],
 ) -> bool:
     has_code_execution = any(result.receipt_refs and result.status in {"passed", "completed"} for result in code_execution_results)
     has_patch = any(result.receipt_refs and result.status in {"completed", "passed"} for result in workspace_patch_results)
-    has_verification = any(
-        result.receipt_refs and result.status in {"completed", "passed"}
-        for result in [*workspace_verification_results, *read_only_verification_results]
-    )
+    has_verification = any(result.receipt_refs and result.status in {"completed", "passed"} for result in post_patch_verification_results)
     return has_code_execution and has_patch and has_verification
+
+
+def _latest_success_index(
+    sequenced_observations: list[tuple[int, ActionResult]],
+    *,
+    capability_id: str,
+    operation: str,
+) -> int | None:
+    return next(
+        (
+            index
+            for index, result in reversed(sequenced_observations)
+            if result.capability_id == capability_id
+            and result.operation == operation
+            and result.receipt_refs
+            and result.status in {"completed", "passed", "success"}
+        ),
+        None,
+    )
+
+
+def _post_patch_verification_results(
+    sequenced_observations: list[tuple[int, ActionResult]],
+    *,
+    latest_patch_index: int | None,
+) -> list[ActionResult]:
+    if latest_patch_index is None:
+        return []
+    return [
+        result
+        for index, result in sequenced_observations
+        if index > latest_patch_index and _is_post_patch_verification_result(result)
+    ]
+
+
+def _is_post_patch_verification_result(result: ActionResult) -> bool:
+    if not result.receipt_refs or result.status not in {"completed", "passed", "success"}:
+        return False
+    if result.capability_id == "workspace_patch" and result.operation == "run_bounded_check":
+        return True
+    if result.capability_id == "code_execution_sandbox" and result.operation == "code_exec.run_profile":
+        return True
+    return result.capability_id == "read_only_research" and result.operation in {"search_text", "read_file_segment"}
 
 
 def _progress_guidance(
@@ -170,8 +218,8 @@ def _progress_guidance(
     objective_satisfied: bool,
     code_execution_results: list[ActionResult],
     workspace_patch_results: list[ActionResult],
-    workspace_verification_results: list[ActionResult],
     read_only_verification_results: list[ActionResult],
+    post_patch_verification_results: list[ActionResult],
 ) -> dict[str, Any]:
     has_read_only_observation = any(
         result.receipt_refs and result.status in {"completed", "passed", "success"}
@@ -185,7 +233,7 @@ def _progress_guidance(
     )
     has_verification = any(
         result.receipt_refs and result.status in {"completed", "passed", "success"}
-        for result in [*workspace_verification_results, *read_only_verification_results]
+        for result in post_patch_verification_results
     )
     completion_requirements = {
         "requires_code_execution_receipt": not has_code_execution,
@@ -196,6 +244,7 @@ def _progress_guidance(
         "has_code_execution_receipt": has_code_execution,
         "has_workspace_patch_receipt": has_patch,
         "has_verification_receipt": has_verification,
+        "post_patch_verification_receipt_count": sum(1 for result in post_patch_verification_results if result.receipt_refs),
     }
     if objective_satisfied:
         return {
