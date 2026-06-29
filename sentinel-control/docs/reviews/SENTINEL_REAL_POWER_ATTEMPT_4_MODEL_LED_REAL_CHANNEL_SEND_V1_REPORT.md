@@ -10,13 +10,14 @@ channel_transport_calls = 0
 
 This is a static preflight stop, not a consumed provider attempt.
 
-This report was refreshed after the operator accepted Power Pack 5 and requested a rerun once process-scoped channel transport config was restored. The process environment still does not contain the required real channel webhook endpoint, so the attempt stopped again before any model/provider or channel transport call.
+This report was refreshed after the operator selected Telegram as the real channel and requested a rerun with process-scoped Telegram env vars. The current Codex process still does not contain the Telegram token/chat id env vars, so the attempt stopped again before any model/provider or channel transport call.
 
 ## Source
 
 ```text
-source_commit = 638fabb6304633ebb91ede8d8514cd64b7a57102
+source_commit = 1dc08db77f12e860b65590cc5e9f9b677d8083f2
 pack_under_test = POWER_PACK_5_REAL_CHANNEL_TRANSPORT_SEND_V1
+transport_bridge_commit = 1dc08db77f12e860b65590cc5e9f9b677d8083f2
 ```
 
 ## Provider Preflight
@@ -39,23 +40,21 @@ No endpoint values, credential values, Authorization headers, raw prompts, raw p
 
 ## Channel Transport Preflight
 
-Required config names:
+Required Telegram config names:
 
 ```text
-SENTINEL_CHANNEL_WEBHOOK_URL
-SENTINEL_CHANNEL_WEBHOOK_TOKEN
+SENTINEL_TELEGRAM_BOT_TOKEN
+SENTINEL_TELEGRAM_CHAT_ID
 ```
 
 Safe facts only:
 
 ```text
-SENTINEL_CHANNEL_WEBHOOK_URL present = false
-SENTINEL_CHANNEL_WEBHOOK_TOKEN present = false
-SENTINEL_CHANNEL_WEBHOOK_URL hash = null
+SENTINEL_TELEGRAM_BOT_TOKEN present = false
+SENTINEL_TELEGRAM_CHAT_ID present = false
 ```
 
-`SENTINEL_CHANNEL_WEBHOOK_URL` is required for the current real channel transport builder.
-`SENTINEL_CHANNEL_WEBHOOK_TOKEN` is optional.
+Both Telegram env names are required for the current real channel transport builder.
 
 ## Stop Reason
 
@@ -65,7 +64,7 @@ blocked_before_channel_call = true
 reason = REAL_CHANNEL_TRANSPORT_CONFIG_MISSING
 ```
 
-The implementation now has a real webhook transport seam, but no mission-scoped test destination endpoint is configured in the current process.
+The implementation now has a real Telegram Bot API transport seam, but no mission-scoped Telegram token/chat id is configured in the current Codex process.
 
 ## Attempt Rules Check
 
@@ -91,8 +90,8 @@ REAL_POWER_ATTEMPT_4_MODEL_LED_REAL_CHANNEL_SEND_V1
 Expected local process env names only:
 
 ```text
-SENTINEL_CHANNEL_WEBHOOK_URL
-SENTINEL_CHANNEL_WEBHOOK_TOKEN
+SENTINEL_TELEGRAM_BOT_TOKEN
+SENTINEL_TELEGRAM_CHAT_ID
 ```
 
-If a local webhook receiver is used, it must behave as the bounded test destination and return a safe delivery id/ref. Replay must prove no resend.
+The next rerun must occur in a process where both values are present. Replay must prove no resend.
