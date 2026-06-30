@@ -190,7 +190,6 @@ def _real_browser_recommendations(visible_actions: list[str], progress_state: st
                 "real_browser_control.real_browser.open",
                 "real_browser_control.real_browser.search",
                 "real_browser_control.real_browser.extract_product_cards",
-                "real_browser_control.real_browser.extract_text",
             ],
         )
     if progress_state == "real_browser_opened_world_model_ready":
@@ -200,7 +199,6 @@ def _real_browser_recommendations(visible_actions: list[str], progress_state: st
                 "real_browser_control.real_browser.observe",
                 "real_browser_control.real_browser.search",
                 "real_browser_control.real_browser.extract_product_cards",
-                "real_browser_control.real_browser.extract_text",
             ],
         )
     if progress_state in {"real_browser_observed_needs_action", "real_browser_action_needs_assertion"}:
@@ -209,8 +207,9 @@ def _real_browser_recommendations(visible_actions: list[str], progress_state: st
             [
                 "real_browser_control.real_browser.search",
                 "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.open_result",
                 "real_browser_control.real_browser.extract_product_cards",
-                "real_browser_control.real_browser.extract_text",
+                "real_browser_control.real_browser.verify_extraction",
                 "real_browser_control.real_browser.assert_text",
             ],
         )
@@ -219,7 +218,7 @@ def _real_browser_recommendations(visible_actions: list[str], progress_state: st
         [
             "real_browser_control.real_browser.search",
             "real_browser_control.real_browser.extract_product_cards",
-            "real_browser_control.real_browser.extract_text",
+            "real_browser_control.real_browser.verify_extraction",
             "real_browser_control.real_browser.observe",
             "real_browser_control.real_browser.open",
         ],

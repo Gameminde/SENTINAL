@@ -56,8 +56,8 @@ def test_legacy_recommended_actions_do_not_override_skill_frame() -> None:
     )
 
     assert context["legacy_next_recommended_actions"][:2] == [
-        "real_browser_control.real_browser.type_text",
-        "real_browser_control.real_browser.click",
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.inspect_result",
     ]
     assert context["skill_decision_frame"]["recommended_next_actions"][:2] == [
         "real_browser_control.real_browser.search",

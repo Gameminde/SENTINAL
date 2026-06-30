@@ -282,6 +282,16 @@ class RealBrowserControlRuntime:
             return self._open(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.observe":
             return self._observe(envelope, authority=authority, context=context)
+        if envelope.operation == "real_browser.search":
+            return self._search(envelope, authority=authority, context=context)
+        if envelope.operation == "real_browser.inspect_result":
+            return self._inspect_result(envelope, authority=authority, context=context)
+        if envelope.operation == "real_browser.open_result":
+            return self._open_result(envelope, authority=authority, context=context)
+        if envelope.operation == "real_browser.extract_product_cards":
+            return self._extract_product_cards(envelope, authority=authority, context=context)
+        if envelope.operation == "real_browser.verify_extraction":
+            return self._verify_extraction(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.click":
             return self._click(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.type_text":
@@ -392,6 +402,190 @@ class RealBrowserControlRuntime:
             material_action=False,
             observation_summary=f"real browser observed with {len(elements)} stable element refs.",
             result_hash=receipt.receipt_hash,
+            context_cards=context_cards,
+        )
+
+    def _search(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
+        self._require_authorized(authority, "real_browser.search")
+        query = str(envelope.params.get("query") or envelope.params.get("text") or "")
+        if not query.strip():
+            raise RealBrowserControlRuntimeError("real_browser_search_query_required")
+        _reject_browser_skill_boundary_text(query)
+        before_snapshot = self.engine.observe()
+        candidates = _search_ref_candidates(before_snapshot, envelope)
+        if not candidates:
+            context_cards = self._world_context_cards(
+                before_snapshot,
+                authority=authority,
+                context=context,
+                progress_state="real_browser_search_recovery_world_model_ready",
+            )
+            return self._recoverable_actuation_failure(
+                envelope,
+                failure_code="real_browser_search_control_not_found",
+                safe_summary="No executable search-like control was available in the bounded browser world model.",
+                context_cards=context_cards,
+                browser_state_hash=before_snapshot.state_hash,
+            )
+        errors: list[str] = []
+        for ref in candidates:
+            try:
+                snapshot = self.engine.type_text(ref, query)
+                try:
+                    snapshot = self.engine.press_key(ref, "Enter")
+                except RealBrowserControlRuntimeError as exc:
+                    errors.append(str(exc))
+                    snapshot = self._click_search_button_if_available()
+                context_cards = self._world_context_cards(
+                    snapshot,
+                    authority=authority,
+                    context=context,
+                    progress_state="real_browser_search_results_world_model_ready",
+                )
+                return self._record_action(
+                    envelope,
+                    action_kind="real_browser.search",
+                    element_ref=ref,
+                    before_state_hash=before_snapshot.state_hash,
+                    after_state_hash=snapshot.state_hash,
+                    status="completed",
+                    summary=f"real browser search submitted through skill ref {ref} query_hash={text_hash(query)}.",
+                    context_cards=context_cards,
+                )
+            except RealBrowserControlRuntimeError as exc:
+                errors.append(str(exc))
+                continue
+        recovery_snapshot = self.engine.observe()
+        context_cards = self._world_context_cards(
+            recovery_snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_search_recovery_world_model_ready",
+        )
+        return self._recoverable_actuation_failure(
+            envelope,
+            failure_code="real_browser_search_actuation_failed",
+            safe_summary="Search-like controls were found but none accepted robust in-scope search actuation.",
+            context_cards=context_cards,
+            browser_state_hash=recovery_snapshot.state_hash,
+        )
+
+    def _inspect_result(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
+        self._require_authorized(authority, "real_browser.inspect_result")
+        ref = str(envelope.params.get("ref") or envelope.target_ref or "page:result")
+        snapshot = self.engine.observe()
+        if ref != "page:result" and ref not in {element.ref for element in snapshot.elements}:
+            return self._recoverable_ref_failure(
+                envelope,
+                raw_ref=ref,
+                context_cards=self._world_context_cards(
+                    snapshot,
+                    authority=authority,
+                    context=context,
+                    progress_state="real_browser_ref_recovery_world_model_ready",
+                ),
+                browser_state_hash=snapshot.state_hash,
+            )
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_result_inspected_world_model_ready",
+        )
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.inspect_result",
+            element_ref=ref,
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            status="completed",
+            summary=f"real browser result inspected ref_hash={text_hash(ref)}.",
+            material_action=False,
+            context_cards=context_cards,
+        )
+
+    def _open_result(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
+        self._require_authorized(authority, "real_browser.open_result")
+        resolved = self._resolve_ref_or_recover(envelope, authority=authority, context=context)
+        if isinstance(resolved, ActionResult):
+            return resolved
+        ref, before = resolved
+        try:
+            snapshot = self.engine.click(ref)
+        except RealBrowserControlRuntimeError:
+            recovery_snapshot = self.engine.observe()
+            return self._recoverable_actuation_failure(
+                envelope,
+                failure_code="real_browser_open_result_actuation_failed",
+                safe_summary="A bounded result ref was visible but could not be opened; refreshed candidates are available.",
+                context_cards=self._world_context_cards(
+                    recovery_snapshot,
+                    authority=authority,
+                    context=context,
+                    progress_state="real_browser_result_open_recovery_world_model_ready",
+                ),
+                browser_state_hash=recovery_snapshot.state_hash,
+            )
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.open_result",
+            element_ref=ref,
+            before_state_hash=before,
+            after_state_hash=snapshot.state_hash,
+            status="completed",
+            summary=f"real browser bounded result opened ref_hash={text_hash(ref)}.",
+            context_cards=self._world_context_cards(
+                snapshot,
+                authority=authority,
+                context=context,
+                progress_state="real_browser_result_opened_world_model_ready",
+            ),
+        )
+
+    def _extract_product_cards(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
+        self._require_authorized(authority, "real_browser.extract_product_cards")
+        text, snapshot = self.engine.extract_text()
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_product_cards_extracted",
+            extracted_text=text,
+        )
+        card_count = len(context_cards.get("browser_world_model", {}).get("product_or_result_candidate_cards", []))
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.extract_product_cards",
+            element_ref="page:product_cards",
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            status="completed",
+            summary=f"real browser product extraction completed card_count={card_count} text_hash={text_hash(text)}.",
+            material_action=False,
+            context_cards=context_cards,
+        )
+
+    def _verify_extraction(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
+        self._require_authorized(authority, "real_browser.verify_extraction")
+        text, snapshot = self.engine.extract_text()
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_product_extraction_verified",
+            extracted_text=text,
+        )
+        cards = context_cards.get("browser_world_model", {}).get("product_or_result_candidate_cards", [])
+        status = "passed" if cards else "failed"
+        return self._record_action(
+            envelope,
+            action_kind="real_browser.verify_extraction",
+            element_ref="page:product_cards",
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            status=status,
+            summary=f"real browser product extraction verification {status} card_count={len(cards)}.",
+            material_action=False,
             context_cards=context_cards,
         )
 
@@ -778,6 +972,58 @@ class RealBrowserControlRuntime:
             "actionability_frame": actionability_dump,
         }
 
+    def _click_search_button_if_available(self) -> RealBrowserEngineSnapshot:
+        snapshot = self.engine.observe()
+        for element in snapshot.elements:
+            if element.role != "button" or not element.visible or not element.enabled or bool(getattr(element, "secret", False)):
+                continue
+            text = f"{element.ref} {element.name} {element.text_preview}".lower()
+            if any(marker in text for marker in ("search", "find", "submit", "go")):
+                return self.engine.click(element.ref)
+        raise RealBrowserControlRuntimeError("real_browser_search_submit_control_not_found")
+
+    def _recoverable_actuation_failure(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        failure_code: str,
+        safe_summary: str,
+        context_cards: dict[str, Any],
+        browser_state_hash: str,
+    ) -> ActionResult:
+        actionability_frame = context_cards.get("actionability_frame") if isinstance(context_cards, dict) else {}
+        recommended = tuple(
+            str(action)
+            for action in (actionability_frame.get("recovery_actions") if isinstance(actionability_frame, dict) else () or ())
+        )
+        executable_refs = tuple(
+            str(ref)
+            for ref in (actionability_frame.get("executable_refs") if isinstance(actionability_frame, dict) else () or ())
+        )
+        observation = recoverable_action_observation(
+            failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
+            failure_code=failure_code,
+            attempted_action_hash=envelope.action_hash,
+            safe_summary=safe_summary,
+            recommended_next_actions=recommended,
+            refreshed_candidate_refs=executable_refs,
+        )
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id,
+            operation=envelope.operation,
+            status="recoverable_failed",
+            material_action=False,
+            blocked_reason=failure_code,
+            failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
+            failure_code=failure_code,
+            recoverable=True,
+            recovery_observation=observation.safe_model_dump(),
+            recommended_next_actions=recommended,
+            observation_summary=f"recoverable browser actuation miss code={failure_code} state_hash={browser_state_hash}.",
+            context_cards=context_cards,
+        )
+
     def _require_authorized(self, authority: MissionAuthorityEnvelope, action_name: str) -> None:
         if authority.revoked_at is not None:
             raise RealBrowserControlRuntimeError("mission_authority_inactive")
@@ -1035,6 +1281,39 @@ def _param_ref(envelope: ActionEnvelope) -> str:
     return ref
 
 
+def _search_ref_candidates(snapshot: RealBrowserEngineSnapshot, envelope: ActionEnvelope) -> tuple[str, ...]:
+    explicit = str(envelope.params.get("ref") or envelope.target_ref or "").strip()
+    refs: list[str] = []
+    if explicit:
+        refs.append(explicit)
+    ranked = sorted(
+        (
+            element
+            for element in snapshot.elements
+            if element.visible and element.enabled and not bool(getattr(element, "secret", False)) and _is_search_like_element(element)
+        ),
+        key=_search_rank,
+    )
+    refs.extend(element.ref for element in ranked)
+    return tuple(dict.fromkeys(refs))
+
+
+def _is_search_like_element(element: RealBrowserEngineElement) -> bool:
+    if element.role not in {"textbox", "combobox", "searchbox"}:
+        return False
+    text = f"{element.ref} {element.name} {element.text_preview} {element.value_preview}".lower()
+    return any(marker in text for marker in ("search", "find", "query", "keyword", "product", "supplier"))
+
+
+def _search_rank(element: RealBrowserEngineElement) -> tuple[int, str]:
+    text = f"{element.ref} {element.name} {element.text_preview}".lower()
+    if "search" in text:
+        return (0, element.ref)
+    if "product" in text or "supplier" in text:
+        return (1, element.ref)
+    return (2, element.ref)
+
+
 def _reject_sensitive_text(value: str) -> None:
     lowered = value.lower()
     markers = (
@@ -1054,6 +1333,25 @@ def _reject_sensitive_text(value: str) -> None:
     )
     if any(marker in lowered for marker in markers):
         raise RealBrowserControlRuntimeError("real_browser_sensitive_text_blocked")
+
+
+def _reject_browser_skill_boundary_text(value: str) -> None:
+    _reject_sensitive_text(value)
+    lowered = value.lower()
+    blocked = (
+        "login",
+        "sign in",
+        "contact supplier",
+        "send inquiry",
+        "add to cart",
+        "checkout",
+        "payment",
+        "credit card",
+        "upload",
+        "download",
+    )
+    if any(marker in lowered for marker in blocked):
+        raise RealBrowserControlRuntimeError("real_browser_boundary_action_blocked")
 
 
 def _authority_available_actions(authority: MissionAuthorityEnvelope) -> tuple[str, ...]:

@@ -94,6 +94,9 @@ class DecisionContextCompiler:
                 "real_browser.select_option",
                 "real_browser.press_key",
                 "real_browser.scroll",
+                "real_browser.search",
+                "real_browser.inspect_result",
+                "real_browser.open_result",
             }
             and result.receipt_refs
         ]
@@ -105,7 +108,9 @@ class DecisionContextCompiler:
         real_browser_extraction_results = [
             result
             for result in real_browser_results
-            if result.operation == "real_browser.extract_text" and result.status in {"completed", "passed", "success"} and result.receipt_refs
+            if result.operation in {"real_browser.extract_text", "real_browser.extract_product_cards", "real_browser.verify_extraction"}
+            and result.status in {"completed", "passed", "success"}
+            and result.receipt_refs
         ]
         real_browser_cards = _latest_real_browser_context_cards(real_browser_results)
         latest_patch_index = _latest_success_index(
@@ -312,6 +317,7 @@ class DecisionContextCompiler:
             "browser_actionability_registry": real_browser_cards.get("browser_actionability_registry") if real_browser_mode else {},
             "actionability_frame": real_browser_cards.get("actionability_frame") if real_browser_mode else {},
             "last_recoverable_failure": _recoverable_failure_summary(latest_recoverable),
+            "recoverable_observations": [_recoverable_failure_summary(result) for result in recoverable_results],
             "recoverable_failure_history": [_recoverable_failure_summary(result) for result in recoverable_results],
             "top_stable_refs": _top_stable_refs(real_browser_cards),
             "top_action_candidates": _top_action_candidates(real_browser_cards),
@@ -663,24 +669,23 @@ def _real_browser_progress_guidance(
         return {
             "progress_state": "real_browser_action_needs_assertion",
             "next_recommended_actions": [
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.verify_extraction",
                 "real_browser_control.real_browser.assert_text",
-                "real_browser_control.real_browser.extract_text",
-                "real_browser_control.real_browser.wait_for_text",
             ],
-            "objective_remaining_steps": ["assert or extract bounded real browser state", "finish"],
+            "objective_remaining_steps": ["extract/verify bounded product cards or assert browser state", "finish"],
             "completion_requirements": completion_requirements,
         }
     if has_observation and not has_action:
         return {
             "progress_state": "real_browser_observed_needs_action",
             "next_recommended_actions": [
-                "real_browser_control.real_browser.type_text",
-                "real_browser_control.real_browser.click",
-                "real_browser_control.real_browser.select_option",
-                "real_browser_control.real_browser.press_key",
-                "real_browser_control.real_browser.extract_text",
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.open_result",
+                "real_browser_control.real_browser.extract_product_cards",
             ],
-            "objective_remaining_steps": ["act using stable ref", "assert or extract browser state", "finish"],
+            "objective_remaining_steps": ["use browser skill action", "extract/verify browser state", "finish"],
             "completion_requirements": completion_requirements,
         }
     if has_open and not has_observation:
@@ -688,9 +693,10 @@ def _real_browser_progress_guidance(
             "progress_state": "real_browser_opened_world_model_ready",
             "next_recommended_actions": [
                 "real_browser_control.real_browser.observe",
-                "real_browser_control.real_browser.extract_text",
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.extract_product_cards",
             ],
-            "objective_remaining_steps": ["use browser world model", "act or extract with stable refs", "finish"],
+            "objective_remaining_steps": ["use browser world model", "search or extract product cards", "finish"],
             "completion_requirements": completion_requirements,
         }
     return {
@@ -752,6 +758,11 @@ def _real_browser_summary(real_browser_results: list[ActionResult]) -> dict[str,
                 "real_browser.wait_for_text",
                 "real_browser.wait_for_load",
                 "real_browser.extract_text",
+                "real_browser.search",
+                "real_browser.inspect_result",
+                "real_browser.open_result",
+                "real_browser.extract_product_cards",
+                "real_browser.verify_extraction",
             }
         ),
         None,

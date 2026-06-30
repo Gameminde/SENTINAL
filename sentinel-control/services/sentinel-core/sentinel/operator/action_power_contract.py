@@ -179,7 +179,11 @@ def build_browser_actionability_registry(
         accepted_aliases=alias_map,
         candidate_actions=candidate_actions,
         blocked_refs=tuple(_blocked_ref(ref) for ref in getattr(world_model, "stable_refs", ()) if getattr(ref, "secret", False)),
-        recovery_actions=("real_browser_control.real_browser.observe", "real_browser_control.real_browser.extract_text"),
+        recovery_actions=(
+            "real_browser_control.real_browser.observe",
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.extract_product_cards",
+        ),
     )
 
 
@@ -194,15 +198,17 @@ def build_browser_actionability_frame(
         dict.fromkeys(
             [
                 "real_browser.observe",
-                "real_browser.type_text",
-                "real_browser.press_key",
-                "real_browser.click",
-                "real_browser.extract_text",
+                "real_browser.search",
+                "real_browser.inspect_result",
+                "real_browser.open_result",
+                "real_browser.extract_product_cards",
+                "real_browser.verify_extraction",
                 "real_browser_control.real_browser.observe",
-                "real_browser_control.real_browser.type_text",
-                "real_browser_control.real_browser.press_key",
-                "real_browser_control.real_browser.click",
-                "real_browser_control.real_browser.extract_text",
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.open_result",
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.verify_extraction",
             ]
         )
     )
@@ -224,7 +230,7 @@ def build_browser_actionability_frame(
         accepted_aliases=accepted_action_aliases,
         blocked_refs=registry.blocked_refs,
         recovery_actions=registry.recovery_actions,
-        proof_actions=("real_browser_control.real_browser.assert_text", "real_browser_control.real_browser.extract_text"),
+        proof_actions=("real_browser_control.real_browser.verify_extraction", "real_browser_control.real_browser.extract_product_cards"),
         finish_actions=("sentinel_loop.finish",),
     )
 

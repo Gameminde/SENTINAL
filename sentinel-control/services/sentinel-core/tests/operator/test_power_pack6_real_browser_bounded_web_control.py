@@ -202,9 +202,9 @@ def test_power_pack6_generic_loop_executes_real_browser_open_observe_type_assert
     assert decisions.contexts[2]["real_browser_control_summary"]["latest_observation"]["element_count"] == 2
     assert decisions.contexts[3]["progress_state"] == "real_browser_action_needs_assertion"
     assert decisions.contexts[3]["next_recommended_actions"] == [
+        "real_browser_control.real_browser.extract_product_cards",
+        "real_browser_control.real_browser.verify_extraction",
         "real_browser_control.real_browser.assert_text",
-        "real_browser_control.real_browser.extract_text",
-        "real_browser_control.real_browser.wait_for_text",
     ]
     assert decisions.contexts[-1]["objective_satisfied"] is True
     assert decisions.contexts[-1]["finish_available"] is True
@@ -304,9 +304,10 @@ def test_power_pack6b_world_model_after_open_exposes_search_refs_candidates_and_
     assert world_model["product_or_result_candidate_cards"][0]["title"] == "Polarized sunglasses"
     assert world_model["product_or_result_candidate_cards"][0]["visible_price"] == "$4.80"
     assert world_model["product_or_result_candidate_cards"][0]["minimum_order"] == "10 pieces"
-    assert "real_browser.type_text" in world_model["recommended_browser_actions"]
+    assert "real_browser.search" in world_model["recommended_browser_actions"]
+    assert "real_browser.extract_product_cards" in world_model["recommended_browser_actions"]
     assert decision_frame["current_progress_state"] == "real_browser_opened_world_model_ready"
-    assert "real_browser_control.real_browser.press_key" in decision_frame["allowed_actions"]
+    assert "real_browser_control.real_browser.search" in decision_frame["allowed_actions"]
     assert decision_frame["exact_action_envelope_examples"]
 
 
@@ -476,6 +477,11 @@ class _RealBrowserFixture:
                 allowed_actions=[
                     "real_browser.open",
                     "real_browser.observe",
+                    "real_browser.search",
+                    "real_browser.inspect_result",
+                    "real_browser.open_result",
+                    "real_browser.extract_product_cards",
+                    "real_browser.verify_extraction",
                     "real_browser.click",
                     "real_browser.type_text",
                     "real_browser.select_option",
@@ -513,6 +519,11 @@ class _RealBrowserFixture:
         self.available_actions = (
             "real_browser_control.real_browser.open",
             "real_browser_control.real_browser.observe",
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_product_cards",
+            "real_browser_control.real_browser.verify_extraction",
             "real_browser_control.real_browser.click",
             "real_browser_control.real_browser.type_text",
             "real_browser_control.real_browser.select_option",
@@ -536,6 +547,11 @@ class _RealBrowserFixture:
             allowed_actions=[
                 "real_browser.open",
                 "real_browser.observe",
+                "real_browser.search",
+                "real_browser.inspect_result",
+                "real_browser.open_result",
+                "real_browser.extract_product_cards",
+                "real_browser.verify_extraction",
                 "real_browser.click",
                 "real_browser.type_text",
                 "real_browser.select_option",

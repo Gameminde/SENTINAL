@@ -229,6 +229,28 @@ HIDE:
   real_browser.type_text/click/select as preferred model actions
 ```
 
+## Pack 6D Implementation Status
+
+Pack 6D moved the model-facing browser route toward the inventory target, but it does not close the entire browser organ split.
+
+Implemented:
+
+```text
+DecisionContext and BrowserDecisionFrame now prefer skill-level browser actions.
+ActionabilityRegistry exposes search / inspect_result / open_result / extract_product_cards / verify_extraction.
+RealBrowserControlRuntime owns robust search actuation behind real_browser.search.
+In-scope search actuation failures become recoverable observations with refreshed world/actionability context.
+Product extraction cards and verify_extraction receipts can satisfy browser research proof in fake/local tests.
+```
+
+Still tracked:
+
+```text
+The injected real_browser runtime can still be backed by PlaywrightRealBrowserEngine.
+Cloak/session manager is preferred in the backend ownership frame, but the real Alibaba 5D run must prove whether live actuation actually routes through the strongest available backend or exposes a remaining backend bridge gap.
+Browser proof/finalgate ownership remains a merge candidate after the vertical proof.
+```
+
 ## Final Diagnosis
 
 The browser work was not wasted.
@@ -236,4 +258,3 @@ The browser work was not wasted.
 The opposite: Sentinel has enough browser organs that the current failure is a wiring failure.
 
 The next pack should stop building another browser layer and instead create one browser skill spine that consumes the existing organs.
-

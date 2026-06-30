@@ -12,9 +12,9 @@
 
 ## Verdict
 
-Do not start `POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1` yet.
+`POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1` is implemented as a local candidate.
 
-6D is still the right browser destination, but it should come after root reconnection packs.
+6D is not global audit closure. It is the first browser vertical proof built after root reconnection Packs A-F.
 
 Current diagnosis:
 
@@ -53,22 +53,24 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Pack D: Decision Context Skill Frame Simplification | `POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1` | implemented candidate | `6656585` | Added primary `skill_decision_frame`, `primary_model_*` recommendations, and legacy compatibility fields |
 | Pack E: First Simplification Cut Organ Branch Matrix | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | implemented candidate | `e389430` | Added data-only organ runtime specs consumed by dispatch/runtime; browser/session aliases resolve through spec registry; high-risk organs remain locked |
 | Pack F: Sub-Request Builder Spec Cut | `POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1` | implemented candidate | `e404e98` | Added `OrganRequestFactory`; typed sub-request builders and request-field selection now flow through spec metadata while high-risk organs stay locked |
+| Browser vertical: Skill Spine And Root Friction Removal | `POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1` | implemented candidate, not real-provider/browser product-proven | pending local commit | Model-facing browser path is skill-first; low-level primitives are internal/fallback; search actuation ranks refs and tries alternates; product extraction cards and verification receipts are proof-bearing; replay no-react is covered by fake/local tests |
 
 New canonical next sequence:
 
 ```text
-POWER_RECONNECTION_PACK_A_ACTIONABILITY_REGISTRY_AND_SKILL_EXPOSURE_V1
-POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1
-POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1
-POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1
-POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1
-POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1
-next POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1
+done POWER_RECONNECTION_PACK_A_ACTIONABILITY_REGISTRY_AND_SKILL_EXPOSURE_V1
+done POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1
+done POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1
+done POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1
+done POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1
+done POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1
+done POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1
+next REAL_POWER_ATTEMPT_5D_MODEL_LED_ALIBABA_BROWSER_SKILL_SPINE_V1
 ```
 
-## Why 6D Is Too Early
+## Why 6D Was Delayed Until After A-F
 
-Starting 6D now would fix the visible browser symptom:
+Starting 6D before A-F would have fixed only the visible browser symptom:
 
 ```text
 Alibaba type_text locator timeout
@@ -85,7 +87,7 @@ DecisionContext exposes low-level primitives instead of skills
 proof/finish logic is pack-specific
 ```
 
-Therefore 6D should be the first beneficiary of a reconnected core, not the place where every root fix gets improvised.
+Therefore 6D was allowed only after A-F reconnected actionability, recoverable execution, backend ownership, skill-first context, organ specs, and request construction. 6D now uses those foundations, but real Alibaba product proof is still pending.
 
 ## Pack A: Actionability Registry And Skill Exposure
 

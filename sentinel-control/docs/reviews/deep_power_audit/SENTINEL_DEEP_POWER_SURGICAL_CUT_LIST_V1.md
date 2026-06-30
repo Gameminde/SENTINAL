@@ -56,6 +56,25 @@ No direct Playwright locator action may be the preferred model-facing action for
 No in-scope locator timeout may terminalize the mission before recovery is attempted.
 ```
 
+Pack 6D implementation status:
+
+```text
+POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1 =
+implemented candidate, not real-browser product-proven
+
+Model-facing browser research now prefers search / inspect_result / open_result /
+extract_product_cards / verify_extraction.
+
+Raw browser primitives remain available as internal/fallback/debug operations, but
+they are no longer the preferred model-facing path when the skill frame is present.
+
+Search actuation now ranks search-like refs, tries alternates, and returns a
+recoverable observation on in-scope locator/runtime misses instead of treating a
+normal web actuation failure as immediate mission death.
+
+Fake hard-page proof is green. Real Alibaba proof remains the next gated run.
+```
+
 ## What Must Stop Being Preferred Model-Facing API
 
 These can stay internally, but should not be the main action vocabulary for Alibaba-style research:
@@ -143,11 +162,10 @@ Physical deletion should come only after:
 ```text
 DecisionContext recommends browser skills, not raw Playwright-like primitive actions.
 Browser skill exposes executable actionability candidates only.
-Cloak/session backend is wired or explicitly unavailable with proof.
+Cloak/session backend preference is visible through the backend/actionability frame; live Cloak/session actuation remains tracked for the real 5D proof if the injected runtime backend cannot satisfy it.
 Search skill handles focus/fill/type/enter/click/wait/recover internally.
 Locator timeout becomes recoverable action observation.
 Product extraction cards can satisfy web research proof.
 Replay validates receipt schemas and hashes.
 Hard stops remain for login/contact/payment/credential/origin escape.
 ```
-

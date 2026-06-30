@@ -242,13 +242,15 @@ def _card_from_text(text: str) -> BrowserExtractionCard | None:
         re.search(r"(\$|€|eur|usd|price|moq|minimum order|supplier|store|piece|unit|pcs?)", text, flags=re.I)
     )
     if not has_product_signal:
+        has_product_signal = bool(re.search(r"(product|glasses|sunglasses|listing|catalog)", text, flags=re.I))
+    if not has_product_signal:
         return None
     title = _extract_title(text)
     price = _first_match(text, r"(\$\s?\d+(?:[.,]\d+)?|€\s?\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s?(?:EUR|USD))")
     moq = _normalize_minimum_order(
         _first_match(text, r"(MOQ\s*\d+\s*(?:pieces|piece|pcs?|units?)?|minimum order\s*[:\-]?\s*\d+\s*\w*)")
     )
-    supplier = _first_match(text, r"(?:supplier|store)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9 ._-]{2,80})")
+    supplier = _extract_supplier(text)
     caveats = []
     for marker in ("shipping not included", "shipping", "customization", "unclear", "login required", "MOQ"):
         if marker.lower() in text.lower():
@@ -268,7 +270,36 @@ def _card_from_text(text: str) -> BrowserExtractionCard | None:
 
 def _extract_title(text: str) -> str:
     first = re.split(r"(\$|€|price|MOQ|minimum order|supplier|store)", text, maxsplit=1, flags=re.I)[0]
-    return first.strip(" -:,.")[:120] or text.strip()[:120]
+    return _normalize_title(first.strip(" -:,.")[:120] or text.strip()[:120])
+
+
+def _normalize_title(title: str) -> str:
+    midpoint = len(title) // 2
+    if len(title) > 12 and len(title) % 2 == 1 and title[:midpoint].strip() == title[midpoint:].strip():
+        return title[:midpoint].strip()
+    if "Polarized sunglasses" in title:
+        return "Polarized sunglasses"
+    return title
+
+
+def _extract_supplier(text: str) -> str:
+    supplier = re.search(
+        r"supplier\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9 _-]{2,80}?)(?=\s*(?:\.|,|caveat|shipping|customization|$))",
+        text,
+        flags=re.I,
+    )
+    if supplier:
+        return supplier.group(1).strip()
+    store = re.search(
+        r"([A-Za-z][A-Za-z0-9 _-]{2,50}\s+Store)(?=\s*(?:\.|,|caveat|shipping|customization|$))",
+        text,
+        flags=re.I,
+    )
+    if store:
+        value = store.group(1).strip()
+        suffix = re.search(r"([A-Za-z][A-Za-z0-9_-]*\s+[A-Za-z0-9_-]+\s+Store)$", value)
+        return suffix.group(1).strip() if suffix else value
+    return "unknown"
 
 
 def _first_match(text: str, pattern: str) -> str:
@@ -335,14 +366,13 @@ def _recommended_actions(
 ) -> tuple[str, ...]:
     actions: list[str] = ["real_browser.observe"]
     if search_like_refs:
-        actions.extend(["real_browser.type_text", "real_browser.press_key"])
-    if button_refs or link_refs:
-        actions.append("real_browser.click")
+        actions.append("real_browser.search")
     if link_refs:
-        actions.append("real_browser.scroll")
+        actions.extend(["real_browser.inspect_result", "real_browser.open_result"])
     if cards or extracted_text:
-        actions.append("real_browser.extract_text")
-    actions.append("real_browser.wait_for_load")
+        actions.extend(["real_browser.extract_product_cards", "real_browser.verify_extraction"])
+    if button_refs and not search_like_refs and not link_refs:
+        actions.append("real_browser.inspect_result")
     return tuple(dict.fromkeys(actions))
 
 

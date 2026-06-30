@@ -54,6 +54,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Power Reconnection Pack D decision-context skill frame simplification | Implemented candidate | `6656585` | DecisionContext now exposes `skill_decision_frame` as primary truth, with legacy primitive recommendations demoted to compatibility fields |
 | Power Reconnection Pack E first simplification cut organ branch matrix | Implemented candidate | `e389430` | Runtime organ specs now declare handler/proof/receipt/replay/lockout metadata; browser/session lookup and runtime unknown-organ handling consume the spec registry |
 | Power Reconnection Pack F sub-request builder spec cut | Implemented candidate | `e404e98` | Organ request construction now uses `OrganRequestFactory` plus spec-owned `request_field`; the manual runtime-field matrix is cut from dispatch while proof/receipt/replay metadata stays visible |
+| Power Pack 6D browser skill spine and root friction removal | Implemented candidate, not real-browser product-proven | pending local commit | Browser model-facing path now prefers `search / inspect / open_result / extract_product_cards / verify_extraction`; raw browser primitives are hidden/internal; in-scope search actuation misses return recoverable observations; fake-hard-page search/extract/verify/finish proof is green |
 
 ## Executive Verdict
 

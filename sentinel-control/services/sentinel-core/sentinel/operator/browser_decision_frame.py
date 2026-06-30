@@ -83,28 +83,41 @@ def _candidate_actions(world_model: BrowserWorldModel, allowed_actions: tuple[st
     candidates: list[dict[str, Any]] = []
     if "real_browser_control.real_browser.observe" in allowed_actions:
         candidates.append({"action": "real_browser.observe", "ref": None, "reason": "refresh stable refs/world model"})
-    for ref in world_model.search_like_refs[:4]:
-        if "real_browser_control.real_browser.type_text" in allowed_actions:
-            candidates.append({"action": "real_browser.type_text", "ref": ref, "reason": "enter product search query"})
-        if "real_browser_control.real_browser.press_key" in allowed_actions:
-            candidates.append({"action": "real_browser.press_key", "ref": ref, "key": "Enter", "reason": "submit search"})
-    for ref in tuple(world_model.button_refs[:3]) + tuple(world_model.link_refs[:3]):
-        if "real_browser_control.real_browser.click" in allowed_actions:
-            candidates.append({"action": "real_browser.click", "ref": ref, "reason": "activate visible browser control or result"})
-    if "real_browser_control.real_browser.extract_text" in allowed_actions:
-        candidates.append({"action": "real_browser.extract_text", "ref": "page:text", "reason": "extract visible product/search information"})
-    if "real_browser_control.real_browser.wait_for_text" in allowed_actions:
-        candidates.append({"action": "real_browser.wait_for_text", "ref": None, "reason": "wait for result/product text after navigation"})
-    if "real_browser_control.real_browser.scroll" in allowed_actions:
-        candidates.append({"action": "real_browser.scroll", "ref": None, "reason": "reveal more result cards"})
+    search_ref = world_model.search_like_refs[0] if world_model.search_like_refs else None
+    if search_ref and "real_browser_control.real_browser.search" in allowed_actions:
+        candidates.append(
+            {
+                "action": "real_browser.search",
+                "ref": search_ref,
+                "query_hint": "glasses under 5 euro",
+                "reason": "run robust bounded search using the best search-like control",
+            }
+        )
+    for ref in world_model.link_refs[:3]:
+        if "real_browser_control.real_browser.inspect_result" in allowed_actions:
+            candidates.append({"action": "real_browser.inspect_result", "ref": ref, "reason": "inspect visible result/product card"})
+        if "real_browser_control.real_browser.open_result" in allowed_actions:
+            candidates.append({"action": "real_browser.open_result", "ref": ref, "reason": "open a promising bounded result"})
+    if "real_browser_control.real_browser.extract_product_cards" in allowed_actions:
+        candidates.append(
+            {
+                "action": "real_browser.extract_product_cards",
+                "ref": "page:product_cards",
+                "reason": "extract title, price, MOQ, supplier and caveats as structured cards",
+            }
+        )
+    if "real_browser_control.real_browser.verify_extraction" in allowed_actions:
+        candidates.append({"action": "real_browser.verify_extraction", "ref": "page:product_cards", "reason": "verify extracted product cards before finish"})
     return tuple(candidates[:12])
 
 
 def _recommended_next_actions(world_model: BrowserWorldModel, allowed_actions: tuple[str, ...]) -> tuple[str, ...]:
     preferred = [f"real_browser_control.{action}" for action in world_model.recommended_browser_actions]
     actions = [action for action in preferred if action in allowed_actions]
-    if "real_browser_control.real_browser.extract_text" in allowed_actions and world_model.product_or_result_candidate_cards:
-        actions.append("real_browser_control.real_browser.extract_text")
+    if "real_browser_control.real_browser.extract_product_cards" in allowed_actions and world_model.product_or_result_candidate_cards:
+        actions.append("real_browser_control.real_browser.extract_product_cards")
+    if "real_browser_control.real_browser.verify_extraction" in allowed_actions and world_model.product_or_result_candidate_cards:
+        actions.append("real_browser_control.real_browser.verify_extraction")
     if not actions and "real_browser_control.real_browser.observe" in allowed_actions:
         actions.append("real_browser_control.real_browser.observe")
     return tuple(dict.fromkeys(actions))
@@ -116,28 +129,30 @@ def _examples(world_model: BrowserWorldModel, allowed_actions: tuple[str, ...]) 
     link_ref = world_model.link_refs[0] if world_model.link_refs else None
     if "real_browser_control.real_browser.observe" in allowed_actions:
         examples.append({"capability_id": "real_browser_control", "operation": "real_browser.observe", "params": {}})
-    if search_ref and "real_browser_control.real_browser.type_text" in allowed_actions:
+    if search_ref and "real_browser_control.real_browser.search" in allowed_actions:
         examples.append(
             {
                 "capability_id": "real_browser_control",
-                "operation": "real_browser.type_text",
-                "params": {"ref": search_ref, "text": "glasses under 5 euro"},
+                "operation": "real_browser.search",
+                "params": {"ref": search_ref, "query": "glasses under 5 euro"},
             }
         )
-    if search_ref and "real_browser_control.real_browser.press_key" in allowed_actions:
+    if link_ref and "real_browser_control.real_browser.inspect_result" in allowed_actions:
         examples.append(
             {
                 "capability_id": "real_browser_control",
-                "operation": "real_browser.press_key",
-                "params": {"ref": search_ref, "key": "Enter"},
+                "operation": "real_browser.inspect_result",
+                "params": {"ref": link_ref},
             }
         )
-    if link_ref and "real_browser_control.real_browser.click" in allowed_actions:
+    if link_ref and "real_browser_control.real_browser.open_result" in allowed_actions:
         examples.append(
-            {"capability_id": "real_browser_control", "operation": "real_browser.click", "params": {"ref": link_ref}}
+            {"capability_id": "real_browser_control", "operation": "real_browser.open_result", "params": {"ref": link_ref}}
         )
-    if "real_browser_control.real_browser.extract_text" in allowed_actions:
-        examples.append({"capability_id": "real_browser_control", "operation": "real_browser.extract_text", "params": {}})
+    if "real_browser_control.real_browser.extract_product_cards" in allowed_actions:
+        examples.append({"capability_id": "real_browser_control", "operation": "real_browser.extract_product_cards", "params": {}})
+    if "real_browser_control.real_browser.verify_extraction" in allowed_actions:
+        examples.append({"capability_id": "real_browser_control", "operation": "real_browser.verify_extraction", "params": {}})
     if "sentinel_loop.finish" in allowed_actions:
         examples.append(
             {
