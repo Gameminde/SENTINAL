@@ -167,7 +167,7 @@ No credential values, endpoint values, raw provider payloads, cookies, sessions,
 ## Commit
 
 ```text
-commit = pending local commit containing this report
+commit = 59012e7 fix: bridge browser backend selection to runtime
 ```
 
 ## Next
