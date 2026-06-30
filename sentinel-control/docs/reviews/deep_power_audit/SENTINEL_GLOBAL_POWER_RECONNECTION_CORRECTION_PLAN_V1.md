@@ -48,14 +48,15 @@ start next pack only after state is current
 | foundation accepted | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | `2172a14` | P0: model-visible action not guaranteed executable | not product-proven until decision clients consume `model_visible_*` as primary truth |
 | implemented candidate | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | `5fc3a0c` | P0: recoverable in-scope runtime miss becomes mission death | focused proof: in-scope executor timeout becomes recoverable observation and loop continues |
 | implemented candidate | `POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1` | `7bc8f6e` | P1: powerful organs are underconnected and backend ownership is invisible to model-facing skills | focused proof: skills map to organ/backend truth without enabling new RuntimeHost adapters |
+| implemented candidate | `POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1` | `pending_followup_ledger` | P0/P1: DecisionContext exposes primitive/static actions instead of skill truth | focused proof: `skill_decision_frame` is primary model truth and legacy primitive recommendations are demoted |
 
 Current next correction:
 
 ```text
-POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1
+POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1
 ```
 
-Pack B did not ignore Pack A: it audited `model_visible_*` consumption and found the full model decision migration still belongs to Pack D. Pack C wired dormant organs into product skills without bypassing the new actionability and recoverable-execution contracts. Pack D must now make the skill/backend frames primary model decision truth.
+Pack B did not ignore Pack A: it audited `model_visible_*` consumption and found the full model decision migration still belongs to Pack D. Pack C wired dormant organs into product skills without bypassing the new actionability and recoverable-execution contracts. Pack D made skill/backend frames the primary model decision truth while keeping legacy fields as compatibility only. Pack E should now cut/merge branch-heavy internals.
 
 ## Correction To Previous Focus
 

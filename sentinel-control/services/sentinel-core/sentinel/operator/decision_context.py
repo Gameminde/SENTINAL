@@ -7,6 +7,7 @@ from sentinel.operator.actionability_registry import build_default_actionability
 from sentinel.operator.action_kernel import ActionResult
 from sentinel.operator.action_power_contract import ActionAliasNormalizer
 from sentinel.operator.power_skill_registry import build_default_power_skill_registry
+from sentinel.operator.skill_decision_frame import compile_skill_decision_frame
 
 
 class DecisionContextCompiler:
@@ -171,22 +172,46 @@ class DecisionContextCompiler:
             granted_capabilities=_granted_capabilities(authority),
             actionability_registry=actionability_registry,
         )
-        model_visible_next_actions = _model_visible_next_actions(
-            progress_guidance["next_recommended_actions"],
+        budget_remaining = {
+            "model_calls": max(max_model_calls - model_calls_used, 0),
+            "material_actions": max(max_material_actions - material_actions_used, 0),
+            "recovery_turns": max(max_recovery_turns - recovery_turns_used, 0),
+            "correction_turns": max(max_correction_turns - correction_turns_used, 0),
+        }
+        recoverable_failure_history = [_recoverable_failure_summary(result) for result in recoverable_results]
+        skill_decision_frame = compile_skill_decision_frame(
+            mission_objective=mission_objective,
+            progress_state=progress_guidance["progress_state"],
+            legacy_next_recommended_actions=progress_guidance["next_recommended_actions"],
+            objective_satisfied=objective_satisfied,
+            finish_available=objective_satisfied,
             skill_exposure_frame=skill_exposure_frame,
-            actionability_registry=actionability_registry,
+            power_skill_backend_frame=power_skill_backend_frame,
+            observations=observations,
+            completion_requirements=progress_guidance["completion_requirements"],
+            budget_remaining=budget_remaining,
+            recoverable_observations=recoverable_failure_history,
         )
+        model_visible_next_actions = list(skill_decision_frame["recommended_next_actions"])
         return {
             "mission_id": mission_id,
             "mission_objective": mission_objective,
             "available_actions": list(available_actions),
+            "decision_context_primary_truth": "skill_decision_frame",
             "skill_exposure_frame": skill_exposure_frame.safe_model_dump(),
             "power_skill_backend_frame": power_skill_backend_frame,
-            "model_visible_next_recommended_actions": model_visible_next_actions,
-            "model_visible_recommended_next_action": (
+            "skill_decision_frame": skill_decision_frame,
+            "legacy_recommended_next_action": (
                 "sentinel_loop.finish"
                 if objective_satisfied
-                else (model_visible_next_actions[0] if model_visible_next_actions else None)
+                else (progress_guidance["next_recommended_actions"][0] if progress_guidance["next_recommended_actions"] else None)
+            ),
+            "legacy_next_recommended_actions": progress_guidance["next_recommended_actions"],
+            "primary_model_next_recommended_actions": model_visible_next_actions,
+            "primary_model_recommended_next_action": model_visible_next_actions[0] if model_visible_next_actions else None,
+            "model_visible_next_recommended_actions": model_visible_next_actions,
+            "model_visible_recommended_next_action": (
+                model_visible_next_actions[0] if model_visible_next_actions else None
             ),
             "objective_satisfied": objective_satisfied,
             "finish_available": objective_satisfied,
@@ -226,10 +251,10 @@ class DecisionContextCompiler:
             ],
             "last_action_status": previous.status if previous is not None else None,
             "budget_remaining": {
-                "model_calls": max(max_model_calls - model_calls_used, 0),
-                "material_actions": max(max_material_actions - material_actions_used, 0),
-                "recovery_turns": max(max_recovery_turns - recovery_turns_used, 0),
-                "correction_turns": max(max_correction_turns - correction_turns_used, 0),
+                "model_calls": budget_remaining["model_calls"],
+                "material_actions": budget_remaining["material_actions"],
+                "recovery_turns": budget_remaining["recovery_turns"],
+                "correction_turns": budget_remaining["correction_turns"],
             },
             "channel_grant_summary": {
                 "allowed_domains": list(authority.allowed_domains),
