@@ -28,12 +28,32 @@ what audit tables/docs need to be updated?
 
 If a proposed pack only fixes a local symptom and does not map back to one of the audit findings, it should be rejected or reframed before coding.
 
+Per-pack governance loop:
+
+```text
+open pack audit
+implement correction
+re-audit correction
+approve/lock pack
+compare against big audit
+update audit/control docs
+start next pack only after state is current
+```
+
 ## Correction Progress Ledger
 
-| Date state | Correction | Commit | Audit mapping |
+| Date state | Correction | Commit | Audit mapping | Product proof state |
 |---|---|---|---|
-| locked | Deep power audit and generated inventories | `6ad17cd` | Baseline map of code, organs, connections, simplification candidates |
-| implemented | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | `2172a14` | P0: model-visible action not guaranteed executable |
+| locked | Deep power audit and generated inventories | `6ad17cd` | Baseline map of code, organs, connections, simplification candidates | control document |
+| foundation accepted | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | `2172a14` | P0: model-visible action not guaranteed executable | not product-proven until decision clients consume `model_visible_*` as primary truth |
+
+Current next correction:
+
+```text
+POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1
+```
+
+Pack B must not ignore Pack A. It must first audit whether `model_visible_*` is consumed by the real model decision path. If it is not, Pack B must either make the minimal necessary use of it for recoverable decisions or explicitly mark full migration as Pack D scope.
 
 ## Correction To Previous Focus
 

@@ -29,12 +29,26 @@ Until Sentinel's power reconnection work is finished, every implementation pack 
 
 New corrective packs should not be accepted as complete if they do not update the audit state or explain why no audit state changed.
 
+Required per-pack loop:
+
+```text
+1. open the pack with a local audit against the big audit
+2. implement the smallest correction that fixes the mapped root finding
+3. re-audit the correction itself
+4. approve/lock the pack only if tests and correction audit match the objective
+5. compare the result back against the big audit and correction plan
+6. update the master audit / plan / sequence / cut list when state changed
+7. only then start the next pack with the same loop
+```
+
+Do not treat a foundation pack as product-proven unless the model-facing product path actually consumes it in a real or focused product proof.
+
 ## Live Correction Status
 
 | Correction | Status | Commit | Effect |
 |---|---|---|---|
 | Deep power audit and reconnection plan | Committed | `6ad17cd` | Baseline map and pack sequence locked |
-| Power Core Pack 1 actionability/skill registry | Committed | `2172a14` | First global truth layer for model-visible skills vs internal primitives vs locked surfaces |
+| Power Core Pack 1 actionability/skill registry | Accepted as foundation, not product-proven | `2172a14` | First global truth layer for model-visible skills vs internal primitives vs locked surfaces; product proof requires model decision path to consume `model_visible_*` as primary truth |
 
 ## Executive Verdict
 

@@ -34,8 +34,11 @@ The rule is:
 ```text
 audit comparison first
 implementation second
-audit status update third
-commit fourth
+correction re-audit third
+pack approval/lock fourth
+big-audit comparison fifth
+audit status update sixth
+commit seventh
 ```
 
 This prevents the work from collapsing back into one visible symptom, such as browser locator failures, while the real issue is cross-system actionability and connection quality.
@@ -44,8 +47,8 @@ This prevents the work from collapsing back into one visible symptom, such as br
 
 | Sequence item | Canonical implementation | Status | Commit | Notes |
 |---|---|---|---|---|
-| Pack A: Actionability Registry And Skill Exposure | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | committed | `2172a14` | Introduced global `actionability_registry.py` and `DecisionContext.skill_exposure_frame` |
-| Pack B: Recoverable Execution Contract | pending | not started | - | Next likely core correction |
+| Pack A: Actionability Registry And Skill Exposure | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | accepted as foundation, not product-proven | `2172a14` | Introduced global `actionability_registry.py` and `DecisionContext.skill_exposure_frame`; full product value requires model decision path to consume `model_visible_*` as primary truth |
+| Pack B: Recoverable Execution Contract | pending | not started | - | Next core correction; must begin by auditing whether Pack A is consumed or whether full migration belongs to Pack D |
 | Pack C: Organ-To-Skill Wiring And Backend Selection | pending | not started | - | Must wire dormant organs into product skills |
 | Pack D: Decision Context Skill Frame Simplification | pending | not started | - | Should migrate model prompts/clients to `model_visible_*` |
 | Pack E: First Simplification Cut Organ Branch Matrix | pending | not started | - | Should reduce duplicated organ dispatch branches |
@@ -160,6 +163,14 @@ Definition of done:
 DecisionContext can build model-facing frames from executable actionability, not from static wish lists.
 ```
 
+Status:
+
+```text
+ACCEPTED_AS_FOUNDATION
+commit = 2172a14
+not_product_proven_until_model_decision_path_consumes_model_visible_fields = true
+```
+
 ## Pack B: Recoverable Execution Contract
 
 Name:
@@ -172,6 +183,15 @@ Goal:
 
 ```text
 Separate real hard stops from normal in-scope runtime failures.
+```
+
+Mandatory opening audit before coding:
+
+```text
+verify where model_visible_* is consumed
+verify whether legacy recommended actions still dominate model prompts/clients
+verify whether primitive/unregistered actions can still bypass actionability registry
+record whether full migration is in Pack B scope or explicitly deferred to Pack D
 ```
 
 Primary files:
