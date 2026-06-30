@@ -52,7 +52,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Pack C: Organ-To-Skill Wiring And Backend Selection | `POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1` | implemented candidate | `7bc8f6e` | Added data-only `power_skill_registry.py` and `browser_backend_selector.py`; skills now map to owner organs/backends without enabling new dispatch power |
 | Pack D: Decision Context Skill Frame Simplification | `POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1` | implemented candidate | `6656585` | Added primary `skill_decision_frame`, `primary_model_*` recommendations, and legacy compatibility fields |
 | Pack E: First Simplification Cut Organ Branch Matrix | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | implemented candidate | `e389430` | Added data-only organ runtime specs consumed by dispatch/runtime; browser/session aliases resolve through spec registry; high-risk organs remain locked |
-| Pack F: Sub-Request Builder Spec Cut | `POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1` | pending | - | Next simplification cut; move typed sub-request field selection/builders out of branch-heavy matrices |
+| Pack F: Sub-Request Builder Spec Cut | `POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1` | implemented candidate | `e404e98` | Added `OrganRequestFactory`; typed sub-request builders and request-field selection now flow through spec metadata while high-risk organs stay locked |
 
 New canonical next sequence:
 
@@ -63,7 +63,7 @@ POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1
 POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1
 POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1
 POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1
-then POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1
+next POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1
 ```
 
 ## Why 6D Is Too Early
@@ -521,7 +521,7 @@ organ_spec_registry_consumed_by_dispatch = true
 organ_spec_registry_consumed_by_runtime = true
 unknown_organ_blocks_honestly = true
 high_risk_organs_default_dispatchable = false
-Pack_F_required_for_sub_request_builder_branch_cut = true
+Pack_F_required_for_sub_request_builder_branch_cut = completed
 ```
 
 ## Pack F: Sub-Request Builder Spec Cut
@@ -554,9 +554,21 @@ Existing receipts/FinalGate/replay remain unchanged.
 Unknown or locked organ specs still block honestly.
 ```
 
+Status:
+
+```text
+IMPLEMENTED_CANDIDATE
+commit = e404e98
+organ_request_factory_added = true
+runtime_request_field_selection_spec_owned = true
+proof_metadata_preserved = true
+provider_call = no
+real_browser_run = no
+```
+
 ## Then Pack 6D
 
-After Packs A-E:
+After Packs A-F:
 
 ```text
 POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1

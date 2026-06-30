@@ -53,6 +53,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Power Reconnection Pack C organ-to-skill wiring/backend selection | Implemented candidate | `7bc8f6e` | Existing read/patch/code/channel/browser organs now have a data-only skill/backend map; CloakBrowser is preferred live browser backend when available; RuntimeHost execution behavior remains read-only-only |
 | Power Reconnection Pack D decision-context skill frame simplification | Implemented candidate | `6656585` | DecisionContext now exposes `skill_decision_frame` as primary truth, with legacy primitive recommendations demoted to compatibility fields |
 | Power Reconnection Pack E first simplification cut organ branch matrix | Implemented candidate | `e389430` | Runtime organ specs now declare handler/proof/receipt/replay/lockout metadata; browser/session lookup and runtime unknown-organ handling consume the spec registry |
+| Power Reconnection Pack F sub-request builder spec cut | Implemented candidate | `e404e98` | Organ request construction now uses `OrganRequestFactory` plus spec-owned `request_field`; the manual runtime-field matrix is cut from dispatch while proof/receipt/replay metadata stays visible |
 
 ## Executive Verdict
 
@@ -155,7 +156,7 @@ Top zones:
 | Browser real page open/world model | Partially proven, not product proven |
 | Skill/backend visibility map | Implemented candidate by Pack C, not product-proven until Pack D consumes it as primary decision truth |
 | Skill-first decision context | Implemented candidate by Pack D, not real-provider product-proven yet |
-| Organ spec registry | Implemented candidate by Pack E, not product-proven; first branch-matrix cut now consumed by dispatch/runtime |
+| Organ spec registry + request factory | Implemented candidate by Packs E/F, not product-proven; runtime specs are consumed by dispatch/runtime and now own typed request-field selection |
 
 ### Existing But Underconnected Power
 
@@ -248,7 +249,7 @@ The first version of this report recommended `POWER_PACK_6D_BROWSER_SKILL_SPINE_
 
 ```text
 Do not start 6D immediately.
-First run the power reconnection packs in SENTINEL_POWER_RECONNECTION_PACK_SEQUENCE_V1.md.
+First run the power reconnection packs in SENTINEL_POWER_RECONNECTION_PACK_SEQUENCE_V1.md. Packs A-F are now complete as implemented candidates, so the next implementation can return to the browser skill spine.
 ```
 
 Reason:
