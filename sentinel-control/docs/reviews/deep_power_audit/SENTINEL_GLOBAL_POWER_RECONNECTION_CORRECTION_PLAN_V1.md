@@ -49,7 +49,7 @@ start next pack only after state is current
 | implemented candidate | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | `5fc3a0c` | P0: recoverable in-scope runtime miss becomes mission death | focused proof: in-scope executor timeout becomes recoverable observation and loop continues |
 | implemented candidate | `POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1` | `7bc8f6e` | P1: powerful organs are underconnected and backend ownership is invisible to model-facing skills | focused proof: skills map to organ/backend truth without enabling new RuntimeHost adapters |
 | implemented candidate | `POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1` | `6656585` | P0/P1: DecisionContext exposes primitive/static actions instead of skill truth | focused proof: `skill_decision_frame` is primary model truth and legacy primitive recommendations are demoted |
-| implemented candidate | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | `pending_followup_ledger` | P2: organ dispatch/runtime branch matrices tax power and make organ wiring fragile | focused proof: organ spec registry is consumed by dispatch/runtime, unknown organs block honestly, high-risk specs stay locked |
+| implemented candidate | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | `e389430` | P2: organ dispatch/runtime branch matrices tax power and make organ wiring fragile | focused proof: organ spec registry is consumed by dispatch/runtime, unknown organs block honestly, high-risk specs stay locked |
 
 Current next correction:
 

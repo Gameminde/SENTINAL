@@ -52,7 +52,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Power Reconnection Pack B recoverable execution contract | Implemented candidate | `5fc3a0c` | ActionKernel now converts classified in-scope executor misses into recoverable observations instead of terminal mission death |
 | Power Reconnection Pack C organ-to-skill wiring/backend selection | Implemented candidate | `7bc8f6e` | Existing read/patch/code/channel/browser organs now have a data-only skill/backend map; CloakBrowser is preferred live browser backend when available; RuntimeHost execution behavior remains read-only-only |
 | Power Reconnection Pack D decision-context skill frame simplification | Implemented candidate | `6656585` | DecisionContext now exposes `skill_decision_frame` as primary truth, with legacy primitive recommendations demoted to compatibility fields |
-| Power Reconnection Pack E first simplification cut organ branch matrix | Implemented candidate | `pending_followup_ledger` | Runtime organ specs now declare handler/proof/receipt/replay/lockout metadata; browser/session lookup and runtime unknown-organ handling consume the spec registry |
+| Power Reconnection Pack E first simplification cut organ branch matrix | Implemented candidate | `e389430` | Runtime organ specs now declare handler/proof/receipt/replay/lockout metadata; browser/session lookup and runtime unknown-organ handling consume the spec registry |
 
 ## Executive Verdict
 

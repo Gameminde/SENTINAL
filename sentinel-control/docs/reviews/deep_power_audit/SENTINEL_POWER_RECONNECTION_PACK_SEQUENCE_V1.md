@@ -51,7 +51,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Pack B: Recoverable Execution Contract | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | implemented candidate | `5fc3a0c` | Classified in-scope executor misses become recoverable observations; Pack A model-visible consumption remains Pack D scope |
 | Pack C: Organ-To-Skill Wiring And Backend Selection | `POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1` | implemented candidate | `7bc8f6e` | Added data-only `power_skill_registry.py` and `browser_backend_selector.py`; skills now map to owner organs/backends without enabling new dispatch power |
 | Pack D: Decision Context Skill Frame Simplification | `POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1` | implemented candidate | `6656585` | Added primary `skill_decision_frame`, `primary_model_*` recommendations, and legacy compatibility fields |
-| Pack E: First Simplification Cut Organ Branch Matrix | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | implemented candidate | `pending_followup_ledger` | Added data-only organ runtime specs consumed by dispatch/runtime; browser/session aliases resolve through spec registry; high-risk organs remain locked |
+| Pack E: First Simplification Cut Organ Branch Matrix | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | implemented candidate | `e389430` | Added data-only organ runtime specs consumed by dispatch/runtime; browser/session aliases resolve through spec registry; high-risk organs remain locked |
 | Pack F: Sub-Request Builder Spec Cut | `POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1` | pending | - | Next simplification cut; move typed sub-request field selection/builders out of branch-heavy matrices |
 
 New canonical next sequence:
@@ -516,7 +516,7 @@ Status:
 
 ```text
 IMPLEMENTED_CANDIDATE
-commit = pending_followup_ledger
+commit = e389430
 organ_spec_registry_consumed_by_dispatch = true
 organ_spec_registry_consumed_by_runtime = true
 unknown_organ_blocks_honestly = true
