@@ -49,7 +49,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 |---|---|---|---|
 | Deep power audit and reconnection plan | Committed | `6ad17cd` | Baseline map and pack sequence locked |
 | Power Core Pack 1 actionability/skill registry | Accepted as foundation, not product-proven | `2172a14` | First global truth layer for model-visible skills vs internal primitives vs locked surfaces; product proof requires model decision path to consume `model_visible_*` as primary truth |
-| Power Reconnection Pack B recoverable execution contract | Implemented candidate | `f59b270` | ActionKernel now converts classified in-scope executor misses into recoverable observations instead of terminal mission death |
+| Power Reconnection Pack B recoverable execution contract | Implemented candidate | `5fc3a0c` | ActionKernel now converts classified in-scope executor misses into recoverable observations instead of terminal mission death |
 
 ## Executive Verdict
 

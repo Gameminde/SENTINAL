@@ -48,7 +48,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Sequence item | Canonical implementation | Status | Commit | Notes |
 |---|---|---|---|---|
 | Pack A: Actionability Registry And Skill Exposure | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | accepted as foundation, not product-proven | `2172a14` | Introduced global `actionability_registry.py` and `DecisionContext.skill_exposure_frame`; full product value requires model decision path to consume `model_visible_*` as primary truth |
-| Pack B: Recoverable Execution Contract | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | implemented candidate | `f59b270` | Classified in-scope executor misses become recoverable observations; Pack A model-visible consumption remains Pack D scope |
+| Pack B: Recoverable Execution Contract | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | implemented candidate | `5fc3a0c` | Classified in-scope executor misses become recoverable observations; Pack A model-visible consumption remains Pack D scope |
 | Pack C: Organ-To-Skill Wiring And Backend Selection | pending | not started | - | Next core correction; must wire dormant organs into product skills |
 | Pack D: Decision Context Skill Frame Simplification | pending | not started | - | Should migrate model prompts/clients to `model_visible_*` |
 | Pack E: First Simplification Cut Organ Branch Matrix | pending | not started | - | Should reduce duplicated organ dispatch branches |
@@ -267,7 +267,7 @@ Status:
 
 ```text
 IMPLEMENTED_CANDIDATE
-commit = f59b270
+commit = 5fc3a0c
 in_scope_executor_timeout_to_recoverable_observation = true
 hard_stop_boundaries_preserved = true
 full_model_visible_migration_deferred_to_pack_d = true

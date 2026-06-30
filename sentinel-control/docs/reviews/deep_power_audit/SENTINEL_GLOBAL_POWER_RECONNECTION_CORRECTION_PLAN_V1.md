@@ -46,7 +46,7 @@ start next pack only after state is current
 |---|---|---|---|
 | locked | Deep power audit and generated inventories | `6ad17cd` | Baseline map of code, organs, connections, simplification candidates | control document |
 | foundation accepted | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | `2172a14` | P0: model-visible action not guaranteed executable | not product-proven until decision clients consume `model_visible_*` as primary truth |
-| implemented candidate | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | `f59b270` | P0: recoverable in-scope runtime miss becomes mission death | focused proof: in-scope executor timeout becomes recoverable observation and loop continues |
+| implemented candidate | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | `5fc3a0c` | P0: recoverable in-scope runtime miss becomes mission death | focused proof: in-scope executor timeout becomes recoverable observation and loop continues |
 
 Current next correction:
 
