@@ -11,6 +11,7 @@ from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
 from sentinel.operator.action_power_contract import ActionAliasNormalizer, ActionFailureClass, recoverable_action_observation
+from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
 from sentinel.operator.decision_context import DecisionContextCompiler
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.loop_guard import LoopGuard, LoopGuardConfig, LoopGuardError
@@ -164,7 +165,7 @@ class ModelLedTaskLoop:
                     context["browser_assertion_due_to_material_budget"] = True
                 if real_browser_assertion_due_to_material_budget:
                     context["real_browser_assertion_due_to_material_budget"] = True
-                envelope = self._normalizer.normalize(self.decision_client.complete(context))
+                envelope = self._coerce_model_decision(self.decision_client.complete(context), context=context)
                 self.model_calls_used += 1
                 validation_result = self._validate_model_action_envelope(envelope, context=context, turn_index=self.model_calls_used)
                 if validation_result is not None:
@@ -253,6 +254,15 @@ class ModelLedTaskLoop:
             correction_turns_used=self.correction_turns_used,
             max_correction_turns=self.loop_guard.config.max_correction_turns,
         )
+
+    def _coerce_model_decision(self, decision: Any, *, context: dict[str, Any]) -> ActionEnvelope:
+        if isinstance(decision, ActionEnvelope):
+            return self._normalizer.normalize(decision)
+        mapping = map_browser_model_native_intent(decision, context=context)
+        self._last_failure_diagnostics = mapping.safe_diagnostics
+        if mapping.blocked or mapping.envelope is None:
+            raise ActionKernelError(mapping.blocked_reason or "MODEL_NATIVE_INTENT_MAPPING_FAILED")
+        return self._normalizer.normalize(mapping.envelope)
 
     def _complete(self, reason: str) -> ModelLedTaskLoopResult:
         certificate = self._write_certificate(status=ModelLedTaskLoopStatus.COMPLETED, accepted=True, reason=reason)

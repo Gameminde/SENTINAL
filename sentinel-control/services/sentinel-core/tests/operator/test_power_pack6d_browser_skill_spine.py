@@ -12,6 +12,7 @@ from sentinel.operator.action_power_contract import ActionFailureClass
 from sentinel.operator.actionability_registry import build_default_actionability_registry
 from sentinel.operator.browser_backend_selector import select_browser_backend
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
+from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.decision_context import DecisionContextCompiler
 from sentinel.operator.kernel import MissionKernel
@@ -530,6 +531,200 @@ def test_no_raw_dom_screenshot_cookie_session_provider_reasoning_persisted(tmp_p
         assert marker not in persisted
 
 
+def test_natural_intent_extract_visible_cards_maps_to_extract_product_cards(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    context = _compile_browser_context(fixture, observations=[opened])
+
+    mapping = map_browser_model_native_intent("I will extract the visible product cards now.", context=context)
+
+    assert mapping.blocked is False
+    assert mapping.envelope is not None
+    assert mapping.envelope.capability_id == "real_browser_control"
+    assert mapping.envelope.operation == "real_browser.extract_product_cards"
+
+
+def test_natural_intent_search_under_price_maps_to_search_with_query(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
+    context = _compile_browser_context(fixture, observations=[])
+
+    mapping = map_browser_model_native_intent("Search for glasses under 5 euro.", context=context)
+
+    assert mapping.envelope is not None
+    assert mapping.envelope.capability_id == "real_browser_control"
+    assert mapping.envelope.operation == "real_browser.search"
+    assert mapping.envelope.params["query"] == "glasses under 5 euro"
+
+
+def test_natural_intent_verify_cards_maps_to_verify_extraction(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted])
+
+    mapping = map_browser_model_native_intent("Verify the extracted cards.", context=context)
+
+    assert mapping.envelope is not None
+    assert mapping.envelope.operation == "real_browser.verify_extraction"
+
+
+def test_natural_intent_finish_requires_verified_evidence(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    before_verify = _compile_browser_context(fixture, observations=[opened, extracted])
+
+    premature = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=before_verify)
+
+    assert premature.envelope is not None
+    assert premature.envelope.operation == "real_browser.verify_extraction"
+
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    after_verify = _compile_browser_context(fixture, observations=[opened, extracted, verified])
+
+    finish = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=after_verify)
+
+    assert finish.envelope is not None
+    assert finish.envelope.capability_id == "sentinel_loop"
+    assert finish.envelope.operation == "finish"
+
+
+def test_ambiguous_safe_intent_uses_primary_skill_recommendation(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    context = _compile_browser_context(fixture, observations=[opened])
+
+    mapping = map_browser_model_native_intent("I will continue with the best safe next step.", context=context)
+
+    assert mapping.envelope is not None
+    assert (
+        f"{mapping.envelope.capability_id}.{mapping.envelope.operation}"
+        == context["primary_model_recommended_next_action"]
+    )
+
+
+def test_hard_boundary_intent_blocks_contact_supplier_payment_login_credentials(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    context = _compile_browser_context(fixture, observations=[])
+
+    for intent in (
+        "Log in to Alibaba with credentials.",
+        "Contact the supplier about this product.",
+        "Add it to cart and checkout with payment.",
+        "Use the cookie/session to continue.",
+    ):
+        mapping = map_browser_model_native_intent(intent, context=context)
+        assert mapping.blocked is True
+        assert mapping.blocked_reason == "BROWSER_INTENT_HARD_BOUNDARY"
+        assert mapping.envelope is None
+
+
+def test_metadata_reply_with_natural_intent_is_parsed_without_raw_persistence(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    context = _compile_browser_context(fixture, observations=[opened])
+
+    mapping = map_browser_model_native_intent(
+        {
+            "metadata": {"finish_reason": "stop"},
+            "reply": "I will extract the visible product cards now.",
+        },
+        context=context,
+    )
+
+    assert mapping.envelope is not None
+    assert mapping.envelope.operation == "real_browser.extract_product_cards"
+    diagnostics_text = str(mapping.safe_diagnostics)
+    assert "I will extract the visible product cards now" not in diagnostics_text
+    assert "raw_provider" not in diagnostics_text
+    assert "reasoning" not in diagnostics_text
+
+
+def test_action_envelope_remains_internal_runtime_format(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
+    context = _compile_browser_context(fixture, observations=[])
+
+    mapping = map_browser_model_native_intent("Search for glasses under 5 euro.", context=context)
+
+    assert isinstance(mapping.envelope, ActionEnvelope)
+    assert mapping.safe_diagnostics["model_input_kind"] == "natural_intent"
+    assert mapping.safe_diagnostics["internal_runtime_format"] == "ActionEnvelope"
+
+
+def test_no_raw_provider_output_or_reasoning_persisted(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    context = _compile_browser_context(fixture, observations=[])
+
+    mapping = map_browser_model_native_intent(
+        {"reply": "Search for glasses under 5 euro.", "metadata": {"safe_provider_latency_ms": 12}},
+        context=context,
+    )
+
+    persisted = str(mapping.safe_model_dump()).lower()
+    assert "search for glasses under 5 euro" not in persisted
+    assert "raw_provider" not in persisted
+    assert "raw_response" not in persisted
+    assert "reasoning_content" not in persisted
+
+
+def test_replay_no_react_still_holds(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            "Open the bounded Alibaba page.",
+            {"metadata": {"finish_reason": "stop"}, "reply": "I will extract the visible product cards now."},
+            {"reply": "Verify the extracted cards."},
+            {"reply": "I have enough evidence, summarize and finish."},
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+    replay = RealBrowserControlReplayView.from_store(fixture.kernel.store, mission_id=fixture.mission_id)
+    loop_replay = ModelLedTaskLoopReplay.from_store(fixture.kernel.store, fixture.mission_id)
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_finish"
+    assert replay.browser_open_delta == 0
+    assert replay.browser_type_delta == 0
+    assert replay.browser_extract_delta == 0
+    assert replay.receipt_writes_delta == 0
+    assert loop_replay.model_calls_delta == 0
+    assert loop_replay.real_browser_open_delta == 0
+    assert loop_replay.real_browser_extract_delta == 0
+
+
 def test_pack_a_f_regressions_still_pass() -> None:
     actionability_frame = build_default_actionability_registry().compile_frame(
         available_actions=_browser_actions(),
@@ -568,6 +763,44 @@ def _browser_actions() -> tuple[str, ...]:
         "real_browser_control.real_browser.wait_for_text",
         "sentinel_loop.finish",
     )
+
+
+def _compile_browser_context(
+    fixture: "_BrowserSkillFixture",
+    *,
+    observations: list[Any],
+    model_calls_used: int = 0,
+    material_actions_used: int = 0,
+) -> dict[str, Any]:
+    return DecisionContextCompiler().compile(
+        mission_id=fixture.mission_id,
+        mission_objective=fixture.authority.mission_objective,
+        authority=fixture.authority,
+        observations=observations,
+        available_actions=_browser_actions(),
+        model_calls_used=model_calls_used,
+        material_actions_used=material_actions_used,
+        max_model_calls=8,
+        max_material_actions=4,
+        recovery_turns_used=0,
+        max_recovery_turns=2,
+        correction_turns_used=0,
+        max_correction_turns=2,
+    )
+
+
+class _RawNativeIntentDecisionClient:
+    def __init__(self, intents: list[Any]) -> None:
+        self._intents = list(intents)
+        self.call_count = 0
+        self.contexts: list[dict[str, Any]] = []
+
+    def complete(self, context: dict[str, Any]) -> Any:
+        self.contexts.append(context)
+        self.call_count += 1
+        if not self._intents:
+            raise AssertionError("native intent decisions exhausted")
+        return self._intents.pop(0)
 
 
 class _BrowserSkillFixture:

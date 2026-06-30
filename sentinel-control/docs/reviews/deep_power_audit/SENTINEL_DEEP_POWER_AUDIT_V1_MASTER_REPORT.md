@@ -55,6 +55,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Power Reconnection Pack E first simplification cut organ branch matrix | Implemented candidate | `e389430` | Runtime organ specs now declare handler/proof/receipt/replay/lockout metadata; browser/session lookup and runtime unknown-organ handling consume the spec registry |
 | Power Reconnection Pack F sub-request builder spec cut | Implemented candidate | `e404e98` | Organ request construction now uses `OrganRequestFactory` plus spec-owned `request_field`; the manual runtime-field matrix is cut from dispatch while proof/receipt/replay metadata stays visible |
 | Power Pack 6D browser skill spine and root friction removal | Implemented candidate, not real-browser product-proven | pending local commit | Browser model-facing path now prefers `search / inspect / open_result / extract_product_cards / verify_extraction`; raw browser primitives are hidden/internal; in-scope search actuation misses return recoverable observations; fake-hard-page search/extract/verify/finish proof is green |
+| Browser model-native control loop | Implemented candidate, not real-provider/browser product-proven | pending local commit | `ModelLedTaskLoop` can now consume natural/semi-structured browser intents and `metadata/reply` envelopes, map safe intent into internal `ActionEnvelope` skills, preserve hard stops, and avoid turning useful visible model text into `empty_action_envelope` by default |
 
 ## Executive Verdict
 
@@ -95,6 +96,17 @@ model intent
 -> replay
 -> hard stop only on real damage
 ```
+
+The latest browser model-native correction extends this target by making the model-facing protocol less cage-like:
+
+```text
+natural/semi-structured browser intent
+-> Sentinel intent mapper
+-> canonical internal ActionEnvelope
+-> existing skill runtime / receipts / replay
+```
+
+This is not product proof yet. It is a focused correction to the actionability/intelligence-plane handoff exposed by 5E.
 
 ## Current Codebase Scale
 

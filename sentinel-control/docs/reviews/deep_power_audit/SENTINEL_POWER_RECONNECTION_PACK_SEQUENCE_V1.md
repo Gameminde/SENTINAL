@@ -54,6 +54,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Pack E: First Simplification Cut Organ Branch Matrix | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | implemented candidate | `e389430` | Added data-only organ runtime specs consumed by dispatch/runtime; browser/session aliases resolve through spec registry; high-risk organs remain locked |
 | Pack F: Sub-Request Builder Spec Cut | `POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1` | implemented candidate | `e404e98` | Added `OrganRequestFactory`; typed sub-request builders and request-field selection now flow through spec metadata while high-risk organs stay locked |
 | Browser vertical: Skill Spine And Root Friction Removal | `POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1` | implemented candidate, not real-provider/browser product-proven | pending local commit | Model-facing browser path is skill-first; low-level primitives are internal/fallback; search actuation ranks refs and tries alternates; product extraction cards and verification receipts are proof-bearing; replay no-react is covered by fake/local tests |
+| Browser vertical: Model Native Control Loop | `BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1` | implemented candidate, not real-provider/browser product-proven | pending local commit | Natural/semi-structured model browser intent now maps to canonical internal ActionEnvelope skills inside `ModelLedTaskLoop`; `metadata/reply` safe intent no longer has to become empty-action correction churn |
 
 New canonical next sequence:
 
@@ -65,7 +66,8 @@ done POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1
 done POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1
 done POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1
 done POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1
-next REAL_POWER_ATTEMPT_5D_MODEL_LED_ALIBABA_BROWSER_SKILL_SPINE_V1
+done BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1
+next REAL_POWER_ATTEMPT_5F_MODEL_NATIVE_BROWSER_CONTROL_LOOP_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F

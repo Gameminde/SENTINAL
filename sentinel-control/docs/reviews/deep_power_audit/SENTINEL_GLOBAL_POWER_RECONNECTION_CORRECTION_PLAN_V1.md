@@ -52,14 +52,15 @@ start next pack only after state is current
 | implemented candidate | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | `e389430` | P2: organ dispatch/runtime branch matrices tax power and make organ wiring fragile | focused proof: organ spec registry is consumed by dispatch/runtime, unknown organs block honestly, high-risk specs stay locked |
 | implemented candidate | `POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1` | `e404e98` | P2: typed organ sub-request builders and runtime request-field selection remained branch-heavy | focused proof: `OrganRequestFactory` builds typed requests from spec aliases/request fields; unknown organs block honestly; proof metadata is preserved |
 | implemented candidate | `POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1` | pending local commit | P0/P1 browser vertical: model-facing browser actionability still preferred fragile primitives and locator misses could kill in-scope work | focused proof: browser decision frames expose skill actions; `real_browser.search` robustly tries ranked search refs and alternates; product-card extraction/verification receipts satisfy proof; replay is no-react |
+| implemented candidate | `BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1` | pending local commit | P0: model-visible action protocol is too cage-like and useful `metadata/reply` intent collapses into `empty_action_envelope` | focused proof: natural/semi-structured browser intent maps to internal ActionEnvelope skills; hard boundary intents block; replay/no-react still holds |
 
 Current next correction:
 
 ```text
-REAL_POWER_ATTEMPT_5D_MODEL_LED_ALIBABA_BROWSER_SKILL_SPINE_V1
+REAL_POWER_ATTEMPT_5F_MODEL_NATIVE_BROWSER_CONTROL_LOOP_V1
 ```
 
-Pack B did not ignore Pack A: it audited `model_visible_*` consumption and found the full model decision migration still belongs to Pack D. Pack C wired dormant organs into product skills without bypassing the new actionability and recoverable-execution contracts. Pack D made skill/backend frames the primary model decision truth while keeping legacy fields as compatibility only. Pack E created the first declarative organ runtime spec cut and wired it into dispatch/runtime. Pack F cut typed sub-request field selection/building into `OrganRequestFactory`. Pack 6D consumed A-F for a vertical browser proof. The next step is not another local browser patch; it is one approved real Alibaba attempt to prove whether the skill spine works on the complex page.
+Pack B did not ignore Pack A: it audited `model_visible_*` consumption and found the full model decision migration still belongs to Pack D. Pack C wired dormant organs into product skills without bypassing the new actionability and recoverable-execution contracts. Pack D made skill/backend frames the primary model decision truth while keeping legacy fields as compatibility only. Pack E created the first declarative organ runtime spec cut and wired it into dispatch/runtime. Pack F cut typed sub-request field selection/building into `OrganRequestFactory`. Pack 6D consumed A-F for a vertical browser proof. `BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1` corrects the 5E protocol cage by letting the loop consume model-native browser intent and translate it into internal skills. The next step is an approved real Alibaba attempt to prove whether this native model control loop works on the complex page.
 
 ## Correction To Previous Focus
 

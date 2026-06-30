@@ -75,6 +75,22 @@ normal web actuation failure as immediate mission death.
 Fake hard-page proof is green. Real Alibaba proof remains the next gated run.
 ```
 
+Browser model-native control loop implementation status:
+
+```text
+BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1 =
+implemented candidate, not real-provider/browser product-proven
+
+The model no longer has to emit perfect internal ActionEnvelope JSON for every
+browser step. Natural or semi-structured intent such as "extract the visible
+product cards" or `metadata/reply` content is mapped into the canonical internal
+browser skill envelope.
+
+ActionEnvelope remains the runtime language, but it is no longer the cognitive
+interface the model must always speak. Hard boundaries still block before
+mapping; finish still requires verified evidence.
+```
+
 ## What Must Stop Being Preferred Model-Facing API
 
 These can stay internally, but should not be the main action vocabulary for Alibaba-style research:
@@ -91,6 +107,7 @@ real_browser.wait_for_text
 Preferred model-facing browser skills:
 
 ```text
+natural/semi-structured browser intent
 real_browser.search
 real_browser.inspect_result
 real_browser.open_result
