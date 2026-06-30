@@ -1,0 +1,989 @@
+{
+  "total_files": 167,
+  "by_layer": [
+    [
+      "organs_browser",
+      44
+    ],
+    [
+      "agent_organs",
+      36
+    ],
+    [
+      "organs_core",
+      25
+    ],
+    [
+      "operator_power_runtime",
+      22
+    ],
+    [
+      "organs_desktop",
+      15
+    ],
+    [
+      "organs_channels",
+      9
+    ],
+    [
+      "organs_credentials",
+      8
+    ],
+    [
+      "organs_external_api",
+      8
+    ]
+  ],
+  "by_area": [
+    [
+      "browser",
+      89
+    ],
+    [
+      "other",
+      50
+    ],
+    [
+      "organ_infra",
+      8
+    ],
+    [
+      "channel",
+      7
+    ],
+    [
+      "workspace_patch",
+      5
+    ],
+    [
+      "code_shell",
+      5
+    ],
+    [
+      "external_api",
+      1
+    ],
+    [
+      "credential",
+      1
+    ],
+    [
+      "financial",
+      1
+    ]
+  ],
+  "by_decision": [
+    [
+      "KEEP",
+      148
+    ],
+    [
+      "KEEP_LOCKED",
+      7
+    ],
+    [
+      "MERGE",
+      5
+    ],
+    [
+      "HIDE",
+      4
+    ],
+    [
+      "WIRE",
+      3
+    ]
+  ],
+  "browser_files": [
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/__init__.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 977,
+      "classes": "",
+      "top_level_functions": "",
+      "flags": "receipt;finalgate;authority;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_account_creation_special_authority_l7.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 400,
+      "classes": "BrowserAccountCreationStatus;BrowserAccountCreationFinalGateDecision;BrowserAccountCreationContract;BrowserAccountCreationRequest;BrowserAccountCreationBackendResult;BrowserAccountCreationBackend;BrowserAccountCreationFakeBackend;BrowserAccountCreationReceipt;BrowserAccountCreationFinalGateCertificate;BrowserAccountCreationResult;BrowserAccountCreationFinalGate;BrowserAccountCreationOrganL7",
+      "top_level_functions": "render_browser_account_creation_receipt_as_untrusted_context;_validate_request;_safe_payload;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP_LOCKED"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_benchmark_gauntlet_web_arena_style.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 391,
+      "classes": "BrowserBenchmarkScenarioKind;BrowserBenchmarkGauntletStatus;BrowserBenchmarkGauntletFinalGateDecision;BrowserBenchmarkGauntletContract;BrowserBenchmarkGauntletRequest;BrowserBenchmarkScenarioScore;BrowserBenchmarkGauntletReport;BrowserBenchmarkGauntletReceipt;BrowserBenchmarkGauntletFinalGateCertificate;BrowserBenchmarkGauntletResult;BrowserBenchmarkGauntletFinalGate;BrowserBenchmarkGauntletOrgan",
+      "top_level_functions": "render_browser_benchmark_gauntlet_receipt_as_untrusted_context;_build_report;_score_scenario;_clamp01;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_boundary_manager_l6_l7.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 388,
+      "classes": "BrowserBoundaryKind;BrowserBoundaryStatus;BrowserBoundaryAction;BrowserBoundaryFinalGateDecision;BrowserBoundaryContract;BrowserBoundaryRequest;BrowserBoundaryFinding;BrowserBoundaryCheckpoint;BrowserBoundaryReceipt;BrowserBoundaryFinalGateCertificate;BrowserBoundaryResult;BrowserBoundaryFinalGate",
+      "top_level_functions": "render_browser_boundary_receipt_as_untrusted_context;_classify;_checkpoint;_kind_from_signal;_recommended_action;_control_view;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP_LOCKED"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_controlled_extension_webmcp_bridge_l7.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 442,
+      "classes": "BrowserExtensionBridgeSurface;BrowserExtensionBridgeStatus;BrowserExtensionBridgeFinalGateDecision;BrowserExtensionBridgeContract;BrowserExtensionBridgeRequest;BrowserExtensionBridgeBackendResult;BrowserExtensionBridgeBackend;BrowserExtensionBridgeFakeBackend;BrowserExtensionBridgeReceipt;BrowserExtensionBridgeFinalGateCertificate;BrowserExtensionBridgeResult;BrowserExtensionBridgeFinalGate",
+      "top_level_functions": "render_browser_extension_bridge_receipt_as_untrusted_context;_validate_request;_safe_payload;_safe_value;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP_LOCKED"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_devtools_backend_adapter_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 558,
+      "classes": "BrowserDevToolsCapability;BrowserDevToolsStatus;BrowserDevToolsFinalGateDecision;BrowserDevToolsContract;BrowserDevToolsRequest;BrowserDevToolsBackendPayload;BrowserDevToolsBackend;BrowserDevToolsFakeBackend;BrowserSessionDevToolsBackend;BrowserNativeCdpBackend;BrowserDevToolsReceipt;BrowserDevToolsFinalGateCertificate",
+      "top_level_functions": "render_browser_devtools_receipt_as_untrusted_context;_hostname;_safe_pages;_cdp_command_plan",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_devtools_input_parity_l5_l6.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 371,
+      "classes": "BrowserInputParityActionKind;BrowserInputParityStatus;BrowserInputParityFinalGateDecision;BrowserInputParityContract;BrowserInputParityRequest;BrowserInputParityBackendResult;BrowserInputParityBackend;BrowserInputParityFakeBackend;BrowserInputParityReceipt;BrowserInputParityFinalGateCertificate;BrowserInputParityResult;BrowserInputParityFinalGate",
+      "top_level_functions": "render_browser_input_parity_receipt_as_untrusted_context;_validate_input;_safe_input_payload;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_devtools_machine_intelligence_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 500,
+      "classes": "BrowserDevToolsMachineIntelligenceStatus;BrowserDevToolsMachineIntelligenceFinalGateDecision;BrowserDevToolsMachineIntelligenceContract;BrowserDevToolsMachineIntelligenceRequest;BrowserDevToolsPageTarget;BrowserDevToolsA11yRefV2;BrowserDevToolsA11ySnapshotV2;BrowserDevToolsNetworkLedger;BrowserDevToolsConsoleLedger;BrowserDevToolsScreenshotEvidence;BrowserDevToolsEvidenceBundle;BrowserDevToolsMachineIntelligenceReceipt",
+      "top_level_functions": "render_browser_devtools_machine_intelligence_receipt_as_untrusted_context;_build_bundle;_page_target;_a11y_snapshot;_network_ledger;_console_ledger;_unsafe_raw_payload_findings;_hostname;_guess_role",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_download_upload_quarantine_l6.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 370,
+      "classes": "BrowserFileQuarantineActionKind;BrowserFileQuarantineStatus;BrowserFileQuarantineFinalGateDecision;BrowserFileQuarantineContract;BrowserFileQuarantineRequest;BrowserFileQuarantineSafetyValidationResult;BrowserFileQuarantineReceipt;BrowserFileQuarantineFinalGateCertificate;BrowserFileQuarantineResult;BrowserFileQuarantineFinalGate;BrowserFileQuarantineOrganL6",
+      "top_level_functions": "_validate_upload_path;_coerce_request",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_failure_recovery_engine_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 424,
+      "classes": "BrowserFailureRecoveryStatus;BrowserFailureRecoveryKind;BrowserFailureRecoveryActionKind;BrowserFailureRecoveryFinalGateDecision;BrowserFailureRecoveryContract;BrowserFailureRecoveryRequest;BrowserFailureClassification;BrowserFailureRecoveryStep;BrowserFailureRecoveryPlan;BrowserFailureRecoveryReceipt;BrowserFailureRecoveryFinalGateCertificate;BrowserFailureRecoveryResult",
+      "top_level_functions": "render_browser_failure_recovery_receipt_as_untrusted_context;browser_failure_recovery_request_from_live_devtools_metadata;_classify;_build_plan;_non_raw_signal_view;_safe_int;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_form_submit_special_authority_l6.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 393,
+      "classes": "BrowserFormSubmitStatus;BrowserFormSubmitFinalGateDecision;BrowserFormSubmitContract;BrowserFormSubmitRequest;BrowserFormSubmitSafetyValidationResult;BrowserFormSubmitReceipt;BrowserFormSubmitFinalGateCertificate;BrowserFormSubmitResult;BrowserFormSubmitFinalGate;BrowserFormSubmitSpecialAuthorityL6",
+      "top_level_functions": "render_browser_form_submit_receipt_as_untrusted_context;_coerce_request",
+      "flags": "receipt;finalgate;authority;replay",
+      "cut_decision": "KEEP_LOCKED"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_js_sandbox_special_authority_l6.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 353,
+      "classes": "BrowserJSSandboxStatus;BrowserJSSandboxFinalGateDecision;BrowserJSSandboxContract;BrowserJSSandboxRequest;BrowserJSSandboxSafetyValidationResult;BrowserJSSandboxReceipt;BrowserJSSandboxFinalGateCertificate;BrowserJSSandboxResult;BrowserJSSandboxFinalGate;BrowserJSSandboxOrganL6",
+      "top_level_functions": "_coerce_request;_contains_forbidden_js_surface",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP_LOCKED"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_login_credential_session_broker_l6.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 450,
+      "classes": "BrowserCredentialValueProvider;EphemeralBrowserCredentialProvider;BrowserLoginCredentialSessionStatus;BrowserLoginCredentialSessionFinalGateDecision;BrowserLoginCredentialSessionContract;BrowserLoginCredentialSessionRequest;BrowserLoginCredentialSessionSafetyValidationResult;BrowserLoginCredentialSessionReceipt;BrowserLoginCredentialSessionFinalGateCertificate;BrowserLoginCredentialSessionResult;BrowserLoginCredentialSessionFinalGate;BrowserLoginCredentialSessionBrokerL6",
+      "top_level_functions": "render_browser_login_credential_session_receipt_as_untrusted_context;_coerce_request",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP_LOCKED"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_multi_step_task_orchestrator_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 568,
+      "classes": "BrowserOrchestratorActionKind;BrowserOrchestratorPhase;BrowserOrchestratorStatus;BrowserOrchestratorFinalGateDecision;BrowserOrchestratorContract;BrowserOrchestratorPlanStep;BrowserOrchestratorPlan;BrowserOrchestratorRequest;BrowserOrchestratorBackendActionResult;BrowserOrchestratorActionBackend;BrowserOrchestratorFakeActionBackend;BrowserSessionOrchestratorActionBackend",
+      "top_level_functions": "render_browser_orchestrator_receipt_as_untrusted_context;_validate_runtime_request;_build_plan;_receipt;_hostname;_session_action_kind",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_network_har_response_quarantine_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 434,
+      "classes": "BrowserHARStatus;BrowserHARFinalGateDecision;BrowserHARContract;BrowserHARRequest;BrowserHARRecord;BrowserHARQuarantinedBody;BrowserHARLedger;BrowserHARReceipt;BrowserHARFinalGateCertificate;BrowserHARResult;BrowserHARFinalGate;BrowserHAROrganV1",
+      "top_level_functions": "render_browser_har_receipt_as_untrusted_context;_validate_request;_build_ledger;_safe_header_hash;_response_body;_body_bytes;_int_or_none;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_observability_replay_studio_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 624,
+      "classes": "BrowserReplayEventKind;BrowserReplayStudioStatus;BrowserReplayStudioFinalGateDecision;BrowserReplayStudioContract;BrowserReplayStudioRequest;BrowserReplayTimelineItem;BrowserReplayTimeline;BrowserReplayStudioReceipt;BrowserReplayStudioFinalGateCertificate;BrowserReplayStudioResult;BrowserReplayStudioFinalGate;BrowserReplayStudioOrganV1",
+      "top_level_functions": "render_browser_replay_studio_receipt_as_untrusted_context;_validate_request;_build_timeline;_sanitize_event;_safe_metadata_value;_control_view;_event_sort_key;_event_sequence;_event_kind;_kind_enabled;_first_present_hash;_count_kind",
+      "flags": "receipt;finalgate;authority;replay;fallback",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_operator_agent_l4_l5_live.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 539,
+      "classes": "BrowserOperatorLiveActionKind;BrowserOperatorLiveStatus;BrowserOperatorLiveContract;BrowserOperatorLiveRequest;BrowserOperatorLiveSafetyValidationResult;BrowserOperatorLiveReceipt;BrowserOperatorLiveResult;BrowserOperatorAgentL4L5Live",
+      "top_level_functions": "render_browser_operator_live_receipt_as_untrusted_context;_coerce_request;_action_value;_mission_has;_looks_credential_bearing;_interaction_step;_find_ref;_last_event;_browser_finalgate;_resolve_public_dns",
+      "flags": "playwright;receipt;finalgate;authority;replay",
+      "cut_decision": "WIRE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_payment_spend_special_authority_l7.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 407,
+      "classes": "BrowserPaymentSpendStatus;BrowserPaymentSpendFinalGateDecision;BrowserPaymentSpendContract;BrowserPaymentSpendRequest;BrowserPaymentBackendResult;BrowserPaymentBackend;BrowserPaymentFakeBackend;BrowserPaymentSpendReceipt;BrowserPaymentSpendFinalGateCertificate;BrowserPaymentSpendResult;BrowserPaymentSpendFinalGate;BrowserPaymentSpendOrganL7",
+      "top_level_functions": "render_browser_payment_spend_receipt_as_untrusted_context;_validate_payment_request;_unsafe_payment_payload;_safe_payment_payload;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP_LOCKED"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_performance_lighthouse_organ_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 426,
+      "classes": "BrowserPerformanceStatus;BrowserPerformanceInsightSeverity;BrowserPerformanceFinalGateDecision;BrowserPerformanceContract;BrowserPerformanceRequest;BrowserPerformanceMetrics;BrowserPerformanceInsight;BrowserPerformanceReceipt;BrowserPerformanceFinalGateCertificate;BrowserPerformanceResult;BrowserPerformanceFinalGate;BrowserPerformanceLighthouseOrganV1",
+      "top_level_functions": "render_browser_performance_receipt_as_untrusted_context;_validate_request;_metrics;_insights;_insight;_score;_safe_trace_event_hash;_has_raw_trace_payload;_float_or_none;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_preparation_organ_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 1102,
+      "classes": "BrowserPreparationActionClass;BrowserPreparationAttemptStatus;BrowserPreparationFinalGateStatus;BrowserPreparationFinalGateDecision;BrowserPreparationFinalGateReason;L4BrowserPreparationExecutorContract;BrowserPreparationSafetyValidationResult;BrowserPreparationTargetRef;BrowserPreparationStep;BrowserPreparationRequest;BrowserPreparationReceipt;BrowserPreparationResult",
+      "top_level_functions": "utc_now;validate_browser_preparation_payload;_browser_forbidden_surface_paths;render_browser_preparation_receipt_as_untrusted_context;_coerce_request;_preflight_block_reason;_lane_block_reason;_blocked_result;_make_receipt;_finalgate_result;_source_hashes;_unbound_target_refs",
+      "flags": "receipt;finalgate;authority;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_readonly_organ_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 1221,
+      "classes": "_BrowserReadOnlyFetchTimeout;BrowserReadOnlyAttemptStatus;BrowserReadOnlyFinalGateStatus;BrowserReadOnlyFinalGateDecision;BrowserReadOnlyFinalGateReason;L4BrowserReadOnlyExecutorContract;BrowserReadOnlySafetyValidationResult;BrowserReadOnlyRequest;BrowserReadOnlyReceipt;BrowserReadOnlyResult;BrowserReadOnlyFinalGateCertificate;BrowserReadOnlyFinalGateResult",
+      "top_level_functions": "utc_now;validate_browser_readonly_payload;_browser_forbidden_surface_paths;render_browser_readonly_receipt_as_untrusted_context;_coerce_request;_readonly_contract;_readonly_lane;_preflight_block_reason;_lane_block_reason;_blocked_result;_make_receipt;_finalgate_result",
+      "flags": "receipt;finalgate;authority;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_semantic_extraction_organ_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 1017,
+      "classes": "BrowserSemanticExtractionAttemptStatus;BrowserSemanticEvidenceClaimStatus;BrowserSemanticExtractionFinalGateStatus;BrowserSemanticExtractionFinalGateDecision;BrowserSemanticExtractionFinalGateReason;L4BrowserSemanticExtractionContract;BrowserSemanticExtractionSafetyValidationResult;BrowserSemanticEvidenceCard;BrowserSemanticExtractionRequest;BrowserSemanticExtractionReceipt;BrowserSemanticExtractionResult;BrowserSemanticExtractionFinalGateCertificate",
+      "top_level_functions": "utc_now;validate_browser_semantic_extraction_payload;render_browser_semantic_extraction_receipt_as_untrusted_context;_coerce_request;_preflight_block_reason;_build_evidence_cards;_candidate_snippets;_semantic_label;_semantic_source_confidence;_evidence_bound_claims;_blocked_result;_make_receipt",
+      "flags": "receipt;finalgate;authority;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_session_manager_l5_live.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 1283,
+      "classes": "BrowserSessionActionKind;BrowserSessionStatus;BrowserSessionFinalGateDecision;BrowserSessionContract;BrowserSessionRequest;BrowserSessionSafetyValidationResult;BrowserSessionReceipt;BrowserSessionResult;BrowserSessionFinalGateCertificate;BrowserSessionFinalGate;_LiveBrowserSession;BrowserSessionSanitizer",
+      "top_level_functions": "render_browser_session_receipt_as_untrusted_context;_backend_for_engine;_goto_session_document;_coerce_request;_action_value;_looks_credential_bearing;_sha256_file;_safe_file_name",
+      "flags": "cloak;playwright;receipt;finalgate;authority",
+      "cut_decision": "WIRE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_trajectory_planner_l5.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 465,
+      "classes": "BrowserTrajectoryActionKind;BrowserTrajectoryStatus;BrowserTrajectoryContract;BrowserTrajectoryRequest;BrowserTrajectoryPlanStep;BrowserTrajectoryPlan;BrowserTrajectoryReceipt;BrowserTrajectorySafetyValidationResult;BrowserTrajectoryResult;BrowserTrajectoryPlannerL5",
+      "top_level_functions": "render_browser_trajectory_receipt_as_untrusted_context;_rank_steps;_build_plan;_role_compatible;_tokens;_coerce_request;_action_value",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_visual_grounding_ocr_v1.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 487,
+      "classes": "BrowserVisualGroundingStatus;BrowserVisualGroundingFinalGateDecision;BrowserVisualGroundingContract;BrowserVisualGroundingRequest;BrowserVisualGroundingBox;BrowserVisualGroundingTarget;BrowserVisualGroundingReceipt;BrowserVisualGroundingFinalGateCertificate;BrowserVisualGroundingResult;BrowserVisualGroundingFinalGate;BrowserVisualGroundingOrganV1",
+      "top_level_functions": "render_browser_visual_grounding_receipt_as_untrusted_context;browser_visual_grounding_request_from_live_session;_validate_grounding_request;_target_from_detection;_hostname",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 1839,
+      "classes": "OrganDispatchStatus;OrganDispatchCandidateStatus;OrganDispatchCandidateResult;OrganDispatchTrace;OrganDispatchResult;OrganDispatcher",
+      "top_level_functions": "utc_now;_build_typed_sub_request;_build_l2_request;_build_l3_request;_build_browser_readonly_request;_build_browser_preparation_request;_build_browser_semantic_extraction_request;_build_browser_session_request;_browser_session_action_kind;_browser_session_allowed_action_kinds;_build_browser_form_submit_request;_latest_browser_session_id",
+      "flags": "receipt;finalgate;authority;fallback",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/proposal_bridge.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 639,
+      "classes": "OrganProposalBridgeStatus;OrganProposalKind;OrganCandidateStatus;OrganCandidateRiskClass;OrganCandidateAuthorityClass;OrganProposalSafetyValidationResult;BaseOrganCandidate;BrowserOrganCandidate;ApiOrganCandidate;ChannelDraftOrganCandidate;FileOperationOrganCandidate;CodePatchOrganCandidate",
+      "top_level_functions": "utc_now;render_organ_candidates_as_untrusted_context;validate_organ_proposal_payload;_proposal_safety_payload;_result;_candidate_from_proposal;_proposal_specific_rejection;_proposals;_model_contract_refs;_brain_trace_id;_risk_flags;_missing_evidence",
+      "flags": "receipt;authority;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py",
+      "layer": "agent_organs",
+      "area": "browser",
+      "lines": 2438,
+      "classes": "OrganRuntimeExecutionMode;OrganRuntimeExecutionStatus;OrganRuntimeExecutionConfig;OrganRuntimeExecutionSafetyValidationResult;OrganRuntimeExecutionRequest;OrganRuntimeExecutionTrace;OrganRuntimeExecutionResult",
+      "top_level_functions": "utc_now;close_browser_runtime_sessions_for_config;execute_organ_runtime_request;validate_organ_runtime_execution_payload;_runtime_safety_payload;render_organ_runtime_execution_result_as_untrusted_context;_execute_l2;_execute_l3;_execute_browser_readonly;_execute_browser_preparation;_execute_browser_semantic_extraction;_execute_browser_session_manager",
+      "flags": "playwright;receipt;finalgate;authority;fallback",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/browser_action_candidates.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 167,
+      "classes": "BrowserActionExtractionError;BrowserActionExtractionResult",
+      "top_level_functions": "extract_browser_action_envelope;_base_diagnostics;_non_metadata_keys;_action_payload;_capability_and_operation;_normalize_action;_recommended_next_action;_string_or_none",
+      "flags": "",
+      "cut_decision": "MERGE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/browser_control_models.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 256,
+      "classes": "BrowserElementSnapshot;BrowserObservationReceipt;BrowserActionReceipt;BrowserAssertionReceipt;BrowserFinalCertificate",
+      "top_level_functions": "_assert_data_only;_safe_browser_ref",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/browser_control_replay.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 80,
+      "classes": "BrowserControlReplayView",
+      "top_level_functions": "_artifact_counts;_artifact_hashes;_latest_browser_state_hash",
+      "flags": "receipt;finalgate;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/browser_control_runtime.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 426,
+      "classes": "BrowserControlRuntimeError;BrowserFixtureElement;BrowserFixtureState;BrowserControlRuntime",
+      "top_level_functions": "_param_ref;_reject_sensitive_text",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "HIDE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/browser_decision_frame.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 153,
+      "classes": "BrowserDecisionFrame;BrowserDecisionFrameCompiler",
+      "top_level_functions": "_browser_actions;_candidate_actions;_recommended_next_actions;_examples",
+      "flags": "receipt",
+      "cut_decision": "MERGE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/browser_world_model.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 359,
+      "classes": "BrowserStableRefCard;BrowserActionCandidateCard;BrowserLinkCandidateCard;BrowserExtractionCard;ProductCandidateCard;BrowserSearchResultCard;BrowserWorldModel;BrowserWorldModelBuilder",
+      "top_level_functions": "_stable_ref;_element_text;_safe_title;_clip;_contains_sensitive_marker;_is_search_like;_snippets;_is_browser_research_snippet;_candidate_cards;_card_from_text;_extract_title;_first_match",
+      "flags": "",
+      "cut_decision": "MERGE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/browser_world_model_replay.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 52,
+      "classes": "BrowserWorldModelReplayView",
+      "top_level_functions": "_artifact_counts;_artifact_hashes",
+      "flags": "replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_models.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 322,
+      "classes": "RealBrowserElementSnapshot;RealBrowserOpenReceipt;RealBrowserObservationReceipt;RealBrowserActionReceipt;RealBrowserAssertionReceipt;RealBrowserFinalCertificate",
+      "top_level_functions": "_assert_data_only;_safe_browser_ref;_safe_preview",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_replay.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 90,
+      "classes": "RealBrowserControlReplayView",
+      "top_level_functions": "_artifact_counts;_artifact_hashes;_latest_browser_state_hash",
+      "flags": "receipt;finalgate;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py",
+      "layer": "operator_power_runtime",
+      "area": "browser",
+      "lines": 1091,
+      "classes": "RealBrowserControlRuntimeError;RealBrowserEngineElement;RealBrowserEngineSnapshot;RealBrowserEngine;InMemoryRealBrowserEngine;RealBrowserControlRuntime;PlaywrightRealBrowserEngine",
+      "top_level_functions": "build_playwright_real_browser_engine_from_env;_snapshot_element;_param_ref;_reject_sensitive_text;_authority_available_actions;_nth_selector",
+      "flags": "playwright;receipt;finalgate;authority",
+      "cut_decision": "MERGE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/__init__.py",
+      "layer": "organs_core",
+      "area": "browser",
+      "lines": 483,
+      "classes": "",
+      "top_level_functions": "",
+      "flags": "receipt;finalgate;authority;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/__init__.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 95,
+      "classes": "",
+      "top_level_functions": "",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/accessibility_snapshot.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 216,
+      "classes": "BrowserAccessibilitySnapshotBuilder;_RoleCandidate;_OpenElement;_RoleHtmlParser",
+      "top_level_functions": "_role_for;_name_hint;_collapse",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/advanced_pool.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 252,
+      "classes": "BrowserPublicPoolInstanceStatus;BrowserAdvancedPoolLeaseStatus;BrowserPublicPoolInstance;BrowserAdvancedPoolLease;BrowserAdvancedPoolResult;BrowserPublicPoolManager",
+      "top_level_functions": "",
+      "flags": "playwright",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/cdp_ax.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 178,
+      "classes": "BrowserCdpAxNode;BrowserCdpAxTree;BrowserCdpAxCaptureResult;BrowserCdpAccessibilityAdapter",
+      "top_level_functions": "hash_cdp_ax_tree_payload;verify_cdp_ax_tree_hash;_normalize_ax_node;_ax_value;_ax_optional",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/cloak_backend.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 307,
+      "classes": "BrowserSessionEngineError;BrowserEngineSession;BrowserSessionBackend;CloakBrowserSessionBackend;PlaywrightSessionBackend;_PlaywrightOwner",
+      "top_level_functions": "_install_fixture_route;_install_context_fixture_route;_install_metadata_listeners;_route_request;_goto_document;_same_origin;_stable_text_hash",
+      "flags": "cloak;playwright;fallback",
+      "cut_decision": "WIRE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/compliance_gate.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 37,
+      "classes": "BrowserComplianceDecision;BrowserComplianceGate",
+      "top_level_functions": "",
+      "flags": "authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/contract.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 96,
+      "classes": "",
+      "top_level_functions": "build_browser_organ_contract",
+      "flags": "cloak;receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/controlled_runner.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 872,
+      "classes": "BrowserControlledCapabilityRunner",
+      "top_level_functions": "_authority_bool_error;parse_browser_authority_bool_arg;parse_browser_evidence_bool_arg",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/detection_bench.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 34,
+      "classes": "BrowserDetectionBenchCase;BrowserDetectionBenchReport;BrowserDetectionBench",
+      "top_level_functions": "",
+      "flags": "authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/dom_snapshot.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 183,
+      "classes": "BrowserDomSnapshotNode;BrowserDomSnapshot;BrowserDomSnapshotCaptureResult;BrowserDomSnapshotAdapter",
+      "top_level_functions": "hash_dom_snapshot_payload;verify_dom_snapshot_hash;_normalize_dom_node;_role_for_tag;_optional",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/download_quarantine.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 456,
+      "classes": "BrowserDownloadQuarantineRequest;BrowserDownloadBackendResult;BrowserDownloadQuarantineReceipt;BrowserDownloadQuarantineResult;BrowserDownloadQuarantineExecutor",
+      "top_level_functions": "_validate_download_request;_mime_type_allowed;_normalized_quarantine_subdir;_filename_from_url;_safe_filename;_same_origin;_normalize_origin",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/evidence_adapter.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 556,
+      "classes": "BrowserFetchError;BrowserEvidenceAdapter",
+      "top_level_functions": "_summary;_detect_prompt_injection;_source_confidence;_callable_accepts_decision;_header_value;_mime_type_allowed;_connection_proof_error",
+      "flags": "receipt;fallback",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/extraction.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 252,
+      "classes": "BrowserExtractionStrategy;ReadablePageExtraction;ReadablePageExtractor;_ReadableHtmlParser",
+      "top_level_functions": "_build_extraction;_json_values;_strip_tags;_collapse_text;_word_count",
+      "flags": "fallback",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/final_gate.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 1964,
+      "classes": "BrowserOrganChecksModule",
+      "top_level_functions": "_enum_value;_list_len;_accepted_compiled_event_ids;_artifact_events_by_id;_check_basic_v3_event;_check_artifact_pair;_check_no_credential_payload;_browser_lifecycle_check_url_policy;_browser_v25_boundary_errors;_check_browser_capability_receipts;_check_browser_interaction_dry_run_contract;_check_browser_interaction_execution_contract",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "MERGE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/fingerprint_risk.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 27,
+      "classes": "BrowserFingerprintRiskProfile",
+      "top_level_functions": "",
+      "flags": "authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/form_submit.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 458,
+      "classes": "BrowserFormSubmitRequest;BrowserFormSubmitBackendResult;BrowserFormSubmitReceipt;BrowserFormSubmitResult;BrowserFormSubmitExecutor",
+      "top_level_functions": "_validate_form_submit_request;_same_origin;_normalize_origin;_safe_url_hash;_collapse",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/interaction_dry_run.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 264,
+      "classes": "BrowserInteractionDryRunPlanner",
+      "top_level_functions": "_jsonable;hash_browser_interaction_plan_payload;verify_browser_interaction_plan_hash;_impact_for_intent;_compact_error;_contains_forbidden_intent_token",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/interaction_execution.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 421,
+      "classes": "BrowserLimitedInteractionExecutor",
+      "top_level_functions": "_validate_execution_request;_contains_forbidden_execution_token;_same_origin;_normalize_origin;_collapse",
+      "flags": "receipt",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/live_fetch.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 248,
+      "classes": "ReadOnlyHttpFetcher;_PinnedHttpsConnection",
+      "top_level_functions": "_charset_from_content_type",
+      "flags": "receipt",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/misuse_classifier.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 55,
+      "classes": "BrowserMisuseDecision;BrowserMisuseClassifier",
+      "top_level_functions": "",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/models.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 718,
+      "classes": "PublicUrlDecisionStatus;PublicUrlPolicy;PublicUrlDecision;BrowserEvidenceFetchRequest;BrowserConnectionProof;BrowserEvidenceFetchReceipt;BrowserEvidenceAdapterStatus;BrowserFetchedPage;BrowserEvidenceAdapterResult;BrowserSnapshotStatus;BrowserRenderedSnapshotRequest;BrowserRoleRef",
+      "top_level_functions": "",
+      "flags": "playwright;receipt",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/multitab_operator.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 157,
+      "classes": "BrowserPublicTabPlan;BrowserMultitabStrategyResult;BrowserPublicMultitabOperator",
+      "top_level_functions": "",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/navigation_l6.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 971,
+      "classes": "BrowserRiskRoute;BrowserRiskDecision;BrowserNavigationAuthority;BrowserNavigationBudget;BrowserNavigationTimeoutPolicy;BrowserNavigationKillSwitch;BrowserSchemeClassifier;BrowserRiskRouter;BrowserQuarantineSandboxPolicy;BrowserSandboxNetworkPolicy;BrowserSandboxArtifactStore;BrowserSandboxEscapeGuard",
+      "top_level_functions": "_stable_hash;_hash_text;_normalize_host;_normalize_url;_host_is_local_or_private;_domain_matches;_domain_is_allowlisted",
+      "flags": "cloak;receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/observability.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 98,
+      "classes": "",
+      "top_level_functions": "build_browser_network_ledger;minimal_browser_network_ledger;_jsonable;hash_browser_network_ledger_payload;verify_browser_network_ledger_hash",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/operator_runtime.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 626,
+      "classes": "BrowserOperatorRuntimeStatus;BrowserOperatorRouteResult;BrowserOperatorRouteProtocol;BrowserOperatorRuntimeRoute",
+      "top_level_functions": "_call_with_arguments;_hash_payload",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/pdf.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 27,
+      "classes": "",
+      "top_level_functions": "pdf_metadata;_page_count_estimate",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/playwright_interaction_backend.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 190,
+      "classes": "PlaywrightLimitedInteractionBackend;_RenderedHtmlParser",
+      "top_level_functions": "_same_origin",
+      "flags": "playwright",
+      "cut_decision": "HIDE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/playwright_renderer.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 276,
+      "classes": "PlaywrightReadOnlyRenderer;_RenderedHtmlParser",
+      "top_level_functions": "_response_content_type;_console_location",
+      "flags": "playwright;authority",
+      "cut_decision": "HIDE"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/power_governor.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 173,
+      "classes": "BrowserPowerLevel;BrowserPowerRequest;BrowserPowerDecision;BrowserPowerGovernor",
+      "top_level_functions": "",
+      "flags": "finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/public_lifecycle.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 556,
+      "classes": "BrowserPublicLifecycleController",
+      "top_level_functions": "",
+      "flags": "receipt",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/receipt_wrapper.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 208,
+      "classes": "",
+      "top_level_functions": "_legacy_receipt_uri;_legacy_receipt_summary;wrap_browser_execution_receipt",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/receipts.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 82,
+      "classes": "BrowserActionPlanReceipt",
+      "top_level_functions": "_hash",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/reliability_profile.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 22,
+      "classes": "BrowserReliabilityProfile",
+      "top_level_functions": "",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/rendered_snapshot.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 639,
+      "classes": "BrowserRenderError;BrowserRenderedSnapshotAdapter",
+      "top_level_functions": "_collapse;_detect_prompt_injection;_extract_citations;_safe_ref_filename",
+      "flags": "receipt",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/screenshot.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 118,
+      "classes": "BrowserScreenshotNormalizationError",
+      "top_level_functions": "screenshot_metadata;normalize_browser_screenshot;_needs_normalization;_blocking_warnings;_content_type;_image_dimensions;_jpeg_dimensions",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/session_policy.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 23,
+      "classes": "BrowserSessionContinuityPolicy",
+      "top_level_functions": "",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/supervisor.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 550,
+      "classes": "BrowserOperationError;BrowserReliabilitySupervisor",
+      "top_level_functions": "_boundary_errors;_coerce_health_probe;_operation_failure_reason",
+      "flags": "playwright;receipt",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/ui_observation.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 302,
+      "classes": "BrowserUIObservationSource;BrowserUIObservationStatus;BrowserBoundingBox;BrowserUIObservation;BrowserUIObservationSet;BrowserUIObservationBuilder",
+      "top_level_functions": "hash_ui_observation_payload;verify_ui_observation_hash;_optional_str;_optional_bool",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/upload_authorized.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 504,
+      "classes": "BrowserUploadAuthorizedRequest;BrowserUploadBackendResult;BrowserUploadAuthorizedReceipt;BrowserUploadAuthorizedResult;BrowserUploadAuthorizedExecutor",
+      "top_level_functions": "_validate_upload_request;_mime_type_allowed;_same_origin;_normalize_origin;_safe_url_hash;_collapse",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/v3_advanced_authorities.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 927,
+      "classes": "BrowserPrivateSessionRequest;BrowserPrivateSessionBackendResult;BrowserPrivateSessionReceipt;BrowserPrivateSessionResult;BrowserLoginAuthorityRequest;BrowserLoginBackendResult;BrowserLoginAuthorityReceipt;BrowserLoginAuthorityResult;BrowserCookieStorageContractRequest;BrowserCookieStorageBackendResult;BrowserCookieStorageContractReceipt;BrowserCookieStorageContractResult",
+      "top_level_functions": "_validate_common;_validate_plan_ref;_advanced_rejected;_append_advanced_event;_capture_receipt_artifact;_validate_private_session_backend_reality;_validate_login_backend_reality;_validate_cookie_storage_backend_reality;_validate_har_backend_reality;_domain_in_grant;_same_origin;_normalize_origin",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/v3_authority.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 102,
+      "classes": "BrowserV3AuthorityClass;BrowserV3AuthorityGrant;BrowserV3RequestModel;BrowserV3Receipt",
+      "top_level_functions": "parse_browser_v3_authority_grants;find_browser_v3_authority_grant;browser_v3_grant_allows_url",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/verifier.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 169,
+      "classes": "BrowserVerificationVerdict;BrowserVerificationResult;BrowserPostActionVerifier;BrowserLoopDetectionResult;BrowserLoopDetector",
+      "top_level_functions": "",
+      "flags": "receipt",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/visual_observation.py",
+      "layer": "organs_browser",
+      "area": "browser",
+      "lines": 162,
+      "classes": "BrowserVisualObservationKind;BrowserScreenshotRegion;BrowserVisualObservation;BrowserVisualObservationBuilder",
+      "top_level_functions": "hash_visual_observation_payload;verify_visual_observation_hash",
+      "flags": "",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/capability_frontier.py",
+      "layer": "organs_core",
+      "area": "browser",
+      "lines": 612,
+      "classes": "MaxSupportedAction;CurrentLimit;FailureMode;MissingRuntimeSurface;PromotionCandidate;RequiredNextAdapter;RequiredLLMIntegration;RiskLaneFit;OrganCapabilityFrontier;CapabilityFrontierReport;FrontierLimitReport;FrontierStressResult",
+      "top_level_functions": "_frontier;_captured_or_rejected;_captured_operational_failure;_trading_authority;_dummy_envelope",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/credentials/foundation.py",
+      "layer": "organs_credentials",
+      "area": "browser",
+      "lines": 708,
+      "classes": "MissionAuthorityGrantScope;MissionAuthorityGrantStatus;CredentialGrantScope;CredentialGrantStatus;CredentialAccessDecision;AuthorityCredentialSafetyValidationResult;MissionAuthorityGrant;CredentialGrant;CredentialAccessRequest;CredentialAccessProof;CredentialRevocation;CredentialAuditReceipt",
+      "top_level_functions": "utc_now;evaluate_credential_access;validate_authority_credential_payload;validate_credential_proof_for_finalgate;_audit_receipt;_scope_matches;_assert_no_authority_or_execution;_contains_grant_creation;_sanitize_for_hash;_stable_hash",
+      "flags": "receipt;finalgate;authority;replay",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/implementation_alignment.py",
+      "layer": "organs_core",
+      "area": "browser",
+      "lines": 449,
+      "classes": "AgentLabImplementationAlignmentEntry;AgentLabImplementationAlignmentMatrix;AgentLabImplementationAlignmentBuilder",
+      "top_level_functions": "_stable_id;_default_entries",
+      "flags": "cloak;receipt;finalgate;authority;fallback",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/real_world_gauntlet.py",
+      "layer": "organs_core",
+      "area": "browser",
+      "lines": 548,
+      "classes": "EnvCredentialGrant;RealityCredentialGrantStore;OrganRealWorldGauntletResult;RealWorldGauntletReport;ExistingOrganRealWorldGauntlet;ExistingOrganRealWorldGauntletRunner",
+      "top_level_functions": "_adaptive_envelope_from_ledger;_trading_authority;_captured_rejection",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/reality_activation.py",
+      "layer": "organs_core",
+      "area": "browser",
+      "lines": 426,
+      "classes": "RealityActivationReceipt;_TextAndLinksParser;BrowserRealityReadResult;RealityBrowserReader;ExternalAPIRealityClient;StoredChannelDraft;LocalChannelDraftStore;ResolvedCredential;EnvCredentialRefResolver;DesktopWorkspaceOperator;CapitalRealityAssessment;CapitalRealityIntegrator",
+      "top_level_functions": "_hash;_is_within_root",
+      "flags": "receipt;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/runtime_promotion.py",
+      "layer": "organs_core",
+      "area": "browser",
+      "lines": 251,
+      "classes": "RuntimePromotionCandidate;RuntimePromotionPlan;ExistingOrgansRuntimePromotionPlanner",
+      "top_level_functions": "_candidate",
+      "flags": "receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/vendor_harvest.py",
+      "layer": "organs_core",
+      "area": "browser",
+      "lines": 370,
+      "classes": "HarvestSourceKind;HarvestPowerFamily;HarvestCandidateStatus;AgentLabHarvestSource;OrganHarvestCandidate;AgentLabOrganHarvestMatrix;AgentLabOrganHarvestClassifier",
+      "top_level_functions": "_stable_id;_default_sources",
+      "flags": "cloak;receipt;finalgate;authority",
+      "cut_decision": "KEEP"
+    }
+  ]
+}

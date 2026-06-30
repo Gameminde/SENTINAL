@@ -1,0 +1,918 @@
+{
+  "generated_at_utc": "2026-06-30T07:05:22.936892+00:00",
+  "py_file_count": 823,
+  "parsed_modules": 823,
+  "parse_errors": [],
+  "total_python_lines": 266056,
+  "total_classes": 2625,
+  "total_functions": 10408,
+  "internal_import_edges": 4059,
+  "top_import_targets": [
+    [
+      "sentinel.shared.models",
+      310
+    ],
+    [
+      "sentinel.mission.models",
+      180
+    ],
+    [
+      "sentinel.shared.enums",
+      164
+    ],
+    [
+      "sentinel.agent.model_execution.redaction",
+      148
+    ],
+    [
+      "sentinel.agent",
+      86
+    ],
+    [
+      "sentinel.shared.events",
+      85
+    ],
+    [
+      "sentinel.operator.models",
+      82
+    ],
+    [
+      "sentinel.mission",
+      69
+    ],
+    [
+      "sentinel.operator.kernel",
+      64
+    ],
+    [
+      "sentinel.operator.redaction",
+      46
+    ],
+    [
+      "sentinel.agent.organs.browser_session_manager_l5_live",
+      42
+    ],
+    [
+      "sentinel.agent.model_contract",
+      42
+    ],
+    [
+      "sentinel.agent.models",
+      40
+    ],
+    [
+      "sentinel.agent.events",
+      40
+    ],
+    [
+      "sentinel.shared.safety_scanner",
+      40
+    ],
+    [
+      "sentinel.agent.organs.safety_scanner",
+      38
+    ],
+    [
+      "sentinel.agent.event_bus",
+      38
+    ],
+    [
+      "sentinel.agent.phases",
+      36
+    ],
+    [
+      "sentinel.organs.browser.models",
+      36
+    ],
+    [
+      "sentinel.operator.safety",
+      35
+    ],
+    [
+      "sentinel.power.runtime",
+      35
+    ],
+    [
+      "sentinel.agent.llm",
+      34
+    ],
+    [
+      "sentinel.agent.organs.delegated_action_gate",
+      32
+    ],
+    [
+      "sentinel.agent.model_cost",
+      31
+    ],
+    [
+      "sentinel.agent.browser.neural",
+      31
+    ],
+    [
+      "sentinel.agent.organs.proposal_bridge",
+      31
+    ],
+    [
+      "sentinel.agent.runtime",
+      30
+    ],
+    [
+      "sentinel.agent.browser",
+      30
+    ],
+    [
+      "sentinel.agent.llm.proposals",
+      27
+    ],
+    [
+      "sentinel.agent.final_gate",
+      27
+    ],
+    [
+      "sentinel.telemetry",
+      25
+    ],
+    [
+      "sentinel.agent.model_execution.models",
+      25
+    ],
+    [
+      "sentinel.agent.organs.runtime_execution",
+      23
+    ],
+    [
+      "sentinel.operator.store",
+      22
+    ],
+    [
+      "sentinel.organs",
+      22
+    ],
+    [
+      "sentinel.agent.evidence_ranker",
+      19
+    ],
+    [
+      "sentinel.agent.organs.reversible_workspace_executor",
+      19
+    ],
+    [
+      "sentinel.agent.browser.neural.models",
+      17
+    ],
+    [
+      "sentinel.agent.llm.memory_bridge",
+      16
+    ],
+    [
+      "sentinel.organs.authority",
+      16
+    ]
+  ],
+  "top_cluster_edges": [
+    {
+      "from": "sentinel.agent.organs",
+      "to": "sentinel.agent.organs",
+      "count": 116
+    },
+    {
+      "from": "sentinel.organs.browser",
+      "to": "sentinel.organs.browser",
+      "count": 98
+    },
+    {
+      "from": "sentinel.agent.browser",
+      "to": "sentinel.agent.browser",
+      "count": 93
+    },
+    {
+      "from": "sentinel.agent.model_execution",
+      "to": "sentinel.agent.model_execution",
+      "count": 50
+    },
+    {
+      "from": "sentinel.agent.browser",
+      "to": "sentinel.organs.browser",
+      "count": 40
+    },
+    {
+      "from": "sentinel.agent.organs",
+      "to": "sentinel.shared.models",
+      "count": 34
+    },
+    {
+      "from": "sentinel.agent.organs",
+      "to": "sentinel.agent.model_execution",
+      "count": 31
+    },
+    {
+      "from": "sentinel.organs.browser",
+      "to": "sentinel.shared.models",
+      "count": 26
+    },
+    {
+      "from": "sentinel.organs.desktop",
+      "to": "sentinel.organs.desktop",
+      "count": 24
+    },
+    {
+      "from": "sentinel.agent.organs",
+      "to": "sentinel.mission.models",
+      "count": 23
+    },
+    {
+      "from": "sentinel.agent.organs",
+      "to": "sentinel.agent.llm",
+      "count": 23
+    },
+    {
+      "from": "sentinel.organs.browser",
+      "to": "sentinel.shared.events",
+      "count": 22
+    },
+    {
+      "from": "sentinel.agent.llm",
+      "to": "sentinel.agent.llm",
+      "count": 21
+    },
+    {
+      "from": "tests.test_browser_neural_audit_remediation_lock",
+      "to": "sentinel.agent.organs",
+      "count": 20
+    },
+    {
+      "from": "tests.perf.caches",
+      "to": "sentinel.perf.caches",
+      "count": 18
+    },
+    {
+      "from": "sentinel.organs.channels",
+      "to": "sentinel.organs.channels",
+      "count": 16
+    },
+    {
+      "from": "tests.test_browser_operating_subsystem_hardened_live_backend_lock",
+      "to": "sentinel.agent.organs",
+      "count": 16
+    },
+    {
+      "from": "sentinel.organs.external_api",
+      "to": "sentinel.organs.external_api",
+      "count": 15
+    },
+    {
+      "from": "tests.test_browser_neural_safety_invariants_audit_lock",
+      "to": "sentinel.agent.browser",
+      "count": 15
+    },
+    {
+      "from": "sentinel.agent.browser",
+      "to": "sentinel.shared.models",
+      "count": 14
+    },
+    {
+      "from": "tests.test_account_creation_login_special_authority_v1",
+      "to": "sentinel.operator.account_authority",
+      "count": 14
+    },
+    {
+      "from": "tests.test_organ_safety_scanner_consolidation",
+      "to": "sentinel.agent.organs",
+      "count": 14
+    },
+    {
+      "from": "sentinel.organs.credentials",
+      "to": "sentinel.organs.credentials",
+      "count": 13
+    },
+    {
+      "from": "sentinel.agent.organs",
+      "to": "sentinel.organs.browser",
+      "count": 13
+    },
+    {
+      "from": "sentinel.organs.desktop",
+      "to": "sentinel.shared.models",
+      "count": 12
+    },
+    {
+      "from": "tests.test_browser_neural_cortex_v0a_signal_graph",
+      "to": "sentinel.agent.browser",
+      "count": 12
+    },
+    {
+      "from": "tests.test_browser_runtime_unification_l6_login_file_js_dispatch_lock",
+      "to": "sentinel.agent.organs",
+      "count": 12
+    },
+    {
+      "from": "tests.perf.sched",
+      "to": "sentinel.perf.sched",
+      "count": 12
+    },
+    {
+      "from": "tests.perf.bench",
+      "to": "sentinel.perf.bench",
+      "count": 11
+    },
+    {
+      "from": "sentinel.agent.llm",
+      "to": "sentinel.shared.models",
+      "count": 10
+    },
+    {
+      "from": "tests.test_browser_download_upload_quarantine_l6",
+      "to": "sentinel.agent.organs",
+      "count": 10
+    },
+    {
+      "from": "tests.test_browser_neural_cortex_v0b_motor_proposal",
+      "to": "sentinel.agent.browser",
+      "count": 10
+    },
+    {
+      "from": "tests.test_browser_runtime_failure_and_concurrency_hardening_lock",
+      "to": "sentinel.agent.organs",
+      "count": 10
+    },
+    {
+      "from": "tests.test_browser_runtime_unification_l5_l6_dispatch_lock",
+      "to": "sentinel.agent.organs",
+      "count": 10
+    },
+    {
+      "from": "tests.test_external_api_read_write_organ_v1",
+      "to": "sentinel.agent.organs",
+      "count": 10
+    },
+    {
+      "from": "tests.test_payment_spend_trading_special_authority_v1",
+      "to": "sentinel.operator.financial_authority",
+      "count": 10
+    },
+    {
+      "from": "tests.test_sentinel_power_runtime_v0",
+      "to": "sentinel.power.runtime",
+      "count": 10
+    },
+    {
+      "from": "tests.test_account_creation_login_special_authority_v1",
+      "to": "sentinel.operator.account_authority_models",
+      "count": 9
+    },
+    {
+      "from": "tests.test_browser_multi_agent_operator_squad_lock",
+      "to": "sentinel.agent.browser",
+      "count": 9
+    },
+    {
+      "from": "tests.test_browser_session_manager_l5_live",
+      "to": "sentinel.agent.organs",
+      "count": 9
+    },
+    {
+      "from": "tests.test_sandbox_shell_code_organ_v1",
+      "to": "sentinel.agent.organs",
+      "count": 9
+    },
+    {
+      "from": "sentinel.organs.browser",
+      "to": "sentinel.agent.artifact_capture",
+      "count": 8
+    },
+    {
+      "from": "sentinel.agent.llm",
+      "to": "sentinel.agent.model_execution",
+      "count": 8
+    },
+    {
+      "from": "sentinel.agent.model_execution",
+      "to": "sentinel.shared.models",
+      "count": 8
+    },
+    {
+      "from": "tests.test_audit_remediation_batch_lock",
+      "to": "sentinel.agent.organs",
+      "count": 8
+    },
+    {
+      "from": "tests.test_browser_controlled_extension_webmcp_bridge_l7",
+      "to": "sentinel.agent.organs",
+      "count": 8
+    },
+    {
+      "from": "tests.test_browser_login_credential_session_broker_l6",
+      "to": "sentinel.agent.organs",
+      "count": 8
+    },
+    {
+      "from": "tests.test_channel_draft_send_organ_v1",
+      "to": "sentinel.agent.organs",
+      "count": 8
+    },
+    {
+      "from": "tests.perf.hot_cold",
+      "to": "sentinel.perf.hot_cold",
+      "count": 8
+    },
+    {
+      "from": "tests.perf.measure",
+      "to": "sentinel.perf.measure",
+      "count": 8
+    }
+  ],
+  "largest_modules": [
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_model_certification.py",
+      "module": "sentinel.operator.real_model_certification",
+      "lines": 4773,
+      "classes": 30,
+      "functions": 112
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/runtime.py",
+      "module": "sentinel.agent.runtime",
+      "lines": 3250,
+      "classes": 3,
+      "functions": 61
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/final_gate.py",
+      "module": "sentinel.agent.final_gate",
+      "lines": 3033,
+      "classes": 4,
+      "functions": 63
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py",
+      "module": "sentinel.agent.organs.runtime_execution",
+      "lines": 2438,
+      "classes": 7,
+      "functions": 82
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/read_only_operator_spine.py",
+      "module": "sentinel.operator.read_only_operator_spine",
+      "lines": 2266,
+      "classes": 19,
+      "functions": 109
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/final_gate.py",
+      "module": "sentinel.organs.browser.final_gate",
+      "lines": 1964,
+      "classes": 1,
+      "functions": 25
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py",
+      "module": "sentinel.telemetry.kernel",
+      "lines": 1883,
+      "classes": 2,
+      "functions": 51
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py",
+      "module": "sentinel.agent.organs.organ_dispatch",
+      "lines": 1839,
+      "classes": 6,
+      "functions": 49
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/interactive_exploration_read_only.py",
+      "module": "sentinel.operator.interactive_exploration_read_only",
+      "lines": 1717,
+      "classes": 10,
+      "functions": 45
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/operator/test_product_nervous_system_pack3.py",
+      "module": "tests.operator.test_product_nervous_system_pack3",
+      "lines": 1591,
+      "classes": 5,
+      "functions": 58
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/test_cli_runtime_host_product_wiring_pack1b.py",
+      "module": "tests.test_cli_runtime_host_product_wiring_pack1b",
+      "lines": 1526,
+      "classes": 5,
+      "functions": 48
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/self_exploration_read_only.py",
+      "module": "sentinel.operator.self_exploration_read_only",
+      "lines": 1521,
+      "classes": 16,
+      "functions": 71
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/test_real_model_read_only_operator_production_spine_v1.py",
+      "module": "tests.test_real_model_read_only_operator_production_spine_v1",
+      "lines": 1520,
+      "classes": 14,
+      "functions": 75
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+      "module": "sentinel.cli",
+      "lines": 1465,
+      "classes": 0,
+      "functions": 32
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/operator/test_agent_runtime_event_bridge_pack2a.py",
+      "module": "tests.operator.test_agent_runtime_event_bridge_pack2a",
+      "lines": 1410,
+      "classes": 12,
+      "functions": 68
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/reversible_workspace_executor.py",
+      "module": "sentinel.agent.organs.reversible_workspace_executor",
+      "lines": 1308,
+      "classes": 14,
+      "functions": 50
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_session_manager_l5_live.py",
+      "module": "sentinel.agent.organs.browser_session_manager_l5_live",
+      "lines": 1283,
+      "classes": 13,
+      "functions": 55
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/test_real_model_behavioral_predictive_harness_audit.py",
+      "module": "tests.test_real_model_behavioral_predictive_harness_audit",
+      "lines": 1278,
+      "classes": 6,
+      "functions": 49
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/perf/sched/test_scheduler_non_blocking_property.py",
+      "module": "tests.perf.sched.test_scheduler_non_blocking_property",
+      "lines": 1263,
+      "classes": 1,
+      "functions": 33
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_readonly_organ_v1.py",
+      "module": "sentinel.agent.organs.browser_readonly_organ_v1",
+      "lines": 1221,
+      "classes": 14,
+      "functions": 54
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/read_only_model_clients.py",
+      "module": "sentinel.operator.read_only_model_clients",
+      "lines": 1209,
+      "classes": 2,
+      "functions": 45
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/perf/workspace/test_workspace_delta_semantics.py",
+      "module": "tests.perf.workspace.test_workspace_delta_semantics",
+      "lines": 1171,
+      "classes": 0,
+      "functions": 53
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/llm/memory_replay.py",
+      "module": "sentinel.agent.llm.memory_replay",
+      "lines": 1159,
+      "classes": 15,
+      "functions": 42
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/llm/role_loop.py",
+      "module": "sentinel.agent.llm.role_loop",
+      "lines": 1159,
+      "classes": 12,
+      "functions": 36
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/test_durable_mission_workflow_replan_gauntlet_v1.py",
+      "module": "tests.test_durable_mission_workflow_replan_gauntlet_v1",
+      "lines": 1146,
+      "classes": 3,
+      "functions": 59
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/browser/v3_measured_supremacy.py",
+      "module": "sentinel.agent.browser.v3_measured_supremacy",
+      "lines": 1144,
+      "classes": 9,
+      "functions": 54
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/model_router.py",
+      "module": "sentinel.operator.model_router",
+      "lines": 1140,
+      "classes": 3,
+      "functions": 43
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_preparation_organ_v1.py",
+      "module": "sentinel.agent.organs.browser_preparation_organ_v1",
+      "lines": 1102,
+      "classes": 16,
+      "functions": 46
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py",
+      "module": "sentinel.operator.real_browser_control_runtime",
+      "lines": 1091,
+      "classes": 7,
+      "functions": 75
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/operator/test_read_only_research_decision_protocol_pack3_7.py",
+      "module": "tests.operator.test_read_only_research_decision_protocol_pack3_7",
+      "lines": 1072,
+      "classes": 3,
+      "functions": 38
+    }
+  ],
+  "longest_functions": [
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/runtime.py",
+      "module": "sentinel.agent.runtime",
+      "name": "run",
+      "line": 963,
+      "length": 1131
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_model_certification.py",
+      "module": "sentinel.operator.real_model_certification",
+      "name": "run_coding_task",
+      "line": 933,
+      "length": 650
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/controlled_runner.py",
+      "module": "sentinel.organs.browser.controlled_runner",
+      "name": "run",
+      "line": 114,
+      "length": 649
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/capabilities/fixtures/static_catalog.py",
+      "module": "sentinel.capabilities.fixtures.static_catalog",
+      "name": "load_static_fixture_manifests",
+      "line": 7,
+      "length": 597
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/rendered_snapshot.py",
+      "module": "sentinel.organs.browser.rendered_snapshot",
+      "name": "capture",
+      "line": 59,
+      "length": 471
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/connection_manifest_registry.py",
+      "module": "sentinel.operator.connection_manifest_registry",
+      "name": "_default_manifests",
+      "line": 149,
+      "length": 373
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/worker_fleet.py",
+      "module": "sentinel.operator.worker_fleet",
+      "name": "run",
+      "line": 59,
+      "length": 362
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/final_gate.py",
+      "module": "sentinel.agent.final_gate",
+      "name": "_browser_capability_receipts",
+      "line": 1087,
+      "length": 354
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/final_gate.py",
+      "module": "sentinel.organs.browser.final_gate",
+      "name": "_check_browser_capability_receipts",
+      "line": 224,
+      "length": 354
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/evidence_adapter.py",
+      "module": "sentinel.organs.browser.evidence_adapter",
+      "name": "collect",
+      "line": 55,
+      "length": 336
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_model_certification.py",
+      "module": "sentinel.operator.real_model_certification",
+      "name": "_run_governed_mutation_lane",
+      "line": 3272,
+      "length": 333
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/test_real_world_power_convergence_wave1.py",
+      "module": "tests.test_real_world_power_convergence_wave1",
+      "name": "test_wave1_controlled_live_browser_gauntlet_repeats_ten_times",
+      "line": 351,
+      "length": 322
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/upload_authorized.py",
+      "module": "sentinel.organs.browser.upload_authorized",
+      "name": "execute",
+      "line": 116,
+      "length": 286
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/implementation_alignment.py",
+      "module": "sentinel.organs.implementation_alignment",
+      "name": "_default_entries",
+      "line": 173,
+      "length": 276
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py",
+      "module": "sentinel.telemetry.kernel",
+      "name": "_map_mission_event_kind",
+      "line": 1340,
+      "length": 265
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/decision_context.py",
+      "module": "sentinel.operator.decision_context",
+      "name": "compile",
+      "line": 10,
+      "length": 263
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/form_submit.py",
+      "module": "sentinel.organs.browser.form_submit",
+      "name": "execute",
+      "line": 111,
+      "length": 261
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/interaction_execution.py",
+      "module": "sentinel.organs.browser.interaction_execution",
+      "name": "execute",
+      "line": 69,
+      "length": 254
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/model_execution/provider_profiles.py",
+      "module": "sentinel.agent.model_execution.provider_profiles",
+      "name": "_default_entries",
+      "line": 28,
+      "length": 251
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_model_certification.py",
+      "module": "sentinel.operator.real_model_certification",
+      "name": "_run_action_selector_lane",
+      "line": 3607,
+      "length": 238
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/download_quarantine.py",
+      "module": "sentinel.organs.browser.download_quarantine",
+      "name": "execute",
+      "line": 96,
+      "length": 232
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/operator_runtime.py",
+      "module": "sentinel.organs.browser.operator_runtime",
+      "name": "run",
+      "line": 95,
+      "length": 231
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/perf/sched/test_runtime_scheduler_wiring.py",
+      "module": "tests.perf.sched.test_runtime_scheduler_wiring",
+      "name": "test_runtime_kill_switch_blocks_in_both_modes",
+      "line": 362,
+      "length": 229
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_model_certification.py",
+      "module": "sentinel.operator.real_model_certification",
+      "name": "run_browser_task",
+      "line": 1584,
+      "length": 226
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/runtime.py",
+      "module": "sentinel.agent.runtime",
+      "name": "_route_local_tool_call_through_scheduler",
+      "line": 2288,
+      "length": 215
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/interactive_exploration_read_only.py",
+      "module": "sentinel.operator.interactive_exploration_read_only",
+      "name": "run",
+      "line": 1390,
+      "length": 209
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/final_gate.py",
+      "module": "sentinel.agent.final_gate",
+      "name": "_browser_public_lifecycle_contract",
+      "line": 1644,
+      "length": 208
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/final_gate.py",
+      "module": "sentinel.organs.browser.final_gate",
+      "name": "_check_browser_public_lifecycle_contract",
+      "line": 798,
+      "length": 208
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+      "module": "sentinel.cli",
+      "name": "_run_cockpit_command",
+      "line": 391,
+      "length": 207
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/llm/tool_intent_compiler.py",
+      "module": "sentinel.agent.llm.tool_intent_compiler",
+      "name": "compile",
+      "line": 93,
+      "length": 205
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/agent_bridge.py",
+      "module": "sentinel.operator.agent_bridge",
+      "name": "run",
+      "line": 65,
+      "length": 201
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py",
+      "module": "sentinel.agent.organs.organ_dispatch",
+      "name": "dispatch",
+      "line": 261,
+      "length": 197
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/runtime.py",
+      "module": "sentinel.agent.runtime",
+      "name": "_run_llm_backed_decision_cycle",
+      "line": 2596,
+      "length": 196
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/perf/sched/async_organ_scheduler.py",
+      "module": "sentinel.perf.sched.async_organ_scheduler",
+      "name": "_run_action_wrapper",
+      "line": 427,
+      "length": 196
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/power_lab.py",
+      "module": "sentinel.power_lab",
+      "name": "build_power_lab_runtime_config",
+      "line": 191,
+      "length": 195
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+      "module": "sentinel.cli",
+      "name": "build_parser",
+      "line": 64,
+      "length": 194
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/runtime.py",
+      "module": "sentinel.agent.runtime",
+      "name": "_execute_controlled_tool_calls",
+      "line": 2095,
+      "length": 192
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/self_exploration_read_only.py",
+      "module": "sentinel.operator.self_exploration_read_only",
+      "name": "run",
+      "line": 622,
+      "length": 186
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/workflow_runtime.py",
+      "module": "sentinel.operator.workflow_runtime",
+      "name": "_run_power_tick",
+      "line": 111,
+      "length": 185
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/read_only_operator_spine.py",
+      "module": "sentinel.operator.read_only_operator_spine",
+      "name": "run",
+      "line": 753,
+      "length": 182
+    }
+  ]
+}

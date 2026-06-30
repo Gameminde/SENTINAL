@@ -1,0 +1,10 @@
+connection,status,diagnosis,evidence,recommended_action
+cockpit_to_read_only,connected,CLI cockpit -> mission -> dispatcher -> read_only AgentRuntime -> receipts/finalgate/replay,Product route proven by 5Q/6A/6C and static refs,Keep as known-good spine
+product_to_patch_code_browser_channel,partially_connected,Power runtimes exist but default product dispatcher registers only read_only_research_adapter,runtime_host.py registers read_only_research_adapter only,Promote powers through unified product skill registry
+model_action_to_executor_alias,fragile,Model-visible aliases differ from capability ids,code_exec vs code_execution_sandbox; read_only.* vs bare read-only actions,Single canonical alias normalizer before context exposure
+browser_ref_to_playwright_locator,fragile,World model refs can become brittle nth selectors; direct locator fill/click timeouts,real_browser_control_runtime _nth_selector and type_text,Browser skill robust actuation with alternate refs and wait/scroll/focus recovery
+recoverable_failure_to_loop,broken,In-scope runtime errors become ActionKernelError and terminal block,ActionKernel catch-all and ModelLedTaskLoop block path,Return recoverable observations into DecisionContext
+proof_to_finish,overconstrained,Real browser proof lane forces assert_text after material budget,model_led_task_loop budget branches,Use mission-type proof policy: extraction cards/wait/assert all valid where appropriate
+world_model_to_decision_frame,partially_connected,World model exists but model still may not get an executable skill action,browser_world_model and browser_decision_frame not enough to guarantee actionability,Decision frame should be generated from executable actionability registry
+channel_delivery_to_finish,connected_after_fix,Telegram send -> delivery observation -> finish succeeded,Attempt 4B reports; channel finish fix,Use as pattern for browser: delivery/action observation should drive finish without approval spam
+replay_to_power_receipts,uneven,Read-only replay is stronger than new power replay views,read_only_operator_spine vs workspace/browser/code replay,Unify replay validators per receipt type

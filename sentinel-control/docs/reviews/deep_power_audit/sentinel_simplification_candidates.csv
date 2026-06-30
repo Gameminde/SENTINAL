@@ -1,0 +1,9 @@
+rank,candidate,scope,estimated_loc_change,risk,power_gain,why
+1,Unify browser stacks under one browser skill,real_browser_control + browser_control + browser_live_operator + browser organs,-1200 to -2500,High,Huge,Model gets one web skill; runtime hides Playwright and backend details
+2,Replace organ branch matrices with capability spec registry,organ_dispatch/runtime_execution gate branches,-900 to -1300,Medium-high,High,New organs become table entries instead of 8-10 branch edits
+3,Collapse duplicate browser FinalGate ownership,agent/final_gate.py and organs/browser/final_gate.py parity,-1400 to -1900,Medium,Medium,One browser proof owner accelerates browser iteration
+4,Shrink read-only audit scaffolding into evidence skill,read_only_operator_spine + interactive/self exploration,-2000 to -3200,Medium,High,"Read-only becomes a skill under broader power loop, not the whole product"
+5,Split real_model_certification monolith,real_model_certification.py,-800 to -1500 net after split,Medium,Medium,Certification becomes pluggable harness instead of 4773-line file
+6,Extract AgentRuntime.run phases,agent/runtime.py run 1131 lines,-300 to -900 net,High,Medium,Runtime becomes easier to extend without wedging power logic
+7,Deduplicate authority/receipt/finalgate primitives,financial/account/desktop/voice models,-1000 to -2000,Medium,Medium,New domains cheaper and less inconsistent
+8,Descriptor-driven telemetry events,telemetry/kernel.py wrappers,-600 to -950,Low-medium,Medium,"Receipts stay, boilerplate drops"

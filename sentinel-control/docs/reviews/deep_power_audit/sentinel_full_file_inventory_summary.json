@@ -1,0 +1,507 @@
+{
+  "generated_at_utc": "2026-06-30T07:04:05.980505+00:00",
+  "root": "C:\\Users\\youcefcheriet\\sentinal",
+  "file_count": 2213,
+  "total_bytes": 43237504,
+  "text_line_count": 564430,
+  "zones": [
+    [
+      "sentinel_docs",
+      660
+    ],
+    [
+      "sentinel_core_runtime",
+      528
+    ],
+    [
+      "reddit_pulse",
+      382
+    ],
+    [
+      "sentinel_core_tests",
+      296
+    ],
+    [
+      "agent_lab",
+      234
+    ],
+    [
+      "sentinel_control_other",
+      85
+    ],
+    [
+      "planning_docs",
+      19
+    ],
+    [
+      "agent_lab_vendors",
+      7
+    ],
+    [
+      "other",
+      2
+    ]
+  ],
+  "top_extensions": [
+    [
+      ".py",
+      910
+    ],
+    [
+      ".md",
+      872
+    ],
+    [
+      ".ts",
+      179
+    ],
+    [
+      ".tsx",
+      102
+    ],
+    [
+      ".json",
+      44
+    ],
+    [
+      ".jsonl",
+      33
+    ],
+    [
+      ".sql",
+      27
+    ],
+    [
+      ".png",
+      11
+    ],
+    [
+      ".svg",
+      5
+    ],
+    [
+      "",
+      4
+    ],
+    [
+      ".sh",
+      4
+    ],
+    [
+      ".mjs",
+      3
+    ],
+    [
+      ".css",
+      3
+    ],
+    [
+      ".ico",
+      2
+    ],
+    [
+      ".csv",
+      2
+    ],
+    [
+      ".txt",
+      2
+    ],
+    [
+      ".example",
+      2
+    ],
+    [
+      ".html",
+      2
+    ],
+    [
+      ".yml",
+      1
+    ],
+    [
+      ".mp4",
+      1
+    ],
+    [
+      ".service",
+      1
+    ],
+    [
+      ".timer",
+      1
+    ],
+    [
+      ".zip",
+      1
+    ],
+    [
+      ".toml",
+      1
+    ]
+  ],
+  "largest_files": [
+    {
+      "path": "agent-lab/source-snapshots/openclaw_git_tree.txt",
+      "zone": "agent_lab",
+      "bytes": 4409121,
+      "lines": 1
+    },
+    {
+      "path": "RedditPulse/app/public/videos/cueidea_glass_dome_glow.mp4",
+      "zone": "reddit_pulse",
+      "bytes": 3916972,
+      "lines": null
+    },
+    {
+      "path": "RedditPulse/docs/market-mobile-top.png",
+      "zone": "reddit_pulse",
+      "bytes": 2008154,
+      "lines": null
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_fluency_live_full_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 1897228,
+      "lines": 2160
+    },
+    {
+      "path": "RedditPulse/docs/market-live-rows.png",
+      "zone": "reddit_pulse",
+      "bytes": 1425471,
+      "lines": null
+    },
+    {
+      "path": "RedditPulse/docs/market-desktop-dock.png",
+      "zone": "reddit_pulse",
+      "bytes": 1346567,
+      "lines": null
+    },
+    {
+      "path": "RedditPulse/docs/market-live-top.png",
+      "zone": "reddit_pulse",
+      "bytes": 1202287,
+      "lines": null
+    },
+    {
+      "path": "RedditPulse/docs/market-live-full.png",
+      "zone": "reddit_pulse",
+      "bytes": 1186276,
+      "lines": null
+    },
+    {
+      "path": "sentinel-control/docs/reviews/deep_power_audit/sentinel_full_file_inventory.json",
+      "zone": "sentinel_docs",
+      "bytes": 770262,
+      "lines": 22102
+    },
+    {
+      "path": "RedditPulse/live_market.json",
+      "zone": "reddit_pulse",
+      "bytes": 582988,
+      "lines": 2
+    },
+    {
+      "path": "sentinel-control/docs/reviews/deep_power_audit/sentinel_full_file_inventory.csv",
+      "zone": "sentinel_docs",
+      "bytes": 427524,
+      "lines": 2211
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_operator_open_web_like_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 333921,
+      "lines": 300
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_fluency_live_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 323690,
+      "lines": 360
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_operator_live_long_horizon_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 317671,
+      "lines": 300
+    },
+    {
+      "path": "sentinel-control/docs/CURRENT_STATE_LOCK.md",
+      "zone": "sentinel_docs",
+      "bytes": 275547,
+      "lines": 6943
+    },
+    {
+      "path": "RedditPulse/validate_idea.py",
+      "zone": "reddit_pulse",
+      "bytes": 274355,
+      "lines": 5985
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_operator_long_horizon_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 259932,
+      "lines": 300
+    },
+    {
+      "path": "sentinel-control/docs/P_C_KEY_RUNTIME_CLOSURE_IMPLEMENTATION_LOG.md",
+      "zone": "sentinel_docs",
+      "bytes": 244595,
+      "lines": 1753
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_v3_action_routing_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 228883,
+      "lines": 300
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_model_certification.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 227685,
+      "lines": 4772
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_visual_engine_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 205916,
+      "lines": 180
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_operator_hardening_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 181913,
+      "lines": 240
+    },
+    {
+      "path": "RedditPulse/app/src/app/dashboard/StockMarket.tsx",
+      "zone": "reddit_pulse",
+      "bytes": 177955,
+      "lines": 3334
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/final_gate.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 174143,
+      "lines": 3032
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/runtime.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 160133,
+      "lines": 3249
+    },
+    {
+      "path": "RedditPulse/docs/market-explore-mobile-dock.png",
+      "zone": "reddit_pulse",
+      "bytes": 158548,
+      "lines": null
+    },
+    {
+      "path": "RedditPulse/app/package-lock.json",
+      "zone": "reddit_pulse",
+      "bytes": 152494,
+      "lines": 4359
+    },
+    {
+      "path": "RedditPulse/scraper_job.py",
+      "zone": "reddit_pulse",
+      "bytes": 144993,
+      "lines": 3494
+    },
+    {
+      "path": "RedditPulse/app/src/app/dashboard/reports/[id]/page.tsx",
+      "zone": "reddit_pulse",
+      "bytes": 144145,
+      "lines": 2130
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_operator_trial_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 131958,
+      "lines": 180
+    }
+  ],
+  "largest_text_files": [
+    {
+      "path": "sentinel-control/docs/reviews/deep_power_audit/sentinel_full_file_inventory.json",
+      "zone": "sentinel_docs",
+      "bytes": 770262,
+      "lines": 22102
+    },
+    {
+      "path": "sentinel-control/docs/CURRENT_STATE_LOCK.md",
+      "zone": "sentinel_docs",
+      "bytes": 275547,
+      "lines": 6943
+    },
+    {
+      "path": "RedditPulse/validate_idea.py",
+      "zone": "reddit_pulse",
+      "bytes": 274355,
+      "lines": 5985
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/real_model_certification.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 227685,
+      "lines": 4772
+    },
+    {
+      "path": "RedditPulse/app/package-lock.json",
+      "zone": "reddit_pulse",
+      "bytes": 152494,
+      "lines": 4359
+    },
+    {
+      "path": "agent-lab/audits/openclaw_scanner_report.json",
+      "zone": "agent_lab",
+      "bytes": 100064,
+      "lines": 3874
+    },
+    {
+      "path": "RedditPulse/scraper_job.py",
+      "zone": "reddit_pulse",
+      "bytes": 144993,
+      "lines": 3494
+    },
+    {
+      "path": "RedditPulse/app/src/app/dashboard/StockMarket.tsx",
+      "zone": "reddit_pulse",
+      "bytes": 177955,
+      "lines": 3334
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/runtime.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 160133,
+      "lines": 3249
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/final_gate.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 174143,
+      "lines": 3032
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/runtime_execution.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 102764,
+      "lines": 2437
+    },
+    {
+      "path": "RedditPulse/engine/multi_brain.py",
+      "zone": "reddit_pulse",
+      "bytes": 103110,
+      "lines": 2300
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/read_only_operator_spine.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 104071,
+      "lines": 2265
+    },
+    {
+      "path": "sentinel-control/docs/reviews/deep_power_audit/sentinel_full_file_inventory.csv",
+      "zone": "sentinel_docs",
+      "bytes": 427524,
+      "lines": 2211
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/reports/browser_fluency_live_full_results.jsonl",
+      "zone": "agent_lab",
+      "bytes": 1897228,
+      "lines": 2160
+    },
+    {
+      "path": "RedditPulse/app/src/app/dashboard/reports/[id]/page.tsx",
+      "zone": "reddit_pulse",
+      "bytes": 144145,
+      "lines": 2130
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/organs/browser/final_gate.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 111571,
+      "lines": 1963
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/telemetry/kernel.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 93160,
+      "lines": 1882
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/agent/organs/organ_dispatch.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 76277,
+      "lines": 1838
+    },
+    {
+      "path": "sentinel-control/docs/P_C_KEY_RUNTIME_CLOSURE_IMPLEMENTATION_LOG.md",
+      "zone": "sentinel_docs",
+      "bytes": 244595,
+      "lines": 1753
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/interactive_exploration_read_only.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 72887,
+      "lines": 1716
+    },
+    {
+      "path": "RedditPulse/app/src/app/dashboard/validate/page.tsx",
+      "zone": "reddit_pulse",
+      "bytes": 87633,
+      "lines": 1610
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/operator/test_product_nervous_system_pack3.py",
+      "zone": "sentinel_core_tests",
+      "bytes": 72589,
+      "lines": 1590
+    },
+    {
+      "path": "sentinel-control/apps/web/lib/run-store.ts",
+      "zone": "sentinel_control_other",
+      "bytes": 58618,
+      "lines": 1536
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/test_cli_runtime_host_product_wiring_pack1b.py",
+      "zone": "sentinel_core_tests",
+      "bytes": 58671,
+      "lines": 1525
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/operator/self_exploration_read_only.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 64689,
+      "lines": 1520
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/tests/test_real_model_read_only_operator_production_spine_v1.py",
+      "zone": "sentinel_core_tests",
+      "bytes": 61671,
+      "lines": 1519
+    },
+    {
+      "path": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+      "zone": "sentinel_core_runtime",
+      "bytes": 63485,
+      "lines": 1464
+    },
+    {
+      "path": "agent-lab/benchmarks/browser_tasks/browser_operator_cross_class_runner.py",
+      "zone": "agent_lab",
+      "bytes": 62390,
+      "lines": 1432
+    },
+    {
+      "path": "sentinel-control/apps/web/app/globals.css",
+      "zone": "sentinel_control_other",
+      "bytes": 26306,
+      "lines": 1424
+    }
+  ]
+}
