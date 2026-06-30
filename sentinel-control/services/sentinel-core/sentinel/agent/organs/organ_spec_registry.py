@@ -59,6 +59,7 @@ class OrganRuntimeSpec(SentinelModel):
             "default_dispatchable": self.default_dispatchable,
             "locked_reason": self.locked_reason,
             "aliases": list(self.aliases),
+            "request_field": self.request_field,
             "data_not_authority": self.data_not_authority,
             "authority_granting": self.authority_granting,
             "can_grant_authority": self.can_grant_authority,

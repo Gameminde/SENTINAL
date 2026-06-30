@@ -80,6 +80,12 @@ from sentinel.agent.organs.local_artifact_executor import (
     L2LocalArtifactActionKind,
     L2LocalArtifactRequest,
 )
+from sentinel.agent.organs.organ_request_factory import (
+    OrganRequestBuildContext,
+    OrganRequestBuildResult,
+    OrganRequestBuilder,
+    OrganRequestFactory,
+)
 from sentinel.agent.organs.organ_spec_registry import default_organ_spec_registry
 from sentinel.agent.organs.proposal_bridge import (
     BaseOrganCandidate,
@@ -493,8 +499,9 @@ class OrganDispatcher:
                 config=config,
             )
 
-        # Build the typed sub-request from raw candidate data
-        sub_request = _build_typed_sub_request(
+        # Build the typed sub-request through the spec registry. The spec owns
+        # the runtime request field; builders only populate the typed payload.
+        request_build = _build_typed_sub_request_result(
             raw_candidate=raw_candidate,
             bridged_candidate=candidate,
             gate_result=gate_result,
@@ -504,12 +511,12 @@ class OrganDispatcher:
             authority_envelope=authority_envelope,
         )
 
-        if sub_request is None:
+        if not request_build.accepted:
             return _sub_request_build_failed_result(
                 candidate=candidate,
                 gate_result=gate_result,
                 config=config,
-                reason=f"failed_to_build_sub_request_for_{runtime_organ_kind}",
+                reason=request_build.blocked_reason or f"failed_to_build_sub_request_for_{runtime_organ_kind}",
             )
 
         # Build the execution request with ALL required fields populated
@@ -521,21 +528,16 @@ class OrganDispatcher:
             gate_result=gate_result,
             delegated_lane=gate_result.lane,
             # Typed sub-requests — exactly one will be non-None
-            l2_request=sub_request if runtime_organ_kind == "local_artifact" else None,
-            l3_request=sub_request if runtime_organ_kind == "reversible_workspace" else None,
-            browser_readonly_request=sub_request if runtime_organ_kind == "browser_readonly" else None,
-            browser_preparation_request=sub_request if runtime_organ_kind == "browser_preparation" else None,
-            browser_semantic_extraction_request=sub_request if runtime_organ_kind == "browser_semantic_extraction" else None,
-            browser_session_request=sub_request if runtime_organ_kind == "browser_session_manager" else None,
-            browser_form_submit_request=sub_request if runtime_organ_kind == "browser_form_submit_special_authority" else None,
-            browser_login_request=sub_request if runtime_organ_kind == "browser_login_credential_session_broker" else None,
-            browser_file_quarantine_request=sub_request if runtime_organ_kind == "browser_download_upload_quarantine" else None,
-            browser_js_sandbox_request=sub_request if runtime_organ_kind == "browser_js_sandbox_special_authority" else None,
             metadata={
                 "source_candidate_id": candidate.candidate_id,
                 "source_proposal_id": candidate.source_proposal_id,
                 "params_hash": candidate.params_hash,
+                "organ_spec_id": request_build.organ_id,
+                "request_field": request_build.request_field,
+                "runtime_handler": request_build.runtime_handler,
+                "skill_binding": request_build.skill_binding,
             },
+            **request_build.runtime_request_kwargs(),
         )
 
         # Execute through the standard pipeline (contract → receipt → FinalGate)
@@ -551,6 +553,35 @@ class OrganDispatcher:
 # ---------------------------------------------------------------------------
 
 
+def _build_typed_sub_request_result(
+    *,
+    raw_candidate: dict[str, Any],
+    bridged_candidate: BaseOrganCandidate,
+    gate_result: DelegatedActionGateResult,
+    runtime_organ_kind: str,
+    organ_contracts: dict[str, dict[str, Any]],
+    prior_candidate_results: list[OrganDispatchCandidateResult],
+    authority_envelope: MissionAuthorityEnvelope | None = None,
+) -> OrganRequestBuildResult:
+    """Build the correct typed sub-request from raw candidate data.
+
+    The raw_candidate dict contains the brain's proposed parameters (target_path,
+    content, url, etc.). The gate_result provides the lane and gate metadata
+    needed for the executor contract.
+
+    """
+    context = OrganRequestBuildContext(
+        raw_candidate=raw_candidate,
+        bridged_candidate=bridged_candidate,
+        gate_result=gate_result,
+        mission_id=bridged_candidate.mission_id,
+        organ_contracts=organ_contracts,
+        prior_candidate_results=prior_candidate_results,
+        authority_envelope=authority_envelope,
+    )
+    return OrganRequestFactory(builders=_organ_request_builders()).build(runtime_organ_kind, context)
+
+
 def _build_typed_sub_request(
     *,
     raw_candidate: dict[str, Any],
@@ -561,112 +592,103 @@ def _build_typed_sub_request(
     prior_candidate_results: list[OrganDispatchCandidateResult],
     authority_envelope: MissionAuthorityEnvelope | None = None,
 ) -> L2LocalArtifactRequest | L3WorkspaceRequest | BrowserReadOnlyRequest | BrowserPreparationRequest | BrowserSemanticExtractionRequest | BrowserSessionRequest | BrowserFormSubmitRequest | BrowserLoginCredentialSessionRequest | BrowserFileQuarantineRequest | BrowserJSSandboxRequest | Any | None:
-    """Build the correct typed sub-request from raw candidate data.
+    """Compatibility wrapper for callers that still need only the typed request."""
+    result = _build_typed_sub_request_result(
+        raw_candidate=raw_candidate,
+        bridged_candidate=bridged_candidate,
+        gate_result=gate_result,
+        runtime_organ_kind=runtime_organ_kind,
+        organ_contracts=organ_contracts,
+        prior_candidate_results=prior_candidate_results,
+        authority_envelope=authority_envelope,
+    )
+    return result.sub_request if result.accepted else None
 
-    The raw_candidate dict contains the brain's proposed parameters (target_path,
-    content, url, etc.). The gate_result provides the lane and gate metadata
-    needed for the executor contract.
 
-    Returns None if the sub-request cannot be built (missing required fields).
-    """
-    lane = gate_result.lane
-    mission_id = bridged_candidate.mission_id
+def _raw_candidate_with_context_receipts(context: OrganRequestBuildContext) -> dict[str, Any]:
+    raw_candidate = dict(context.raw_candidate)
+    if context.source_readonly_receipts and not raw_candidate.get("source_readonly_receipts"):
+        raw_candidate["source_readonly_receipts"] = context.source_readonly_receipts
+    return raw_candidate
 
-    if runtime_organ_kind == "local_artifact":
-        return _build_l2_request(
-            raw_candidate=raw_candidate,
-            bridged_candidate=bridged_candidate,
-            lane=lane,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-        )
 
-    if runtime_organ_kind == "reversible_workspace":
-        return _build_l3_request(
-            raw_candidate=raw_candidate,
-            bridged_candidate=bridged_candidate,
-            lane=lane,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-        )
-
-    if runtime_organ_kind == "browser_readonly":
-        return _build_browser_readonly_request(
-            raw_candidate=raw_candidate,
-            bridged_candidate=bridged_candidate,
-            lane=lane,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-        )
-
-    if runtime_organ_kind == "browser_preparation":
-        return _build_browser_preparation_request(
-            raw_candidate=raw_candidate,
-            bridged_candidate=bridged_candidate,
-            lane=lane,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-            prior_candidate_results=prior_candidate_results,
-        )
-
-    if runtime_organ_kind == "browser_semantic_extraction":
-        return _build_browser_semantic_extraction_request(
-            raw_candidate=raw_candidate,
-            bridged_candidate=bridged_candidate,
-            lane=lane,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-            prior_candidate_results=prior_candidate_results,
-        )
-
-    if runtime_organ_kind == "browser_session_manager":
-        return _build_browser_session_request(
-            raw_candidate=raw_candidate,
-            bridged_candidate=bridged_candidate,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-            authority_envelope=authority_envelope,
-            prior_candidate_results=prior_candidate_results,
-        )
-
-    if runtime_organ_kind == "browser_form_submit_special_authority":
-        return _build_browser_form_submit_request(
-            raw_candidate=raw_candidate,
-            bridged_candidate=bridged_candidate,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-            authority_envelope=authority_envelope,
-            prior_candidate_results=prior_candidate_results,
-        )
-
-    if runtime_organ_kind == "browser_login_credential_session_broker":
-        return _build_browser_login_request(
-            raw_candidate=raw_candidate,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-            authority_envelope=authority_envelope,
-            prior_candidate_results=prior_candidate_results,
-        )
-
-    if runtime_organ_kind == "browser_download_upload_quarantine":
-        return _build_browser_file_quarantine_request(
-            raw_candidate=raw_candidate,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-            authority_envelope=authority_envelope,
-            prior_candidate_results=prior_candidate_results,
-        )
-
-    if runtime_organ_kind == "browser_js_sandbox_special_authority":
-        return _build_browser_js_sandbox_request(
-            raw_candidate=raw_candidate,
-            mission_id=mission_id,
-            organ_contracts=organ_contracts,
-            authority_envelope=authority_envelope,
-            prior_candidate_results=prior_candidate_results,
-        )
-
-    return None
+def _organ_request_builders() -> dict[str, OrganRequestBuilder]:
+    return {
+        "local_artifact": lambda context: _build_l2_request(
+            raw_candidate=context.raw_candidate,
+            bridged_candidate=context.bridged_candidate,
+            lane=context.gate_result.lane if context.gate_result is not None else None,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+        ),
+        "reversible_workspace": lambda context: _build_l3_request(
+            raw_candidate=context.raw_candidate,
+            bridged_candidate=context.bridged_candidate,
+            lane=context.gate_result.lane if context.gate_result is not None else None,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+        ),
+        "browser_readonly": lambda context: _build_browser_readonly_request(
+            raw_candidate=context.raw_candidate,
+            bridged_candidate=context.bridged_candidate,
+            lane=context.gate_result.lane if context.gate_result is not None else None,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+        ),
+        "browser_preparation": lambda context: _build_browser_preparation_request(
+            raw_candidate=_raw_candidate_with_context_receipts(context),
+            bridged_candidate=context.bridged_candidate,
+            lane=context.gate_result.lane if context.gate_result is not None else None,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+            prior_candidate_results=context.prior_candidate_results,
+        ),
+        "browser_semantic_extraction": lambda context: _build_browser_semantic_extraction_request(
+            raw_candidate=_raw_candidate_with_context_receipts(context),
+            bridged_candidate=context.bridged_candidate,
+            lane=context.gate_result.lane if context.gate_result is not None else None,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+            prior_candidate_results=context.prior_candidate_results,
+        ),
+        "browser_session_manager": lambda context: _build_browser_session_request(
+            raw_candidate=context.raw_candidate,
+            bridged_candidate=context.bridged_candidate,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+            authority_envelope=context.authority_envelope,
+            prior_candidate_results=context.prior_candidate_results,
+        ),
+        "browser_form_submit_special_authority": lambda context: _build_browser_form_submit_request(
+            raw_candidate=context.raw_candidate,
+            bridged_candidate=context.bridged_candidate,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+            authority_envelope=context.authority_envelope,
+            prior_candidate_results=context.prior_candidate_results,
+        ),
+        "browser_login_credential_session_broker": lambda context: _build_browser_login_request(
+            raw_candidate=context.raw_candidate,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+            authority_envelope=context.authority_envelope,
+            prior_candidate_results=context.prior_candidate_results,
+        ),
+        "browser_download_upload_quarantine": lambda context: _build_browser_file_quarantine_request(
+            raw_candidate=context.raw_candidate,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+            authority_envelope=context.authority_envelope,
+            prior_candidate_results=context.prior_candidate_results,
+        ),
+        "browser_js_sandbox_special_authority": lambda context: _build_browser_js_sandbox_request(
+            raw_candidate=context.raw_candidate,
+            mission_id=context.mission_id,
+            organ_contracts=context.organ_contracts,
+            authority_envelope=context.authority_envelope,
+            prior_candidate_results=context.prior_candidate_results,
+        ),
+    }
 
 
 def _build_l2_request(

@@ -505,6 +505,7 @@ def _organ_spec_summary(spec: OrganRuntimeSpec | None) -> dict[str, Any]:
     if spec is None:
         return {
             "organ_spec_id": None,
+            "request_field": None,
             "runtime_handler": None,
             "skill_binding": None,
             "receipt_kind": None,
@@ -513,6 +514,7 @@ def _organ_spec_summary(spec: OrganRuntimeSpec | None) -> dict[str, Any]:
         }
     return {
         "organ_spec_id": spec.organ_id,
+        "request_field": spec.request_field,
         "runtime_handler": spec.runtime_handler,
         "skill_binding": spec.skill_binding,
         "receipt_kind": spec.receipt_kind,
@@ -2216,6 +2218,11 @@ def _result(
     lane = _lane(request.delegated_lane) or (gate.lane if gate is not None else None)
     receipt_hash = stable_hash(sanitize_metadata(receipt.model_dump(mode="python"))) if hasattr(receipt, "model_dump") else None
     certificate_hash = _certificate_hash(finalgate_certificate)
+    spec_summary = _organ_spec_summary(default_organ_spec_registry().get(request.organ_kind))
+    merged_executor_summary = {
+        **spec_summary,
+        **sanitize_metadata(executor_result_summary),
+    }
     trace = OrganRuntimeExecutionTrace(
         mission_id=request.mission_id,
         status=status,
@@ -2233,7 +2240,7 @@ def _result(
         status=status,
         action_level=request.action_level,
         organ_kind=request.organ_kind,
-        executor_result_summary=sanitize_metadata(executor_result_summary),
+        executor_result_summary=merged_executor_summary,
         receipt=receipt,
         finalgate_certificate=finalgate_certificate,
         gate_result_id=_gate_result_id(receipt, gate),
