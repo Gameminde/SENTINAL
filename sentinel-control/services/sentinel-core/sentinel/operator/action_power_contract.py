@@ -165,6 +165,7 @@ def build_browser_actionability_registry(
     generated_at_turn: int = 0,
 ) -> BrowserActionabilityRegistry:
     canonical_refs = tuple(_actionability_ref(ref) for ref in getattr(world_model, "stable_refs", ()))
+    product_cards = tuple(getattr(world_model, "product_or_result_candidate_cards", ()) or ())
     alias_map: dict[str, str] = {}
     for item in canonical_refs:
         for alias in item.accepted_aliases:
@@ -179,11 +180,7 @@ def build_browser_actionability_registry(
         accepted_aliases=alias_map,
         candidate_actions=candidate_actions,
         blocked_refs=tuple(_blocked_ref(ref) for ref in getattr(world_model, "stable_refs", ()) if getattr(ref, "secret", False)),
-        recovery_actions=(
-            "real_browser_control.real_browser.observe",
-            "real_browser_control.real_browser.search",
-            "real_browser_control.real_browser.extract_product_cards",
-        ),
+        recovery_actions=_browser_recovery_actions(product_cards_present=_has_actionable_browser_cards(product_cards)),
     )
 
 
@@ -254,6 +251,31 @@ def recoverable_action_observation(
         refreshed_candidate_refs=refreshed_candidate_refs,
         recovery_budget_remaining=recovery_budget_remaining,
     )
+
+
+def _browser_recovery_actions(*, product_cards_present: bool) -> tuple[str, ...]:
+    if product_cards_present:
+        return (
+            "real_browser_control.real_browser.extract_product_cards",
+            "real_browser_control.real_browser.verify_extraction",
+            "real_browser_control.real_browser.observe",
+        )
+    return (
+        "real_browser_control.real_browser.observe",
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.extract_product_cards",
+    )
+
+
+def _has_actionable_browser_cards(cards: tuple[Any, ...]) -> bool:
+    for card in cards:
+        if float(getattr(card, "confidence", 0.0) or 0.0) >= 0.5:
+            return True
+        for field in ("visible_price", "minimum_order", "supplier_or_store"):
+            value = str(getattr(card, field, "") or "").strip().lower()
+            if value and value != "unknown":
+                return True
+    return False
 
 
 def _actionability_ref(ref: Any) -> ActionabilityRef:

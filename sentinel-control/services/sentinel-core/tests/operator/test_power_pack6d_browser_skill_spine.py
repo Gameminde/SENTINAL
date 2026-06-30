@@ -110,12 +110,72 @@ def test_browser_skill_selects_cloak_session_backend_when_available() -> None:
     assert selection.model_visible_backend_id == "browser_skill"
 
 
+def test_backend_frame_preferred_cloak_must_match_actual_backend_or_block(tmp_path: Path) -> None:
+    selection = select_browser_backend(
+        available_backend_modules=(
+            "sentinel.organs.browser.cloak_backend",
+            "sentinel.operator.real_browser_control_runtime",
+        )
+    )
+
+    with pytest.raises(RealBrowserControlRuntimeError, match="real_browser_backend_selection_mismatch"):
+        _BrowserSkillFixture(
+            tmp_path,
+            engine=_PlaywrightCompatibilitySearchEngine(results_visible=True),
+            backend_selection=selection,
+        )
+
+
+def test_playwright_actual_engine_requires_explicit_compatibility_selection(tmp_path: Path) -> None:
+    selection = select_browser_backend(
+        available_backend_modules=(
+            "sentinel.organs.browser.cloak_backend",
+            "sentinel.operator.real_browser_control_runtime",
+        )
+    )
+
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=_PlaywrightCompatibilitySearchEngine(results_visible=True),
+        backend_selection=selection,
+        selected_backend_id="playwright_real_browser_engine",
+    )
+
+    assert fixture.runtime.selected_backend_id == "playwright_real_browser_engine"
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    assert opened.status == "completed"
+
+
 def test_playwright_backend_requires_explicit_compatibility_selection() -> None:
     selection = select_browser_backend(available_backend_modules=("sentinel.operator.real_browser_control_runtime",))
 
     assert selection.preferred_backend_id is None
     assert selection.compatibility_backend_id == "playwright_real_browser_engine"
     assert selection.playwright_requires_explicit_compatibility is True
+
+
+def test_real_browser_search_material_receipt_when_backend_actuates(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert result.status == "completed"
+    assert result.material_action is True
+    assert result.receipt_refs
+    assert fixture.load_action_receipt(result.receipt_refs[0])["action_kind"] == "real_browser.search"
 
 
 def test_real_browser_search_ranks_search_like_refs_and_tries_alternates(tmp_path: Path) -> None:
@@ -181,6 +241,38 @@ def test_locator_timeout_returns_recoverable_observation_not_terminal_block(tmp_
     assert result.recovery_observation
 
 
+def test_search_recoverable_failure_updates_decision_context(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
+
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    failed = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    context = DecisionContextCompiler().compile(
+        mission_id=fixture.mission_id,
+        mission_objective=fixture.authority.mission_objective,
+        authority=fixture.authority,
+        observations=[opened, failed],
+        available_actions=_browser_actions(),
+        model_calls_used=2,
+        material_actions_used=0,
+        max_model_calls=8,
+        max_material_actions=4,
+        recovery_turns_used=1,
+        max_recovery_turns=2,
+    )
+
+    assert failed.status == "recoverable_failed"
+    assert context["recoverable_observations"][-1]["failure_code"] == "real_browser_search_actuation_failed"
+    assert context["primary_model_recommended_next_action"] == "real_browser_control.real_browser.extract_product_cards"
+
+
 def test_recovery_observation_refreshes_world_model_and_decision_context(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngine())
     decisions = ModelLedTaskDecisionClient(
@@ -225,6 +317,56 @@ def test_recovery_budget_exhaustion_blocks_honestly_without_fake_success(tmp_pat
     assert fixture.engine.type_count == 0
 
 
+def test_two_search_failures_with_product_cards_recommends_extract_not_repeat_search(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
+
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    failures = [
+        fixture.runtime.execute(
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "glasses under 5 euro"},
+            ),
+            authority=fixture.authority,
+            context={},
+        )
+        for _ in range(2)
+    ]
+    context = DecisionContextCompiler().compile(
+        mission_id=fixture.mission_id,
+        mission_objective=fixture.authority.mission_objective,
+        authority=fixture.authority,
+        observations=[opened, *failures],
+        available_actions=_browser_actions(),
+        model_calls_used=3,
+        material_actions_used=0,
+        max_model_calls=8,
+        max_material_actions=4,
+        recovery_turns_used=2,
+        max_recovery_turns=3,
+    )
+
+    assert all(result.status == "recoverable_failed" for result in failures)
+    assert context["primary_model_recommended_next_action"] == "real_browser_control.real_browser.extract_product_cards"
+    assert context["skill_decision_frame"]["recommended_next_actions"][0] == "real_browser_control.real_browser.extract_product_cards"
+
+
+def test_extract_product_cards_can_run_from_existing_world_model_cards(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    assert opened.context_cards["browser_world_model"]["product_or_result_candidate_cards"]
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+
+    assert extracted.status == "completed"
+    assert extracted.context_cards["browser_world_model"]["product_or_result_candidate_cards"]
+
+
 def test_product_extraction_card_captures_title_price_moq_supplier_caveats_when_visible(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
 
@@ -242,6 +384,37 @@ def test_product_extraction_card_captures_title_price_moq_supplier_caveats_when_
     assert cards[0]["minimum_order"] == "10 pieces"
     assert cards[0]["supplier_or_store"] == "Yiwu Test Store"
     assert "shipping not included" in cards[0]["caveats"]
+
+
+def test_finish_available_after_verify_extraction_and_summary(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    context = DecisionContextCompiler().compile(
+        mission_id=fixture.mission_id,
+        mission_objective=fixture.authority.mission_objective,
+        authority=fixture.authority,
+        observations=[opened, extracted, verified],
+        available_actions=_browser_actions(),
+        model_calls_used=3,
+        material_actions_used=0,
+        max_model_calls=8,
+        max_material_actions=4,
+    )
+
+    assert verified.status == "passed"
+    assert context["finish_available"] is True
+    assert context["primary_model_recommended_next_action"] == "sentinel_loop.finish"
 
 
 def test_product_extraction_card_uses_unknown_fields_without_hallucination() -> None:
@@ -398,7 +571,14 @@ def _browser_actions() -> tuple[str, ...]:
 
 
 class _BrowserSkillFixture:
-    def __init__(self, tmp_path: Path, *, engine: InMemoryRealBrowserEngine) -> None:
+    def __init__(
+        self,
+        tmp_path: Path,
+        *,
+        engine: InMemoryRealBrowserEngine,
+        backend_selection: Any | None = None,
+        selected_backend_id: str | None = None,
+    ) -> None:
         self.kernel = MissionKernel(run_root=tmp_path / "runs", telemetry_sink=_CertifiedTelemetrySink())
         record = self.kernel.create_mission(
             session_id="session_power_pack6d",
@@ -434,12 +614,17 @@ class _BrowserSkillFixture:
         self.kernel.enqueue(self.mission_id)
         self.authority = self.envelope()
         self.engine = engine
-        self.runtime = RealBrowserControlRuntime(
-            kernel=self.kernel,
-            mission_id=self.mission_id,
-            engine=self.engine,
-            bounded_url_ref="env:SENTINEL_BROWSER_TEST_URL",
-        )
+        runtime_kwargs: dict[str, Any] = {
+            "kernel": self.kernel,
+            "mission_id": self.mission_id,
+            "engine": self.engine,
+            "bounded_url_ref": "env:SENTINEL_BROWSER_TEST_URL",
+        }
+        if backend_selection is not None:
+            runtime_kwargs["browser_backend_selection"] = backend_selection
+        if selected_backend_id is not None:
+            runtime_kwargs["selected_backend_id"] = selected_backend_id
+        self.runtime = RealBrowserControlRuntime(**runtime_kwargs)
         self.action_kernel = ActionKernel(
             executors={
                 "real_browser_control": lambda envelope, context: self.runtime.execute(
@@ -564,6 +749,19 @@ class _TimeoutSearchEngine(_HardProductSearchEngine):
     def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
         del ref, text
         raise RealBrowserControlRuntimeError("real_browser_locator_timeout")
+
+
+class _TimeoutSearchEngineWithCards(_HardProductSearchEngine):
+    def __init__(self) -> None:
+        super().__init__(results_visible=True)
+
+    def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
+        del ref, text
+        raise RealBrowserControlRuntimeError("real_browser_locator_timeout")
+
+
+class _PlaywrightCompatibilitySearchEngine(_HardProductSearchEngine):
+    browser_backend_id = "playwright_real_browser_engine"
 
 
 _PRODUCT_TEXT = (

@@ -17,6 +17,7 @@ from sentinel.operator.action_power_contract import (
     recoverable_action_observation,
 )
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
+from sentinel.operator.browser_backend_selector import BrowserBackendSelection, select_browser_backend
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.real_browser_control_models import (
@@ -35,6 +36,7 @@ class RealBrowserControlRuntimeError(RuntimeError):
 
 BOUNDED_URL_AUTHORITY_REF = "real_browser:bounded_test_url"
 DEFAULT_SESSION_REF = "real_browser_session:bounded"
+PLAYWRIGHT_REAL_BROWSER_BACKEND_ID = "playwright_real_browser_engine"
 
 
 @dataclass(frozen=True)
@@ -261,12 +263,23 @@ class RealBrowserControlRuntime:
         engine: RealBrowserEngine,
         bounded_url_ref: str = "env:SENTINEL_BROWSER_TEST_URL",
         session_ref: str = DEFAULT_SESSION_REF,
+        browser_backend_selection: BrowserBackendSelection | None = None,
+        selected_backend_id: str | None = None,
     ) -> None:
         self.kernel = kernel
         self.mission_id = mission_id
         self.engine = engine
         self.bounded_url_ref = bounded_url_ref
         self.session_ref = session_ref
+        self.actual_backend_id = _engine_backend_id(engine)
+        if browser_backend_selection is None and self.actual_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID:
+            browser_backend_selection = select_browser_backend()
+        self.browser_backend_selection = browser_backend_selection
+        self.selected_backend_id = _validate_selected_browser_backend(
+            actual_backend_id=self.actual_backend_id,
+            backend_selection=browser_backend_selection,
+            selected_backend_id=selected_backend_id,
+        )
 
     def execute(
         self,
@@ -970,6 +983,15 @@ class RealBrowserControlRuntime:
             "browser_decision_frame": frame_dump,
             "browser_actionability_registry": registry_dump,
             "actionability_frame": actionability_dump,
+            "browser_backend_execution": {
+                "selected_backend_id": self.selected_backend_id,
+                "actual_backend_id": self.actual_backend_id,
+                "selection_reason": (
+                    self.browser_backend_selection.selection_reason
+                    if self.browser_backend_selection is not None
+                    else "runtime_engine_declared_without_backend_frame"
+                ),
+            },
         }
 
     def _click_search_button_if_available(self) -> RealBrowserEngineSnapshot:
@@ -1072,6 +1094,8 @@ class RealBrowserControlRuntime:
 
 
 class PlaywrightRealBrowserEngine:
+    browser_backend_id = PLAYWRIGHT_REAL_BROWSER_BACKEND_ID
+
     def __init__(self, *, target_url: str, headless: bool = True) -> None:
         self.target_url = target_url
         self._playwright = None
@@ -1296,6 +1320,42 @@ def _search_ref_candidates(snapshot: RealBrowserEngineSnapshot, envelope: Action
     )
     refs.extend(element.ref for element in ranked)
     return tuple(dict.fromkeys(refs))
+
+
+def _engine_backend_id(engine: RealBrowserEngine) -> str:
+    declared = getattr(engine, "browser_backend_id", None)
+    if isinstance(declared, str) and declared.strip():
+        return declared.strip()
+    if engine.__class__.__name__ == "PlaywrightRealBrowserEngine":
+        return PLAYWRIGHT_REAL_BROWSER_BACKEND_ID
+    return f"{engine.__class__.__name__.removesuffix('Engine').lower()}_engine"
+
+
+def _validate_selected_browser_backend(
+    *,
+    actual_backend_id: str,
+    backend_selection: BrowserBackendSelection | None,
+    selected_backend_id: str | None,
+) -> str:
+    if backend_selection is None:
+        return selected_backend_id or actual_backend_id
+    if selected_backend_id is None and backend_selection.preferred_backend_id:
+        selected_backend_id = backend_selection.preferred_backend_id
+    elif selected_backend_id is None and actual_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID:
+        raise RealBrowserControlRuntimeError("real_browser_backend_explicit_compatibility_required")
+    elif selected_backend_id is None:
+        selected_backend_id = backend_selection.compatibility_backend_id or actual_backend_id
+    if selected_backend_id != actual_backend_id:
+        raise RealBrowserControlRuntimeError(
+            f"real_browser_backend_selection_mismatch:selected={selected_backend_id}:actual={actual_backend_id}"
+        )
+    if (
+        actual_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID
+        and backend_selection.playwright_requires_explicit_compatibility
+        and selected_backend_id != PLAYWRIGHT_REAL_BROWSER_BACKEND_ID
+    ):
+        raise RealBrowserControlRuntimeError("real_browser_backend_explicit_compatibility_required")
+    return selected_backend_id
 
 
 def _is_search_like_element(element: RealBrowserEngineElement) -> bool:
