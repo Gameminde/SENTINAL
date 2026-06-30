@@ -80,6 +80,7 @@ from sentinel.agent.organs.local_artifact_executor import (
     L2LocalArtifactActionKind,
     L2LocalArtifactRequest,
 )
+from sentinel.agent.organs.organ_spec_registry import default_organ_spec_registry
 from sentinel.agent.organs.proposal_bridge import (
     BaseOrganCandidate,
     OrganProposalBridge,
@@ -1585,16 +1586,17 @@ def _resolve_runtime_organ_kind(
     For BROWSER, uses organ_contracts and gate_result to select between
     browser_readonly, browser_preparation, and browser_semantic_extraction.
     """
+    registry = default_organ_spec_registry()
     if organ_kind == OrganProposalKind.FILE_OPERATION:
         if action_level == DelegatedActionLevel.L2:
-            return "local_artifact"
+            return registry.require("local_artifact").organ_id
         if action_level == DelegatedActionLevel.L3:
-            return "reversible_workspace"
+            return registry.require("reversible_workspace").organ_id
         return None
 
     if organ_kind == OrganProposalKind.CODE_PATCH:
         # CODE_PATCH is always L3 reversible workspace
-        return "reversible_workspace"
+        return registry.require("reversible_workspace").organ_id
 
     if organ_kind == OrganProposalKind.BROWSER:
         return _resolve_browser_organ_kind(
@@ -1615,52 +1617,13 @@ def _resolve_browser_organ_kind(
     organ_contracts: dict[str, dict[str, Any]],
     gate_result: DelegatedActionGateResult,
 ) -> str:
-    """Resolve the specific browser organ_kind based on contracts and gate result.
-
-    Priority order:
-    1. If gate_result.selected_backend_id explicitly names a browser type → use it
-    2. If organ_contracts contains "browser_semantic_extraction" → semantic extraction
-    3. If organ_contracts contains "browser_preparation" → preparation
-    4. Default → browser_readonly (safest)
-    """
-    explicit_kind = str(
-        raw_candidate.get("browser_organ_kind")
-        or raw_candidate.get("runtime_organ_kind")
-        or raw_candidate.get("organ_runtime_kind")
-        or ""
-    ).strip().lower()
-    if explicit_kind in {
-        "browser_readonly",
-        "browser_preparation",
-        "browser_semantic_extraction",
-        "browser_session_manager",
-        "browser_form_submit_special_authority",
-        "browser_login_credential_session_broker",
-        "browser_download_upload_quarantine",
-        "browser_js_sandbox_special_authority",
-    }:
-        return explicit_kind
-
-    # Check if gate explicitly selected a backend
-    backend_id = (gate_result.selected_backend_id or "") if gate_result is not None else ""
-    if "semantic_extraction" in backend_id:
-        return "browser_semantic_extraction"
-    if "preparation" in backend_id:
-        return "browser_preparation"
-
-    # Check organ_contracts for specific browser types
-    if "browser_semantic_extraction" in organ_contracts:
-        contract = organ_contracts["browser_semantic_extraction"]
-        if isinstance(contract, dict) and contract.get("available"):
-            return "browser_semantic_extraction"
-
-    if "browser_preparation" in organ_contracts:
-        contract = organ_contracts["browser_preparation"]
-        if isinstance(contract, dict) and contract.get("available"):
-            return "browser_preparation"
-
-    # Default: browser_readonly (safest option)
-    return "browser_readonly"
+    """Resolve the specific browser organ_kind through the runtime spec registry."""
+    return default_organ_spec_registry().resolve_browser_runtime_organ_id(
+        action_level=action_level,
+        raw_candidate=raw_candidate,
+        organ_contracts=organ_contracts,
+        selected_backend_id=(gate_result.selected_backend_id or "") if gate_result is not None else "",
+    )
 
 
 # ---------------------------------------------------------------------------

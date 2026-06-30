@@ -51,7 +51,8 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Pack B: Recoverable Execution Contract | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | implemented candidate | `5fc3a0c` | Classified in-scope executor misses become recoverable observations; Pack A model-visible consumption remains Pack D scope |
 | Pack C: Organ-To-Skill Wiring And Backend Selection | `POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1` | implemented candidate | `7bc8f6e` | Added data-only `power_skill_registry.py` and `browser_backend_selector.py`; skills now map to owner organs/backends without enabling new dispatch power |
 | Pack D: Decision Context Skill Frame Simplification | `POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1` | implemented candidate | `6656585` | Added primary `skill_decision_frame`, `primary_model_*` recommendations, and legacy compatibility fields |
-| Pack E: First Simplification Cut Organ Branch Matrix | pending | not started | - | Next core correction; should reduce duplicated organ dispatch branches |
+| Pack E: First Simplification Cut Organ Branch Matrix | `POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1` | implemented candidate | `pending_followup_ledger` | Added data-only organ runtime specs consumed by dispatch/runtime; browser/session aliases resolve through spec registry; high-risk organs remain locked |
+| Pack F: Sub-Request Builder Spec Cut | `POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1` | pending | - | Next simplification cut; move typed sub-request field selection/builders out of branch-heavy matrices |
 
 New canonical next sequence:
 
@@ -61,6 +62,7 @@ POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1
 POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1
 POWER_RECONNECTION_PACK_D_DECISION_CONTEXT_SKILL_FRAME_SIMPLIFICATION_V1
 POWER_RECONNECTION_PACK_E_FIRST_SIMPLIFICATION_CUT_ORGAN_BRANCH_MATRIX_V1
+POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1
 then POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1
 ```
 
@@ -491,6 +493,9 @@ test_runtime_execution_uses_spec_for_known_organ
 test_unknown_organ_blocks_honestly
 test_receipt_and_finalgate_requirements_preserved
 test_no_new_high_risk_surface_dispatchable_by_default
+test_skill_binding_metadata_available_for_decision_context
+test_recoverable_and_hard_stop_metadata_available_from_spec
+test_safe_external_registry_export_names_specs_without_execution_power
 ```
 
 Validation:
@@ -505,6 +510,48 @@ Definition of done:
 
 ```text
 Adding a new organ no longer requires editing a large branch matrix in multiple places.
+```
+
+Status:
+
+```text
+IMPLEMENTED_CANDIDATE
+commit = pending_followup_ledger
+organ_spec_registry_consumed_by_dispatch = true
+organ_spec_registry_consumed_by_runtime = true
+unknown_organ_blocks_honestly = true
+high_risk_organs_default_dispatchable = false
+Pack_F_required_for_sub_request_builder_branch_cut = true
+```
+
+## Pack F: Sub-Request Builder Spec Cut
+
+Name:
+
+```text
+POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1
+```
+
+Goal:
+
+```text
+Continue Pack E by moving typed sub-request field selection and builder lookup into spec/factory metadata instead of branch-heavy runtime organ id checks.
+```
+
+Primary files:
+
+```text
+sentinel/agent/organs/organ_dispatch.py
+sentinel/agent/organs/organ_spec_registry.py
+sentinel/agent/organs/runtime_execution.py
+```
+
+Definition of done:
+
+```text
+OrganDispatcher can select request_field and sub-request builder from spec metadata.
+Existing receipts/FinalGate/replay remain unchanged.
+Unknown or locked organ specs still block honestly.
 ```
 
 ## Then Pack 6D

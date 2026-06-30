@@ -108,6 +108,7 @@ from sentinel.agent.organs.low_risk_finalgate import (
     LowRiskFinalGateDecision,
     LowRiskFinalGateInput,
 )
+from sentinel.agent.organs.organ_spec_registry import OrganRuntimeSpec, default_organ_spec_registry
 from sentinel.agent.organs.proposal_bridge import OrganProposalKind
 from sentinel.agent.organs.reversible_workspace_executor import (
     L3ExecutorContract,
@@ -435,6 +436,17 @@ def execute_organ_runtime_request(
             blocked_reason="unsafe_runtime_execution_payload",
         )
 
+    organ_spec = default_organ_spec_registry().get(runtime_request.organ_kind)
+    if organ_spec is None:
+        return _blocked_result(
+            request=runtime_request,
+            config=runtime_config,
+            safety=safety,
+            input_hash=input_hash,
+            blocked_reason="unknown_organ_not_registered",
+            executor_result_summary=_organ_spec_summary(None),
+        )
+
     preflight_reason = _preflight_block_reason(runtime_request, runtime_config)
     if preflight_reason is not None:
         browser_blocked = _browser_preflight_blocked_result(
@@ -452,28 +464,19 @@ def execute_organ_runtime_request(
             safety=safety,
             input_hash=input_hash,
             blocked_reason=preflight_reason,
+            executor_result_summary=_organ_spec_summary(organ_spec),
         )
 
-    if runtime_request.action_level is DelegatedActionLevel.L2:
-        return _execute_l2(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L3:
-        return _execute_l3(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L4 and runtime_request.organ_kind == "browser_readonly":
-        return _execute_browser_readonly(runtime_request, runtime_config, safety, input_hash, browser_readonly_fetcher)
-    if runtime_request.action_level is DelegatedActionLevel.L4 and runtime_request.organ_kind == "browser_preparation":
-        return _execute_browser_preparation(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L4 and runtime_request.organ_kind == "browser_semantic_extraction":
-        return _execute_browser_semantic_extraction(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L5 and runtime_request.organ_kind == "browser_session_manager":
-        return _execute_browser_session_manager(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_form_submit_special_authority":
-        return _execute_browser_form_submit(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_login_credential_session_broker":
-        return _execute_browser_login(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_download_upload_quarantine":
-        return _execute_browser_file_quarantine(runtime_request, runtime_config, safety, input_hash)
-    if runtime_request.action_level is DelegatedActionLevel.L6 and runtime_request.organ_kind == "browser_js_sandbox_special_authority":
-        return _execute_browser_js_sandbox(runtime_request, runtime_config, safety, input_hash)
+    handled = _execute_organ_by_spec(
+        organ_spec,
+        runtime_request,
+        runtime_config,
+        safety,
+        input_hash,
+        browser_readonly_fetcher,
+    )
+    if handled is not None:
+        return handled
 
     return _blocked_result(
         request=runtime_request,
@@ -481,6 +484,7 @@ def execute_organ_runtime_request(
         safety=safety,
         input_hash=input_hash,
         blocked_reason="action_level_not_allowed",
+        executor_result_summary=_organ_spec_summary(organ_spec),
     )
 
 
@@ -495,6 +499,70 @@ def validate_organ_runtime_execution_payload(payload: Any) -> OrganRuntimeExecut
         forbidden_surface_paths=scan["forbidden_surface"],
         payload_hash=stable_hash(safety_payload),
     )
+
+
+def _organ_spec_summary(spec: OrganRuntimeSpec | None) -> dict[str, Any]:
+    if spec is None:
+        return {
+            "organ_spec_id": None,
+            "runtime_handler": None,
+            "skill_binding": None,
+            "receipt_kind": None,
+            "proof_requirements": [],
+            "replay_expectations": [],
+        }
+    return {
+        "organ_spec_id": spec.organ_id,
+        "runtime_handler": spec.runtime_handler,
+        "skill_binding": spec.skill_binding,
+        "receipt_kind": spec.receipt_kind,
+        "proof_requirements": list(spec.proof_requirements),
+        "replay_expectations": list(spec.replay_expectations),
+        "recoverable_failure_classes": list(spec.recoverable_failure_classes),
+        "hard_stop_categories": list(spec.hard_stop_categories),
+        "default_dispatchable": spec.default_dispatchable,
+        "locked_reason": spec.locked_reason,
+    }
+
+
+def _execute_organ_by_spec(
+    spec: OrganRuntimeSpec,
+    runtime_request: OrganRuntimeExecutionRequest,
+    runtime_config: OrganRuntimeExecutionConfig,
+    safety: OrganRuntimeExecutionSafetyValidationResult,
+    input_hash: str,
+    browser_readonly_fetcher: Any,
+) -> OrganRuntimeExecutionResult | None:
+    if runtime_request.action_level.value != spec.authority_level:
+        return None
+    handlers = {
+        "execute_l2": lambda: _execute_l2(runtime_request, runtime_config, safety, input_hash),
+        "execute_l3": lambda: _execute_l3(runtime_request, runtime_config, safety, input_hash),
+        "execute_browser_readonly": lambda: _execute_browser_readonly(
+            runtime_request, runtime_config, safety, input_hash, browser_readonly_fetcher
+        ),
+        "execute_browser_preparation": lambda: _execute_browser_preparation(
+            runtime_request, runtime_config, safety, input_hash
+        ),
+        "execute_browser_semantic_extraction": lambda: _execute_browser_semantic_extraction(
+            runtime_request, runtime_config, safety, input_hash
+        ),
+        "execute_browser_session_manager": lambda: _execute_browser_session_manager(
+            runtime_request, runtime_config, safety, input_hash
+        ),
+        "execute_browser_form_submit": lambda: _execute_browser_form_submit(
+            runtime_request, runtime_config, safety, input_hash
+        ),
+        "execute_browser_login": lambda: _execute_browser_login(runtime_request, runtime_config, safety, input_hash),
+        "execute_browser_file_quarantine": lambda: _execute_browser_file_quarantine(
+            runtime_request, runtime_config, safety, input_hash
+        ),
+        "execute_browser_js_sandbox": lambda: _execute_browser_js_sandbox(
+            runtime_request, runtime_config, safety, input_hash
+        ),
+    }
+    handler = handlers.get(spec.runtime_handler)
+    return handler() if handler is not None else None
 
 
 def _runtime_safety_payload(payload: Any) -> Any:
@@ -2113,6 +2181,7 @@ def _blocked_result(
     safety: OrganRuntimeExecutionSafetyValidationResult,
     input_hash: str,
     blocked_reason: str,
+    executor_result_summary: dict[str, Any] | None = None,
 ) -> OrganRuntimeExecutionResult:
     return _result(
         request=request,
@@ -2122,7 +2191,7 @@ def _blocked_result(
         input_hash=input_hash,
         receipt=None,
         finalgate_certificate=None,
-        executor_result_summary={},
+        executor_result_summary=executor_result_summary or {},
         blocked_reason=blocked_reason,
         execution_effect="none",
         steps=["blocked_before_executor"],

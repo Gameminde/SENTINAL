@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import Field
 
 from sentinel.shared.events import AgentEventType, EventBus
@@ -38,3 +40,10 @@ class ExternalOrganRegistry(SentinelModel):
 
     def by_type(self, organ_type: OrganType) -> list[ExternalOrganContract]:
         return [contract for contract in self.contracts if contract.organ_type == organ_type]
+
+
+def runtime_organ_spec_safe_export() -> list[dict[str, Any]]:
+    """Expose runtime organ specs as inert metadata for inventories and frames."""
+    from sentinel.agent.organs.organ_spec_registry import default_organ_spec_registry
+
+    return default_organ_spec_registry().safe_export()
