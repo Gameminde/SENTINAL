@@ -50,6 +50,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Deep power audit and reconnection plan | Committed | `6ad17cd` | Baseline map and pack sequence locked |
 | Power Core Pack 1 actionability/skill registry | Accepted as foundation, not product-proven | `2172a14` | First global truth layer for model-visible skills vs internal primitives vs locked surfaces; product proof requires model decision path to consume `model_visible_*` as primary truth |
 | Power Reconnection Pack B recoverable execution contract | Implemented candidate | `5fc3a0c` | ActionKernel now converts classified in-scope executor misses into recoverable observations instead of terminal mission death |
+| Power Reconnection Pack C organ-to-skill wiring/backend selection | Implemented candidate | `pending_followup_ledger` | Existing read/patch/code/channel/browser organs now have a data-only skill/backend map; CloakBrowser is preferred live browser backend when available; RuntimeHost execution behavior remains read-only-only |
 
 ## Executive Verdict
 
@@ -150,6 +151,7 @@ Top zones:
 | Workspace patch/code loop | Proven by real provider after ordering and authority fixes |
 | Telegram/channel send | Proven by real provider and real channel send |
 | Browser real page open/world model | Partially proven, not product proven |
+| Skill/backend visibility map | Implemented candidate by Pack C, not product-proven until Pack D consumes it as primary decision truth |
 
 ### Existing But Underconnected Power
 

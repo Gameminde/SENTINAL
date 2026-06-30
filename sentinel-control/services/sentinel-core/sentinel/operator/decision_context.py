@@ -6,6 +6,7 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.actionability_registry import build_default_actionability_registry
 from sentinel.operator.action_kernel import ActionResult
 from sentinel.operator.action_power_contract import ActionAliasNormalizer
+from sentinel.operator.power_skill_registry import build_default_power_skill_registry
 
 
 class DecisionContextCompiler:
@@ -165,6 +166,11 @@ class DecisionContextCompiler:
             available_actions=available_actions,
             granted_capabilities=_granted_capabilities(authority),
         )
+        power_skill_backend_frame = build_default_power_skill_registry().compile_backend_frame(
+            available_actions=available_actions,
+            granted_capabilities=_granted_capabilities(authority),
+            actionability_registry=actionability_registry,
+        )
         model_visible_next_actions = _model_visible_next_actions(
             progress_guidance["next_recommended_actions"],
             skill_exposure_frame=skill_exposure_frame,
@@ -175,6 +181,7 @@ class DecisionContextCompiler:
             "mission_objective": mission_objective,
             "available_actions": list(available_actions),
             "skill_exposure_frame": skill_exposure_frame.safe_model_dump(),
+            "power_skill_backend_frame": power_skill_backend_frame,
             "model_visible_next_recommended_actions": model_visible_next_actions,
             "model_visible_recommended_next_action": (
                 "sentinel_loop.finish"

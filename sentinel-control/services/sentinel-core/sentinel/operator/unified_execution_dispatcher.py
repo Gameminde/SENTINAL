@@ -243,6 +243,9 @@ class UnifiedExecutionAdapterRegistry:
         except KeyError as exc:
             raise KeyError("unknown_adapter") from exc
 
+    def adapter_ids(self) -> tuple[str, ...]:
+        return tuple(sorted(self._adapters))
+
 
 class ReadOnlyResearchAdapter:
     adapter_id = "read_only_research_adapter"
