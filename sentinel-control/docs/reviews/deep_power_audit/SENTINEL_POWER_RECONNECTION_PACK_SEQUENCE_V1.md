@@ -25,6 +25,31 @@ The rest is split across organs, harnesses, direct demos, fake/local loops, and 
 The next priority is reconnecting and simplifying the runtime spine.
 ```
 
+## Living Sequence Rule
+
+This sequence is now a live implementation guide. Each pack must be checked against the master deep power audit before implementation, and this file must be updated when a pack is completed, skipped, renamed, split, or superseded.
+
+The rule is:
+
+```text
+audit comparison first
+implementation second
+audit status update third
+commit fourth
+```
+
+This prevents the work from collapsing back into one visible symptom, such as browser locator failures, while the real issue is cross-system actionability and connection quality.
+
+## Implementation Status
+
+| Sequence item | Canonical implementation | Status | Commit | Notes |
+|---|---|---|---|---|
+| Pack A: Actionability Registry And Skill Exposure | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | committed | `2172a14` | Introduced global `actionability_registry.py` and `DecisionContext.skill_exposure_frame` |
+| Pack B: Recoverable Execution Contract | pending | not started | - | Next likely core correction |
+| Pack C: Organ-To-Skill Wiring And Backend Selection | pending | not started | - | Must wire dormant organs into product skills |
+| Pack D: Decision Context Skill Frame Simplification | pending | not started | - | Should migrate model prompts/clients to `model_visible_*` |
+| Pack E: First Simplification Cut Organ Branch Matrix | pending | not started | - | Should reduce duplicated organ dispatch branches |
+
 New canonical next sequence:
 
 ```text
@@ -492,4 +517,3 @@ no fake success
 no provider-native tools
 no fallback/AUTO
 ```
-

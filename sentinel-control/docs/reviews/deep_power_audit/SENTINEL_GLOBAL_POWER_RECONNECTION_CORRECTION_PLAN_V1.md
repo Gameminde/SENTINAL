@@ -10,6 +10,31 @@
 
 ---
 
+## Living Plan Rule
+
+This plan is the global correction contract until the reconnection work is complete.
+
+Every future pack must explicitly answer:
+
+```text
+which audit finding does this fix?
+which connection plane changes?
+which module owns the correction?
+which old friction or duplicate path is removed, hidden, or marked internal?
+what power becomes easier for the model?
+what real-damage hard stops remain intact?
+what audit tables/docs need to be updated?
+```
+
+If a proposed pack only fixes a local symptom and does not map back to one of the audit findings, it should be rejected or reframed before coding.
+
+## Correction Progress Ledger
+
+| Date state | Correction | Commit | Audit mapping |
+|---|---|---|---|
+| locked | Deep power audit and generated inventories | `6ad17cd` | Baseline map of code, organs, connections, simplification candidates |
+| implemented | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | `2172a14` | P0: model-visible action not guaranteed executable |
+
 ## Correction To Previous Focus
 
 The previous response over-focused on browser because Alibaba was the most recent visible failure.
@@ -854,4 +879,3 @@ POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1
 ```
 
 This is the correct starting point because every other power surface depends on it.
-

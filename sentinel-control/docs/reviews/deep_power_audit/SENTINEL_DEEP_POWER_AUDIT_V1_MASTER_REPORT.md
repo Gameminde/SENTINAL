@@ -8,6 +8,34 @@ External network calls: 0
 Source runtime changes: 0
 Push: not performed
 
+## Living Audit Control Rule
+
+This audit is now a living correction control document, not a one-time report.
+
+Until Sentinel's power reconnection work is finished, every implementation pack must:
+
+```text
+1. compare the proposed change against this master audit
+2. compare the proposed change against:
+   - SENTINEL_GLOBAL_POWER_RECONNECTION_CORRECTION_PLAN_V1.md
+   - SENTINEL_POWER_RECONNECTION_PACK_SEQUENCE_V1.md
+   - SENTINEL_DEEP_POWER_SURGICAL_CUT_LIST_V1.md
+   - SENTINEL_ORGANS_AND_BROWSER_INVENTORY_V1.md
+3. update the relevant audit/control docs when the correction state changes
+4. avoid narrowing the work to one visible symptom when the audit identifies a root connection failure
+5. keep power-first direction:
+   model leads -> Sentinel skill executes -> receipts/replay in background -> hard stop only on real damage
+```
+
+New corrective packs should not be accepted as complete if they do not update the audit state or explain why no audit state changed.
+
+## Live Correction Status
+
+| Correction | Status | Commit | Effect |
+|---|---|---|---|
+| Deep power audit and reconnection plan | Committed | `6ad17cd` | Baseline map and pack sequence locked |
+| Power Core Pack 1 actionability/skill registry | Committed | `2172a14` | First global truth layer for model-visible skills vs internal primitives vs locked surfaces |
+
 ## Executive Verdict
 
 Sentinel already contains enough raw organs to become a very powerful model-led system:
