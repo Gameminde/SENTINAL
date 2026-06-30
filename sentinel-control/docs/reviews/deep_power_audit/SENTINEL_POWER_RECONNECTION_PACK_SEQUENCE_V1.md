@@ -49,7 +49,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 |---|---|---|---|---|
 | Pack A: Actionability Registry And Skill Exposure | `POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1` | accepted as foundation, not product-proven | `2172a14` | Introduced global `actionability_registry.py` and `DecisionContext.skill_exposure_frame`; full product value requires model decision path to consume `model_visible_*` as primary truth |
 | Pack B: Recoverable Execution Contract | `POWER_RECONNECTION_PACK_B_RECOVERABLE_EXECUTION_CONTRACT_V1` | implemented candidate | `5fc3a0c` | Classified in-scope executor misses become recoverable observations; Pack A model-visible consumption remains Pack D scope |
-| Pack C: Organ-To-Skill Wiring And Backend Selection | `POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1` | implemented candidate | `pending_followup_ledger` | Added data-only `power_skill_registry.py` and `browser_backend_selector.py`; skills now map to owner organs/backends without enabling new dispatch power |
+| Pack C: Organ-To-Skill Wiring And Backend Selection | `POWER_RECONNECTION_PACK_C_ORGAN_TO_SKILL_WIRING_AND_BACKEND_SELECTION_V1` | implemented candidate | `7bc8f6e` | Added data-only `power_skill_registry.py` and `browser_backend_selector.py`; skills now map to owner organs/backends without enabling new dispatch power |
 | Pack D: Decision Context Skill Frame Simplification | pending | not started | - | Next core correction; should migrate model prompts/clients to `model_visible_*` and `power_skill_backend_frame` |
 | Pack E: First Simplification Cut Organ Branch Matrix | pending | not started | - | Should reduce duplicated organ dispatch branches |
 
@@ -348,7 +348,7 @@ Status:
 
 ```text
 IMPLEMENTED_CANDIDATE
-commit = pending_followup_ledger
+commit = 7bc8f6e
 power_skill_backend_frame = true
 CloakBrowser_preferred_when_available = true
 Playwright_requires_explicit_compatibility_selection = true
