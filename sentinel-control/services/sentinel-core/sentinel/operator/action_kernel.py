@@ -7,7 +7,9 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_failure_policy import classify_action_execution_failure
 from sentinel.operator.action_power_contract import ActionAliasNormalizer, ActionFailureClass
+from sentinel.operator.action_power_contract import recoverable_action_observation
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel, new_id
 
@@ -191,10 +193,16 @@ class ActionKernel:
             raise ActionKernelError(f"action_executor_missing:{envelope.capability_id}")
         try:
             return executor(envelope, context)
-        except ActionKernelError:
+        except ActionKernelError as exc:
+            failure = classify_action_execution_failure(exc, context=context)
+            if failure.recoverable:
+                return _recoverable_executor_result(envelope, failure=failure)
             raise
         except Exception as exc:  # noqa: BLE001
-            raise ActionKernelError(str(exc) or exc.__class__.__name__) from exc
+            failure = classify_action_execution_failure(exc, context=context)
+            if failure.recoverable:
+                return _recoverable_executor_result(envelope, failure=failure)
+            raise ActionKernelError(failure.hard_stop_reason or failure.failure_code) from exc
 
 
 def _reject_forbidden_material(value: Any, *, context: str) -> None:
@@ -221,6 +229,31 @@ def _reject_forbidden_material(value: Any, *, context: str) -> None:
             if "raw_provider" in lowered or "raw prompt" in lowered or "raw response" in lowered:
                 raise ValueError(f"{context}: raw provider material is forbidden")
             raise ValueError(f"{context}: credential or secret material is forbidden")
+
+
+def _recoverable_executor_result(envelope: ActionEnvelope, *, failure: Any) -> ActionResult:
+    observation = recoverable_action_observation(
+        failure_class=failure.failure_class,
+        failure_code=failure.failure_code,
+        attempted_action_hash=envelope.action_hash,
+        safe_summary=failure.safe_summary,
+        recommended_next_actions=failure.recommended_next_actions,
+        refreshed_candidate_refs=failure.refreshed_candidate_refs,
+    )
+    return ActionResult(
+        action_id=envelope.action_id,
+        capability_id=envelope.capability_id,
+        operation=envelope.operation,
+        status="recoverable_failed",
+        material_action=False,
+        blocked_reason=failure.failure_code,
+        failure_class=failure.failure_class,
+        failure_code=failure.failure_code,
+        recoverable=True,
+        recovery_observation=observation.safe_model_dump(),
+        recommended_next_actions=failure.recommended_next_actions,
+        observation_summary=f"recoverable executor miss: {failure.failure_code}",
+    )
 
 
 __all__ = ["ActionEnvelope", "ActionKernel", "ActionKernelError", "ActionResult", "ActionExecutor"]
