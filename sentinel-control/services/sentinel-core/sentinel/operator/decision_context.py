@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.actionability_registry import build_default_actionability_registry
 from sentinel.operator.action_kernel import ActionResult
+from sentinel.operator.action_power_contract import ActionAliasNormalizer
 
 
 class DecisionContextCompiler:
@@ -158,10 +160,27 @@ class DecisionContextCompiler:
                 post_patch_verification_results=post_patch_verification_results,
             )
         )
+        actionability_registry = build_default_actionability_registry()
+        skill_exposure_frame = actionability_registry.compile_frame(
+            available_actions=available_actions,
+            granted_capabilities=_granted_capabilities(authority),
+        )
+        model_visible_next_actions = _model_visible_next_actions(
+            progress_guidance["next_recommended_actions"],
+            skill_exposure_frame=skill_exposure_frame,
+            actionability_registry=actionability_registry,
+        )
         return {
             "mission_id": mission_id,
             "mission_objective": mission_objective,
             "available_actions": list(available_actions),
+            "skill_exposure_frame": skill_exposure_frame.safe_model_dump(),
+            "model_visible_next_recommended_actions": model_visible_next_actions,
+            "model_visible_recommended_next_action": (
+                "sentinel_loop.finish"
+                if objective_satisfied
+                else (model_visible_next_actions[0] if model_visible_next_actions else None)
+            ),
             "objective_satisfied": objective_satisfied,
             "finish_available": objective_satisfied,
             "recommended_next_action": (
@@ -454,6 +473,36 @@ def _is_channel_mode(*, available_actions: tuple[str, ...], observations: list[A
     if any(result.capability_id in {"bounded_channel", "channel_transport"} for result in observations):
         return True
     return any(action.startswith(("bounded_channel.", "channel_transport.", "channel.")) for action in available_actions)
+
+
+def _granted_capabilities(authority: MissionAuthorityEnvelope) -> tuple[str, ...]:
+    normalizer = ActionAliasNormalizer()
+    names = [*authority.allowed_actions, *authority.allowed_tools, *authority.allowed_systems]
+    capabilities: set[str] = set()
+    for name in names:
+        if not name:
+            continue
+        normalized = normalizer.normalize_action_name(str(name))
+        capabilities.add(normalized.split(".", 1)[0])
+    return tuple(sorted(capabilities))
+
+
+def _model_visible_next_actions(
+    next_recommended_actions: list[str],
+    *,
+    skill_exposure_frame: Any,
+    actionability_registry: Any,
+) -> list[str]:
+    visible = {item.canonical_action_name for item in skill_exposure_frame.model_visible_actions}
+    ordered: list[str] = []
+    for action in next_recommended_actions:
+        canonical = actionability_registry.normalize_action_name(str(action))
+        if canonical not in visible or canonical in ordered:
+            continue
+        ordered.append(canonical)
+    if ordered:
+        return ordered
+    return [item.canonical_action_name for item in skill_exposure_frame.model_visible_actions[:1]]
 
 
 def _channel_progress_guidance(
