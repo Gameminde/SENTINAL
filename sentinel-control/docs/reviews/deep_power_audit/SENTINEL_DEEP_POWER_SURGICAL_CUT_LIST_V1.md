@@ -186,3 +186,18 @@ Product extraction cards can satisfy web research proof.
 Replay validates receipt schemas and hashes.
 Hard stops remain for login/contact/payment/credential/origin escape.
 ```
+
+## Blocker Audit V1 Cut Overlay
+
+The blocker audit adds the first surgical cut overlay:
+
+| Blocker row | Cut decision | Effect |
+|---|---|---|
+| `BF-BROWSER-001` | `REPLACE_WITH_SKILL_ROUTING` | Visible cards + safe ambiguous intent must route to extraction |
+| `BF-BROWSER-002` | `REPLACE_WITH_SKILL_ROUTING` | Current-world extraction/finish outranks repeated open/search |
+| `BF-CORE-013` | `MOVE_BELOW_MODEL` | Legacy recommended actions must not dominate skill frame |
+| `BF-BROWSER-007` | `MOVE_BELOW_MODEL` | Raw browser primitives become internal/fallback/debug, not primary model path |
+| `BF-CORE-001` | `CONVERT_TO_RECOVERY` | Normal in-scope loop misses stay recoverable until budgeted recovery exhaustion |
+| `BF-PROOF-001` | `MOVE_BELOW_MODEL` | FinalGate certifies after recovery/hard-stop truth, not routine avoidable miss |
+
+No physical source deletion is approved by this overlay yet. First cut model-facing friction and prove replacement behavior.

@@ -634,3 +634,28 @@ no fake success
 no provider-native tools
 no fallback/AUTO
 ```
+
+## Inserted Sequence: Power Friction Cuts
+
+`SENTINEL_BLOCKER_AND_POWER_FRICTION_AUDIT_V1` inserts a focused blocker-cut sequence before more broad capability expansion.
+
+```text
+POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
+POWER_FRICTION_CUT_PACK_2_PROVIDER_AND_SCHEMA_FRICTION_DEMOTION_V1
+POWER_FRICTION_CUT_PACK_3_RECOVERY_BUDGET_AND_FINALGATE_ROLE_V1
+POWER_FRICTION_CUT_PACK_4_DORMANT_ORGANS_TO_SKILL_SPINE_V1
+```
+
+Pack 1 is the immediate next pack because it targets the live 5F failure mode:
+
+```text
+product cards visible
+safe model-native intent consumed
+but extraction was not triggered
+```
+
+The pack sequence rule remains:
+
+```text
+audit -> implement -> re-audit touched path -> update big audit -> commit -> next pack
+```

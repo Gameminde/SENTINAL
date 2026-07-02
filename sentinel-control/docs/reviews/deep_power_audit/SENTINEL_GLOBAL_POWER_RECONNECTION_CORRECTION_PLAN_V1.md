@@ -906,3 +906,40 @@ POWER_CORE_PACK_1_ACTIONABILITY_AND_SKILL_REGISTRY_V1
 ```
 
 This is the correct starting point because every other power surface depends on it.
+
+## Living Update: Blocker And Power Friction Audit V1
+
+After `REAL_POWER_ATTEMPT_5F`, the next correction layer is not another broad security/control pack. The new blocker audit classifies every major blocker as:
+
+```text
+KEEP_HARD_STOP
+DELETE
+DEMOTE_TO_WARNING
+CONVERT_TO_RECOVERY
+MOVE_BELOW_MODEL
+REPLACE_WITH_SKILL_ROUTING
+KEEP_BUT_REQUIRE_CLEAR_AUTHORITY
+```
+
+The control rule for this plan is now:
+
+```text
+Each implementation pack must cut a named blocker row from SENTINEL_BLOCKER_AND_POWER_FRICTION_MATRIX_V1.csv.
+Each pack must preserve the listed hard stops and update the matrix/control docs after validation.
+```
+
+Immediate next pack:
+
+```text
+POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
+```
+
+First targets:
+
+```text
+visible product cards must route to extract_product_cards
+safe ambiguous browser intent must not repeat open/search
+no-safe-recommendation becomes recoverable observation
+raw browser primitives move below model-facing schema
+FinalGate waits until recovery options are exhausted or a real hard boundary is hit
+```

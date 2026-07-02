@@ -346,3 +346,31 @@ recovery budget exhausted after real attempts
 - No browser/channel/network action was run.
 - No source runtime behavior was changed.
 - Some findings are based on source evidence and previous retained reports, not fresh real-provider reruns.
+
+## Living Audit Update: Blocker And Power Friction Audit V1
+
+`SENTINEL_BLOCKER_AND_POWER_FRICTION_AUDIT_V1` adds a blocker-level decision matrix to this master audit.
+
+Canonical correction:
+
+```text
+Do not delete safety blindly.
+Delete, hide, demote, or recover blockers that do not protect real-world damage.
+Keep hard stops for true external damage, authority escape, credential/session leakage, destructive mutation, provider-native tools, fallback/AUTO, and replay side effects.
+```
+
+New control artifacts:
+
+| Artifact | Role |
+|---|---|
+| `SENTINEL_BLOCKER_AND_POWER_FRICTION_AUDIT_V1.md` | Narrative blocker audit and doctrine |
+| `SENTINEL_BLOCKER_AND_POWER_FRICTION_MATRIX_V1.csv` | Per-blocker classification and decision matrix |
+| `SENTINEL_BLOCKER_REMOVAL_PLAN_V1.md` | Ordered removal/recovery plan and next pack |
+
+Immediate next implementation recommendation:
+
+```text
+POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
+```
+
+This update does not close the full master audit. It adds a sharper execution lens: every future pack must state which blocker rows it removes, converts, hides, or keeps hard.
