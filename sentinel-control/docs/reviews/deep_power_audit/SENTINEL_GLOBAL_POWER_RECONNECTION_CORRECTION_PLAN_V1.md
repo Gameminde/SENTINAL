@@ -55,14 +55,15 @@ start next pack only after state is current
 | implemented candidate | `BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1` | pending local commit | P0: model-visible action protocol is too cage-like and useful `metadata/reply` intent collapses into `empty_action_envelope` | focused proof: natural/semi-structured browser intent maps to internal ActionEnvelope skills; hard boundary intents block; replay/no-react still holds |
 | implemented candidate | `POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1` | `400637710350d129683f9fa9124edf9d79262023` | P0 blocker audit rows BF-BROWSER-001/002/003/007/008/009, BF-CORE-013, BF-PROOF-001 | focused proof: visible cards route to extract/verify/finish, open/search are demoted after cards exist, hidden/disabled refs recover, secret refs hard stop, FinalGate blocked truth is avoided while recovery succeeds |
 | implemented candidate | `POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1` | `102b1d0a68802dc6d25dd8b79ff33a33277ca34f` | P0: 5G proved visible cards can reach extract/verify, but verified extraction did not dominate summary/finish | focused proof: verified extraction routes to grounded evidence summary, summary plus verification routes to finish, and open/search/recovery churn is demoted after verification |
+| product-proven subpath | `REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1` | pending report commit | P0: Pack 2 needed real-provider proof on bounded Alibaba | focused proof: real model loop reached extract_product_cards -> verify_extraction -> summarize_evidence -> finish, mission completed, replay no-react, high-risk scan clean |
 
 Current next correction:
 
 ```text
-REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1
+POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1
 ```
 
-Pack B did not ignore Pack A: it audited `model_visible_*` consumption and found the full model decision migration still belongs to Pack D. Pack C wired dormant organs into product skills without bypassing the new actionability and recoverable-execution contracts. Pack D made skill/backend frames the primary model decision truth while keeping legacy fields as compatibility only. Pack E created the first declarative organ runtime spec cut and wired it into dispatch/runtime. Pack F cut typed sub-request field selection/building into `OrganRequestFactory`. Pack 6D consumed A-F for a vertical browser proof. `BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1` corrects the 5E protocol cage by letting the loop consume model-native browser intent and translate it into internal skills. `POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1` cut the first 5F blocker cluster so visible product/result cards and safe intent route to extraction and verification instead of stale open/search/raw primitive paths. `POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1` cuts the 5G post-verification blocker so verified extraction routes to summary and finish instead of search/recovery churn. The next step is a single real Alibaba attempt to prove whether that completion lane works on the complex page.
+Pack B did not ignore Pack A: it audited `model_visible_*` consumption and found the full model decision migration still belongs to Pack D. Pack C wired dormant organs into product skills without bypassing the new actionability and recoverable-execution contracts. Pack D made skill/backend frames the primary model decision truth while keeping legacy fields as compatibility only. Pack E created the first declarative organ runtime spec cut and wired it into dispatch/runtime. Pack F cut typed sub-request field selection/building into `OrganRequestFactory`. Pack 6D consumed A-F for a vertical browser proof. `BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1` corrects the 5E protocol cage by letting the loop consume model-native browser intent and translate it into internal skills. `POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1` cut the first 5F blocker cluster so visible product/result cards and safe intent route to extraction and verification instead of stale open/search/raw primitive paths. `POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1` cuts the 5G post-verification blocker so verified extraction routes to summary and finish instead of search/recovery churn. `REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1` proves that completion lane with a real provider and bounded Alibaba page. The next blocker is search actuation plus relevant product extraction quality: 5H completed from visible cards, but did not prove real search/navigation or glasses-under-5-EUR quality.
 
 ## Correction To Previous Focus
 
@@ -930,10 +931,10 @@ Each implementation pack must cut a named blocker row from SENTINEL_BLOCKER_AND_
 Each pack must preserve the listed hard stops and update the matrix/control docs after validation.
 ```
 
-Immediate next prepared product proof:
+Immediate next implementation pack:
 
 ```text
-REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1
+POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1
 ```
 
 First targets:

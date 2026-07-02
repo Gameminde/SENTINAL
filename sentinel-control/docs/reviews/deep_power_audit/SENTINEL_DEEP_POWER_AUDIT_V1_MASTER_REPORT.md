@@ -58,6 +58,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Browser model-native control loop | Implemented candidate, not real-provider/browser product-proven | pending local commit | `ModelLedTaskLoop` can now consume natural/semi-structured browser intents and `metadata/reply` envelopes, map safe intent into internal `ActionEnvelope` skills, preserve hard stops, and avoid turning useful visible model text into `empty_action_envelope` by default |
 | Power Friction Cut Pack 1 stupid blockers | Implemented candidate, not real-provider/browser product-proven | `400637710350d129683f9fa9124edf9d79262023` | First blocker cluster cut: visible product/result cards now outrank stale open/search recommendations; safe ambiguous intent maps to extraction/verification/finish; hidden/disabled refs recover while secret refs hard stop; raw browser primitives are removed from the primary model-facing schema |
 | Power Friction Cut Pack 2 verified extraction completion lane | Implemented candidate, not real-provider/browser product-proven | `102b1d0a68802dc6d25dd8b79ff33a33277ca34f` | Cuts the 5G post-verification blocker: verified extraction now routes to grounded evidence summary, summary plus verification routes to finish, open/search are demoted after verification, and completion-lane recovery is attempted before blocked truth |
+| Real Power Attempt 5H verified extraction to summary finish | Valid success for completion-lane proof, not full commerce research quality | pending report commit | Proves Pack 2 on the bounded Alibaba path: extract_product_cards, verify_extraction, summarize_evidence, finish, completed mission, replay no-react, and high-risk scan clean; exposes search/relevance quality gap |
 
 ## Executive Verdict
 
@@ -369,10 +370,10 @@ New control artifacts:
 | `SENTINEL_BLOCKER_AND_POWER_FRICTION_MATRIX_V1.csv` | Per-blocker classification and decision matrix |
 | `SENTINEL_BLOCKER_REMOVAL_PLAN_V1.md` | Ordered removal/recovery plan and next pack |
 
-Immediate next prepared product proof:
+Immediate next implementation recommendation:
 
 ```text
-REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1
+POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1
 ```
 
-This update does not close the full master audit. It records that Pack 1 cut the visible-cards-to-extraction blocker and Pack 2 cut the verified-extraction-to-completion-lane blocker; every future pack must still state which blocker rows it removes, converts, hides, or keeps hard.
+This update does not close the full master audit. It records that Pack 1 cut the visible-cards-to-extraction blocker, Pack 2 cut the verified-extraction-to-completion-lane blocker, and 5H product-proved that completion lane. The remaining browser blocker is now search actuation plus relevant product extraction quality; every future pack must still state which blocker rows it removes, converts, hides, or keeps hard.
