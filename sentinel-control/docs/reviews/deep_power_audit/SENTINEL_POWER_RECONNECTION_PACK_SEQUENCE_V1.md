@@ -56,6 +56,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Browser vertical: Skill Spine And Root Friction Removal | `POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1` | implemented candidate, not real-provider/browser product-proven | pending local commit | Model-facing browser path is skill-first; low-level primitives are internal/fallback; search actuation ranks refs and tries alternates; product extraction cards and verification receipts are proof-bearing; replay no-react is covered by fake/local tests |
 | Browser vertical: Model Native Control Loop | `BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1` | implemented candidate, not real-provider/browser product-proven | pending local commit | Natural/semi-structured model browser intent now maps to canonical internal ActionEnvelope skills inside `ModelLedTaskLoop`; `metadata/reply` safe intent no longer has to become empty-action correction churn |
 | Power friction cut: first stupid blockers | `POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1` | implemented candidate, not real-provider/browser product-proven | `400637710350d129683f9fa9124edf9d79262023` | Cuts the first 5F blocker cluster: visible cards beat stale open/search recommendations, safe ambiguous intent routes to extract/verify/finish, hidden/disabled refs recover, secret refs remain hard stops |
+| Power friction cut: verified extraction completion lane | `POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1` | implemented candidate, not real-provider/browser product-proven | `102b1d0a68802dc6d25dd8b79ff33a33277ca34f` | Cuts the 5G post-verification blocker: verified extraction now routes to grounded evidence summary, summary plus verification routes to finish, and open/search/recovery churn is demoted after verification |
 
 New canonical next sequence:
 
@@ -69,7 +70,8 @@ done POWER_RECONNECTION_PACK_F_SUB_REQUEST_BUILDER_SPEC_CUT_V1
 done POWER_PACK_6D_BROWSER_SKILL_SPINE_AND_ROOT_FRICTION_REMOVAL_V1
 done BROWSER_MODEL_NATIVE_CONTROL_LOOP_V1
 done POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
-next REAL_POWER_ATTEMPT_5G_POWER_FRICTION_CUT_VISIBLE_CARDS_TO_FINISH_V1
+done POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1
+next REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F
@@ -643,7 +645,7 @@ no fallback/AUTO
 
 ```text
 POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
-POWER_FRICTION_CUT_PACK_2_PROVIDER_AND_SCHEMA_FRICTION_DEMOTION_V1
+POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1
 POWER_FRICTION_CUT_PACK_3_RECOVERY_BUDGET_AND_FINALGATE_ROLE_V1
 POWER_FRICTION_CUT_PACK_4_DORMANT_ORGANS_TO_SKILL_SPINE_V1
 ```
