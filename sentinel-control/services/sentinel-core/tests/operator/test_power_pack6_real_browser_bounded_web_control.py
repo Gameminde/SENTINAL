@@ -132,7 +132,7 @@ def test_power_pack6_real_browser_click_changes_state_and_extract_text_is_receip
     assert "text_hash=" in extracted.observation_summary
 
 
-def test_power_pack6_real_browser_blocks_unknown_secret_disabled_and_unbounded_material(tmp_path: Path) -> None:
+def test_power_pack6_real_browser_recovers_refs_but_blocks_secret_and_unbounded_material(tmp_path: Path) -> None:
     fixture = _RealBrowserFixture(tmp_path)
     fixture.real_browser_runtime.execute(
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
@@ -149,9 +149,22 @@ def test_power_pack6_real_browser_blocks_unknown_secret_disabled_and_unbounded_m
     assert recoverable.recoverable is True
     assert recoverable.blocked_reason == "real_browser_element_ref_unknown"
 
+    for envelope, reason in (
+        (
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", params={"ref": "button:hidden"}),
+            "real_browser_element_hidden",
+        ),
+        (
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", params={"ref": "button:disabled"}),
+            "real_browser_element_disabled",
+        ),
+    ):
+        recovered = fixture.real_browser_runtime.execute(envelope, authority=fixture.authority, context={})
+        assert recovered.status == "recoverable_failed"
+        assert recovered.recoverable is True
+        assert recovered.blocked_reason == reason
+
     blocked = [
-        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", params={"ref": "button:hidden"}),
-        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", params={"ref": "button:disabled"}),
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.type_text", params={"ref": "input:masked", "text": "hello"}),
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.type_text", params={"ref": "input:status", "text": "sk-live-secret"}),
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open", params={"url": "https://example.com"}),

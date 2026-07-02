@@ -107,9 +107,6 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
     if not normalized:
         return _recommended_mapping(context, diagnostics=diagnostics, intent_kind="empty_or_ambiguous_intent")
 
-    if _mentions_open(normalized):
-        return _mapped("real_browser_control.real_browser.open", intent_kind="open", diagnostics=diagnostics)
-
     if _mentions_finish(normalized):
         if _finish_is_available(context):
             return _mapped(
@@ -124,11 +121,32 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
             return _mapped("real_browser_control.real_browser.extract_product_cards", intent_kind="finish_requires_extraction", diagnostics=diagnostics)
         return _recommended_mapping(context, diagnostics=diagnostics, intent_kind="finish_without_proof")
 
+    if _has_verified_browser_extraction(context) and _mentions_completion_without_finish(normalized):
+        return _mapped(
+            "sentinel_loop.finish",
+            params={"safe_summary": "Browser task evidence verified; model requested completion."},
+            intent_kind="completion_after_verified_extraction",
+            diagnostics=diagnostics,
+        )
+
     if _mentions_verify(normalized):
         return _mapped("real_browser_control.real_browser.verify_extraction", intent_kind="verify_extraction", diagnostics=diagnostics)
 
-    if _has_product_cards(context) and _mentions_extract_or_compare(normalized):
+    if _has_product_cards(context) and not _has_browser_extraction(context):
+        if _mentions_new_search_query(normalized):
+            return _mapped(
+                "real_browser_control.real_browser.search",
+                params={"query": _extract_search_query(visible_text)},
+                intent_kind="explicit_new_search_query",
+                diagnostics=diagnostics,
+            )
         return _mapped("real_browser_control.real_browser.extract_product_cards", intent_kind="extract_visible_cards", diagnostics=diagnostics)
+
+    if _has_product_cards(context) and _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
+        return _mapped("real_browser_control.real_browser.verify_extraction", intent_kind="verify_visible_cards", diagnostics=diagnostics)
+
+    if _mentions_open(normalized):
+        return _mapped("real_browser_control.real_browser.open", intent_kind="open", diagnostics=diagnostics)
 
     if _mentions_extract_or_compare(normalized):
         return _mapped("real_browser_control.real_browser.extract_product_cards", intent_kind="extract_product_cards", diagnostics=diagnostics)
@@ -218,14 +236,21 @@ def _recommended_mapping(
     diagnostics: dict[str, Any],
     intent_kind: str,
 ) -> BrowserModelNativeIntentMapping:
-    action = _primary_recommended_action(context)
+    action = _strongest_contextual_browser_action(context) or _primary_recommended_action(context)
     if action is None:
-        return BrowserModelNativeIntentMapping(
-            blocked=True,
-            blocked_reason="BROWSER_INTENT_NO_SAFE_RECOMMENDATION",
-            intent_kind=intent_kind,
-            safe_diagnostics={**diagnostics, "failure_code": "BROWSER_INTENT_NO_SAFE_RECOMMENDATION"},
-        )
+        action = _safe_fallback_browser_action(context)
+        if action is None:
+            return BrowserModelNativeIntentMapping(
+                blocked=True,
+                blocked_reason="BROWSER_INTENT_NO_SAFE_RECOMMENDATION",
+                intent_kind=intent_kind,
+                safe_diagnostics={**diagnostics, "failure_code": "BROWSER_INTENT_NO_SAFE_RECOMMENDATION"},
+            )
+        diagnostics = {
+            **diagnostics,
+            "failure_code": "BROWSER_INTENT_NO_SAFE_RECOMMENDATION",
+            "fallback_reason": "BROWSER_INTENT_NO_SAFE_RECOMMENDATION_RECOVERED",
+        }
     params: dict[str, Any] = {}
     if action == "real_browser_control.real_browser.search":
         params["query"] = _query_from_mission(context)
@@ -313,6 +338,13 @@ def _mentions_open(normalized: str) -> bool:
     return any(marker in normalized for marker in ("open the bounded", "open alibaba", "open page", "open the page"))
 
 
+def _mentions_new_search_query(normalized: str) -> bool:
+    return any(
+        marker in normalized
+        for marker in ("new search", "another search", "different search", "search again", "instead search")
+    )
+
+
 def _mentions_search(normalized: str) -> bool:
     return any(marker in normalized for marker in ("search", "find ", "look for", "under 5", "under five", "glasses", "sunglasses"))
 
@@ -351,6 +383,10 @@ def _mentions_finish(normalized: str) -> bool:
     return any(marker in normalized for marker in ("finish", "done", "enough evidence", "summarize", "summary"))
 
 
+def _mentions_completion_without_finish(normalized: str) -> bool:
+    return any(marker in normalized for marker in ("complete", "ready", "enough", "evaluative summary", "short evaluation"))
+
+
 def _extract_search_query(visible_text: str) -> str:
     normalized = _normalize_text(visible_text)
     if ("glasses" in normalized or "sunglasses" in normalized) and (
@@ -375,10 +411,6 @@ def _query_from_mission(context: dict[str, Any]) -> str:
 
 
 def _primary_recommended_action(context: dict[str, Any]) -> str | None:
-    for key in ("primary_model_recommended_next_action", "model_visible_recommended_next_action", "recommended_next_action"):
-        value = context.get(key)
-        if isinstance(value, str) and value.strip():
-            return _coerce_to_model_visible_action(value.strip())
     frame = context.get("skill_decision_frame")
     if isinstance(frame, dict):
         actions = frame.get("recommended_next_actions")
@@ -386,6 +418,35 @@ def _primary_recommended_action(context: dict[str, Any]) -> str | None:
             for action in actions:
                 if isinstance(action, str) and action.strip():
                     return _coerce_to_model_visible_action(action.strip())
+    for key in ("primary_model_recommended_next_action", "model_visible_recommended_next_action", "recommended_next_action"):
+        value = context.get(key)
+        if isinstance(value, str) and value.strip():
+            return _coerce_to_model_visible_action(value.strip())
+    return None
+
+
+def _strongest_contextual_browser_action(context: dict[str, Any]) -> str | None:
+    if _has_verified_browser_extraction(context) and (context.get("finish_available") or context.get("objective_satisfied")):
+        return "sentinel_loop.finish"
+    if _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
+        return "real_browser_control.real_browser.verify_extraction"
+    if _has_product_cards(context):
+        return "real_browser_control.real_browser.extract_product_cards"
+    return None
+
+
+def _safe_fallback_browser_action(context: dict[str, Any]) -> str | None:
+    available = tuple(str(action) for action in context.get("available_actions", ()) if isinstance(action, str))
+    preferred = (
+        "real_browser_control.real_browser.observe",
+        "real_browser_control.real_browser.extract_product_cards",
+        "real_browser_control.real_browser.verify_extraction",
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.inspect_result",
+    )
+    for action in preferred:
+        if action in available:
+            return action
     return None
 
 

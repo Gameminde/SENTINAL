@@ -89,6 +89,15 @@ data/control-plane object trying to grant authority
 POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
 ```
 
+Status:
+
+```text
+implemented candidate
+not real-provider/browser product-proven
+report = SENTINEL_POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1_REPORT.md
+next = REAL_POWER_ATTEMPT_5G_POWER_FRICTION_CUT_VISIBLE_CARDS_TO_FINISH_V1
+```
+
 ### Objective
 
 Cut the blockers that caused 5F and the surrounding model-facing friction:

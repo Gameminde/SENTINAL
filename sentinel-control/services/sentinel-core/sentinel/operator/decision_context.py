@@ -844,8 +844,9 @@ def _allowed_action_schema(*, real_browser_mode: bool) -> dict[str, Any]:
         return {}
     return {
         "capability_id": "real_browser_control",
-        "operation": "real_browser.open | real_browser.observe | real_browser.click | real_browser.type_text | real_browser.press_key | real_browser.wait_for_text | real_browser.wait_for_load | real_browser.scroll | real_browser.extract_text | real_browser.assert_text",
-        "params": {"ref": "stable ref when needed", "text": "bounded text when needed"},
+        "operation": "real_browser.open | real_browser.observe | real_browser.search | real_browser.inspect_result | real_browser.open_result | real_browser.extract_product_cards | real_browser.verify_extraction",
+        "params": {"query": "bounded search query when searching", "ref": "stable result ref when inspecting/opening"},
+        "internal_runtime_note": "click/type/select/press/wait/scroll are internal fallback primitives, not the primary model-facing browser path.",
     }
 
 

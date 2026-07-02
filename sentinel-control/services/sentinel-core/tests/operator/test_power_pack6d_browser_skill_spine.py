@@ -548,6 +548,40 @@ def test_natural_intent_extract_visible_cards_maps_to_extract_product_cards(tmp_
     assert mapping.envelope.operation == "real_browser.extract_product_cards"
 
 
+def test_visible_product_cards_and_ambiguous_intent_maps_to_extract(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    context = _compile_browser_context(fixture, observations=[opened])
+    context["primary_model_recommended_next_action"] = "real_browser_control.real_browser.open"
+    context["recommended_next_action"] = "real_browser_control.real_browser.search"
+
+    mapping = map_browser_model_native_intent("I will continue with the visible results.", context=context)
+
+    assert mapping.blocked is False
+    assert mapping.envelope is not None
+    assert mapping.envelope.operation == "real_browser.extract_product_cards"
+
+
+def test_open_intent_with_visible_cards_demotes_open_to_extract(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    context = _compile_browser_context(fixture, observations=[opened])
+
+    mapping = map_browser_model_native_intent("I will open the visible products and extract their details.", context=context)
+
+    assert mapping.blocked is False
+    assert mapping.envelope is not None
+    assert mapping.envelope.operation == "real_browser.extract_product_cards"
+
+
 def test_natural_intent_search_under_price_maps_to_search_with_query(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
     context = _compile_browser_context(fixture, observations=[])
@@ -625,10 +659,76 @@ def test_ambiguous_safe_intent_uses_primary_skill_recommendation(tmp_path: Path)
     mapping = map_browser_model_native_intent("I will continue with the best safe next step.", context=context)
 
     assert mapping.envelope is not None
-    assert (
+    assert mapping.envelope.operation == "real_browser.extract_product_cards"
+    assert context["primary_model_recommended_next_action"] != (
         f"{mapping.envelope.capability_id}.{mapping.envelope.operation}"
-        == context["primary_model_recommended_next_action"]
     )
+
+
+def test_safe_ambiguous_intent_without_recommendation_recovers_not_blocks() -> None:
+    mapping = map_browser_model_native_intent(
+        "I will continue with the best safe browser move.",
+        context={
+            "available_actions": [
+                "real_browser_control.real_browser.observe",
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.extract_product_cards",
+            ],
+            "decision_context_primary_truth": "skill_decision_frame",
+        },
+    )
+
+    assert mapping.blocked is False
+    assert mapping.envelope is not None
+    assert mapping.envelope.operation == "real_browser.observe"
+    assert mapping.safe_diagnostics["fallback_reason"] == "BROWSER_INTENT_NO_SAFE_RECOMMENDATION_RECOVERED"
+
+
+def test_raw_browser_primitives_not_primary_model_schema(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    context = _compile_browser_context(fixture, observations=[opened])
+    operation_schema = context["allowed_action_schema"]["operation"]
+
+    assert "real_browser.search" in operation_schema
+    assert "real_browser.extract_product_cards" in operation_schema
+    assert "real_browser.verify_extraction" in operation_schema
+    assert "real_browser.type_text" not in operation_schema
+    assert "real_browser.click" not in operation_schema
+
+
+def test_hidden_or_disabled_ref_recovers_but_secret_ref_hard_stops(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=InMemoryRealBrowserEngine())
+    fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+
+    for ref in ("button:hidden", "button:disabled"):
+        result = fixture.runtime.execute(
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.click", target_ref=ref),
+            authority=fixture.authority,
+            context={},
+        )
+        assert result.recoverable is True
+        assert result.failure_class is ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE
+
+    with pytest.raises(RealBrowserControlRuntimeError, match="real_browser_secret_field_blocked"):
+        fixture.runtime.execute(
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.type_text",
+                target_ref="input:masked",
+                params={"text": "not-a-secret"},
+            ),
+            authority=fixture.authority,
+            context={},
+        )
 
 
 def test_hard_boundary_intent_blocks_contact_supplier_payment_login_credentials(tmp_path: Path) -> None:
@@ -723,6 +823,48 @@ def test_replay_no_react_still_holds(tmp_path: Path) -> None:
     assert loop_replay.model_calls_delta == 0
     assert loop_replay.real_browser_open_delta == 0
     assert loop_replay.real_browser_extract_delta == 0
+
+
+def test_loop_guard_does_not_preempt_first_extraction_when_cards_visible(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            "Open the bounded Alibaba page.",
+            "Search again for a different query: sunglasses under 5 euro.",
+            "I will continue with the visible product cards.",
+            "Verify the extracted cards.",
+            "I have enough evidence, summarize and finish.",
+        ]
+    )
+
+    result = fixture.loop(decisions, max_recovery_turns=2).run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_task_loop_finish"
+    assert "real_browser_control:real_browser.search" in result.capability_sequence
+    assert "real_browser_control:real_browser.extract_product_cards" in result.capability_sequence
+    assert result.receipt_refs
+
+
+def test_finalgate_not_written_for_recoverable_pre_extraction_miss(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            "Open the bounded Alibaba page.",
+            "Search again for a different query: sunglasses under 5 euro.",
+            "I will continue with the visible product cards.",
+            "Verify the extracted cards.",
+            "I have enough evidence, summarize and finish.",
+        ]
+    )
+
+    result = fixture.loop(decisions, max_recovery_turns=2).run()
+    mission_text = _mission_text(fixture.kernel, fixture.mission_id)
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert "RECOVERY_BUDGET_EXHAUSTED" not in mission_text
+    assert "BROWSER_INTENT_NO_SAFE_RECOMMENDATION" not in mission_text
+    assert "model_led_task_loop_blocked" not in mission_text
 
 
 def test_pack_a_f_regressions_still_pass() -> None:

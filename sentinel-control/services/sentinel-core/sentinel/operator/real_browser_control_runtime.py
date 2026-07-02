@@ -868,12 +868,44 @@ class RealBrowserControlRuntime:
         elements = {element.ref: element for element in snapshot.elements}
         element = elements.get(raw_ref)
         if element is not None:
-            if not element.visible:
-                raise RealBrowserControlRuntimeError("real_browser_element_hidden")
-            if not element.enabled:
-                raise RealBrowserControlRuntimeError("real_browser_element_disabled")
             if bool(getattr(element, "secret", False)):
                 raise RealBrowserControlRuntimeError("real_browser_secret_field_blocked")
+            if not element.visible:
+                context_cards = self._world_context_cards(
+                    snapshot,
+                    authority=authority,
+                    context=context,
+                    progress_state="real_browser_ref_recovery_world_model_ready",
+                )
+                return self._recoverable_ref_failure(
+                    envelope,
+                    raw_ref=raw_ref,
+                    context_cards=context_cards,
+                    browser_state_hash=snapshot.state_hash,
+                    failure_code="real_browser_element_hidden",
+                    safe_summary=(
+                        "Browser ref exists but is hidden in the current bounded page state; "
+                        "refreshed executable candidates are available for the next model turn."
+                    ),
+                )
+            if not element.enabled:
+                context_cards = self._world_context_cards(
+                    snapshot,
+                    authority=authority,
+                    context=context,
+                    progress_state="real_browser_ref_recovery_world_model_ready",
+                )
+                return self._recoverable_ref_failure(
+                    envelope,
+                    raw_ref=raw_ref,
+                    context_cards=context_cards,
+                    browser_state_hash=snapshot.state_hash,
+                    failure_code="real_browser_element_disabled",
+                    safe_summary=(
+                        "Browser ref exists but is disabled in the current bounded page state; "
+                        "refreshed executable candidates are available for the next model turn."
+                    ),
+                )
             return raw_ref, snapshot.state_hash
         context_cards = self._world_context_cards(
             snapshot,
@@ -900,6 +932,8 @@ class RealBrowserControlRuntime:
         raw_ref: str,
         context_cards: dict[str, Any],
         browser_state_hash: str,
+        failure_code: str = "real_browser_element_ref_unknown",
+        safe_summary: str | None = None,
     ) -> ActionResult:
         actionability_frame = context_cards.get("actionability_frame") if isinstance(context_cards, dict) else {}
         executable_refs = tuple(
@@ -912,9 +946,10 @@ class RealBrowserControlRuntime:
         )
         observation = recoverable_action_observation(
             failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
-            failure_code="real_browser_element_ref_unknown",
+            failure_code=failure_code,
             attempted_action_hash=envelope.action_hash,
-            safe_summary=(
+            safe_summary=safe_summary
+            or (
                 "Browser ref was not executable in the current bounded page state; "
                 "refreshed candidates are available for the next model turn."
             ),
@@ -927,13 +962,13 @@ class RealBrowserControlRuntime:
             operation=envelope.operation,
             status="recoverable_failed",
             material_action=False,
-            blocked_reason="real_browser_element_ref_unknown",
+            blocked_reason=failure_code,
             failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
-            failure_code="real_browser_element_ref_unknown",
+            failure_code=failure_code,
             recoverable=True,
             recovery_observation=observation.safe_model_dump(),
             recommended_next_actions=recommended,
-            observation_summary=f"recoverable browser ref miss ref_hash={text_hash(raw_ref)} state_hash={browser_state_hash}.",
+            observation_summary=f"recoverable browser ref miss code={failure_code} ref_hash={text_hash(raw_ref)} state_hash={browser_state_hash}.",
             context_cards=context_cards,
         )
 
