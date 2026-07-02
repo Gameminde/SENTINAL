@@ -47,6 +47,7 @@ def compile_skill_decision_frame(
         recoverable_observations=recoverable_observations,
         objective_satisfied=objective_satisfied,
         legacy_next_recommended_actions=legacy_next_recommended_actions,
+        completion_requirements=completion_requirements,
     )
     return {
         "frame_version": "skill_decision_frame_v1",
@@ -114,8 +115,8 @@ def _skill_frame(
             ],
         )
     elif skill_id == "sentinel_loop":
-        proof = ["finish_action_after_objective_proof"]
-        recommended = ["sentinel_loop.finish"] if objective_satisfied and "sentinel_loop.finish" in visible_actions else []
+        proof = ["grounded_summary_then_finish_action_after_objective_proof"]
+        recommended = _sentinel_loop_recommendations(visible_actions, completion_requirements, objective_satisfied)
     else:
         proof = [str(backend.get("proof_contract") or "future_pack_required")]
         recommended = _first_available(visible_actions, visible_actions)
@@ -147,9 +148,15 @@ def _primary_recommendations(
     recoverable_observations: list[dict[str, Any]],
     objective_satisfied: bool,
     legacy_next_recommended_actions: list[str],
+    completion_requirements: dict[str, Any],
 ) -> list[str]:
     if objective_satisfied and "sentinel_loop.finish" in visible_actions:
         return ["sentinel_loop.finish"]
+    if (
+        completion_requirements.get("requires_grounded_evidence_summary") is True
+        and "sentinel_loop.summarize_evidence" in visible_actions
+    ):
+        return ["sentinel_loop.summarize_evidence"]
     for recoverable in reversed(recoverable_observations):
         recovered = [
             action
@@ -183,6 +190,10 @@ def _primary_recommendations(
 def _real_browser_recommendations(visible_actions: list[str], progress_state: str, objective_satisfied: bool) -> list[str]:
     if objective_satisfied:
         return _first_available(visible_actions, ["sentinel_loop.finish"])
+    if progress_state == "real_browser_verified_extraction_needs_summary":
+        return _first_available(visible_actions, ["sentinel_loop.summarize_evidence"])
+    if progress_state == "real_browser_extraction_needs_verification":
+        return _first_available(visible_actions, ["real_browser_control.real_browser.verify_extraction"])
     if progress_state == "real_browser_not_started":
         return _first_available(
             visible_actions,
@@ -223,6 +234,21 @@ def _real_browser_recommendations(visible_actions: list[str], progress_state: st
             "real_browser_control.real_browser.open",
         ],
     )
+
+
+def _sentinel_loop_recommendations(
+    visible_actions: list[str],
+    completion_requirements: dict[str, Any],
+    objective_satisfied: bool,
+) -> list[str]:
+    if (
+        completion_requirements.get("requires_grounded_evidence_summary") is True
+        and "sentinel_loop.summarize_evidence" in visible_actions
+    ):
+        return ["sentinel_loop.summarize_evidence"]
+    if objective_satisfied and "sentinel_loop.finish" in visible_actions:
+        return ["sentinel_loop.finish"]
+    return []
 
 
 def _workspace_patch_recommendations(

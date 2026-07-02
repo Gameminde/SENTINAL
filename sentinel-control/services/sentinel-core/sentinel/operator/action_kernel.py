@@ -188,6 +188,8 @@ class ActionKernel:
                 material_action=False,
                 observation_summary=str(envelope.params.get("safe_summary") or "Task loop finished."),
             )
+        if envelope.capability_id == "sentinel_loop" and envelope.operation == "summarize_evidence":
+            return _summarize_evidence(envelope, context=context)
         executor = self._executors.get(envelope.capability_id)
         if executor is None:
             raise ActionKernelError(f"action_executor_missing:{envelope.capability_id}")
@@ -254,6 +256,100 @@ def _recoverable_executor_result(envelope: ActionEnvelope, *, failure: Any) -> A
         recommended_next_actions=failure.recommended_next_actions,
         observation_summary=f"recoverable executor miss: {failure.failure_code}",
     )
+
+
+def _summarize_evidence(envelope: ActionEnvelope, *, context: dict[str, Any]) -> ActionResult:
+    summary = _grounded_evidence_summary(context)
+    summary_hash = stable_hash(summary)
+    return ActionResult(
+        action_id=envelope.action_id,
+        capability_id=envelope.capability_id,
+        operation=envelope.operation,
+        status="completed",
+        material_action=False,
+        observation_summary=(
+            f"grounded browser evidence summary card_count={summary['card_count']} "
+            f"summary_hash={summary_hash}."
+        ),
+        context_cards={"grounded_evidence_summary": summary},
+    )
+
+
+def _grounded_evidence_summary(context: dict[str, Any]) -> dict[str, Any]:
+    cards = _browser_product_cards(context)
+    safe_cards: list[dict[str, Any]] = []
+    for card in cards[:5]:
+        safe_cards.append(
+            {
+                "title": _card_value(card, "title"),
+                "visible_price": _card_value(card, "visible_price"),
+                "currency_or_unit": _card_value(card, "currency_or_unit"),
+                "minimum_order": _card_value(card, "minimum_order"),
+                "supplier_or_store": _card_value(card, "supplier_or_store"),
+                "caveats": _card_list(card, "caveats"),
+                "short_features": _card_list(card, "short_features"),
+                "confidence": _card_float(card, "confidence"),
+            }
+        )
+    return {
+        "summary_kind": "grounded_browser_evidence_summary",
+        "card_count": len(safe_cards),
+        "cards": safe_cards,
+        "unknown_policy": "unknown_fields_preserved_no_hallucinated_price_moq_supplier",
+        "source": "browser_extraction_cards_and_receipts",
+        "data_not_authority": True,
+        "authority_effect": "none",
+        "can_execute": False,
+    }
+
+
+def _browser_product_cards(context: dict[str, Any]) -> list[Any]:
+    cards = _cards_from_context_obj(context.get("browser_world_model"))
+    if cards:
+        return cards
+    frame = context.get("browser_decision_frame")
+    if isinstance(frame, dict):
+        candidates = frame.get("candidate_extractions")
+        if isinstance(candidates, list):
+            return candidates
+    summary = context.get("browser_world_model_summary")
+    if isinstance(summary, dict) and int(summary.get("product_or_result_candidate_count") or 0) > 0:
+        return []
+    return []
+
+
+def _cards_from_context_obj(value: Any) -> list[Any]:
+    if isinstance(value, dict):
+        cards = value.get("product_or_result_candidate_cards")
+        return list(cards) if isinstance(cards, list) else []
+    cards = getattr(value, "product_or_result_candidate_cards", None)
+    if cards is not None:
+        return list(cards)
+    return []
+
+
+def _card_value(card: Any, key: str) -> str:
+    value = card.get(key) if isinstance(card, dict) else getattr(card, key, None)
+    rendered = str(value).strip() if value is not None else ""
+    return rendered[:240] if rendered else "unknown"
+
+
+def _card_list(card: Any, key: str) -> list[str]:
+    value = card.get(key) if isinstance(card, dict) else getattr(card, key, None)
+    if isinstance(value, str):
+        return [value[:240]] if value.strip() else ["unknown"]
+    if isinstance(value, list | tuple):
+        rendered = [str(item).strip()[:240] for item in value if str(item).strip()]
+        return rendered or ["unknown"]
+    return ["unknown"]
+
+
+def _card_float(card: Any, key: str) -> float:
+    value = card.get(key) if isinstance(card, dict) else getattr(card, key, None)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 __all__ = ["ActionEnvelope", "ActionKernel", "ActionKernelError", "ActionResult", "ActionExecutor"]

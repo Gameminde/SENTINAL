@@ -232,10 +232,15 @@ def build_default_actionability_registry() -> ActionabilityRegistry:
             PowerSkillDescriptor(
                 skill_id="sentinel_loop",
                 capability_id="sentinel_loop",
-                model_visible_actions=("sentinel_loop.finish",),
-                aliases={"finish": "sentinel_loop.finish", "sentinel_finish.finish": "sentinel_loop.finish"},
-                proof_requirement="objective_receipts_or_budget_truth",
-                recovery_policy="finish_only_after_objective_satisfied",
+                model_visible_actions=("sentinel_loop.summarize_evidence", "sentinel_loop.finish"),
+                aliases={
+                    "summarize": "sentinel_loop.summarize_evidence",
+                    "summarize_evidence": "sentinel_loop.summarize_evidence",
+                    "finish": "sentinel_loop.finish",
+                    "sentinel_finish.finish": "sentinel_loop.finish",
+                },
+                proof_requirement="objective_receipts_grounded_summary_or_budget_truth",
+                recovery_policy="summary_before_finish_when_evidence_verified",
             ),
             PowerSkillDescriptor(
                 skill_id="read_only_research",

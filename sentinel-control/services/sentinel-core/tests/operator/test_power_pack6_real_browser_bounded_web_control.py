@@ -449,7 +449,9 @@ def test_power_pack6b_hard_browser_mission_can_search_extract_and_finish_with_re
                 operation="real_browser.wait_for_text",
                 params={"text": "MOQ"},
             ),
-            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_text"),
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+            ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+            ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
             ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "browser search extracted"}),
         ]
     )
@@ -461,10 +463,11 @@ def test_power_pack6b_hard_browser_mission_can_search_extract_and_finish_with_re
     assert fixture.engine.type_count == 1
     assert fixture.engine.press_count == 1
     assert fixture.engine.wait_count == 1
-    assert fixture.engine.extract_count == 1
+    assert fixture.engine.extract_count == 2
+    assert "sentinel_loop:summarize_evidence" in result.capability_sequence
     assert decisions.contexts[-1]["objective_satisfied"] is True
     assert decisions.contexts[-1]["finish_available"] is True
-    assert decisions.contexts[-2]["browser_world_model_summary"]["product_or_result_candidate_count"] >= 1
+    assert decisions.contexts[-3]["browser_world_model_summary"]["product_or_result_candidate_count"] >= 1
     assert replay.browser_open_delta == 0
     assert replay.browser_click_delta == 0
     assert replay.browser_type_delta == 0
@@ -502,9 +505,10 @@ class _RealBrowserFixture:
                     "real_browser.extract_text",
                     "real_browser.press_key",
                     "real_browser.wait_for_text",
-                    "real_browser.wait_for_load",
-                    "real_browser.scroll",
-                    "finish",
+            "real_browser.wait_for_load",
+            "real_browser.scroll",
+            "sentinel_loop.summarize_evidence",
+            "finish",
                 ],
                 forbidden_actions=["payment", "credential_access", "arbitrary_internet", "desktop"],
                 summary="Bounded real browser control is granted.",
@@ -546,6 +550,7 @@ class _RealBrowserFixture:
             "real_browser_control.real_browser.wait_for_text",
             "real_browser_control.real_browser.wait_for_load",
             "real_browser_control.real_browser.scroll",
+            "sentinel_loop.summarize_evidence",
             "sentinel_loop.finish",
         )
 
@@ -574,6 +579,7 @@ class _RealBrowserFixture:
                 "real_browser.wait_for_text",
                 "real_browser.wait_for_load",
                 "real_browser.scroll",
+                "sentinel_loop.summarize_evidence",
                 "finish",
             ],
             forbidden_actions=["payment", "credential_access", "arbitrary_internet", "desktop"],
@@ -590,7 +596,7 @@ class _RealBrowserFixture:
             action_kernel=self.action_kernel,
             decision_client=decision_client,
             decision_context=DecisionContextCompiler(),
-            loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=7, max_material_actions=4)),
+            loop_guard=LoopGuard(LoopGuardConfig(max_model_calls=10, max_material_actions=4)),
             available_actions=self.available_actions,
         )
 

@@ -401,11 +401,16 @@ def test_finish_available_after_verify_extraction_and_summary(tmp_path: Path) ->
         authority=fixture.authority,
         context=extracted.context_cards,
     )
+    summary = fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, extracted, verified]),
+    )
     context = DecisionContextCompiler().compile(
         mission_id=fixture.mission_id,
         mission_objective=fixture.authority.mission_objective,
         authority=fixture.authority,
-        observations=[opened, extracted, verified],
+        observations=[opened, extracted, verified, summary],
         available_actions=_browser_actions(),
         model_calls_used=3,
         material_actions_used=0,
@@ -416,6 +421,250 @@ def test_finish_available_after_verify_extraction_and_summary(tmp_path: Path) ->
     assert verified.status == "passed"
     assert context["finish_available"] is True
     assert context["primary_model_recommended_next_action"] == "sentinel_loop.finish"
+
+
+def test_verified_extraction_routes_to_summary_when_summary_missing(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted, verified])
+
+    assert context["finish_available"] is False
+    assert context["completion_requirements"]["has_grounded_evidence_summary"] is False
+    assert context["primary_model_recommended_next_action"] == "sentinel_loop.summarize_evidence"
+
+    mapping = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=context)
+
+    assert mapping.envelope is not None
+    assert mapping.envelope.capability_id == "sentinel_loop"
+    assert mapping.envelope.operation == "summarize_evidence"
+
+
+def test_verified_extraction_and_summary_routes_to_finish(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    summary = fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, extracted, verified]),
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted, verified, summary])
+
+    assert context["finish_available"] is True
+    assert context["completion_requirements"]["has_grounded_evidence_summary"] is True
+    assert context["primary_model_recommended_next_action"] == "sentinel_loop.finish"
+
+    mapping = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=context)
+
+    assert mapping.envelope is not None
+    assert mapping.envelope.capability_id == "sentinel_loop"
+    assert mapping.envelope.operation == "finish"
+
+
+def test_ambiguous_intent_after_verify_does_not_search(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted, verified])
+
+    mapping = map_browser_model_native_intent("I will continue with the safest next step.", context=context)
+
+    assert mapping.envelope is not None
+    assert mapping.envelope.capability_id == "sentinel_loop"
+    assert mapping.envelope.operation == "summarize_evidence"
+
+
+def test_open_search_demoted_after_verified_extraction(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted, verified])
+
+    for model_output in (
+        "Open the page again.",
+        "Search Alibaba again.",
+        {"capability_id": "real_browser_control", "operation": "real_browser.search", "params": {}},
+    ):
+        mapping = map_browser_model_native_intent(model_output, context=context)
+        assert mapping.envelope is not None
+        assert mapping.envelope.capability_id == "sentinel_loop"
+        assert mapping.envelope.operation == "summarize_evidence"
+
+
+def test_finish_without_summary_recovers_to_summary_lane(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            "Open the bounded Alibaba page.",
+            "I will extract the visible product cards now.",
+            "Verify the extracted cards.",
+            "I have enough evidence, summarize and finish.",
+            "I have enough evidence, summarize and finish.",
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert "sentinel_loop:summarize_evidence" in result.capability_sequence
+    assert result.capability_sequence[-1] == "sentinel_loop:finish"
+
+
+def test_finish_without_verified_extraction_recovers_to_verify_not_fake_success(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            "Open the bounded Alibaba page.",
+            "I will extract the visible product cards now.",
+            "I have enough evidence, summarize and finish.",
+            "I have enough evidence, summarize and finish.",
+            "I have enough evidence, summarize and finish.",
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert "real_browser_control:real_browser.verify_extraction" in result.capability_sequence
+    assert "sentinel_loop:summarize_evidence" in result.capability_sequence
+    assert result.capability_sequence[-1] == "sentinel_loop:finish"
+
+
+def test_recovery_budget_does_not_preempt_summary_finish_after_verify(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            "Open the bounded Alibaba page.",
+            "Search again for a different query: sunglasses under 5 euro.",
+            "I will continue with the visible product cards.",
+            "Verify the extracted cards.",
+            {"capability_id": "real_browser_control", "operation": "real_browser.search", "params": {}},
+            "I have enough evidence, summarize and finish.",
+        ]
+    )
+
+    result = fixture.loop(decisions, max_recovery_turns=1).run()
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert result.blocked_reason is None
+    assert "sentinel_loop:summarize_evidence" in result.capability_sequence
+    assert result.capability_sequence[-1] == "sentinel_loop:finish"
+
+
+def test_finalgate_not_written_before_completion_lane_attempt(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            "Open the bounded Alibaba page.",
+            "Search again for a different query: sunglasses under 5 euro.",
+            "I will continue with the visible product cards.",
+            "Verify the extracted cards.",
+            {"capability_id": "real_browser_control", "operation": "real_browser.search", "params": {}},
+            "I have enough evidence, summarize and finish.",
+        ]
+    )
+
+    result = fixture.loop(decisions, max_recovery_turns=1).run()
+    mission_text = _mission_text(fixture.kernel, fixture.mission_id)
+
+    assert result.status is ModelLedTaskLoopStatus.COMPLETED
+    assert "RECOVERY_BUDGET_EXHAUSTED" not in mission_text
+    assert "model_led_task_loop_blocked" not in mission_text
+    assert "sentinel_loop:summarize_evidence" in result.capability_sequence
+
+
+def test_summary_grounded_in_extracted_cards_unknowns_preserved(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    summary = fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, extracted, verified]),
+    )
+
+    grounded = summary.context_cards["grounded_evidence_summary"]
+
+    assert grounded["card_count"] >= 1
+    assert grounded["cards"][0]["title"] == "Polarized sunglasses"
+    assert grounded["cards"][0]["visible_price"] == "$4.80"
+    assert grounded["cards"][0]["minimum_order"] == "10 pieces"
+    assert grounded["cards"][0]["supplier_or_store"] == "Yiwu Test Store"
+
+    sparse_fixture = _BrowserSkillFixture(tmp_path / "sparse", engine=_SparseProductSearchEngine())
+    sparse_opened = sparse_fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=sparse_fixture.authority,
+        context={},
+    )
+    sparse_extracted = sparse_fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=sparse_fixture.authority,
+        context=sparse_opened.context_cards,
+    )
+    sparse_verified = sparse_fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=sparse_fixture.authority,
+        context=sparse_extracted.context_cards,
+    )
+    sparse_summary = sparse_fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=sparse_fixture.authority,
+        context=_compile_browser_context(sparse_fixture, observations=[sparse_opened, sparse_extracted, sparse_verified]),
+    )
+
+    sparse_grounded = sparse_summary.context_cards["grounded_evidence_summary"]
+
+    assert sparse_grounded["cards"][0]["title"] == "Minimal glasses listing"
+    assert sparse_grounded["cards"][0]["visible_price"] == "unknown"
+    assert sparse_grounded["cards"][0]["minimum_order"] == "unknown"
+    assert sparse_grounded["cards"][0]["supplier_or_store"] == "unknown"
 
 
 def test_product_extraction_card_uses_unknown_fields_without_hallucination() -> None:
@@ -452,6 +701,7 @@ def test_browser_research_proof_accepts_extraction_card_and_summary(tmp_path: Pa
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+            ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
             ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "one product card evaluated"}),
         ]
     )
@@ -640,7 +890,20 @@ def test_natural_intent_finish_requires_verified_evidence(tmp_path: Path) -> Non
     )
     after_verify = _compile_browser_context(fixture, observations=[opened, extracted, verified])
 
-    finish = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=after_verify)
+    summary = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=after_verify)
+
+    assert summary.envelope is not None
+    assert summary.envelope.capability_id == "sentinel_loop"
+    assert summary.envelope.operation == "summarize_evidence"
+
+    summary_result = fixture.action_kernel.execute(
+        summary.envelope,
+        authority=fixture.authority,
+        context=after_verify,
+    )
+    after_summary = _compile_browser_context(fixture, observations=[opened, extracted, verified, summary_result])
+
+    finish = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=after_summary)
 
     assert finish.envelope is not None
     assert finish.envelope.capability_id == "sentinel_loop"
@@ -807,6 +1070,7 @@ def test_replay_no_react_still_holds(tmp_path: Path) -> None:
             {"metadata": {"finish_reason": "stop"}, "reply": "I will extract the visible product cards now."},
             {"reply": "Verify the extracted cards."},
             {"reply": "I have enough evidence, summarize and finish."},
+            {"reply": "I have enough evidence, summarize and finish."},
         ]
     )
 
@@ -834,6 +1098,7 @@ def test_loop_guard_does_not_preempt_first_extraction_when_cards_visible(tmp_pat
             "I will continue with the visible product cards.",
             "Verify the extracted cards.",
             "I have enough evidence, summarize and finish.",
+            "I have enough evidence, summarize and finish.",
         ]
     )
 
@@ -854,6 +1119,7 @@ def test_finalgate_not_written_for_recoverable_pre_extraction_miss(tmp_path: Pat
             "Search again for a different query: sunglasses under 5 euro.",
             "I will continue with the visible product cards.",
             "Verify the extracted cards.",
+            "I have enough evidence, summarize and finish.",
             "I have enough evidence, summarize and finish.",
         ]
     )
@@ -903,6 +1169,7 @@ def _browser_actions() -> tuple[str, ...]:
         "real_browser_control.real_browser.type_text",
         "real_browser_control.real_browser.press_key",
         "real_browser_control.real_browser.wait_for_text",
+        "sentinel_loop.summarize_evidence",
         "sentinel_loop.finish",
     )
 
@@ -1133,6 +1400,18 @@ class _TimeoutSearchEngineWithCards(_HardProductSearchEngine):
     def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
         del ref, text
         raise RealBrowserControlRuntimeError("real_browser_locator_timeout")
+
+
+class _SparseProductSearchEngine(_HardProductSearchEngine):
+    def __init__(self) -> None:
+        super().__init__(results_visible=True)
+        self.display_text = "Minimal glasses listing"
+
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        return (
+            RealBrowserEngineElement("input:search", "textbox", "Search products", value_preview=self.search_query),
+            RealBrowserEngineElement("link:sparse", "link", "Minimal glasses listing", text_preview="Minimal glasses listing"),
+        )
 
 
 class _PlaywrightCompatibilitySearchEngine(_HardProductSearchEngine):

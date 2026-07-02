@@ -112,6 +112,20 @@ class DecisionContextCompiler:
             and result.status in {"completed", "passed", "success"}
             and result.receipt_refs
         ]
+        real_browser_verified_extraction_results = [
+            result
+            for result in real_browser_results
+            if result.operation == "real_browser.verify_extraction"
+            and result.status in {"completed", "passed", "success"}
+            and result.receipt_refs
+        ]
+        grounded_summary_results = [
+            result
+            for result in observations
+            if result.capability_id == "sentinel_loop"
+            and result.operation == "summarize_evidence"
+            and result.status in {"completed", "passed", "success"}
+        ]
         real_browser_cards = _latest_real_browser_context_cards(real_browser_results)
         latest_patch_index = _latest_success_index(
             sequenced_observations,
@@ -131,7 +145,10 @@ class DecisionContextCompiler:
         )
         channel_mode = _is_channel_mode(available_actions=available_actions, observations=observations)
         if real_browser_mode:
-            objective_satisfied = bool(real_browser_assertion_results or real_browser_extraction_results)
+            objective_satisfied = bool(
+                real_browser_assertion_results
+                or (real_browser_verified_extraction_results and grounded_summary_results)
+            )
         elif browser_mode:
             objective_satisfied = bool(browser_assertion_results)
         elif channel_mode:
@@ -145,6 +162,8 @@ class DecisionContextCompiler:
                 real_browser_action_results=real_browser_action_results,
                 real_browser_assertion_results=real_browser_assertion_results,
                 real_browser_extraction_results=real_browser_extraction_results,
+                real_browser_verified_extraction_results=real_browser_verified_extraction_results,
+                grounded_summary_results=grounded_summary_results,
             )
             if real_browser_mode
             else _browser_progress_guidance(
@@ -312,7 +331,9 @@ class DecisionContextCompiler:
             ],
             "browser_control_summary": _browser_summary(browser_results),
             "real_browser_control_summary": _real_browser_summary(real_browser_results),
+            "grounded_evidence_summary": _grounded_evidence_summary(grounded_summary_results),
             "browser_world_model_summary": real_browser_cards.get("browser_world_model_summary") if real_browser_mode else {},
+            "browser_world_model": real_browser_cards.get("browser_world_model") if real_browser_mode else {},
             "browser_decision_frame": real_browser_cards.get("browser_decision_frame") if real_browser_mode else {},
             "browser_actionability_registry": real_browser_cards.get("browser_actionability_registry") if real_browser_mode else {},
             "actionability_frame": real_browser_cards.get("actionability_frame") if real_browser_mode else {},
@@ -634,6 +655,8 @@ def _real_browser_progress_guidance(
     real_browser_action_results: list[ActionResult],
     real_browser_assertion_results: list[ActionResult],
     real_browser_extraction_results: list[ActionResult],
+    real_browser_verified_extraction_results: list[ActionResult],
+    grounded_summary_results: list[ActionResult],
 ) -> dict[str, Any]:
     has_open = any(
         result.operation == "real_browser.open" and result.receipt_refs and result.status in {"completed", "passed", "success"}
@@ -646,23 +669,46 @@ def _real_browser_progress_guidance(
     has_action = any(result.status in {"completed", "passed", "success"} for result in real_browser_action_results)
     has_assertion = any(result.status == "passed" for result in real_browser_assertion_results)
     has_extraction = any(result.status in {"completed", "passed", "success"} for result in real_browser_extraction_results)
+    has_verified_extraction = any(
+        result.status in {"completed", "passed", "success"}
+        for result in real_browser_verified_extraction_results
+    )
+    has_grounded_summary = any(result.status in {"completed", "passed", "success"} for result in grounded_summary_results)
     completion_requirements = {
         "requires_real_browser_open_receipt": not has_open,
         "requires_real_browser_observation_receipt": not has_observation,
         "requires_real_browser_action_receipt": not has_action,
         "requires_real_browser_assertion_or_extraction_receipt": not (has_assertion or has_extraction),
+        "requires_real_browser_verified_extraction_receipt": has_extraction and not has_verified_extraction,
+        "requires_grounded_evidence_summary": has_verified_extraction and not has_grounded_summary,
         "requires_finish_action": True,
         "has_real_browser_open_receipt": has_open,
         "has_real_browser_observation_receipt": has_observation,
         "has_real_browser_action_receipt": has_action,
         "has_real_browser_assertion_receipt": has_assertion,
         "has_real_browser_extraction_receipt": has_extraction,
+        "has_real_browser_verified_extraction_receipt": has_verified_extraction,
+        "has_grounded_evidence_summary": has_grounded_summary,
     }
     if objective_satisfied:
         return {
             "progress_state": "real_browser_objective_satisfied",
             "next_recommended_actions": ["sentinel_loop.finish"],
             "objective_remaining_steps": [],
+            "completion_requirements": completion_requirements,
+        }
+    if has_verified_extraction and not has_grounded_summary:
+        return {
+            "progress_state": "real_browser_verified_extraction_needs_summary",
+            "next_recommended_actions": ["sentinel_loop.summarize_evidence"],
+            "objective_remaining_steps": ["summarize grounded extraction evidence", "finish"],
+            "completion_requirements": completion_requirements,
+        }
+    if has_extraction and not has_verified_extraction:
+        return {
+            "progress_state": "real_browser_extraction_needs_verification",
+            "next_recommended_actions": ["real_browser_control.real_browser.verify_extraction"],
+            "objective_remaining_steps": ["verify extracted product cards", "summarize grounded evidence", "finish"],
             "completion_requirements": completion_requirements,
         }
     if has_action and not has_assertion:
@@ -774,6 +820,31 @@ def _real_browser_summary(real_browser_results: list[ActionResult]) -> dict[str,
         "latest_action": _browser_result_summary(latest_action),
         "latest_assertion": _browser_result_summary(latest_assertion),
         "receipt_count": sum(len(result.receipt_refs) for result in real_browser_results),
+    }
+
+
+def _grounded_evidence_summary(summary_results: list[ActionResult]) -> dict[str, Any]:
+    latest = next((result for result in reversed(summary_results)), None)
+    if latest is None:
+        return {
+            "present": False,
+            "card_count": 0,
+            "summary_hash": None,
+        }
+    summary = latest.context_cards.get("grounded_evidence_summary")
+    card_count = 0
+    if isinstance(summary, dict):
+        try:
+            card_count = int(summary.get("card_count") or 0)
+        except (TypeError, ValueError):
+            card_count = 0
+    return {
+        "present": True,
+        "operation": latest.operation,
+        "status": latest.status,
+        "receipt_count": len(latest.receipt_refs),
+        "summary_hash": latest.result_hash,
+        "card_count": card_count,
     }
 
 

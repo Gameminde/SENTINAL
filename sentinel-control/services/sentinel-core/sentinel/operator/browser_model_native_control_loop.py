@@ -46,6 +46,7 @@ _MODEL_VISIBLE_BROWSER_ACTIONS = {
     "real_browser_control.real_browser.open_result",
     "real_browser_control.real_browser.extract_product_cards",
     "real_browser_control.real_browser.verify_extraction",
+    "sentinel_loop.summarize_evidence",
     "sentinel_loop.finish",
 }
 
@@ -102,6 +103,7 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
     explicit = _canonical_action_from_payload(model_output)
     if explicit is not None:
         action_name, params, target_ref = explicit
+        action_name = _completion_lane_override(action_name, params=params, normalized=normalized, context=context)
         return _mapped(action_name, params=params, target_ref=target_ref, intent_kind="canonical_action", diagnostics=diagnostics)
 
     if not normalized:
@@ -115,11 +117,23 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
                 intent_kind="finish",
                 diagnostics=diagnostics,
             )
+        if _has_verified_browser_extraction(context):
+            return _mapped("sentinel_loop.summarize_evidence", intent_kind="finish_requires_summary", diagnostics=diagnostics)
         if _has_browser_extraction(context):
             return _mapped("real_browser_control.real_browser.verify_extraction", intent_kind="finish_requires_verification", diagnostics=diagnostics)
         if _has_product_cards(context):
             return _mapped("real_browser_control.real_browser.extract_product_cards", intent_kind="finish_requires_extraction", diagnostics=diagnostics)
         return _recommended_mapping(context, diagnostics=diagnostics, intent_kind="finish_without_proof")
+
+    if _has_verified_browser_extraction(context) and not _has_grounded_evidence_summary(context):
+        if _mentions_new_search_query(normalized) and _mentions_evidence_insufficient(normalized):
+            return _mapped(
+                "real_browser_control.real_browser.search",
+                params={"query": _extract_search_query(visible_text)},
+                intent_kind="explicit_insufficient_evidence_new_search",
+                diagnostics=diagnostics,
+            )
+        return _mapped("sentinel_loop.summarize_evidence", intent_kind="verified_extraction_needs_summary", diagnostics=diagnostics)
 
     if _has_verified_browser_extraction(context) and _mentions_completion_without_finish(normalized):
         return _mapped(
@@ -279,6 +293,8 @@ def _envelope_from_action_name(
 def _coerce_to_model_visible_action(action_name: str) -> str:
     if action_name == "sentinel_loop.finish":
         return action_name
+    if action_name == "sentinel_loop.summarize_evidence":
+        return action_name
     if action_name.endswith(".open"):
         return "real_browser_control.real_browser.open"
     if action_name.endswith(".observe"):
@@ -342,6 +358,20 @@ def _mentions_new_search_query(normalized: str) -> bool:
     return any(
         marker in normalized
         for marker in ("new search", "another search", "different search", "search again", "instead search")
+    )
+
+
+def _mentions_evidence_insufficient(normalized: str) -> bool:
+    return any(
+        marker in normalized
+        for marker in (
+            "evidence is insufficient",
+            "not enough evidence",
+            "insufficient evidence",
+            "cards are not relevant",
+            "results are not relevant",
+            "need better evidence",
+        )
     )
 
 
@@ -426,7 +456,9 @@ def _primary_recommended_action(context: dict[str, Any]) -> str | None:
 
 
 def _strongest_contextual_browser_action(context: dict[str, Any]) -> str | None:
-    if _has_verified_browser_extraction(context) and (context.get("finish_available") or context.get("objective_satisfied")):
+    if _has_verified_browser_extraction(context) and not _has_grounded_evidence_summary(context):
+        return "sentinel_loop.summarize_evidence"
+    if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and (context.get("finish_available") or context.get("objective_satisfied")):
         return "sentinel_loop.finish"
     if _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
         return "real_browser_control.real_browser.verify_extraction"
@@ -448,6 +480,49 @@ def _safe_fallback_browser_action(context: dict[str, Any]) -> str | None:
         if action in available:
             return action
     return None
+
+
+def _completion_lane_override(
+    action_name: str,
+    *,
+    params: dict[str, Any],
+    normalized: str,
+    context: dict[str, Any],
+) -> str:
+    if not _has_verified_browser_extraction(context):
+        return action_name
+    if _has_grounded_evidence_summary(context):
+        if action_name in {"sentinel_loop.finish", "sentinel_loop.summarize_evidence"}:
+            return "sentinel_loop.finish"
+        if _is_browser_navigation_or_search(action_name) and not (
+            params.get("evidence_insufficient") is True or _mentions_evidence_insufficient(normalized)
+        ):
+            return "sentinel_loop.finish"
+        return action_name
+    if action_name == "sentinel_loop.finish":
+        return "sentinel_loop.summarize_evidence"
+    if action_name == "sentinel_loop.summarize_evidence":
+        return action_name
+    if _is_browser_navigation_or_search(action_name) and not (
+        params.get("evidence_insufficient") is True or _mentions_evidence_insufficient(normalized)
+    ):
+        return "sentinel_loop.summarize_evidence"
+    return action_name
+
+
+def _is_browser_navigation_or_search(action_name: str) -> bool:
+    return any(
+        action_name.endswith(suffix)
+        for suffix in (
+            ".open",
+            ".observe",
+            ".search",
+            ".inspect_result",
+            ".open_result",
+            ".extract_product_cards",
+            ".verify_extraction",
+        )
+    )
 
 
 def _result_ref_params(context: dict[str, Any]) -> dict[str, Any]:
@@ -495,7 +570,11 @@ def _has_browser_extraction(context: dict[str, Any]) -> bool:
 
 
 def _finish_is_available(context: dict[str, Any]) -> bool:
-    return bool((context.get("finish_available") or context.get("objective_satisfied")) and _has_verified_browser_extraction(context))
+    return bool(
+        (context.get("finish_available") or context.get("objective_satisfied"))
+        and _has_verified_browser_extraction(context)
+        and _has_grounded_evidence_summary(context)
+    )
 
 
 def _has_verified_browser_extraction(context: dict[str, Any]) -> bool:
@@ -517,6 +596,22 @@ def _has_verified_browser_extraction(context: dict[str, Any]) -> bool:
             and item.get("operation") == "real_browser.verify_extraction"
             and item.get("status") in {"completed", "passed", "success"}
             and int(item.get("receipt_count") or 0) > 0
+        ):
+            return True
+    return False
+
+
+def _has_grounded_evidence_summary(context: dict[str, Any]) -> bool:
+    summary = context.get("grounded_evidence_summary")
+    if isinstance(summary, dict) and summary.get("present") is True:
+        return True
+    for item in context.get("bounded_observation_summaries", []):
+        if not isinstance(item, dict):
+            continue
+        if (
+            item.get("capability_id") == "sentinel_loop"
+            and item.get("operation") == "summarize_evidence"
+            and item.get("status") in {"completed", "passed", "success"}
         ):
             return True
     return False
