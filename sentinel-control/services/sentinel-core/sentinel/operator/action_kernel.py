@@ -286,15 +286,59 @@ def _grounded_evidence_summary(context: dict[str, Any]) -> dict[str, Any]:
                 "currency_or_unit": _card_value(card, "currency_or_unit"),
                 "minimum_order": _card_value(card, "minimum_order"),
                 "supplier_or_store": _card_value(card, "supplier_or_store"),
+                "relevance_to_objective": _card_value(card, "relevance_to_objective"),
+                "relevance_reason": _card_value(card, "relevance_reason"),
+                "price_condition_supported": _card_value(card, "price_condition_supported"),
+                "objective_relevance_assessed": _card_bool(card, "objective_relevance_assessed"),
                 "caveats": _card_list(card, "caveats"),
                 "short_features": _card_list(card, "short_features"),
+                "evidence_ref_hash": _card_value(card, "evidence_ref_hash"),
                 "confidence": _card_float(card, "confidence"),
             }
         )
+    matched = [
+        card
+        for card in safe_cards
+        if card["relevance_to_objective"] in {"relevant", "partial"}
+    ]
+    uncertain = [
+        card
+        for card in matched
+        if card["price_condition_supported"] in {"unknown", "not_supported"}
+    ]
+    price_support = _under_price_support(matched)
+    relevance_assessed = bool(safe_cards) and all(bool(card["objective_relevance_assessed"]) for card in safe_cards)
     return {
         "summary_kind": "grounded_browser_evidence_summary",
         "card_count": len(safe_cards),
         "cards": safe_cards,
+        "matched_products": [
+            {
+                "title": card["title"],
+                "visible_price": card["visible_price"],
+                "minimum_order": card["minimum_order"],
+                "supplier_or_store": card["supplier_or_store"],
+                "price_condition_supported": card["price_condition_supported"],
+            }
+            for card in matched
+        ],
+        "uncertain_products": [
+            {
+                "title": card["title"],
+                "visible_price": card["visible_price"],
+                "caveats": card["caveats"],
+                "reason": "under-5-EUR condition is not directly supported by visible EUR evidence",
+            }
+            for card in uncertain
+        ],
+        "objective_relevance_assessed": relevance_assessed,
+        "has_relevant_product_evidence": bool(matched),
+        "under_price_condition_supported_by_visible_evidence": price_support,
+        "summary_text": _grounded_summary_text(
+            matched_count=len(matched),
+            uncertain_count=len(uncertain),
+            price_support=price_support,
+        ),
         "unknown_policy": "unknown_fields_preserved_no_hallucinated_price_moq_supplier",
         "source": "browser_extraction_cards_and_receipts",
         "data_not_authority": True,
@@ -350,6 +394,31 @@ def _card_float(card: Any, key: str) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _card_bool(card: Any, key: str) -> bool:
+    value = card.get(key) if isinstance(card, dict) else getattr(card, key, None)
+    return bool(value)
+
+
+def _under_price_support(cards: list[dict[str, Any]]) -> str:
+    if not cards:
+        return "no_relevant_products"
+    values = {str(card.get("price_condition_supported") or "unknown") for card in cards}
+    if "supported" in values:
+        return "supported"
+    if values == {"not_supported"}:
+        return "not_supported"
+    return "unknown"
+
+
+def _grounded_summary_text(*, matched_count: int, uncertain_count: int, price_support: str) -> str:
+    return (
+        f"Matching products: {matched_count}. "
+        f"Uncertain products: {uncertain_count}. "
+        f"Under-5-EUR visible evidence: {price_support}. "
+        "Unknown fields remain unknown; no landed-cost, shipping, MOQ, supplier, or currency claim is inferred."
+    )
 
 
 __all__ = ["ActionEnvelope", "ActionKernel", "ActionKernelError", "ActionResult", "ActionExecutor"]

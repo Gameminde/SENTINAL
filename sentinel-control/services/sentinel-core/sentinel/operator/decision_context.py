@@ -127,6 +127,7 @@ class DecisionContextCompiler:
             and result.status in {"completed", "passed", "success"}
         ]
         real_browser_cards = _latest_real_browser_context_cards(real_browser_results)
+        grounded_evidence_summary = _grounded_evidence_summary(grounded_summary_results)
         latest_patch_index = _latest_success_index(
             sequenced_observations,
             capability_id="workspace_patch",
@@ -147,7 +148,12 @@ class DecisionContextCompiler:
         if real_browser_mode:
             objective_satisfied = bool(
                 real_browser_assertion_results
-                or (real_browser_verified_extraction_results and grounded_summary_results)
+                or (
+                    real_browser_verified_extraction_results
+                    and grounded_summary_results
+                    and grounded_evidence_summary["objective_relevance_assessed"] is True
+                    and grounded_evidence_summary["has_relevant_product_evidence"] is True
+                )
             )
         elif browser_mode:
             objective_satisfied = bool(browser_assertion_results)
@@ -164,6 +170,7 @@ class DecisionContextCompiler:
                 real_browser_extraction_results=real_browser_extraction_results,
                 real_browser_verified_extraction_results=real_browser_verified_extraction_results,
                 grounded_summary_results=grounded_summary_results,
+                grounded_evidence_summary=grounded_evidence_summary,
             )
             if real_browser_mode
             else _browser_progress_guidance(
@@ -331,7 +338,7 @@ class DecisionContextCompiler:
             ],
             "browser_control_summary": _browser_summary(browser_results),
             "real_browser_control_summary": _real_browser_summary(real_browser_results),
-            "grounded_evidence_summary": _grounded_evidence_summary(grounded_summary_results),
+            "grounded_evidence_summary": grounded_evidence_summary,
             "browser_world_model_summary": real_browser_cards.get("browser_world_model_summary") if real_browser_mode else {},
             "browser_world_model": real_browser_cards.get("browser_world_model") if real_browser_mode else {},
             "browser_decision_frame": real_browser_cards.get("browser_decision_frame") if real_browser_mode else {},
@@ -657,6 +664,7 @@ def _real_browser_progress_guidance(
     real_browser_extraction_results: list[ActionResult],
     real_browser_verified_extraction_results: list[ActionResult],
     grounded_summary_results: list[ActionResult],
+    grounded_evidence_summary: dict[str, Any],
 ) -> dict[str, Any]:
     has_open = any(
         result.operation == "real_browser.open" and result.receipt_refs and result.status in {"completed", "passed", "success"}
@@ -674,13 +682,22 @@ def _real_browser_progress_guidance(
         for result in real_browser_verified_extraction_results
     )
     has_grounded_summary = any(result.status in {"completed", "passed", "success"} for result in grounded_summary_results)
+    has_relevance_assessment = bool(grounded_evidence_summary.get("objective_relevance_assessed") is True)
+    has_relevant_product_evidence = bool(grounded_evidence_summary.get("has_relevant_product_evidence") is True)
     completion_requirements = {
         "requires_real_browser_open_receipt": not has_open,
         "requires_real_browser_observation_receipt": not has_observation,
         "requires_real_browser_action_receipt": not has_action,
         "requires_real_browser_assertion_or_extraction_receipt": not (has_assertion or has_extraction),
         "requires_real_browser_verified_extraction_receipt": has_extraction and not has_verified_extraction,
-        "requires_grounded_evidence_summary": has_verified_extraction and not has_grounded_summary,
+        "requires_grounded_evidence_summary": has_verified_extraction
+        and (not has_grounded_summary or not has_relevance_assessment),
+        "requires_objective_relevance_assessment": has_verified_extraction
+        and has_grounded_summary
+        and not has_relevance_assessment,
+        "requires_relevant_product_evidence": has_verified_extraction
+        and has_relevance_assessment
+        and not has_relevant_product_evidence,
         "requires_finish_action": True,
         "has_real_browser_open_receipt": has_open,
         "has_real_browser_observation_receipt": has_observation,
@@ -689,6 +706,11 @@ def _real_browser_progress_guidance(
         "has_real_browser_extraction_receipt": has_extraction,
         "has_real_browser_verified_extraction_receipt": has_verified_extraction,
         "has_grounded_evidence_summary": has_grounded_summary,
+        "has_objective_relevance_assessment": has_relevance_assessment,
+        "has_relevant_product_evidence": has_relevant_product_evidence,
+        "under_price_condition_supported_by_visible_evidence": grounded_evidence_summary.get(
+            "under_price_condition_supported_by_visible_evidence"
+        ),
     }
     if objective_satisfied:
         return {
@@ -697,11 +719,28 @@ def _real_browser_progress_guidance(
             "objective_remaining_steps": [],
             "completion_requirements": completion_requirements,
         }
-    if has_verified_extraction and not has_grounded_summary:
+    if has_verified_extraction and (not has_grounded_summary or not has_relevance_assessment):
         return {
             "progress_state": "real_browser_verified_extraction_needs_summary",
             "next_recommended_actions": ["sentinel_loop.summarize_evidence"],
             "objective_remaining_steps": ["summarize grounded extraction evidence", "finish"],
+            "completion_requirements": completion_requirements,
+        }
+    if has_verified_extraction and has_grounded_summary and not has_relevant_product_evidence:
+        return {
+            "progress_state": "real_browser_verified_extraction_needs_relevant_products",
+            "next_recommended_actions": [
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.open_result",
+                "real_browser_control.real_browser.extract_product_cards",
+            ],
+            "objective_remaining_steps": [
+                "search or inspect for product cards relevant to the mission objective",
+                "extract/verify relevant cards",
+                "summarize grounded evidence",
+                "finish",
+            ],
             "completion_requirements": completion_requirements,
         }
     if has_extraction and not has_verified_extraction:
@@ -830,14 +869,23 @@ def _grounded_evidence_summary(summary_results: list[ActionResult]) -> dict[str,
             "present": False,
             "card_count": 0,
             "summary_hash": None,
+            "objective_relevance_assessed": False,
+            "has_relevant_product_evidence": False,
+            "under_price_condition_supported_by_visible_evidence": "unknown",
         }
     summary = latest.context_cards.get("grounded_evidence_summary")
     card_count = 0
+    objective_relevance_assessed = False
+    has_relevant_product_evidence = False
+    under_price_support = "unknown"
     if isinstance(summary, dict):
         try:
             card_count = int(summary.get("card_count") or 0)
         except (TypeError, ValueError):
             card_count = 0
+        objective_relevance_assessed = bool(summary.get("objective_relevance_assessed") is True)
+        has_relevant_product_evidence = bool(summary.get("has_relevant_product_evidence") is True)
+        under_price_support = str(summary.get("under_price_condition_supported_by_visible_evidence") or "unknown")
     return {
         "present": True,
         "operation": latest.operation,
@@ -845,6 +893,9 @@ def _grounded_evidence_summary(summary_results: list[ActionResult]) -> dict[str,
         "receipt_count": len(latest.receipt_refs),
         "summary_hash": latest.result_hash,
         "card_count": card_count,
+        "objective_relevance_assessed": objective_relevance_assessed,
+        "has_relevant_product_evidence": has_relevant_product_evidence,
+        "under_price_condition_supported_by_visible_evidence": under_price_support,
     }
 
 

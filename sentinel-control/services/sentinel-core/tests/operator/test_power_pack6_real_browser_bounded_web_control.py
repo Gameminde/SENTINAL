@@ -484,7 +484,7 @@ class _RealBrowserFixture:
             session_id="session_power_pack6",
             draft=MissionDraft(
                 title="Model-led real browser control",
-                objective="Let the model operate a bounded real browser page and verify the state changed.",
+                objective="Search a bounded catalog page for glasses under 5 EUR and extract one relevant product card.",
                 constraints=["bounded browser URL", "receipts always", "no arbitrary internet"],
                 expected_artifacts=["real browser action receipts"],
             ),
@@ -560,7 +560,7 @@ class _RealBrowserFixture:
             id=self.mission_id,
             user_id="user_youcef",
             mission_title="Model-led real browser control",
-            mission_objective="Operate the granted bounded browser URL.",
+            mission_objective="Search a bounded catalog page for glasses under 5 EUR and extract one relevant product card.",
             allowed_tools=["real_browser_control"],
             allowed_actions=[
                 "real_browser.open",

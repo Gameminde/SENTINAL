@@ -157,6 +157,18 @@ def _primary_recommendations(
         and "sentinel_loop.summarize_evidence" in visible_actions
     ):
         return ["sentinel_loop.summarize_evidence"]
+    if completion_requirements.get("requires_relevant_product_evidence") is True:
+        browser_recovery = _first_available(
+            visible_actions,
+            [
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.open_result",
+                "real_browser_control.real_browser.extract_product_cards",
+            ],
+        )
+        if browser_recovery:
+            return browser_recovery
     for recoverable in reversed(recoverable_observations):
         recovered = [
             action
@@ -194,6 +206,16 @@ def _real_browser_recommendations(visible_actions: list[str], progress_state: st
         return _first_available(visible_actions, ["sentinel_loop.summarize_evidence"])
     if progress_state == "real_browser_extraction_needs_verification":
         return _first_available(visible_actions, ["real_browser_control.real_browser.verify_extraction"])
+    if progress_state == "real_browser_verified_extraction_needs_relevant_products":
+        return _first_available(
+            visible_actions,
+            [
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.open_result",
+                "real_browser_control.real_browser.extract_product_cards",
+            ],
+        )
     if progress_state == "real_browser_not_started":
         return _first_available(
             visible_actions,

@@ -460,6 +460,8 @@ def _strongest_contextual_browser_action(context: dict[str, Any]) -> str | None:
         return "sentinel_loop.summarize_evidence"
     if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and (context.get("finish_available") or context.get("objective_satisfied")):
         return "sentinel_loop.finish"
+    if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and not _has_relevant_product_evidence(context):
+        return "real_browser_control.real_browser.search"
     if _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
         return "real_browser_control.real_browser.verify_extraction"
     if _has_product_cards(context):
@@ -574,6 +576,7 @@ def _finish_is_available(context: dict[str, Any]) -> bool:
         (context.get("finish_available") or context.get("objective_satisfied"))
         and _has_verified_browser_extraction(context)
         and _has_grounded_evidence_summary(context)
+        and _has_relevant_product_evidence(context)
     )
 
 
@@ -614,6 +617,16 @@ def _has_grounded_evidence_summary(context: dict[str, Any]) -> bool:
             and item.get("status") in {"completed", "passed", "success"}
         ):
             return True
+    return False
+
+
+def _has_relevant_product_evidence(context: dict[str, Any]) -> bool:
+    summary = context.get("grounded_evidence_summary")
+    if isinstance(summary, dict):
+        return bool(summary.get("has_relevant_product_evidence") is True)
+    requirements = context.get("completion_requirements")
+    if isinstance(requirements, dict):
+        return bool(requirements.get("has_relevant_product_evidence") is True)
     return False
 
 

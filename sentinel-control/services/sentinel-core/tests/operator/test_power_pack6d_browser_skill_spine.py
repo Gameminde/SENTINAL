@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
 from sentinel.operator.action_power_contract import ActionFailureClass
 from sentinel.operator.actionability_registry import build_default_actionability_registry
 from sentinel.operator.browser_backend_selector import select_browser_backend
@@ -20,6 +20,10 @@ from sentinel.operator.loop_guard import LoopGuard, LoopGuardConfig
 from sentinel.operator.model_led_task_loop import ModelLedTaskDecisionClient, ModelLedTaskLoop, ModelLedTaskLoopReplay, ModelLedTaskLoopStatus
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
 from sentinel.operator.power_skill_registry import build_default_power_skill_registry
+from sentinel.operator.real_browser_attempt_evaluation import (
+    VerifiedExtractionCompletionAttemptMetrics,
+    evaluate_verified_extraction_completion_attempt,
+)
 from sentinel.operator.real_browser_control_replay import RealBrowserControlReplayView
 from sentinel.operator.real_browser_control_runtime import (
     InMemoryRealBrowserEngine,
@@ -179,6 +183,28 @@ def test_real_browser_search_material_receipt_when_backend_actuates(tmp_path: Pa
     assert fixture.load_action_receipt(result.receipt_refs[0])["action_kind"] == "real_browser.search"
 
 
+def test_search_success_records_material_navigation_or_search_receipt(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+
+    assert result.status == "completed"
+    assert result.material_action is True
+    assert result.context_cards["browser_world_model_summary"]["product_or_result_candidate_count"] >= 1
+    assert receipt["action_kind"] == "real_browser.search"
+    assert receipt["status"] == "completed"
+
+
 def test_real_browser_search_ranks_search_like_refs_and_tries_alternates(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_AlternateSearchEngine())
 
@@ -271,6 +297,27 @@ def test_search_recoverable_failure_updates_decision_context(tmp_path: Path) -> 
 
     assert failed.status == "recoverable_failed"
     assert context["recoverable_observations"][-1]["failure_code"] == "real_browser_search_actuation_failed"
+    assert context["primary_model_recommended_next_action"] == "real_browser_control.real_browser.extract_product_cards"
+
+
+def test_search_failure_with_relevant_cards_continues_to_extract(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
+
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    failed = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    context = _compile_browser_context(fixture, observations=[opened, failed], recovery_turns_used=1)
+    cards = context["browser_world_model"]["product_or_result_candidate_cards"]
+
+    assert failed.recoverable is True
+    assert cards[0]["relevance_to_objective"] in {"relevant", "partial"}
     assert context["primary_model_recommended_next_action"] == "real_browser_control.real_browser.extract_product_cards"
 
 
@@ -387,6 +434,69 @@ def test_product_extraction_card_captures_title_price_moq_supplier_caveats_when_
     assert "shipping not included" in cards[0]["caveats"]
 
 
+def test_relevance_fields_added_to_product_cards(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context={},
+    )
+    card = result.context_cards["browser_world_model"]["product_or_result_candidate_cards"][0]
+
+    assert card["title"] == "Polarized sunglasses"
+    assert card["visible_price"] == "$4.80"
+    assert card["currency_or_unit"] == "USD/visible"
+    assert card["minimum_order"] == "10 pieces"
+    assert card["supplier_or_store"] == "Yiwu Test Store"
+    assert card["relevance_to_objective"] in {"relevant", "partial"}
+    assert card["price_condition_supported"] == "unknown"
+    assert card["objective_relevance_assessed"] is True
+    assert card["evidence_ref_hash"]
+
+
+def test_under_price_claim_requires_visible_price_evidence() -> None:
+    euro_snapshot = RealBrowserEngineSnapshot(
+        page_title="Euro Results",
+        state_hash="state_hash",
+        elements=(
+            RealBrowserEngineElement(
+                ref="link:euro",
+                role="link",
+                name="Budget sunglasses EUR 4.50",
+                text_preview="Budget sunglasses EUR 4.50 per piece MOQ 2 pieces Supplier Euro Store",
+            ),
+        ),
+    )
+    usd_snapshot = RealBrowserEngineSnapshot(
+        page_title="USD Results",
+        state_hash="state_hash",
+        elements=(
+            RealBrowserEngineElement(
+                ref="link:usd",
+                role="link",
+                name="Polarized sunglasses $4.80",
+                text_preview="Polarized sunglasses $4.80 per piece MOQ 10 pieces Supplier Yiwu Test Store",
+            ),
+        ),
+    )
+
+    euro_card = BrowserWorldModelBuilder().build_from_snapshot(
+        euro_snapshot,
+        mission_objective="Find glasses under 5 EUR.",
+        origin_hash="origin_hash",
+    ).product_or_result_candidate_cards[0]
+    usd_card = BrowserWorldModelBuilder().build_from_snapshot(
+        usd_snapshot,
+        mission_objective="Find glasses under 5 EUR.",
+        origin_hash="origin_hash",
+    ).product_or_result_candidate_cards[0]
+
+    assert euro_card.price_condition_supported == "supported"
+    assert usd_card.price_condition_supported == "unknown"
+
+
 def test_finish_available_after_verify_extraction_and_summary(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
 
@@ -421,6 +531,26 @@ def test_finish_available_after_verify_extraction_and_summary(tmp_path: Path) ->
     assert verified.status == "passed"
     assert context["finish_available"] is True
     assert context["primary_model_recommended_next_action"] == "sentinel_loop.finish"
+
+
+def test_5h_completion_lane_harness_accepts_extract_verify_summary_finish() -> None:
+    metrics = VerifiedExtractionCompletionAttemptMetrics(
+        extract_product_cards_count=1,
+        verify_extraction_count=1,
+        summarize_evidence_count=1,
+        summary_present=True,
+        finish_present=True,
+        mission_status="completed",
+        replay_no_react=True,
+        high_risk_scan_clean=True,
+        search_or_navigation_evidence=False,
+    )
+
+    verdict = evaluate_verified_extraction_completion_attempt(metrics)
+
+    assert verdict.accepted is True
+    assert verdict.verdict == "VALID_SUCCESS"
+    assert "search_or_navigation_evidence" not in verdict.required_fields
 
 
 def test_verified_extraction_routes_to_summary_when_summary_missing(tmp_path: Path) -> None:
@@ -636,6 +766,10 @@ def test_summary_grounded_in_extracted_cards_unknowns_preserved(tmp_path: Path) 
     assert grounded["cards"][0]["visible_price"] == "$4.80"
     assert grounded["cards"][0]["minimum_order"] == "10 pieces"
     assert grounded["cards"][0]["supplier_or_store"] == "Yiwu Test Store"
+    assert grounded["cards"][0]["relevance_to_objective"] in {"relevant", "partial"}
+    assert grounded["cards"][0]["price_condition_supported"] == "unknown"
+    assert grounded["objective_relevance_assessed"] is True
+    assert grounded["under_price_condition_supported_by_visible_evidence"] in {"unknown", "mixed"}
 
     sparse_fixture = _BrowserSkillFixture(tmp_path / "sparse", engine=_SparseProductSearchEngine())
     sparse_opened = sparse_fixture.runtime.execute(
@@ -665,6 +799,7 @@ def test_summary_grounded_in_extracted_cards_unknowns_preserved(tmp_path: Path) 
     assert sparse_grounded["cards"][0]["visible_price"] == "unknown"
     assert sparse_grounded["cards"][0]["minimum_order"] == "unknown"
     assert sparse_grounded["cards"][0]["supplier_or_store"] == "unknown"
+    assert sparse_grounded["cards"][0]["price_condition_supported"] == "unknown"
 
 
 def test_product_extraction_card_uses_unknown_fields_without_hallucination() -> None:
@@ -692,6 +827,125 @@ def test_product_extraction_card_uses_unknown_fields_without_hallucination() -> 
     assert card.visible_price == "unknown"
     assert card.minimum_order == "unknown"
     assert card.supplier_or_store == "unknown"
+    assert card.price_condition_supported == "unknown"
+
+
+def test_unknown_price_preserved_as_unknown() -> None:
+    snapshot = RealBrowserEngineSnapshot(
+        page_title="Unknown Price",
+        state_hash="state_hash",
+        elements=(
+            RealBrowserEngineElement(
+                ref="link:unknown",
+                role="link",
+                name="Minimal glasses listing",
+                text_preview="Minimal glasses listing supplier unknown price pending",
+            ),
+        ),
+    )
+
+    card = BrowserWorldModelBuilder().build_from_snapshot(
+        snapshot,
+        mission_objective="Find glasses under 5 EUR.",
+        origin_hash="origin_hash",
+    ).product_or_result_candidate_cards[0]
+
+    assert card.visible_price == "unknown"
+    assert card.currency_or_unit == "unknown"
+    assert card.price_condition_supported == "unknown"
+
+
+def test_summary_grounded_in_verified_cards_and_relevance(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    summary = fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, extracted, verified]),
+    )
+
+    grounded = summary.context_cards["grounded_evidence_summary"]
+
+    assert grounded["matched_products"]
+    assert grounded["uncertain_products"]
+    assert grounded["under_price_condition_supported_by_visible_evidence"] == "unknown"
+    assert grounded["summary_text"]
+    assert "Unknown fields remain unknown" in grounded["summary_text"]
+
+
+def test_visible_irrelevant_cards_do_not_fake_success(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_IrrelevantProductSearchEngine())
+
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    summary = fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, extracted, verified]),
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted, verified, summary])
+
+    assert summary.context_cards["grounded_evidence_summary"]["matched_products"] == []
+    assert context["completion_requirements"]["has_objective_relevance_assessment"] is True
+    assert context["completion_requirements"]["has_relevant_product_evidence"] is False
+    assert context["finish_available"] is False
+    assert context["primary_model_recommended_next_action"] in {
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.inspect_result",
+    }
+
+
+def test_finish_requires_relevance_assessment(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    stale_summary = ActionResult(
+        action_id="action_stale_summary",
+        capability_id="sentinel_loop",
+        operation="summarize_evidence",
+        status="completed",
+        context_cards={
+            "grounded_evidence_summary": {
+                "summary_kind": "grounded_browser_evidence_summary",
+                "card_count": 1,
+                "cards": [{"title": "Polarized sunglasses"}],
+            }
+        },
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted, verified, stale_summary])
+
+    assert context["completion_requirements"]["has_grounded_evidence_summary"] is True
+    assert context["completion_requirements"]["has_objective_relevance_assessment"] is False
+    assert context["finish_available"] is False
+    assert context["primary_model_recommended_next_action"] == "sentinel_loop.summarize_evidence"
 
 
 def test_browser_research_proof_accepts_extraction_card_and_summary(tmp_path: Path) -> None:
@@ -1180,6 +1434,8 @@ def _compile_browser_context(
     observations: list[Any],
     model_calls_used: int = 0,
     material_actions_used: int = 0,
+    recovery_turns_used: int = 0,
+    max_recovery_turns: int = 2,
 ) -> dict[str, Any]:
     return DecisionContextCompiler().compile(
         mission_id=fixture.mission_id,
@@ -1191,8 +1447,8 @@ def _compile_browser_context(
         material_actions_used=material_actions_used,
         max_model_calls=8,
         max_material_actions=4,
-        recovery_turns_used=0,
-        max_recovery_turns=2,
+        recovery_turns_used=recovery_turns_used,
+        max_recovery_turns=max_recovery_turns,
         correction_turns_used=0,
         max_correction_turns=2,
     )
@@ -1226,7 +1482,7 @@ class _BrowserSkillFixture:
             session_id="session_power_pack6d",
             draft=MissionDraft(
                 title="Model-led browser skill spine",
-                objective="Search a bounded catalog page and extract one product card.",
+                objective="Search a bounded catalog page for glasses under 5 EUR and extract one relevant product card.",
                 constraints=["bounded browser URL", "receipts always", "no login/contact/payment"],
                 expected_artifacts=["real browser action receipts"],
             ),
@@ -1282,7 +1538,7 @@ class _BrowserSkillFixture:
             id=self.mission_id,
             user_id="user_youcef",
             mission_title="Model-led browser skill spine",
-            mission_objective="Search a bounded catalog page and extract one product card.",
+            mission_objective="Search a bounded catalog page for glasses under 5 EUR and extract one relevant product card.",
             allowed_tools=["real_browser_control"],
             allowed_actions=[action.replace("real_browser_control.", "") for action in _browser_actions() if action != "sentinel_loop.finish"]
             + ["finish"],
@@ -1411,6 +1667,27 @@ class _SparseProductSearchEngine(_HardProductSearchEngine):
         return (
             RealBrowserEngineElement("input:search", "textbox", "Search products", value_preview=self.search_query),
             RealBrowserEngineElement("link:sparse", "link", "Minimal glasses listing", text_preview="Minimal glasses listing"),
+        )
+
+
+class _IrrelevantProductSearchEngine(_HardProductSearchEngine):
+    def __init__(self) -> None:
+        super().__init__(results_visible=True)
+        self.display_text = (
+            "Search results for glasses under 5 euro. "
+            "Industrial steel bolts. Price EUR 1.20 per unit. MOQ 100 pieces. "
+            "Supplier Hardware Test Store."
+        )
+
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        return (
+            RealBrowserEngineElement("input:search", "textbox", "Search products", value_preview=self.search_query),
+            RealBrowserEngineElement(
+                "link:bolts",
+                "link",
+                "Industrial steel bolts EUR 1.20 MOQ 100 pieces",
+                text_preview="Industrial steel bolts EUR 1.20 MOQ 100 pieces Supplier Hardware Test Store",
+            ),
         )
 
 

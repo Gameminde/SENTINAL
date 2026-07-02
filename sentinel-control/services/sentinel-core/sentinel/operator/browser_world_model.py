@@ -42,6 +42,10 @@ class BrowserExtractionCard(SentinelModel):
     currency_or_unit: str = "unknown"
     minimum_order: str = "unknown"
     supplier_or_store: str = "unknown"
+    relevance_to_objective: str = "unknown"
+    relevance_reason: str = "unknown"
+    price_condition_supported: str = "unknown"
+    objective_relevance_assessed: bool = False
     short_features: tuple[str, ...] = Field(default_factory=tuple)
     caveats: tuple[str, ...] = Field(default_factory=tuple)
     evidence_ref_hash: str
@@ -88,6 +92,14 @@ class BrowserWorldModel(SentinelModel):
             "button_refs": list(self.button_refs[:8]),
             "link_refs": list(self.link_refs[:8]),
             "product_or_result_candidate_count": len(self.product_or_result_candidate_cards),
+            "relevant_product_candidate_count": sum(
+                1
+                for card in self.product_or_result_candidate_cards
+                if card.relevance_to_objective in {"relevant", "partial"}
+            ),
+            "objective_relevance_assessed": any(
+                card.objective_relevance_assessed for card in self.product_or_result_candidate_cards
+            ),
             "modal_or_consent_signals": list(self.modal_or_consent_signals),
             "captcha_or_login_signals": list(self.captcha_or_login_signals),
             "dynamic_loading_signals": list(self.dynamic_loading_signals),
@@ -119,7 +131,13 @@ class BrowserWorldModelBuilder:
         form_controls = tuple(element.ref for element in observable if element.role in {"textbox", "combobox"})
         button_refs = tuple(element.ref for element in observable if element.role == "button")
         link_refs = tuple(element.ref for element in observable if element.role == "link")
-        cards = tuple(_candidate_cards(observable, extracted_text=extracted_text or visible_text))
+        cards = tuple(
+            _candidate_cards(
+                observable,
+                extracted_text=extracted_text or visible_text,
+                mission_objective=mission_objective,
+            )
+        )
         blockers = _blocker_signals(visible_text)
         return BrowserWorldModel(
             page_kind_guess=_page_kind_guess(search_like_refs=search_like_refs, link_refs=link_refs, cards=cards, text=visible_text),
@@ -223,49 +241,75 @@ def _is_browser_research_snippet(chunk: str) -> bool:
     )
 
 
-def _candidate_cards(elements: tuple["RealBrowserEngineElement", ...], *, extracted_text: str) -> list[BrowserExtractionCard]:
+def _candidate_cards(
+    elements: tuple["RealBrowserEngineElement", ...],
+    *,
+    extracted_text: str,
+    mission_objective: str,
+) -> list[BrowserExtractionCard]:
     cards: list[BrowserExtractionCard] = []
     sources = [_element_text(element) for element in elements if element.role in {"link", "article", "card", "generic"}]
     if extracted_text:
         sources.append(extracted_text)
     for source in sources:
-        card = _card_from_text(source)
+        card = _card_from_text(source, mission_objective=mission_objective)
         if card is not None:
             cards.append(card)
     return cards[:6]
 
 
-def _card_from_text(text: str) -> BrowserExtractionCard | None:
+def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCard | None:
     if not text.strip():
         return None
+    product_text = _strip_search_intro(text)
     has_product_signal = bool(
-        re.search(r"(\$|€|eur|usd|price|moq|minimum order|supplier|store|piece|unit|pcs?)", text, flags=re.I)
+        re.search(r"(\$|€|eur|usd|price|moq|minimum order|supplier|store|piece|unit|pcs?)", product_text, flags=re.I)
     )
     if not has_product_signal:
-        has_product_signal = bool(re.search(r"(product|glasses|sunglasses|listing|catalog)", text, flags=re.I))
+        has_product_signal = bool(re.search(r"(product|glasses|sunglasses|listing|catalog)", product_text, flags=re.I))
     if not has_product_signal:
         return None
-    title = _extract_title(text)
-    price = _first_match(text, r"(\$\s?\d+(?:[.,]\d+)?|€\s?\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s?(?:EUR|USD))")
-    moq = _normalize_minimum_order(
-        _first_match(text, r"(MOQ\s*\d+\s*(?:pieces|piece|pcs?|units?)?|minimum order\s*[:\-]?\s*\d+\s*\w*)")
+    title = _extract_title(product_text)
+    price = _first_match(
+        product_text,
+        r"(\$\s?\d+(?:[.,]\d+)?|€\s?\d+(?:[.,]\d+)?|(?:EUR|USD)\s?\d+(?:[.,]\d+)?|\d+(?:[.,]\d+)?\s?(?:EUR|USD))",
     )
-    supplier = _extract_supplier(text)
+    moq = _normalize_minimum_order(
+        _first_match(product_text, r"(MOQ\s*\d+\s*(?:pieces|piece|pcs?|units?)?|minimum order\s*[:\-]?\s*\d+\s*\w*)")
+    )
+    supplier = _extract_supplier(product_text)
+    relevance, relevance_reason = _objective_relevance(product_text, mission_objective=mission_objective)
+    price_support = _price_condition_supported(price, mission_objective=mission_objective)
     caveats = []
     for marker in ("shipping not included", "shipping", "customization", "unclear", "login required", "MOQ"):
-        if marker.lower() in text.lower():
+        if marker.lower() in product_text.lower():
             caveats.append(marker)
     return ProductCandidateCard(
         title=_clip(title or "unknown", 120),
         visible_price=_clip(price or "unknown", 80),
-        currency_or_unit=_currency_or_unit(price or text),
+        currency_or_unit=_currency_or_unit(price or product_text),
         minimum_order=_clip(moq or "unknown", 80),
         supplier_or_store=_clip(supplier or "unknown", 120),
-        short_features=tuple(_snippets(text)[:3]),
+        relevance_to_objective=relevance,
+        relevance_reason=_clip(relevance_reason, 180),
+        price_condition_supported=price_support,
+        objective_relevance_assessed=True,
+        short_features=tuple(_snippets(product_text)[:3]),
         caveats=tuple(dict.fromkeys(caveats)) or ("unknown",),
-        evidence_ref_hash=stable_hash({"source_hash": text_hash(text), "card_kind": "product_candidate"}),
+        evidence_ref_hash=stable_hash({"source_hash": text_hash(product_text), "card_kind": "product_candidate"}),
         confidence=0.72 if price != "unknown" or moq != "unknown" else 0.42,
     )
+
+
+def _strip_search_intro(text: str) -> str:
+    stripped = " ".join(text.split())
+    return re.sub(
+        r"^search results?\s+for\s+.+?(?:\.|:)\s*",
+        "",
+        stripped,
+        count=1,
+        flags=re.I,
+    ).strip() or stripped
 
 
 def _extract_title(text: str) -> str:
@@ -320,6 +364,46 @@ def _currency_or_unit(text: str) -> str:
     if "piece" in lowered or "unit" in lowered or "pcs" in lowered:
         return "visible unit"
     return "unknown"
+
+
+def _objective_relevance(text: str, *, mission_objective: str) -> tuple[str, str]:
+    objective = mission_objective.lower()
+    lowered = text.lower()
+    wanted_terms = []
+    if any(marker in objective for marker in ("glasses", "sunglasses", "eyewear")):
+        wanted_terms.extend(("glasses", "sunglasses", "eyewear", "spectacles"))
+    if not wanted_terms:
+        return "unknown", "mission objective has no product keyword Sentinel can safely score"
+    if any(term in lowered for term in wanted_terms):
+        return "relevant", "visible product text matches the requested eyewear category"
+    return "irrelevant", "visible product text does not match the requested eyewear category"
+
+
+def _price_condition_supported(price: str, *, mission_objective: str) -> str:
+    objective = mission_objective.lower()
+    if "5" not in objective and "five" not in objective:
+        return "unknown"
+    if "eur" not in objective and "euro" not in objective:
+        return "unknown"
+    if not price or price == "unknown":
+        return "unknown"
+    lowered = price.lower()
+    if "eur" not in lowered and "€" not in price and "â‚¬" not in price:
+        return "unknown"
+    amount = _price_amount(price)
+    if amount is None:
+        return "unknown"
+    return "supported" if amount <= 5 else "not_supported"
+
+
+def _price_amount(price: str) -> float | None:
+    match = re.search(r"(\d+(?:[.,]\d+)?)", price)
+    if not match:
+        return None
+    try:
+        return float(match.group(1).replace(",", "."))
+    except ValueError:
+        return None
 
 
 def _normalize_minimum_order(value: str) -> str:
