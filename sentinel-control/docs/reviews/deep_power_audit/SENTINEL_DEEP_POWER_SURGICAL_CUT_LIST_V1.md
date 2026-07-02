@@ -91,6 +91,23 @@ interface the model must always speak. Hard boundaries still block before
 mapping; finish still requires verified evidence.
 ```
 
+Power friction cut Pack 3 implementation status:
+
+```text
+POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1 =
+implemented candidate, not real-provider/browser product-proven
+
+Search success now records material search/navigation proof when the bounded
+browser backend actuates. Search failures inside scope can still route toward
+extraction when relevant product cards are already visible.
+
+Product cards now carry objective relevance and visible price-support metadata.
+Grounded summaries distinguish matching products from uncertain products and do
+not infer EUR-under-5 support from non-EUR visible prices. Finish requires
+verified extraction, grounded summary, relevance assessment, and relevant product
+evidence.
+```
+
 ## What Must Stop Being Preferred Model-Facing API
 
 These can stay internally, but should not be the main action vocabulary for Alibaba-style research:
