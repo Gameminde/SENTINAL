@@ -108,6 +108,23 @@ verified extraction, grounded summary, relevance assessment, and relevant produc
 evidence.
 ```
 
+5K relevance cleanup implementation status:
+
+```text
+FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1 =
+implemented candidate, not real-provider/browser product-proven
+
+5K proved Cloak/session backend truth and DevTools context, but the product
+quality blocker moved to card grounding. The local fix cuts query contamination
+from `Search results for ...`, treats multilingual eyewear terms such as
+lunettes/optiques as relevant to glasses missions, prevents generic Alibaba
+text from crowding out product cards, and demotes repeated search once a search
+receipt already exists without relevant evidence.
+
+Cloak profile material cleanup is now a close-time runtime responsibility, not
+a manual post-run artifact cleanup.
+```
+
 ## What Must Stop Being Preferred Model-Facing API
 
 These can stay internally, but should not be the main action vocabulary for Alibaba-style research:

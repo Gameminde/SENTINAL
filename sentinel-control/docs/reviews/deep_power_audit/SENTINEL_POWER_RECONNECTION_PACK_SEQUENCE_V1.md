@@ -60,6 +60,8 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Real attempt: verified extraction to summary finish | `REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1` | valid success for Pack 2 completion lane, not full product-relevance proof | `ca28239` | Real provider path completed extract_product_cards -> verify_extraction -> summarize_evidence -> finish with replay no-react and clean high-risk scan; remaining gap is search actuation plus relevant product extraction |
 | Power friction cut: search actuation and relevant product extraction | `POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1` | implemented candidate, not real-provider/browser product-proven | `97fe777208fc3bdf451975f6d2338f676f1d823a` | Adds 5H completion-lane evaluator, material search receipt proof, product relevance fields, under-5-EUR visible-evidence policy, grounded relevance summary, and finish gating on relevant product evidence |
 | Browser dormant organ bridge: DevTools context | `SENTINEL_BROWSER_DEVTOOLS_CONTEXT_BRIDGE_V1` | implemented candidate, not real-provider/browser product-proven | `eea1170c5740721a48b3265213bbbe48112abd48` | Wires BrowserSessionManager L5 DevTools hash/count metadata into `RealBrowserControlRuntime` context cards; metadata failure becomes a safe unavailable card instead of a terminal browser-action blocker |
+| Real attempt: Cloak-ready search relevance | `REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1` | valid failed, backend truth proven | report only | Proved pre-provider Cloak readiness, selected/actual backend match, BrowserSessionManager DevTools context, and no silent Playwright fallback; exposed relevance-quality, query-contamination, post-search churn, and profile cleanup gaps |
+| Browser relevance cleanup fix | `FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1` | implemented candidate, not real-provider/browser product-proven | `380bbb7f13c4f68f4ffc0b17d3154571f428bf22` | Product-card extraction strips search-result intro text, recognizes multilingual eyewear terms, demotes repeated search after a search receipt, evaluates backend truth only from material backend receipts, and adds Cloak profile cleanup on runtime close |
 
 New canonical next sequence:
 
@@ -76,7 +78,9 @@ done POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
 done POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1
 done REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1
 done POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1
-next REAL_POWER_ATTEMPT_5I_SEARCH_ACTUATION_RELEVANT_PRODUCT_EXTRACTION_V1
+done REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1
+done FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1
+next REAL_POWER_ATTEMPT_5L_CLOAK_RELEVANCE_QUALITY_AND_PROFILE_CLEANUP_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F

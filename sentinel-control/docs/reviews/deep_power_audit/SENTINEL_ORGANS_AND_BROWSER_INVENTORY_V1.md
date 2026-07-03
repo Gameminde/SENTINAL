@@ -246,9 +246,25 @@ Product extraction cards and verify_extraction receipts can satisfy browser rese
 Still tracked:
 
 ```text
-The injected real_browser runtime can still be backed by PlaywrightRealBrowserEngine.
-Cloak/session manager is preferred in the backend ownership frame, but the real Alibaba 5D run must prove whether live actuation actually routes through the strongest available backend or exposes a remaining backend bridge gap.
+Playwright remains a compatibility/test backend, not the product-leading browser backend.
+5K proved the live bounded Alibaba path can select and execute through Cloak/session without silent Playwright fallback.
+The next product gap is not backend selection; it is relevance-quality, search-result grounding, and automatic profile-material cleanup on the Cloak path.
 Browser proof/finalgate ownership remains a merge candidate after the vertical proof.
+```
+
+Latest update:
+
+```text
+FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1
+implemented candidate, not real-provider/browser product-proven
+
+BrowserWorldModel now strips search-result intro/query text before extracting
+cards, scores multilingual eyewear terms as relevant to glasses missions, and
+keeps generic Alibaba scaffolding from becoming the primary product title.
+DecisionContext and skill frames now demote repeated search after a search
+receipt exists without relevant evidence.
+BrowserSessionManagerRealBrowserEngine exposes close/cleanup so local Cloak
+profile material is removed by the runtime path.
 ```
 
 ## Final Diagnosis

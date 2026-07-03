@@ -1,202 +1,231 @@
-# SENTINEL REAL POWER ATTEMPT 5K CLOAK READY SEARCH RELEVANT PRODUCT EXTRACTION V1 REPORT
+# SENTINEL_REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1_REPORT
 
 ## Verdict
 
 ```text
-REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1 = CLOAK_READINESS_TIMEOUT_PRE_PROVIDER
+REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1 = VALID_FAILED
+primary_failure_classification = RELEVANT_CARDS_NOT_FOUND
+secondary = UNDER_5_EUR_SUPPORT_NOT_VISIBLE, FINISH_POLICY_GAP_SEARCH_CHURN
 ```
 
-This is a valid pre-provider stop, not a consumed real-provider mission.
+5K did not prove the full Alibaba product-research path. It did prove the important backend truth correction:
 
 ```text
-provider_decision_calls = 0
-browser_open_count = 0
-search_attempt_count = 0
-channel/external side effects = 0
+Cloak readiness passed before provider call.
+Provider call was allowed only after readiness.
+Selected browser backend = cloak_browser.
+Actual browser backend = cloak_browser.
+Cloak/session receipts were produced for material browser actions.
+No silent Playwright fallback occurred.
 ```
 
-## Source State
+The product blocker moved from backend selection/readiness to relevance-quality and completion routing after non-relevant or price-unknown cards.
+
+## Run Identity
 
 ```text
-source_commit = 827f7ffcabfb12efb36a34cda85034c33309b1c3
-fix = FIX_CLOAK_SESSION_BOOTSTRAP_AND_PROVIDER_EMPTY_CONTENT_RECOVERY_V1
+run_root = C:\Users\youcef cheriet\.sentinel-runs\real-power-attempts\attempt5k-20260703-173350
+mission_id = mission_1fdc181559de4071bfc166d927ff344f
+provider = aliyun_dashscope / aliyun_openai_compatible_chat / deepseek-v4-pro
+bounded_origin_hash = 952b92400b51c20b115f14e357fca0d066d761e3d64c9304fac6578a62122b9c
 ```
 
-Unrelated pre-existing dirty docs were not staged or modified by this run report.
+Raw endpoint, credential values, and raw binary path are not recorded in this report.
 
-## Run Root
+## Pre-Provider Readiness
 
 ```text
-C:\Users\youcef cheriet\.sentinel-runs\real-power-attempts\real-power-attempt5k-20260703-054145
+ready = true
+provider_call_allowed = true
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+receipt_backend_match = true
+profile_material_persisted = false
+failure_code = null
 ```
 
-Safe artifacts:
+The readiness gate executed before any provider call. This means 5K did not spend provider budget discovering Cloak bootstrap/download readiness.
+
+## Provider And Model-Native Loop
 
 ```text
-safe/preflight.json
-safe/cloak_readiness.json
+provider_decision_calls = 8
+model_native_intent_accepted_count = 5
+metadata.reply_native_count = 5
+provider_failure = false
 ```
 
-Second pre-provider readiness run with a process-scoped bounded Alibaba target:
+Provider turns were retained only as safe diagnostics: top-level key names, hashes, visible-content counts, normalization strategy, and reasoning-presence flags. Raw provider output and reasoning were not persisted.
 
-```text
-C:\Users\youcef cheriet\.sentinel-runs\real-power-attempts\real-power-attempt5k-consumed-20260703-054729
-```
+Two turns had empty or invalid visible content and were handled through existing model-native recovery/context routing. The run was not retried.
 
-The second run did not emit safe readiness JSON because Cloak readiness did not return before the command timeout. It created only an empty browser capture/profile directory tree and no material receipt.
-
-No raw endpoint URL, raw browser URL, API key, Authorization value, provider body, provider output, reasoning, cookies, sessions, screenshots, or DOM are printed in this report.
-
-## Preflight Safe Facts
-
-```text
-provider_id = aliyun_dashscope
-backend_id = aliyun_openai_compatible_chat
-model_id = deepseek-v4-pro
-endpoint_source = provider_catalog_env_or_default
-endpoint_hash = 348447b4f644bf44e903dd5220f7d37fb8041d806a66a73d56f83c4fd03383ea
-credential_present = true
-browser_target_present = false
-safe_browser_origin_hash = empty
-provider_native_tools_disabled = true
-fallback_auto_disabled = true
-```
-
-Process/User environment presence check for browser config:
-
-```text
-SENTINEL_BROWSER_TEST_URL process_present = false
-SENTINEL_BROWSER_TEST_URL user_present = false
-SENTINEL_BROWSER_HEADLESS process_present = false
-SENTINEL_BROWSER_HEADLESS user_present = false
-```
-
-Provider credential and endpoint config were present, but the bounded browser target was absent.
-
-## Temporary Bounded Target Retry
-
-After the initial missing-config stop, the operator authorized using the bounded Alibaba URL as a process-scoped temporary test target. The value was not printed here and was removed from the process environment after the command.
-
-Safe facts from that retry:
-
-```text
-SENTINEL_BROWSER_TEST_URL process-scoped during command = true
-SENTINEL_BROWSER_HEADLESS process-scoped during command = true
-provider_decision_calls = 0
-provider_call_allowed = not reached
-readiness_returned = false
-command_timeout_seconds = 184
-raw browser URL persisted = no
-```
-
-The command timed out while waiting for Cloak/session readiness. The provider was not called.
-
-## Cloak Readiness Gate Result
-
-The first 5K readiness gate ran before any provider call:
+## Backend Truth
 
 ```text
 selected_backend_id = cloak_browser
-actual_backend_id = empty
-session_backend_kind = empty
-ready = false
-provider_call_allowed = false
-failure_code = REAL_BROWSER_TEST_URL_CONFIG_MISSING
-diagnostic_hash = 7277306ace747a29ff35906d834df3b3618de35a18f3deace59ec6afa2a9fa25
-receipt_backend_match = false
-profile_material_persisted = false
-readiness_receipt_hash = empty
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+browser_devtools_context = present
+browser_devtools_context_source = browser_session_manager_l5
+browser_devtools_context_available = true
+page_target_count = 1
 ```
 
-This proves the new readiness gate stopped the mission before provider consumption when the bounded browser target was missing.
-
-The second readiness attempt, with a temporary bounded target, did not return within the command timeout. Because readiness never completed, the provider gate remained closed and no model call was consumed.
-
-## Provider / Browser Calls
+Action receipts for `extract_product_cards`, `verify_extraction`, and both completed `search` actions all recorded:
 
 ```text
-provider_decision_calls = 0
-browser_open_count = 0
-browser_search_count = 0
-browser_extract_product_cards_count = 0
-browser_verify_extraction_count = 0
-summary_present = false
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+```
+
+The automatic summary initially marked `receipt_backend_match = false` because the open receipt type does not carry `selected_backend_id` / `actual_backend_id` fields. That is a reporting/evaluation mismatch, not a Playwright fallback or Cloak mismatch. Material browser action receipts matched Cloak.
+
+## Action Sequence
+
+```text
+real_browser_control:real_browser.open
+real_browser_control:real_browser.extract_product_cards
+real_browser_control:real_browser.verify_extraction
+sentinel_loop:summarize_evidence
+real_browser_control:real_browser.search
+real_browser_control:real_browser.search
+real_browser_control:real_browser.search
+```
+
+## Browser Evidence Metrics
+
+```text
+browser_receipt_count = 5
+search_attempt_count = 3
+search_material_receipt_count = 2
+product_or_result_candidate_card_count = 6
+relevant_product_card_count = 0
+under_5_eur_supported_count = 0
+extract_product_cards_count = 1
+verify_extraction_count = 1
+summarize_evidence_count = 1
+summary_present = true
 finish_present = false
-mission_status = pre_provider_blocked
+mission_status = blocked
+blocked_reason = loop_guard_repeated_action
+final_context_progress_state = real_browser_verified_extraction_needs_relevant_products
+finish_available = false
 ```
 
-No real browser product mission was executed. The second retry started Cloak readiness, but it did not complete and no browser receipt was emitted.
+The extracted cards were grounded, but did not satisfy the objective-relevance proof. The final card set contained several unrelated Alibaba navigation/search cards and one eyewear-like French card whose visible price/currency/MOQ remained unknown and whose relevance classifier did not credit it as relevant. Because relevance proof was not satisfied, finish remained unavailable.
 
-## Replay
-
-Replay is not materially applicable:
+## Replay Proof
 
 ```text
-material_browser_receipts = 0
-provider_calls_delta = 0
-browser_open_delta = 0
-browser_search_delta = 0
-browser_extract_delta = 0
-receipt_write_delta = 0
+replay_no_react = true
+model_calls_delta = 0
+real_browser_open_delta = 0
+real_browser_click_delta = 0
+real_browser_type_delta = 0
+real_browser_extract_delta = 0
+real_browser_press_delta = 0
+real_browser_wait_delta = 0
+real_browser_scroll_delta = 0
+receipt_writes_delta = 0
+evidence_writes_delta = 0
+finalgate_writes_delta = 0
+artifact_hashes_stable = true
 ```
 
-Because no material action occurred, there is no no-react browser replay to prove beyond the zero-action artifact state.
+Replay did not reopen, reclick, retype, resubmit, reextract, or rewrite receipts.
 
-## Safety Scan
+## Safety And Persistence Scan
 
-Targeted scan over the 5K run root found:
+Initial artifact scan found two raw-material marker hits inside the temporary Cloak browser profile/cache directory under the attempt capture root. This was not in Sentinel receipts, world-model JSON, FinalGate certificates, or reports.
+
+The temporary browser profile directory was removed after the run:
 
 ```text
-safety_scan_high_risk_hit_count = 0
-credential/API key persistence = not found
-Authorization persistence = not found
-raw endpoint/browser URL persistence = not found
-raw provider output/reasoning persistence = not found
-cookies/session files = not found
-screenshots/full DOM persistence = not found
-provider-native tools = not used
-fallback/AUTO = not used
+profile_dirs_removed = 1
+post_cleanup_raw_material_hits = 0
+secret_value_hits = 0
+binary_path_hits = 0
+raw_binary_path_persistence_scan_result = 0
+process_env_cleanup = confirmed
 ```
 
-The run root contains only the safe preflight/readiness JSON artifacts.
-
-The second retry run root contains only an empty safe directory plus an empty browser capture/profile directory tree. Targeted scan found no credential/API key, Authorization value, raw endpoint/browser URL, provider output, reasoning, cookies, session tokens, screenshots, full DOM, or Alibaba URL persistence.
-
-## Failure Classification
+The process-scoped variables set for the run were removed after the command:
 
 ```text
-primary_failure_classification = CLOAK_READINESS_TIMEOUT_PRE_PROVIDER
-initial_failure_code = REAL_BROWSER_TEST_URL_CONFIG_MISSING
-second_failure_code = CLOAK_SESSION_READINESS_TIMEOUT
+CLOAKBROWSER_BINARY_PATH = absent
+SENTINEL_BROWSER_TEST_URL = absent
+SENTINEL_BROWSER_HEADLESS = absent
+SENTINEL_5K_RUN_ROOT = absent
 ```
 
-This is not a product failure of the model, provider, search skill, or extraction path. The readiness layer still cannot deterministically prove Cloak/session availability before provider consumption.
+Important follow-up: temporary browser profile cleanup must become automatic for Cloak live missions, not a manual report-step cleanup.
 
-## Required Fix Before 5K Can Be Consumed
+## Failure Interpretation
 
-The missing target URL issue is resolved when set process-scoped, but Cloak readiness still needs a deterministic timeout/setup path:
+5K should not be treated as a backend failure. Cloak-first execution is now live enough to expose the next product blocker:
 
 ```text
-CLOAK_SESSION_READINESS_TIMEOUT must become a fast, typed local preflight result.
-Cloak bootstrap/download/setup must not hang longer than the readiness timeout.
-If a browser binary/profile/runtime dependency is missing, the gate must return a safe diagnostic before provider use.
+search/extraction produced visible cards
+but relevance assessment did not find a supported under-5-EUR product
+then the loop re-entered search repeatedly
+and loop_guard_repeated_action blocked before finish
 ```
 
-Then rerun `REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1` once. The next consumed attempt must again start with the Cloak readiness gate before provider.
+The correct next blocker is:
+
+```text
+RELEVANCE_AND_SEARCH_RESULT_QUALITY_LOOP_GAP
+```
+
+Sub-problems:
+
+```text
+1. Search actuation can produce receipts but still land on weak/general Alibaba content.
+2. Product extraction includes irrelevant navigation cards.
+3. Multilingual product relevance is too weak.
+4. Under-5-EUR support is correctly not claimed when price/currency evidence is unknown.
+5. After summary says evidence is insufficient, the loop repeats search until guard block instead of escalating to a stronger inspect/open/refine-search skill lane.
+6. Open receipts do not carry backend truth fields, causing evaluation false negatives.
+7. Cloak live profile material cleanup needs to be automatic.
+```
+
+## Recommended Next Action
+
+```text
+FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1
+```
+
+Focus:
+
+```text
+- make Cloak profile cleanup automatic after live missions
+- fix backend-match evaluation for open receipts vs action receipts
+- improve search query/refinement when generic Alibaba landing content remains visible
+- filter navigation/help cards out of product extraction
+- support multilingual eyewear relevance terms such as glasses/sunglasses/lunettes
+- route repeated insufficient-evidence search into inspect/open/refine-search, not repeated same search until loop guard
+```
+
+Follow-up implementation status:
+
+```text
+FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1 = LOCALLY_COMMITTED_IMPLEMENTED_CANDIDATE
+implementation_commit = 380bbb7f13c4f68f4ffc0b17d3154571f428bf22
+product_proven = no
+next_prepared_real_attempt = REAL_POWER_ATTEMPT_5L_CLOAK_RELEVANCE_QUALITY_AND_PROFILE_CLEANUP_V1
+```
 
 ## Confirmation
 
 ```text
-one provider mission consumed = no
-provider call = no
-real browser product mission = no
-retry = no
+one provider mission = yes
+provider retry = no
 fallback/AUTO = no
 provider-native tools = no
 push = no
 merge = no
 fake success = no
-safe evidence only = yes
-credentials/env printed = no
-temporary browser URL removed from process env = yes
+raw endpoint/credential/binary path persisted in report = no
 ```
