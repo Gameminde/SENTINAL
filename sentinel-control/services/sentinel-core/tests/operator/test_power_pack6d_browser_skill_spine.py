@@ -28,6 +28,7 @@ from sentinel.operator.real_browser_attempt_evaluation import (
     evaluate_verified_extraction_completion_attempt,
 )
 from sentinel.operator.real_browser_control_replay import RealBrowserControlReplayView
+from sentinel.operator import real_browser_control_runtime as real_browser_runtime_module
 from sentinel.operator.real_browser_control_runtime import (
     BrowserSessionManagerRealBrowserEngine,
     CLOAK_BROWSER_BACKEND_ID,
@@ -359,6 +360,149 @@ def test_cloak_bootstrap_download_failure_does_not_consume_provider_call(tmp_pat
 
     assert readiness.failure_code == "CLOAK_SESSION_BOOTSTRAP_NOT_READY"
     assert provider_call_count == 0
+
+
+def test_cloak_binary_missing_blocks_before_session_manager_construction(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    provider_call_count = 0
+    manager_build_count = 0
+
+    def _missing_binary_info() -> dict[str, Any]:
+        return {
+            "installed": False,
+            "version": "146.0.test",
+            "bundled_version": "146.0.test",
+            "platform": "windows-x64",
+            "tier": "free",
+            "cache_dir": "C:/Users/example/.cloakbrowser/chromium",
+            "download_url": "https://cloakbrowser.example/download.zip",
+        }
+
+    def _build_should_not_happen(**_: Any) -> Any:
+        nonlocal manager_build_count
+        manager_build_count += 1
+        raise AssertionError("session manager should not be built when Cloak binary is missing")
+
+    monkeypatch.setattr(real_browser_runtime_module, "_cloak_binary_info", _missing_binary_info)
+    monkeypatch.setattr(real_browser_runtime_module, "_build_browser_session_manager", _build_should_not_happen)
+
+    cache_path = tmp_path / "readiness.json"
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        capture_root=tmp_path / "capture",
+        cache_path=cache_path,
+    )
+    if readiness.provider_call_allowed:
+        provider_call_count += 1
+
+    assert readiness.ready is False
+    assert readiness.provider_call_allowed is False
+    assert readiness.failure_code == "CLOAK_BINARY_NOT_INSTALLED"
+    assert readiness.selected_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.actual_backend_id == ""
+    assert provider_call_count == 0
+    assert manager_build_count == 0
+    cache_text = cache_path.read_text(encoding="utf-8")
+    assert "bounded.example.test" not in cache_text
+    assert "cloakbrowser.example" not in cache_text
+    assert "C:/Users/example" not in cache_text
+
+
+def test_cloak_local_binary_override_allows_readiness_without_download(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    local_binary = tmp_path / "Local Chrome" / "chrome.exe"
+    local_binary.parent.mkdir(parents=True)
+    local_binary.write_bytes(b"fake local browser executable")
+    manager = _FakeBrowserSessionManager()
+
+    def _not_installed_but_path_present() -> dict[str, Any]:
+        return {
+            "installed": False,
+            "version": "146.0.test",
+            "bundled_version": "146.0.test",
+            "platform": "windows-x64",
+            "tier": "free",
+            "cache_dir": "C:/Users/example/.cloakbrowser/chromium",
+            "download_url": "https://cloakbrowser.example/download.zip",
+            "path": str(local_binary),
+        }
+
+    monkeypatch.setenv("CLOAKBROWSER_BINARY_PATH", str(local_binary))
+    monkeypatch.setattr(real_browser_runtime_module, "_cloak_binary_info", _not_installed_but_path_present)
+    monkeypatch.setattr(real_browser_runtime_module, "_build_browser_session_manager", lambda **_: manager)
+
+    cache_path = tmp_path / "readiness.json"
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        capture_root=tmp_path / "capture",
+        cache_path=cache_path,
+        prepare_binary=False,
+    )
+
+    assert readiness.ready is True
+    assert readiness.provider_call_allowed is True
+    assert readiness.failure_code is None
+    assert readiness.selected_backend_id == readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert manager.open_calls == 1
+    cache_text = cache_path.read_text(encoding="utf-8")
+    assert str(local_binary) not in cache_text
+    assert "cloakbrowser.example" not in cache_text
+
+
+def test_cloak_readiness_safe_receipts_do_not_count_as_profile_material(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    local_binary = tmp_path / "chrome.exe"
+    local_binary.write_bytes(b"fake local browser executable")
+    manager = _FakeBrowserSessionManager()
+
+    def _path_override_info() -> dict[str, Any]:
+        return {
+            "installed": False,
+            "version": "146.0.test",
+            "bundled_version": "146.0.test",
+            "platform": "windows-x64",
+            "tier": "free",
+            "path": str(local_binary),
+        }
+
+    def _build_manager_with_safe_artifacts(**kwargs: Any) -> Any:
+        capture_root = Path(kwargs["capture_root"])
+        safe_dir = capture_root / "bs" / "safe_session"
+        safe_dir.mkdir(parents=True, exist_ok=True)
+        (safe_dir / "0000_open_snapshot.json").write_text("{}", encoding="utf-8")
+        (safe_dir / "0000_open_receipt.json").write_text("{}", encoding="utf-8")
+        return manager
+
+    monkeypatch.setenv("CLOAKBROWSER_BINARY_PATH", str(local_binary))
+    monkeypatch.setattr(real_browser_runtime_module, "_cloak_binary_info", _path_override_info)
+    monkeypatch.setattr(real_browser_runtime_module, "_build_browser_session_manager", _build_manager_with_safe_artifacts)
+
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        capture_root=tmp_path / "capture",
+        prepare_binary=False,
+    )
+
+    assert readiness.ready is True
+    assert readiness.profile_material_persisted is False
+
+
+def test_cloak_binary_bootstrap_failure_preserves_safe_child_diagnostics(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _CompletedProcess:
+        returncode = 1
+        stdout = '{"exception_class":"SSLError","reason_hash":"abc123"}\n'
+        stderr = "raw transport failure with https://cloakbrowser.example/download.zip"
+
+    monkeypatch.setattr(
+        real_browser_runtime_module.subprocess,
+        "run",
+        lambda *_args, **_kwargs: _CompletedProcess(),
+    )
+
+    ready, failure_code, diagnostics = real_browser_runtime_module._ensure_cloak_binary_with_wall_timeout(timeout_ms=1000)
+
+    assert ready is False
+    assert failure_code == "CLOAK_BINARY_BOOTSTRAP_FAILED"
+    assert diagnostics["exception_class"] == "SSLError"
+    assert diagnostics["reason_hash"] == "abc123"
+    assert "cloakbrowser.example" not in str(diagnostics)
 
 
 def test_cloak_readiness_gate_times_out_without_hanging_parent(tmp_path: Path) -> None:

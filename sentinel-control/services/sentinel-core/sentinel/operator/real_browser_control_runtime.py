@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
 import queue
 import shutil
+import subprocess
+import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -1660,9 +1663,12 @@ def check_cloak_session_readiness_from_env(
     cache_path: str | Path | None = None,
     timeout_ms: int = 15_000,
     wall_timeout_ms: int | None = None,
+    prepare_binary: bool | None = None,
+    binary_bootstrap_timeout_ms: int = 120_000,
 ) -> CloakSessionReadinessResult:
     target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
     headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
+    prepare_value = os.environ.get("SENTINEL_CLOAK_PREPARE_BINARY", "").strip().lower()
     return check_cloak_session_readiness(
         target_url=target_url,
         capture_root=capture_root,
@@ -1670,6 +1676,8 @@ def check_cloak_session_readiness_from_env(
         headless=headless_value not in {"0", "false", "no"},
         timeout_ms=timeout_ms,
         wall_timeout_ms=wall_timeout_ms,
+        prepare_binary=prepare_binary if prepare_binary is not None else prepare_value in {"1", "true", "yes", "on"},
+        binary_bootstrap_timeout_ms=binary_bootstrap_timeout_ms,
     )
 
 
@@ -1682,6 +1690,8 @@ def check_cloak_session_readiness(
     headless: bool = True,
     timeout_ms: int = 15_000,
     wall_timeout_ms: int | None = None,
+    prepare_binary: bool = False,
+    binary_bootstrap_timeout_ms: int = 120_000,
 ) -> CloakSessionReadinessResult:
     target_url = target_url.strip()
     selection = select_browser_backend()
@@ -1714,6 +1724,24 @@ def check_cloak_session_readiness(
         )
         _write_cloak_readiness_cache(cache_path, result)
         return result
+    if session_manager is None:
+        binary_ready, binary_failure_code, binary_diagnostic = _cloak_binary_readiness(
+            prepare_binary=prepare_binary,
+            binary_bootstrap_timeout_ms=binary_bootstrap_timeout_ms,
+        )
+        if not binary_ready:
+            result = _cloak_readiness_result(
+                ready=False,
+                selected_backend_id=selected_backend_id,
+                actual_backend_id="",
+                session_backend_kind="",
+                safe_url_origin_hash=safe_origin_hash,
+                failure_code=binary_failure_code,
+                diagnostic_payload=binary_diagnostic,
+                capture_root=capture_path,
+            )
+            _write_cloak_readiness_cache(cache_path, result)
+            return result
     engine = BrowserSessionManagerRealBrowserEngine(
         target_url=target_url,
         session_manager=session_manager,
@@ -1748,6 +1776,176 @@ def check_cloak_session_readiness(
     )
     _write_cloak_readiness_cache(cache_path, result)
     return result
+
+
+def _cloak_binary_readiness(
+    *,
+    prepare_binary: bool,
+    binary_bootstrap_timeout_ms: int,
+) -> tuple[bool, str | None, dict[str, Any]]:
+    try:
+        info = _safe_cloak_binary_info(_cloak_binary_info())
+    except ImportError:
+        return False, "CLOAK_BROWSER_PACKAGE_NOT_INSTALLED", {"cloakbrowser_package": "missing"}
+    except Exception as exc:  # noqa: BLE001
+        return (
+            False,
+            "CLOAK_BINARY_INFO_UNAVAILABLE",
+            {"exception_class": exc.__class__.__name__, "reason_hash": text_hash(str(exc))},
+        )
+    override = _cloak_local_binary_override_info()
+    if override["configured"] and not override["exists"]:
+        return False, "CLOAK_LOCAL_BINARY_OVERRIDE_MISSING", {"binary": "local_override_missing", **override, **info}
+    if override["configured"] and override["exists"]:
+        return True, None, {"binary": "local_override", **override, **info}
+    if bool(info.get("installed")):
+        return True, None, {"binary": "installed", **info}
+    if not prepare_binary:
+        return False, "CLOAK_BINARY_NOT_INSTALLED", {"binary": "not_installed", **info}
+
+    bootstrap_ready, bootstrap_failure_code, bootstrap_diagnostic = _ensure_cloak_binary_with_wall_timeout(
+        timeout_ms=binary_bootstrap_timeout_ms,
+    )
+    if not bootstrap_ready:
+        return False, bootstrap_failure_code, bootstrap_diagnostic
+    try:
+        refreshed = _safe_cloak_binary_info(_cloak_binary_info())
+    except Exception as exc:  # noqa: BLE001
+        return (
+            False,
+            "CLOAK_BINARY_INFO_UNAVAILABLE",
+            {"exception_class": exc.__class__.__name__, "reason_hash": text_hash(str(exc))},
+        )
+    if bool(refreshed.get("installed")):
+        return True, None, {"binary": "installed_after_bootstrap", **refreshed}
+    return False, "CLOAK_BINARY_NOT_INSTALLED_AFTER_BOOTSTRAP", {"binary": "not_installed_after_bootstrap", **refreshed}
+
+
+def _cloak_binary_info() -> dict[str, Any]:
+    import cloakbrowser  # type: ignore[import-not-found]
+
+    info = cloakbrowser.binary_info()
+    return info if isinstance(info, dict) else {}
+
+
+def _safe_cloak_binary_info(raw_info: dict[str, Any]) -> dict[str, Any]:
+    cache_dir = str(raw_info.get("cache_dir") or raw_info.get("path") or raw_info.get("binary_path") or "")
+    download_url = str(raw_info.get("download_url") or "")
+    return {
+        "installed": bool(raw_info.get("installed")),
+        "version": str(raw_info.get("version") or raw_info.get("bundled_version") or ""),
+        "bundled_version": str(raw_info.get("bundled_version") or ""),
+        "platform": str(raw_info.get("platform") or ""),
+        "tier": str(raw_info.get("tier") or ""),
+        "cache_dir_hash": stable_hash(cache_dir) if cache_dir else "",
+        "download_url_hash": stable_hash(download_url) if download_url else "",
+        "path_present": bool(raw_info.get("path") or raw_info.get("executable") or raw_info.get("binary_path")),
+    }
+
+
+def _cloak_local_binary_override_info() -> dict[str, Any]:
+    raw_path = os.environ.get("CLOAKBROWSER_BINARY_PATH", "").strip().strip('"')
+    if not raw_path:
+        return {"configured": False, "exists": False, "path_hash": ""}
+    path = Path(raw_path)
+    return {
+        "configured": True,
+        "exists": path.is_file(),
+        "path_hash": stable_hash(str(path)),
+    }
+
+
+def _ensure_cloak_binary_with_wall_timeout(*, timeout_ms: int) -> tuple[bool, str | None, dict[str, Any]]:
+    script = r"""
+import hashlib
+import json
+import sys
+
+try:
+    import cloakbrowser
+
+    executable = cloakbrowser.ensure_binary()
+    info = cloakbrowser.binary_info()
+    cache_dir = str(info.get("cache_dir") or info.get("path") or info.get("binary_path") or "")
+    download_url = str(info.get("download_url") or "")
+    payload = {
+        "installed": bool(info.get("installed")),
+        "version": str(info.get("version") or info.get("bundled_version") or ""),
+        "bundled_version": str(info.get("bundled_version") or ""),
+        "platform": str(info.get("platform") or ""),
+        "tier": str(info.get("tier") or ""),
+        "cache_dir_hash": hashlib.sha256(cache_dir.encode("utf-8")).hexdigest() if cache_dir else "",
+        "download_url_hash": hashlib.sha256(download_url.encode("utf-8")).hexdigest() if download_url else "",
+        "executable_hash": hashlib.sha256(str(executable).encode("utf-8")).hexdigest() if executable else "",
+        "path_present": bool(executable),
+    }
+    print(json.dumps(payload, sort_keys=True))
+except Exception as exc:
+    print(json.dumps({"exception_class": exc.__class__.__name__, "reason_hash": hashlib.sha256(str(exc).encode("utf-8")).hexdigest()}))
+    sys.exit(1)
+"""
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-c", script],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=max(timeout_ms, 1) / 1000,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return (
+            False,
+            "CLOAK_BINARY_BOOTSTRAP_TIMEOUT",
+            {
+                "timeout_ms": timeout_ms,
+                "stdout_hash": text_hash(exc.stdout.decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else str(exc.stdout or "")),
+                "stderr_hash": text_hash(exc.stderr.decode("utf-8", errors="replace") if isinstance(exc.stderr, bytes) else str(exc.stderr or "")),
+            },
+        )
+    stdout = completed.stdout or ""
+    stderr = completed.stderr or ""
+    if completed.returncode != 0:
+        child_payload = _last_json_object(stdout) or {}
+        safe_child_diagnostics = {
+            key: str(child_payload[key])
+            for key in ("exception_class", "reason_hash")
+            if key in child_payload and str(child_payload[key]).strip()
+        }
+        return (
+            False,
+            "CLOAK_BINARY_BOOTSTRAP_FAILED",
+            {
+                "returncode": completed.returncode,
+                **safe_child_diagnostics,
+                "stdout_hash": text_hash(stdout),
+                "stderr_hash": text_hash(stderr),
+            },
+        )
+    payload = _last_json_object(stdout)
+    if not payload:
+        return (
+            False,
+            "CLOAK_BINARY_BOOTSTRAP_OUTPUT_INVALID",
+            {"stdout_hash": text_hash(stdout), "stderr_hash": text_hash(stderr)},
+        )
+    safe_info = _safe_cloak_binary_info(payload)
+    if not bool(safe_info.get("installed")):
+        safe_info = {**safe_info, "bootstrap_stdout_hash": text_hash(stdout), "bootstrap_stderr_hash": text_hash(stderr)}
+        return False, "CLOAK_BINARY_BOOTSTRAP_DID_NOT_INSTALL", safe_info
+    return True, None, {"binary": "installed_by_bootstrap", **safe_info}
+
+
+def _last_json_object(output: str) -> dict[str, Any] | None:
+    for line in reversed([line.strip() for line in output.splitlines() if line.strip()]):
+        if not (line.startswith("{") and line.endswith("}")):
+            continue
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            return value
+    return None
 
 
 def _probe_cloak_readiness_with_wall_timeout(
@@ -1963,7 +2161,29 @@ def _safe_origin_hash(target_url: str) -> str:
 def _profile_file_count(capture_root: Path | None) -> int:
     if capture_root is None or not capture_root.exists():
         return 0
-    return sum(1 for path in capture_root.rglob("*") if path.is_file())
+    sensitive_names = {
+        "cookies",
+        "history",
+        "login data",
+        "preferences",
+        "local state",
+        "web data",
+        "sessions",
+        "session storage",
+        "local storage",
+        "indexeddb",
+    }
+    count = 0
+    for path in capture_root.rglob("*"):
+        if not path.is_file():
+            continue
+        lowered_parts = {part.lower() for part in path.relative_to(capture_root).parts}
+        if "profile" in lowered_parts:
+            count += 1
+            continue
+        if any(part in sensitive_names for part in lowered_parts):
+            count += 1
+    return count
 
 
 def _remove_profile_material(capture_root: Path | None) -> None:
