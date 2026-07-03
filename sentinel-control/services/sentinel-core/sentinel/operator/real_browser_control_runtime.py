@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
@@ -36,6 +37,7 @@ class RealBrowserControlRuntimeError(RuntimeError):
 
 BOUNDED_URL_AUTHORITY_REF = "real_browser:bounded_test_url"
 DEFAULT_SESSION_REF = "real_browser_session:bounded"
+CLOAK_BROWSER_BACKEND_ID = "cloak_browser"
 PLAYWRIGHT_REAL_BROWSER_BACKEND_ID = "playwright_real_browser_engine"
 
 
@@ -254,6 +256,274 @@ class InMemoryRealBrowserEngine:
         )
 
 
+class BrowserSessionManagerRealBrowserEngine:
+    """Real-browser engine adapter over BrowserSessionManager L5.
+
+    The model-facing browser skill should execute through the product browser
+    session manager when Cloak/session is selected, while preserving the
+    existing RealBrowserEngine contract used by the skill spine.
+    """
+
+    browser_backend_id = CLOAK_BROWSER_BACKEND_ID
+
+    def __init__(
+        self,
+        *,
+        target_url: str,
+        session_manager: Any | None = None,
+        capture_root: str | Path | None = None,
+        headless: bool = True,
+        timeout_ms: int = 15_000,
+    ) -> None:
+        self.target_url = target_url
+        self.timeout_ms = timeout_ms
+        self.open_count = 0
+        self.observe_count = 0
+        self.click_count = 0
+        self.type_count = 0
+        self.assert_count = 0
+        self.select_count = 0
+        self.extract_count = 0
+        self.press_count = 0
+        self.wait_count = 0
+        self.scroll_count = 0
+        self._authority: MissionAuthorityEnvelope | None = None
+        self._session_id: str | None = None
+        self._last_snapshot = RealBrowserEngineSnapshot(
+            page_title="Browser session page",
+            state_hash=stable_hash({"target_url_hash": stable_hash(target_url), "opened": False}),
+            elements=(),
+        )
+        self._last_text = ""
+        self._ref_targets: dict[str, tuple[str, str | None, int]] = {}
+        self.session_manager = session_manager or _build_browser_session_manager(
+            capture_root=capture_root,
+            headless=headless,
+        )
+
+    @property
+    def safe_url_origin_hash(self) -> str:
+        parsed = urlparse(self.target_url)
+        return stable_hash({"scheme": parsed.scheme, "host": parsed.hostname or "", "port": parsed.port})
+
+    @property
+    def session_manager_backend_kind(self) -> str:
+        backend = getattr(self.session_manager, "backend", None)
+        return str(
+            getattr(backend, "backend_kind", None)
+            or getattr(self.session_manager, "backend_kind", None)
+            or "unknown"
+        )
+
+    def bind_authority(self, authority: MissionAuthorityEnvelope) -> None:
+        self._authority = authority
+
+    def open(self) -> RealBrowserEngineSnapshot:
+        self.open_count += 1
+        result = self.session_manager.open_session(self._request("open"))
+        self._session_id = _result_session_id(result) or self._session_id
+        return self._snapshot_from_result(result, fallback_title="Browser session page opened")
+
+    def observe(self) -> RealBrowserEngineSnapshot:
+        self.observe_count += 1
+        result = self.session_manager.observe(self._request("observe"))
+        return self._snapshot_from_result(result, fallback_title="Browser session page observed")
+
+    def click(self, ref: str) -> RealBrowserEngineSnapshot:
+        self.click_count += 1
+        result = self.session_manager.interact(self._request("click", ref=ref))
+        return self._snapshot_from_result(result, fallback_title="Browser session click")
+
+    def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
+        self.type_count += 1
+        result = self.session_manager.interact(self._request("fill", ref=ref, text=text))
+        return self._snapshot_from_result(result, fallback_title="Browser session fill")
+
+    def select_option(self, ref: str, option: str) -> RealBrowserEngineSnapshot:
+        self.select_count += 1
+        result = self.session_manager.interact(self._request("select", ref=ref, values=[option]))
+        return self._snapshot_from_result(result, fallback_title="Browser session select")
+
+    def assert_text(self, text: str) -> tuple[bool, RealBrowserEngineSnapshot]:
+        self.assert_count += 1
+        try:
+            result = self.session_manager.interact(self._request("wait_for_text", text=text))
+            return True, self._snapshot_from_result(result, fallback_title="Browser session text assertion")
+        except RealBrowserControlRuntimeError:
+            return False, self.observe()
+
+    def extract_text(self) -> tuple[str, RealBrowserEngineSnapshot]:
+        self.extract_count += 1
+        snapshot = self.observe()
+        return self._last_text, snapshot
+
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        del ref
+        self.press_count += 1
+        if key == "Enter":
+            raise RealBrowserControlRuntimeError("real_browser_press_key_uses_search_button_fallback")
+        raise RealBrowserControlRuntimeError("real_browser_press_key_not_supported_by_session_backend")
+
+    def wait_for_text(self, text: str, timeout_ms: int = 1000) -> tuple[bool, RealBrowserEngineSnapshot]:
+        self.wait_count += 1
+        result = self.session_manager.interact(self._request("wait_for_text", text=text, timeout_ms=timeout_ms))
+        return True, self._snapshot_from_result(result, fallback_title="Browser session wait_for_text")
+
+    def wait_for_load(self) -> RealBrowserEngineSnapshot:
+        self.wait_count += 1
+        return self.observe()
+
+    def scroll(self, delta_y: int = 600) -> RealBrowserEngineSnapshot:
+        del delta_y
+        self.scroll_count += 1
+        return self.observe()
+
+    def _request(
+        self,
+        action_kind: str,
+        *,
+        ref: str | None = None,
+        text: str | None = None,
+        values: list[str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> Any:
+        (
+            BrowserSessionActionKind,
+            BrowserSessionContract,
+            BrowserSessionRequest,
+        ) = _browser_session_symbols()
+        target_role, target_name, target_nth = self._target_for_ref(ref)
+        action = getattr(BrowserSessionActionKind, action_kind.upper())
+        return BrowserSessionRequest(
+            mission=self._session_authority(),
+            url=self.target_url,
+            contract=BrowserSessionContract(
+                mission_id=self._session_authority().id,
+                allowed_domains=[self._target_host()],
+                allowed_action_kinds=[
+                    BrowserSessionActionKind.CLICK,
+                    BrowserSessionActionKind.TYPE,
+                    BrowserSessionActionKind.FILL,
+                    BrowserSessionActionKind.SELECT,
+                    BrowserSessionActionKind.WAIT_FOR_TEXT,
+                ],
+                max_steps=50,
+                max_tabs=4,
+            ),
+            session_id=self._session_id,
+            action_kind=action,
+            target_role=target_role,
+            target_name=target_name,
+            target_nth=target_nth,
+            text=text,
+            values=values or [],
+            timeout_ms=timeout_ms or self.timeout_ms,
+            capture_screenshot=False,
+        )
+
+    def _session_authority(self) -> MissionAuthorityEnvelope:
+        if self._authority is None:
+            raise RealBrowserControlRuntimeError("real_browser_session_authority_missing")
+        host = self._target_host()
+        allowed_domains = sorted({*self._authority.allowed_domains, host})
+        allowed_actions = sorted(
+            {
+                *self._authority.allowed_actions,
+                "browser_session_open",
+                "browser_session_observe",
+                "browser_session_interact",
+            }
+        )
+        return self._authority.model_copy(update={"allowed_domains": allowed_domains, "allowed_actions": allowed_actions})
+
+    def _target_host(self) -> str:
+        host = (urlparse(self.target_url).hostname or "").lower()
+        if not host:
+            raise RealBrowserControlRuntimeError("real_browser_target_url_host_missing")
+        return host
+
+    def _target_for_ref(self, ref: str | None) -> tuple[str | None, str | None, int]:
+        if not ref:
+            return None, None, 0
+        if ref in self._ref_targets:
+            return self._ref_targets[ref]
+        elements = {element.ref: element for element in self._last_snapshot.elements}
+        element = elements.get(ref)
+        if element is not None:
+            return element.role, element.name or None, 0
+        lowered = ref.lower()
+        if lowered.startswith("input:") or lowered.startswith("search:"):
+            return "textbox", _label_from_ref(ref), 0
+        if lowered.startswith("button:"):
+            return "button", _label_from_ref(ref), 0
+        if lowered.startswith("link:"):
+            return "link", _label_from_ref(ref), 0
+        return None, None, 0
+
+    def _snapshot_from_result(self, result: Any, *, fallback_title: str) -> RealBrowserEngineSnapshot:
+        if not bool(getattr(result, "accepted", False)):
+            raise RealBrowserControlRuntimeError(str(getattr(result, "reason", "browser_session_result_blocked")))
+        self._session_id = _result_session_id(result) or self._session_id
+        receipt = getattr(result, "receipt", None)
+        manager_snapshot = self._manager_snapshot()
+        if manager_snapshot is not None:
+            snapshot = self._snapshot_from_accessibility(manager_snapshot, fallback_title=fallback_title)
+        else:
+            elements = tuple(getattr(receipt, "elements", ()) or ())
+            safe_summary = str(getattr(receipt, "safe_summary", "") or "")
+            page_title = str(getattr(receipt, "page_title", "") or fallback_title)
+            state_hash = str(
+                getattr(receipt, "page_state_hash", "")
+                or getattr(receipt, "after_snapshot_hash", "")
+                or getattr(receipt, "before_snapshot_hash", "")
+                or stable_hash({"summary": safe_summary, "session": self._session_id})
+            )
+            snapshot = RealBrowserEngineSnapshot(page_title=page_title, state_hash=state_hash, elements=elements)
+            self._ref_targets = {
+                element.ref: (element.role, element.name or None, 0)
+                for element in elements
+                if isinstance(element, RealBrowserEngineElement)
+            }
+            self._last_text = safe_summary
+        self._last_snapshot = snapshot
+        return snapshot
+
+    def _manager_snapshot(self) -> Any | None:
+        if self._authority is None or not self._session_id or not hasattr(self.session_manager, "snapshot_for_session"):
+            return None
+        return self.session_manager.snapshot_for_session(
+            mission_id=self._session_authority().id,
+            session_id=self._session_id,
+            timeout_ms=self.timeout_ms,
+        )
+
+    def _snapshot_from_accessibility(self, snapshot: Any, *, fallback_title: str) -> RealBrowserEngineSnapshot:
+        elements: list[RealBrowserEngineElement] = []
+        self._ref_targets = {}
+        refs = getattr(snapshot, "refs", {}) or {}
+        for ref, role_ref in refs.items():
+            role = str(getattr(role_ref, "role", "") or "")
+            name = str(getattr(role_ref, "name", "") or role)
+            nth = int(getattr(role_ref, "nth", None) or 0)
+            elements.append(
+                RealBrowserEngineElement(
+                    str(ref),
+                    role,
+                    name,
+                    text_preview=name[:160],
+                    value_preview="",
+                    secret=_looks_secret_ref(role, name),
+                )
+            )
+            self._ref_targets[str(ref)] = (role, name or None, nth)
+        self._last_text = str(getattr(snapshot, "snapshot", "") or "")
+        return RealBrowserEngineSnapshot(
+            page_title=fallback_title,
+            state_hash=str(getattr(snapshot, "snapshot_sha256", "") or stable_hash(self._last_text)),
+            elements=tuple(elements),
+        )
+
+
 class RealBrowserControlRuntime:
     def __init__(
         self,
@@ -291,6 +561,9 @@ class RealBrowserControlRuntime:
         envelope = ActionAliasNormalizer().normalize(envelope)
         if envelope.capability_id != "real_browser_control":
             raise RealBrowserControlRuntimeError("real_browser_control_capability_required")
+        bind_authority = getattr(self.engine, "bind_authority", None)
+        if callable(bind_authority):
+            bind_authority(authority)
         if envelope.operation == "real_browser.open":
             return self._open(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.observe":
@@ -807,6 +1080,9 @@ class RealBrowserControlRuntime:
             browser_session_ref=self.session_ref,
             bounded_url_ref=self.bounded_url_ref,
             safe_url_origin_hash=self.engine.safe_url_origin_hash,
+            selected_backend_id=self.selected_backend_id,
+            actual_backend_id=self.actual_backend_id,
+            session_backend_kind=_engine_session_backend_kind(self.engine),
             stable_element_ref=element_ref,
             action_kind=action_kind,
             status=status,
@@ -1021,6 +1297,9 @@ class RealBrowserControlRuntime:
             "browser_backend_execution": {
                 "selected_backend_id": self.selected_backend_id,
                 "actual_backend_id": self.actual_backend_id,
+                "session_backend_kind": _engine_session_backend_kind(self.engine),
+                "compatibility_only": self.actual_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+                "product_backend_proven": self.actual_backend_id == CLOAK_BROWSER_BACKEND_ID,
                 "selection_reason": (
                     self.browser_backend_selection.selection_reason
                     if self.browser_backend_selection is not None
@@ -1321,6 +1600,69 @@ def build_playwright_real_browser_engine_from_env() -> PlaywrightRealBrowserEngi
     return PlaywrightRealBrowserEngine(target_url=target_url, headless=headless_value not in {"0", "false", "no"})
 
 
+def build_cloak_first_real_browser_engine_from_env(
+    *,
+    capture_root: str | Path | None = None,
+    allow_playwright_compatibility: bool = False,
+) -> RealBrowserEngine:
+    target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
+    if not target_url:
+        raise RealBrowserControlRuntimeError("REAL_BROWSER_TEST_URL_CONFIG_MISSING")
+    selection = select_browser_backend()
+    if selection.preferred_backend_id == CLOAK_BROWSER_BACKEND_ID:
+        headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
+        return BrowserSessionManagerRealBrowserEngine(
+            target_url=target_url,
+            capture_root=capture_root,
+            headless=headless_value not in {"0", "false", "no"},
+        )
+    if allow_playwright_compatibility and selection.compatibility_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID:
+        return build_playwright_real_browser_engine_from_env()
+    raise RealBrowserControlRuntimeError(f"real_browser_cloak_backend_unavailable:{selection.selection_reason}")
+
+
+def _build_browser_session_manager(*, capture_root: str | Path | None, headless: bool) -> Any:
+    from sentinel.agent.organs.browser_session_manager_l5_live import BrowserSessionManagerL5Live
+
+    default_root = Path(os.environ.get("TEMP") or os.environ.get("TMP") or ".") / "sentinel-browser-sessions"
+    return BrowserSessionManagerL5Live(
+        capture_root=Path(capture_root) if capture_root is not None else default_root,
+        engine="cloak",
+        headless=headless,
+    )
+
+
+def _browser_session_symbols() -> tuple[Any, Any, Any]:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionRequest,
+    )
+
+    return BrowserSessionActionKind, BrowserSessionContract, BrowserSessionRequest
+
+
+def _result_session_id(result: Any) -> str | None:
+    value = getattr(result, "session_id", None)
+    return str(value) if value else None
+
+
+def _engine_session_backend_kind(engine: RealBrowserEngine) -> str:
+    value = getattr(engine, "session_manager_backend_kind", None)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return ""
+
+
+def _label_from_ref(ref: str) -> str:
+    return ref.split(":", 1)[1].replace("_", " ").strip() if ":" in ref else ref.replace("_", " ").strip()
+
+
+def _looks_secret_ref(role: str, name: str) -> bool:
+    text = f"{role} {name}".lower()
+    return any(marker in text for marker in ("password", "secret", "token", "credential", "cookie", "session"))
+
+
 def _snapshot_element(element: RealBrowserEngineElement) -> RealBrowserElementSnapshot:
     return RealBrowserElementSnapshot(
         ref=element.ref,
@@ -1473,11 +1815,15 @@ def _nth_selector(role: str, index: int) -> str:
 
 __all__ = [
     "BOUNDED_URL_AUTHORITY_REF",
+    "BrowserSessionManagerRealBrowserEngine",
+    "CLOAK_BROWSER_BACKEND_ID",
     "InMemoryRealBrowserEngine",
     "PlaywrightRealBrowserEngine",
+    "PLAYWRIGHT_REAL_BROWSER_BACKEND_ID",
     "RealBrowserControlRuntime",
     "RealBrowserControlRuntimeError",
     "RealBrowserEngineElement",
     "RealBrowserEngineSnapshot",
+    "build_cloak_first_real_browser_engine_from_env",
     "build_playwright_real_browser_engine_from_env",
 ]

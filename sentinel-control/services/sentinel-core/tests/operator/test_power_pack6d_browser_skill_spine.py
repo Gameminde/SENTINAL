@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -10,7 +11,7 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
 from sentinel.operator.action_power_contract import ActionFailureClass
 from sentinel.operator.actionability_registry import build_default_actionability_registry
-from sentinel.operator.browser_backend_selector import select_browser_backend
+from sentinel.operator.browser_backend_selector import CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE, select_browser_backend
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
 from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
@@ -26,7 +27,10 @@ from sentinel.operator.real_browser_attempt_evaluation import (
 )
 from sentinel.operator.real_browser_control_replay import RealBrowserControlReplayView
 from sentinel.operator.real_browser_control_runtime import (
+    BrowserSessionManagerRealBrowserEngine,
+    CLOAK_BROWSER_BACKEND_ID,
     InMemoryRealBrowserEngine,
+    PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
     RealBrowserControlRuntime,
     RealBrowserControlRuntimeError,
     RealBrowserEngineElement,
@@ -115,6 +119,31 @@ def test_browser_skill_selects_cloak_session_backend_when_available() -> None:
     assert selection.model_visible_backend_id == "browser_skill"
 
 
+def test_cloak_available_selected_as_product_backend(tmp_path: Path) -> None:
+    selection = select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE))
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=_FakeBrowserSessionManager(),
+    )
+
+    fixture = _BrowserSkillFixture(tmp_path, engine=engine, backend_selection=selection)
+
+    assert fixture.runtime.selected_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert fixture.runtime.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+
+
+def test_cloak_selected_actual_backend_must_match(tmp_path: Path) -> None:
+    selection = select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE))
+
+    with pytest.raises(RealBrowserControlRuntimeError, match="real_browser_backend_selection_mismatch"):
+        _BrowserSkillFixture(
+            tmp_path,
+            engine=_PlaywrightCompatibilitySearchEngine(results_visible=True),
+            backend_selection=selection,
+            selected_backend_id=CLOAK_BROWSER_BACKEND_ID,
+        )
+
+
 def test_backend_frame_preferred_cloak_must_match_actual_backend_or_block(tmp_path: Path) -> None:
     selection = select_browser_backend(
         available_backend_modules=(
@@ -143,10 +172,10 @@ def test_playwright_actual_engine_requires_explicit_compatibility_selection(tmp_
         tmp_path,
         engine=_PlaywrightCompatibilitySearchEngine(results_visible=True),
         backend_selection=selection,
-        selected_backend_id="playwright_real_browser_engine",
+        selected_backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
     )
 
-    assert fixture.runtime.selected_backend_id == "playwright_real_browser_engine"
+    assert fixture.runtime.selected_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID
     opened = fixture.runtime.execute(
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
         authority=fixture.authority,
@@ -155,12 +184,121 @@ def test_playwright_actual_engine_requires_explicit_compatibility_selection(tmp_
     assert opened.status == "completed"
 
 
+def test_no_silent_cloak_to_playwright_fallback(tmp_path: Path) -> None:
+    selection = select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE))
+
+    with pytest.raises(RealBrowserControlRuntimeError, match="real_browser_backend_selection_mismatch:selected=cloak_browser:actual=playwright_real_browser_engine"):
+        _BrowserSkillFixture(
+            tmp_path,
+            engine=_PlaywrightCompatibilitySearchEngine(results_visible=True),
+            backend_selection=selection,
+        )
+
+
 def test_playwright_backend_requires_explicit_compatibility_selection() -> None:
     selection = select_browser_backend(available_backend_modules=("sentinel.operator.real_browser_control_runtime",))
 
     assert selection.preferred_backend_id is None
     assert selection.compatibility_backend_id == "playwright_real_browser_engine"
     assert selection.playwright_requires_explicit_compatibility is True
+
+
+def test_real_browser_search_dispatches_to_selected_backend(tmp_path: Path) -> None:
+    manager = _FakeBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert result.status == "completed"
+    assert manager.open_calls == 1
+    assert manager.observe_calls >= 1
+    assert ("fill", "Search products", "glasses under 5 euro") in manager.interact_calls
+    assert ("type", "Search products", "glasses under 5 euro") not in manager.interact_calls
+    assert ("open_tab", "", "") not in manager.interact_calls
+
+
+def test_search_material_receipt_records_backend_truth(tmp_path: Path) -> None:
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=_FakeBrowserSessionManager(),
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+
+    assert receipt["action_kind"] == "real_browser.search"
+    assert receipt["selected_backend_id"] == CLOAK_BROWSER_BACKEND_ID
+    assert receipt["actual_backend_id"] == CLOAK_BROWSER_BACKEND_ID
+    assert receipt["session_backend_kind"] == "cloakbrowser"
+
+
+def test_browser_session_manager_l5_used_for_live_backend_when_available(tmp_path: Path) -> None:
+    manager = _FakeBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"), authority=fixture.authority, context={})
+
+    assert manager.open_calls == 1
+    assert manager.observe_calls >= 1
+    assert fixture.runtime.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert engine.session_manager_backend_kind == "cloakbrowser"
+
+
+def test_playwright_compat_tests_do_not_mark_product_backend_proven(tmp_path: Path) -> None:
+    selection = select_browser_backend(available_backend_modules=(PLAYWRIGHT_BROWSER_MODULE,))
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=_PlaywrightCompatibilitySearchEngine(results_visible=True),
+        backend_selection=selection,
+        selected_backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+    )
+
+    opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    backend_execution = opened.context_cards["browser_backend_execution"]
+
+    assert backend_execution["actual_backend_id"] == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID
+    assert backend_execution["compatibility_only"] is True
+    assert backend_execution["product_backend_proven"] is False
 
 
 def test_real_browser_search_material_receipt_when_backend_actuates(tmp_path: Path) -> None:
@@ -1468,12 +1606,82 @@ class _RawNativeIntentDecisionClient:
         return self._intents.pop(0)
 
 
+class _FakeBrowserSessionManager:
+    backend_kind = "cloakbrowser"
+
+    def __init__(self) -> None:
+        self.open_calls = 0
+        self.observe_calls = 0
+        self.interact_calls: list[tuple[str, str, str]] = []
+        self._session_id = "fake_bsess_cloak"
+        self._searched = False
+
+    def open_session(self, request: Any) -> Any:
+        self.open_calls += 1
+        return self._result(request, action_kind="open")
+
+    def observe(self, request: Any) -> Any:
+        self.observe_calls += 1
+        return self._result(request, action_kind="observe")
+
+    def interact(self, request: Any) -> Any:
+        action = _request_value(request, "action_kind")
+        target = _request_value(request, "target_name") or _request_value(request, "target_role") or ""
+        text = _request_value(request, "text") or ""
+        self.interact_calls.append((str(action), str(target), str(text)))
+        if str(action) in {"fill", "type"} and text:
+            self._searched = True
+        if str(action) == "wait_for_text":
+            self._searched = True
+        return self._result(request, action_kind=str(action))
+
+    def _result(self, request: Any, *, action_kind: str) -> Any:
+        text = _PRODUCT_TEXT if self._searched else "Catalog search page. Search products."
+        elements = (
+            RealBrowserEngineElement("input:search", "textbox", "Search products", value_preview="glasses under 5 euro" if self._searched else ""),
+            RealBrowserEngineElement("button:search", "button", "Search", text_preview="Search"),
+            RealBrowserEngineElement(
+                "link:glasses_card",
+                "link",
+                "Polarized sunglasses $4.80 MOQ 10 pieces",
+                text_preview="Polarized sunglasses $4.80 MOQ 10 pieces Yiwu Test Store shipping not included" if self._searched else "",
+                visible=self._searched,
+                enabled=self._searched,
+            ),
+        )
+        receipt = SimpleNamespace(
+            backend_kind=self.backend_kind,
+            action_kind=action_kind,
+            session_id=self._session_id,
+            safe_summary=text,
+            page_title="Alibaba fake catalog",
+            page_state_hash=f"fake_cloak_state_{action_kind}_{int(self._searched)}",
+            elements=elements,
+        )
+        return SimpleNamespace(
+            accepted=True,
+            status="executed",
+            reason=f"fake_{action_kind}",
+            session_id=self._session_id,
+            receipt=receipt,
+        )
+
+
+def _request_value(request: Any, name: str) -> Any:
+    value = getattr(request, name, None)
+    if value is None and isinstance(request, dict):
+        value = request.get(name)
+    if hasattr(value, "value"):
+        return value.value
+    return value
+
+
 class _BrowserSkillFixture:
     def __init__(
         self,
         tmp_path: Path,
         *,
-        engine: InMemoryRealBrowserEngine,
+        engine: Any,
         backend_selection: Any | None = None,
         selected_backend_id: str | None = None,
     ) -> None:

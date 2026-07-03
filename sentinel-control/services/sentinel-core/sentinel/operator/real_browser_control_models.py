@@ -132,6 +132,9 @@ class RealBrowserActionReceipt(SentinelModel):
     browser_session_ref: str
     bounded_url_ref: str
     safe_url_origin_hash: str
+    selected_backend_id: str = ""
+    actual_backend_id: str = ""
+    session_backend_kind: str = ""
     stable_element_ref: str
     action_kind: str
     status: str
@@ -165,6 +168,9 @@ class RealBrowserActionReceipt(SentinelModel):
             "browser_session_ref": _safe_browser_ref(self.browser_session_ref),
             "bounded_url_ref": _safe_browser_ref(self.bounded_url_ref),
             "safe_url_origin_hash": self.safe_url_origin_hash,
+            "selected_backend_id": redact_operator_text(self.selected_backend_id),
+            "actual_backend_id": redact_operator_text(self.actual_backend_id),
+            "session_backend_kind": redact_operator_text(self.session_backend_kind),
             "stable_element_ref": _safe_browser_ref(self.stable_element_ref),
             "action_kind": redact_operator_text(self.action_kind),
             "status": redact_operator_text(self.status),
