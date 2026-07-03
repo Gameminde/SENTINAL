@@ -536,6 +536,11 @@ def _strongest_contextual_browser_action(context: dict[str, Any]) -> str | None:
     if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and (context.get("finish_available") or context.get("objective_satisfied")):
         return "sentinel_loop.finish"
     if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and not _has_relevant_product_evidence(context):
+        primary = _primary_recommended_action(context)
+        if primary and primary != "real_browser_control.real_browser.search":
+            return primary
+        if _has_real_browser_search_receipt(context):
+            return "real_browser_control.real_browser.extract_product_cards"
         return "real_browser_control.real_browser.search"
     if _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
         return "real_browser_control.real_browser.verify_extraction"
@@ -557,6 +562,13 @@ def _safe_fallback_browser_action(context: dict[str, Any]) -> str | None:
         if action in available:
             return action
     return None
+
+
+def _has_real_browser_search_receipt(context: dict[str, Any]) -> bool:
+    requirements = context.get("completion_requirements")
+    if isinstance(requirements, dict):
+        return requirements.get("has_real_browser_search_receipt") is True
+    return False
 
 
 def _completion_lane_override(

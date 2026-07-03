@@ -233,10 +233,16 @@ def _is_browser_research_snippet(chunk: str) -> bool:
             "customization",
             "glasses",
             "sunglasses",
+            "eyeglasses",
             "$",
             "€",
             "eur",
             "usd",
+            "lunette",
+            "lunettes",
+            "optique",
+            "optiques",
+            "monture",
         )
     )
 
@@ -250,12 +256,40 @@ def _candidate_cards(
     cards: list[BrowserExtractionCard] = []
     sources = [_element_text(element) for element in elements if element.role in {"link", "article", "card", "generic"}]
     if extracted_text:
-        sources.append(extracted_text)
+        sources.extend(_extracted_text_sources(extracted_text))
     for source in sources:
         card = _card_from_text(source, mission_objective=mission_objective)
         if card is not None:
             cards.append(card)
     return cards[:6]
+
+
+def _extracted_text_sources(text: str) -> list[str]:
+    normalized = " ".join(text.split())
+    if not normalized:
+        return []
+    normalized = _strip_search_intro(normalized)
+    sources: list[str] = []
+    product_start = _first_product_term_index(normalized)
+    if product_start is not None:
+        sources.append(normalized[product_start:])
+    chunks = [chunk.strip() for chunk in re.split(r"(?<=[.!?])\s+|[\n\r]+", normalized) if chunk.strip()]
+    for index, chunk in enumerate(chunks):
+        if not _has_product_signal(chunk):
+            continue
+        window = " ".join(chunks[index : index + 4]).strip()
+        if window:
+            sources.append(window)
+    return list(dict.fromkeys(source for source in sources if source))
+
+
+def _first_product_term_index(text: str) -> int | None:
+    match = re.search(
+        r"\b(glasses|sunglasses|eyeglasses|eyewear|spectacles|lunettes?|optiques?|monture)\b",
+        text,
+        flags=re.I,
+    )
+    return match.start() if match else None
 
 
 def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCard | None:
@@ -298,6 +332,20 @@ def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCa
         caveats=tuple(dict.fromkeys(caveats)) or ("unknown",),
         evidence_ref_hash=stable_hash({"source_hash": text_hash(product_text), "card_kind": "product_candidate"}),
         confidence=0.72 if price != "unknown" or moq != "unknown" else 0.42,
+    )
+
+
+def _has_product_signal(text: str) -> bool:
+    return bool(
+        re.search(
+            (
+                r"(\$|eur|usd|price|moq|minimum order|supplier|store|piece|unit|pcs?|"
+                r"product|glasses|sunglasses|eyeglasses|eyewear|spectacles|listing|catalog|"
+                r"lunettes?|optiques?|monture)"
+            ),
+            text,
+            flags=re.I,
+        )
     )
 
 
@@ -371,7 +419,20 @@ def _objective_relevance(text: str, *, mission_objective: str) -> tuple[str, str
     lowered = text.lower()
     wanted_terms = []
     if any(marker in objective for marker in ("glasses", "sunglasses", "eyewear")):
-        wanted_terms.extend(("glasses", "sunglasses", "eyewear", "spectacles"))
+        wanted_terms.extend(
+            (
+                "glasses",
+                "sunglasses",
+                "eyewear",
+                "eyeglasses",
+                "spectacles",
+                "lunette",
+                "lunettes",
+                "optique",
+                "optiques",
+                "monture",
+            )
+        )
     if not wanted_terms:
         return "unknown", "mission objective has no product keyword Sentinel can safely score"
     if any(term in lowered for term in wanted_terms):

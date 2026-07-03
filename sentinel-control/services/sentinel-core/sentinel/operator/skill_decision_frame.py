@@ -158,14 +158,22 @@ def _primary_recommendations(
     ):
         return ["sentinel_loop.summarize_evidence"]
     if completion_requirements.get("requires_relevant_product_evidence") is True:
-        browser_recovery = _first_available(
-            visible_actions,
-            [
-                "real_browser_control.real_browser.search",
+        preferred_recovery_actions = [
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_product_cards",
+        ]
+        if completion_requirements.get("has_real_browser_search_receipt") is True:
+            preferred_recovery_actions = [
+                "real_browser_control.real_browser.extract_product_cards",
                 "real_browser_control.real_browser.inspect_result",
                 "real_browser_control.real_browser.open_result",
-                "real_browser_control.real_browser.extract_product_cards",
-            ],
+                "real_browser_control.real_browser.search",
+            ]
+        browser_recovery = _first_available(
+            visible_actions,
+            preferred_recovery_actions,
         )
         if browser_recovery:
             return browser_recovery

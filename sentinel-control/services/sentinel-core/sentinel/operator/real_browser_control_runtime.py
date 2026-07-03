@@ -325,6 +325,7 @@ class BrowserSessionManagerRealBrowserEngine:
         self.scroll_count = 0
         self._authority: MissionAuthorityEnvelope | None = None
         self._session_id: str | None = None
+        self._capture_root = Path(capture_root) if capture_root is not None else None
         self._last_snapshot = RealBrowserEngineSnapshot(
             page_title="Browser session page",
             state_hash=stable_hash({"target_url_hash": stable_hash(target_url), "opened": False}),
@@ -413,6 +414,18 @@ class BrowserSessionManagerRealBrowserEngine:
         del delta_y
         self.scroll_count += 1
         return self.observe()
+
+    def close(self) -> None:
+        close_all = getattr(self.session_manager, "close_all", None)
+        try:
+            if callable(close_all):
+                close_all()
+        finally:
+            self._session_id = None
+            _remove_profile_material(self._capture_root)
+
+    def close_all(self) -> None:
+        self.close()
 
     def _request(
         self,
@@ -611,6 +624,11 @@ class RealBrowserControlRuntime:
             backend_selection=browser_backend_selection,
             selected_backend_id=selected_backend_id,
         )
+
+    def close(self) -> None:
+        close = getattr(self.engine, "close", None)
+        if callable(close):
+            close()
 
     def execute(
         self,

@@ -675,6 +675,10 @@ def _real_browser_progress_guidance(
         for result in real_browser_results
     )
     has_action = any(result.status in {"completed", "passed", "success"} for result in real_browser_action_results)
+    has_search_action = any(
+        result.operation == "real_browser.search" and result.status in {"completed", "passed", "success"}
+        for result in real_browser_action_results
+    )
     has_assertion = any(result.status == "passed" for result in real_browser_assertion_results)
     has_extraction = any(result.status in {"completed", "passed", "success"} for result in real_browser_extraction_results)
     has_verified_extraction = any(
@@ -702,6 +706,7 @@ def _real_browser_progress_guidance(
         "has_real_browser_open_receipt": has_open,
         "has_real_browser_observation_receipt": has_observation,
         "has_real_browser_action_receipt": has_action,
+        "has_real_browser_search_receipt": has_search_action,
         "has_real_browser_assertion_receipt": has_assertion,
         "has_real_browser_extraction_receipt": has_extraction,
         "has_real_browser_verified_extraction_receipt": has_verified_extraction,
@@ -727,20 +732,35 @@ def _real_browser_progress_guidance(
             "completion_requirements": completion_requirements,
         }
     if has_verified_extraction and has_grounded_summary and not has_relevant_product_evidence:
-        return {
-            "progress_state": "real_browser_verified_extraction_needs_relevant_products",
-            "next_recommended_actions": [
-                "real_browser_control.real_browser.search",
+        next_recommended_actions = [
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_product_cards",
+        ]
+        objective_remaining_steps = [
+            "search or inspect for product cards relevant to the mission objective",
+            "extract/verify relevant cards",
+            "summarize grounded evidence",
+            "finish",
+        ]
+        if has_search_action:
+            next_recommended_actions = [
+                "real_browser_control.real_browser.extract_product_cards",
                 "real_browser_control.real_browser.inspect_result",
                 "real_browser_control.real_browser.open_result",
-                "real_browser_control.real_browser.extract_product_cards",
-            ],
-            "objective_remaining_steps": [
-                "search or inspect for product cards relevant to the mission objective",
-                "extract/verify relevant cards",
-                "summarize grounded evidence",
+                "real_browser_control.real_browser.search",
+            ]
+            objective_remaining_steps = [
+                "extract or inspect the latest search-visible cards before repeating search",
+                "verify any newly relevant cards",
+                "summarize grounded relevance",
                 "finish",
-            ],
+            ]
+        return {
+            "progress_state": "real_browser_verified_extraction_needs_relevant_products",
+            "next_recommended_actions": next_recommended_actions,
+            "objective_remaining_steps": objective_remaining_steps,
             "completion_requirements": completion_requirements,
         }
     if has_extraction and not has_verified_extraction:

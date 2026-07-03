@@ -25,6 +25,7 @@ from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
 from sentinel.operator.power_skill_registry import build_default_power_skill_registry
 from sentinel.operator.real_browser_attempt_evaluation import (
     VerifiedExtractionCompletionAttemptMetrics,
+    browser_receipts_backend_match,
     evaluate_verified_extraction_completion_attempt,
 )
 from sentinel.operator.real_browser_control_replay import RealBrowserControlReplayView
@@ -399,6 +400,47 @@ def test_cloak_readiness_gate_passes_when_fake_cloak_session_opens(tmp_path: Pat
     assert readiness.session_backend_kind == "cloakbrowser"
     assert readiness.readiness_receipt_hash
     assert manager.open_calls == 1
+
+
+def test_cloak_engine_close_removes_profile_material(tmp_path: Path) -> None:
+    class _ClosableFakeBrowserSessionManager(_FakeBrowserSessionManager):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_calls = 0
+
+        def close_all(self) -> None:
+            self.close_calls += 1
+
+    capture_root = tmp_path / "capture"
+    profile_cache = capture_root / "browser_capture" / "profile" / "Default" / "Cache"
+    profile_cache.mkdir(parents=True)
+    (profile_cache / "cache.txt").write_text("session cache material", encoding="utf-8")
+    manager = _ClosableFakeBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+        capture_root=capture_root,
+    )
+
+    engine.close()
+
+    assert manager.close_calls == 1
+    assert not (capture_root / "browser_capture" / "profile").exists()
+
+
+def test_backend_match_ignores_open_receipt_without_backend_truth() -> None:
+    receipts = (
+        {"receipt_kind": "real_browser_open", "action": "real_browser.open"},
+        {
+            "receipt_kind": "real_browser_action",
+            "action": "real_browser.search",
+            "selected_backend_id": CLOAK_BROWSER_BACKEND_ID,
+            "actual_backend_id": CLOAK_BROWSER_BACKEND_ID,
+            "session_backend_kind": "cloakbrowser",
+        },
+    )
+
+    assert browser_receipts_backend_match(receipts, expected_backend_id=CLOAK_BROWSER_BACKEND_ID) is True
 
 
 def test_cloak_bootstrap_download_failure_does_not_consume_provider_call(tmp_path: Path) -> None:
@@ -940,6 +982,65 @@ def test_relevance_fields_added_to_product_cards(tmp_path: Path) -> None:
     assert card["evidence_ref_hash"]
 
 
+def test_lunettes_product_card_is_relevant_when_objective_is_glasses() -> None:
+    snapshot = RealBrowserEngineSnapshot(
+        page_title="Alibaba Results",
+        state_hash="state_hash",
+        elements=(
+            RealBrowserEngineElement(
+                ref="link:lunettes",
+                role="link",
+                name="Lunettes optiques carrees classiques MOQ 20 pieces",
+                text_preview=(
+                    "Lunettes optiques carrees classiques 117,57-161,65 DA per piece "
+                    "MOQ 20 pieces Supplier Vision Test Store"
+                ),
+            ),
+        ),
+    )
+
+    card = BrowserWorldModelBuilder().build_from_snapshot(
+        snapshot,
+        mission_objective="Find glasses under 5 EUR.",
+        origin_hash="origin_hash",
+    ).product_or_result_candidate_cards[0]
+
+    assert card.title.startswith("Lunettes optiques")
+    assert card.relevance_to_objective in {"relevant", "partial"}
+    assert card.visible_price == "unknown"
+    assert card.price_condition_supported == "unknown"
+    assert card.minimum_order == "20 pieces"
+
+
+def test_extracted_text_segments_prefer_product_cards_over_generic_alibaba_text() -> None:
+    extracted_text = (
+        "Pourquoi Alibaba.com Assistance Centre acheteur Conditions generales "
+        "Telecharger application. "
+        "Lunettes optiques carrees classiques. Price EUR 4.50 per piece. "
+        "MOQ 20 pieces. Supplier Vision Test Store. Shipping not included."
+    )
+    snapshot = RealBrowserEngineSnapshot(
+        page_title="Alibaba Search",
+        state_hash="state_hash",
+        elements=(
+            RealBrowserEngineElement("input:search", "textbox", "Search products"),
+        ),
+    )
+
+    world_model = BrowserWorldModelBuilder().build_from_snapshot(
+        snapshot,
+        mission_objective="Find glasses under 5 EUR.",
+        origin_hash="origin_hash",
+        extracted_text=extracted_text,
+    )
+    card = world_model.product_or_result_candidate_cards[0]
+
+    assert card.title.startswith("Lunettes optiques")
+    assert "Pourquoi Alibaba" not in card.title
+    assert card.visible_price == "EUR 4.50"
+    assert card.price_condition_supported == "supported"
+
+
 def test_under_price_claim_requires_visible_price_evidence() -> None:
     euro_snapshot = RealBrowserEngineSnapshot(
         page_title="Euro Results",
@@ -1396,6 +1497,59 @@ def test_visible_irrelevant_cards_do_not_fake_success(tmp_path: Path) -> None:
         "real_browser_control.real_browser.search",
         "real_browser_control.real_browser.inspect_result",
     }
+
+
+def test_relevance_gap_after_search_does_not_repeat_search_as_primary(tmp_path: Path) -> None:
+    class _IrrelevantAfterSearchEngine(_IrrelevantProductSearchEngine):
+        def click(self, ref: str) -> RealBrowserEngineSnapshot:
+            self._require_interactable(ref)
+            self.click_count += 1
+            return self._snapshot()
+
+        def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+            self._require_editable(ref)
+            self.press_count += 1
+            return self._snapshot()
+
+    fixture = _BrowserSkillFixture(tmp_path, engine=_IrrelevantAfterSearchEngine())
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    summary = fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, extracted, verified]),
+    )
+    searched = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, extracted, verified, summary]),
+    )
+    context = _compile_browser_context(fixture, observations=[opened, extracted, verified, summary, searched])
+
+    assert context["completion_requirements"]["requires_relevant_product_evidence"] is True
+    assert context["primary_model_recommended_next_action"] != "real_browser_control.real_browser.search"
+
+    mapping = map_browser_model_native_intent("I will continue with the strongest safe next step.", context=context)
+
+    assert mapping.envelope is not None
+    assert mapping.envelope.operation != "real_browser.search"
 
 
 def test_finish_requires_relevance_assessment(tmp_path: Path) -> None:

@@ -25,6 +25,34 @@ class AttemptEvaluationVerdict(SentinelModel):
     ignored_legacy_fields: tuple[str, ...] = Field(default_factory=tuple)
 
 
+def browser_receipts_backend_match(
+    receipts: tuple[dict[str, object], ...] | list[dict[str, object]],
+    *,
+    expected_backend_id: str,
+    expected_session_backend_kind: str = "cloakbrowser",
+) -> bool:
+    """Evaluate backend truth from receipts that actually carry backend fields.
+
+    Open/world-model receipts can predate backend truth fields; they should not
+    be counted as Cloak failures when later material browser action receipts
+    prove selected/actual backend agreement.
+    """
+
+    material_backend_receipts = [
+        receipt
+        for receipt in receipts
+        if receipt.get("selected_backend_id") is not None or receipt.get("actual_backend_id") is not None
+    ]
+    if not material_backend_receipts:
+        return False
+    return all(
+        receipt.get("selected_backend_id") == expected_backend_id
+        and receipt.get("actual_backend_id") == expected_backend_id
+        and str(receipt.get("session_backend_kind") or "").lower() == expected_session_backend_kind.lower()
+        for receipt in material_backend_receipts
+    )
+
+
 def evaluate_verified_extraction_completion_attempt(
     metrics: VerifiedExtractionCompletionAttemptMetrics,
 ) -> AttemptEvaluationVerdict:
@@ -67,5 +95,6 @@ def evaluate_verified_extraction_completion_attempt(
 __all__ = [
     "AttemptEvaluationVerdict",
     "VerifiedExtractionCompletionAttemptMetrics",
+    "browser_receipts_backend_match",
     "evaluate_verified_extraction_completion_attempt",
 ]
