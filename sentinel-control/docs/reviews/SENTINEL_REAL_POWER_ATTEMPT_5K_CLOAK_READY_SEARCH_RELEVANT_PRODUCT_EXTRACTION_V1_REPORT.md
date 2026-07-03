@@ -3,7 +3,7 @@
 ## Verdict
 
 ```text
-REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1 = REAL_BROWSER_CONFIG_MISSING_PRE_PROVIDER
+REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1 = CLOAK_READINESS_TIMEOUT_PRE_PROVIDER
 ```
 
 This is a valid pre-provider stop, not a consumed real-provider mission.
@@ -37,6 +37,14 @@ safe/preflight.json
 safe/cloak_readiness.json
 ```
 
+Second pre-provider readiness run with a process-scoped bounded Alibaba target:
+
+```text
+C:\Users\youcef cheriet\.sentinel-runs\real-power-attempts\real-power-attempt5k-consumed-20260703-054729
+```
+
+The second run did not emit safe readiness JSON because Cloak readiness did not return before the command timeout. It created only an empty browser capture/profile directory tree and no material receipt.
+
 No raw endpoint URL, raw browser URL, API key, Authorization value, provider body, provider output, reasoning, cookies, sessions, screenshots, or DOM are printed in this report.
 
 ## Preflight Safe Facts
@@ -65,9 +73,27 @@ SENTINEL_BROWSER_HEADLESS user_present = false
 
 Provider credential and endpoint config were present, but the bounded browser target was absent.
 
+## Temporary Bounded Target Retry
+
+After the initial missing-config stop, the operator authorized using the bounded Alibaba URL as a process-scoped temporary test target. The value was not printed here and was removed from the process environment after the command.
+
+Safe facts from that retry:
+
+```text
+SENTINEL_BROWSER_TEST_URL process-scoped during command = true
+SENTINEL_BROWSER_HEADLESS process-scoped during command = true
+provider_decision_calls = 0
+provider_call_allowed = not reached
+readiness_returned = false
+command_timeout_seconds = 184
+raw browser URL persisted = no
+```
+
+The command timed out while waiting for Cloak/session readiness. The provider was not called.
+
 ## Cloak Readiness Gate Result
 
-The 5K readiness gate ran before any provider call:
+The first 5K readiness gate ran before any provider call:
 
 ```text
 selected_backend_id = cloak_browser
@@ -84,6 +110,8 @@ readiness_receipt_hash = empty
 
 This proves the new readiness gate stopped the mission before provider consumption when the bounded browser target was missing.
 
+The second readiness attempt, with a temporary bounded target, did not return within the command timeout. Because readiness never completed, the provider gate remained closed and no model call was consumed.
+
 ## Provider / Browser Calls
 
 ```text
@@ -97,7 +125,7 @@ finish_present = false
 mission_status = pre_provider_blocked
 ```
 
-No real browser page was opened. No Cloak bootstrap/download was attempted because the required bounded target URL was absent.
+No real browser product mission was executed. The second retry started Cloak readiness, but it did not complete and no browser receipt was emitted.
 
 ## Replay
 
@@ -132,22 +160,26 @@ fallback/AUTO = not used
 
 The run root contains only the safe preflight/readiness JSON artifacts.
 
+The second retry run root contains only an empty safe directory plus an empty browser capture/profile directory tree. Targeted scan found no credential/API key, Authorization value, raw endpoint/browser URL, provider output, reasoning, cookies, session tokens, screenshots, full DOM, or Alibaba URL persistence.
+
 ## Failure Classification
 
 ```text
-primary_failure_classification = REAL_BROWSER_CONFIG_MISSING_PRE_PROVIDER
-failure_code = REAL_BROWSER_TEST_URL_CONFIG_MISSING
+primary_failure_classification = CLOAK_READINESS_TIMEOUT_PRE_PROVIDER
+initial_failure_code = REAL_BROWSER_TEST_URL_CONFIG_MISSING
+second_failure_code = CLOAK_SESSION_READINESS_TIMEOUT
 ```
 
-This is not a product failure of the model, search skill, Cloak backend, provider, or extraction path. The bounded browser target was not available in the process or user environment, so the run stopped before provider use as intended.
+This is not a product failure of the model, provider, search skill, or extraction path. The readiness layer still cannot deterministically prove Cloak/session availability before provider consumption.
 
-## Required Local Step Before 5K Can Be Consumed
+## Required Fix Before 5K Can Be Consumed
 
-Set the bounded browser target locally without printing or committing values:
+The missing target URL issue is resolved when set process-scoped, but Cloak readiness still needs a deterministic timeout/setup path:
 
 ```text
-SENTINEL_BROWSER_TEST_URL
-SENTINEL_BROWSER_HEADLESS
+CLOAK_SESSION_READINESS_TIMEOUT must become a fast, typed local preflight result.
+Cloak bootstrap/download/setup must not hang longer than the readiness timeout.
+If a browser binary/profile/runtime dependency is missing, the gate must return a safe diagnostic before provider use.
 ```
 
 Then rerun `REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1` once. The next consumed attempt must again start with the Cloak readiness gate before provider.
@@ -157,7 +189,7 @@ Then rerun `REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION
 ```text
 one provider mission consumed = no
 provider call = no
-real browser run = no
+real browser product mission = no
 retry = no
 fallback/AUTO = no
 provider-native tools = no
@@ -166,4 +198,5 @@ merge = no
 fake success = no
 safe evidence only = yes
 credentials/env printed = no
+temporary browser URL removed from process env = yes
 ```
