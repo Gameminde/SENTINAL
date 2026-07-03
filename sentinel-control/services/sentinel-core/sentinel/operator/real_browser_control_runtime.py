@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
@@ -39,6 +40,36 @@ BOUNDED_URL_AUTHORITY_REF = "real_browser:bounded_test_url"
 DEFAULT_SESSION_REF = "real_browser_session:bounded"
 CLOAK_BROWSER_BACKEND_ID = "cloak_browser"
 PLAYWRIGHT_REAL_BROWSER_BACKEND_ID = "playwright_real_browser_engine"
+
+
+@dataclass(frozen=True)
+class CloakSessionReadinessResult:
+    ready: bool
+    provider_call_allowed: bool
+    selected_backend_id: str
+    actual_backend_id: str
+    session_backend_kind: str = ""
+    safe_url_origin_hash: str = ""
+    readiness_receipt_hash: str = ""
+    failure_code: str | None = None
+    diagnostic_hash: str = ""
+    receipt_backend_match: bool = False
+    profile_material_persisted: bool = False
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "ready": self.ready,
+            "provider_call_allowed": self.provider_call_allowed,
+            "selected_backend_id": self.selected_backend_id,
+            "actual_backend_id": self.actual_backend_id,
+            "session_backend_kind": self.session_backend_kind,
+            "safe_url_origin_hash": self.safe_url_origin_hash,
+            "readiness_receipt_hash": self.readiness_receipt_hash,
+            "failure_code": self.failure_code,
+            "diagnostic_hash": self.diagnostic_hash,
+            "receipt_backend_match": self.receipt_backend_match,
+            "profile_material_persisted": self.profile_material_persisted,
+        }
 
 
 @dataclass(frozen=True)
@@ -1621,6 +1652,132 @@ def build_cloak_first_real_browser_engine_from_env(
     raise RealBrowserControlRuntimeError(f"real_browser_cloak_backend_unavailable:{selection.selection_reason}")
 
 
+def check_cloak_session_readiness_from_env(
+    *,
+    capture_root: str | Path | None = None,
+    cache_path: str | Path | None = None,
+    timeout_ms: int = 15_000,
+) -> CloakSessionReadinessResult:
+    target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
+    headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
+    return check_cloak_session_readiness(
+        target_url=target_url,
+        capture_root=capture_root,
+        cache_path=cache_path,
+        headless=headless_value not in {"0", "false", "no"},
+        timeout_ms=timeout_ms,
+    )
+
+
+def check_cloak_session_readiness(
+    *,
+    target_url: str,
+    session_manager: Any | None = None,
+    capture_root: str | Path | None = None,
+    cache_path: str | Path | None = None,
+    headless: bool = True,
+    timeout_ms: int = 15_000,
+) -> CloakSessionReadinessResult:
+    target_url = target_url.strip()
+    selection = select_browser_backend()
+    selected_backend_id = selection.preferred_backend_id or ""
+    safe_origin_hash = _safe_origin_hash(target_url) if target_url else ""
+    capture_path = Path(capture_root) if capture_root is not None else None
+    if not target_url:
+        result = _cloak_readiness_result(
+            ready=False,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id="",
+            session_backend_kind="",
+            safe_url_origin_hash=safe_origin_hash,
+            failure_code="REAL_BROWSER_TEST_URL_CONFIG_MISSING",
+            diagnostic_payload={"config": "missing_target_url"},
+            capture_root=capture_path,
+        )
+        _write_cloak_readiness_cache(cache_path, result)
+        return result
+    if selected_backend_id != CLOAK_BROWSER_BACKEND_ID:
+        result = _cloak_readiness_result(
+            ready=False,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id="",
+            session_backend_kind="",
+            safe_url_origin_hash=safe_origin_hash,
+            failure_code="CLOAK_SESSION_BACKEND_UNAVAILABLE",
+            diagnostic_payload={"selection_reason": selection.selection_reason},
+            capture_root=capture_path,
+        )
+        _write_cloak_readiness_cache(cache_path, result)
+        return result
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url=target_url,
+        session_manager=session_manager,
+        capture_root=capture_path,
+        headless=headless,
+        timeout_ms=timeout_ms,
+    )
+    actual_backend_id = _engine_backend_id(engine)
+    session_backend_kind = _engine_session_backend_kind(engine)
+    if actual_backend_id != selected_backend_id:
+        result = _cloak_readiness_result(
+            ready=False,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id=actual_backend_id,
+            session_backend_kind=session_backend_kind,
+            safe_url_origin_hash=safe_origin_hash,
+            failure_code="CLOAK_SESSION_BACKEND_MISMATCH",
+            diagnostic_payload={"selected_backend_id": selected_backend_id, "actual_backend_id": actual_backend_id},
+            capture_root=capture_path,
+        )
+        _write_cloak_readiness_cache(cache_path, result)
+        return result
+    authority = _cloak_readiness_authority(target_url)
+    try:
+        engine.bind_authority(authority)
+        snapshot = engine.open()
+        result = _cloak_readiness_result(
+            ready=True,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id=actual_backend_id,
+            session_backend_kind=session_backend_kind,
+            safe_url_origin_hash=safe_origin_hash,
+            readiness_receipt_hash=stable_hash(
+                {
+                    "selected_backend_id": selected_backend_id,
+                    "actual_backend_id": actual_backend_id,
+                    "session_backend_kind": session_backend_kind,
+                    "browser_state_hash": snapshot.state_hash,
+                    "safe_url_origin_hash": safe_origin_hash,
+                }
+            ),
+            failure_code=None,
+            diagnostic_payload={"readiness": "ready"},
+            capture_root=capture_path,
+        )
+    except Exception as exc:  # noqa: BLE001
+        result = _cloak_readiness_result(
+            ready=False,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id=actual_backend_id,
+            session_backend_kind=session_backend_kind,
+            safe_url_origin_hash=safe_origin_hash,
+            failure_code="CLOAK_SESSION_BOOTSTRAP_NOT_READY",
+            diagnostic_payload={"exception_class": exc.__class__.__name__, "reason_hash": text_hash(str(exc))},
+            capture_root=capture_path,
+        )
+    finally:
+        close_all = getattr(engine.session_manager, "close_all", None)
+        if callable(close_all):
+            try:
+                close_all()
+            except Exception:
+                pass
+        _remove_profile_material(capture_path)
+    result = replace(result, profile_material_persisted=_profile_file_count(capture_path) > 0)
+    _write_cloak_readiness_cache(cache_path, result)
+    return result
+
+
 def _build_browser_session_manager(*, capture_root: str | Path | None, headless: bool) -> Any:
     from sentinel.agent.organs.browser_session_manager_l5_live import BrowserSessionManagerL5Live
 
@@ -1630,6 +1787,79 @@ def _build_browser_session_manager(*, capture_root: str | Path | None, headless:
         engine="cloak",
         headless=headless,
     )
+
+
+def _cloak_readiness_authority(target_url: str) -> MissionAuthorityEnvelope:
+    host = (urlparse(target_url).hostname or "").lower()
+    allowed_domains = [BOUNDED_URL_AUTHORITY_REF]
+    if host:
+        allowed_domains.append(host)
+    return MissionAuthorityEnvelope(
+        user_id="sentinel_cloak_readiness",
+        mission_title="Cloak session readiness gate",
+        mission_objective="Verify Cloak/session can open a bounded local or configured target before provider use.",
+        allowed_tools=["real_browser_control"],
+        allowed_actions=["real_browser.open", "browser_session_open", "browser_session_observe"],
+        forbidden_actions=["login", "contact_supplier", "checkout", "payment", "credential_access"],
+        allowed_domains=allowed_domains,
+        max_actions=1,
+    )
+
+
+def _cloak_readiness_result(
+    *,
+    ready: bool,
+    selected_backend_id: str,
+    actual_backend_id: str,
+    session_backend_kind: str,
+    safe_url_origin_hash: str,
+    failure_code: str | None,
+    diagnostic_payload: dict[str, Any],
+    capture_root: Path | None,
+    readiness_receipt_hash: str = "",
+) -> CloakSessionReadinessResult:
+    profile_material_persisted = _profile_file_count(capture_root) > 0
+    return CloakSessionReadinessResult(
+        ready=ready,
+        provider_call_allowed=ready,
+        selected_backend_id=selected_backend_id,
+        actual_backend_id=actual_backend_id,
+        session_backend_kind=session_backend_kind,
+        safe_url_origin_hash=safe_url_origin_hash,
+        readiness_receipt_hash=readiness_receipt_hash,
+        failure_code=failure_code,
+        diagnostic_hash=stable_hash(diagnostic_payload),
+        receipt_backend_match=bool(ready and selected_backend_id == actual_backend_id == CLOAK_BROWSER_BACKEND_ID),
+        profile_material_persisted=profile_material_persisted,
+    )
+
+
+def _write_cloak_readiness_cache(cache_path: str | Path | None, result: CloakSessionReadinessResult) -> None:
+    if cache_path is None:
+        return
+    path = Path(cache_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    import json
+
+    path.write_text(json.dumps(result.safe_model_dump(), indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _safe_origin_hash(target_url: str) -> str:
+    parsed = urlparse(target_url)
+    return stable_hash({"scheme": parsed.scheme, "host": parsed.hostname or "", "port": parsed.port})
+
+
+def _profile_file_count(capture_root: Path | None) -> int:
+    if capture_root is None or not capture_root.exists():
+        return 0
+    return sum(1 for path in capture_root.rglob("*") if path.is_file())
+
+
+def _remove_profile_material(capture_root: Path | None) -> None:
+    if capture_root is None or not capture_root.exists():
+        return
+    for profile_dir in list(capture_root.rglob("profile")):
+        shutil.rmtree(profile_dir, ignore_errors=True)
 
 
 def _browser_session_symbols() -> tuple[Any, Any, Any]:
@@ -1816,6 +2046,7 @@ def _nth_selector(role: str, index: int) -> str:
 __all__ = [
     "BOUNDED_URL_AUTHORITY_REF",
     "BrowserSessionManagerRealBrowserEngine",
+    "CloakSessionReadinessResult",
     "CLOAK_BROWSER_BACKEND_ID",
     "InMemoryRealBrowserEngine",
     "PlaywrightRealBrowserEngine",
@@ -1826,4 +2057,6 @@ __all__ = [
     "RealBrowserEngineSnapshot",
     "build_cloak_first_real_browser_engine_from_env",
     "build_playwright_real_browser_engine_from_env",
+    "check_cloak_session_readiness",
+    "check_cloak_session_readiness_from_env",
 ]

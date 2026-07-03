@@ -359,9 +359,10 @@ class ModelLedTaskLoop:
             observations=self.results,
         )
         self._last_failure_diagnostics = diagnostics
+        failure_code = str(diagnostics.get("failure_code") or "MODEL_ACTION_EMPTY_ENVELOPE")
         observation = recoverable_action_observation(
             failure_class=ActionFailureClass.RECOVERABLE_MODEL_PROTOCOL_FAILURE,
-            failure_code="MODEL_ACTION_EMPTY_ENVELOPE",
+            failure_code=failure_code,
             attempted_action_hash=envelope.action_hash,
             safe_summary="Model did not emit an actionable envelope; exact schema and executable actions are available.",
             recommended_next_actions=tuple(str(action) for action in context.get("available_actions", ())[:6]),
@@ -373,13 +374,13 @@ class ModelLedTaskLoop:
             operation=envelope.operation or "empty_action_envelope",
             status="recoverable_failed",
             material_action=False,
-            blocked_reason="MODEL_ACTION_EMPTY_ENVELOPE",
+            blocked_reason=failure_code,
             failure_class=ActionFailureClass.RECOVERABLE_MODEL_PROTOCOL_FAILURE,
-            failure_code="MODEL_ACTION_EMPTY_ENVELOPE",
+            failure_code=failure_code,
             recoverable=True,
             recovery_observation=observation.safe_model_dump(),
             recommended_next_actions=tuple(str(action) for action in context.get("available_actions", ())[:6]),
-            observation_summary="recoverable model protocol miss: empty action envelope.",
+            observation_summary=f"recoverable model protocol miss: {failure_code}.",
             context_cards={
                 "actionability_frame": context.get("actionability_frame") or {},
                 "browser_actionability_registry": context.get("browser_actionability_registry") or {},
@@ -569,6 +570,7 @@ def _empty_envelope_diagnostics(
         (list(result.receipt_refs) for result in reversed(observations) if result.receipt_refs),
         [],
     )
+    failure_code = str(envelope.params.get("failure_code") or "MODEL_ACTION_EMPTY_ENVELOPE")
     return {
         "decision_ref": envelope.decision_ref or envelope.action_id,
         "turn_index": turn_index,
@@ -576,7 +578,7 @@ def _empty_envelope_diagnostics(
         "allowed_operations": available_actions,
         "last_successful_action": last_success,
         "last_receipt_refs": sanitize_operator_refs(last_receipts),
-        "failure_code": "MODEL_ACTION_EMPTY_ENVELOPE",
+        "failure_code": failure_code,
         "capability_present": bool(envelope.capability_id.strip()),
         "operation_present": bool(envelope.operation.strip()),
     }

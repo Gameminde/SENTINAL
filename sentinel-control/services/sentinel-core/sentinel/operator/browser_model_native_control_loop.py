@@ -106,6 +106,9 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
         action_name = _completion_lane_override(action_name, params=params, normalized=normalized, context=context)
         return _mapped(action_name, params=params, target_ref=target_ref, intent_kind="canonical_action", diagnostics=diagnostics)
 
+    if _is_empty_provider_visible_content_before_material_action(model_output, visible_text=visible_text, source=source, context=context):
+        return _recoverable_empty_provider_content_mapping(diagnostics)
+
     if not normalized:
         return _recommended_mapping(context, diagnostics=diagnostics, intent_kind="empty_or_ambiguous_intent")
 
@@ -244,6 +247,24 @@ def _mapped(
     )
 
 
+def _recoverable_empty_provider_content_mapping(diagnostics: dict[str, Any]) -> BrowserModelNativeIntentMapping:
+    failure_code = "PROVIDER_EMPTY_VISIBLE_CONTENT_BEFORE_MATERIAL_ACTION"
+    return BrowserModelNativeIntentMapping(
+        envelope=ActionEnvelope(
+            capability_id="",
+            operation="",
+            params={"failure_code": failure_code},
+        ),
+        intent_kind="provider_empty_visible_content",
+        safe_diagnostics={
+            **diagnostics,
+            "failure_code": failure_code,
+            "intent_kind": "provider_empty_visible_content",
+            "recommended_next_action": "ask_provider_for_native_browser_intent",
+        },
+    )
+
+
 def _recommended_mapping(
     context: dict[str, Any],
     *,
@@ -336,6 +357,60 @@ def _safe_diagnostics(
         "product_card_count": _product_card_count(context),
         "finish_available": bool(context.get("finish_available")),
     }
+
+
+def _is_empty_provider_visible_content_before_material_action(
+    model_output: Any,
+    *,
+    visible_text: str,
+    source: str,
+    context: dict[str, Any],
+) -> bool:
+    if visible_text.strip() or not isinstance(model_output, dict):
+        return False
+    if _has_any_material_browser_action(context):
+        return False
+    content_source = str(
+        model_output.get("content_source")
+        or model_output.get("content_extraction_source")
+        or source
+        or ""
+    ).lower()
+    visible_count = model_output.get("visible_content_char_count")
+    try:
+        visible_count_int = int(visible_count)
+    except (TypeError, ValueError):
+        visible_count_int = 0
+    provider_metadata_present = any(
+        key in model_output
+        for key in (
+            "content_extraction_source",
+            "finish_reason",
+            "json_object_detected",
+            "raw_text_hash",
+            "reasoning_hash",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens",
+        )
+    )
+    return provider_metadata_present and visible_count_int == 0 and content_source in {"unsupported", "empty", ""}
+
+
+def _has_any_material_browser_action(context: dict[str, Any]) -> bool:
+    if context.get("has_real_browser_open_receipt") or context.get("has_real_browser_action_receipt"):
+        return True
+    requirements = context.get("completion_requirements")
+    if isinstance(requirements, dict):
+        return bool(
+            requirements.get("has_real_browser_open_receipt")
+            or requirements.get("has_real_browser_action_receipt")
+            or requirements.get("has_real_browser_extraction_receipt")
+            or requirements.get("has_real_browser_verified_extraction_receipt")
+        )
+    for observation in context.get("recent_receipts", ()) or ():
+        if isinstance(observation, dict) and str(observation.get("operation", "")).startswith("real_browser."):
+            return True
+    return False
 
 
 def _normalize_text(value: str) -> str:

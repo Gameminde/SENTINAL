@@ -35,6 +35,7 @@ from sentinel.operator.real_browser_control_runtime import (
     RealBrowserControlRuntimeError,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
+    check_cloak_session_readiness,
 )
 
 
@@ -282,6 +283,92 @@ def test_browser_session_manager_l5_used_for_live_backend_when_available(tmp_pat
     assert manager.observe_calls >= 1
     assert fixture.runtime.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
     assert engine.session_manager_backend_kind == "cloakbrowser"
+
+
+def test_cloak_readiness_gate_blocks_before_provider_when_bootstrap_missing(tmp_path: Path) -> None:
+    class _FailingCloakSessionManager:
+        backend_kind = "cloakbrowser"
+
+        def __init__(self) -> None:
+            self.open_calls = 0
+
+        def open_session(self, request: Any) -> Any:
+            del request
+            self.open_calls += 1
+            raise RuntimeError("remote bootstrap download closed by host")
+
+        def close_all(self) -> None:
+            pass
+
+    manager = _FailingCloakSessionManager()
+
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+        capture_root=tmp_path / "capture",
+    )
+
+    assert readiness.ready is False
+    assert readiness.provider_call_allowed is False
+    assert readiness.failure_code == "CLOAK_SESSION_BOOTSTRAP_NOT_READY"
+    assert readiness.selected_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert manager.open_calls == 1
+    assert not list((tmp_path / "capture").rglob("*cookie*"))
+    assert not list((tmp_path / "capture").rglob("*session*"))
+
+
+def test_cloak_readiness_gate_passes_when_fake_cloak_session_opens(tmp_path: Path) -> None:
+    manager = _FakeBrowserSessionManager()
+
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+        capture_root=tmp_path / "capture",
+    )
+
+    assert readiness.ready is True
+    assert readiness.provider_call_allowed is True
+    assert readiness.failure_code is None
+    assert readiness.selected_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.session_backend_kind == "cloakbrowser"
+    assert readiness.readiness_receipt_hash
+    assert manager.open_calls == 1
+
+
+def test_cloak_bootstrap_download_failure_does_not_consume_provider_call(tmp_path: Path) -> None:
+    provider_call_count = 0
+
+    class _FailingCloakSessionManager:
+        backend_kind = "cloakbrowser"
+
+        def open_session(self, request: Any) -> Any:
+            del request
+            raise RuntimeError("download failed before provider")
+
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=_FailingCloakSessionManager(),
+        capture_root=tmp_path / "capture",
+    )
+    if readiness.provider_call_allowed:
+        provider_call_count += 1
+
+    assert readiness.failure_code == "CLOAK_SESSION_BOOTSTRAP_NOT_READY"
+    assert provider_call_count == 0
+
+
+def test_cloak_selected_actual_backend_receipt_matches_after_ready(tmp_path: Path) -> None:
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=_FakeBrowserSessionManager(),
+        capture_root=tmp_path / "capture",
+    )
+
+    assert readiness.ready is True
+    assert readiness.selected_backend_id == readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.receipt_backend_match is True
 
 
 def test_playwright_compat_tests_do_not_mark_product_backend_proven(tmp_path: Path) -> None:
@@ -1425,6 +1512,51 @@ def test_metadata_reply_with_natural_intent_is_parsed_without_raw_persistence(tm
     assert "I will extract the visible product cards now" not in diagnostics_text
     assert "raw_provider" not in diagnostics_text
     assert "reasoning" not in diagnostics_text
+
+
+def test_provider_empty_visible_content_before_material_action_recovers_or_blocks_cleanly(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
+    context = _compile_browser_context(fixture, observations=[])
+
+    mapping = map_browser_model_native_intent(
+        {
+            "content_extraction_source": "unsupported",
+            "visible_content_char_count": 0,
+            "raw_text_hash": "hash_only",
+            "reasoning_hash": "reasoning_hash_only",
+        },
+        context=context,
+    )
+
+    assert mapping.blocked is False
+    assert mapping.envelope is not None
+    assert mapping.envelope.capability_id == ""
+    assert mapping.envelope.operation == ""
+    assert mapping.safe_diagnostics["failure_code"] == "PROVIDER_EMPTY_VISIBLE_CONTENT_BEFORE_MATERIAL_ACTION"
+
+
+def test_empty_visible_content_does_not_trigger_raw_open_without_recovery_context(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
+    empty_provider_payload = {
+        "content_extraction_source": "unsupported",
+        "visible_content_char_count": 0,
+        "raw_text_hash": "hash_only",
+    }
+    decisions = _RawNativeIntentDecisionClient(
+        [
+            empty_provider_payload,
+            empty_provider_payload,
+            empty_provider_payload,
+        ]
+    )
+
+    result = fixture.loop(decisions).run()
+
+    assert result.status is ModelLedTaskLoopStatus.BLOCKED
+    assert result.blocked_reason == "MODEL_CORRECTION_BUDGET_EXHAUSTED"
+    assert "real_browser_control:real_browser.open" not in result.capability_sequence
+    assert result.failure_diagnostics["failure_code"] == "PROVIDER_EMPTY_VISIBLE_CONTENT_BEFORE_MATERIAL_ACTION"
+    assert fixture.engine.open_count == 0
 
 
 def test_action_envelope_remains_internal_runtime_format(tmp_path: Path) -> None:
