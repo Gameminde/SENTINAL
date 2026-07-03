@@ -533,6 +533,31 @@ class BrowserSessionManagerRealBrowserEngine:
             timeout_ms=self.timeout_ms,
         )
 
+    def safe_devtools_context(self) -> dict[str, Any] | None:
+        if self._authority is None or not self._session_id or not hasattr(self.session_manager, "devtools_metadata_for_session"):
+            return None
+        metadata: list[dict[str, Any]] = []
+        for capability in ("network_ledger", "console_ledger", "performance_trace"):
+            try:
+                current = self.session_manager.devtools_metadata_for_session(
+                    mission_id=self._session_authority().id,
+                    session_id=self._session_id,
+                    capability=capability,
+                    timeout_ms=self.timeout_ms,
+                )
+            except Exception as exc:
+                return {
+                    "source": "browser_session_manager_l5",
+                    "available": False,
+                    "failure_code": "browser_devtools_metadata_unavailable",
+                    "diagnostic_hash": stable_hash({"exception_class": exc.__class__.__name__}),
+                }
+            if isinstance(current, dict):
+                metadata.append(current)
+        if not metadata:
+            return None
+        return _combine_safe_devtools_metadata(metadata)
+
     def _snapshot_from_accessibility(self, snapshot: Any, *, fallback_title: str) -> RealBrowserEngineSnapshot:
         elements: list[RealBrowserEngineElement] = []
         self._ref_targets = {}
@@ -1324,7 +1349,7 @@ class RealBrowserControlRuntime:
         actionability_dump = actionability_frame.safe_model_dump()
         self._write_artifact("world_models", world_model.world_model_id, world_dump)
         self._write_artifact("decision_frames", frame.frame_id, frame_dump)
-        return {
+        cards = {
             "browser_world_model": world_dump,
             "browser_world_model_summary": world_model.compact_summary(),
             "browser_decision_frame": frame_dump,
@@ -1343,6 +1368,10 @@ class RealBrowserControlRuntime:
                 ),
             },
         }
+        devtools_context = _engine_safe_devtools_context(self.engine)
+        if devtools_context is not None:
+            cards["browser_devtools_context"] = devtools_context
+        return cards
 
     def _click_search_button_if_available(self) -> RealBrowserEngineSnapshot:
         snapshot = self.engine.observe()
@@ -2213,6 +2242,67 @@ def _engine_session_backend_kind(engine: RealBrowserEngine) -> str:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return ""
+
+
+def _engine_safe_devtools_context(engine: RealBrowserEngine) -> dict[str, Any] | None:
+    value = getattr(engine, "safe_devtools_context", None)
+    if not callable(value):
+        return None
+    context = value()
+    return context if isinstance(context, dict) and context else None
+
+
+def _combine_safe_devtools_metadata(metadata_items: list[dict[str, Any]]) -> dict[str, Any]:
+    combined: dict[str, Any] = {
+        "source": "browser_session_manager_l5",
+        "available": True,
+        "capability_count": len(metadata_items),
+    }
+    top_level_keys = (
+        "backend_kind",
+        "page_target_count",
+        "snapshot_hash",
+        "network_ledger_hash",
+        "console_ledger_hash",
+        "performance_trace_hash",
+    )
+    metadata_keys = (
+        "source_backend_kind",
+        "session_ref",
+        "url_hash",
+        "title_hash",
+        "step_index",
+        "network_event_count",
+        "network_failure_count",
+        "console_message_count",
+        "console_error_count",
+    )
+    safe_metadata: dict[str, Any] = {}
+    for item in metadata_items:
+        for key in top_level_keys:
+            value = item.get(key)
+            if value is None:
+                continue
+            if isinstance(value, (int, bool, str)):
+                if isinstance(value, int) and key in combined and isinstance(combined[key], int):
+                    combined[key] = max(int(combined[key]), value)
+                else:
+                    combined.setdefault(key, value)
+        metadata = item.get("safe_metadata")
+        if not isinstance(metadata, dict):
+            continue
+        for key in metadata_keys:
+            value = metadata.get(key)
+            if value is None:
+                continue
+            if isinstance(value, (int, bool, str)):
+                if isinstance(value, int) and key in safe_metadata and isinstance(safe_metadata[key], int):
+                    safe_metadata[key] = max(int(safe_metadata[key]), value)
+                else:
+                    safe_metadata.setdefault(key, value)
+    if safe_metadata:
+        combined["safe_metadata"] = safe_metadata
+    return combined
 
 
 def _label_from_ref(ref: str) -> str:

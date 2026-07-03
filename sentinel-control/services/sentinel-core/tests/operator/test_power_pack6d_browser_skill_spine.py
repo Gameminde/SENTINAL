@@ -288,6 +288,67 @@ def test_browser_session_manager_l5_used_for_live_backend_when_available(tmp_pat
     assert engine.session_manager_backend_kind == "cloakbrowser"
 
 
+def test_browser_session_devtools_metadata_is_exposed_as_safe_context(tmp_path: Path) -> None:
+    manager = _FakeBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+
+    devtools = result.context_cards["browser_devtools_context"]
+    assert devtools["source"] == "browser_session_manager_l5"
+    assert devtools["backend_kind"] == "cloakbrowser"
+    assert devtools["page_target_count"] == 1
+    assert devtools["snapshot_hash"] == "fake_a11y_snapshot_hash"
+    assert devtools["network_ledger_hash"] == "fake_network_ledger_hash"
+    assert devtools["console_ledger_hash"] == "fake_console_ledger_hash"
+    assert devtools["safe_metadata"]["network_event_count"] == 2
+    assert devtools["safe_metadata"]["console_error_count"] == 1
+    persisted = str(devtools).lower()
+    assert "bounded.example.test" not in persisted
+    assert "fake_bsess_cloak" not in persisted
+    assert "raw_dom" not in persisted
+    assert "screenshot_bytes" not in persisted
+    assert "cookie" not in persisted
+    assert "password" not in persisted
+
+
+def test_browser_session_devtools_metadata_failure_does_not_block_browser_action(tmp_path: Path) -> None:
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=_FailingDevToolsBrowserSessionManager(),
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert result.status == "completed"
+    devtools = result.context_cards["browser_devtools_context"]
+    assert devtools["available"] is False
+    assert devtools["failure_code"] == "browser_devtools_metadata_unavailable"
+    assert "diagnostic_hash" in devtools
+    assert "raw_devtools_stack" not in str(devtools).lower()
+
+
 def test_cloak_readiness_gate_blocks_before_provider_when_bootstrap_missing(tmp_path: Path) -> None:
     class _FailingCloakSessionManager:
         backend_kind = "cloakbrowser"
@@ -1942,6 +2003,7 @@ class _FakeBrowserSessionManager:
     def __init__(self) -> None:
         self.open_calls = 0
         self.observe_calls = 0
+        self.devtools_calls: list[str] = []
         self.interact_calls: list[tuple[str, str, str]] = []
         self._session_id = "fake_bsess_cloak"
         self._searched = False
@@ -1995,6 +2057,52 @@ class _FakeBrowserSessionManager:
             session_id=self._session_id,
             receipt=receipt,
         )
+
+    def devtools_metadata_for_session(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        capability: str,
+        timeout_ms: int = 15_000,
+    ) -> dict[str, Any] | None:
+        del mission_id, timeout_ms
+        if session_id != self._session_id:
+            return None
+        self.devtools_calls.append(capability)
+        return {
+            "backend_kind": self.backend_kind,
+            "page_target_count": 1,
+            "snapshot_hash": "fake_a11y_snapshot_hash",
+            "screenshot_hash": None,
+            "network_ledger_hash": "fake_network_ledger_hash" if capability == "network_ledger" else None,
+            "console_ledger_hash": "fake_console_ledger_hash" if capability == "console_ledger" else None,
+            "performance_trace_hash": "fake_performance_trace_hash" if capability == "performance_trace" else None,
+            "safe_metadata": {
+                "source_backend_kind": self.backend_kind,
+                "session_ref": "hashed_session_ref_only",
+                "url_hash": "url_hash_only",
+                "title_hash": "title_hash_only",
+                "step_index": 1,
+                "network_event_count": 2,
+                "network_failure_count": 0,
+                "console_message_count": 2,
+                "console_error_count": 1,
+            },
+        }
+
+
+class _FailingDevToolsBrowserSessionManager(_FakeBrowserSessionManager):
+    def devtools_metadata_for_session(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        capability: str,
+        timeout_ms: int = 15_000,
+    ) -> dict[str, Any] | None:
+        del mission_id, session_id, capability, timeout_ms
+        raise RuntimeError("raw_devtools_stack_should_not_persist")
 
 
 def _request_value(request: Any, name: str) -> Any:
