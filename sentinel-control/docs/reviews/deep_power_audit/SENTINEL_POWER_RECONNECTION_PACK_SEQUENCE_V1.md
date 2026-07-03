@@ -59,6 +59,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Power friction cut: verified extraction completion lane | `POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1` | implemented candidate, not real-provider/browser product-proven | `102b1d0a68802dc6d25dd8b79ff33a33277ca34f` | Cuts the 5G post-verification blocker: verified extraction now routes to grounded evidence summary, summary plus verification routes to finish, and open/search/recovery churn is demoted after verification |
 | Real attempt: verified extraction to summary finish | `REAL_POWER_ATTEMPT_5H_VERIFIED_EXTRACTION_TO_SUMMARY_FINISH_V1` | valid success for Pack 2 completion lane, not full product-relevance proof | `ca28239` | Real provider path completed extract_product_cards -> verify_extraction -> summarize_evidence -> finish with replay no-react and clean high-risk scan; remaining gap is search actuation plus relevant product extraction |
 | Power friction cut: search actuation and relevant product extraction | `POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1` | implemented candidate, not real-provider/browser product-proven | `97fe777208fc3bdf451975f6d2338f676f1d823a` | Adds 5H completion-lane evaluator, material search receipt proof, product relevance fields, under-5-EUR visible-evidence policy, grounded relevance summary, and finish gating on relevant product evidence |
+| Browser dormant organ bridge: DevTools context | `SENTINEL_BROWSER_DEVTOOLS_CONTEXT_BRIDGE_V1` | implemented candidate, not real-provider/browser product-proven | `eea1170c5740721a48b3265213bbbe48112abd48` | Wires BrowserSessionManager L5 DevTools hash/count metadata into `RealBrowserControlRuntime` context cards; metadata failure becomes a safe unavailable card instead of a terminal browser-action blocker |
 
 New canonical next sequence:
 
@@ -651,7 +652,7 @@ no fallback/AUTO
 POWER_FRICTION_CUT_PACK_1_REMOVE_STUPID_BLOCKERS_V1
 POWER_FRICTION_CUT_PACK_2_VERIFIED_EXTRACTION_TO_COMPLETION_LANE_V1
 POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1
-POWER_FRICTION_CUT_PACK_4_DORMANT_ORGANS_TO_SKILL_SPINE_V1
+POWER_FRICTION_CUT_PACK_4_DORMANT_ORGANS_TO_SKILL_SPINE_V1 / SENTINEL_BROWSER_DEVTOOLS_CONTEXT_BRIDGE_V1
 ```
 
 Pack 1 is the immediate next pack because it targets the live 5F failure mode:
