@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import queue
 import shutil
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -1657,6 +1659,7 @@ def check_cloak_session_readiness_from_env(
     capture_root: str | Path | None = None,
     cache_path: str | Path | None = None,
     timeout_ms: int = 15_000,
+    wall_timeout_ms: int | None = None,
 ) -> CloakSessionReadinessResult:
     target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
     headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
@@ -1666,6 +1669,7 @@ def check_cloak_session_readiness_from_env(
         cache_path=cache_path,
         headless=headless_value not in {"0", "false", "no"},
         timeout_ms=timeout_ms,
+        wall_timeout_ms=wall_timeout_ms,
     )
 
 
@@ -1677,6 +1681,7 @@ def check_cloak_session_readiness(
     cache_path: str | Path | None = None,
     headless: bool = True,
     timeout_ms: int = 15_000,
+    wall_timeout_ms: int | None = None,
 ) -> CloakSessionReadinessResult:
     target_url = target_url.strip()
     selection = select_browser_backend()
@@ -1731,6 +1736,114 @@ def check_cloak_session_readiness(
         )
         _write_cloak_readiness_cache(cache_path, result)
         return result
+    result = _probe_cloak_readiness_with_wall_timeout(
+        engine=engine,
+        target_url=target_url,
+        selected_backend_id=selected_backend_id,
+        actual_backend_id=actual_backend_id,
+        session_backend_kind=session_backend_kind,
+        safe_origin_hash=safe_origin_hash,
+        capture_path=capture_path,
+        wall_timeout_ms=wall_timeout_ms if wall_timeout_ms is not None else timeout_ms,
+    )
+    _write_cloak_readiness_cache(cache_path, result)
+    return result
+
+
+def _probe_cloak_readiness_with_wall_timeout(
+    *,
+    engine: BrowserSessionManagerRealBrowserEngine,
+    target_url: str,
+    selected_backend_id: str,
+    actual_backend_id: str,
+    session_backend_kind: str,
+    safe_origin_hash: str,
+    capture_path: Path | None,
+    wall_timeout_ms: int,
+) -> CloakSessionReadinessResult:
+    if wall_timeout_ms <= 0:
+        return _probe_cloak_readiness(
+            engine=engine,
+            target_url=target_url,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id=actual_backend_id,
+            session_backend_kind=session_backend_kind,
+            safe_origin_hash=safe_origin_hash,
+            capture_path=capture_path,
+        )
+
+    result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
+
+    def _target() -> None:
+        try:
+            result_queue.put(
+                (
+                    "result",
+                    _probe_cloak_readiness(
+                        engine=engine,
+                        target_url=target_url,
+                        selected_backend_id=selected_backend_id,
+                        actual_backend_id=actual_backend_id,
+                        session_backend_kind=session_backend_kind,
+                        safe_origin_hash=safe_origin_hash,
+                        capture_path=capture_path,
+                    ),
+                )
+            )
+        except BaseException as exc:  # pragma: no cover - defensive worker isolation
+            result_queue.put(("exception", exc))
+
+    thread = threading.Thread(target=_target, name="sentinel-cloak-readiness-probe", daemon=True)
+    thread.start()
+    try:
+        kind, value = result_queue.get(timeout=wall_timeout_ms / 1000)
+    except queue.Empty:
+        close_all = getattr(engine.session_manager, "close_all", None)
+        if callable(close_all):
+            try:
+                close_all()
+            except Exception:
+                pass
+        _remove_profile_material(capture_path)
+        return _cloak_readiness_result(
+            ready=False,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id=actual_backend_id,
+            session_backend_kind=session_backend_kind,
+            safe_url_origin_hash=safe_origin_hash,
+            failure_code="CLOAK_SESSION_READINESS_TIMEOUT",
+            diagnostic_payload={
+                "timeout_ms": wall_timeout_ms,
+                "selected_backend_id": selected_backend_id,
+                "actual_backend_id": actual_backend_id,
+            },
+            capture_root=capture_path,
+        )
+
+    if kind == "exception":
+        return _cloak_readiness_result(
+            ready=False,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id=actual_backend_id,
+            session_backend_kind=session_backend_kind,
+            safe_url_origin_hash=safe_origin_hash,
+            failure_code="CLOAK_SESSION_BOOTSTRAP_NOT_READY",
+            diagnostic_payload={"exception_class": value.__class__.__name__, "reason_hash": text_hash(str(value))},
+            capture_root=capture_path,
+        )
+    return value
+
+
+def _probe_cloak_readiness(
+    *,
+    engine: BrowserSessionManagerRealBrowserEngine,
+    target_url: str,
+    selected_backend_id: str,
+    actual_backend_id: str,
+    session_backend_kind: str,
+    safe_origin_hash: str,
+    capture_path: Path | None,
+) -> CloakSessionReadinessResult:
     authority = _cloak_readiness_authority(target_url)
     try:
         engine.bind_authority(authority)
@@ -1773,9 +1886,7 @@ def check_cloak_session_readiness(
             except Exception:
                 pass
         _remove_profile_material(capture_path)
-    result = replace(result, profile_material_persisted=_profile_file_count(capture_path) > 0)
-    _write_cloak_readiness_cache(cache_path, result)
-    return result
+    return replace(result, profile_material_persisted=_profile_file_count(capture_path) > 0)
 
 
 def _build_browser_session_manager(*, capture_root: str | Path | None, headless: bool) -> Any:

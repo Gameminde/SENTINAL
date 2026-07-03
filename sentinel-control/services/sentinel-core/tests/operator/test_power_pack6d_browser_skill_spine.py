@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -357,6 +359,58 @@ def test_cloak_bootstrap_download_failure_does_not_consume_provider_call(tmp_pat
 
     assert readiness.failure_code == "CLOAK_SESSION_BOOTSTRAP_NOT_READY"
     assert provider_call_count == 0
+
+
+def test_cloak_readiness_gate_times_out_without_hanging_parent(tmp_path: Path) -> None:
+    class _HangingCloakSessionManager:
+        backend_kind = "cloakbrowser"
+
+        def __init__(self) -> None:
+            self.open_calls = 0
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def open_session(self, request: Any) -> Any:
+            del request
+            self.open_calls += 1
+            self.started.set()
+            self.release.wait(timeout=5.0)
+            raise RuntimeError("late bootstrap download finished after readiness wall timeout")
+
+        def close_all(self) -> None:
+            pass
+
+    manager = _HangingCloakSessionManager()
+    cache_path = tmp_path / "readiness.json"
+    started_at = time.monotonic()
+
+    try:
+        readiness = check_cloak_session_readiness(
+            target_url="https://bounded.example.test/catalog",
+            session_manager=manager,
+            capture_root=tmp_path / "capture",
+            cache_path=cache_path,
+            timeout_ms=30_000,
+            wall_timeout_ms=100,
+        )
+    finally:
+        manager.release.set()
+
+    elapsed = time.monotonic() - started_at
+
+    assert manager.started.wait(timeout=0.5)
+    assert elapsed < 1.5
+    assert manager.open_calls == 1
+    assert readiness.ready is False
+    assert readiness.provider_call_allowed is False
+    assert readiness.failure_code == "CLOAK_SESSION_READINESS_TIMEOUT"
+    assert readiness.selected_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.receipt_backend_match is False
+    assert readiness.profile_material_persisted is False
+    cache_text = cache_path.read_text(encoding="utf-8")
+    assert "bounded.example.test" not in cache_text
+    assert "CLOAK_SESSION_READINESS_TIMEOUT" in cache_text
 
 
 def test_cloak_selected_actual_backend_receipt_matches_after_ready(tmp_path: Path) -> None:
