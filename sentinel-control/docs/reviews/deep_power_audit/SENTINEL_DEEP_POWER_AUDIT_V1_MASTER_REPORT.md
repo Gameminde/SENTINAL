@@ -407,6 +407,7 @@ The first cleanup sequence after the blocker audit is now recorded as:
 | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented | `03dce88` | product skills were dispatchable one at a time but not yet chained by a model-led product loop | focused local |
 | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented | `eb65fe3` | Pack 9 loop needed a bounded RuntimeHost product entrypoint | focused local |
 | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | control lock | `local docs commit` | remaining work needed a single final objective and scorecard tied to the deep-code audit, not another isolated browser/channel/code pack | no runtime change |
+| `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | controlled valid success | `local report commit` | Pack 10 RuntimeHost entrypoint needed product-spine proof beyond focused pytest | controlled proof |
 
 Pack 3 specifically means:
 
@@ -447,7 +448,7 @@ and block authority-incompatible or recoverable failures without fake success.
 Next cleanup:
 
 ```text
-REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
 ```
 
 ## Living Audit Update: Monster Runtime Objective Lock V1
@@ -490,8 +491,14 @@ multi_worker_orchestration_readiness
 signed_mission_artifact_readiness
 ```
 
-The current next proof remains:
+The current next proof is complete in controlled/local mode:
 
 ```text
-REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1 = CONTROLLED_VALID_SUCCESS
+```
+
+The current next implementation item is:
+
+```text
+POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
 ```

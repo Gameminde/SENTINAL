@@ -132,12 +132,12 @@ unchanged:
 
 | Metric | Current baseline | Desired direction |
 |---|---|---|
-| `product_spine_coverage` | RuntimeHost has Pack 10 product task-loop entrypoint; broader power still partial | Increase until all production skills route through the product spine |
+| `product_spine_coverage` | RuntimeHost Pack 10 product task-loop entrypoint is controlled-proven for code execution + bounded fake/local channel send; broader power still partial | Increase until all production skills route through the product spine |
 | `direct_bypass_count` | Known bypasses remain in channel, mutation, certification, and organ paths | Decrease toward zero for product/operator execution |
 | `dual_path_count` | Unified/product paths and organ/direct paths both exist | Decrease by wiring organs as backends |
 | `model_facing_primitive_leakage_count` | Reduced by skill frames and Pack 10, but legacy/browser primitives still exist | Decrease; model sees skills first |
 | `recoverable_failure_continuation_coverage` | Improved by Pack B and cleanup packs | Increase across all product skills |
-| `real_provider_product_loop_proof` | Not yet proven for Pack 10 RuntimeHost entrypoint | Prove next |
+| `real_provider_product_loop_proof` | Controlled RuntimeHost product loop proven; real provider was not used | Keep separate from controlled proof and prove later only under a named real-provider contract |
 | `replay_parity_coverage` | Strong read-only, improving for code/channel/workspace | Increase to all product skills |
 | `browser_product_backend_coverage` | Browser remains split across organ and product paths | Increase after agent workspace/bypass work |
 | `agent_workspace_readiness` | Not first-class product body yet | Build before full browser promotion |
@@ -163,10 +163,10 @@ updates the living audit truth
 
 2. `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1`
 
-   Prove Pack 10 is more than local structure:
+   Controlled local proof completed. Pack 10 is more than local structure:
 
    ```text
-   real/controlled model decision
+   controlled model decision
    -> RuntimeHost product task-loop entrypoint
    -> ModelLedProductActionKernelTaskLoop
    -> ProductActionKernel

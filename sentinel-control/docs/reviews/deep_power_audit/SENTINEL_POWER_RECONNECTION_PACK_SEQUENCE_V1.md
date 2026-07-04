@@ -71,6 +71,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Global cleanup: Model-led ProductActionKernel multi-skill task loop | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented candidate, focused local proof | `03dce885b78949af2be6dea0e4c35849939b5a1c` | Adds a model-led product loop above RuntimeHost so fake/model decisions can chain code execution and fake/local bounded channel send through ProductActionKernel while later turns consume prior product receipts |
 | Global cleanup: Product task-loop RuntimeHost entrypoint | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented candidate, focused local proof | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | Exposes the Pack 9 product task loop through `SentinelRuntimeHost`, keeps the frame data-only, routes material actions through ProductActionKernel, and preserves blocks for real channel, browser, unknown, non-product, and high-risk actions |
 | Monster runtime objective lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | control lock, no runtime change | `local docs commit` | Establishes the final execution doctrine and scorecard: one product spine, simple model-facing skills, organs as hidden backends, ActionEnvelope internal only, recover by default inside granted scope, hard stop only real damage |
+| Controlled attempt: Product task-loop RuntimeHost entrypoint | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | controlled valid success, no provider | `local report commit` | Proves RuntimeHost -> ModelLedProductActionKernelTaskLoop -> ProductActionKernel dispatch for code execution and bounded fake/local channel send, then model finish with ProductActionKernel receipts, FinalGate certificates, replay no-react, and clean raw-material scan |
 
 New canonical next sequence:
 
@@ -98,7 +99,8 @@ done REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1
 done POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1
 done POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 done SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1
-next REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+done REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+next POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F
@@ -719,10 +721,11 @@ can_grant_authority = false
 Next:
 
 ```text
-REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
 ```
 
-After that proof, the next implementation lane is no longer surface-first. It is:
+The RuntimeHost product task-loop entrypoint proof is complete in controlled
+local mode. The next implementation lane is no longer surface-first. It is:
 
 ```text
 POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
@@ -740,10 +743,12 @@ The sequence rule is now:
 no pack without cut / hide / wire / recover / prove / audit-truth update
 ```
 
-Definition of done for next proof:
+Definition of done for completed RuntimeHost product task-loop proof:
 
 ```text
-Use the RuntimeHost product task-loop entrypoint in a controlled provider/fake-local mission,
-prove real model decisions can drive code/channel/workspace product skills through ProductActionKernel,
+Use the RuntimeHost product task-loop entrypoint in a controlled fake-local mission,
+prove controlled model decisions can drive code/channel product skills through ProductActionKernel,
+finish by model decision,
+replay with no material deltas,
 and keep real external channel/browser/high-risk surfaces closed.
 ```

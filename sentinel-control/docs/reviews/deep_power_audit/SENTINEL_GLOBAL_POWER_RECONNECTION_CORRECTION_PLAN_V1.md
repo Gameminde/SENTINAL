@@ -68,11 +68,12 @@ start next pack only after state is current
 | implemented candidate | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | `03dce885b78949af2be6dea0e4c35849939b5a1c` | P0/P1: product skills were RuntimeHost-dispatchable one at a time but not yet consumable as a model-led product task loop | focused proof: fake/model decisions chain code execution and fake/local bounded channel send through RuntimeHost -> ProductActionKernel, expose product receipts to later model turns, finish cleanly, replay no-react, and block real channel or non-product skills without local shortcuts |
 | implemented candidate | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | P0/P1: Pack 9 existed as a loop class but not as a bounded RuntimeHost product entrypoint | focused proof: `SentinelRuntimeHost` exposes a data-only product task-loop frame and `run_product_action_kernel_task_loop(...)`, then routes code -> fake/local channel -> finish through Pack 9 and ProductActionKernel with no-react replay and high-risk/non-product blocks |
 | control lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | `local docs commit` | P0/P1/P2: remaining work needed one product runtime objective rather than another surface-specific pack | docs/control proof: defines one product spine, simple model-facing skills, hidden organ backends, recoverable-by-default in scope, hard stops only for real damage, and the Monster Runtime Scorecard every future pack must update |
+| controlled valid success | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `local report commit` | P0/P1: Pack 10 RuntimeHost entrypoint needed proof beyond focused pytest | controlled proof: RuntimeHost ran code execution and bounded fake/local channel send through ModelLedProductActionKernelTaskLoop and ProductActionKernel, produced receipts and FinalGate certificates, finished by model decision, replayed with zero material deltas, and persisted no raw provider/reasoning/credential/session material |
 
 Current next proof:
 
 ```text
-START_REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+START_POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
 ```
 
 Monster runtime control lock:
