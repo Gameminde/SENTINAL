@@ -379,10 +379,10 @@ New control artifacts:
 Immediate next implementation recommendation:
 
 ```text
-POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1
+POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
 ```
 
-This update does not close the full master audit. It records that Pack 1 cut the visible-cards-to-extraction blocker, Pack 2 cut the verified-extraction-to-completion-lane blocker, 5H product-proved that completion lane, and 5K product-proved Cloak/session backend truth while exposing relevance-quality and cleanup gaps. The latest local fixes cut search-query contamination, multilingual eyewear relevance misses, repeated post-search churn, open-receipt backend misclassification, close-time Cloak profile cleanup, model-visible non-executable action leakage, empty recoverable observations killing loop progress, skill/backend frames missing organ spec truth, and read-only's model-facing center-of-gravity problem. The remaining browser question is product proof on a real bounded Alibaba run with relevant product evidence and no profile material persistence; every future pack must still state which blocker rows it removes, converts, hides, or keeps hard.
+This update does not close the full master audit. It records that Pack 1 cut the visible-cards-to-extraction blocker, Pack 2 cut the verified-extraction-to-completion-lane blocker, 5H product-proved that completion lane, and 5K product-proved Cloak/session backend truth while exposing relevance-quality and cleanup gaps. The latest local fixes cut search-query contamination, multilingual eyewear relevance misses, repeated post-search churn, open-receipt backend misclassification, close-time Cloak profile cleanup, model-visible non-executable action leakage, empty recoverable observations killing loop progress, skill/backend frames missing organ spec truth, read-only's model-facing center-of-gravity problem, and product coordinator blindness to known non-product skills. The remaining browser question is product proof on a real bounded Alibaba run with relevant product evidence and no profile material persistence; every future pack must still state which blocker rows it removes, converts, hides, or keeps hard.
 
 ## Living Audit Update: Power Cleanup Packs 1-3
 
@@ -394,6 +394,7 @@ The first cleanup sequence after the blocker audit is now recorded as:
 | `POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1` | implemented | `34867bf` | useful recoverable observations can still count as no-progress mission death | no |
 | `POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1` | implemented | `c6d0f0a` | skill/backend frame did not consume organ spec proof/replay/recovery/hard-stop truth | no |
 | `POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1` | implemented | `7f7ac92` | read-only route remained model-facing architecture center instead of supporting evidence skill | no |
+| `POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1` | implemented | `ad9a9d3` | product coordinator treated known skills without adapters as unknown capabilities | no |
 
 Pack 3 specifically means:
 
@@ -425,5 +426,5 @@ and recommended_next_action follows primary_model_recommended_next_action.
 Next cleanup:
 
 ```text
-POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1
+POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
 ```

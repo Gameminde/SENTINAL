@@ -689,6 +689,7 @@ The blocker cuts exposed a deeper cleanup lane that must keep Sentinel power-fir
 | `POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1` | implemented | `34867bf` | recoverable observations with next actions count as useful progress |
 | `POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1` | implemented | `c6d0f0a` | backend frames now include organ spec proof, receipt, replay, recovery, and hard-stop metadata |
 | `POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1` | implemented | `7f7ac92` | read-only remains receipted evidence, but stops being the model-facing center of gravity |
+| `POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1` | implemented | `ad9a9d3` | coordinator rejects known non-product skills as skill_not_product_dispatchable instead of unknown_capability_connection |
 
 Pack 3 keeps the registry data-only:
 
@@ -701,13 +702,13 @@ can_grant_authority = false
 Next:
 
 ```text
-POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1
+POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
 ```
 
-Definition of done for Pack 5:
+Definition of done for Pack 6:
 
 ```text
-product dispatch consumes skill/actionability/backend truth,
-not only read_only_research_adapter gravity.
-No new high-risk surface becomes dispatchable.
+one bounded product adapter can execute safe ActionKernel skill missions,
+using the same skill/actionability/backend truth,
+while high-risk browser/payment/contact/credential surfaces remain locked.
 ```

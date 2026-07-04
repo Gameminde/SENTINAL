@@ -940,7 +940,7 @@ Each pack must preserve the listed hard stops and update the matrix/control docs
 Immediate next implementation pack:
 
 ```text
-POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1
+POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
 ```
 
 First targets:
@@ -963,6 +963,7 @@ The global reconnection plan now tracks the cleanup sequence that follows the bl
 | `POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1` | implemented | `34867bf` | useful recovery observations count as loop progress instead of immediate no-progress death |
 | `POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1` | implemented | `c6d0f0a` | power skill backend frame now consumes organ spec receipt/proof/replay/recovery/hard-stop metadata |
 | `POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1` | implemented | `7f7ac92` | read-only is model-facing supporting evidence, not the central product path |
+| `POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1` | implemented | `ad9a9d3` | coordinator now distinguishes known non-product skills from unknown capabilities |
 
 Pack 3 is not a new power surface. It makes the existing power map more truthful:
 
@@ -973,13 +974,13 @@ skill -> backend -> organ specs -> receipts/proof/replay/recovery/hard stops
 The next cleanup target is:
 
 ```text
-POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1
+POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
 ```
 
 Reason:
 
 ```text
-read_only_research is now demoted in the model-facing frame,
-but RuntimeHost/product dispatch is still read-only-adapter centered.
-The next cut should route product dispatch through skill-native truth without opening new unsafe surfaces.
+product dispatch now records skill-native truth,
+but only read_only_research_adapter can actually execute as a product adapter.
+The next cut should add a bounded ActionKernel adapter for safe model-led skills without opening high-risk surfaces.
 ```
