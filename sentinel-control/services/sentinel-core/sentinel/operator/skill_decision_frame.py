@@ -122,6 +122,8 @@ def _skill_frame(
         recommended = _first_available(visible_actions, visible_actions)
     return {
         "skill_id": skill_id,
+        "model_facing_role": _model_facing_role(skill_id),
+        "architecture_role": _architecture_role(skill_id),
         "model_visible_actions": visible_actions,
         "internal_actions": internal_actions,
         "recommended_next_actions": recommended,
@@ -139,6 +141,22 @@ def _skill_frame(
         "locked": bool(backend.get("locked")),
         "lock_reason": str(backend.get("lock_reason") or ""),
     }
+
+
+def _model_facing_role(skill_id: str) -> str:
+    if skill_id == "read_only_research":
+        return "supporting_evidence_skill"
+    if skill_id == "sentinel_loop":
+        return "completion_skill"
+    return "primary_power_skill"
+
+
+def _architecture_role(skill_id: str) -> str:
+    if skill_id == "read_only_research":
+        return "evidence_skill_not_product_center"
+    if skill_id == "sentinel_loop":
+        return "loop_completion_and_summary"
+    return "model_led_power_skill"
 
 
 def _primary_recommendations(

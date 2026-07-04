@@ -138,6 +138,27 @@ def test_code_exec_frame_requires_run_plus_bounded_check() -> None:
     assert code_frame["completion_requirements"]["requires_verification_receipt"] is True
 
 
+def test_read_only_frame_is_supporting_evidence_skill_in_mixed_power_loop() -> None:
+    context = _compile(
+        available_actions=(
+            "read_only_research.list_directory",
+            "read_only_research.search_text",
+            "read_only_research.read_file_segment",
+            "workspace_patch.apply_patch",
+            "workspace_patch.run_bounded_check",
+            "code_execution_sandbox.code_exec.run_profile",
+            "sentinel_loop.finish",
+        ),
+    )
+
+    read_only_frame = context["skill_decision_frame"]["skill_frames"]["read_only_research"]
+
+    assert read_only_frame["model_facing_role"] == "supporting_evidence_skill"
+    assert read_only_frame["architecture_role"] == "evidence_skill_not_product_center"
+    assert context["primary_model_recommended_next_action"] != "read_only_research.list_directory"
+    assert context["recommended_next_action"] == context["primary_model_recommended_next_action"]
+
+
 def test_channel_frame_requires_delivery_then_finish() -> None:
     sent = _result(
         capability_id="bounded_channel",

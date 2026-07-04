@@ -254,9 +254,9 @@ class DecisionContextCompiler:
             "objective_satisfied": objective_satisfied,
             "finish_available": objective_satisfied,
             "recommended_next_action": (
-                "sentinel_loop.finish"
-                if objective_satisfied
-                else (progress_guidance["next_recommended_actions"][0] if progress_guidance["next_recommended_actions"] else None)
+                model_visible_next_actions[0]
+                if model_visible_next_actions
+                else None
             ),
             "progress_state": progress_guidance["progress_state"],
             "next_recommended_actions": progress_guidance["next_recommended_actions"],
