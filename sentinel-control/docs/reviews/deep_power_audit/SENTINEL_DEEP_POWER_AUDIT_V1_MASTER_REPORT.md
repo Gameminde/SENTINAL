@@ -69,6 +69,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Power Cleanup Pack 8 ActionKernel skill parity for code and channel | Implemented candidate, local product-dispatch proof | `c1cf6d4a2cf8ba7680b907a42ccac4c41f99706e` | Extends the RuntimeHost `ProductActionKernelDispatchAdapter` route to `code_execution_sandbox.code_exec.run_profile` and bounded fake/local `bounded_channel.send_message`; code timeout and missing local channel transport become recoverable product receipts, network/real channel/hard-risk boundaries remain blocked, and code/channel focused regressions are green |
 | Real Power Attempt Product ActionKernel code/channel dispatch | Valid success, controlled product proof | `b1c524cb63c8adf22ebaf38f7ebd19da31131547` | Proves RuntimeHost can execute `code_execution_sandbox.code_exec.run_profile` and fake/local `bounded_channel.send_message` through `ProductActionKernelDispatchAdapter` with ProductActionKernel receipts, skill-specific receipts, accepted FinalGate certificates, replay no-reexecute/no-resend, and hard-stop proofs for network code args, real channel transport, known non-product, unknown skill, and high-risk surfaces |
 | Power Cleanup Pack 9 model-led ProductActionKernel multi-skill task loop | Implemented candidate, focused local proof | `03dce885b78949af2be6dea0e4c35849939b5a1c` | Adds a model-led product task loop that consumes fake/model decisions, creates RuntimeHost missions per material skill, chains code execution and fake/local bounded channel send through ProductActionKernel, exposes prior product receipts to later model turns, preserves replay no-react, and blocks non-product or real channel paths without local shortcuts |
+| Power Cleanup Pack 10 product task-loop RuntimeHost entrypoint | Implemented candidate, focused local proof | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | Exposes the Pack 9 model-led ProductActionKernel task loop through `SentinelRuntimeHost`; the data-only entrypoint frame shows safe model-visible skills, RuntimeHost constructs the Pack 9 loop, and focused proof covers code -> channel -> finish, prior receipt context, no-op finish proof, no-react replay, real-channel block, browser/non-product block, unknown skill block, and high-risk hard stops |
 
 ## Executive Verdict
 
@@ -403,6 +404,7 @@ The first cleanup sequence after the blocker audit is now recorded as:
 | `POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1` | implemented | `0535d6f` | RuntimeHost product path had no safe non-read-only default skill | focused local |
 | `POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1` | implemented | `c1cf6d4a` | code and channel existed as local loop power but not RuntimeHost product skills | focused local |
 | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented | `03dce88` | product skills were dispatchable one at a time but not yet chained by a model-led product loop | focused local |
+| `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented | `eb65fe3` | Pack 9 loop needed a bounded RuntimeHost product entrypoint | focused local |
 
 Pack 3 specifically means:
 
@@ -443,5 +445,5 @@ and block authority-incompatible or recoverable failures without fake success.
 Next cleanup:
 
 ```text
-POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 ```

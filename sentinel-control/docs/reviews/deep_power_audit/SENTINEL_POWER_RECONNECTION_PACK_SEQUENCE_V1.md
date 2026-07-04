@@ -69,6 +69,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Global cleanup: ActionKernel skill parity for code and channel | `POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1` | implemented candidate, local product-dispatch proof | `c1cf6d4a2cf8ba7680b907a42ccac4c41f99706e` | Extends the RuntimeHost product ActionKernel route to `code_execution_sandbox.code_exec.run_profile` and bounded fake/local `bounded_channel.send_message`; code timeout and missing transport are recoverable, while network, real channel, high-risk, fallback/AUTO, and provider-native paths stay blocked |
 | Controlled attempt: Product ActionKernel code/channel dispatch | `REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1` | valid success, controlled product proof | `b1c524cb63c8adf22ebaf38f7ebd19da31131547` | Proves code execution and fake/local bounded channel send dispatch through RuntimeHost -> ProductActionKernel -> skill runtime with product receipts, skill-specific receipts, accepted FinalGate certificates, replay no-execute/no-resend, and hard-stop checks |
 | Global cleanup: Model-led ProductActionKernel multi-skill task loop | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented candidate, focused local proof | `03dce885b78949af2be6dea0e4c35849939b5a1c` | Adds a model-led product loop above RuntimeHost so fake/model decisions can chain code execution and fake/local bounded channel send through ProductActionKernel while later turns consume prior product receipts |
+| Global cleanup: Product task-loop RuntimeHost entrypoint | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented candidate, focused local proof | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | Exposes the Pack 9 product task loop through `SentinelRuntimeHost`, keeps the frame data-only, routes material actions through ProductActionKernel, and preserves blocks for real channel, browser, unknown, non-product, and high-risk actions |
 
 New canonical next sequence:
 
@@ -94,7 +95,8 @@ done POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1
 done POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1
 done REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1
 done POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1
-next POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+done POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+next REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F
@@ -702,6 +704,7 @@ The blocker cuts exposed a deeper cleanup lane that must keep Sentinel power-fir
 | `POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1` | implemented | `0535d6f` | RuntimeHost registers workspace patch as a first safe non-read-only product skill |
 | `POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1` | implemented | `c1cf6d4a` | RuntimeHost ProductActionKernel dispatch also covers bounded code execution and fake/local channel send |
 | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented | `03dce88` | fake/model decisions can chain multiple ProductActionKernel product skills with receipts visible to later turns |
+| `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented | `eb65fe3` | RuntimeHost exposes Pack 9 as a bounded product entrypoint |
 
 Pack 3 keeps the registry data-only:
 
@@ -714,13 +717,13 @@ can_grant_authority = false
 Next:
 
 ```text
-POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 ```
 
-Definition of done for Pack 10:
+Definition of done for next proof:
 
 ```text
-Expose the model-led ProductActionKernel task loop through a bounded product entrypoint,
-keep RuntimeHost/ProductActionKernel as the material execution owner,
-and preserve no-provider-native/no-fallback/no-high-risk defaults.
+Use the RuntimeHost product task-loop entrypoint in a controlled provider/fake-local mission,
+prove real model decisions can drive code/channel/workspace product skills through ProductActionKernel,
+and keep real external channel/browser/high-risk surfaces closed.
 ```
