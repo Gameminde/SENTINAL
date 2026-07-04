@@ -64,6 +64,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Browser relevance cleanup fix | `FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1` | implemented candidate, not real-provider/browser product-proven | `380bbb7f13c4f68f4ffc0b17d3154571f428bf22` | Product-card extraction strips search-result intro text, recognizes multilingual eyewear terms, demotes repeated search after a search receipt, evaluates backend truth only from material backend receipts, and adds Cloak profile cleanup on runtime close |
 | Real attempt: Cloak relevance cleanup | `REAL_POWER_ATTEMPT_5L_CLOAK_RELEVANCE_QUALITY_AND_PROFILE_CLEANUP_V1` | valid failed | `64477eb9bfbafa735fe422379a60a5cd23bfc012` | Cloak selected/actual backend match and replay no-react held, but search materiality/relevance completion still failed; this ends the narrow browser micro-fix loop for now |
 | Global cleanup: executable skill truth | `POWER_CLEANUP_PACK_1_MODEL_FACING_EXECUTABLE_SKILL_TRUTH_V1` | implemented candidate, not real-provider product-proven | `0bbe148` | Direct/legacy model actions are validated against actionability truth before executor dispatch; internal primitives and unknown actions become recoverable observations, locked high-risk actions hard-stop clearly, and old authority aliases map to real capabilities |
+| Global cleanup: recoverable observation loop progress | `POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1` | implemented candidate, not real-provider product-proven | `34867bf` | Recoverable observations with live next actions or refreshed candidates reset no-progress accounting; empty recoveries still block and hard stops remain unchanged |
 
 New canonical next sequence:
 
@@ -84,7 +85,8 @@ done REAL_POWER_ATTEMPT_5K_CLOAK_READY_SEARCH_RELEVANT_PRODUCT_EXTRACTION_V1
 done FIX_CLOAK_BROWSER_RELEVANT_SEARCH_RESULT_QUALITY_AND_PROFILE_CLEANUP_V1
 done REAL_POWER_ATTEMPT_5L_CLOAK_RELEVANCE_QUALITY_AND_PROFILE_CLEANUP_V1
 done POWER_CLEANUP_PACK_1_MODEL_FACING_EXECUTABLE_SKILL_TRUTH_V1
-next POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1
+done POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1
+next POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F
