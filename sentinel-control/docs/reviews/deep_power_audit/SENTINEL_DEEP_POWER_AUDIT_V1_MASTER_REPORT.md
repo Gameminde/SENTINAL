@@ -523,3 +523,40 @@ dual_path_count = channel / mutation / certification / organ runtime / browser /
 
 The next pack is no longer discovery. It must remove or wrap the first safe
 product bypass cluster while keeping high-risk rows locked.
+
+## Living Audit Update: Power Unification Pack 1
+
+`POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1` is implemented as a
+focused local cut.
+
+Accepted truth:
+
+```text
+BYPASS-CHANNEL-001 = partially cut/wrapped
+bounded_channel product route = RuntimeHost -> ProductActionKernelDispatchAdapter -> ChannelConnectorRuntime(product_dispatch_owner=product_action_kernel_adapter) -> internal channel backend
+direct channel compatibility route = product_dispatch_owner null
+provider_call = no
+real_external_channel_call = no
+```
+
+The channel organ is not deleted. It is made explicit as an internal backend:
+
+```text
+backend_id = channel_draft_send_organ_backend
+backend_owner = internal_channel_backend
+```
+
+`BYPASS-MUTATION-001` remains open. The mutation artifact channel now exposes
+`product_wire_status()` so the old L3 apply path cannot be mistaken for product
+write proof:
+
+```text
+product_dispatchable = false
+target_product_path = RuntimeHost -> ProductActionKernelDispatchAdapter -> workspace_patch
+```
+
+Next:
+
+```text
+POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
+```

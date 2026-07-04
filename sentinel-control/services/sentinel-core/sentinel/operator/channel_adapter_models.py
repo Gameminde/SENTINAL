@@ -386,6 +386,9 @@ class ChannelAdapterReceipt(ChannelDataModel):
     recipient_hashes: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
     telemetry_refs: list[str] = Field(default_factory=list)
+    backend_id: str | None = None
+    backend_owner: str | None = None
+    product_dispatch_owner: str | None = None
     future_permission: bool = False
     created_at: datetime = Field(default_factory=channel_utc_now)
     receipt_hash: str = ""

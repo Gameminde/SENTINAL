@@ -288,11 +288,43 @@ The gap is incomplete unification:
 direct bypasses, dual paths, skills-as-framing, browser/organs not fully product-spine-owned.
 ```
 
+## Living Update: Power Unification Pack 1
+
+`POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1` is implemented as the
+first direct-bypass cut.
+
+What changed:
+
+```text
+bounded_channel product path now stamps channel adapter receipts with:
+backend_id = channel_draft_send_organ_backend
+backend_owner = internal_channel_backend
+product_dispatch_owner = product_action_kernel_adapter
+```
+
+Direct compatibility channel calls keep:
+
+```text
+product_dispatch_owner = null
+```
+
+This means the channel organ remains useful as a backend, but only the
+RuntimeHost/ProductActionKernel route can be counted as product proof.
+
+Mutation artifact apply remains open:
+
+```text
+GovernedMutationArtifactChannel.product_wire_status().product_dispatchable = false
+```
+
 ## Current Next Action
 
 ```text
-REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
 ```
 
-This is the next product truth test. If it fails, fix the exposed product-spine
-blocker before starting more broad unification work.
+Carry forward:
+
+```text
+mutation artifact final apply still needs workspace_patch product wiring with rollback parity.
+```

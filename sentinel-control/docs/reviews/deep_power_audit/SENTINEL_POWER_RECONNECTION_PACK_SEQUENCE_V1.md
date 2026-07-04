@@ -754,3 +754,21 @@ finish by model decision,
 replay with no material deltas,
 and keep real external channel/browser/high-risk surfaces closed.
 ```
+
+## Living Update: Power Unification Pack 1
+
+| Pack | Status | Result |
+|---|---|---|
+| `POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1` | implemented candidate | channel product path now marks internal channel backend plus ProductActionKernel dispatch owner; mutation apply remains explicit non-product wire |
+
+Pack 1 does not claim all bypasses are gone. It cuts the first P0 ambiguity:
+
+```text
+bounded_channel product proof != direct ChannelConnectorRuntime compatibility proof
+```
+
+Next:
+
+```text
+POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
+```

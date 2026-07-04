@@ -327,7 +327,11 @@ def _default_bounded_channel_executor(envelope: ActionEnvelope, context: dict[st
     transports = {}
     if adapter_id != "missing_local_transport":
         transports[adapter_id] = _local_channel_transport
-    channel_runtime = ChannelConnectorRuntime(kernel, transports=transports)
+    channel_runtime = ChannelConnectorRuntime(
+        kernel,
+        transports=transports,
+        product_dispatch_owner="product_action_kernel_adapter",
+    )
     config = ChannelAdapterConfig(
         adapter_id=adapter_id,
         kind=ChannelAdapterKind.WEBHOOK,

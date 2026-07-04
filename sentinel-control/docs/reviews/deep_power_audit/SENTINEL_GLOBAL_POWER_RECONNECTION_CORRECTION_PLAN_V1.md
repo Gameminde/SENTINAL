@@ -1029,3 +1029,30 @@ product dispatch now has a bounded generic ActionKernel adapter,
 but RuntimeHost has not yet registered a first non-read-only safe skill through it.
 The next cut should prove a safe skill can become product-reachable without opening high-risk surfaces.
 ```
+
+## Living Update: Power Unification Pack 1
+
+Pack 1 cuts the first safe direct-bypass cluster without opening new live power.
+
+| Pack | Status | What It Reconnected |
+|---|---|---|
+| `POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1` | implemented candidate | bounded channel product receipts now distinguish ProductActionKernel-owned dispatch from direct compatibility channel calls |
+
+Concrete behavior:
+
+```text
+ProductActionKernel bounded_channel receipts carry product_dispatch_owner = product_action_kernel_adapter.
+Direct ChannelConnectorRuntime compatibility calls carry product_dispatch_owner = null.
+ChannelDraftSendOrganV1 remains hidden as channel_draft_send_organ_backend.
+GovernedMutationArtifactChannel declares product_dispatchable = false until workspace_patch product wiring exists.
+```
+
+This is intentionally not a broad deletion pack. It removes false product-proof
+ambiguity first, then leaves the larger mutation/browser/organ runtime cuts in
+the sequence.
+
+Next:
+
+```text
+POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
+```

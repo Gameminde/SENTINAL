@@ -584,6 +584,18 @@ class GovernedMutationArtifactChannel:
     def application_result(self, mutation_id: str) -> MutationApplicationResult | None:
         return self._state(mutation_id).application
 
+    def product_wire_status(self) -> dict[str, Any]:
+        return {
+            "product_dispatchable": False,
+            "classification": "BYPASS_PRODUCT_WIRE",
+            "current_path": "GovernedMutationArtifactChannel -> L3ReversibleWorkspaceExecutor",
+            "target_product_path": "RuntimeHost -> ProductActionKernelDispatchAdapter -> workspace_patch",
+            "apply_backend_id": "l3_reversible_workspace_executor_backend",
+            "data_plane_kept": True,
+            "can_grant_authority": False,
+            "can_execute_product_action": False,
+        }
+
     def safe_event_records(self, mutation_id: str) -> list[dict[str, Any]]:
         return list(self._state(mutation_id).events)
 

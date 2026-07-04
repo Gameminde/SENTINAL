@@ -14,6 +14,7 @@ from sentinel.agent.organs.channel_draft_send_organ_v1 import (
     ChannelDraftSendContract,
     ChannelDraftSendOrganV1,
     ChannelDraftSendRequest,
+    ChannelDraftSendResult,
     ChannelDraftSendStatus,
     ChannelSendTransportReceipt,
 )
@@ -49,6 +50,17 @@ DEFAULT_TELEGRAM_CHAT_ID_ENV = "SENTINEL_TELEGRAM_CHAT_ID"
 
 class ChannelConnectorRuntimeError(ValueError):
     """Raised when channel execution would violate authority or connector policy."""
+
+
+class ChannelDraftSendBackend:
+    backend_id = "channel_draft_send_organ_backend"
+    backend_owner = "internal_channel_backend"
+
+    def __init__(self, *, transport: ChannelTransport) -> None:
+        self._organ = ChannelDraftSendOrganV1(sender=_organ_sender(transport))
+
+    def send(self, request: ChannelDraftSendRequest, contract: ChannelDraftSendContract) -> ChannelDraftSendResult:
+        return self._organ.execute(request, contract=contract)
 
 
 class WebhookChannelTransport:
@@ -225,10 +237,16 @@ class ChannelConnectorRuntime:
         *,
         registry: ChannelConnectorRegistry | None = None,
         transports: dict[str, ChannelTransport] | None = None,
+        product_dispatch_owner: str | None = None,
+        draft_send_backend_factory: Callable[[ChannelTransport], ChannelDraftSendBackend] | None = None,
     ) -> None:
         self.kernel = kernel
         self.store = kernel.store
         self.registry = registry or ChannelConnectorRegistry()
+        self.product_dispatch_owner = product_dispatch_owner
+        self._draft_send_backend_factory = draft_send_backend_factory or (
+            lambda transport: ChannelDraftSendBackend(transport=transport)
+        )
         self._draft_requests: dict[tuple[str, str], ChannelOutboundRequest] = {}
         self._approvals: dict[tuple[str, str], ChannelOutboundApproval] = {}
         for key, transport in (transports or {}).items():
@@ -442,8 +460,8 @@ class ChannelConnectorRuntime:
         if transport is None:
             raise ChannelConnectorRuntimeError("channel_transport_missing")
 
-        organ = ChannelDraftSendOrganV1(sender=_organ_sender(transport))
-        organ_result = organ.execute(
+        backend = self._draft_send_backend_factory(transport)
+        organ_result = backend.send(
             ChannelDraftSendRequest(
                 mission_id=mission_id,
                 mode="send",
@@ -493,6 +511,9 @@ class ChannelConnectorRuntime:
             idempotency_key_hash=idempotency_hash,
             recipient_hashes=list(organ_result.receipt.recipient_hashes),
             evidence_refs=list(organ_result.receipt.evidence_refs),
+            backend_id=getattr(backend, "backend_id", "channel_draft_send_organ_backend"),
+            backend_owner=getattr(backend, "backend_owner", "internal_channel_backend"),
+            product_dispatch_owner=self.product_dispatch_owner,
         ).with_hash()
         self._write_json(mission_id, "receipts", adapter_receipt.receipt_id, adapter_receipt.safe_model_dump())
         finalgate = ChannelAdapterFinalGateCertificate(
