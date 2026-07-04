@@ -223,11 +223,18 @@ class DecisionContextCompiler:
             budget_remaining=budget_remaining,
             recoverable_observations=recoverable_failure_history,
         )
+        model_visible_available_actions = [
+            str(item.get("canonical_action_name") or item.get("action_name") or "")
+            for item in skill_exposure_frame.safe_model_dump().get("model_visible_actions", [])
+            if str(item.get("canonical_action_name") or item.get("action_name") or "")
+        ]
         model_visible_next_actions = list(skill_decision_frame["recommended_next_actions"])
         return {
             "mission_id": mission_id,
             "mission_objective": mission_objective,
             "available_actions": list(available_actions),
+            "runtime_available_actions": list(available_actions),
+            "model_visible_available_actions": model_visible_available_actions,
             "decision_context_primary_truth": "skill_decision_frame",
             "skill_exposure_frame": skill_exposure_frame.safe_model_dump(),
             "power_skill_backend_frame": power_skill_backend_frame,
@@ -549,8 +556,29 @@ def _granted_capabilities(authority: MissionAuthorityEnvelope) -> tuple[str, ...
         if not name:
             continue
         normalized = normalizer.normalize_action_name(str(name))
-        capabilities.add(normalized.split(".", 1)[0])
+        capability = normalized.split(".", 1)[0]
+        capabilities.add(capability)
+        capabilities.update(_legacy_grant_capability_aliases(str(name), normalized))
     return tuple(sorted(capabilities))
+
+
+def _legacy_grant_capability_aliases(raw_name: str, normalized_name: str) -> set[str]:
+    lowered = raw_name.strip().lower()
+    normalized = normalized_name.strip().lower()
+    aliases: set[str] = set()
+    if lowered in {"channel_send", "channel_draft_send"} or lowered.startswith("channel:"):
+        aliases.add("bounded_channel")
+    if lowered in {"list_directory", "search_text", "read_file_segment", "finish_exploration"}:
+        aliases.add("read_only_research")
+    if lowered.startswith("real_browser.") or normalized.startswith("real_browser_control."):
+        aliases.add("real_browser_control")
+    if lowered.startswith("browser.") or normalized.startswith("browser_control."):
+        aliases.add("browser_control")
+    if lowered in {"apply_patch", "run_bounded_check"} or normalized.startswith("workspace_patch."):
+        aliases.add("workspace_patch")
+    if lowered.startswith("code_exec.") or normalized.startswith("code_execution_sandbox."):
+        aliases.add("code_execution_sandbox")
+    return aliases
 
 
 def _model_visible_next_actions(

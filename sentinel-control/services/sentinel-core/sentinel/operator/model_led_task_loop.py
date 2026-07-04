@@ -9,6 +9,7 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.actionability_registry import ActionExposureStatus, build_default_actionability_registry
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
 from sentinel.operator.action_power_contract import ActionAliasNormalizer, ActionFailureClass, recoverable_action_observation
 from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
@@ -128,6 +129,8 @@ class ModelLedTaskLoop:
             "channel.send_message",
             "code_exec.run_profile",
             "code_exec.inspect_result",
+            "workspace_patch.apply_patch",
+            "workspace_patch.run_bounded_check",
             "finish",
         )
         self.results: list[ActionResult] = []
@@ -167,12 +170,6 @@ class ModelLedTaskLoop:
                     context["real_browser_assertion_due_to_material_budget"] = True
                 envelope = self._coerce_model_decision(self.decision_client.complete(context), context=context)
                 self.model_calls_used += 1
-                validation_result = self._validate_model_action_envelope(envelope, context=context, turn_index=self.model_calls_used)
-                if validation_result is not None:
-                    blocked_reason = self._record_recoverable_result(validation_result)
-                    if blocked_reason:
-                        return self._block(blocked_reason)
-                    continue
                 if finish_only_due_to_material_budget and not (
                     envelope.capability_id == "sentinel_loop" and envelope.operation == "finish"
                 ):
@@ -187,6 +184,12 @@ class ModelLedTaskLoop:
                     envelope.capability_id == "real_browser_control" and envelope.operation == "real_browser.assert_text"
                 ):
                     raise ActionKernelError("model_led_task_loop_real_browser_assertion_required_after_action_budget")
+                validation_result = self._validate_model_action_envelope(envelope, context=context, turn_index=self.model_calls_used)
+                if validation_result is not None:
+                    blocked_reason = self._record_recoverable_result(validation_result)
+                    if blocked_reason:
+                        return self._block(blocked_reason)
+                    continue
                 if _is_premature_patch_finish(envelope, context):
                     raise ActionKernelError("MODEL_FINISH_BEFORE_POST_PATCH_VERIFICATION")
                 if _is_premature_browser_finish(envelope, context):
@@ -351,6 +354,9 @@ class ModelLedTaskLoop:
         turn_index: int,
     ) -> ActionResult | None:
         if envelope.capability_id.strip() and envelope.operation.strip():
+            visibility_result = self._validate_model_visible_action(envelope, context=context)
+            if visibility_result is not None:
+                return visibility_result
             return None
         diagnostics = _empty_envelope_diagnostics(
             envelope,
@@ -365,7 +371,7 @@ class ModelLedTaskLoop:
             failure_code=failure_code,
             attempted_action_hash=envelope.action_hash,
             safe_summary="Model did not emit an actionable envelope; exact schema and executable actions are available.",
-            recommended_next_actions=tuple(str(action) for action in context.get("available_actions", ())[:6]),
+            recommended_next_actions=tuple(_model_visible_recommendations(context)[:6]),
             refreshed_candidate_refs=tuple(str(ref) for ref in context.get("top_stable_refs", ())[:8]),
         )
         return ActionResult(
@@ -379,13 +385,65 @@ class ModelLedTaskLoop:
             failure_code=failure_code,
             recoverable=True,
             recovery_observation=observation.safe_model_dump(),
-            recommended_next_actions=tuple(str(action) for action in context.get("available_actions", ())[:6]),
+            recommended_next_actions=tuple(_model_visible_recommendations(context)[:6]),
             observation_summary=f"recoverable model protocol miss: {failure_code}.",
             context_cards={
                 "actionability_frame": context.get("actionability_frame") or {},
                 "browser_actionability_registry": context.get("browser_actionability_registry") or {},
             },
         )
+
+    def _validate_model_visible_action(self, envelope: ActionEnvelope, *, context: dict[str, Any]) -> ActionResult | None:
+        action_name = f"{envelope.capability_id}.{envelope.operation}"
+        registry = build_default_actionability_registry()
+        exposure_frame = registry.compile_frame(
+            available_actions=(action_name,),
+            granted_capabilities=_granted_capabilities(self.authority),
+        )
+        exposure = (
+            next(iter(exposure_frame.locked_skills), None)
+            or next(iter(exposure_frame.hidden_internal_actions), None)
+            or next(iter(exposure_frame.missing_authority_actions), None)
+            or next(iter(exposure_frame.not_registered_actions), None)
+            or next(iter(exposure_frame.model_visible_actions), None)
+        )
+        if exposure is None:
+            return _model_action_visibility_recovery_result(
+                envelope,
+                context=context,
+                failure_code="MODEL_ACTION_NOT_REGISTERED",
+                safe_summary="Model action is not registered as an executable Sentinel skill.",
+            )
+        status = getattr(exposure, "status", None)
+        if status is ActionExposureStatus.EXECUTABLE:
+            current_visible = {str(action) for action in context.get("model_visible_available_actions", ())}
+            if current_visible and registry.normalize_action_name(action_name) not in current_visible:
+                return _model_action_visibility_recovery_result(
+                    envelope,
+                    context=context,
+                    failure_code="MODEL_ACTION_NOT_IN_CURRENT_SKILL_FRAME",
+                    safe_summary="Model action is registered but not currently recommended as a live skill for this turn.",
+                )
+            return None
+        if status is ActionExposureStatus.HIDDEN_INTERNAL:
+            return _model_action_visibility_recovery_result(
+                envelope,
+                context=context,
+                failure_code="MODEL_ACTION_HIDDEN_INTERNAL",
+                safe_summary="Model attempted an internal runtime primitive; use the model-visible skill action instead.",
+            )
+        if status is ActionExposureStatus.NOT_REGISTERED:
+            return _model_action_visibility_recovery_result(
+                envelope,
+                context=context,
+                failure_code="MODEL_ACTION_NOT_REGISTERED",
+                safe_summary="Model action is not registered as an executable Sentinel skill.",
+            )
+        if status is ActionExposureStatus.MISSING_AUTHORITY:
+            raise ActionKernelError("MODEL_ACTION_MISSING_AUTHORITY")
+        if status is ActionExposureStatus.LOCKED:
+            raise ActionKernelError("MODEL_ACTION_LOCKED_HARD_STOP")
+        return None
 
     def _assert_mission_and_authority_open(self) -> None:
         terminal_reason = self.kernel.terminal_block_reason(self.mission_id)
@@ -557,7 +615,7 @@ def _empty_envelope_diagnostics(
     turn_index: int,
     observations: list[ActionResult],
 ) -> dict[str, Any]:
-    available_actions = [str(item) for item in context.get("available_actions", [])]
+    available_actions = _model_visible_recommendations(context)
     last_success = next(
         (
             f"{result.capability_id}:{result.operation}"
@@ -582,6 +640,90 @@ def _empty_envelope_diagnostics(
         "capability_present": bool(envelope.capability_id.strip()),
         "operation_present": bool(envelope.operation.strip()),
     }
+
+
+def _model_action_visibility_recovery_result(
+    envelope: ActionEnvelope,
+    *,
+    context: dict[str, Any],
+    failure_code: str,
+    safe_summary: str,
+) -> ActionResult:
+    recommended_next_actions = tuple(_model_visible_recommendations(context)[:6])
+    observation = recoverable_action_observation(
+        failure_class=ActionFailureClass.RECOVERABLE_MODEL_PROTOCOL_FAILURE,
+        failure_code=failure_code,
+        attempted_action_hash=envelope.action_hash,
+        safe_summary=safe_summary,
+        recommended_next_actions=recommended_next_actions,
+        refreshed_candidate_refs=tuple(str(ref) for ref in context.get("top_stable_refs", ())[:8]),
+    )
+    return ActionResult(
+        action_id=envelope.action_id,
+        capability_id=envelope.capability_id or "model_protocol",
+        operation=envelope.operation or "unavailable_action",
+        status="recoverable_failed",
+        material_action=False,
+        blocked_reason=failure_code,
+        failure_class=ActionFailureClass.RECOVERABLE_MODEL_PROTOCOL_FAILURE,
+        failure_code=failure_code,
+        recoverable=True,
+        recovery_observation=observation.safe_model_dump(),
+        recommended_next_actions=recommended_next_actions,
+        observation_summary=f"recoverable model actionability miss: {failure_code}.",
+        context_cards={
+            "skill_decision_frame": context.get("skill_decision_frame") or {},
+            "actionability_frame": context.get("actionability_frame") or {},
+            "browser_actionability_registry": context.get("browser_actionability_registry") or {},
+        },
+    )
+
+
+def _model_visible_recommendations(context: dict[str, Any]) -> list[str]:
+    for key in (
+        "model_visible_next_recommended_actions",
+        "primary_model_next_recommended_actions",
+        "model_visible_available_actions",
+    ):
+        value = context.get(key)
+        if isinstance(value, list | tuple):
+            actions = [str(action) for action in value if str(action)]
+            if actions:
+                return actions
+    return [str(item) for item in context.get("available_actions", [])]
+
+
+def _granted_capabilities(authority: MissionAuthorityEnvelope) -> tuple[str, ...]:
+    normalizer = ActionAliasNormalizer()
+    names = [*authority.allowed_actions, *authority.allowed_tools, *authority.allowed_systems]
+    capabilities: set[str] = set()
+    for name in names:
+        if not name:
+            continue
+        normalized = normalizer.normalize_action_name(str(name))
+        capability = normalized.split(".", 1)[0]
+        capabilities.add(capability)
+        capabilities.update(_legacy_grant_capability_aliases(str(name), normalized))
+    return tuple(sorted(capabilities))
+
+
+def _legacy_grant_capability_aliases(raw_name: str, normalized_name: str) -> set[str]:
+    lowered = raw_name.strip().lower()
+    normalized = normalized_name.strip().lower()
+    aliases: set[str] = set()
+    if lowered in {"channel_send", "channel_draft_send"} or lowered.startswith("channel:"):
+        aliases.add("bounded_channel")
+    if lowered in {"list_directory", "search_text", "read_file_segment", "finish_exploration"}:
+        aliases.add("read_only_research")
+    if lowered.startswith("real_browser.") or normalized.startswith("real_browser_control."):
+        aliases.add("real_browser_control")
+    if lowered.startswith("browser.") or normalized.startswith("browser_control."):
+        aliases.add("browser_control")
+    if lowered in {"apply_patch", "run_bounded_check"} or normalized.startswith("workspace_patch."):
+        aliases.add("workspace_patch")
+    if lowered.startswith("code_exec.") or normalized.startswith("code_execution_sandbox."):
+        aliases.add("code_execution_sandbox")
+    return aliases
 
 
 def _allowed_capabilities_from_actions(available_actions: list[str]) -> list[str]:

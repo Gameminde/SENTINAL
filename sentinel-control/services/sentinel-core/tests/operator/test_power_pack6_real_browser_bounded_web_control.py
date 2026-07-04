@@ -186,8 +186,8 @@ def test_power_pack6_generic_loop_executes_real_browser_open_observe_type_assert
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.observe"),
             ActionEnvelope(
                 capability_id="real_browser_control",
-                operation="real_browser.type_text",
-                params={"ref": "input:status", "text": "Sentinel real browser control worked"},
+                operation="real_browser.search",
+                params={"ref": "input:status", "query": "Sentinel real browser control worked"},
             ),
             ActionEnvelope(
                 capability_id="real_browser_control",
@@ -207,7 +207,7 @@ def test_power_pack6_generic_loop_executes_real_browser_open_observe_type_assert
     assert result.capability_sequence == (
         "real_browser_control:real_browser.open",
         "real_browser_control:real_browser.observe",
-        "real_browser_control:real_browser.type_text",
+        "real_browser_control:real_browser.search",
         "real_browser_control:real_browser.assert_text",
         "sentinel_loop:finish",
     )
@@ -238,8 +238,8 @@ def test_power_pack6_finish_before_real_browser_assertion_blocks(tmp_path: Path)
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
             ActionEnvelope(
                 capability_id="real_browser_control",
-                operation="real_browser.type_text",
-                params={"ref": "input:status", "text": "Sentinel real browser control worked"},
+                operation="real_browser.search",
+                params={"ref": "input:status", "query": "Sentinel real browser control worked"},
             ),
             ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "too early"}),
         ]
@@ -260,8 +260,8 @@ def test_power_pack6_assertion_satisfies_budget_finish_only_turn(tmp_path: Path)
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
             ActionEnvelope(
                 capability_id="real_browser_control",
-                operation="real_browser.type_text",
-                params={"ref": "input:status", "text": "Sentinel real browser control worked"},
+                operation="real_browser.search",
+                params={"ref": "input:status", "query": "Sentinel real browser control worked"},
             ),
             ActionEnvelope(
                 capability_id="real_browser_control",
@@ -436,18 +436,8 @@ def test_power_pack6b_hard_browser_mission_can_search_extract_and_finish_with_re
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.observe"),
             ActionEnvelope(
                 capability_id="real_browser_control",
-                operation="real_browser.type_text",
-                params={"ref": "input:search", "text": "glasses under 5 euro"},
-            ),
-            ActionEnvelope(
-                capability_id="real_browser_control",
-                operation="real_browser.press_key",
-                params={"ref": "input:search", "key": "Enter"},
-            ),
-            ActionEnvelope(
-                capability_id="real_browser_control",
-                operation="real_browser.wait_for_text",
-                params={"text": "MOQ"},
+                operation="real_browser.search",
+                params={"ref": "input:search", "query": "glasses under 5 euro"},
             ),
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
             ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
@@ -462,7 +452,7 @@ def test_power_pack6b_hard_browser_mission_can_search_extract_and_finish_with_re
     assert result.status is ModelLedTaskLoopStatus.COMPLETED
     assert fixture.engine.type_count == 1
     assert fixture.engine.press_count == 1
-    assert fixture.engine.wait_count == 1
+    assert fixture.engine.wait_count == 0
     assert fixture.engine.extract_count == 2
     assert "sentinel_loop:summarize_evidence" in result.capability_sequence
     assert decisions.contexts[-1]["objective_satisfied"] is True
