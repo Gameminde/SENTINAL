@@ -7,6 +7,11 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.mission_lifecycle_service import MissionExecutionRequest
+from sentinel.operator.power_skill_registry import (
+    PowerSkillBackendBinding,
+    PowerSkillRegistry,
+    build_default_power_skill_registry,
+)
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.runtime_connections import (
     ConnectionHealthStatus,
@@ -35,6 +40,12 @@ class MissionExecutionDecision(SentinelModel):
     route: RuntimeConnectionRoute | None = None
     bridge_id: str | None = None
     adapter_id: str | None = None
+    skill_id: str | None = None
+    model_visible_backend_id: str | None = None
+    task_loop_reachable: bool = False
+    product_reachable: bool = False
+    dispatch_enabled: bool = False
+    skill_backend_lock_reason: str | None = None
     authority_envelope_ref: str | None = None
     connection_profile_hash: str | None = None
     rejection_reason: str | None = None
@@ -77,6 +88,12 @@ class MissionExecutionDecision(SentinelModel):
             "adapter_id": redact_operator_text(self.adapter_id or "") or None,
             "connection_id": redact_operator_text(self.connection_id or "") or None,
             "bridge_id": redact_operator_text(self.bridge_id or "") or None,
+            "skill_id": redact_operator_text(self.skill_id or "") or None,
+            "model_visible_backend_id": redact_operator_text(self.model_visible_backend_id or "") or None,
+            "task_loop_reachable": self.task_loop_reachable,
+            "product_reachable": self.product_reachable,
+            "dispatch_enabled": self.dispatch_enabled,
+            "skill_backend_lock_reason": redact_operator_text(self.skill_backend_lock_reason or "") or None,
             "authority_envelope_ref": self.authority_envelope_ref,
             "connection_profile_hash": self.connection_profile_hash,
             "rejection_reason": redact_operator_text(self.rejection_reason or "") or None,
@@ -104,8 +121,16 @@ class MissionExecutionDecision(SentinelModel):
 class MissionExecutionCoordinator:
     """Selects the official route for a mission capability without executing it."""
 
-    def __init__(self, registry: RuntimeConnectionRegistry | None = None) -> None:
+    def __init__(
+        self,
+        registry: RuntimeConnectionRegistry | None = None,
+        *,
+        power_skill_registry: PowerSkillRegistry | None = None,
+    ) -> None:
         self._registry = registry or build_default_runtime_connection_registry()
+        self._power_skill_registry = power_skill_registry or build_default_power_skill_registry(
+            runtime_connection_registry=self._registry
+        )
 
     def decide(self, request: MissionExecutionRequest) -> MissionExecutionDecision:
         if not request.verify_hash():
@@ -122,9 +147,17 @@ class MissionExecutionCoordinator:
                 health_status=health.status,
                 finding_codes=tuple(finding.code for finding in health.findings if finding.severity in {"P0", "P1"}),
             )
+        skill_binding = self._skill_binding_for_request(request)
         try:
             connection = self._registry.get(request.capability_id)
         except KeyError:
+            if skill_binding is not None:
+                return self._reject(
+                    request,
+                    reason="skill_locked_hard_stop" if skill_binding.locked else "skill_not_product_dispatchable",
+                    health_status=health.status,
+                    skill_binding=skill_binding,
+                )
             return self._reject(
                 request,
                 reason="unknown_capability_connection",
@@ -137,6 +170,7 @@ class MissionExecutionCoordinator:
                 health_status=health.status,
                 connection_id=connection.connection_id,
                 authoritative_route=connection.authoritative_route,
+                skill_binding=skill_binding,
             )
         if connection.authoritative_route is RuntimeConnectionRoute.BLOCKED:
             return self._reject(
@@ -145,6 +179,7 @@ class MissionExecutionCoordinator:
                 health_status=health.status,
                 connection_id=connection.connection_id,
                 authoritative_route=connection.authoritative_route,
+                skill_binding=skill_binding,
             )
         if not connection.production_reachable:
             return self._reject(
@@ -153,6 +188,7 @@ class MissionExecutionCoordinator:
                 health_status=health.status,
                 connection_id=connection.connection_id,
                 authoritative_route=connection.authoritative_route,
+                skill_binding=skill_binding,
             )
         if request.operation not in connection.supported_operations:
             return self._reject(
@@ -163,6 +199,7 @@ class MissionExecutionCoordinator:
                 authoritative_route=connection.authoritative_route,
                 adapter_id=connection.adapter_id,
                 connection_profile_hash=connection.profile_hash,
+                skill_binding=skill_binding,
             )
         return MissionExecutionDecision(
             status=MissionExecutionDecisionStatus.ROUTED,
@@ -174,6 +211,7 @@ class MissionExecutionCoordinator:
             route=connection.authoritative_route,
             bridge_id=_bridge_id_for_route(connection.authoritative_route),
             adapter_id=connection.adapter_id,
+            **_skill_decision_fields(skill_binding),
             authority_envelope_ref=request.authority_envelope_ref,
             connection_profile_hash=connection.profile_hash,
             health_status=health.status,
@@ -190,6 +228,7 @@ class MissionExecutionCoordinator:
         adapter_id: str | None = None,
         connection_profile_hash: str | None = None,
         finding_codes: tuple[str, ...] = (),
+        skill_binding: PowerSkillBackendBinding | None = None,
     ) -> MissionExecutionDecision:
         return MissionExecutionDecision(
             status=MissionExecutionDecisionStatus.REJECTED,
@@ -200,12 +239,19 @@ class MissionExecutionCoordinator:
             connection_id=connection_id,
             route=authoritative_route,
             adapter_id=adapter_id,
+            **_skill_decision_fields(skill_binding),
             authority_envelope_ref=request.authority_envelope_ref,
             connection_profile_hash=connection_profile_hash,
             rejection_reason=reason,
             health_status=health_status,
             connection_finding_codes=finding_codes,
         ).with_hash()
+
+    def _skill_binding_for_request(self, request: MissionExecutionRequest) -> PowerSkillBackendBinding | None:
+        try:
+            return self._power_skill_registry.get(request.capability_id)
+        except KeyError:
+            return None
 
 
 def _bridge_id_for_route(route: RuntimeConnectionRoute) -> str | None:
@@ -216,6 +262,19 @@ def _bridge_id_for_route(route: RuntimeConnectionRoute) -> str | None:
     if route is RuntimeConnectionRoute.LOCAL_GOVERNED_SURFACE:
         return "mission_kernel"
     return None
+
+
+def _skill_decision_fields(binding: PowerSkillBackendBinding | None) -> dict[str, Any]:
+    if binding is None:
+        return {}
+    return {
+        "skill_id": binding.skill_id,
+        "model_visible_backend_id": binding.model_visible_backend_id,
+        "task_loop_reachable": binding.task_loop_reachable,
+        "product_reachable": binding.product_reachable,
+        "dispatch_enabled": binding.dispatch_enabled,
+        "skill_backend_lock_reason": binding.lock_reason or None,
+    }
 
 
 __all__ = [

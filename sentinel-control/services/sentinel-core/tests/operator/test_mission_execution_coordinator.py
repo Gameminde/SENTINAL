@@ -46,6 +46,28 @@ def test_coordinator_rejects_operation_not_declared_by_connection() -> None:
     assert decision.rejection_reason == "operation_not_supported"
 
 
+def test_coordinator_recognizes_known_skill_without_product_adapter() -> None:
+    coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
+
+    decision = coordinator.decide(
+        _request(
+            "mission_connection_skill_native_1",
+            capability_id="workspace_patch",
+            operation="apply_patch",
+        )
+    )
+
+    assert decision.status is MissionExecutionDecisionStatus.REJECTED
+    assert decision.rejection_reason == "skill_not_product_dispatchable"
+    assert decision.skill_id == "workspace_patch"
+    assert decision.model_visible_backend_id == "workspace_patch_skill"
+    assert decision.task_loop_reachable is True
+    assert decision.product_reachable is False
+    assert decision.dispatch_enabled is False
+    assert decision.adapter_id is None
+    assert decision.can_execute is False
+
+
 def test_coordinator_rejects_mutating_operation_not_declared_by_connection() -> None:
     coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
 
