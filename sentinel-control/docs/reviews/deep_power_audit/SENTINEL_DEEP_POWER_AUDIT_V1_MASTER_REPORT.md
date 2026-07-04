@@ -65,6 +65,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Real Power Attempt 5L Cloak relevance cleanup | Valid failed | `64477eb9bfbafa735fe422379a60a5cd23bfc012` | Proved Cloak selected/actual backend truth and replay no-react, but still failed on search materiality/relevance completion quality. This confirms the next work must be global power cleanup, not another narrow browser micro-fix |
 | Power Cleanup Pack 1 model-facing executable skill truth | Implemented candidate, not real-provider product-proven | `0bbe148` | Enforces that direct/legacy model decisions must be model-visible executable skills before executor dispatch; hidden/internal primitives and unknown actions become recoverable observations, locked high-risk skills hard-stop clearly, and legacy authority aliases map to real capabilities |
 | Power Cleanup Pack 2 recoverable observation loop progress | Implemented candidate, not real-provider product-proven | `34867bf` | Recoverable observations with live next actions or refreshed candidates now count as productive recovery in `LoopGuard`; empty recoveries still block, and hard stops remain unchanged |
+| Power Cleanup Pack 7 RuntimeHost safe skill product registration | Implemented candidate, local product-dispatch proof | `0535d6f` | Registers `workspace_patch.apply_patch` through `ProductActionKernelDispatchAdapter` in `RuntimeHost`; parameters are persisted as redacted/hash-verified data-only sidecars; explicit patch authority, workspace-bound target checks, ProductActionKernel receipts, workspace patch receipts, FinalGate, and replay no-react are covered by focused tests |
 
 ## Executive Verdict
 
@@ -185,7 +186,7 @@ Top zones:
 | Surface | Current problem |
 |---|---|
 | Real browser control | Multiple stacks, brittle refs, direct Playwright locator leakage |
-| Workspace patch | Powerful, but mostly harness-driven rather than product-dispatch native |
+| Workspace patch | First safe non-read-only product-dispatch skill wired through RuntimeHost; still single-file/hash-anchored/local-only |
 | Code execution sandbox | Powerful, but alias and context must be exact |
 | Channel send | Works, but product path depends on exact grant/transport wiring |
 | External API/browser payment/desktop/voice | Mostly gated, fake, injected, or high-risk non-product |
@@ -212,7 +213,7 @@ High-risk connection gaps:
 
 | Gap | Why it matters |
 |---|---|
-| Product dispatcher registers read-only by default | Patch/code/browser/channel are not equally product-native |
+| Product dispatcher used to register read-only by default | `workspace_patch.apply_patch` is now product-dispatchable through RuntimeHost; code/browser/channel are not equally product-native yet |
 | Action names and capability ids diverge | Model-visible actions can be non-executable |
 | Runtime miss becomes terminal block | In-scope web/runtime failures kill missions instead of recovering |
 | Browser refs leak Playwright fragility | Model pilots locators, not a browser skill |
