@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
+from sentinel.agent.organs.organ_spec_registry import OrganSpecRegistry, default_organ_spec_registry
 from sentinel.operator.actionability_registry import ActionabilityRegistry, build_default_actionability_registry
 from sentinel.operator.browser_backend_selector import BrowserBackendSelection, select_browser_backend
 from sentinel.operator.runtime_connections import RuntimeConnectionRegistry, build_default_runtime_connection_registry
@@ -22,6 +23,12 @@ class PowerSkillBackendBinding(SentinelModel):
     owner_module: str
     owner_symbol: str | None = None
     organ_refs: tuple[str, ...] = Field(default_factory=tuple)
+    organ_spec_refs: tuple[str, ...] = Field(default_factory=tuple)
+    organ_receipt_kinds: tuple[str, ...] = Field(default_factory=tuple)
+    organ_proof_requirements: tuple[str, ...] = Field(default_factory=tuple)
+    organ_replay_expectations: tuple[str, ...] = Field(default_factory=tuple)
+    organ_recoverable_failure_classes: tuple[str, ...] = Field(default_factory=tuple)
+    organ_hard_stop_categories: tuple[str, ...] = Field(default_factory=tuple)
     backend_candidates: tuple[str, ...] = Field(default_factory=tuple)
     product_reachable: bool = False
     task_loop_reachable: bool = False
@@ -136,91 +143,94 @@ def build_default_power_skill_registry(
     *,
     runtime_connection_registry: RuntimeConnectionRegistry | None = None,
     browser_backend_selection: BrowserBackendSelection | None = None,
+    organ_spec_registry: OrganSpecRegistry | None = None,
 ) -> PowerSkillRegistry:
     runtime_registry = runtime_connection_registry or build_default_runtime_connection_registry()
     browser_selection = browser_backend_selection or select_browser_backend()
+    organ_registry = organ_spec_registry or default_organ_spec_registry()
+    bindings = (
+        _sentinel_loop_binding(),
+        _read_only_binding(runtime_registry),
+        _local_binding(
+            skill_id="workspace_patch",
+            capability_id="workspace_patch",
+            model_visible_backend_id="workspace_patch_skill",
+            owner_module="sentinel.operator.workspace_patch_runtime",
+            owner_symbol="WorkspacePatchRuntime",
+            backend_candidates=("workspace_patch_runtime",),
+            proof_contract="WorkspacePatchReceipt",
+            replay_contract="ModelLedTaskLoopReplay workspace patch deltas",
+        ),
+        _local_binding(
+            skill_id="code_execution_sandbox",
+            capability_id="code_execution_sandbox",
+            model_visible_backend_id="code_execution_skill",
+            owner_module="sentinel.operator.code_execution_sandbox_runtime",
+            owner_symbol="CodeExecutionSandboxRuntime",
+            backend_candidates=("code_execution_sandbox_runtime",),
+            proof_contract="CodeExecutionSandboxReceipt",
+            replay_contract="ModelLedTaskLoopReplay code execution deltas",
+        ),
+        _local_binding(
+            skill_id="bounded_channel",
+            capability_id="bounded_channel",
+            model_visible_backend_id="bounded_channel_skill",
+            owner_module="sentinel.operator.connection_live_channel_action_runtime",
+            owner_symbol="BoundedChannelActionRuntime",
+            backend_candidates=("local_channel_transport", "webhook_channel_transport", "telegram_channel_transport"),
+            proof_contract="ChannelDeliveryReceipt",
+            replay_contract="ConnectionLiveChannelReplayView no-resend deltas",
+        ),
+        _local_binding(
+            skill_id="browser_control",
+            capability_id="browser_control",
+            model_visible_backend_id="browser_fixture_skill",
+            owner_module="sentinel.operator.browser_control_runtime",
+            owner_symbol="BrowserControlRuntime",
+            backend_candidates=("in_memory_browser_fixture",),
+            proof_contract="BrowserActionReceipt",
+            replay_contract="BrowserControlReplayView no-reclick deltas",
+        ),
+        _real_browser_binding(browser_selection),
+        _locked_binding(
+            skill_id="external_api",
+            capability_id="external_api",
+            owner_module="sentinel.operator.connection_manifest_registry",
+            lock_reason="external API skills require a future explicit runtime adapter and credential lease",
+        ),
+        _locked_binding(
+            skill_id="desktop_control",
+            capability_id="desktop_control",
+            owner_module="sentinel.operator.connection_manifest_registry",
+            lock_reason="desktop control remains locked until a bounded desktop runtime is product-proven",
+        ),
+        _locked_binding(
+            skill_id="voice_runtime",
+            capability_id="voice_runtime",
+            owner_module="sentinel.operator.connection_manifest_registry",
+            lock_reason="voice runtime remains locked until a bounded voice transport is product-proven",
+        ),
+        _locked_binding(
+            skill_id="account_authority",
+            capability_id="account_authority",
+            owner_module="sentinel.operator.connection_identity_registry",
+            lock_reason="account authority cannot be granted by model-visible actions",
+        ),
+        _locked_binding(
+            skill_id="financial_authority",
+            capability_id="financial_authority",
+            owner_module="sentinel.operator.connection_identity_registry",
+            lock_reason="financial authority requires special explicit grants and is not dispatchable",
+        ),
+        _locked_binding(
+            skill_id="payment_authority",
+            capability_id="payment_authority",
+            owner_module="sentinel.operator.connection_identity_registry",
+            lock_reason="payment and checkout remain hard-stopped",
+        ),
+    )
     return PowerSkillRegistry(
-        bindings=(
-            _sentinel_loop_binding(),
-            _read_only_binding(runtime_registry),
-            _local_binding(
-                skill_id="workspace_patch",
-                capability_id="workspace_patch",
-                model_visible_backend_id="workspace_patch_skill",
-                owner_module="sentinel.operator.workspace_patch_runtime",
-                owner_symbol="WorkspacePatchRuntime",
-                backend_candidates=("workspace_patch_runtime",),
-                proof_contract="WorkspacePatchReceipt",
-                replay_contract="ModelLedTaskLoopReplay workspace patch deltas",
-            ),
-            _local_binding(
-                skill_id="code_execution_sandbox",
-                capability_id="code_execution_sandbox",
-                model_visible_backend_id="code_execution_skill",
-                owner_module="sentinel.operator.code_execution_sandbox_runtime",
-                owner_symbol="CodeExecutionSandboxRuntime",
-                backend_candidates=("code_execution_sandbox_runtime",),
-                proof_contract="CodeExecutionSandboxReceipt",
-                replay_contract="ModelLedTaskLoopReplay code execution deltas",
-            ),
-            _local_binding(
-                skill_id="bounded_channel",
-                capability_id="bounded_channel",
-                model_visible_backend_id="bounded_channel_skill",
-                owner_module="sentinel.operator.connection_live_channel_action_runtime",
-                owner_symbol="BoundedChannelActionRuntime",
-                backend_candidates=("local_channel_transport", "webhook_channel_transport", "telegram_channel_transport"),
-                proof_contract="ChannelDeliveryReceipt",
-                replay_contract="ConnectionLiveChannelReplayView no-resend deltas",
-            ),
-            _local_binding(
-                skill_id="browser_control",
-                capability_id="browser_control",
-                model_visible_backend_id="browser_fixture_skill",
-                owner_module="sentinel.operator.browser_control_runtime",
-                owner_symbol="BrowserControlRuntime",
-                backend_candidates=("in_memory_browser_fixture",),
-                proof_contract="BrowserActionReceipt",
-                replay_contract="BrowserControlReplayView no-reclick deltas",
-            ),
-            _real_browser_binding(browser_selection),
-            _locked_binding(
-                skill_id="external_api",
-                capability_id="external_api",
-                owner_module="sentinel.operator.connection_manifest_registry",
-                lock_reason="external API skills require a future explicit runtime adapter and credential lease",
-            ),
-            _locked_binding(
-                skill_id="desktop_control",
-                capability_id="desktop_control",
-                owner_module="sentinel.operator.connection_manifest_registry",
-                lock_reason="desktop control remains locked until a bounded desktop runtime is product-proven",
-            ),
-            _locked_binding(
-                skill_id="voice_runtime",
-                capability_id="voice_runtime",
-                owner_module="sentinel.operator.connection_manifest_registry",
-                lock_reason="voice runtime remains locked until a bounded voice transport is product-proven",
-            ),
-            _locked_binding(
-                skill_id="account_authority",
-                capability_id="account_authority",
-                owner_module="sentinel.operator.connection_identity_registry",
-                lock_reason="account authority cannot be granted by model-visible actions",
-            ),
-            _locked_binding(
-                skill_id="financial_authority",
-                capability_id="financial_authority",
-                owner_module="sentinel.operator.connection_identity_registry",
-                lock_reason="financial authority requires special explicit grants and is not dispatchable",
-            ),
-            _locked_binding(
-                skill_id="payment_authority",
-                capability_id="payment_authority",
-                owner_module="sentinel.operator.connection_identity_registry",
-                lock_reason="payment and checkout remain hard-stopped",
-            ),
-        )
+        bindings=tuple(_with_organ_metadata(binding, organ_registry=organ_registry) for binding in bindings)
     )
 
 
@@ -330,6 +340,57 @@ def _skill_id_for_action(actionability: ActionabilityRegistry, canonical_action_
         if canonical_action_name in descriptor.action_names():
             return descriptor.skill_id
     return None
+
+
+def _with_organ_metadata(
+    binding: PowerSkillBackendBinding,
+    *,
+    organ_registry: OrganSpecRegistry,
+) -> PowerSkillBackendBinding:
+    specs = [
+        spec
+        for spec in organ_registry.list_specs()
+        if spec.skill_binding in _organ_skill_bindings(binding.skill_id)
+    ]
+    if not specs:
+        return binding
+
+    return binding.model_copy(
+        update={
+            "organ_spec_refs": _dedupe(spec.organ_id for spec in specs),
+            "organ_receipt_kinds": _dedupe(spec.receipt_kind for spec in specs),
+            "organ_proof_requirements": _dedupe(
+                requirement
+                for spec in specs
+                for requirement in spec.proof_requirements
+            ),
+            "organ_replay_expectations": _dedupe(
+                expectation
+                for spec in specs
+                for expectation in spec.replay_expectations
+            ),
+            "organ_recoverable_failure_classes": _dedupe(
+                failure_class
+                for spec in specs
+                for failure_class in spec.recoverable_failure_classes
+            ),
+            "organ_hard_stop_categories": _dedupe(
+                category
+                for spec in specs
+                for category in spec.hard_stop_categories
+            ),
+        }
+    )
+
+
+def _organ_skill_bindings(skill_id: str) -> tuple[str, ...]:
+    if skill_id == "real_browser_control":
+        return ("browser_control",)
+    return (skill_id,)
+
+
+def _dedupe(values: Any) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(str(value) for value in values if str(value)))
 
 
 __all__ = [

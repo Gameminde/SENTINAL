@@ -141,3 +141,42 @@ def test_pack_c_decision_context_exposes_safe_power_skill_backend_frame() -> Non
     assert all(item["can_execute"] is False for item in backend_frame["skill_backends"])
     assert "raw_provider" not in str(backend_frame).lower()
     assert "authorization" not in str(backend_frame).lower()
+
+
+def test_pack3_backend_frame_consumes_organ_spec_metadata_for_browser_skill() -> None:
+    authority = MissionAuthorityEnvelope(
+        user_id="user_pack3",
+        mission_title="Organ spec backend truth",
+        mission_objective="Expose browser backend truth from organ specs.",
+        allowed_actions=("real_browser_control.real_browser.search",),
+        allowed_tools=("real_browser_control",),
+        allowed_domains=(),
+        allowed_paths=(),
+        max_actions=3,
+        max_recipients=1,
+    )
+
+    context = DecisionContextCompiler().compile(
+        mission_id="mission_pack3",
+        mission_objective="Expose browser backend truth from organ specs.",
+        authority=authority,
+        observations=[],
+        available_actions=("real_browser_control.real_browser.search",),
+        model_calls_used=0,
+        material_actions_used=0,
+        max_model_calls=3,
+        max_material_actions=3,
+    )
+
+    browser_backend = {
+        item["skill_id"]: item
+        for item in context["power_skill_backend_frame"]["skill_backends"]
+    }["real_browser_control"]
+
+    assert "browser_session_manager" in browser_backend["organ_spec_refs"]
+    assert "browser_semantic_extraction" in browser_backend["organ_spec_refs"]
+    assert "browser_session_receipt" in browser_backend["organ_receipt_kinds"]
+    assert "locator_timeout" in browser_backend["organ_recoverable_failure_classes"]
+    assert "payment" in browser_backend["organ_hard_stop_categories"]
+    assert browser_backend["dispatch_enabled"] is False
+    assert browser_backend["can_execute"] is False
