@@ -296,6 +296,18 @@ def build_default_actionability_registry() -> ActionabilityRegistry:
                 recovery_policy="recover_destination_or_message_context",
             ),
             PowerSkillDescriptor(
+                skill_id="worker_fleet",
+                capability_id="worker_fleet",
+                model_visible_actions=("worker_fleet.spawn_worker",),
+                aliases={
+                    "spawn_worker": "worker_fleet.spawn_worker",
+                    "delegate": "worker_fleet.spawn_worker",
+                    "delegate_worker": "worker_fleet.spawn_worker",
+                },
+                proof_requirement="worker_spawn_receipt_and_child_authority_subset",
+                recovery_policy="recover_worker_role_scope_or_budget_context",
+            ),
+            PowerSkillDescriptor(
                 skill_id="browser_control",
                 capability_id="browser_control",
                 model_visible_actions=(

@@ -36,6 +36,7 @@ _ACTION_TO_MODEL_SKILL = {
     "real_browser_control.real_browser.verify_extraction": "extract",
     "real_browser_control.real_browser.extract_text": "extract",
     "real_browser_control.real_browser.assert_text": "extract",
+    "worker_fleet.spawn_worker": "spawn_worker",
     "sentinel_loop.summarize_evidence": "finish",
     "sentinel_loop.finish": "finish",
 }

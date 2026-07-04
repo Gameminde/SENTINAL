@@ -64,7 +64,15 @@ def test_runtimehost_entrypoint_exposes_simple_skills_as_primary_surface(tmp_pat
 
     assert frame["primary_model_surface"] == "model_visible_skills"
     assert frame["primary_model_language"] == "simple_mission_skills"
-    assert frame["model_visible_skills"] == ["patch", "run_check", "browse_search", "extract", "send_message", "finish"]
+    assert frame["model_visible_skills"] == [
+        "patch",
+        "run_check",
+        "browse_search",
+        "extract",
+        "send_message",
+        "spawn_worker",
+        "finish",
+    ]
     assert frame["action_envelope_language"] == "internal_runtime_only"
     assert frame["runtime_internal_action_map"]["send_message"] == "bounded_channel.send_message"
     assert frame["runtime_internal_action_map"]["browse_search"] == "real_browser_control.real_browser.search"
@@ -78,6 +86,7 @@ def test_runtimehost_entrypoint_exposes_simple_skills_as_primary_surface(tmp_pat
         "real_browser_control.real_browser.open_result",
         "real_browser_control.real_browser.extract_product_cards",
         "real_browser_control.real_browser.verify_extraction",
+        "worker_fleet.spawn_worker",
         "sentinel_loop.finish",
     ]
 
@@ -114,7 +123,14 @@ def test_product_task_loop_context_keeps_action_envelope_internal(tmp_path: Path
     first_context = client.contexts[0]
 
     assert first_context["primary_model_surface"] == "model_visible_skills"
-    assert first_context["model_visible_skills"] == ["patch", "run_check", "browse_search", "extract", "send_message"]
+    assert first_context["model_visible_skills"] == [
+        "patch",
+        "run_check",
+        "browse_search",
+        "extract",
+        "send_message",
+        "spawn_worker",
+    ]
     assert "code_execution_sandbox.code_exec.run_profile" not in first_context["model_visible_skills"]
     assert first_context["skill_decision_frame"]["model_skill_surface"]["recommended_next_skills"][0] == "patch"
     assert first_context["runtime_internal_action_map"]["run_check"] == "code_execution_sandbox.code_exec.run_profile"

@@ -31,6 +31,7 @@ def test_runtimehost_exposes_product_task_loop_entrypoint(tmp_path: Path) -> Non
         "real_browser_control.real_browser.open_result",
         "real_browser_control.real_browser.extract_product_cards",
         "real_browser_control.real_browser.verify_extraction",
+        "worker_fleet.spawn_worker",
         "sentinel_loop.finish",
     ]
     assert "real_browser_control.real_browser.type_text" not in frame["model_visible_available_actions"]

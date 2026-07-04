@@ -237,6 +237,7 @@ class ModelLedProductActionKernelTaskLoop:
             "real_browser_control.real_browser.open_result",
             "real_browser_control.real_browser.extract_product_cards",
             "real_browser_control.real_browser.verify_extraction",
+            "worker_fleet.spawn_worker",
         ]
         if self.product_receipt_refs:
             actions.append("sentinel_loop.finish")
@@ -418,6 +419,8 @@ def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str
     operation = decision.operation
     if capability == "real_browser_control":
         return ["real_browser_control"], [f"{capability}.{operation}", operation]
+    if capability == "worker_fleet":
+        return ["worker_fleet"], ["worker_fleet.spawn_worker", "spawn_worker"]
     if capability == "code_execution_sandbox":
         return ["code_execution_sandbox"], ["code_execution_sandbox.code_exec.run_profile", "code_exec.run_profile"]
     if capability == "bounded_channel":

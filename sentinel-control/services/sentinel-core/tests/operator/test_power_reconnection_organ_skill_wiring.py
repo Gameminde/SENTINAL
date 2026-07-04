@@ -74,6 +74,7 @@ def test_pack_c_runtime_host_product_adapters_expose_safe_workspace_patch(tmp_pa
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
             "real_browser_control.real_browser.search",
+            "worker_fleet.spawn_worker",
             "external_api.call",
         ),
         granted_capabilities=(
@@ -82,6 +83,7 @@ def test_pack_c_runtime_host_product_adapters_expose_safe_workspace_patch(tmp_pa
             "code_execution_sandbox",
             "bounded_channel",
             "real_browser_control",
+            "worker_fleet",
             "external_api",
         ),
     )
@@ -93,7 +95,9 @@ def test_pack_c_runtime_host_product_adapters_expose_safe_workspace_patch(tmp_pa
     assert by_skill["workspace_patch"]["product_reachable"] is True
     assert by_skill["workspace_patch"]["adapter_id"] == "product_action_kernel_adapter"
     assert by_skill["workspace_patch"]["task_loop_reachable"] is True
-    assert by_skill["real_browser_control"]["product_reachable"] is False
+    assert by_skill["real_browser_control"]["product_reachable"] is True
+    assert by_skill["worker_fleet"]["product_reachable"] is True
+    assert by_skill["worker_fleet"]["adapter_id"] == "product_action_kernel_adapter"
     assert by_skill["external_api"]["locked"] is True
     assert by_skill["external_api"]["dispatch_enabled"] is False
 

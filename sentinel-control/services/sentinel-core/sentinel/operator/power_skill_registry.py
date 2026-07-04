@@ -174,6 +174,17 @@ def build_default_power_skill_registry(
             proof_contract="ChannelDeliveryReceipt",
             replay_contract="ConnectionLiveChannelReplayView no-resend deltas",
         ),
+        _runtime_or_local_binding(
+            runtime_registry,
+            skill_id="worker_fleet",
+            capability_id="worker_fleet",
+            model_visible_backend_id="worker_fleet_skill",
+            owner_module="sentinel.operator.worker_orchestration_runtime",
+            owner_symbol="WorkerOrchestrationRuntime",
+            backend_candidates=("worker_fleet_runtime", "local_worker_fleet_runtime"),
+            proof_contract="WorkerOrchestrationReceipt",
+            replay_contract="ProductActionKernelTaskLoopReplay no-respawn/no-reexecute",
+        ),
         _local_binding(
             skill_id="browser_control",
             capability_id="browser_control",

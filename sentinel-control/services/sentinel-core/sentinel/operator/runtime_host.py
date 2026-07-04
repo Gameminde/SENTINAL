@@ -47,6 +47,10 @@ from sentinel.operator.unified_execution_dispatcher import (
     UnifiedExecutionDispatcher,
 )
 from sentinel.operator.workspace_patch_runtime import SENSITIVE_WORKSPACE_PATCH_NAMES, WorkspacePatchRuntime
+from sentinel.operator.worker_orchestration_runtime import (
+    WorkerOrchestrationRuntime,
+    worker_orchestration_preflight,
+)
 from sentinel.operator.workflow_runtime import DurableMissionWorkflowRuntime
 from sentinel.shared.models import SentinelModel
 
@@ -191,6 +195,16 @@ class SentinelRuntimeHost:
                             organ_id="browser_l5_l6_backend",
                             preflight_validator=_real_browser_preflight,
                         ),
+                        ProductActionKernelRoute(
+                            capability_id="worker_fleet",
+                            operation="spawn_worker",
+                            executor=_default_worker_fleet_executor,
+                            product_dispatchable_skill_ids=("worker_fleet",),
+                            backend_id="worker_fleet_skill",
+                            simple_skill_id="spawn_worker",
+                            organ_id="worker_fleet_backend",
+                            preflight_validator=_worker_fleet_preflight,
+                        ),
                     ),
                 ),
             }
@@ -237,6 +251,7 @@ class SentinelRuntimeHost:
             "real_browser_control.real_browser.open_result",
             "real_browser_control.real_browser.extract_product_cards",
             "real_browser_control.real_browser.verify_extraction",
+            "worker_fleet.spawn_worker",
             "sentinel_loop.finish",
         ]
         model_skill_surface = compile_model_skill_surface(
@@ -261,6 +276,7 @@ class SentinelRuntimeHost:
                 "browser_l5_l6_backend",
                 "cloak_session_backend",
                 "playwright_compatibility_backend",
+                "worker_fleet_backend",
             ],
             "internal_or_out_of_scope_actions": [
                 "real_browser_control.real_browser.type_text",
@@ -487,6 +503,20 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
     return runtime.execute(envelope, authority=_real_browser_authority(authority), context=runtime_context)
 
 
+def _default_worker_fleet_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    authority = context.get("authority")
+    kernel = context.get("kernel")
+    if not isinstance(authority, MissionAuthorityEnvelope) or not isinstance(kernel, MissionKernel):
+        raise RuntimeError("worker_fleet_runtime_context_missing")
+    runtime = WorkerOrchestrationRuntime(
+        kernel=kernel,
+        mission_id=str(context.get("mission_id") or ""),
+        workspace_root=_workspace_path_from_ref(str(context.get("workspace_ref") or "")),
+        product_context=context,
+    )
+    return runtime.execute(envelope, authority=authority, context=context)
+
+
 def _real_browser_preflight(
     params: dict[str, Any],
     _request: MissionExecutionRequest,
@@ -496,6 +526,14 @@ def _real_browser_preflight(
         if params.get("explicit_compatibility_selection") is not True:
             return "real_browser_playwright_compatibility_requires_explicit_selection"
     return None
+
+
+def _worker_fleet_preflight(
+    params: dict[str, Any],
+    _request: MissionExecutionRequest,
+    _authority: MissionAuthorityEnvelope,
+) -> str | None:
+    return worker_orchestration_preflight(params)
 
 
 def _workspace_patch_apply_preflight(
