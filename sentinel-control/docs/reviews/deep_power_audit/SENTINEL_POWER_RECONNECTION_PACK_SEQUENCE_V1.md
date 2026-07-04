@@ -690,6 +690,7 @@ The blocker cuts exposed a deeper cleanup lane that must keep Sentinel power-fir
 | `POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1` | implemented | `c6d0f0a` | backend frames now include organ spec proof, receipt, replay, recovery, and hard-stop metadata |
 | `POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1` | implemented | `7f7ac92` | read-only remains receipted evidence, but stops being the model-facing center of gravity |
 | `POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1` | implemented | `ad9a9d3` | coordinator rejects known non-product skills as skill_not_product_dispatchable instead of unknown_capability_connection |
+| `POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1` | implemented | `4d8cdb0` | bounded product adapter executes explicit ActionKernel skills with generic product receipts and proof verification |
 
 Pack 3 keeps the registry data-only:
 
@@ -702,13 +703,13 @@ can_grant_authority = false
 Next:
 
 ```text
-POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
+POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1
 ```
 
-Definition of done for Pack 6:
+Definition of done for Pack 7:
 
 ```text
-one bounded product adapter can execute safe ActionKernel skill missions,
-using the same skill/actionability/backend truth,
-while high-risk browser/payment/contact/credential surfaces remain locked.
+RuntimeHost registers one safe non-read-only product skill through ProductActionKernelDispatchAdapter,
+the route executes under explicit authority with receipts/replay proof,
+and high-risk browser/payment/contact/credential surfaces remain locked.
 ```

@@ -940,17 +940,17 @@ Each pack must preserve the listed hard stops and update the matrix/control docs
 Immediate next implementation pack:
 
 ```text
-POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
+POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1
 ```
 
 First targets:
 
 ```text
-visible product cards must route to extract_product_cards
-safe ambiguous browser intent must not repeat open/search
-no-safe-recommendation becomes recoverable observation
-raw browser primitives move below model-facing schema
-FinalGate waits until recovery options are exhausted or a real hard boundary is hit
+register one safe non-read-only skill through ProductActionKernelDispatchAdapter
+prove RuntimeHost can route that skill without read_only_research_adapter gravity
+preserve authority compatibility checks before ActionKernel execution
+verify generic product receipt/finalgate proof through UnifiedExecutionDispatcher
+keep high-risk browser/payment/contact/credential surfaces non-dispatchable
 ```
 
 ## Living Update: Power Cleanup Packs 1-3
@@ -964,6 +964,7 @@ The global reconnection plan now tracks the cleanup sequence that follows the bl
 | `POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1` | implemented | `c6d0f0a` | power skill backend frame now consumes organ spec receipt/proof/replay/recovery/hard-stop metadata |
 | `POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1` | implemented | `7f7ac92` | read-only is model-facing supporting evidence, not the central product path |
 | `POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1` | implemented | `ad9a9d3` | coordinator now distinguishes known non-product skills from unknown capabilities |
+| `POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1` | implemented | `4d8cdb0` | bounded product dispatch can now execute explicit ActionKernel skills with generic receipt/finalgate proof |
 
 Pack 3 is not a new power surface. It makes the existing power map more truthful:
 
@@ -971,16 +972,25 @@ Pack 3 is not a new power surface. It makes the existing power map more truthful
 skill -> backend -> organ specs -> receipts/proof/replay/recovery/hard stops
 ```
 
+Pack 6 is still not a blanket power unlock:
+
+```text
+adapter is injectable
+default RuntimeHost registration is unchanged
+high-risk browser/payment/contact/credential surfaces remain locked
+recoverable executor misses block honestly with receipt evidence but no accepted fake FinalGate
+```
+
 The next cleanup target is:
 
 ```text
-POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1
+POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1
 ```
 
 Reason:
 
 ```text
-product dispatch now records skill-native truth,
-but only read_only_research_adapter can actually execute as a product adapter.
-The next cut should add a bounded ActionKernel adapter for safe model-led skills without opening high-risk surfaces.
+product dispatch now has a bounded generic ActionKernel adapter,
+but RuntimeHost has not yet registered a first non-read-only safe skill through it.
+The next cut should prove a safe skill can become product-reachable without opening high-risk surfaces.
 ```
