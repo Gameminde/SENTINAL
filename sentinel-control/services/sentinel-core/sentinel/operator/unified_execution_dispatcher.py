@@ -561,6 +561,7 @@ class ProductActionKernelDispatchAdapter:
                     "adapter_id": self.adapter_id,
                     "backend_id": route.backend_id,
                     "organ_id": route.organ_id,
+                    "simple_skill_id": route.simple_skill_id or "",
                     "authority": authority,
                     "kernel": context.kernel,
                 },
@@ -653,7 +654,7 @@ class ProductActionKernelDispatchAdapter:
             decision_id=decision.decision_id,
             dispatch_id=dispatch_id,
             action_id=action_result.action_id,
-            skill_id=decision.skill_id or request.capability_id,
+            skill_id=route.simple_skill_id or decision.skill_id or request.capability_id,
             capability_id=request.capability_id,
             operation=request.operation,
             backend_id=decision.model_visible_backend_id or route.backend_id,
@@ -705,6 +706,7 @@ class ProductActionKernelRoute:
     executor: ActionExecutor
     product_dispatchable_skill_ids: tuple[str, ...]
     backend_id: str
+    simple_skill_id: str | None = None
     organ_id: str | None = None
     parameter_resolver: Callable[
         [MissionExecutionRequest, MissionExecutionDecision, MissionAuthorityEnvelope, UnifiedExecutionDispatchContext],

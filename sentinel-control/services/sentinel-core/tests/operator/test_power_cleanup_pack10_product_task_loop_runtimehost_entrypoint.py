@@ -26,9 +26,15 @@ def test_runtimehost_exposes_product_task_loop_entrypoint(tmp_path: Path) -> Non
         "workspace_patch.apply_patch",
         "code_execution_sandbox.code_exec.run_profile",
         "bounded_channel.send_message",
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.inspect_result",
+        "real_browser_control.real_browser.open_result",
+        "real_browser_control.real_browser.extract_product_cards",
+        "real_browser_control.real_browser.verify_extraction",
         "sentinel_loop.finish",
     ]
-    assert "real_browser_control.real_browser.search" not in frame["model_visible_available_actions"]
+    assert "real_browser_control.real_browser.type_text" not in frame["model_visible_available_actions"]
+    assert "real_browser_control.real_browser.click" not in frame["model_visible_available_actions"]
     assert "payment_authority.spend" not in frame["model_visible_available_actions"]
     assert "provider_native_tools" in frame["hard_boundaries"]
     assert frame["data_not_authority"] is True
@@ -184,23 +190,32 @@ def test_real_channel_transport_blocked_without_explicit_grant(tmp_path: Path) -
     assert result.product_receipt_refs == ()
 
 
-def test_browser_live_skill_not_enabled_in_pack10_entrypoint(tmp_path: Path) -> None:
+def test_browser_live_skill_routes_through_product_entrypoint_after_pack4(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
     frame = host.product_task_loop_entrypoint_frame()
 
     result = host.run_product_action_kernel_task_loop(
         workspace_root=workspace,
-        session_id="session_pack10_browser_block",
-        mission_objective="Browser live power must remain outside Pack 10.",
+        session_id="session_pack10_browser_product",
+        mission_objective="Browser high-level power routes through the product entrypoint.",
         decision_client=ProductActionKernelLoopDecisionClient(
-            [ActionEnvelope(capability_id="real_browser_control", operation="real_browser.search", params={"query": "x"})]
+            [
+                ActionEnvelope(capability_id="real_browser_control", operation="real_browser.search", params={"query": "x"}),
+                ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "Browser product route completed."}),
+            ]
         ),
+        max_model_calls=3,
+        max_material_actions=1,
     )
 
-    assert "real_browser_control.real_browser.search" not in frame["model_visible_available_actions"]
-    assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
-    assert result.blocked_reason == "skill_not_product_dispatchable"
+    assert "real_browser_control.real_browser.search" in frame["model_visible_available_actions"]
+    assert "real_browser_control.real_browser.type_text" not in frame["model_visible_available_actions"]
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "sentinel_loop:finish",
+    )
 
 
 def test_known_non_product_skill_returns_skill_not_product_dispatchable(tmp_path: Path) -> None:

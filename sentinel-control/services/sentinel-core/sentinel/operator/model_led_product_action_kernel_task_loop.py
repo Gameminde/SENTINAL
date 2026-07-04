@@ -13,6 +13,7 @@ from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, Mi
 from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
 from sentinel.operator.redaction import sanitize_operator_refs
+from sentinel.operator.real_browser_control_runtime import BOUNDED_URL_AUTHORITY_REF
 from sentinel.operator.runtime_host import SentinelRuntimeHost
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.operator.store import MissionRunStore
@@ -231,6 +232,11 @@ class ModelLedProductActionKernelTaskLoop:
             "workspace_patch.apply_patch",
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_product_cards",
+            "real_browser_control.real_browser.verify_extraction",
         ]
         if self.product_receipt_refs:
             actions.append("sentinel_loop.finish")
@@ -273,7 +279,7 @@ class ModelLedProductActionKernelTaskLoop:
                 allowed_actions=actions,
                 forbidden_actions=["payment", "credential_access", "contact_supplier", "browser_login"],
                 allowed_paths=[str(self.workspace_root)],
-                allowed_domains=list(self.allowed_domains),
+                allowed_domains=_allowed_domains_for_action(decision, self.allowed_domains),
                 max_duration_minutes=5,
                 max_actions=1,
                 max_recipients=1,
@@ -286,7 +292,7 @@ class ModelLedProductActionKernelTaskLoop:
                 allowed_actions=actions,
                 forbidden_actions=["payment", "credential_access", "contact_supplier", "browser_login"],
                 allowed_paths=[str(self.workspace_root)],
-                allowed_domains=list(self.allowed_domains),
+                allowed_domains=_allowed_domains_for_action(decision, self.allowed_domains),
                 max_duration_minutes=5,
                 max_actions=1,
                 max_recipients=1,
@@ -410,6 +416,8 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
 def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str]]:
     capability = decision.capability_id
     operation = decision.operation
+    if capability == "real_browser_control":
+        return ["real_browser_control"], [f"{capability}.{operation}", operation]
     if capability == "code_execution_sandbox":
         return ["code_execution_sandbox"], ["code_execution_sandbox.code_exec.run_profile", "code_exec.run_profile"]
     if capability == "bounded_channel":
@@ -417,6 +425,13 @@ def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str
     if capability == "workspace_patch":
         return ["workspace_patch"], [f"{capability}.{operation}", operation]
     return [capability], [f"{capability}.{operation}", operation]
+
+
+def _allowed_domains_for_action(decision: ActionEnvelope, allowed_domains: tuple[str, ...]) -> list[str]:
+    domains = list(allowed_domains)
+    if decision.capability_id == "real_browser_control":
+        domains.append(BOUNDED_URL_AUTHORITY_REF)
+    return list(dict.fromkeys(domains))
 
 
 def _entrypoint_hard_boundary_reason(decision: ActionEnvelope) -> str | None:

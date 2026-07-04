@@ -27,6 +27,7 @@ from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompile
 from sentinel.operator.browser_backend_selector import BrowserBackendSelection, select_browser_backend
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.model_skill_surface import model_skill_for_action
 from sentinel.operator.real_browser_control_models import (
     RealBrowserActionReceipt,
     RealBrowserAssertionReceipt,
@@ -609,12 +610,14 @@ class RealBrowserControlRuntime:
         session_ref: str = DEFAULT_SESSION_REF,
         browser_backend_selection: BrowserBackendSelection | None = None,
         selected_backend_id: str | None = None,
+        product_context: dict[str, Any] | None = None,
     ) -> None:
         self.kernel = kernel
         self.mission_id = mission_id
         self.engine = engine
         self.bounded_url_ref = bounded_url_ref
         self.session_ref = session_ref
+        self.product_context = dict(product_context or {})
         self.actual_backend_id = _engine_backend_id(engine)
         if browser_backend_selection is None and self.actual_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID:
             browser_backend_selection = select_browser_backend()
@@ -926,7 +929,7 @@ class RealBrowserControlRuntime:
             after_state_hash=snapshot.state_hash,
             status="completed",
             summary=f"real browser product extraction completed card_count={card_count} text_hash={text_hash(text)}.",
-            material_action=False,
+            material_action=True,
             context_cards=context_cards,
         )
 
@@ -1154,17 +1157,30 @@ class RealBrowserControlRuntime:
         material_action: bool = True,
         context_cards: dict[str, Any] | None = None,
     ) -> ActionResult:
+        product_context = dict(self.product_context)
+        workspace_context = _browser_product_workspace_context(product_context)
+        internal_action_id = f"{envelope.capability_id}.{envelope.operation}"
         receipt = RealBrowserActionReceipt(
             mission_id=self.mission_id,
             browser_session_ref=self.session_ref,
+            browser_session_handle_ref=workspace_context["browser_session_handle_ref"],
+            browser_session_handle_hash=workspace_context["browser_session_handle_hash"],
+            mission_workspace_ref=workspace_context["mission_workspace_ref"],
+            mission_workspace_hash=workspace_context["mission_workspace_hash"],
             bounded_url_ref=self.bounded_url_ref,
             safe_url_origin_hash=self.engine.safe_url_origin_hash,
             selected_backend_id=self.selected_backend_id,
             actual_backend_id=self.actual_backend_id,
             session_backend_kind=_engine_session_backend_kind(self.engine),
+            backend_mismatch=self.selected_backend_id != self.actual_backend_id,
+            simple_skill=model_skill_for_action(internal_action_id) or "",
+            internal_action_id=internal_action_id,
+            product_dispatch_owner=str(product_context.get("adapter_id") or ""),
             stable_element_ref=element_ref,
             action_kind=action_kind,
             status=status,
+            recovery_classification="none" if status in {"completed", "passed", "success"} else "recoverable",
+            replay_behavior="no_reexecute_on_replay",
             before_state_hash=before_state_hash,
             after_state_hash=after_state_hash,
             bounded_observation_summary_hash=stable_hash(
@@ -2470,6 +2486,35 @@ def _authority_available_actions(authority: MissionAuthorityEnvelope) -> tuple[s
         else:
             actions.append(action)
     return tuple(dict.fromkeys(actions))
+
+
+def _browser_product_workspace_context(context: dict[str, Any]) -> dict[str, str]:
+    manifest = context.get("mission_workspace_manifest")
+    if not isinstance(manifest, dict):
+        return {
+            "mission_workspace_ref": "",
+            "mission_workspace_hash": "",
+            "browser_session_handle_ref": "",
+            "browser_session_handle_hash": "",
+        }
+    browser_handle = _browser_session_handle_from_manifest(manifest)
+    browser_session_ref = str(browser_handle.get("safe_ref") or "") if browser_handle else ""
+    return {
+        "mission_workspace_ref": str(manifest.get("manifest_id") or ""),
+        "mission_workspace_hash": str(manifest.get("manifest_hash") or ""),
+        "browser_session_handle_ref": browser_session_ref,
+        "browser_session_handle_hash": stable_hash(browser_handle) if browser_handle else "",
+    }
+
+
+def _browser_session_handle_from_manifest(manifest: dict[str, Any]) -> dict[str, Any] | None:
+    handles = manifest.get("handles")
+    if not isinstance(handles, list):
+        return None
+    for handle in handles:
+        if isinstance(handle, dict) and handle.get("kind") == "browser_session":
+            return handle
+    return None
 
 
 def _nth_selector(role: str, index: int) -> str:

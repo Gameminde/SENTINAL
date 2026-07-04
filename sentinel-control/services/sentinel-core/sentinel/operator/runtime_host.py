@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from pydantic import Field
 
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.agent.organs.channel_draft_send_organ_v1 import ChannelSendTransportReceipt
 from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
@@ -30,6 +31,13 @@ from sentinel.operator.mission_workspace_runtime import MissionWorkspaceRuntime,
 from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.read_only_operator_spine import ReadOnlyActionKind, ReadOnlyDecision, ReadOnlyDecisionClient, ReadOnlyReportClient
+from sentinel.operator.real_browser_control_runtime import (
+    BOUNDED_URL_AUTHORITY_REF,
+    CLOAK_BROWSER_BACKEND_ID,
+    RealBrowserControlRuntime,
+    RealBrowserEngineElement,
+    RealBrowserEngineSnapshot,
+)
 from sentinel.operator.runtime_connections import RuntimeConnectionRegistry, build_default_runtime_connection_registry
 from sentinel.operator.unified_execution_dispatcher import (
     ProductActionKernelRoute,
@@ -133,6 +141,56 @@ class SentinelRuntimeHost:
                             organ_id="channel_draft_send",
                             preflight_validator=_bounded_channel_preflight,
                         ),
+                        ProductActionKernelRoute(
+                            capability_id="real_browser_control",
+                            operation="real_browser.search",
+                            executor=_default_real_browser_executor,
+                            product_dispatchable_skill_ids=("real_browser_control",),
+                            backend_id="browser_skill",
+                            simple_skill_id="browse_search",
+                            organ_id="browser_l5_l6_backend",
+                            preflight_validator=_real_browser_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="real_browser_control",
+                            operation="real_browser.extract_product_cards",
+                            executor=_default_real_browser_executor,
+                            product_dispatchable_skill_ids=("real_browser_control",),
+                            backend_id="browser_skill",
+                            simple_skill_id="extract",
+                            organ_id="browser_l5_l6_backend",
+                            preflight_validator=_real_browser_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="real_browser_control",
+                            operation="real_browser.verify_extraction",
+                            executor=_default_real_browser_executor,
+                            product_dispatchable_skill_ids=("real_browser_control",),
+                            backend_id="browser_skill",
+                            simple_skill_id="extract",
+                            organ_id="browser_l5_l6_backend",
+                            preflight_validator=_real_browser_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="real_browser_control",
+                            operation="real_browser.inspect_result",
+                            executor=_default_real_browser_executor,
+                            product_dispatchable_skill_ids=("real_browser_control",),
+                            backend_id="browser_skill",
+                            simple_skill_id="browse_search",
+                            organ_id="browser_l5_l6_backend",
+                            preflight_validator=_real_browser_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="real_browser_control",
+                            operation="real_browser.open_result",
+                            executor=_default_real_browser_executor,
+                            product_dispatchable_skill_ids=("real_browser_control",),
+                            backend_id="browser_skill",
+                            simple_skill_id="browse_search",
+                            organ_id="browser_l5_l6_backend",
+                            preflight_validator=_real_browser_preflight,
+                        ),
                     ),
                 ),
             }
@@ -174,6 +232,11 @@ class SentinelRuntimeHost:
             "workspace_patch.apply_patch",
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_product_cards",
+            "real_browser_control.real_browser.verify_extraction",
             "sentinel_loop.finish",
         ]
         model_skill_surface = compile_model_skill_surface(
@@ -194,8 +257,16 @@ class SentinelRuntimeHost:
             "primary_model_recommended_next_skill": model_skill_surface["primary_recommended_skill"],
             "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
             "model_visible_available_actions": model_visible_available_actions,
+            "hidden_backend_bindings": [
+                "browser_l5_l6_backend",
+                "cloak_session_backend",
+                "playwright_compatibility_backend",
+            ],
             "internal_or_out_of_scope_actions": [
-                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.type_text",
+                "real_browser_control.real_browser.click",
+                "real_browser_control.real_browser.select_option",
+                "real_browser_control.real_browser.press_key",
                 "browser_control.click",
                 "payment_authority.spend",
                 "credential_vault.read_secret",
@@ -390,6 +461,43 @@ def _default_bounded_channel_executor(envelope: ActionEnvelope, context: dict[st
     )
 
 
+def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    authority = context.get("authority")
+    kernel = context.get("kernel")
+    if not isinstance(authority, MissionAuthorityEnvelope) or not isinstance(kernel, MissionKernel):
+        raise RuntimeError("real_browser_runtime_context_missing")
+    mission_id = str(context.get("mission_id") or "")
+    workspace_root = _workspace_path_from_ref(str(context.get("workspace_ref") or ""))
+    manifest = MissionWorkspaceRuntime(kernel).prepare(
+        mission_id=mission_id,
+        workspace_root=workspace_root,
+        allowed_domains=tuple(authority.allowed_domains or ()),
+    )
+    browser_handle = _mission_workspace_browser_session_handle(manifest.safe_model_dump())
+    runtime_context = dict(context)
+    runtime_context["mission_workspace_manifest"] = manifest.safe_model_dump()
+    runtime = RealBrowserControlRuntime(
+        kernel=kernel,
+        mission_id=mission_id,
+        engine=_ProductLocalCloakBrowserEngine(),
+        session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
+        selected_backend_id=CLOAK_BROWSER_BACKEND_ID,
+        product_context=runtime_context,
+    )
+    return runtime.execute(envelope, authority=_real_browser_authority(authority), context=runtime_context)
+
+
+def _real_browser_preflight(
+    params: dict[str, Any],
+    _request: MissionExecutionRequest,
+    _authority: MissionAuthorityEnvelope,
+) -> str | None:
+    if str(params.get("engine_profile") or "").strip().lower() == "playwright_compat":
+        if params.get("explicit_compatibility_selection") is not True:
+            return "real_browser_playwright_compatibility_requires_explicit_selection"
+    return None
+
+
 def _workspace_patch_apply_preflight(
     params: dict[str, Any],
     _request: MissionExecutionRequest,
@@ -430,6 +538,40 @@ def _channel_send_authority(authority: MissionAuthorityEnvelope) -> MissionAutho
     return authority.model_copy(update={"allowed_actions": allowed_actions, "allowed_tools": allowed_tools})
 
 
+def _real_browser_authority(authority: MissionAuthorityEnvelope) -> MissionAuthorityEnvelope:
+    browser_actions = [
+        "real_browser.open",
+        "real_browser.observe",
+        "real_browser.search",
+        "real_browser.inspect_result",
+        "real_browser.open_result",
+        "real_browser.extract_product_cards",
+        "real_browser.verify_extraction",
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.inspect_result",
+        "real_browser_control.real_browser.open_result",
+        "real_browser_control.real_browser.extract_product_cards",
+        "real_browser_control.real_browser.verify_extraction",
+    ]
+    allowed_actions = list(dict.fromkeys([*authority.allowed_actions, *browser_actions]))
+    allowed_tools = list(dict.fromkeys([*authority.allowed_tools, "real_browser_control"]))
+    allowed_domains = list(dict.fromkeys([*authority.allowed_domains, BOUNDED_URL_AUTHORITY_REF]))
+    return authority.model_copy(
+        update={
+            "allowed_actions": allowed_actions,
+            "allowed_tools": allowed_tools,
+            "allowed_domains": allowed_domains,
+        }
+    )
+
+
+def _mission_workspace_browser_session_handle(manifest: dict[str, Any]) -> dict[str, Any]:
+    for handle in manifest.get("handles", []):
+        if isinstance(handle, dict) and handle.get("kind") == "browser_session":
+            return handle
+    raise RuntimeError("mission_workspace_browser_session_handle_missing")
+
+
 def _local_channel_transport(request: Any) -> ChannelSendTransportReceipt:
     mission_id = str(getattr(request, "mission_id", "mission"))
     channel = str(getattr(request, "channel", "webhook"))
@@ -437,6 +579,145 @@ def _local_channel_transport(request: Any) -> ChannelSendTransportReceipt:
     return ChannelSendTransportReceipt(
         delivery_ref=f"local-pack8:{mission_id}:{channel}:{len(recipients)}",
     )
+
+
+class _ProductLocalCloakBrowserEngine:
+    browser_backend_id = CLOAK_BROWSER_BACKEND_ID
+    session_backend_kind = "cloakbrowser"
+    session_manager_backend_kind = "cloakbrowser"
+
+    def __init__(self) -> None:
+        self.opened = True
+        self.query = ""
+        self.results_visible = True
+        self.open_count = 0
+        self.observe_count = 0
+        self.click_count = 0
+        self.type_count = 0
+        self.assert_count = 0
+        self.select_count = 0
+        self.extract_count = 0
+        self.press_count = 0
+        self.wait_count = 0
+        self.scroll_count = 0
+
+    @property
+    def safe_url_origin_hash(self) -> str:
+        return stable_hash("local-cloak-browser://bounded-product-fixture")
+
+    def open(self) -> RealBrowserEngineSnapshot:
+        self.opened = True
+        self.open_count += 1
+        return self._snapshot()
+
+    def observe(self) -> RealBrowserEngineSnapshot:
+        self.opened = True
+        self.observe_count += 1
+        return self._snapshot()
+
+    def click(self, ref: str) -> RealBrowserEngineSnapshot:
+        self.opened = True
+        if ref not in {element.ref for element in self._elements()}:
+            raise RuntimeError("real_browser_element_ref_unknown")
+        self.click_count += 1
+        if ref == "button:search":
+            self.results_visible = True
+        return self._snapshot()
+
+    def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
+        self.opened = True
+        if ref != "input:search":
+            raise RuntimeError("real_browser_type_ref_not_textbox")
+        self.query = text
+        self.type_count += 1
+        return self._snapshot()
+
+    def select_option(self, ref: str, option: str) -> RealBrowserEngineSnapshot:
+        del ref, option
+        self.select_count += 1
+        return self._snapshot()
+
+    def assert_text(self, text: str) -> tuple[bool, RealBrowserEngineSnapshot]:
+        self.assert_count += 1
+        return text.lower() in self._page_text().lower(), self._snapshot()
+
+    def extract_text(self) -> tuple[str, RealBrowserEngineSnapshot]:
+        self.opened = True
+        self.extract_count += 1
+        return self._page_text(), self._snapshot()
+
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        if ref != "input:search":
+            raise RuntimeError("real_browser_type_ref_not_textbox")
+        self.press_count += 1
+        if key == "Enter":
+            self.results_visible = True
+        return self._snapshot()
+
+    def wait_for_text(self, text: str, timeout_ms: int = 1000) -> tuple[bool, RealBrowserEngineSnapshot]:
+        del timeout_ms
+        self.wait_count += 1
+        return text.lower() in self._page_text().lower(), self._snapshot()
+
+    def wait_for_load(self) -> RealBrowserEngineSnapshot:
+        self.wait_count += 1
+        return self._snapshot()
+
+    def scroll(self, delta_y: int = 600) -> RealBrowserEngineSnapshot:
+        del delta_y
+        self.scroll_count += 1
+        return self._snapshot()
+
+    def _snapshot(self) -> RealBrowserEngineSnapshot:
+        text = self._page_text()
+        return RealBrowserEngineSnapshot(
+            page_title="Sentinel Product Browser Fixture",
+            state_hash=stable_hash(
+                {
+                    "query_hash": text_hash(self.query),
+                    "results_visible": self.results_visible,
+                    "text_hash": text_hash(text),
+                }
+            ),
+            elements=self._elements(),
+        )
+
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        elements = [
+            RealBrowserEngineElement(
+                "input:search",
+                "searchbox",
+                "Search products",
+                value_preview=self.query[:80],
+            ),
+            RealBrowserEngineElement(
+                "button:search",
+                "button",
+                "Search",
+                text_preview="Search",
+            ),
+        ]
+        if self.results_visible:
+            elements.append(
+                RealBrowserEngineElement(
+                    "link:result_1",
+                    "link",
+                    "Blue light glasses 4.80 EUR MOQ 10",
+                    text_preview="Blue light glasses 4.80 EUR MOQ 10 Supplier VisionCraft",
+                )
+            )
+        return tuple(elements)
+
+    def _page_text(self) -> str:
+        if not self.results_visible:
+            return "Search products for bounded browser fixture."
+        return "\n".join(
+            [
+                "Blue light glasses, visible price 4.80 EUR per unit, MOQ 10, Supplier VisionCraft.",
+                "TR90 sunglasses, visible price 3.90 EUR per unit, MOQ 20, Supplier SunWorks.",
+                "Caveat: shipping and customization costs are not visible.",
+            ]
+        )
 
 
 def _workspace_path_from_ref(workspace_ref: str) -> Path:

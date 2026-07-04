@@ -130,14 +130,24 @@ class RealBrowserActionReceipt(SentinelModel):
     receipt_id: str = Field(default_factory=lambda: new_id("real_browser_action"))
     mission_id: str
     browser_session_ref: str
+    browser_session_handle_ref: str = ""
+    browser_session_handle_hash: str = ""
+    mission_workspace_ref: str = ""
+    mission_workspace_hash: str = ""
     bounded_url_ref: str
     safe_url_origin_hash: str
     selected_backend_id: str = ""
     actual_backend_id: str = ""
     session_backend_kind: str = ""
+    backend_mismatch: bool = False
+    simple_skill: str = ""
+    internal_action_id: str = ""
+    product_dispatch_owner: str = ""
     stable_element_ref: str
     action_kind: str
     status: str
+    recovery_classification: str = "none"
+    replay_behavior: str = "no_reexecute_on_replay"
     before_state_hash: str
     after_state_hash: str
     bounded_observation_summary_hash: str
@@ -166,14 +176,24 @@ class RealBrowserActionReceipt(SentinelModel):
             "receipt_id": self.receipt_id,
             "mission_id": self.mission_id,
             "browser_session_ref": _safe_browser_ref(self.browser_session_ref),
+            "browser_session_handle_ref": _safe_browser_ref(self.browser_session_handle_ref),
+            "browser_session_handle_hash": self.browser_session_handle_hash,
+            "mission_workspace_ref": _safe_browser_ref(self.mission_workspace_ref),
+            "mission_workspace_hash": self.mission_workspace_hash,
             "bounded_url_ref": _safe_browser_ref(self.bounded_url_ref),
             "safe_url_origin_hash": self.safe_url_origin_hash,
             "selected_backend_id": redact_operator_text(self.selected_backend_id),
             "actual_backend_id": redact_operator_text(self.actual_backend_id),
             "session_backend_kind": redact_operator_text(self.session_backend_kind),
+            "backend_mismatch": self.backend_mismatch,
+            "simple_skill": redact_operator_text(self.simple_skill),
+            "internal_action_id": redact_operator_text(self.internal_action_id),
+            "product_dispatch_owner": redact_operator_text(self.product_dispatch_owner),
             "stable_element_ref": _safe_browser_ref(self.stable_element_ref),
             "action_kind": redact_operator_text(self.action_kind),
             "status": redact_operator_text(self.status),
+            "recovery_classification": redact_operator_text(self.recovery_classification),
+            "replay_behavior": redact_operator_text(self.replay_behavior),
             "before_state_hash": self.before_state_hash,
             "after_state_hash": self.after_state_hash,
             "bounded_observation_summary_hash": self.bounded_observation_summary_hash,
@@ -303,6 +323,8 @@ def _safe_browser_ref(value: str) -> str:
     text = str(value).strip()
     if not text:
         return "empty_ref"
+    if text.startswith(("mission_workspace:", "real_browser_session:")):
+        return redact_operator_text(text[:240])
     lowered = text.lower()
     if any(marker in lowered for marker in ("cookie", "session", "password", "secret", "authorization", "bearer")):
         return f"real_browser_ref_hash:{text_hash(text)}"
