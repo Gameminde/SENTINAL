@@ -142,7 +142,7 @@ unchanged:
 | `browser_product_backend_coverage` | Pack 4 routes browser high-level skills through the product spine with local/fake Cloak-session backend proof | Prove on real bounded browser missions later |
 | `agent_workspace_readiness` | Pack 3 adds the mission workspace body; Pack 4 consumes browser_session and Pack 5 consumes worker_pool | Continue consuming this body for workers, artifacts, memory, and replay |
 | `multi_worker_orchestration_readiness` | Pack 5 adds product-spine `spawn_worker` with reduced child authority and local worker receipt proof | Add real model-led worker delegation and long-running orchestration later |
-| `signed_mission_artifact_readiness` | Receipts/certs exist, export verifier not complete | Add final verifier/export lane |
+| `signed_mission_artifact_readiness` | Pack 6 adds local hash-chain mission artifact bundle export and offline verifier through the mission workspace `artifact_export` handle | Prove with named controlled/real product missions and add external signing later only when real key infrastructure exists |
 
 No pack is accepted unless it does at least one of:
 
@@ -536,5 +536,46 @@ signed_mission_artifact_readiness = unchanged
 Next:
 
 ```text
-POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+```
+
+## Living Update: Power Unification Pack 6
+
+`POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1`
+is implemented as a local/fake product-spine artifact export and offline
+verifier proof.
+
+Implementation commit:
+
+```text
+7bb5e4b0f6300629bbd04e345aa38efe012349ea feat: export verifiable mission artifact bundles
+```
+
+What changed:
+
+```text
+MissionArtifactBundleExporter writes a bundle under mission_workspace/artifact_exports
+MissionArtifactBundleVerifier verifies only exported JSON, not live runtime state
+local_integrity_seal records a deterministic hash-chain integrity proof
+external_signature = not_claimed
+worker receipts are checked for reduced authority/no expansion
+replay proof is checked for no code rerun, no channel resend, no worker respawn, no new receipt/finalgate writes
+raw provider/reasoning/DOM/cookie/session/profile markers are rejected
+```
+
+Power gained:
+
+```text
+Sentinel can now act, receipt, replay, and export a locally verifiable mission proof bundle.
+The proof lane consumes the unified mission body instead of creating another special export path.
+```
+
+Scorecard delta:
+
+```text
+signed_mission_artifact_readiness = improved substantially
+replay_parity_coverage = improved through offline verifier checks
+agent_workspace_readiness = consumed via artifact_export
+multi_worker_orchestration_readiness = improved through worker receipt verification
+real_provider_product_loop_proof = unchanged
 ```

@@ -764,6 +764,7 @@ and keep real external channel/browser/high-risk surfaces closed.
 | `POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1` | implemented candidate | RuntimeHost now prepares one data-only mission workspace body with safe handles for workspace, scratch memory, code sandbox, browser session, channel grants, worker pool, receipts, replay, and artifact export |
 | `POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1` | implemented candidate | browser high-level skills now route through RuntimeHost/ProductActionKernel and consume the mission workspace browser_session handle with local/fake Cloak backend proof |
 | `POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1` | implemented candidate | worker orchestration now routes through RuntimeHost/ProductActionKernel and consumes the mission workspace worker_pool handle with local/fake WorkerFleet backend proof |
+| `POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1` | implemented candidate | mission artifact bundles now export from the mission workspace `artifact_export` handle and verify ProductActionKernel receipts, FinalGate refs, worker receipts, replay no-react, and local hash-chain integrity offline |
 
 Pack 1 does not claim all bypasses are gone. It cuts the first P0 ambiguity:
 
@@ -774,7 +775,7 @@ bounded_channel product proof != direct ChannelConnectorRuntime compatibility pr
 Next:
 
 ```text
-POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
+REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
 ```
 
 Pack 3 does not claim browser or worker product proof. It prepares the shared
@@ -798,12 +799,15 @@ Pack 4 and Pack 5 change the sequence truth:
 ```text
 done POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
 done POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
-next POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+done POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+next REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
 ```
 
 Pack 5 did not create another worker special path. It wired workers into the
 same mission workspace body, product task loop, receipts, authority envelope,
 and replay ledger.
 
-The next pack should turn this growing product-spine ledger into independently
-verifiable signed mission artifacts.
+Pack 6 turned this growing product-spine ledger into independently verifiable
+local hash-chain mission artifacts. The next proof should exercise that export
+and verifier path against a named product mission bundle without replaying side
+effects.
