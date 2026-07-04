@@ -408,6 +408,7 @@ The first cleanup sequence after the blocker audit is now recorded as:
 | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented | `eb65fe3` | Pack 9 loop needed a bounded RuntimeHost product entrypoint | focused local |
 | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | control lock | `local docs commit` | remaining work needed a single final objective and scorecard tied to the deep-code audit, not another isolated browser/channel/code pack | no runtime change |
 | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | controlled valid success | `local report commit` | Pack 10 RuntimeHost entrypoint needed product-spine proof beyond focused pytest | controlled proof |
+| `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1` | docs-only implemented | `local report commit` | deep-code audit bypass findings needed an executable migration table | 20-row bypass/dual-path census |
 
 Pack 3 specifically means:
 
@@ -448,7 +449,7 @@ and block authority-incompatible or recoverable failures without fake success.
 Next cleanup:
 
 ```text
-POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
+POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
 ```
 
 ## Living Audit Update: Monster Runtime Objective Lock V1
@@ -500,5 +501,25 @@ REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1 = CONTROLLED_VALI
 The current next implementation item is:
 
 ```text
-POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
+POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
 ```
+
+## Living Audit Update: Power Unification Pack 0
+
+`POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1`
+converts the deep-code-audit bypass findings into an executable migration
+matrix:
+
+```text
+SENTINEL_POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1.csv
+```
+
+Baseline now tracked:
+
+```text
+direct_bypass_count = 20 census rows
+dual_path_count = channel / mutation / certification / organ runtime / browser / PowerRuntime / SkillFabric / worker / memory paths
+```
+
+The next pack is no longer discovery. It must remove or wrap the first safe
+product bypass cluster while keeping high-risk rows locked.

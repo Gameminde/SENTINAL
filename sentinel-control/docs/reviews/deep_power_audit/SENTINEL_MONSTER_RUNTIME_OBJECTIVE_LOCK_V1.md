@@ -133,8 +133,8 @@ unchanged:
 | Metric | Current baseline | Desired direction |
 |---|---|---|
 | `product_spine_coverage` | RuntimeHost Pack 10 product task-loop entrypoint is controlled-proven for code execution + bounded fake/local channel send; broader power still partial | Increase until all production skills route through the product spine |
-| `direct_bypass_count` | Known bypasses remain in channel, mutation, certification, and organ paths | Decrease toward zero for product/operator execution |
-| `dual_path_count` | Unified/product paths and organ/direct paths both exist | Decrease by wiring organs as backends |
+| `direct_bypass_count` | Pack 0 census baseline: 20 direct bypass / dual-path rows | Decrease toward zero for product/operator execution |
+| `dual_path_count` | Pack 0 confirms channel, mutation, certification, organ runtime, browser, PowerRuntime, SkillFabric, worker, and memory dual paths | Decrease by wiring organs as backends |
 | `model_facing_primitive_leakage_count` | Reduced by skill frames and Pack 10, but legacy/browser primitives still exist | Decrease; model sees skills first |
 | `recoverable_failure_continuation_coverage` | Improved by Pack B and cleanup packs | Increase across all product skills |
 | `real_provider_product_loop_proof` | Controlled RuntimeHost product loop proven; real provider was not used | Keep separate from controlled proof and prove later only under a named real-provider contract |
@@ -178,7 +178,8 @@ updates the living audit truth
 
 3. `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1`
 
-   Convert deep-code-audit bypass findings into an executable migration table:
+   Completed docs-only. Converts deep-code-audit bypass findings into an
+   executable migration table:
 
    ```text
    BYPASS_REMOVE

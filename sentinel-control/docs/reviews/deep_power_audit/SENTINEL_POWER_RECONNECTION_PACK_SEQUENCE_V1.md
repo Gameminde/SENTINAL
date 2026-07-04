@@ -72,6 +72,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Global cleanup: Product task-loop RuntimeHost entrypoint | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented candidate, focused local proof | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | Exposes the Pack 9 product task loop through `SentinelRuntimeHost`, keeps the frame data-only, routes material actions through ProductActionKernel, and preserves blocks for real channel, browser, unknown, non-product, and high-risk actions |
 | Monster runtime objective lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | control lock, no runtime change | `local docs commit` | Establishes the final execution doctrine and scorecard: one product spine, simple model-facing skills, organs as hidden backends, ActionEnvelope internal only, recover by default inside granted scope, hard stop only real damage |
 | Controlled attempt: Product task-loop RuntimeHost entrypoint | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | controlled valid success, no provider | `local report commit` | Proves RuntimeHost -> ModelLedProductActionKernelTaskLoop -> ProductActionKernel dispatch for code execution and bounded fake/local channel send, then model finish with ProductActionKernel receipts, FinalGate certificates, replay no-react, and clean raw-material scan |
+| Power unification: direct bypass and dual-path census | `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1` | docs-only implemented | `local report commit` | Converts deep-code-audit bypass findings into a 20-row executable migration table with BYPASS_REMOVE/WRAP/PRODUCT_WIRE/KEEP_INTERNAL/DEPRECATE/LOCK_HIGH_RISK classifications |
 
 New canonical next sequence:
 
@@ -100,7 +101,8 @@ done POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V
 done POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 done SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1
 done REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
-next POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
+done POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
+next POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F
@@ -721,14 +723,14 @@ can_grant_authority = false
 Next:
 
 ```text
-POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
+POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
 ```
 
 The RuntimeHost product task-loop entrypoint proof is complete in controlled
-local mode. The next implementation lane is no longer surface-first. It is:
+local mode. The direct bypass and dual-path census is also complete. The next
+implementation lane is no longer surface-first. It is:
 
 ```text
-POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
 POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
 POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
 POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1

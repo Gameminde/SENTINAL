@@ -69,11 +69,12 @@ start next pack only after state is current
 | implemented candidate | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | P0/P1: Pack 9 existed as a loop class but not as a bounded RuntimeHost product entrypoint | focused proof: `SentinelRuntimeHost` exposes a data-only product task-loop frame and `run_product_action_kernel_task_loop(...)`, then routes code -> fake/local channel -> finish through Pack 9 and ProductActionKernel with no-react replay and high-risk/non-product blocks |
 | control lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | `local docs commit` | P0/P1/P2: remaining work needed one product runtime objective rather than another surface-specific pack | docs/control proof: defines one product spine, simple model-facing skills, hidden organ backends, recoverable-by-default in scope, hard stops only for real damage, and the Monster Runtime Scorecard every future pack must update |
 | controlled valid success | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `local report commit` | P0/P1: Pack 10 RuntimeHost entrypoint needed proof beyond focused pytest | controlled proof: RuntimeHost ran code execution and bounded fake/local channel send through ModelLedProductActionKernelTaskLoop and ProductActionKernel, produced receipts and FinalGate certificates, finished by model decision, replayed with zero material deltas, and persisted no raw provider/reasoning/credential/session material |
+| docs-only implemented | `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1` | `local report commit` | P0/P1/P2: deep-code audit bypass findings needed an executable migration table before deletion/wiring work | docs proof: 20 bypass/dual-path rows classified as wrap-through-dispatcher, product-wire, keep-internal, deprecate, or lock-high-risk, with P0 first cuts identified for channel, mutation, certification, organ runtime, browser, CLI, external API, and spend surfaces |
 
 Current next proof:
 
 ```text
-START_POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
+START_POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
 ```
 
 Monster runtime control lock:
