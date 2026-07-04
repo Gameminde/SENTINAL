@@ -166,6 +166,72 @@ class SentinelRuntimeHost:
             host=self,
         )
 
+    def product_task_loop_entrypoint_frame(self) -> dict[str, Any]:
+        return {
+            "entrypoint_id": "product_action_kernel_task_loop",
+            "enabled": True,
+            "runtime_bridge": "ModelLedProductActionKernelTaskLoop",
+            "material_execution_owner": "RuntimeHost -> UnifiedExecutionDispatcher -> ProductActionKernelDispatchAdapter",
+            "model_visible_available_actions": [
+                "workspace_patch.apply_patch",
+                "code_execution_sandbox.code_exec.run_profile",
+                "bounded_channel.send_message",
+                "sentinel_loop.finish",
+            ],
+            "internal_or_out_of_scope_actions": [
+                "real_browser_control.real_browser.search",
+                "browser_control.click",
+                "payment_authority.spend",
+                "credential_vault.read_secret",
+                "external_channel.contact_supplier",
+            ],
+            "hard_boundaries": [
+                "payment",
+                "credential_access",
+                "contact_supplier",
+                "browser_login",
+                "real_external_channel_without_explicit_grant",
+                "provider_native_tools",
+                "fallback_auto",
+                "replay_side_effects",
+            ],
+            "data_not_authority": True,
+            "authority_effect": "none",
+            "can_grant_authority": False,
+            "can_execute": False,
+        }
+
+    def run_product_action_kernel_task_loop(
+        self,
+        *,
+        workspace_root: Path | str,
+        session_id: str,
+        mission_objective: str,
+        decision_client: object,
+        allowed_domains: tuple[str, ...] = (),
+        max_model_calls: int = 6,
+        max_material_actions: int = 3,
+        model_contract_ref: str = "model_contract:product_action_kernel_task_loop_entrypoint",
+        explicit_noop_proof_ref: str | None = None,
+    ) -> object:
+        if self._status is not RuntimeHostStatus.STARTED:
+            raise RuntimeError("runtime_host_not_started")
+        from sentinel.operator.model_led_product_action_kernel_task_loop import ModelLedProductActionKernelTaskLoop
+
+        loop = ModelLedProductActionKernelTaskLoop(
+            host=self,
+            workspace_root=workspace_root,
+            session_id=session_id,
+            mission_objective=mission_objective,
+            decision_client=decision_client,
+            allowed_domains=allowed_domains,
+            max_model_calls=max_model_calls,
+            max_material_actions=max_material_actions,
+            model_contract_ref=model_contract_ref,
+            explicit_noop_proof_ref=explicit_noop_proof_ref,
+        )
+        return loop.run()
+
     def pump_daemon_once(self, mission_id: str) -> RuntimeHostDaemonPumpResult:
         if self._status is not RuntimeHostStatus.STARTED:
             raise RuntimeError("runtime_host_not_started")

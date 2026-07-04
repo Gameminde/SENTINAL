@@ -114,6 +114,7 @@ class ModelLedProductActionKernelTaskLoop:
         max_model_calls: int = 6,
         max_material_actions: int = 3,
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_fake",
+        explicit_noop_proof_ref: str | None = None,
     ) -> None:
         self.loop_id = new_id("product_action_kernel_task_loop")
         self.host = host
@@ -125,6 +126,7 @@ class ModelLedProductActionKernelTaskLoop:
         self.max_model_calls = max_model_calls
         self.max_material_actions = max_material_actions
         self.model_contract_ref = model_contract_ref
+        self.explicit_noop_proof_ref = explicit_noop_proof_ref
         self.model_calls_used = 0
         self.material_actions_used = 0
         self.capability_sequence: list[str] = []
@@ -144,7 +146,7 @@ class ModelLedProductActionKernelTaskLoop:
                 sequence_entry = f"{decision.capability_id}:{decision.operation}"
                 self.capability_sequence.append(sequence_entry)
                 if decision.capability_id == "sentinel_loop" and decision.operation == "finish":
-                    if not self.product_receipt_refs:
+                    if not self.product_receipt_refs and not self.explicit_noop_proof_ref:
                         return self._block("MODEL_FINISH_BEFORE_PRODUCT_RECEIPT")
                     return self._complete("model_led_product_action_kernel_task_loop_finish")
                 if self.material_actions_used >= self.max_material_actions:
@@ -177,6 +179,7 @@ class ModelLedProductActionKernelTaskLoop:
             "product_action_kernel_dispatch_count": len(self.dispatch_results),
             "recent_product_receipt_refs": list(sanitize_operator_refs(self.product_receipt_refs)),
             "recent_product_finalgate_refs": list(sanitize_operator_refs(self.product_finalgate_refs)),
+            "explicit_noop_proof_ref": self.explicit_noop_proof_ref,
             "dispatch_summaries": [
                 {
                     "mission_id": result.mission_id,
@@ -208,6 +211,7 @@ class ModelLedProductActionKernelTaskLoop:
         if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
             return ("sentinel_loop.finish",)
         actions = [
+            "workspace_patch.apply_patch",
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
         ]
@@ -223,6 +227,14 @@ class ModelLedProductActionKernelTaskLoop:
         return "product_action_kernel_loop_material_receipts_available"
 
     def _dispatch_product_action(self, decision: ActionEnvelope) -> UnifiedDispatchResult:
+        hard_boundary_reason = _entrypoint_hard_boundary_reason(decision)
+        if hard_boundary_reason is not None:
+            return _synthetic_blocked_dispatch_result(
+                loop_id=self.loop_id,
+                turn_index=self.model_calls_used,
+                decision=decision,
+                reason=hard_boundary_reason,
+            )
         tools, actions = _authority_for_action(decision)
         mission = self.host.lifecycle.create_mission(
             session_id=f"{self.session_id}:{self.model_calls_used}",
@@ -388,6 +400,52 @@ def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str
     if capability == "workspace_patch":
         return ["workspace_patch"], [f"{capability}.{operation}", operation]
     return [capability], [f"{capability}.{operation}", operation]
+
+
+def _entrypoint_hard_boundary_reason(decision: ActionEnvelope) -> str | None:
+    capability = decision.capability_id.strip().lower()
+    operation = decision.operation.strip().lower()
+    action_text = f"{capability}.{operation}"
+    hard_capabilities = {
+        "account_authority",
+        "credential_vault",
+        "external_channel",
+        "financial_authority",
+        "payment_authority",
+    }
+    hard_markers = (
+        "checkout",
+        "contact_supplier",
+        "credential",
+        "login",
+        "payment",
+        "read_secret",
+        "secret",
+        "spend",
+    )
+    if capability in hard_capabilities or any(marker in action_text for marker in hard_markers):
+        return "skill_not_product_dispatchable"
+    return None
+
+
+def _synthetic_blocked_dispatch_result(
+    *,
+    loop_id: str,
+    turn_index: int,
+    decision: ActionEnvelope,
+    reason: str,
+) -> UnifiedDispatchResult:
+    return UnifiedDispatchResult(
+        dispatch_id=new_id("dispatch"),
+        status=DispatchStatus.BLOCKED,
+        mission_id=f"{loop_id}_preflight_block_{turn_index}",
+        execution_request_id=f"{loop_id}_preflight_request_{turn_index}",
+        adapter_id=None,
+        capability_id=decision.capability_id,
+        operation=decision.operation,
+        finalgate_status="rejected",
+        blocked_reason=reason,
+    )
 
 
 def _artifact_counts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> dict[str, int]:
