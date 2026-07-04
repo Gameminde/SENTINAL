@@ -140,7 +140,7 @@ unchanged:
 | `real_provider_product_loop_proof` | Controlled RuntimeHost product loop proven; real provider was not used | Keep separate from controlled proof and prove later only under a named real-provider contract |
 | `replay_parity_coverage` | Strong read-only, improving for code/channel/workspace | Increase to all product skills |
 | `browser_product_backend_coverage` | Browser remains split across organ and product paths | Increase after agent workspace/bypass work |
-| `agent_workspace_readiness` | Not first-class product body yet | Build before full browser promotion |
+| `agent_workspace_readiness` | Pack 3 adds a first-class data-only mission workspace body with workspace, scratch, sandbox, browser, channel, worker, receipt, replay, and export handles | Consume this body before full browser/worker promotion |
 | `multi_worker_orchestration_readiness` | WorkerFleet exists, not product-led mission commander path | Add after workspace runtime |
 | `signed_mission_artifact_readiness` | Receipts/certs exist, export verifier not complete | Add final verifier/export lane |
 
@@ -372,11 +372,65 @@ real_provider_product_loop_proof = unchanged
 ## Current Next Action
 
 ```text
-POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
+POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
 ```
 
 Carry forward:
 
 ```text
-Future real-provider product loops must prove the provider consumes the simple skill surface rather than old compatibility canonical-action fields.
+Future real-provider product loops must prove the provider consumes the simple skill surface and mission workspace body rather than old compatibility canonical-action fields or scattered per-skill workspace state.
+```
+
+## Living Update: Power Unification Pack 3
+
+`POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1` is implemented as the
+first product-body foundation.
+
+Implementation commit:
+
+```text
+761748d feat: add mission workspace runtime body
+```
+
+What changed:
+
+```text
+RuntimeHost.mission_workspace_entrypoint_frame
+RuntimeHost.prepare_mission_workspace
+MissionWorkspaceRuntime
+MissionWorkspaceManifest
+MissionWorkspaceHandle
+```
+
+The mission workspace body now owns safe handles for:
+
+```text
+workspace_files
+scratch_memory
+code_sandbox
+browser_session
+channel_destination_grants
+worker_pool
+receipt_ledger
+replay_ledger
+artifact_export
+```
+
+This is data/control-plane only. It does not register a new dispatcher adapter,
+enable live external power, call a provider, open a browser, or send a channel
+message.
+
+Scorecard delta:
+
+```text
+agent_workspace_readiness = increased
+product_spine_coverage = structurally improved, product execution unchanged
+direct_bypass_count = unchanged
+dual_path_count = unchanged
+model_facing_primitive_leakage_count = unchanged from Pack 2
+real_provider_product_loop_proof = unchanged
+replay_parity_coverage = unchanged, but replay ledger handle now exists in the mission body
+browser_product_backend_coverage = unchanged, but browser session handle now exists for Pack 4
+multi_worker_orchestration_readiness = increased structurally via worker_pool handle
+signed_mission_artifact_readiness = increased structurally via artifact_export handle
 ```

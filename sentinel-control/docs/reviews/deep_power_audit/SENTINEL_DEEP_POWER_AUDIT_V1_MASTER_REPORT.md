@@ -71,6 +71,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Power Cleanup Pack 9 model-led ProductActionKernel multi-skill task loop | Implemented candidate, focused local proof | `03dce885b78949af2be6dea0e4c35849939b5a1c` | Adds a model-led product task loop that consumes fake/model decisions, creates RuntimeHost missions per material skill, chains code execution and fake/local bounded channel send through ProductActionKernel, exposes prior product receipts to later model turns, preserves replay no-react, and blocks non-product or real channel paths without local shortcuts |
 | Power Cleanup Pack 10 product task-loop RuntimeHost entrypoint | Implemented candidate, focused local proof | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | Exposes the Pack 9 model-led ProductActionKernel task loop through `SentinelRuntimeHost`; the data-only entrypoint frame shows safe model-visible skills, RuntimeHost constructs the Pack 9 loop, and focused proof covers code -> channel -> finish, prior receipt context, no-op finish proof, no-react replay, real-channel block, browser/non-product block, unknown skill block, and high-risk hard stops |
 | Sentinel Monster Runtime objective lock | Control lock | `local docs commit` | Establishes the final north star for the remaining unification work: one product spine, simple model-facing skills, organs as hidden backends, ActionEnvelope internal only, recoverable-by-default in scope, hard stops only for real damage, and a Monster Runtime Scorecard that every future pack must update or explicitly leave unchanged |
+| Power Unification Pack 3 agent workspace runtime | Implemented candidate, local product-body proof | `761748d` | Adds `MissionWorkspaceRuntime` and `RuntimeHost.prepare_mission_workspace`, creating one data-only mission workspace body with safe handles for workspace files, scratch memory, code sandbox, browser session, channel grants, worker pool, receipt ledger, replay ledger, and artifact export without enabling new live power |
 
 ## Executive Verdict
 
@@ -596,5 +597,57 @@ real_provider_product_loop_proof = unchanged
 Next:
 
 ```text
-POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
+POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
+```
+
+## Living Audit Update: Power Unification Pack 3
+
+`POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1` is implemented as a
+product-body foundation, not a new live power surface.
+
+Accepted truth:
+
+```text
+implementation_commit = 761748d feat: add mission workspace runtime body
+RuntimeHost.mission_workspace_entrypoint_frame = added
+RuntimeHost.prepare_mission_workspace = added
+MissionWorkspaceRuntime = added
+provider_call = no
+real_browser_run = no
+real_external_channel_call = no
+new_dispatch_adapter = no
+live_external_power_enabled = no
+```
+
+The new mission body gives later product skills one stable owner for:
+
+```text
+workspace_files
+scratch_memory
+code_sandbox
+browser_session
+channel_destination_grants
+worker_pool
+receipt_ledger
+replay_ledger
+artifact_export
+```
+
+The manifest persists only safe refs/hashes for workspace roots, allowed
+domains, and channel destination refs. It does not persist raw channel
+destinations, credentials, cookies, session tokens, raw provider output,
+reasoning, screenshots, or full DOM.
+
+Scorecard delta:
+
+```text
+agent_workspace_readiness = increased
+multi_worker_orchestration_readiness = structurally increased
+signed_mission_artifact_readiness = structurally increased
+product_spine_coverage = structurally improved, runtime behavior unchanged
+direct_bypass_count = unchanged
+dual_path_count = unchanged
+model_facing_primitive_leakage_count = unchanged from Pack 2
+real_provider_product_loop_proof = unchanged
+browser_product_backend_coverage = unchanged, prepared for Pack 4
 ```

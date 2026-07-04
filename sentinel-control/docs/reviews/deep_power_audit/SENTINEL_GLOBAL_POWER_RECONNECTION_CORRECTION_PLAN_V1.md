@@ -1065,6 +1065,7 @@ power.
 | Pack | Status | What It Reconnected |
 |---|---|---|
 | `POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1` | implemented candidate | `DecisionContext`, RuntimeHost product entrypoint, and ProductActionKernel task-loop context now declare `model_visible_skills` as the primary model surface while ActionEnvelope remains internal |
+| `POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1` | implemented candidate | `RuntimeHost` now prepares a first-class data-only mission workspace body with safe handles for workspace files, scratch memory, code sandbox, browser session, channel destination grants, worker pool, receipt ledger, replay ledger, and artifact export |
 
 Concrete behavior:
 
@@ -1087,5 +1088,16 @@ continue to run.
 Next:
 
 ```text
-POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
+POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
+```
+
+Pack 3 control truth:
+
+```text
+implementation_commit = 761748d feat: add mission workspace runtime body
+provider_call = no
+real_browser_run = no
+real_external_channel_call = no
+new_dispatch_adapter = no
+live_external_power_enabled = no
 ```
