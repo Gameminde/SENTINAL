@@ -26,6 +26,7 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.mission_lifecycle_service import MissionExecutionRequest
 from sentinel.operator.mission_execution_coordinator import MissionExecutionCoordinator
 from sentinel.operator.mission_lifecycle_service import MissionLifecycleService
+from sentinel.operator.mission_workspace_runtime import MissionWorkspaceRuntime, mission_workspace_product_body_frame
 from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.read_only_operator_spine import ReadOnlyActionKind, ReadOnlyDecision, ReadOnlyDecisionClient, ReadOnlyReportClient
@@ -99,6 +100,7 @@ class SentinelRuntimeHost:
             authority_issuer=self.authority_issuer,
             daemon_runtime=self.daemon,
         )
+        self.mission_workspace_runtime = MissionWorkspaceRuntime(self.kernel)
         self.adapter_registry = adapter_registry or UnifiedExecutionAdapterRegistry(
             {
                 "read_only_research_adapter": ReadOnlyResearchAdapter(
@@ -214,6 +216,25 @@ class SentinelRuntimeHost:
             "can_grant_authority": False,
             "can_execute": False,
         }
+
+    def mission_workspace_entrypoint_frame(self) -> dict[str, Any]:
+        return mission_workspace_product_body_frame()
+
+    def prepare_mission_workspace(
+        self,
+        *,
+        mission_id: str,
+        workspace_root: Path | str,
+        allowed_domains: tuple[str, ...] = (),
+        channel_destination_refs: tuple[str, ...] = (),
+    ) -> dict[str, Any]:
+        manifest = self.mission_workspace_runtime.prepare(
+            mission_id=mission_id,
+            workspace_root=workspace_root,
+            allowed_domains=allowed_domains,
+            channel_destination_refs=channel_destination_refs,
+        )
+        return manifest.safe_model_dump(include_manifest_path=True)
 
     def run_product_action_kernel_task_loop(
         self,
