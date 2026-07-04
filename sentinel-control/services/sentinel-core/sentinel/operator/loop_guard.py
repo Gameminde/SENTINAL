@@ -49,7 +49,12 @@ class LoopGuard:
             raise LoopGuardError("loop_guard_repeated_target")
 
     def record_result(self, result: ActionResult) -> None:
-        if result.receipt_refs or result.evidence_refs or result.status == "completed":
+        if (
+            result.receipt_refs
+            or result.evidence_refs
+            or result.status == "completed"
+            or _recoverable_result_has_live_recovery_lane(result)
+        ):
             self.no_progress_turns = 0
         else:
             self.no_progress_turns += 1
@@ -62,6 +67,21 @@ class LoopGuard:
     def _check_deadline(self) -> None:
         if datetime.now(UTC) > self.started_at + timedelta(seconds=self.config.deadline_seconds):
             raise LoopGuardError("loop_guard_deadline")
+
+
+def _recoverable_result_has_live_recovery_lane(result: ActionResult) -> bool:
+    if not result.recoverable:
+        return False
+    if result.recommended_next_actions:
+        return True
+    recovery = result.recovery_observation
+    if not isinstance(recovery, dict):
+        return False
+    for key in ("recommended_next_actions", "refreshed_candidate_refs", "recovery_actions"):
+        value = recovery.get(key)
+        if isinstance(value, list | tuple) and value:
+            return True
+    return False
 
 
 __all__ = ["LoopGuard", "LoopGuardConfig", "LoopGuardError"]
