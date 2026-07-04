@@ -68,6 +68,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Global cleanup: RuntimeHost safe skill product registration | `POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1` | implemented candidate, local product-dispatch proof | `0535d6f` | Registers `workspace_patch.apply_patch` as the first safe non-read-only RuntimeHost product skill through `ProductActionKernelDispatchAdapter`; code/channel/browser remain tracked for later parity |
 | Global cleanup: ActionKernel skill parity for code and channel | `POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1` | implemented candidate, local product-dispatch proof | `c1cf6d4a2cf8ba7680b907a42ccac4c41f99706e` | Extends the RuntimeHost product ActionKernel route to `code_execution_sandbox.code_exec.run_profile` and bounded fake/local `bounded_channel.send_message`; code timeout and missing transport are recoverable, while network, real channel, high-risk, fallback/AUTO, and provider-native paths stay blocked |
 | Controlled attempt: Product ActionKernel code/channel dispatch | `REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1` | valid success, controlled product proof | `b1c524cb63c8adf22ebaf38f7ebd19da31131547` | Proves code execution and fake/local bounded channel send dispatch through RuntimeHost -> ProductActionKernel -> skill runtime with product receipts, skill-specific receipts, accepted FinalGate certificates, replay no-execute/no-resend, and hard-stop checks |
+| Global cleanup: Model-led ProductActionKernel multi-skill task loop | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented candidate, focused local proof | `03dce885b78949af2be6dea0e4c35849939b5a1c` | Adds a model-led product loop above RuntimeHost so fake/model decisions can chain code execution and fake/local bounded channel send through ProductActionKernel while later turns consume prior product receipts |
 
 New canonical next sequence:
 
@@ -92,7 +93,8 @@ done POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINAL
 done POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1
 done POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1
 done REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1
-next POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1
+done POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1
+next POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F
@@ -697,6 +699,9 @@ The blocker cuts exposed a deeper cleanup lane that must keep Sentinel power-fir
 | `POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1` | implemented | `7f7ac92` | read-only remains receipted evidence, but stops being the model-facing center of gravity |
 | `POWER_CLEANUP_PACK_5_PRODUCT_DISPATCHER_SKILL_NATIVE_ROUTING_V1` | implemented | `ad9a9d3` | coordinator rejects known non-product skills as skill_not_product_dispatchable instead of unknown_capability_connection |
 | `POWER_CLEANUP_PACK_6_PRODUCT_ACTION_KERNEL_DISPATCH_ADAPTER_V1` | implemented | `4d8cdb0` | bounded product adapter executes explicit ActionKernel skills with generic product receipts and proof verification |
+| `POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1` | implemented | `0535d6f` | RuntimeHost registers workspace patch as a first safe non-read-only product skill |
+| `POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1` | implemented | `c1cf6d4a` | RuntimeHost ProductActionKernel dispatch also covers bounded code execution and fake/local channel send |
+| `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented | `03dce88` | fake/model decisions can chain multiple ProductActionKernel product skills with receipts visible to later turns |
 
 Pack 3 keeps the registry data-only:
 
@@ -709,13 +714,13 @@ can_grant_authority = false
 Next:
 
 ```text
-POWER_CLEANUP_PACK_7_RUNTIMEHOST_SAFE_SKILL_PRODUCT_REGISTRATION_V1
+POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 ```
 
-Definition of done for Pack 7:
+Definition of done for Pack 10:
 
 ```text
-RuntimeHost registers one safe non-read-only product skill through ProductActionKernelDispatchAdapter,
-the route executes under explicit authority with receipts/replay proof,
-and high-risk browser/payment/contact/credential surfaces remain locked.
+Expose the model-led ProductActionKernel task loop through a bounded product entrypoint,
+keep RuntimeHost/ProductActionKernel as the material execution owner,
+and preserve no-provider-native/no-fallback/no-high-risk defaults.
 ```
