@@ -763,6 +763,7 @@ and keep real external channel/browser/high-risk surfaces closed.
 | `POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1` | implemented candidate | simple skills are now the declared primary model surface in DecisionContext, RuntimeHost product entrypoint, and ProductActionKernel task-loop context |
 | `POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1` | implemented candidate | RuntimeHost now prepares one data-only mission workspace body with safe handles for workspace, scratch memory, code sandbox, browser session, channel grants, worker pool, receipts, replay, and artifact export |
 | `POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1` | implemented candidate | browser high-level skills now route through RuntimeHost/ProductActionKernel and consume the mission workspace browser_session handle with local/fake Cloak backend proof |
+| `POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1` | implemented candidate | worker orchestration now routes through RuntimeHost/ProductActionKernel and consumes the mission workspace worker_pool handle with local/fake WorkerFleet backend proof |
 
 Pack 1 does not claim all bypasses are gone. It cuts the first P0 ambiguity:
 
@@ -792,13 +793,17 @@ provider_call = no
 real_browser_run = no
 ```
 
-Pack 4 changes the sequence truth:
+Pack 4 and Pack 5 change the sequence truth:
 
 ```text
 done POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
-next POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
+done POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
+next POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
 ```
 
-The next pack should not create another worker special path. It should wire
-workers into the same mission workspace body, product task loop, receipts,
-authority envelope, and replay ledger.
+Pack 5 did not create another worker special path. It wired workers into the
+same mission workspace body, product task loop, receipts, authority envelope,
+and replay ledger.
+
+The next pack should turn this growing product-spine ledger into independently
+verifiable signed mission artifacts.

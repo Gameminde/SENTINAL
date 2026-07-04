@@ -67,6 +67,7 @@ start next pack only after state is current
 | valid success | `REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1` | `b1c524cb63c8adf22ebaf38f7ebd19da31131547` | P0/P1: Pack 8 needed product-like controlled proof beyond unit tests | controlled proof: RuntimeHost executed code execution and fake/local bounded channel send through ProductActionKernel with product receipts, skill-specific receipts, accepted FinalGate certificates, replay no-execute/no-resend, and hard-stop proofs for network code args, real channel transport, known non-product, unknown skill, and high-risk surfaces |
 | implemented candidate | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | `03dce885b78949af2be6dea0e4c35849939b5a1c` | P0/P1: product skills were RuntimeHost-dispatchable one at a time but not yet consumable as a model-led product task loop | focused proof: fake/model decisions chain code execution and fake/local bounded channel send through RuntimeHost -> ProductActionKernel, expose product receipts to later model turns, finish cleanly, replay no-react, and block real channel or non-product skills without local shortcuts |
 | implemented candidate | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | P0/P1: Pack 9 existed as a loop class but not as a bounded RuntimeHost product entrypoint | focused proof: `SentinelRuntimeHost` exposes a data-only product task-loop frame and `run_product_action_kernel_task_loop(...)`, then routes code -> fake/local channel -> finish through Pack 9 and ProductActionKernel with no-react replay and high-risk/non-product blocks |
+| implemented candidate | `POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1` | `a3b0f23723a650032bc2ea1efd587e7d115e0a08` | P1: WorkerFleet existed but was not a product-led mission commander path | focused proof: `worker_fleet.spawn_worker` routes through RuntimeHost -> ProductActionKernel -> WorkerOrchestrationRuntime, consumes the mission workspace worker_pool handle, emits worker orchestration receipts, preserves reduced child authority, and keeps hard boundaries locked |
 | control lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | `local docs commit` | P0/P1/P2: remaining work needed one product runtime objective rather than another surface-specific pack | docs/control proof: defines one product spine, simple model-facing skills, hidden organ backends, recoverable-by-default in scope, hard stops only for real damage, and the Monster Runtime Scorecard every future pack must update |
 | controlled valid success | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `local report commit` | P0/P1: Pack 10 RuntimeHost entrypoint needed proof beyond focused pytest | controlled proof: RuntimeHost ran code execution and bounded fake/local channel send through ModelLedProductActionKernelTaskLoop and ProductActionKernel, produced receipts and FinalGate certificates, finished by model decision, replayed with zero material deltas, and persisted no raw provider/reasoning/credential/session material |
 | docs-only implemented | `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1` | `local report commit` | P0/P1/P2: deep-code audit bypass findings needed an executable migration table before deletion/wiring work | docs proof: 20 bypass/dual-path rows classified as wrap-through-dispatcher, product-wire, keep-internal, deprecate, or lock-high-risk, with P0 first cuts identified for channel, mutation, certification, organ runtime, browser, CLI, external API, and spend surfaces |
@@ -1066,6 +1067,7 @@ power.
 |---|---|---|
 | `POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1` | implemented candidate | `DecisionContext`, RuntimeHost product entrypoint, and ProductActionKernel task-loop context now declare `model_visible_skills` as the primary model surface while ActionEnvelope remains internal |
 | `POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1` | implemented candidate | `RuntimeHost` now prepares a first-class data-only mission workspace body with safe handles for workspace files, scratch memory, code sandbox, browser session, channel destination grants, worker pool, receipt ledger, replay ledger, and artifact export |
+| `POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1` | implemented candidate | `worker_fleet.spawn_worker` now routes through RuntimeHost/ProductActionKernel and consumes the mission workspace worker_pool handle |
 
 Concrete behavior:
 
@@ -1085,7 +1087,7 @@ The model no longer has to treat canonical runtime/organ/action names as the pri
 Compatibility fields are preserved so existing extractors and fixture clients
 continue to run.
 
-Next:
+Previously queued target, now completed by the next living update:
 
 ```text
 POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
@@ -1141,4 +1143,25 @@ Next:
 
 ```text
 POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
+```
+
+## Living Update: Power Unification Pack 5
+
+Pack 5 is now implemented as the worker product-spine cut.
+
+```text
+implementation_commit = a3b0f23723a650032bc2ea1efd587e7d115e0a08
+worker product route = RuntimeHost -> ProductActionKernel -> WorkerOrchestrationRuntime -> WorkerFleetRuntime hidden backend
+model visible skill = spawn_worker
+mission workspace handle consumed = worker_pool
+provider_call = no
+real_browser_run = no
+real_external_channel_send = no
+```
+
+Pack 5 changes the sequence truth:
+
+```text
+done POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
+next POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
 ```

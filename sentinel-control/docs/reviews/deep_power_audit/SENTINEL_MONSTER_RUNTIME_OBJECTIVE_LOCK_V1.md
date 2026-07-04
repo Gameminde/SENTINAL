@@ -132,16 +132,16 @@ unchanged:
 
 | Metric | Current baseline | Desired direction |
 |---|---|---|
-| `product_spine_coverage` | RuntimeHost Pack 10 product task-loop entrypoint is controlled-proven for code execution + bounded fake/local channel send; broader power still partial | Increase until all production skills route through the product spine |
+| `product_spine_coverage` | RuntimeHost product task-loop entrypoint is controlled-proven for code execution, bounded fake/local channel send, browser high-level skills, and worker orchestration | Increase until all production skills route through the product spine |
 | `direct_bypass_count` | Pack 0 census baseline: 20 direct bypass / dual-path rows | Decrease toward zero for product/operator execution |
 | `dual_path_count` | Pack 0 confirms channel, mutation, certification, organ runtime, browser, PowerRuntime, SkillFabric, worker, and memory dual paths | Decrease by wiring organs as backends |
-| `model_facing_primitive_leakage_count` | Reduced by skill frames and Pack 10, but legacy/browser primitives still exist | Decrease; model sees skills first |
+| `model_facing_primitive_leakage_count` | Reduced by skill frames, Pack 10, Pack 4 browser unification, and Pack 5 worker `spawn_worker` surface | Decrease; model sees skills first |
 | `recoverable_failure_continuation_coverage` | Improved by Pack B and cleanup packs | Increase across all product skills |
 | `real_provider_product_loop_proof` | Controlled RuntimeHost product loop proven; real provider was not used | Keep separate from controlled proof and prove later only under a named real-provider contract |
-| `replay_parity_coverage` | Strong read-only, improving for code/channel/workspace | Increase to all product skills |
-| `browser_product_backend_coverage` | Browser remains split across organ and product paths | Increase after agent workspace/bypass work |
-| `agent_workspace_readiness` | Pack 3 adds a first-class data-only mission workspace body with workspace, scratch, sandbox, browser, channel, worker, receipt, replay, and export handles | Consume this body before full browser/worker promotion |
-| `multi_worker_orchestration_readiness` | WorkerFleet exists, not product-led mission commander path | Add after workspace runtime |
+| `replay_parity_coverage` | Strong read-only, improving for code/channel/workspace/browser/worker local receipts | Increase to all product skills |
+| `browser_product_backend_coverage` | Pack 4 routes browser high-level skills through the product spine with local/fake Cloak-session backend proof | Prove on real bounded browser missions later |
+| `agent_workspace_readiness` | Pack 3 adds the mission workspace body; Pack 4 consumes browser_session and Pack 5 consumes worker_pool | Continue consuming this body for workers, artifacts, memory, and replay |
+| `multi_worker_orchestration_readiness` | Pack 5 adds product-spine `spawn_worker` with reduced child authority and local worker receipt proof | Add real model-led worker delegation and long-running orchestration later |
 | `signed_mission_artifact_readiness` | Receipts/certs exist, export verifier not complete | Add final verifier/export lane |
 
 No pack is accepted unless it does at least one of:
@@ -486,4 +486,55 @@ Next:
 
 ```text
 POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
+```
+
+## Living Update: Power Unification Pack 5
+
+`POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1` is
+implemented as a local/fake worker product-spine proof.
+
+Implementation commit:
+
+```text
+a3b0f23723a650032bc2ea1efd587e7d115e0a08 feat: route worker orchestration through product spine
+```
+
+What changed:
+
+```text
+worker_fleet.spawn_worker registered as a RuntimeHost ProductActionKernel route
+model-visible simple skill = spawn_worker
+WorkerOrchestrationRuntime consumes the MissionWorkspace worker_pool handle
+WorkerFleetRuntime is hidden backend, not a model-facing product path
+worker receipts record mission workspace, worker pool, reduced child scope, and replay behavior
+child workers cannot expand authority or cross hard boundaries
+```
+
+Power gained:
+
+```text
+worker orchestration is no longer only dormant structure or local harness logic
+future long tasks can delegate to reduced-authority workers through the product spine
+worker receipt/replay truth is attached to the same mission body as code/channel/browser
+```
+
+Scorecard delta:
+
+```text
+product_spine_coverage = improved
+direct_bypass_count = reduced for worker orchestration product proof
+dual_path_count = reduced
+model_facing_primitive_leakage_count = reduced
+replay_parity_coverage = improved locally
+agent_workspace_readiness = consumed via worker_pool
+multi_worker_orchestration_readiness = improved
+real_provider_product_loop_proof = unchanged
+browser_product_backend_coverage = unchanged
+signed_mission_artifact_readiness = unchanged
+```
+
+Next:
+
+```text
+POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
 ```
