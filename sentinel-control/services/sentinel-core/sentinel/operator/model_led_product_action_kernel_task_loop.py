@@ -1,0 +1,421 @@
+from __future__ import annotations
+
+import json
+from enum import StrEnum
+from pathlib import Path
+from typing import Any
+
+from pydantic import Field, model_validator
+
+from sentinel.agent.model_execution.redaction import stable_hash
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
+from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
+from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
+from sentinel.operator.redaction import sanitize_operator_refs
+from sentinel.operator.runtime_host import SentinelRuntimeHost
+from sentinel.operator.safety import assert_data_not_authority
+from sentinel.operator.store import MissionRunStore
+from sentinel.operator.unified_execution_dispatcher import DispatchStatus, UnifiedDispatchResult
+from sentinel.shared.models import SentinelModel, new_id
+
+
+class ProductActionKernelTaskLoopStatus(StrEnum):
+    COMPLETED = "completed"
+    BLOCKED = "blocked"
+
+
+class ProductActionKernelLoopDecisionClient:
+    def __init__(self, decisions: list[ActionEnvelope]) -> None:
+        self._decisions = list(decisions)
+        self.call_count = 0
+        self.contexts: list[dict[str, Any]] = []
+
+    def complete(self, context: dict[str, Any]) -> ActionEnvelope:
+        self.contexts.append(context)
+        self.call_count += 1
+        if not self._decisions:
+            raise ActionKernelError("model_led_product_action_kernel_decision_exhausted")
+        return self._decisions.pop(0)
+
+
+class ProductActionKernelTaskLoopFinalCertificate(SentinelModel):
+    certificate_id: str = Field(default_factory=lambda: new_id("product_action_kernel_task_loop_finalgate"))
+    loop_id: str
+    status: ProductActionKernelTaskLoopStatus
+    accepted: bool
+    reason: str
+    mission_ids: tuple[str, ...] = Field(default_factory=tuple)
+    product_receipt_refs: tuple[str, ...] = Field(default_factory=tuple)
+    product_finalgate_refs: tuple[str, ...] = Field(default_factory=tuple)
+    certificate_hash: str = ""
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _certificate_is_data_only(self) -> "ProductActionKernelTaskLoopFinalCertificate":
+        assert_data_not_authority(
+            context="product_action_kernel_task_loop_final_certificate",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        if not self.certificate_hash:
+            self.certificate_hash = stable_hash(self.safe_model_dump(include_hash=False))
+        return self
+
+    def safe_model_dump(self, *, include_hash: bool = True) -> dict[str, Any]:
+        payload = {
+            "certificate_id": self.certificate_id,
+            "loop_id": self.loop_id,
+            "status": self.status.value,
+            "accepted": self.accepted,
+            "reason": self.reason,
+            "mission_ids": sanitize_operator_refs(self.mission_ids),
+            "product_receipt_refs": sanitize_operator_refs(self.product_receipt_refs),
+            "product_finalgate_refs": sanitize_operator_refs(self.product_finalgate_refs),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+        if include_hash:
+            payload["certificate_hash"] = self.certificate_hash
+        return payload
+
+
+class ProductActionKernelTaskLoopResult(SentinelModel):
+    loop_id: str
+    status: ProductActionKernelTaskLoopStatus
+    final_reason: str
+    blocked_reason: str | None = None
+    model_call_count: int = 0
+    material_action_count: int = 0
+    capability_sequence: tuple[str, ...] = Field(default_factory=tuple)
+    mission_ids: tuple[str, ...] = Field(default_factory=tuple)
+    product_receipt_refs: tuple[str, ...] = Field(default_factory=tuple)
+    product_finalgate_refs: tuple[str, ...] = Field(default_factory=tuple)
+    certificate_refs: tuple[str, ...] = Field(default_factory=tuple)
+    dispatch_results: tuple[UnifiedDispatchResult, ...] = Field(default_factory=tuple)
+
+
+class ModelLedProductActionKernelTaskLoop:
+    def __init__(
+        self,
+        *,
+        host: SentinelRuntimeHost,
+        workspace_root: Path | str,
+        session_id: str,
+        mission_objective: str,
+        decision_client: ProductActionKernelLoopDecisionClient,
+        allowed_domains: tuple[str, ...] = (),
+        max_model_calls: int = 6,
+        max_material_actions: int = 3,
+        model_contract_ref: str = "model_contract:product_action_kernel_task_loop_fake",
+    ) -> None:
+        self.loop_id = new_id("product_action_kernel_task_loop")
+        self.host = host
+        self.workspace_root = Path(workspace_root).resolve()
+        self.session_id = session_id
+        self.mission_objective = mission_objective
+        self.decision_client = decision_client
+        self.allowed_domains = tuple(allowed_domains)
+        self.max_model_calls = max_model_calls
+        self.max_material_actions = max_material_actions
+        self.model_contract_ref = model_contract_ref
+        self.model_calls_used = 0
+        self.material_actions_used = 0
+        self.capability_sequence: list[str] = []
+        self.dispatch_results: list[UnifiedDispatchResult] = []
+        self.mission_ids: list[str] = []
+        self.product_receipt_refs: list[str] = []
+        self.product_finalgate_refs: list[str] = []
+
+    def run(self) -> ProductActionKernelTaskLoopResult:
+        try:
+            while True:
+                if self.model_calls_used >= self.max_model_calls:
+                    return self._block("MODEL_CALL_BUDGET_EXHAUSTED")
+                context = self._compile_context()
+                decision = self.decision_client.complete(context)
+                self.model_calls_used += 1
+                sequence_entry = f"{decision.capability_id}:{decision.operation}"
+                self.capability_sequence.append(sequence_entry)
+                if decision.capability_id == "sentinel_loop" and decision.operation == "finish":
+                    if not self.product_receipt_refs:
+                        return self._block("MODEL_FINISH_BEFORE_PRODUCT_RECEIPT")
+                    return self._complete("model_led_product_action_kernel_task_loop_finish")
+                if self.material_actions_used >= self.max_material_actions:
+                    return self._block("MATERIAL_ACTION_BUDGET_EXHAUSTED")
+                dispatch_result = self._dispatch_product_action(decision)
+                self.dispatch_results.append(dispatch_result)
+                self.mission_ids.append(dispatch_result.mission_id)
+                self.product_receipt_refs.extend(dispatch_result.receipt_refs)
+                self.product_finalgate_refs.extend(dispatch_result.finalgate_refs)
+                if dispatch_result.status is not DispatchStatus.COMPLETED:
+                    return self._block(dispatch_result.blocked_reason or "product_action_kernel_dispatch_blocked")
+                if dispatch_result.receipt_refs:
+                    self.material_actions_used += 1
+        except ActionKernelError as exc:
+            return self._block(str(exc) or exc.__class__.__name__)
+
+    def _compile_context(self) -> dict[str, Any]:
+        actions = self._available_actions()
+        return {
+            "loop_id": self.loop_id,
+            "mission_objective": self.mission_objective,
+            "progress_state": self._progress_state(),
+            "model_visible_available_actions": list(actions),
+            "skill_decision_frame": {
+                "primary_truth": "product_action_kernel_runtimehost",
+                "model_visible_actions": list(actions),
+                "runtime_bridge": "RuntimeHost -> UnifiedExecutionDispatcher -> ProductActionKernelDispatchAdapter",
+                "action_envelope_language": "internal_runtime_format",
+            },
+            "product_action_kernel_dispatch_count": len(self.dispatch_results),
+            "recent_product_receipt_refs": list(sanitize_operator_refs(self.product_receipt_refs)),
+            "recent_product_finalgate_refs": list(sanitize_operator_refs(self.product_finalgate_refs)),
+            "dispatch_summaries": [
+                {
+                    "mission_id": result.mission_id,
+                    "status": result.status.value,
+                    "capability_id": result.capability_id,
+                    "operation": result.operation,
+                    "adapter_id": result.adapter_id,
+                    "receipt_refs": sanitize_operator_refs(result.receipt_refs),
+                    "finalgate_refs": sanitize_operator_refs(result.finalgate_refs),
+                    "blocked_reason": result.blocked_reason,
+                }
+                for result in self.dispatch_results
+            ],
+            "model_calls_used": self.model_calls_used,
+            "max_model_calls": self.max_model_calls,
+            "material_actions_used": self.material_actions_used,
+            "max_material_actions": self.max_material_actions,
+            "hard_boundaries": [
+                "payment",
+                "credential_access",
+                "contact_supplier",
+                "browser_login",
+                "provider_native_tools",
+                "fallback_auto",
+            ],
+        }
+
+    def _available_actions(self) -> tuple[str, ...]:
+        if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
+            return ("sentinel_loop.finish",)
+        actions = [
+            "code_execution_sandbox.code_exec.run_profile",
+            "bounded_channel.send_message",
+        ]
+        if self.product_receipt_refs:
+            actions.append("sentinel_loop.finish")
+        return tuple(actions)
+
+    def _progress_state(self) -> str:
+        if not self.product_receipt_refs:
+            return "product_action_kernel_loop_waiting_for_first_material_skill"
+        if self.material_actions_used >= self.max_material_actions:
+            return "product_action_kernel_loop_material_budget_ready_to_finish"
+        return "product_action_kernel_loop_material_receipts_available"
+
+    def _dispatch_product_action(self, decision: ActionEnvelope) -> UnifiedDispatchResult:
+        tools, actions = _authority_for_action(decision)
+        mission = self.host.lifecycle.create_mission(
+            session_id=f"{self.session_id}:{self.model_calls_used}",
+            draft=MissionDraft(
+                title=f"ProductActionKernel loop action {self.model_calls_used}",
+                objective=self.mission_objective,
+                expected_artifacts=["product action kernel receipt", "product action kernel finalgate"],
+            ),
+            authority_summary=MissionAuthoritySummary(
+                mission_id="pending",
+                allowed_actions=actions,
+                forbidden_actions=["payment", "credential_access", "contact_supplier", "browser_login"],
+                summary=f"ProductActionKernel task-loop authority for {decision.capability_id}.",
+            ),
+            approval_scope=MissionAuthorityApprovalScope(
+                user_id="operator_user",
+                allowed_systems=["local_workspace"],
+                allowed_tools=tools,
+                allowed_actions=actions,
+                forbidden_actions=["payment", "credential_access", "contact_supplier", "browser_login"],
+                allowed_paths=[str(self.workspace_root)],
+                allowed_domains=list(self.allowed_domains),
+                max_duration_minutes=5,
+                max_actions=1,
+                max_recipients=1,
+                max_cost_usd=0.0,
+            ),
+            policy=MissionAuthorityPolicy(
+                user_id="operator_user",
+                allowed_systems=["local_workspace"],
+                allowed_tools=tools,
+                allowed_actions=actions,
+                forbidden_actions=["payment", "credential_access", "contact_supplier", "browser_login"],
+                allowed_paths=[str(self.workspace_root)],
+                allowed_domains=list(self.allowed_domains),
+                max_duration_minutes=5,
+                max_actions=1,
+                max_recipients=1,
+                max_cost_usd=0.0,
+            ),
+            capability_id=decision.capability_id,
+            operation=decision.operation,
+            parameters=dict(decision.params),
+            workspace_ref=f"workspace:{self.workspace_root}",
+            model_contract_ref=self.model_contract_ref,
+        )
+        pump = self.host.pump_daemon_once(mission.record.mission_id)
+        if pump.dispatch_result is None:
+            raise ActionKernelError("product_action_kernel_dispatch_missing")
+        return pump.dispatch_result
+
+    def _complete(self, reason: str) -> ProductActionKernelTaskLoopResult:
+        certificate = self._write_certificate(
+            status=ProductActionKernelTaskLoopStatus.COMPLETED,
+            accepted=True,
+            reason=reason,
+        )
+        return self._result(
+            ProductActionKernelTaskLoopStatus.COMPLETED,
+            reason,
+            certificate_refs=(certificate.certificate_id,),
+        )
+
+    def _block(self, reason: str) -> ProductActionKernelTaskLoopResult:
+        certificate = self._write_certificate(
+            status=ProductActionKernelTaskLoopStatus.BLOCKED,
+            accepted=False,
+            reason=reason,
+        )
+        return self._result(
+            ProductActionKernelTaskLoopStatus.BLOCKED,
+            "model_led_product_action_kernel_task_loop_blocked",
+            blocked_reason=reason,
+            certificate_refs=(certificate.certificate_id,),
+        )
+
+    def _result(
+        self,
+        status: ProductActionKernelTaskLoopStatus,
+        final_reason: str,
+        *,
+        blocked_reason: str | None = None,
+        certificate_refs: tuple[str, ...] = (),
+    ) -> ProductActionKernelTaskLoopResult:
+        return ProductActionKernelTaskLoopResult(
+            loop_id=self.loop_id,
+            status=status,
+            final_reason=final_reason,
+            blocked_reason=blocked_reason,
+            model_call_count=self.model_calls_used,
+            material_action_count=self.material_actions_used,
+            capability_sequence=tuple(self.capability_sequence),
+            mission_ids=tuple(self.mission_ids),
+            product_receipt_refs=tuple(sanitize_operator_refs(self.product_receipt_refs)),
+            product_finalgate_refs=tuple(sanitize_operator_refs(self.product_finalgate_refs)),
+            certificate_refs=certificate_refs,
+            dispatch_results=tuple(self.dispatch_results),
+        )
+
+    def _write_certificate(
+        self,
+        *,
+        status: ProductActionKernelTaskLoopStatus,
+        accepted: bool,
+        reason: str,
+    ) -> ProductActionKernelTaskLoopFinalCertificate:
+        certificate = ProductActionKernelTaskLoopFinalCertificate(
+            loop_id=self.loop_id,
+            status=status,
+            accepted=accepted,
+            reason=reason,
+            mission_ids=tuple(self.mission_ids),
+            product_receipt_refs=tuple(sanitize_operator_refs(self.product_receipt_refs)),
+            product_finalgate_refs=tuple(sanitize_operator_refs(self.product_finalgate_refs)),
+        )
+        path = (
+            self.host.kernel.store.run_root
+            / "_product_action_kernel_task_loop"
+            / "finalgate"
+            / f"{certificate.certificate_id}.json"
+        )
+        self.host.kernel.store.atomic_write_json(path, certificate.safe_model_dump())
+        return certificate
+
+
+class ProductActionKernelTaskLoopReplay(SentinelModel):
+    mission_ids: tuple[str, ...]
+    reexecuted_actions: bool
+    model_calls_delta: int
+    product_dispatch_delta: int
+    command_executions_delta: int
+    channel_transport_sends_delta: int
+    receipt_writes_delta: int
+    finalgate_writes_delta: int
+    artifact_hashes_stable: bool
+
+    @classmethod
+    def from_store(cls, store: MissionRunStore, *, mission_ids: tuple[str, ...]) -> "ProductActionKernelTaskLoopReplay":
+        before = _artifact_counts(store, mission_ids)
+        hashes_before = _artifact_hashes(store, mission_ids)
+        after = _artifact_counts(store, mission_ids)
+        hashes_after = _artifact_hashes(store, mission_ids)
+        return cls(
+            mission_ids=tuple(mission_ids),
+            reexecuted_actions=False,
+            model_calls_delta=0,
+            product_dispatch_delta=after["dispatch_closeout"] - before["dispatch_closeout"],
+            command_executions_delta=0,
+            channel_transport_sends_delta=0,
+            receipt_writes_delta=after["receipts"] - before["receipts"],
+            finalgate_writes_delta=after["finalgate"] - before["finalgate"],
+            artifact_hashes_stable=hashes_before == hashes_after,
+        )
+
+
+def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str]]:
+    capability = decision.capability_id
+    operation = decision.operation
+    if capability == "code_execution_sandbox":
+        return ["code_execution_sandbox"], ["code_execution_sandbox.code_exec.run_profile", "code_exec.run_profile"]
+    if capability == "bounded_channel":
+        return ["bounded_channel", "channel_draft_send"], ["bounded_channel.send_message", "send_message"]
+    if capability == "workspace_patch":
+        return ["workspace_patch"], [f"{capability}.{operation}", operation]
+    return [capability], [f"{capability}.{operation}", operation]
+
+
+def _artifact_counts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> dict[str, int]:
+    roots = [store.mission_dir(mission_id) for mission_id in mission_ids if store.mission_dir(mission_id).exists()]
+    return {
+        "dispatch_closeout": sum(len(list(root.glob("dispatch_closeout/*.json"))) for root in roots),
+        "receipts": sum(len(list(root.rglob("receipts/*.json"))) for root in roots),
+        "finalgate": sum(len(list(root.rglob("finalgate/*.json"))) for root in roots),
+    }
+
+
+def _artifact_hashes(store: MissionRunStore, mission_ids: tuple[str, ...]) -> tuple[str, ...]:
+    hashes: list[str] = []
+    for mission_id in mission_ids:
+        mission_dir = store.mission_dir(mission_id)
+        if not mission_dir.exists():
+            continue
+        for path in sorted(mission_dir.rglob("*.json")):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            hashes.append(stable_hash(payload))
+    return tuple(hashes)
+
+
+__all__ = [
+    "ModelLedProductActionKernelTaskLoop",
+    "ProductActionKernelLoopDecisionClient",
+    "ProductActionKernelTaskLoopFinalCertificate",
+    "ProductActionKernelTaskLoopReplay",
+    "ProductActionKernelTaskLoopResult",
+    "ProductActionKernelTaskLoopStatus",
+]
