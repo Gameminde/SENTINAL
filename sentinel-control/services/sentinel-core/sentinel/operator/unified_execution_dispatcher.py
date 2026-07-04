@@ -10,6 +10,7 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_kernel import ActionEnvelope, ActionExecutor, ActionKernel, ActionResult
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
 from sentinel.operator.mission_execution_coordinator import (
@@ -165,6 +166,142 @@ class DispatchProofVerificationResult(SentinelModel):
     material_observation_receipt_count: int = 0
 
 
+class ProductActionKernelReceipt(SentinelModel):
+    receipt_id: str = Field(default_factory=lambda: new_id("product_action_kernel_receipt"))
+    mission_id: str
+    execution_request_id: str
+    decision_id: str
+    dispatch_id: str
+    action_id: str
+    skill_id: str
+    capability_id: str
+    operation: str
+    backend_id: str
+    organ_id: str | None = None
+    authority_decision: str
+    execution_status: str
+    material_action: bool
+    action_result_hash: str
+    result_summary_hash: str
+    recovery_classification: str
+    replay_behavior: str
+    receipt_hash: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _receipt_is_data_only(self) -> "ProductActionKernelReceipt":
+        assert_data_not_authority(
+            context="product_action_kernel_receipt",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "receipt_id": self.receipt_id,
+            "mission_id": self.mission_id,
+            "execution_request_id": self.execution_request_id,
+            "decision_id": self.decision_id,
+            "dispatch_id": self.dispatch_id,
+            "action_id": self.action_id,
+            "skill_id": redact_operator_text(self.skill_id),
+            "capability_id": redact_operator_text(self.capability_id),
+            "operation": redact_operator_text(self.operation),
+            "backend_id": redact_operator_text(self.backend_id),
+            "organ_id": redact_operator_text(self.organ_id or "") or None,
+            "authority_decision": redact_operator_text(self.authority_decision),
+            "execution_status": redact_operator_text(self.execution_status),
+            "material_action": self.material_action,
+            "action_result_hash": self.action_result_hash,
+            "result_summary_hash": self.result_summary_hash,
+            "recovery_classification": redact_operator_text(self.recovery_classification),
+            "replay_behavior": redact_operator_text(self.replay_behavior),
+            "receipt_hash": self.receipt_hash,
+            "created_at": self.created_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+    def with_hash(self) -> "ProductActionKernelReceipt":
+        payload = self.safe_model_dump()
+        payload["receipt_hash"] = ""
+        return self.model_copy(update={"receipt_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        payload = self.safe_model_dump()
+        stored = payload["receipt_hash"]
+        payload["receipt_hash"] = ""
+        return bool(stored) and stored == stable_hash(payload)
+
+
+class ProductActionKernelFinalGateCertificate(SentinelModel):
+    certificate_id: str = Field(default_factory=lambda: new_id("product_action_kernel_finalgate"))
+    mission_id: str
+    execution_request_id: str
+    decision_id: str
+    dispatch_id: str
+    adapter_id: str
+    accepted: bool
+    reason_code: str
+    receipt_refs: list[str] = Field(default_factory=list)
+    certificate_hash: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _certificate_is_data_only(self) -> "ProductActionKernelFinalGateCertificate":
+        assert_data_not_authority(
+            context="product_action_kernel_finalgate",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "certificate_id": self.certificate_id,
+            "mission_id": self.mission_id,
+            "execution_request_id": self.execution_request_id,
+            "decision_id": self.decision_id,
+            "dispatch_id": self.dispatch_id,
+            "adapter_id": redact_operator_text(self.adapter_id),
+            "accepted": self.accepted,
+            "reason_code": redact_operator_text(self.reason_code),
+            "receipt_refs": sanitize_operator_refs(self.receipt_refs),
+            "certificate_hash": self.certificate_hash,
+            "created_at": self.created_at.isoformat(),
+            "data_not_authority": self.data_not_authority,
+            "authority_effect": self.authority_effect,
+            "can_grant_authority": self.can_grant_authority,
+            "can_execute": self.can_execute,
+        }
+
+    def with_hash(self) -> "ProductActionKernelFinalGateCertificate":
+        payload = self.safe_model_dump()
+        payload["certificate_hash"] = ""
+        return self.model_copy(update={"certificate_hash": stable_hash(payload)})
+
+    def verify_hash(self) -> bool:
+        payload = self.safe_model_dump()
+        stored = payload["certificate_hash"]
+        payload["certificate_hash"] = ""
+        return bool(stored) and stored == stable_hash(payload)
+
+
 class MissionExecutionDecisionStore:
     def __init__(self, kernel: MissionKernel) -> None:
         self.kernel = kernel
@@ -312,6 +449,171 @@ class ReadOnlyResearchAdapter:
             finalgate_status=result.finalgate_status,
             blocked_reason=result.blocked_reason,
         )
+
+
+class ProductActionKernelDispatchAdapter:
+    adapter_id = "product_action_kernel_adapter"
+
+    def __init__(
+        self,
+        *,
+        capability_id: str,
+        operation: str,
+        executor: ActionExecutor,
+        product_dispatchable_skill_ids: tuple[str, ...] | list[str] | set[str],
+        backend_id: str | None = None,
+        organ_id: str | None = None,
+    ) -> None:
+        self.capability_id = capability_id
+        self.operation = operation
+        self.backend_id = backend_id or f"{capability_id}_skill"
+        self.organ_id = organ_id
+        self._product_dispatchable_skill_ids = frozenset(product_dispatchable_skill_ids)
+        self._action_kernel = ActionKernel(executors={capability_id: executor})
+
+    def execute(
+        self,
+        request: MissionExecutionRequest,
+        decision: MissionExecutionDecision,
+        authority: MissionAuthorityEnvelope,
+        context: UnifiedExecutionDispatchContext,
+    ) -> UnifiedDispatchResult:
+        if request.capability_id != self.capability_id or decision.capability_id != self.capability_id:
+            return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="capability_mismatch")
+        if request.operation != self.operation or decision.operation != self.operation:
+            return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="operation_mismatch")
+        if request.capability_id not in self._product_dispatchable_skill_ids:
+            return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="skill_not_product_dispatchable")
+        if not _authority_allows_action(authority, capability_id=request.capability_id, operation=request.operation):
+            return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="authority_incompatible_dispatch")
+
+        dispatch_id = new_id("dispatch")
+        envelope = ActionEnvelope(
+            capability_id=request.capability_id,
+            operation=request.operation,
+            authority_ref=request.authority_envelope_ref,
+            decision_ref=decision.decision_id,
+            expected_receipt_type="ProductActionKernelReceipt",
+        )
+        action_result = self._action_kernel.execute(
+            envelope,
+            authority=authority,
+            context={
+                "mission_id": request.mission_id,
+                "execution_request_id": request.request_id,
+                "decision_id": decision.decision_id,
+                "workspace_ref": request.workspace_ref,
+                "model_contract_ref": request.model_contract_ref,
+                "parameter_hash": request.parameter_hash,
+                "adapter_id": self.adapter_id,
+                "backend_id": self.backend_id,
+                "organ_id": self.organ_id,
+            },
+        )
+        receipt = self._write_receipt(
+            request=request,
+            decision=decision,
+            context=context,
+            dispatch_id=dispatch_id,
+            action_result=action_result,
+        )
+        if action_result.recoverable or action_result.status not in {"completed", "success", "passed"}:
+            return UnifiedDispatchResult(
+                dispatch_id=dispatch_id,
+                status=DispatchStatus.BLOCKED,
+                mission_id=request.mission_id,
+                execution_request_id=request.request_id,
+                decision_id=decision.decision_id,
+                adapter_id=self.adapter_id,
+                capability_id=request.capability_id,
+                operation=request.operation,
+                receipt_refs=[receipt.receipt_id],
+                finalgate_status="rejected",
+                blocked_reason=(
+                    action_result.failure_code
+                    or action_result.blocked_reason
+                    or "product_action_kernel_execution_failed"
+                ),
+            )
+        certificate = self._write_finalgate(
+            request=request,
+            decision=decision,
+            context=context,
+            dispatch_id=dispatch_id,
+            receipt_refs=[receipt.receipt_id],
+        )
+        return UnifiedDispatchResult(
+            dispatch_id=dispatch_id,
+            status=DispatchStatus.COMPLETED,
+            mission_id=request.mission_id,
+            execution_request_id=request.request_id,
+            decision_id=decision.decision_id,
+            adapter_id=self.adapter_id,
+            capability_id=request.capability_id,
+            operation=request.operation,
+            receipt_refs=[receipt.receipt_id],
+            finalgate_refs=[certificate.certificate_id],
+            finalgate_status="accepted",
+        )
+
+    def _write_receipt(
+        self,
+        *,
+        request: MissionExecutionRequest,
+        decision: MissionExecutionDecision,
+        context: UnifiedExecutionDispatchContext,
+        dispatch_id: str,
+        action_result: ActionResult,
+    ) -> ProductActionKernelReceipt:
+        receipt = ProductActionKernelReceipt(
+            mission_id=request.mission_id,
+            execution_request_id=request.request_id,
+            decision_id=decision.decision_id,
+            dispatch_id=dispatch_id,
+            action_id=action_result.action_id,
+            skill_id=decision.skill_id or request.capability_id,
+            capability_id=request.capability_id,
+            operation=request.operation,
+            backend_id=decision.model_visible_backend_id or self.backend_id,
+            organ_id=self.organ_id,
+            authority_decision="allowed",
+            execution_status=action_result.status,
+            material_action=action_result.material_action,
+            action_result_hash=action_result.result_hash,
+            result_summary_hash=stable_hash(action_result.safe_summary()),
+            recovery_classification=action_result.failure_class.value if action_result.failure_class else "none",
+            replay_behavior="no_reexecute_on_replay",
+        ).with_hash()
+        context.kernel.store.atomic_write_json(
+            _product_action_kernel_artifact_path(context.kernel, request.mission_id, "receipts", receipt.receipt_id),
+            receipt.safe_model_dump(),
+        )
+        return receipt
+
+    def _write_finalgate(
+        self,
+        *,
+        request: MissionExecutionRequest,
+        decision: MissionExecutionDecision,
+        context: UnifiedExecutionDispatchContext,
+        dispatch_id: str,
+        receipt_refs: list[str],
+    ) -> ProductActionKernelFinalGateCertificate:
+        certificate = ProductActionKernelFinalGateCertificate(
+            mission_id=request.mission_id,
+            execution_request_id=request.request_id,
+            decision_id=decision.decision_id,
+            dispatch_id=dispatch_id,
+            adapter_id=self.adapter_id,
+            accepted=True,
+            reason_code="product_action_kernel_receipt_verified",
+            receipt_refs=receipt_refs,
+        ).with_hash()
+        context.kernel.store.atomic_write_json(
+            _product_action_kernel_artifact_path(context.kernel, request.mission_id, "finalgate", certificate.certificate_id),
+            certificate.safe_model_dump(),
+        )
+        return certificate
 
 
 class UnifiedExecutionDispatcher:
@@ -507,6 +809,8 @@ class UnifiedExecutionDispatcher:
         *,
         request: MissionExecutionRequest | None = None,
     ) -> DispatchProofVerificationResult:
+        if result.adapter_id == ProductActionKernelDispatchAdapter.adapter_id:
+            return self._verify_product_action_kernel_proof(result)
         receipt_result = self._load_and_verify_receipts(result)
         if not receipt_result.ok:
             return receipt_result
@@ -542,6 +846,80 @@ class UnifiedExecutionDispatcher:
             finalgate_refs=finalgate_result.finalgate_refs,
             material_observation_receipt_count=receipt_result.material_observation_receipt_count,
         )
+
+    def _verify_product_action_kernel_proof(self, result: UnifiedDispatchResult) -> DispatchProofVerificationResult:
+        receipt_result = self._load_and_verify_product_action_kernel_receipts(result)
+        if not receipt_result.ok:
+            return receipt_result
+        finalgate_result = self._load_and_verify_product_action_kernel_finalgate(
+            result,
+            validated_receipt_refs=receipt_result.receipt_refs,
+        )
+        if not finalgate_result.ok:
+            return finalgate_result
+        return DispatchProofVerificationResult(
+            ok=True,
+            receipt_refs=receipt_result.receipt_refs,
+            finalgate_refs=finalgate_result.finalgate_refs,
+            material_observation_receipt_count=receipt_result.material_observation_receipt_count,
+        )
+
+    def _load_and_verify_product_action_kernel_receipts(
+        self,
+        result: UnifiedDispatchResult,
+    ) -> DispatchProofVerificationResult:
+        if not result.receipt_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
+        material_count = 0
+        for receipt_ref in result.receipt_refs:
+            path = _product_action_kernel_artifact_path(self.kernel, result.mission_id, "receipts", receipt_ref)
+            if not path.exists():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
+            receipt = ProductActionKernelReceipt.model_validate(json.loads(path.read_text(encoding="utf-8")))
+            if receipt.mission_id != result.mission_id:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_mission_mismatch")
+            if receipt.execution_request_id != result.execution_request_id:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_request_mismatch")
+            if not receipt.verify_hash():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_hash_mismatch")
+            if receipt.authority_decision != "allowed":
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_authority_not_allowed")
+            if receipt.execution_status in {"completed", "success", "passed"} and receipt.material_action:
+                material_count += 1
+        if material_count < 1:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_material_observation_missing")
+        return DispatchProofVerificationResult(
+            ok=True,
+            receipt_refs=list(dict.fromkeys(result.receipt_refs)),
+            material_observation_receipt_count=material_count,
+        )
+
+    def _load_and_verify_product_action_kernel_finalgate(
+        self,
+        result: UnifiedDispatchResult,
+        *,
+        validated_receipt_refs: list[str],
+    ) -> DispatchProofVerificationResult:
+        if not result.finalgate_refs:
+            return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
+        for finalgate_ref in result.finalgate_refs:
+            path = _product_action_kernel_artifact_path(self.kernel, result.mission_id, "finalgate", finalgate_ref)
+            if not path.exists():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
+            certificate = ProductActionKernelFinalGateCertificate.model_validate(
+                json.loads(path.read_text(encoding="utf-8"))
+            )
+            if certificate.mission_id != result.mission_id:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_mission_mismatch")
+            if certificate.execution_request_id != result.execution_request_id:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_request_mismatch")
+            if not certificate.verify_hash():
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_hash_mismatch")
+            if not certificate.accepted:
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_rejected")
+            if set(certificate.receipt_refs) != set(validated_receipt_refs):
+                return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_receipt_mismatch")
+        return DispatchProofVerificationResult(ok=True, finalgate_refs=list(dict.fromkeys(result.finalgate_refs)))
 
     def _load_and_verify_receipts(self, result: UnifiedDispatchResult) -> DispatchProofVerificationResult:
         if not result.receipt_refs:
@@ -745,6 +1123,36 @@ def _blocked_result(
     )
 
 
+def _authority_allows_action(
+    authority: MissionAuthorityEnvelope,
+    *,
+    capability_id: str,
+    operation: str,
+) -> bool:
+    allowed_tools = set(authority.allowed_tools)
+    allowed_actions = set(authority.allowed_actions)
+    if capability_id not in allowed_tools:
+        return False
+    return (
+        f"{capability_id}.{operation}" in allowed_actions
+        or operation in allowed_actions
+    )
+
+
+def _product_action_kernel_artifact_path(
+    kernel: MissionKernel,
+    mission_id: str,
+    collection: str,
+    ref: str,
+) -> Path:
+    return (
+        kernel.store.mission_dir(mission_id, create=True)
+        / "product_action_kernel"
+        / collection
+        / f"{ref}.json"
+    )
+
+
 def _workspace_from_ref(workspace_ref: str) -> Path:
     if not workspace_ref.startswith("workspace:"):
         raise ValueError("workspace_ref_not_dispatchable")
@@ -795,6 +1203,9 @@ __all__ = [
     "DispatchStatus",
     "DispatchProofVerificationResult",
     "MissionExecutionDecisionStore",
+    "ProductActionKernelDispatchAdapter",
+    "ProductActionKernelFinalGateCertificate",
+    "ProductActionKernelReceipt",
     "ReadOnlyResearchAdapter",
     "UnifiedDispatchResult",
     "UnifiedExecutionAdapter",

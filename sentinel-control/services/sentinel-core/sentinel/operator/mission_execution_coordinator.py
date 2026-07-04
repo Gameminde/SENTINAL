@@ -160,7 +160,7 @@ class MissionExecutionCoordinator:
                 )
             return self._reject(
                 request,
-                reason="unknown_capability_connection",
+                reason="unknown_skill_or_capability",
                 health_status=health.status,
             )
         if connection.authoritative_route is RuntimeConnectionRoute.EXPERIMENTAL_ONLY:
