@@ -14,6 +14,7 @@ from typing import Any, Protocol
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
+from sentinel.operator.action_power_contract import ActionFailureClass
 from sentinel.operator.code_execution_sandbox_models import (
     CodeExecutionFinalCertificate,
     CodeExecutionProfile,
@@ -80,6 +81,15 @@ def default_code_execution_profiles() -> dict[str, CodeExecutionProfile]:
             fixed_args_prefix=(),
             allowed_arg_kinds=("workspace_path",),
             timeout_seconds=5,
+            max_stdout_bytes=1024,
+            max_stderr_bytes=1024,
+        ),
+        "fake_timeout": CodeExecutionProfile(
+            profile_id="fake_timeout",
+            executable="sentinel_fake",
+            fixed_args_prefix=(),
+            allowed_arg_kinds=("workspace_path",),
+            timeout_seconds=1,
             max_stdout_bytes=1024,
             max_stderr_bytes=1024,
         ),
@@ -234,6 +244,9 @@ class CodeExecutionSandboxRuntime:
             material_action=True,
             observation_summary=f"code execution profile {profile.profile_id} {status}.",
             blocked_reason="code_exec_timeout" if process.timed_out else None if process.exit_code == 0 else "code_exec_failed",
+            failure_class=ActionFailureClass.RECOVERABLE_IN_SCOPE_RUNTIME_FAILURE if process.timed_out else None,
+            failure_code="EXECUTOR_TIMEOUT" if process.timed_out else None,
+            recoverable=process.timed_out,
             result_hash=result_model.result_hash,
         )
 
@@ -263,6 +276,14 @@ class CodeExecutionSandboxRuntime:
                 stdout="fake code execution profile passed",
                 stderr="",
                 timed_out=False,
+            )
+        if profile.profile_id == "fake_timeout":
+            return CodeExecutionProcessResult(
+                exit_code=124,
+                duration_ms=profile.timeout_seconds * 1000,
+                stdout="",
+                stderr="fake code execution profile timed out",
+                timed_out=True,
             )
         if profile.writes_allowed:
             return self.runner.run(

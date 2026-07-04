@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -10,7 +11,7 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.action_kernel import ActionEnvelope, ActionExecutor, ActionKernel, ActionResult
+from sentinel.operator.action_kernel import ActionEnvelope, ActionExecutor, ActionKernel, ActionKernelError, ActionResult
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.kernel import MissionKernel, MissionLifecycleError
 from sentinel.operator.mission_execution_coordinator import (
@@ -369,6 +370,9 @@ class UnifiedExecutionAdapter(Protocol):
     ) -> UnifiedDispatchResult:
         ...
 
+    def supports(self, capability_id: str, operation: str) -> bool:
+        ...
+
 
 class UnifiedExecutionAdapterRegistry:
     def __init__(self, adapters: dict[str, UnifiedExecutionAdapter] | None = None) -> None:
@@ -473,15 +477,30 @@ class ProductActionKernelDispatchAdapter:
             str | None,
         ]
         | None = None,
+        extra_routes: tuple["ProductActionKernelRoute", ...] = (),
     ) -> None:
+        routes = (
+            ProductActionKernelRoute(
+                capability_id=capability_id,
+                operation=operation,
+                executor=executor,
+                product_dispatchable_skill_ids=tuple(product_dispatchable_skill_ids),
+                backend_id=backend_id or f"{capability_id}_skill",
+                organ_id=organ_id,
+                parameter_resolver=parameter_resolver,
+                preflight_validator=preflight_validator,
+            ),
+            *extra_routes,
+        )
         self.capability_id = capability_id
         self.operation = operation
         self.backend_id = backend_id or f"{capability_id}_skill"
         self.organ_id = organ_id
-        self._product_dispatchable_skill_ids = frozenset(product_dispatchable_skill_ids)
-        self._action_kernel = ActionKernel(executors={capability_id: executor})
-        self._parameter_resolver = parameter_resolver
-        self._preflight_validator = preflight_validator
+        self._routes = {(route.capability_id, route.operation): route for route in routes}
+        self._action_kernel = ActionKernel(executors={route.capability_id: route.executor for route in routes})
+
+    def supports(self, capability_id: str, operation: str) -> bool:
+        return (capability_id, operation) in self._routes
 
     def execute(
         self,
@@ -490,19 +509,22 @@ class ProductActionKernelDispatchAdapter:
         authority: MissionAuthorityEnvelope,
         context: UnifiedExecutionDispatchContext,
     ) -> UnifiedDispatchResult:
-        if request.capability_id != self.capability_id or decision.capability_id != self.capability_id:
+        route = self._routes.get((request.capability_id, request.operation))
+        if route is None and request.capability_id not in {capability_id for capability_id, _operation in self._routes}:
             return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="capability_mismatch")
-        if request.operation != self.operation or decision.operation != self.operation:
+        if route is None:
             return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="operation_mismatch")
-        if request.capability_id not in self._product_dispatchable_skill_ids:
+        if decision.capability_id != route.capability_id or decision.operation != route.operation:
+            return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="decision_route_mismatch")
+        if request.capability_id not in route.product_dispatchable_skill_ids:
             return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="skill_not_product_dispatchable")
         if not _authority_allows_action(authority, capability_id=request.capability_id, operation=request.operation):
             return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="authority_incompatible_dispatch")
 
         dispatch_id = new_id("dispatch")
-        params = self._resolve_parameters(request, decision, authority, context)
-        if self._preflight_validator is not None:
-            preflight_failure = self._preflight_validator(params, request, authority)
+        params = self._resolve_parameters(route, request, decision, authority, context)
+        if route.preflight_validator is not None:
+            preflight_failure = route.preflight_validator(params, request, authority)
             if preflight_failure:
                 return UnifiedDispatchResult(
                     dispatch_id=dispatch_id,
@@ -525,29 +547,44 @@ class ProductActionKernelDispatchAdapter:
             decision_ref=decision.decision_id,
             expected_receipt_type="ProductActionKernelReceipt",
         )
-        action_result = self._action_kernel.execute(
-            envelope,
-            authority=authority,
-            context={
-                "mission_id": request.mission_id,
-                "execution_request_id": request.request_id,
-                "decision_id": decision.decision_id,
-                "workspace_ref": request.workspace_ref,
-                "model_contract_ref": request.model_contract_ref,
-                "parameter_hash": request.parameter_hash,
-                "adapter_id": self.adapter_id,
-                "backend_id": self.backend_id,
-                "organ_id": self.organ_id,
-                "authority": authority,
-                "kernel": context.kernel,
-            },
-        )
+        try:
+            action_result = self._action_kernel.execute(
+                envelope,
+                authority=authority,
+                context={
+                    "mission_id": request.mission_id,
+                    "execution_request_id": request.request_id,
+                    "decision_id": decision.decision_id,
+                    "workspace_ref": request.workspace_ref,
+                    "model_contract_ref": request.model_contract_ref,
+                    "parameter_hash": request.parameter_hash,
+                    "adapter_id": self.adapter_id,
+                    "backend_id": route.backend_id,
+                    "organ_id": route.organ_id,
+                    "authority": authority,
+                    "kernel": context.kernel,
+                },
+            )
+        except ActionKernelError as exc:
+            return UnifiedDispatchResult(
+                dispatch_id=dispatch_id,
+                status=DispatchStatus.BLOCKED,
+                mission_id=request.mission_id,
+                execution_request_id=request.request_id,
+                decision_id=decision.decision_id,
+                adapter_id=self.adapter_id,
+                capability_id=request.capability_id,
+                operation=request.operation,
+                finalgate_status="rejected",
+                blocked_reason=redact_operator_text(str(exc) or "action_kernel_error"),
+            )
         receipt = self._write_receipt(
             request=request,
             decision=decision,
             context=context,
             dispatch_id=dispatch_id,
             action_result=action_result,
+            route=route,
         )
         if action_result.recoverable or action_result.status not in {"completed", "success", "passed"}:
             return UnifiedDispatchResult(
@@ -590,13 +627,14 @@ class ProductActionKernelDispatchAdapter:
 
     def _resolve_parameters(
         self,
+        route: "ProductActionKernelRoute",
         request: MissionExecutionRequest,
         decision: MissionExecutionDecision,
         authority: MissionAuthorityEnvelope,
         context: UnifiedExecutionDispatchContext,
     ) -> dict[str, Any]:
-        if self._parameter_resolver is not None:
-            return dict(self._parameter_resolver(request, decision, authority, context))
+        if route.parameter_resolver is not None:
+            return dict(route.parameter_resolver(request, decision, authority, context))
         return context.lifecycle.load_execution_parameters(request.mission_id, request.request_id)
 
     def _write_receipt(
@@ -607,6 +645,7 @@ class ProductActionKernelDispatchAdapter:
         context: UnifiedExecutionDispatchContext,
         dispatch_id: str,
         action_result: ActionResult,
+        route: "ProductActionKernelRoute",
     ) -> ProductActionKernelReceipt:
         receipt = ProductActionKernelReceipt(
             mission_id=request.mission_id,
@@ -617,8 +656,8 @@ class ProductActionKernelDispatchAdapter:
             skill_id=decision.skill_id or request.capability_id,
             capability_id=request.capability_id,
             operation=request.operation,
-            backend_id=decision.model_visible_backend_id or self.backend_id,
-            organ_id=self.organ_id,
+            backend_id=decision.model_visible_backend_id or route.backend_id,
+            organ_id=route.organ_id,
             authority_decision="allowed",
             execution_status=action_result.status,
             material_action=action_result.material_action,
@@ -657,6 +696,24 @@ class ProductActionKernelDispatchAdapter:
             certificate.safe_model_dump(),
         )
         return certificate
+
+
+@dataclass(frozen=True)
+class ProductActionKernelRoute:
+    capability_id: str
+    operation: str
+    executor: ActionExecutor
+    product_dispatchable_skill_ids: tuple[str, ...]
+    backend_id: str
+    organ_id: str | None = None
+    parameter_resolver: Callable[
+        [MissionExecutionRequest, MissionExecutionDecision, MissionAuthorityEnvelope, UnifiedExecutionDispatchContext],
+        dict[str, Any],
+    ] | None = None
+    preflight_validator: Callable[
+        [dict[str, Any], MissionExecutionRequest, MissionAuthorityEnvelope],
+        str | None,
+    ] | None = None
 
 
 class UnifiedExecutionDispatcher:
@@ -708,12 +765,18 @@ class UnifiedExecutionDispatcher:
         if adapter.adapter_id != decision.adapter_id:
             result = self._block(request, decision, "adapter_id_mismatch")
             return self._persist_closeout(result, request=request)
-        if adapter.capability_id != request.capability_id:
-            result = self._block(request, decision, "capability_mismatch")
-            return self._persist_closeout(result, request=request)
-        if adapter.operation != request.operation:
-            result = self._block(request, decision, "operation_mismatch")
-            return self._persist_closeout(result, request=request)
+        supports = getattr(adapter, "supports", None)
+        if callable(supports):
+            if not supports(request.capability_id, request.operation):
+                result = self._block(request, decision, "adapter_route_mismatch")
+                return self._persist_closeout(result, request=request)
+        else:
+            if adapter.capability_id != request.capability_id:
+                result = self._block(request, decision, "capability_mismatch")
+                return self._persist_closeout(result, request=request)
+            if adapter.operation != request.operation:
+                result = self._block(request, decision, "operation_mismatch")
+                return self._persist_closeout(result, request=request)
         self.kernel.store.append_event(
             request.mission_id,
             event_type="mission_dispatch_started",

@@ -7,8 +7,19 @@ from typing import Any, Callable
 from pydantic import Field
 
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.agent.organs.channel_draft_send_organ_v1 import ChannelSendTransportReceipt
 from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
 from sentinel.operator.authority_issuer import MissionAuthorityEnvelopeIssuer
+from sentinel.operator.channel_adapter import ChannelConnectorRuntime
+from sentinel.operator.channel_adapter_models import (
+    ChannelAdapterConfig,
+    ChannelAdapterKind,
+    ChannelProviderKind,
+    ChannelRecipientPolicy,
+    ChannelScopePolicy,
+)
+from sentinel.operator.code_execution_sandbox_runtime import CodeExecutionSandboxRuntime
+from sentinel.operator.connection_live_channel_action_runtime import ModelLedLiveChannelActionRuntime
 from sentinel.operator.daemon_models import DaemonQueueStatus, MissionDaemonConfig, daemon_utc_now
 from sentinel.operator.daemon_runtime import MissionDaemonRuntime
 from sentinel.operator.kernel import MissionKernel
@@ -19,6 +30,7 @@ from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.read_only_operator_spine import ReadOnlyActionKind, ReadOnlyDecision, ReadOnlyDecisionClient, ReadOnlyReportClient
 from sentinel.operator.runtime_connections import RuntimeConnectionRegistry, build_default_runtime_connection_registry
 from sentinel.operator.unified_execution_dispatcher import (
+    ProductActionKernelRoute,
     ProductActionKernelDispatchAdapter,
     ReadOnlyResearchAdapter,
     UnifiedExecutionAdapterRegistry,
@@ -100,6 +112,25 @@ class SentinelRuntimeHost:
                     backend_id="workspace_patch_skill",
                     organ_id="workspace_patch",
                     preflight_validator=_workspace_patch_apply_preflight,
+                    extra_routes=(
+                        ProductActionKernelRoute(
+                            capability_id="code_execution_sandbox",
+                            operation="code_exec.run_profile",
+                            executor=_default_code_execution_executor,
+                            product_dispatchable_skill_ids=("code_execution_sandbox",),
+                            backend_id="code_execution_skill",
+                            organ_id="code_execution_sandbox",
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="bounded_channel",
+                            operation="send_message",
+                            executor=_default_bounded_channel_executor,
+                            product_dispatchable_skill_ids=("bounded_channel",),
+                            backend_id="bounded_channel_skill",
+                            organ_id="channel_draft_send",
+                            preflight_validator=_bounded_channel_preflight,
+                        ),
+                    ),
                 ),
             }
         )
@@ -206,6 +237,54 @@ def _default_workspace_patch_executor(envelope: ActionEnvelope, context: dict[st
     return runtime.execute(envelope, authority=authority, context=context)
 
 
+def _default_code_execution_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    authority = context.get("authority")
+    kernel = context.get("kernel")
+    if not isinstance(authority, MissionAuthorityEnvelope) or not isinstance(kernel, MissionKernel):
+        raise RuntimeError("code_execution_runtime_context_missing")
+    runtime = CodeExecutionSandboxRuntime(
+        kernel=kernel,
+        mission_id=str(context.get("mission_id") or ""),
+        workspace_root=_workspace_path_from_ref(str(context.get("workspace_ref") or "")),
+    )
+    return runtime.execute(envelope, authority=authority, context=context)
+
+
+def _default_bounded_channel_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    authority = context.get("authority")
+    kernel = context.get("kernel")
+    if not isinstance(authority, MissionAuthorityEnvelope) or not isinstance(kernel, MissionKernel):
+        raise RuntimeError("bounded_channel_runtime_context_missing")
+    params = dict(envelope.params)
+    adapter_id = str(params.get("adapter_id") or "").strip()
+    channel = str(params.get("channel") or "webhook").strip().lower()
+    transports = {}
+    if adapter_id != "missing_local_transport":
+        transports[adapter_id] = _local_channel_transport
+    channel_runtime = ChannelConnectorRuntime(kernel, transports=transports)
+    config = ChannelAdapterConfig(
+        adapter_id=adapter_id,
+        kind=ChannelAdapterKind.WEBHOOK,
+        provider_kind=ChannelProviderKind.WEBHOOK,
+        display_name="Pack 8 local bounded channel",
+        recipient_policy=ChannelRecipientPolicy(
+            allowed_domains=list(authority.allowed_domains or []),
+            max_recipients=max(int(getattr(authority, "max_recipients", 1) or 1), 1),
+        ),
+        scope_policy=ChannelScopePolicy(allowed_channels=[channel]),
+        approval_policy={"approval_required_for_send": False},
+        metadata={"transport_kind": "local_fake_product_dispatch"},
+    )
+    channel_runtime.register_adapter(mission_id=str(context.get("mission_id") or ""), config=config)
+    channel_authority = _channel_send_authority(authority)
+    runtime = ModelLedLiveChannelActionRuntime(channel_runtime)
+    return runtime.execute_action_envelope(
+        mission_id=str(context.get("mission_id") or ""),
+        envelope=envelope,
+        authority=channel_authority,
+    )
+
+
 def _workspace_patch_apply_preflight(
     params: dict[str, Any],
     _request: MissionExecutionRequest,
@@ -220,6 +299,39 @@ def _workspace_patch_apply_preflight(
     if any(part in SENSITIVE_WORKSPACE_PATCH_NAMES for part in raw.parts):
         return "workspace_patch_target_not_authorized"
     return None
+
+
+def _bounded_channel_preflight(
+    params: dict[str, Any],
+    _request: MissionExecutionRequest,
+    authority: MissionAuthorityEnvelope,
+) -> str | None:
+    adapter_id = str(params.get("adapter_id") or "").strip()
+    channel = str(params.get("channel") or "webhook").strip().lower()
+    if not adapter_id:
+        return "bounded_channel_adapter_required"
+    if channel != "webhook":
+        return "bounded_channel_real_transport_not_authorized"
+    if "channel_draft_send" not in set(authority.allowed_tools or []):
+        return "authority_incompatible_dispatch"
+    if not authority.allowed_domains:
+        return "authority_incompatible_dispatch"
+    return None
+
+
+def _channel_send_authority(authority: MissionAuthorityEnvelope) -> MissionAuthorityEnvelope:
+    allowed_actions = list(dict.fromkeys([*authority.allowed_actions, "channel_send"]))
+    allowed_tools = list(dict.fromkeys([*authority.allowed_tools, "channel_draft_send"]))
+    return authority.model_copy(update={"allowed_actions": allowed_actions, "allowed_tools": allowed_tools})
+
+
+def _local_channel_transport(request: Any) -> ChannelSendTransportReceipt:
+    mission_id = str(getattr(request, "mission_id", "mission"))
+    channel = str(getattr(request, "channel", "webhook"))
+    recipients = list(getattr(request, "recipients", []) or [])
+    return ChannelSendTransportReceipt(
+        delivery_ref=f"local-pack8:{mission_id}:{channel}:{len(recipients)}",
+    )
 
 
 def _workspace_path_from_ref(workspace_ref: str) -> Path:

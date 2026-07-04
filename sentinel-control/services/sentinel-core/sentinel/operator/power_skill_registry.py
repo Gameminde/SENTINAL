@@ -152,7 +152,8 @@ def build_default_power_skill_registry(
         _sentinel_loop_binding(),
         _read_only_binding(runtime_registry),
         _workspace_patch_binding(runtime_registry),
-        _local_binding(
+        _runtime_or_local_binding(
+            runtime_registry,
             skill_id="code_execution_sandbox",
             capability_id="code_execution_sandbox",
             model_visible_backend_id="code_execution_skill",
@@ -162,7 +163,8 @@ def build_default_power_skill_registry(
             proof_contract="CodeExecutionSandboxReceipt",
             replay_contract="ModelLedTaskLoopReplay code execution deltas",
         ),
-        _local_binding(
+        _runtime_or_local_binding(
+            runtime_registry,
             skill_id="bounded_channel",
             capability_id="bounded_channel",
             model_visible_backend_id="bounded_channel_skill",
@@ -236,6 +238,49 @@ def _sentinel_loop_binding() -> PowerSkillBackendBinding:
         backend_candidates=("model_led_task_loop",),
         proof_contract="ModelLedTaskLoopFinalCertificate",
         replay_contract="ModelLedTaskLoopReplay",
+    )
+
+
+def _runtime_or_local_binding(
+    runtime_registry: RuntimeConnectionRegistry,
+    *,
+    skill_id: str,
+    capability_id: str,
+    model_visible_backend_id: str,
+    owner_module: str,
+    owner_symbol: str,
+    backend_candidates: tuple[str, ...],
+    proof_contract: str,
+    replay_contract: str,
+) -> PowerSkillBackendBinding:
+    try:
+        runtime_profile = runtime_registry.get(skill_id)
+    except KeyError:
+        return _local_binding(
+            skill_id=skill_id,
+            capability_id=capability_id,
+            model_visible_backend_id=model_visible_backend_id,
+            owner_module=owner_module,
+            owner_symbol=owner_symbol,
+            backend_candidates=backend_candidates,
+            proof_contract=proof_contract,
+            replay_contract=replay_contract,
+        )
+    return PowerSkillBackendBinding(
+        skill_id=skill_id,
+        capability_id=capability_id,
+        model_visible_backend_id=model_visible_backend_id,
+        runtime_connection_id=runtime_profile.connection_id,
+        adapter_id=runtime_profile.adapter_id,
+        owner_module=runtime_profile.owner_module,
+        owner_symbol=runtime_profile.owner_symbol,
+        organ_refs=runtime_profile.organ_registry_refs,
+        backend_candidates=(*backend_candidates, "product_action_kernel_adapter"),
+        product_reachable=runtime_profile.production_reachable,
+        task_loop_reachable=True,
+        proof_contract=runtime_profile.receipt_contract,
+        replay_contract=runtime_profile.replay_adapter,
+        limitations=runtime_profile.limitations,
     )
 
 

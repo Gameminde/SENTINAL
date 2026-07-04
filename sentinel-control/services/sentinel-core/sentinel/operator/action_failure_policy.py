@@ -19,6 +19,8 @@ _HARD_STOP_MARKERS = (
     "credential",
     "authorization",
     "secret",
+    "network_arg",
+    "network_blocked",
     "payment",
     "checkout",
     "provider_native",
@@ -40,6 +42,8 @@ _RECOVERABLE_MARKERS = (
     "alias",
     "unknown ref",
     "candidate not found",
+    "transport_missing",
+    "channel_transport_missing",
 )
 
 

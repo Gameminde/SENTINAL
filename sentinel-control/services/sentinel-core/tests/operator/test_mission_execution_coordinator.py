@@ -74,15 +74,15 @@ def test_coordinator_recognizes_known_skill_without_product_adapter() -> None:
     decision = coordinator.decide(
         _request(
             "mission_connection_skill_native_2",
-            capability_id="bounded_channel",
-            operation="send_message",
+            capability_id="browser_control",
+            operation="browser.observe",
         )
     )
 
     assert decision.status is MissionExecutionDecisionStatus.REJECTED
     assert decision.rejection_reason == "skill_not_product_dispatchable"
-    assert decision.skill_id == "bounded_channel"
-    assert decision.model_visible_backend_id == "bounded_channel_skill"
+    assert decision.skill_id == "browser_control"
+    assert decision.model_visible_backend_id == "browser_fixture_skill"
     assert decision.task_loop_reachable is True
     assert decision.product_reachable is False
     assert decision.dispatch_enabled is False
