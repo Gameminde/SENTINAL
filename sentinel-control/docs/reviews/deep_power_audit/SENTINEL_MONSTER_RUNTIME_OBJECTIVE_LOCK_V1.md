@@ -142,7 +142,7 @@ unchanged:
 | `browser_product_backend_coverage` | Pack 4 routes browser high-level skills through the product spine with local/fake Cloak-session backend proof | Prove on real bounded browser missions later |
 | `agent_workspace_readiness` | Pack 3 adds the mission workspace body; Pack 4 consumes browser_session and Pack 5 consumes worker_pool | Continue consuming this body for workers, artifacts, memory, and replay |
 | `multi_worker_orchestration_readiness` | Pack 5 adds product-spine `spawn_worker` with reduced child authority and local worker receipt proof | Add real model-led worker delegation and long-running orchestration later |
-| `signed_mission_artifact_readiness` | Pack 6 adds local hash-chain mission artifact bundle export and offline verifier through the mission workspace `artifact_export` handle | Prove with named controlled/real product missions and add external signing later only when real key infrastructure exists |
+| `signed_mission_artifact_readiness` | Pack 6 plus `REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1` prove local hash-chain bundle export and offline verifier on a named controlled product mission | Add real-provider/real-app bundles and external signing later only when real key infrastructure exists |
 
 No pack is accepted unless it does at least one of:
 
@@ -536,7 +536,7 @@ signed_mission_artifact_readiness = unchanged
 Next:
 
 ```text
-REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+VISION_FINALE_SENTINEL_100_PERCENT_STRATEGY_DISCUSSION
 ```
 
 ## Living Update: Power Unification Pack 6
@@ -578,4 +578,37 @@ replay_parity_coverage = improved through offline verifier checks
 agent_workspace_readiness = consumed via artifact_export
 multi_worker_orchestration_readiness = improved through worker receipt verification
 real_provider_product_loop_proof = unchanged
+```
+
+## Living Update: Signed Mission Artifact Verifier Proof
+
+`REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1`
+completed the current Monster Runtime phase in controlled/local mode.
+
+```text
+verdict = CONTROLLED_VALID_SUCCESS
+provider_decision_calls = 0
+controlled_model_decision_calls = 4
+capability_sequence = code_execution_sandbox -> bounded_channel -> worker_fleet -> sentinel_loop.finish
+mission_status = completed
+bundle_id = mission_artifact_bundle_9f489d344d218fea
+verifier_accepted = true
+replay_no_react = true
+raw_material_scan_hit_count = 0
+```
+
+Scorecard delta:
+
+```text
+signed_mission_artifact_readiness = controlled product proof passed
+replay_parity_coverage = named bundle verifier proof passed
+agent_workspace_readiness = artifact_export consumed in named proof
+multi_worker_orchestration_readiness = worker receipt verified in named bundle
+real_provider_product_loop_proof = unchanged
+```
+
+Stop condition:
+
+```text
+No new implementation pack should start before the VISION_FINALE_SENTINEL_100_PERCENT strategy discussion.
 ```

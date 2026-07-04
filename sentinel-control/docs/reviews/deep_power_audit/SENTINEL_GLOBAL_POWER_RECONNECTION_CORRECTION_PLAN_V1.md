@@ -69,6 +69,7 @@ start next pack only after state is current
 | implemented candidate | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | P0/P1: Pack 9 existed as a loop class but not as a bounded RuntimeHost product entrypoint | focused proof: `SentinelRuntimeHost` exposes a data-only product task-loop frame and `run_product_action_kernel_task_loop(...)`, then routes code -> fake/local channel -> finish through Pack 9 and ProductActionKernel with no-react replay and high-risk/non-product blocks |
 | implemented candidate | `POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1` | `a3b0f23723a650032bc2ea1efd587e7d115e0a08` | P1: WorkerFleet existed but was not a product-led mission commander path | focused proof: `worker_fleet.spawn_worker` routes through RuntimeHost -> ProductActionKernel -> WorkerOrchestrationRuntime, consumes the mission workspace worker_pool handle, emits worker orchestration receipts, preserves reduced child authority, and keeps hard boundaries locked |
 | implemented candidate | `POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1` | `7bb5e4b0f6300629bbd04e345aa38efe012349ea` | P1: mission proof existed as scattered receipts/certificates but not as an independently exportable/verifiable product artifact | focused proof: mission artifact bundles export through the mission workspace `artifact_export` handle; offline verifier checks local hash-chain integrity, ProductActionKernel receipts, FinalGate receipt refs, worker reduced authority, replay no-react, and raw material marker rejection |
+| controlled valid success | `REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1` | `local report commit` | P1: Pack 6 needed named product mission proof beyond focused pytest | controlled proof: RuntimeHost product task loop executed code, bounded fake/local channel, worker delegation, and finish; exported mission artifact bundle verified offline with local hash-chain, replay no-react, ProductActionKernel receipts, FinalGate refs, worker receipt, and raw material scan clean |
 | control lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | `local docs commit` | P0/P1/P2: remaining work needed one product runtime objective rather than another surface-specific pack | docs/control proof: defines one product spine, simple model-facing skills, hidden organ backends, recoverable-by-default in scope, hard stops only for real damage, and the Monster Runtime Scorecard every future pack must update |
 | controlled valid success | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | `local report commit` | P0/P1: Pack 10 RuntimeHost entrypoint needed proof beyond focused pytest | controlled proof: RuntimeHost ran code execution and bounded fake/local channel send through ModelLedProductActionKernelTaskLoop and ProductActionKernel, produced receipts and FinalGate certificates, finished by model decision, replayed with zero material deltas, and persisted no raw provider/reasoning/credential/session material |
 | docs-only implemented | `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1` | `local report commit` | P0/P1/P2: deep-code audit bypass findings needed an executable migration table before deletion/wiring work | docs proof: 20 bypass/dual-path rows classified as wrap-through-dispatcher, product-wire, keep-internal, deprecate, or lock-high-risk, with P0 first cuts identified for channel, mutation, certification, organ runtime, browser, CLI, external API, and spend surfaces |
@@ -1165,7 +1166,8 @@ Pack 5 changes the sequence truth:
 ```text
 done POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
 done POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
-next REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+done REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+next VISION_FINALE_SENTINEL_100_PERCENT_STRATEGY_DISCUSSION
 ```
 
 ## Living Update: Power Unification Pack 6
@@ -1198,5 +1200,38 @@ Pack 6 changes the active next proof:
 
 ```text
 done POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
-next REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+done REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+next VISION_FINALE_SENTINEL_100_PERCENT_STRATEGY_DISCUSSION
+```
+
+## Living Update: Signed Mission Artifact Verifier Product Proof
+
+`REAL_POWER_ATTEMPT_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1`
+closed the current phase as a controlled valid success.
+
+```text
+provider_decision_calls = 0
+controlled_model_decision_calls = 4
+capability_sequence = code_execution_sandbox -> bounded_channel -> worker_fleet -> sentinel_loop.finish
+mission_status = completed
+ProductActionKernel_receipts = 3
+skill_specific_receipts = 2
+worker_receipts = 1
+FinalGate_certificates = 3
+bundle_id = mission_artifact_bundle_9f489d344d218fea
+verifier_accepted = true
+verifier_failure_codes = []
+replay_no_react = true
+raw_material_scan_hit_count = 0
+```
+
+This proves Pack 6 on a named controlled product mission. It still does not
+claim a real-provider product app mission, real browser mission, real external
+channel mission, external cryptographic signature trust, or long-running worker
+mission.
+
+Known non-blocking hygiene follow-up:
+
+```text
+live ProductActionKernelTaskLoopReplay should ignore mission_workspace/artifact_exports bundles after export
 ```
