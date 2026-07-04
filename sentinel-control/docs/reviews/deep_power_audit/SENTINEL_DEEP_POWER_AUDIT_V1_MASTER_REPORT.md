@@ -379,7 +379,42 @@ New control artifacts:
 Immediate next implementation recommendation:
 
 ```text
-POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1
+POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1
 ```
 
-This update does not close the full master audit. It records that Pack 1 cut the visible-cards-to-extraction blocker, Pack 2 cut the verified-extraction-to-completion-lane blocker, 5H product-proved that completion lane, and 5K product-proved Cloak/session backend truth while exposing relevance-quality and cleanup gaps. The latest local fix cuts search-query contamination, multilingual eyewear relevance misses, repeated post-search churn, open-receipt backend misclassification, and close-time Cloak profile cleanup. The remaining browser question is product proof on a real bounded Alibaba run with relevant product evidence and no profile material persistence; every future pack must still state which blocker rows it removes, converts, hides, or keeps hard.
+This update does not close the full master audit. It records that Pack 1 cut the visible-cards-to-extraction blocker, Pack 2 cut the verified-extraction-to-completion-lane blocker, 5H product-proved that completion lane, and 5K product-proved Cloak/session backend truth while exposing relevance-quality and cleanup gaps. The latest local fixes cut search-query contamination, multilingual eyewear relevance misses, repeated post-search churn, open-receipt backend misclassification, close-time Cloak profile cleanup, model-visible non-executable action leakage, empty recoverable observations killing loop progress, and skill/backend frames missing organ spec truth. The remaining browser question is product proof on a real bounded Alibaba run with relevant product evidence and no profile material persistence; every future pack must still state which blocker rows it removes, converts, hides, or keeps hard.
+
+## Living Audit Update: Power Cleanup Packs 1-3
+
+The first cleanup sequence after the blocker audit is now recorded as:
+
+| Pack | Status | Commit | Audit Finding Cut | Product Proven |
+|---|---|---:|---|---|
+| `POWER_CLEANUP_PACK_1_MODEL_FACING_EXECUTABLE_SKILL_TRUTH_V1` | implemented | `0bbe148` | model-visible actions can point at non-executable/internal primitives | no |
+| `POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1` | implemented | `34867bf` | useful recoverable observations can still count as no-progress mission death | no |
+| `POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1` | implemented | `c6d0f0a` | skill/backend frame did not consume organ spec proof/replay/recovery/hard-stop truth | no |
+
+Pack 3 specifically means:
+
+```text
+PowerSkillBackendFrame now carries organ_spec_refs,
+organ_receipt_kinds,
+organ_proof_requirements,
+organ_replay_expectations,
+organ_recoverable_failure_classes,
+and organ_hard_stop_categories.
+```
+
+This is still data-only:
+
+```text
+dispatch_enabled = false
+can_execute = false
+can_grant_authority = false
+```
+
+Next cleanup:
+
+```text
+POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1
+```

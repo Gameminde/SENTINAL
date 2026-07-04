@@ -940,7 +940,7 @@ Each pack must preserve the listed hard stops and update the matrix/control docs
 Immediate next implementation pack:
 
 ```text
-POWER_FRICTION_CUT_PACK_3_SEARCH_ACTUATION_AND_RELEVANT_PRODUCT_EXTRACTION_V1
+POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1
 ```
 
 First targets:
@@ -951,4 +951,34 @@ safe ambiguous browser intent must not repeat open/search
 no-safe-recommendation becomes recoverable observation
 raw browser primitives move below model-facing schema
 FinalGate waits until recovery options are exhausted or a real hard boundary is hit
+```
+
+## Living Update: Power Cleanup Packs 1-3
+
+The global reconnection plan now tracks the cleanup sequence that follows the blocker audit.
+
+| Pack | Status | Commit | What It Reconnected |
+|---|---|---:|---|
+| `POWER_CLEANUP_PACK_1_MODEL_FACING_EXECUTABLE_SKILL_TRUTH_V1` | implemented | `0bbe148` | model-visible actions now validate against executable skill truth before runtime dispatch |
+| `POWER_CLEANUP_PACK_2_RECOVERABLE_OBSERVATION_DOMINATES_LOOP_GUARD_AND_FINALGATE_V1` | implemented | `34867bf` | useful recovery observations count as loop progress instead of immediate no-progress death |
+| `POWER_CLEANUP_PACK_3_SKILL_BACKEND_ORGAN_REGISTRY_CONSOLIDATION_V1` | implemented | `c6d0f0a` | power skill backend frame now consumes organ spec receipt/proof/replay/recovery/hard-stop metadata |
+
+Pack 3 is not a new power surface. It makes the existing power map more truthful:
+
+```text
+skill -> backend -> organ specs -> receipts/proof/replay/recovery/hard stops
+```
+
+The next cleanup target is:
+
+```text
+POWER_CLEANUP_PACK_4_READ_ONLY_SPINE_DEMOTION_TO_EVIDENCE_SKILL_V1
+```
+
+Reason:
+
+```text
+read_only_research proved the product route,
+but it must stop being the architecture's center of gravity.
+It should become one evidence skill among browser, workspace, code, and channel skills.
 ```
