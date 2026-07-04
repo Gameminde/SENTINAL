@@ -70,6 +70,7 @@ Do not treat a foundation pack as product-proven unless the model-facing product
 | Real Power Attempt Product ActionKernel code/channel dispatch | Valid success, controlled product proof | `b1c524cb63c8adf22ebaf38f7ebd19da31131547` | Proves RuntimeHost can execute `code_execution_sandbox.code_exec.run_profile` and fake/local `bounded_channel.send_message` through `ProductActionKernelDispatchAdapter` with ProductActionKernel receipts, skill-specific receipts, accepted FinalGate certificates, replay no-reexecute/no-resend, and hard-stop proofs for network code args, real channel transport, known non-product, unknown skill, and high-risk surfaces |
 | Power Cleanup Pack 9 model-led ProductActionKernel multi-skill task loop | Implemented candidate, focused local proof | `03dce885b78949af2be6dea0e4c35849939b5a1c` | Adds a model-led product task loop that consumes fake/model decisions, creates RuntimeHost missions per material skill, chains code execution and fake/local bounded channel send through ProductActionKernel, exposes prior product receipts to later model turns, preserves replay no-react, and blocks non-product or real channel paths without local shortcuts |
 | Power Cleanup Pack 10 product task-loop RuntimeHost entrypoint | Implemented candidate, focused local proof | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | Exposes the Pack 9 model-led ProductActionKernel task loop through `SentinelRuntimeHost`; the data-only entrypoint frame shows safe model-visible skills, RuntimeHost constructs the Pack 9 loop, and focused proof covers code -> channel -> finish, prior receipt context, no-op finish proof, no-react replay, real-channel block, browser/non-product block, unknown skill block, and high-risk hard stops |
+| Sentinel Monster Runtime objective lock | Control lock | `local docs commit` | Establishes the final north star for the remaining unification work: one product spine, simple model-facing skills, organs as hidden backends, ActionEnvelope internal only, recoverable-by-default in scope, hard stops only for real damage, and a Monster Runtime Scorecard that every future pack must update or explicitly leave unchanged |
 
 ## Executive Verdict
 
@@ -405,6 +406,7 @@ The first cleanup sequence after the blocker audit is now recorded as:
 | `POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1` | implemented | `c1cf6d4a` | code and channel existed as local loop power but not RuntimeHost product skills | focused local |
 | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented | `03dce88` | product skills were dispatchable one at a time but not yet chained by a model-led product loop | focused local |
 | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented | `eb65fe3` | Pack 9 loop needed a bounded RuntimeHost product entrypoint | focused local |
+| `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | control lock | `local docs commit` | remaining work needed a single final objective and scorecard tied to the deep-code audit, not another isolated browser/channel/code pack | no runtime change |
 
 Pack 3 specifically means:
 
@@ -443,6 +445,52 @@ and block authority-incompatible or recoverable failures without fake success.
 ```
 
 Next cleanup:
+
+```text
+REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+```
+
+## Living Audit Update: Monster Runtime Objective Lock V1
+
+`SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` makes the rest of the cleanup
+sequence subordinate to one final product shape:
+
+```text
+MODEL = brain / strategy / adaptation
+SENTINEL = body / runtime / skills / memory / proof / boundaries
+```
+
+The lock does not claim new runtime power. It records the remaining execution
+rule:
+
+```text
+RuntimeHost
+-> ModelLedProductActionKernelTaskLoop
+-> UnifiedExecutionDispatcher / ProductActionKernelDispatchAdapter
+-> ProductActionKernel
+-> skill runtime or organ backend
+-> receipt
+-> replay / FinalGate
+```
+
+Every future pack must update or explicitly leave unchanged the Monster Runtime
+Scorecard:
+
+```text
+product_spine_coverage
+direct_bypass_count
+dual_path_count
+model_facing_primitive_leakage_count
+recoverable_failure_continuation_coverage
+real_provider_product_loop_proof
+replay_parity_coverage
+browser_product_backend_coverage
+agent_workspace_readiness
+multi_worker_orchestration_readiness
+signed_mission_artifact_readiness
+```
+
+The current next proof remains:
 
 ```text
 REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1

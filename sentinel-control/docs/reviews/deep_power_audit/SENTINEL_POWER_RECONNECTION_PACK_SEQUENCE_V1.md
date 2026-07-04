@@ -70,6 +70,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Controlled attempt: Product ActionKernel code/channel dispatch | `REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1` | valid success, controlled product proof | `b1c524cb63c8adf22ebaf38f7ebd19da31131547` | Proves code execution and fake/local bounded channel send dispatch through RuntimeHost -> ProductActionKernel -> skill runtime with product receipts, skill-specific receipts, accepted FinalGate certificates, replay no-execute/no-resend, and hard-stop checks |
 | Global cleanup: Model-led ProductActionKernel multi-skill task loop | `POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1` | implemented candidate, focused local proof | `03dce885b78949af2be6dea0e4c35849939b5a1c` | Adds a model-led product loop above RuntimeHost so fake/model decisions can chain code execution and fake/local bounded channel send through ProductActionKernel while later turns consume prior product receipts |
 | Global cleanup: Product task-loop RuntimeHost entrypoint | `POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | implemented candidate, focused local proof | `eb65fe35c0ea747f64a5b06a2322aeaf8fd0d64f` | Exposes the Pack 9 product task loop through `SentinelRuntimeHost`, keeps the frame data-only, routes material actions through ProductActionKernel, and preserves blocks for real channel, browser, unknown, non-product, and high-risk actions |
+| Monster runtime objective lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | control lock, no runtime change | `local docs commit` | Establishes the final execution doctrine and scorecard: one product spine, simple model-facing skills, organs as hidden backends, ActionEnvelope internal only, recover by default inside granted scope, hard stop only real damage |
 
 New canonical next sequence:
 
@@ -96,6 +97,7 @@ done POWER_CLEANUP_PACK_8_ACTIONKERNEL_SKILL_PARITY_FOR_CODE_AND_CHANNEL_V1
 done REAL_POWER_ATTEMPT_PRODUCT_ACTION_KERNEL_CODE_AND_CHANNEL_DISPATCH_V1
 done POWER_CLEANUP_PACK_9_MODEL_LED_PRODUCT_ACTIONKERNEL_MULTI_SKILL_TASK_LOOP_V1
 done POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+done SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1
 next REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 ```
 
@@ -718,6 +720,24 @@ Next:
 
 ```text
 REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
+```
+
+After that proof, the next implementation lane is no longer surface-first. It is:
+
+```text
+POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
+POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
+POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
+POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
+POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1
+POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
+POWER_UNIFICATION_PACK_6_SIGNED_MISSION_ARTIFACTS_AND_REPLAY_VERIFIER_V1
+```
+
+The sequence rule is now:
+
+```text
+no pack without cut / hide / wire / recover / prove / audit-truth update
 ```
 
 Definition of done for next proof:
