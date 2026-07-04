@@ -151,16 +151,7 @@ def build_default_power_skill_registry(
     bindings = (
         _sentinel_loop_binding(),
         _read_only_binding(runtime_registry),
-        _local_binding(
-            skill_id="workspace_patch",
-            capability_id="workspace_patch",
-            model_visible_backend_id="workspace_patch_skill",
-            owner_module="sentinel.operator.workspace_patch_runtime",
-            owner_symbol="WorkspacePatchRuntime",
-            backend_candidates=("workspace_patch_runtime",),
-            proof_contract="WorkspacePatchReceipt",
-            replay_contract="ModelLedTaskLoopReplay workspace patch deltas",
-        ),
+        _workspace_patch_binding(runtime_registry),
         _local_binding(
             skill_id="code_execution_sandbox",
             capability_id="code_execution_sandbox",
@@ -260,6 +251,38 @@ def _read_only_binding(runtime_registry: RuntimeConnectionRegistry) -> PowerSkil
         owner_symbol=runtime_profile.owner_symbol,
         organ_refs=runtime_profile.organ_registry_refs,
         backend_candidates=("read_only_research_adapter", "ReadOnlyProductionSpineSession"),
+        product_reachable=runtime_profile.production_reachable,
+        task_loop_reachable=True,
+        proof_contract=runtime_profile.receipt_contract,
+        replay_contract=runtime_profile.replay_adapter,
+        limitations=runtime_profile.limitations,
+    )
+
+
+def _workspace_patch_binding(runtime_registry: RuntimeConnectionRegistry) -> PowerSkillBackendBinding:
+    try:
+        runtime_profile = runtime_registry.get("workspace_patch")
+    except KeyError:
+        return _local_binding(
+            skill_id="workspace_patch",
+            capability_id="workspace_patch",
+            model_visible_backend_id="workspace_patch_skill",
+            owner_module="sentinel.operator.workspace_patch_runtime",
+            owner_symbol="WorkspacePatchRuntime",
+            backend_candidates=("workspace_patch_runtime",),
+            proof_contract="WorkspacePatchReceipt",
+            replay_contract="ModelLedTaskLoopReplay workspace patch deltas",
+        )
+    return PowerSkillBackendBinding(
+        skill_id="workspace_patch",
+        capability_id="workspace_patch",
+        model_visible_backend_id="workspace_patch_skill",
+        runtime_connection_id=runtime_profile.connection_id,
+        adapter_id=runtime_profile.adapter_id,
+        owner_module=runtime_profile.owner_module,
+        owner_symbol=runtime_profile.owner_symbol,
+        organ_refs=runtime_profile.organ_registry_refs,
+        backend_candidates=("workspace_patch_runtime", "product_action_kernel_adapter"),
         product_reachable=runtime_profile.production_reachable,
         task_loop_reachable=True,
         proof_contract=runtime_profile.receipt_contract,

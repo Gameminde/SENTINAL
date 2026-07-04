@@ -463,6 +463,16 @@ class ProductActionKernelDispatchAdapter:
         product_dispatchable_skill_ids: tuple[str, ...] | list[str] | set[str],
         backend_id: str | None = None,
         organ_id: str | None = None,
+        parameter_resolver: Callable[
+            [MissionExecutionRequest, MissionExecutionDecision, MissionAuthorityEnvelope, UnifiedExecutionDispatchContext],
+            dict[str, Any],
+        ]
+        | None = None,
+        preflight_validator: Callable[
+            [dict[str, Any], MissionExecutionRequest, MissionAuthorityEnvelope],
+            str | None,
+        ]
+        | None = None,
     ) -> None:
         self.capability_id = capability_id
         self.operation = operation
@@ -470,6 +480,8 @@ class ProductActionKernelDispatchAdapter:
         self.organ_id = organ_id
         self._product_dispatchable_skill_ids = frozenset(product_dispatchable_skill_ids)
         self._action_kernel = ActionKernel(executors={capability_id: executor})
+        self._parameter_resolver = parameter_resolver
+        self._preflight_validator = preflight_validator
 
     def execute(
         self,
@@ -488,9 +500,27 @@ class ProductActionKernelDispatchAdapter:
             return _blocked_result(request, decision, adapter_id=self.adapter_id, reason="authority_incompatible_dispatch")
 
         dispatch_id = new_id("dispatch")
+        params = self._resolve_parameters(request, decision, authority, context)
+        if self._preflight_validator is not None:
+            preflight_failure = self._preflight_validator(params, request, authority)
+            if preflight_failure:
+                return UnifiedDispatchResult(
+                    dispatch_id=dispatch_id,
+                    status=DispatchStatus.BLOCKED,
+                    mission_id=request.mission_id,
+                    execution_request_id=request.request_id,
+                    decision_id=decision.decision_id,
+                    adapter_id=self.adapter_id,
+                    capability_id=request.capability_id,
+                    operation=request.operation,
+                    finalgate_status="rejected",
+                    blocked_reason=preflight_failure,
+                )
         envelope = ActionEnvelope(
             capability_id=request.capability_id,
             operation=request.operation,
+            target_ref=_target_ref_from_parameters(params),
+            params=params,
             authority_ref=request.authority_envelope_ref,
             decision_ref=decision.decision_id,
             expected_receipt_type="ProductActionKernelReceipt",
@@ -508,6 +538,8 @@ class ProductActionKernelDispatchAdapter:
                 "adapter_id": self.adapter_id,
                 "backend_id": self.backend_id,
                 "organ_id": self.organ_id,
+                "authority": authority,
+                "kernel": context.kernel,
             },
         )
         receipt = self._write_receipt(
@@ -555,6 +587,17 @@ class ProductActionKernelDispatchAdapter:
             finalgate_refs=[certificate.certificate_id],
             finalgate_status="accepted",
         )
+
+    def _resolve_parameters(
+        self,
+        request: MissionExecutionRequest,
+        decision: MissionExecutionDecision,
+        authority: MissionAuthorityEnvelope,
+        context: UnifiedExecutionDispatchContext,
+    ) -> dict[str, Any]:
+        if self._parameter_resolver is not None:
+            return dict(self._parameter_resolver(request, decision, authority, context))
+        return context.lifecycle.load_execution_parameters(request.mission_id, request.request_id)
 
     def _write_receipt(
         self,
@@ -1137,6 +1180,14 @@ def _authority_allows_action(
         f"{capability_id}.{operation}" in allowed_actions
         or operation in allowed_actions
     )
+
+
+def _target_ref_from_parameters(params: dict[str, Any]) -> str | None:
+    for key in ("target_ref", "target_path", "path", "ref"):
+        value = params.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
 
 
 def _product_action_kernel_artifact_path(

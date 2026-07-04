@@ -193,6 +193,7 @@ class MissionLifecycleService:
             execution_options=normalized_execution_options,
         ).with_hash()
         self._persist_execution_request(execution_request)
+        self._persist_execution_request_parameters(execution_request, parameters)
         self.kernel.store.append_event(
             record.mission_id,
             event_type="mission_execution_request_prepared",
@@ -248,6 +249,22 @@ class MissionLifecycleService:
         if not request.verify_hash():
             raise ValueError("mission execution request hash mismatch")
         return request
+
+    def load_execution_parameters(self, mission_id: str, request_id: str) -> dict[str, Any]:
+        request = self.load_execution_request(mission_id, request_id)
+        path = self._parameters_path(mission_id, request_id)
+        if not path.exists():
+            return {}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        parameters = payload.get("parameters")
+        if not isinstance(parameters, dict):
+            raise ValueError("mission execution parameters payload invalid")
+        if payload.get("parameter_hash") != request.parameter_hash:
+            raise ValueError("mission execution parameters hash mismatch")
+        if stable_hash(redact_operator_value(parameters)) != request.parameter_hash:
+            raise ValueError("mission execution parameters hash mismatch")
+        reject_operator_control_payload(parameters, context="mission_execution_request_parameters")
+        return dict(parameters)
 
     def latest_execution_request(self, mission_id: str) -> MissionExecutionRequest:
         requests = self.list_execution_requests(mission_id)
@@ -348,6 +365,25 @@ class MissionLifecycleService:
             request.safe_model_dump(),
         )
 
+    def _persist_execution_request_parameters(
+        self,
+        request: MissionExecutionRequest,
+        parameters: dict[str, Any],
+    ) -> None:
+        safe_parameters = redact_operator_value(parameters)
+        self.kernel.store.atomic_write_json(
+            self._parameters_path(request.mission_id, request.request_id),
+            {
+                "request_id": request.request_id,
+                "mission_id": request.mission_id,
+                "parameter_hash": stable_hash(safe_parameters),
+                "parameters": safe_parameters,
+                "data_not_authority": True,
+                "authority_effect": "none",
+                "can_execute": False,
+            },
+        )
+
     def _record_enqueue_failed(self, mission_id: str, request: MissionExecutionRequest) -> None:
         self.kernel.store.append_event(
             mission_id,
@@ -365,6 +401,13 @@ class MissionLifecycleService:
 
     def _request_path(self, mission_id: str, request_id: str) -> Path:
         return self._request_root(mission_id) / f"{request_id}.json"
+
+    def _parameters_path(self, mission_id: str, request_id: str) -> Path:
+        return (
+            self.kernel.store.mission_dir(mission_id, create=True)
+            / "execution_request_parameters"
+            / f"{request_id}.json"
+        )
 
 
 def _normalize_execution_options(options: dict[str, Any]) -> dict[str, Any]:

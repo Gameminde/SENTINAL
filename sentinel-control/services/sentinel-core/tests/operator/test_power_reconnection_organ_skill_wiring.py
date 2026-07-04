@@ -58,10 +58,13 @@ def test_pack_c_playwright_backend_requires_explicit_compatibility_selection() -
     assert selection.selection_reason == "cloak_browser_backend_unavailable"
 
 
-def test_pack_c_runtime_host_product_adapters_stay_read_only_only(tmp_path) -> None:
+def test_pack_c_runtime_host_product_adapters_expose_safe_workspace_patch(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs")
 
-    assert host.adapter_registry.adapter_ids() == ("read_only_research_adapter",)
+    assert host.adapter_registry.adapter_ids() == (
+        "product_action_kernel_adapter",
+        "read_only_research_adapter",
+    )
 
     registry = build_default_power_skill_registry(runtime_connection_registry=host.connection_registry)
     frame = registry.compile_backend_frame(
@@ -87,7 +90,8 @@ def test_pack_c_runtime_host_product_adapters_stay_read_only_only(tmp_path) -> N
 
     assert by_skill["read_only_research"]["product_reachable"] is True
     assert by_skill["read_only_research"]["adapter_id"] == "read_only_research_adapter"
-    assert by_skill["workspace_patch"]["product_reachable"] is False
+    assert by_skill["workspace_patch"]["product_reachable"] is True
+    assert by_skill["workspace_patch"]["adapter_id"] == "product_action_kernel_adapter"
     assert by_skill["workspace_patch"]["task_loop_reachable"] is True
     assert by_skill["real_browser_control"]["product_reachable"] is False
     assert by_skill["external_api"]["locked"] is True

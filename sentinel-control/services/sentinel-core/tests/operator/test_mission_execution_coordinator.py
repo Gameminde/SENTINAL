@@ -46,7 +46,7 @@ def test_coordinator_rejects_operation_not_declared_by_connection() -> None:
     assert decision.rejection_reason == "operation_not_supported"
 
 
-def test_coordinator_recognizes_known_skill_without_product_adapter() -> None:
+def test_coordinator_routes_workspace_patch_product_adapter() -> None:
     coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
 
     decision = coordinator.decide(
@@ -57,10 +57,32 @@ def test_coordinator_recognizes_known_skill_without_product_adapter() -> None:
         )
     )
 
-    assert decision.status is MissionExecutionDecisionStatus.REJECTED
-    assert decision.rejection_reason == "skill_not_product_dispatchable"
+    assert decision.status is MissionExecutionDecisionStatus.ROUTED
+    assert decision.connection_id == "workspace_patch"
+    assert decision.adapter_id == "product_action_kernel_adapter"
     assert decision.skill_id == "workspace_patch"
     assert decision.model_visible_backend_id == "workspace_patch_skill"
+    assert decision.task_loop_reachable is True
+    assert decision.product_reachable is True
+    assert decision.dispatch_enabled is False
+    assert decision.can_execute is False
+
+
+def test_coordinator_recognizes_known_skill_without_product_adapter() -> None:
+    coordinator = MissionExecutionCoordinator(build_default_runtime_connection_registry())
+
+    decision = coordinator.decide(
+        _request(
+            "mission_connection_skill_native_2",
+            capability_id="bounded_channel",
+            operation="send_message",
+        )
+    )
+
+    assert decision.status is MissionExecutionDecisionStatus.REJECTED
+    assert decision.rejection_reason == "skill_not_product_dispatchable"
+    assert decision.skill_id == "bounded_channel"
+    assert decision.model_visible_backend_id == "bounded_channel_skill"
     assert decision.task_loop_reachable is True
     assert decision.product_reachable is False
     assert decision.dispatch_enabled is False

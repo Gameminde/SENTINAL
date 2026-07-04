@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from pydantic import Field
 
 from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
 from sentinel.operator.authority_issuer import MissionAuthorityEnvelopeIssuer
 from sentinel.operator.daemon_models import DaemonQueueStatus, MissionDaemonConfig, daemon_utc_now
 from sentinel.operator.daemon_runtime import MissionDaemonRuntime
@@ -18,10 +19,12 @@ from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.read_only_operator_spine import ReadOnlyActionKind, ReadOnlyDecision, ReadOnlyDecisionClient, ReadOnlyReportClient
 from sentinel.operator.runtime_connections import RuntimeConnectionRegistry, build_default_runtime_connection_registry
 from sentinel.operator.unified_execution_dispatcher import (
+    ProductActionKernelDispatchAdapter,
     ReadOnlyResearchAdapter,
     UnifiedExecutionAdapterRegistry,
     UnifiedExecutionDispatcher,
 )
+from sentinel.operator.workspace_patch_runtime import SENSITIVE_WORKSPACE_PATCH_NAMES, WorkspacePatchRuntime
 from sentinel.operator.workflow_runtime import DurableMissionWorkflowRuntime
 from sentinel.shared.models import SentinelModel
 
@@ -88,7 +91,16 @@ class SentinelRuntimeHost:
                 "read_only_research_adapter": ReadOnlyResearchAdapter(
                     decision_client_factory=read_only_decision_client_factory or _default_read_only_decision_client,
                     report_client_factory=read_only_report_client_factory or _default_read_only_report_client,
-                )
+                ),
+                "product_action_kernel_adapter": ProductActionKernelDispatchAdapter(
+                    capability_id="workspace_patch",
+                    operation="apply_patch",
+                    executor=_default_workspace_patch_executor,
+                    product_dispatchable_skill_ids=("workspace_patch",),
+                    backend_id="workspace_patch_skill",
+                    organ_id="workspace_patch",
+                    preflight_validator=_workspace_patch_apply_preflight,
+                ),
             }
         )
         self.dispatcher = UnifiedExecutionDispatcher(
@@ -179,3 +191,41 @@ def _default_read_only_decision_client(_request: MissionExecutionRequest, _autho
 
 def _default_read_only_report_client(_request: MissionExecutionRequest, _authority: MissionAuthorityEnvelope) -> ReadOnlyReportClient:
     return ReadOnlyReportClient()
+
+
+def _default_workspace_patch_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    authority = context.get("authority")
+    kernel = context.get("kernel")
+    if not isinstance(authority, MissionAuthorityEnvelope) or not isinstance(kernel, MissionKernel):
+        raise RuntimeError("workspace_patch_runtime_context_missing")
+    runtime = WorkspacePatchRuntime(
+        kernel=kernel,
+        mission_id=str(context.get("mission_id") or ""),
+        workspace_root=_workspace_path_from_ref(str(context.get("workspace_ref") or "")),
+    )
+    return runtime.execute(envelope, authority=authority, context=context)
+
+
+def _workspace_patch_apply_preflight(
+    params: dict[str, Any],
+    _request: MissionExecutionRequest,
+    _authority: MissionAuthorityEnvelope,
+) -> str | None:
+    target = str(params.get("target_path") or params.get("target_ref") or "").strip()
+    if not target:
+        return "workspace_patch_target_required"
+    raw = Path(target)
+    if raw.is_absolute() or ".." in raw.parts:
+        return "workspace_patch_target_not_authorized"
+    if any(part in SENSITIVE_WORKSPACE_PATCH_NAMES for part in raw.parts):
+        return "workspace_patch_target_not_authorized"
+    return None
+
+
+def _workspace_path_from_ref(workspace_ref: str) -> Path:
+    if not workspace_ref.startswith("workspace:"):
+        raise RuntimeError("workspace_ref_not_dispatchable")
+    path = Path(workspace_ref.removeprefix("workspace:")).resolve()
+    if not path.exists() or not path.is_dir():
+        raise RuntimeError("workspace_ref_not_found")
+    return path
