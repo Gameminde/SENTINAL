@@ -1101,3 +1101,44 @@ real_external_channel_call = no
 new_dispatch_adapter = no
 live_external_power_enabled = no
 ```
+
+## Living Update: Power Unification Pack 4
+
+Pack 4 makes browser high-level power a RuntimeHost/ProductActionKernel-owned
+product route in local/fake mode.
+
+| Pack | Status | What It Reconnected |
+|---|---|---|
+| `POWER_UNIFICATION_PACK_4_BROWSER_L5_L6_PRODUCT_BACKEND_V1` | implemented candidate | browser high-level skills now route through RuntimeHost -> ProductActionKernelDispatchAdapter -> RealBrowserControlRuntime using the mission workspace browser_session handle |
+
+Concrete behavior:
+
+```text
+real_browser_control runtime connection = product reachable
+model visible skills = browse_search / extract / finish
+raw browser primitives = internal / compatibility only
+browser L5/L6/Cloak = hidden backend
+Playwright = explicit compatibility backend only
+direct browser runtime calls = not product proof
+```
+
+This cuts a core global audit issue:
+
+```text
+browser was a stack, not a product skill
+```
+
+Pack 4 does not claim live Alibaba proof:
+
+```text
+provider_call = no
+real_browser_run = no
+real_external_channel_send = no
+product_proven = local/fake Cloak-session backend proof only
+```
+
+Next:
+
+```text
+POWER_UNIFICATION_PACK_5_MULTI_WORKER_LONG_TASK_ORCHESTRATION_V1
+```
