@@ -760,6 +760,7 @@ and keep real external channel/browser/high-risk surfaces closed.
 | Pack | Status | Result |
 |---|---|---|
 | `POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1` | implemented candidate | channel product path now marks internal channel backend plus ProductActionKernel dispatch owner; mutation apply remains explicit non-product wire |
+| `POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1` | implemented candidate | simple skills are now the declared primary model surface in DecisionContext, RuntimeHost product entrypoint, and ProductActionKernel task-loop context |
 
 Pack 1 does not claim all bypasses are gone. It cuts the first P0 ambiguity:
 
@@ -770,5 +771,5 @@ bounded_channel product proof != direct ChannelConnectorRuntime compatibility pr
 Next:
 
 ```text
-POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
+POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
 ```

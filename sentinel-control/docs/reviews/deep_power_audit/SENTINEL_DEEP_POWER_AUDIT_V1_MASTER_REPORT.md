@@ -555,8 +555,46 @@ product_dispatchable = false
 target_product_path = RuntimeHost -> ProductActionKernelDispatchAdapter -> workspace_patch
 ```
 
-Next:
+Previous next action, now completed:
 
 ```text
 POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
+```
+
+## Living Audit Update: Power Unification Pack 2
+
+`POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1` is implemented as a
+focused model-facing surface cut.
+
+Accepted truth:
+
+```text
+primary_model_surface = model_visible_skills
+primary_model_language = simple_mission_skills
+action_envelope_language = internal_runtime_only
+provider_call = no
+real_browser_run = no
+real_external_channel_call = no
+```
+
+The new `model_skill_surface.py` compiles simple skills from canonical runtime
+actions and keeps the canonical mapping as internal runtime metadata. The
+DecisionContext, RuntimeHost product entrypoint frame, and
+ModelLedProductActionKernelTaskLoop context now expose simple skills as the
+declared primary model truth.
+
+Scorecard delta:
+
+```text
+model_facing_primitive_leakage_count = reduced
+product_spine_coverage = unchanged
+direct_bypass_count = unchanged
+dual_path_count = unchanged
+real_provider_product_loop_proof = unchanged
+```
+
+Next:
+
+```text
+POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
 ```

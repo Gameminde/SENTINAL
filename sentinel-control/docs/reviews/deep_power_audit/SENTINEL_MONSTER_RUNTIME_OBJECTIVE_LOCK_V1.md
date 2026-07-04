@@ -317,7 +317,7 @@ Mutation artifact apply remains open:
 GovernedMutationArtifactChannel.product_wire_status().product_dispatchable = false
 ```
 
-## Current Next Action
+## Previous Next Action Now Completed
 
 ```text
 POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
@@ -327,4 +327,56 @@ Carry forward:
 
 ```text
 mutation artifact final apply still needs workspace_patch product wiring with rollback parity.
+```
+
+## Living Update: Power Unification Pack 2
+
+`POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1` is implemented as the
+first model-surface cut.
+
+What changed:
+
+```text
+DecisionContext.primary_model_surface = model_visible_skills
+DecisionContext.primary_model_language = simple_mission_skills
+DecisionContext.action_envelope_language = internal_runtime_only
+RuntimeHost.product_task_loop_entrypoint_frame now exposes model_visible_skills
+ModelLedProductActionKernelTaskLoop context now exposes model_visible_skills
+```
+
+The compatibility canonical-action fields remain available for existing
+extractors and tests, but the declared primary model surface is now:
+
+```text
+read
+patch
+run_check
+browse_search
+extract
+send_message
+finish
+```
+
+`spawn_worker` and `remember` stay absent until their product routes exist.
+
+Scorecard delta:
+
+```text
+model_facing_primitive_leakage_count = reduced
+product_spine_coverage = unchanged
+direct_bypass_count = unchanged
+dual_path_count = unchanged
+real_provider_product_loop_proof = unchanged
+```
+
+## Current Next Action
+
+```text
+POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
+```
+
+Carry forward:
+
+```text
+Future real-provider product loops must prove the provider consumes the simple skill surface rather than old compatibility canonical-action fields.
 ```

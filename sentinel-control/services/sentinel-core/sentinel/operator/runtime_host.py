@@ -26,6 +26,7 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.mission_lifecycle_service import MissionExecutionRequest
 from sentinel.operator.mission_execution_coordinator import MissionExecutionCoordinator
 from sentinel.operator.mission_lifecycle_service import MissionLifecycleService
+from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.read_only_operator_spine import ReadOnlyActionKind, ReadOnlyDecision, ReadOnlyDecisionClient, ReadOnlyReportClient
 from sentinel.operator.runtime_connections import RuntimeConnectionRegistry, build_default_runtime_connection_registry
@@ -167,17 +168,30 @@ class SentinelRuntimeHost:
         )
 
     def product_task_loop_entrypoint_frame(self) -> dict[str, Any]:
+        model_visible_available_actions = [
+            "workspace_patch.apply_patch",
+            "code_execution_sandbox.code_exec.run_profile",
+            "bounded_channel.send_message",
+            "sentinel_loop.finish",
+        ]
+        model_skill_surface = compile_model_skill_surface(
+            model_visible_actions=model_visible_available_actions,
+            recommended_actions=model_visible_available_actions,
+        )
         return {
             "entrypoint_id": "product_action_kernel_task_loop",
             "enabled": True,
             "runtime_bridge": "ModelLedProductActionKernelTaskLoop",
             "material_execution_owner": "RuntimeHost -> UnifiedExecutionDispatcher -> ProductActionKernelDispatchAdapter",
-            "model_visible_available_actions": [
-                "workspace_patch.apply_patch",
-                "code_execution_sandbox.code_exec.run_profile",
-                "bounded_channel.send_message",
-                "sentinel_loop.finish",
-            ],
+            "primary_model_surface": "model_visible_skills",
+            "primary_model_language": "simple_mission_skills",
+            "action_envelope_language": "internal_runtime_only",
+            "model_skill_surface": model_skill_surface,
+            "model_visible_skills": list(model_skill_surface["model_visible_skills"]),
+            "primary_model_next_recommended_skills": list(model_skill_surface["recommended_next_skills"]),
+            "primary_model_recommended_next_skill": model_skill_surface["primary_recommended_skill"],
+            "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
+            "model_visible_available_actions": model_visible_available_actions,
             "internal_or_out_of_scope_actions": [
                 "real_browser_control.real_browser.search",
                 "browser_control.click",

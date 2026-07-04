@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import Any
 
 from sentinel.operator.action_kernel import ActionResult
+from sentinel.operator.model_skill_surface import compile_model_skill_surface
 
 
 def compile_skill_decision_frame(
     *,
     mission_objective: str,
     progress_state: str,
+    available_actions: tuple[str, ...] = (),
     legacy_next_recommended_actions: list[str],
     objective_satisfied: bool,
     finish_available: bool,
@@ -49,19 +51,38 @@ def compile_skill_decision_frame(
         legacy_next_recommended_actions=legacy_next_recommended_actions,
         completion_requirements=completion_requirements,
     )
+    model_skill_surface = compile_model_skill_surface(
+        model_visible_actions=visible_actions,
+        hidden_internal_actions=_dedupe(
+            [
+                *hidden_internal_actions,
+                *[action for action in available_actions if action not in visible_actions],
+            ]
+        ),
+        recommended_actions=recommended,
+        hard_stop_boundaries=_hard_stop_boundaries(skill_exposure_frame),
+    )
     return {
         "frame_version": "skill_decision_frame_v1",
         "primary_truth": "skill_decision_frame",
+        "primary_model_surface": "model_visible_skills",
+        "primary_model_language": "simple_mission_skills",
+        "action_envelope_language": "internal_runtime_only",
         "mission_objective": mission_objective,
         "current_progress_state": progress_state,
         "available_skills": list(skill_ids),
+        "model_visible_skills": model_skill_surface["model_visible_skills"],
         "executable_skills": [
             skill_id
             for skill_id in skill_ids
             if not bool(skill_frames[skill_id].get("locked")) and skill_frames[skill_id].get("model_visible_actions")
         ],
         "skill_frames": skill_frames,
+        "model_skill_surface": model_skill_surface,
         "recommended_next_actions": recommended,
+        "recommended_next_skills": model_skill_surface["recommended_next_skills"],
+        "primary_model_recommended_next_skill": model_skill_surface["primary_recommended_skill"],
+        "runtime_internal_action_map": model_skill_surface["runtime_internal_action_map"],
         "legacy_next_recommended_actions": legacy_next_recommended_actions,
         "recent_receipts": _recent_receipts(observations),
         "recoverable_observations": recoverable_observations,

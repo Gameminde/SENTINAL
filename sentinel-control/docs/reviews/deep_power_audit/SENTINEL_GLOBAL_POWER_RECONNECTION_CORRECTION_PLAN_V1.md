@@ -1051,8 +1051,41 @@ This is intentionally not a broad deletion pack. It removes false product-proof
 ambiguity first, then leaves the larger mutation/browser/organ runtime cuts in
 the sequence.
 
-Next:
+Previous next action, now completed:
 
 ```text
 POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1
+```
+
+## Living Update: Power Unification Pack 2
+
+Pack 2 cuts the model-facing primitive leakage layer without adding new live
+power.
+
+| Pack | Status | What It Reconnected |
+|---|---|---|
+| `POWER_UNIFICATION_PACK_2_SKILL_ONLY_MODEL_SURFACE_V1` | implemented candidate | `DecisionContext`, RuntimeHost product entrypoint, and ProductActionKernel task-loop context now declare `model_visible_skills` as the primary model surface while ActionEnvelope remains internal |
+
+Concrete behavior:
+
+```text
+primary_model_surface = model_visible_skills
+primary_model_language = simple_mission_skills
+action_envelope_language = internal_runtime_only
+runtime_internal_action_map = simple skill -> canonical internal action
+```
+
+This cuts a core audit issue:
+
+```text
+The model no longer has to treat canonical runtime/organ/action names as the primary product language.
+```
+
+Compatibility fields are preserved so existing extractors and fixture clients
+continue to run.
+
+Next:
+
+```text
+POWER_UNIFICATION_PACK_3_AGENT_WORKSPACE_RUNTIME_V1
 ```

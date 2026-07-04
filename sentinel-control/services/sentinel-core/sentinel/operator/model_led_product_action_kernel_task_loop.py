@@ -10,6 +10,7 @@ from pydantic import Field, model_validator
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
+from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
 from sentinel.operator.redaction import sanitize_operator_refs
 from sentinel.operator.runtime_host import SentinelRuntimeHost
@@ -165,16 +166,32 @@ class ModelLedProductActionKernelTaskLoop:
 
     def _compile_context(self) -> dict[str, Any]:
         actions = self._available_actions()
+        model_skill_surface = compile_model_skill_surface(
+            model_visible_actions=actions,
+            recommended_actions=actions,
+        )
         return {
             "loop_id": self.loop_id,
             "mission_objective": self.mission_objective,
             "progress_state": self._progress_state(),
+            "primary_model_surface": "model_visible_skills",
+            "primary_model_language": "simple_mission_skills",
+            "action_envelope_language": "internal_runtime_only",
+            "model_skill_surface": model_skill_surface,
+            "model_visible_skills": list(model_skill_surface["model_visible_skills"]),
+            "primary_model_next_recommended_skills": list(model_skill_surface["recommended_next_skills"]),
+            "primary_model_recommended_next_skill": model_skill_surface["primary_recommended_skill"],
+            "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
             "model_visible_available_actions": list(actions),
             "skill_decision_frame": {
                 "primary_truth": "product_action_kernel_runtimehost",
+                "primary_model_surface": "model_visible_skills",
+                "primary_model_language": "simple_mission_skills",
+                "model_skill_surface": model_skill_surface,
+                "model_visible_skills": list(model_skill_surface["model_visible_skills"]),
                 "model_visible_actions": list(actions),
                 "runtime_bridge": "RuntimeHost -> UnifiedExecutionDispatcher -> ProductActionKernelDispatchAdapter",
-                "action_envelope_language": "internal_runtime_format",
+                "action_envelope_language": "internal_runtime_only",
             },
             "product_action_kernel_dispatch_count": len(self.dispatch_results),
             "recent_product_receipt_refs": list(sanitize_operator_refs(self.product_receipt_refs)),

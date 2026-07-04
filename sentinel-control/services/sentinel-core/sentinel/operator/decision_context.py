@@ -213,6 +213,7 @@ class DecisionContextCompiler:
         skill_decision_frame = compile_skill_decision_frame(
             mission_objective=mission_objective,
             progress_state=progress_guidance["progress_state"],
+            available_actions=available_actions,
             legacy_next_recommended_actions=progress_guidance["next_recommended_actions"],
             objective_satisfied=objective_satisfied,
             finish_available=objective_satisfied,
@@ -229,12 +230,29 @@ class DecisionContextCompiler:
             if str(item.get("canonical_action_name") or item.get("action_name") or "")
         ]
         model_visible_next_actions = list(skill_decision_frame["recommended_next_actions"])
+        model_skill_surface = dict(skill_decision_frame["model_skill_surface"])
+        model_visible_skills = list(model_skill_surface["model_visible_skills"])
+        model_visible_next_skills = list(model_skill_surface["recommended_next_skills"])
         return {
             "mission_id": mission_id,
             "mission_objective": mission_objective,
             "available_actions": list(available_actions),
             "runtime_available_actions": list(available_actions),
             "model_visible_available_actions": model_visible_available_actions,
+            "primary_model_surface": "model_visible_skills",
+            "primary_model_language": "simple_mission_skills",
+            "action_envelope_language": "internal_runtime_only",
+            "model_skill_surface": model_skill_surface,
+            "model_visible_skills": model_visible_skills,
+            "primary_model_next_recommended_skills": model_visible_next_skills,
+            "primary_model_recommended_next_skill": (
+                model_visible_next_skills[0] if model_visible_next_skills else None
+            ),
+            "model_visible_next_recommended_skills": model_visible_next_skills,
+            "model_visible_recommended_next_skill": (
+                model_visible_next_skills[0] if model_visible_next_skills else None
+            ),
+            "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
             "decision_context_primary_truth": "skill_decision_frame",
             "skill_exposure_frame": skill_exposure_frame.safe_model_dump(),
             "power_skill_backend_frame": power_skill_backend_frame,
