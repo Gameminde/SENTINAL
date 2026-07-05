@@ -195,6 +195,10 @@ class ModelLedProductActionKernelTaskLoop:
             "primary_model_recommended_next_skill": model_skill_surface["primary_recommended_skill"],
             "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
             "_workspace_patch_plans": _workspace_patch_plans(self.workspace_root),
+            "_workspace_create_file_plans": _workspace_create_file_plans(
+                self.workspace_root,
+                mission_objective=self.mission_objective,
+            ),
             "_workspace_patch_plans_are_pending": True,
             "_bounded_check_plan": _bounded_check_plan(self.workspace_root),
             "model_visible_available_actions": list(actions),
@@ -262,7 +266,10 @@ class ModelLedProductActionKernelTaskLoop:
     def _available_actions(self) -> tuple[str, ...]:
         if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
             return ("sentinel_loop.finish",)
-        actions = [
+        actions = []
+        if _workspace_create_file_plans(self.workspace_root, mission_objective=self.mission_objective):
+            actions.append("workspace_patch.create_file")
+        actions.extend([
             "workspace_patch.apply_patch",
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
@@ -272,7 +279,7 @@ class ModelLedProductActionKernelTaskLoop:
             "real_browser_control.real_browser.extract_product_cards",
             "real_browser_control.real_browser.verify_extraction",
             "worker_fleet.spawn_worker",
-        ]
+        ])
         if self.product_receipt_refs:
             actions.append("sentinel_loop.finish")
         return tuple(actions)
@@ -579,6 +586,39 @@ def _workspace_patch_plans(workspace_root: Path) -> list[dict[str, str]]:
                 "new_text": replacement,
             }
         )
+    return plans
+
+
+def _workspace_create_file_plans(workspace_root: Path, *, mission_objective: str = "") -> list[dict[str, str]]:
+    if _workspace_patch_plans(workspace_root):
+        return []
+    objective = mission_objective.lower()
+    if not any(marker in objective for marker in ("arbitrary", "from scratch", "create a tiny python app")):
+        return []
+    plans: list[dict[str, str]] = []
+    for relative_path, content in (
+        (
+            "app.py",
+            'APP_MESSAGE = "Sentinel arbitrary local app worked."\n\n'
+            "def main():\n"
+            "    return APP_MESSAGE\n\n"
+            'if __name__ == "__main__":\n'
+            "    print(main())\n",
+        ),
+        (
+            "README.md",
+            "# Sentinel Local App\n\n"
+            "This local app was created from scratch by the Sentinel ProductActionKernel spine.\n",
+        ),
+        (
+            "tests/test_app.py",
+            "from app import main\n\n\n"
+            "def test_main_returns_message():\n"
+            '    assert main() == "Sentinel arbitrary local app worked."\n',
+        ),
+    ):
+        if not (workspace_root / relative_path).exists():
+            plans.append({"target_path": relative_path, "new_text": content})
     return plans
 
 

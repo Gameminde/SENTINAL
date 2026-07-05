@@ -5,6 +5,7 @@ from typing import Any
 
 MODEL_SKILL_ORDER = (
     "read",
+    "create_file",
     "patch",
     "run_check",
     "browse_search",
@@ -20,6 +21,7 @@ _ACTION_TO_MODEL_SKILL = {
     "read_only_research.search_text": "read",
     "read_only_research.read_file_segment": "read",
     "read_only_research.finish_exploration": "finish",
+    "workspace_patch.create_file": "create_file",
     "workspace_patch.apply_patch": "patch",
     "workspace_patch.run_bounded_check": "run_check",
     "code_execution_sandbox.code_exec.run_profile": "run_check",

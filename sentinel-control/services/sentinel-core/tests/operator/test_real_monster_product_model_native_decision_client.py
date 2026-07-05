@@ -115,6 +115,71 @@ def test_natural_app_creation_intent_maps_to_workspace_patch_plan() -> None:
     }
 
 
+def test_natural_file_creation_intent_maps_to_workspace_create_file_plan() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["Create the new app.py file for this local app."]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="create_file",
+            workspace_create_file_plans=[
+                {
+                    "target_path": "app.py",
+                    "new_text": (
+                        'APP_MESSAGE = "Sentinel arbitrary local app worked."\n\n'
+                        "def main():\n"
+                        "    return APP_MESSAGE\n"
+                    ),
+                }
+            ],
+        )
+    )
+
+    assert decision.capability_id == "workspace_patch"
+    assert decision.operation == "apply_patch"
+    assert decision.target_ref == "app.py"
+    assert decision.params == {
+        "target_path": "app.py",
+        "target_paths": ["app.py"],
+        "create_file": True,
+        "new_text": (
+            'APP_MESSAGE = "Sentinel arbitrary local app worked."\n\n'
+            "def main():\n"
+            "    return APP_MESSAGE\n"
+        ),
+    }
+
+
+def test_json_create_file_skill_preserves_model_authored_file_content() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "skill": "create_file",
+                    "params": {
+                        "target_path": "app.py",
+                        "new_text": 'def main():\n    return "model-authored app"\n',
+                    },
+                }
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(_context(recommended_skill="create_file"))
+
+    assert decision.capability_id == "workspace_patch"
+    assert decision.operation == "apply_patch"
+    assert decision.params == {
+        "target_path": "app.py",
+        "target_paths": ["app.py"],
+        "create_file": True,
+        "new_text": 'def main():\n    return "model-authored app"\n',
+    }
+
+
 def test_patch_intent_without_patch_plan_blocks_honestly() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(["Create the local app now."]),
@@ -496,6 +561,83 @@ def test_model_native_client_creates_multi_file_local_app_then_checks_channel_wo
     assert verified.accepted is True
 
 
+def test_model_native_client_creates_arbitrary_local_app_files_then_checks_channel_worker_finish(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "MISSION.md").write_text(
+        "# Arbitrary local app mission\n\n"
+        "Create a tiny Python app from scratch with README and tests.\n",
+        encoding="utf-8",
+    )
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                "Create app.py for the local Sentinel app.",
+                "Create README.md for the app.",
+                "Create tests/test_app.py for the app.",
+                "Run the bounded local check.",
+                "Send the completion message to the bounded local channel.",
+                "Delegate a verifier worker.",
+                "The app has enough product proof. Summarize and finish.",
+            ]
+        ),
+        request_factory=_request_factory,
+        preferred_skill_sequence=(
+            "create_file",
+            "create_file",
+            "create_file",
+            "run_check",
+            "send_message",
+            "spawn_worker",
+            "finish",
+        ),
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_pack3_arbitrary_file_app",
+        mission_objective=(
+            "Create an arbitrary local Sentinel app from scratch, run a bounded check, notify, "
+            "delegate verifier, and finish."
+        ),
+        decision_client=client,
+        allowed_domains=("example.com", "local.worker"),
+        max_model_calls=8,
+        max_material_actions=6,
+    )
+    replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=result.mission_ids)
+    export = MissionArtifactBundleExporter(host.kernel.store).export_product_loop(
+        loop_result=result,
+        mission_objective="Controlled arbitrary local app file creation product loop proof.",
+        model_visible_skills=tuple(host.product_task_loop_entrypoint_frame()["model_visible_skills"]),
+    )
+    verified = MissionArtifactBundleVerifier.verify_bundle(export.bundle_dir)
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "code_execution_sandbox:code_exec.run_profile",
+        "bounded_channel:send_message",
+        "worker_fleet:spawn_worker",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 6
+    assert len(result.product_receipt_refs) == 6
+    assert client.call_count == 7
+    assert "Sentinel arbitrary local app worked." in (workspace / "app.py").read_text(encoding="utf-8")
+    assert "from scratch" in (workspace / "README.md").read_text(encoding="utf-8")
+    assert "test_main_returns_message" in (workspace / "tests" / "test_app.py").read_text(encoding="utf-8")
+    assert replay.reexecuted_actions is False
+    assert replay.receipt_writes_delta == 0
+    assert replay.finalgate_writes_delta == 0
+    assert replay.artifact_hashes_stable is True
+    assert export.accepted is True
+    assert verified.accepted is True
+
+
 def test_product_loop_can_recover_once_from_empty_visible_content_before_material_action(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
@@ -664,9 +806,11 @@ def _context(
     recent_product_receipt_refs: list[str] | None = None,
     dispatch_summaries: list[dict[str, object]] | None = None,
     workspace_patch_plans: list[dict[str, object]] | None = None,
+    workspace_create_file_plans: list[dict[str, object]] | None = None,
     bounded_check_plan: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     action_map = {
+        "create_file": "workspace_patch.apply_patch",
         "run_check": "code_execution_sandbox.code_exec.run_profile",
         "send_message": "bounded_channel.send_message",
         "spawn_worker": "worker_fleet.spawn_worker",
@@ -687,5 +831,6 @@ def _context(
         "recent_product_receipt_refs": recent_product_receipt_refs or [],
         "dispatch_summaries": dispatch_summaries or [],
         "_workspace_patch_plans": workspace_patch_plans or [],
+        "_workspace_create_file_plans": workspace_create_file_plans or [],
         "_bounded_check_plan": bounded_check_plan or {},
     }

@@ -105,7 +105,9 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         f"Product receipts so far: {receipt_count}\n"
         f"{recovery_hint}"
         "Choose exactly one next skill for this turn.\n"
-        "Prefer one compact JSON object such as {\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
+        "Prefer one compact JSON object such as "
+        "{\"skill\":\"create_file\",\"params\":{\"target_path\":\"app.py\",\"new_text\":\"...\"}}, "
+        "{\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
         "{\"skill\":\"send_message\"}, {\"skill\":\"spawn_worker\"}, or {\"skill\":\"finish\"}.\n"
         "Natural intent is acceptable when the transport preserves visible text, but JSON is most reliable.\n"
         "Do not request login, payment, credentials, provider-native tools, or fallback/AUTO."
@@ -218,6 +220,18 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
         marker in lowered
         for marker in (
             "add file",
+            "create app.py",
+            "create readme.md",
+            "create tests/test_app.py",
+            "create the new",
+            "create new file",
+            "new file",
+        )
+    ):
+        return "create_file"
+    if any(
+        marker in lowered
+        for marker in (
             "app test file",
             "create app",
             "local app",
@@ -254,6 +268,9 @@ def _normalize_skill(value: str) -> str | None:
         "patch": "patch",
         "edit": "patch",
         "update": "patch",
+        "create_file": "create_file",
+        "add_file": "create_file",
+        "new_file": "create_file",
         "create_app": "patch",
         "build_app": "patch",
         "workspace_patch": "patch",
@@ -365,6 +382,15 @@ def _skill_to_action(
             params=params,
             idempotency_key=_idempotency_key("patch", context, text),
         )
+    if skill == "create_file":
+        params = _workspace_create_file_params(payload=payload, context=context)
+        return ActionEnvelope(
+            capability_id="workspace_patch",
+            operation="apply_patch",
+            target_ref=str(params["target_path"]),
+            params=params,
+            idempotency_key=_idempotency_key("create_file", context, text),
+        )
     if skill == "run_check":
         check_plan = context.get("_bounded_check_plan")
         params = dict(check_plan) if isinstance(check_plan, dict) else {}
@@ -426,6 +452,8 @@ def _workspace_patch_params(*, payload: dict[str, Any], context: dict[str, Any])
     payload_params = payload.get("params")
     if isinstance(payload_params, dict) and _looks_like_patch_params(payload_params):
         plan = dict(payload_params)
+    elif isinstance(payload_params, dict) and _looks_like_create_file_params(payload_params):
+        return _create_file_params_from_plan(payload_params)
     else:
         plans = context.get("_workspace_patch_plans") or ()
         usable_plans = [dict(item) for item in plans if isinstance(item, dict)]
@@ -439,6 +467,9 @@ def _workspace_patch_params(*, payload: dict[str, Any], context: dict[str, Any])
             )
             plan = usable_plans[completed_patch_count] if completed_patch_count < len(usable_plans) else None
         if plan is None:
+            create_plans = _usable_create_file_plans(context)
+            if create_plans:
+                return _create_file_params_from_plan(create_plans[0])
             raise ActionKernelError("MODEL_NATIVE_DECISION_PATCH_PLAN_MISSING")
     target_path = str(plan.get("target_path") or "").strip()
     expected_base_hash = str(plan.get("expected_base_hash") or "").strip()
@@ -455,8 +486,46 @@ def _workspace_patch_params(*, payload: dict[str, Any], context: dict[str, Any])
     }
 
 
+def _workspace_create_file_params(*, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    payload_params = payload.get("params")
+    if isinstance(payload_params, dict) and _has_create_file_target_and_content(payload_params):
+        return _create_file_params_from_plan(payload_params)
+    plans = _usable_create_file_plans(context)
+    if not plans:
+        raise ActionKernelError("MODEL_NATIVE_DECISION_CREATE_FILE_PLAN_MISSING")
+    return _create_file_params_from_plan(plans[0])
+
+
+def _usable_create_file_plans(context: dict[str, Any]) -> list[dict[str, Any]]:
+    plans = context.get("_workspace_create_file_plans") or ()
+    return [dict(item) for item in plans if isinstance(item, dict)]
+
+
+def _create_file_params_from_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    target_path = str(plan.get("target_path") or "").strip()
+    new_text = str(plan.get("new_text") if plan.get("new_text") is not None else plan.get("content") or "")
+    if not target_path or not new_text:
+        raise ActionKernelError("MODEL_NATIVE_DECISION_CREATE_FILE_PLAN_MISSING")
+    return {
+        "target_path": target_path,
+        "target_paths": [target_path],
+        "create_file": True,
+        "new_text": new_text,
+    }
+
+
 def _looks_like_patch_params(params: dict[str, Any]) -> bool:
     return all(str(params.get(key) or "") for key in ("target_path", "expected_base_hash", "old_text"))
+
+
+def _looks_like_create_file_params(params: dict[str, Any]) -> bool:
+    return bool(params.get("create_file")) and _has_create_file_target_and_content(params)
+
+
+def _has_create_file_target_and_content(params: dict[str, Any]) -> bool:
+    return bool(str(params.get("target_path") or "")) and (
+        params.get("new_text") is not None or params.get("content") is not None
+    )
 
 
 def _channel_params(*, payload: dict[str, Any], text: str, context: dict[str, Any]) -> dict[str, Any]:

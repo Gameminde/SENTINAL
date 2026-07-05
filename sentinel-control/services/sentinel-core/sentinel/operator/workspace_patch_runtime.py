@@ -95,6 +95,8 @@ class WorkspacePatchRuntime:
         declared_targets = tuple(str(item) for item in params.get("target_paths", params.get("declared_target_paths", [target_path])))
         if len(set(declared_targets)) != 1 or declared_targets[0] != target_path:
             raise WorkspacePatchRuntimeError("workspace_patch_multiple_targets_blocked")
+        if bool(params.get("create_file")):
+            return self._create_file(envelope=envelope, params=params, target_path=target_path, authority=authority)
         path = self._resolve_target(target_path, must_exist=True)
         expected_base_hash = str(params.get("expected_base_hash") or "")
         if not expected_base_hash:
@@ -190,6 +192,98 @@ class WorkspacePatchRuntime:
             finalgate_refs=(certificate.certificate_id,),
             material_action=True,
             observation_summary=f"patch applied to {self._relative(path)} with hash-anchored receipt.",
+        )
+
+    def _create_file(
+        self,
+        *,
+        envelope: ActionEnvelope,
+        params: dict[str, Any],
+        target_path: str,
+        authority: MissionAuthorityEnvelope,
+    ) -> ActionResult:
+        self._require_authorized(authority, "workspace_patch.apply_patch")
+        path = self._resolve_target(target_path, must_exist=False)
+        if path.exists():
+            raise WorkspacePatchRuntimeError("workspace_patch_create_target_exists")
+        new_text = str(params.get("new_text") if params.get("new_text") is not None else params.get("content") or "")
+        if not new_text:
+            raise WorkspacePatchRuntimeError("workspace_patch_create_content_required")
+        _reject_patch_content(new_text)
+        normalized_new_text = _normalize_patch_newlines(new_text)
+        before_hash = "missing"
+        patch_hash = stable_hash(
+            {
+                "target_path": self._relative(path),
+                "create_file": True,
+                "new_text_hash": _sha256_text(normalized_new_text),
+            }
+        )
+        proposal = WorkspacePatchProposal(
+            mission_id=self.mission_id,
+            target_path=self._relative(path),
+            expected_base_hash=before_hash,
+            before_hash=before_hash,
+            patch_hash=patch_hash,
+            patch_kind="file_create",
+            declared_target_paths=(self._relative(path),),
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(normalized_new_text, encoding="utf-8")
+        self.patch_application_count += 1
+        after_bytes = path.read_bytes()
+        after_hash = _sha256_bytes(after_bytes)
+        evidence = WorkspacePatchEvidence(
+            mission_id=self.mission_id,
+            target_path=self._relative(path),
+            before_hash=before_hash,
+            after_hash=after_hash,
+            patch_hash=patch_hash,
+            byte_delta=len(after_bytes),
+            line_delta=normalized_new_text.count("\n"),
+        )
+        receipt = WorkspacePatchReceipt(
+            mission_id=self.mission_id,
+            target_path=self._relative(path),
+            status="success",
+            before_hash=before_hash,
+            after_hash=after_hash,
+            patch_hash=patch_hash,
+            evidence_refs=(evidence.evidence_id,),
+        )
+        certificate = WorkspacePatchFinalCertificate(
+            mission_id=self.mission_id,
+            status="accepted",
+            accepted=True,
+            reason="workspace_file_created",
+            receipt_refs=(receipt.receipt_id,),
+            evidence_refs=(evidence.evidence_id,),
+        )
+        self._write_artifact("proposals", proposal.proposal_id, proposal.safe_model_dump())
+        self._write_artifact("evidence", evidence.evidence_id, evidence.safe_model_dump())
+        self._write_artifact("receipts", receipt.receipt_id, receipt.safe_model_dump())
+        self._write_artifact("finalgate", certificate.certificate_id, certificate.safe_model_dump())
+        self._append_event(
+            "workspace_file_created",
+            "Workspace file created inside granted workspace.",
+            metadata={
+                "target_path": self._relative(path),
+                "after_hash": after_hash,
+                "patch_hash": patch_hash,
+            },
+            receipt_refs=[receipt.receipt_id],
+            finalgate_refs=[certificate.certificate_id],
+        )
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id="workspace_patch",
+            operation="apply_patch",
+            status="completed",
+            receipt_refs=(receipt.receipt_id,),
+            evidence_refs=(evidence.evidence_id,),
+            finalgate_refs=(certificate.certificate_id,),
+            material_action=True,
+            observation_summary=f"file created at {self._relative(path)} with hash-anchored receipt.",
         )
 
     def _verify_file_hash(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope) -> ActionResult:
