@@ -563,6 +563,65 @@ def test_product_loop_default_blocks_empty_visible_content_before_material_actio
     assert result.product_receipt_refs == ()
 
 
+def test_product_loop_can_recover_from_empty_visible_content_after_material_receipt(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Recoverable product loop\n", encoding="utf-8")
+    decision_client = _RecoveringDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "fake_pass", "args": ["."]},
+            ),
+            ActionKernelError("MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"),
+            ActionEnvelope(
+                capability_id="bounded_channel",
+                operation="send_message",
+                params={
+                    "adapter_id": "monster_fake_channel",
+                    "channel": "webhook",
+                    "body": "Recovered after material receipt.",
+                    "recipients": ["founder@example.com"],
+                    "recipient_provenance": {"founder@example.com": "mission_level_destination_grant"},
+                    "evidence_refs": ["evidence:post_material_recovery"],
+                },
+            ),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Recovered after material receipt and finished."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_post_material_empty_content_recovery",
+        mission_objective="Recover from an empty provider turn after a first material receipt.",
+        decision_client=decision_client,
+        allowed_domains=("example.com",),
+        max_model_calls=5,
+        max_material_actions=2,
+        max_recoverable_model_decision_failures=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.model_call_count == 4
+    assert result.capability_sequence == (
+        "code_execution_sandbox:code_exec.run_profile",
+        "bounded_channel:send_message",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 2
+    assert len(result.product_receipt_refs) == 2
+    assert decision_client.contexts[2]["recoverable_decision_observations"][0]["failure_code"] == (
+        "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"
+    )
+    assert decision_client.contexts[2]["recent_product_receipt_refs"] == [result.product_receipt_refs[0]]
+
+
 class _FakeModelClient:
     def __init__(self, outputs: list[Any]) -> None:
         self.outputs = list(outputs)

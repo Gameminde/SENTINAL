@@ -245,8 +245,6 @@ class ModelLedProductActionKernelTaskLoop:
     def _recover_model_decision_failure(self, reason: str, context: dict[str, Any]) -> bool:
         if not _is_recoverable_model_decision_failure(reason):
             return False
-        if self.material_actions_used > 0 or self.product_receipt_refs:
-            return False
         if len(self.recoverable_decision_observations) >= self.max_recoverable_model_decision_failures:
             return False
         self.recoverable_decision_observations.append(
