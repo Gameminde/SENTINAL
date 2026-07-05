@@ -638,6 +638,71 @@ def test_model_native_client_creates_arbitrary_local_app_files_then_checks_chann
     assert verified.accepted is True
 
 
+def test_product_loop_recovers_duplicate_create_file_target_to_next_missing_app_file(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "MISSION.md").write_text(
+        "# Arbitrary local app mission\n\nCreate a tiny Python app from scratch.\n",
+        encoding="utf-8",
+    )
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "skill": "create_file",
+                    "params": {
+                        "target_path": "app.py",
+                        "new_text": 'def main():\n    return "first app"\n',
+                    },
+                },
+                {
+                    "skill": "create_file",
+                    "params": {
+                        "target_path": "app.py",
+                        "new_text": 'def main():\n    return "duplicate app"\n',
+                    },
+                },
+                "Continue with the next missing app file.",
+                "Continue with the next missing app file.",
+                "Run the bounded local check.",
+                "Send the completion message to the bounded local channel.",
+                "Delegate a verifier worker.",
+                "The app has enough product proof. Summarize and finish.",
+            ]
+        ),
+        request_factory=_request_factory,
+        preferred_skill_sequence=(
+            "create_file",
+            "create_file",
+            "create_file",
+            "run_check",
+            "send_message",
+            "spawn_worker",
+            "finish",
+        ),
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_create_duplicate_recovery",
+        mission_objective="Create an arbitrary local Sentinel app from scratch, recover duplicates, and finish.",
+        decision_client=client,
+        allowed_domains=("example.com", "local.worker"),
+        max_model_calls=8,
+        max_material_actions=6,
+        max_recoverable_action_failures=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.material_action_count == 6
+    assert len(result.product_receipt_refs) == 6
+    assert (workspace / "app.py").read_text(encoding="utf-8") == 'def main():\n    return "first app"\n'
+    assert (workspace / "README.md").is_file()
+    assert (workspace / "tests" / "test_app.py").is_file()
+    assert client.safe_diagnostics[2]["mapped_action"] == "workspace_patch.apply_patch"
+
+
 def test_product_loop_can_recover_once_from_empty_visible_content_before_material_action(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"

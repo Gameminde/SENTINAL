@@ -134,14 +134,19 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
 
 
 def _recovery_prompt_hint(context: dict[str, Any]) -> str:
-    observations = context.get("recoverable_decision_observations")
+    observations = [
+        *[item for item in context.get("recoverable_decision_observations") or () if isinstance(item, dict)],
+        *[item for item in context.get("recoverable_action_observations") or () if isinstance(item, dict)],
+    ]
     if not isinstance(observations, list) or not observations:
         return ""
     latest = observations[-1] if isinstance(observations[-1], dict) else {}
     failure_code = str(latest.get("failure_code") or "recoverable_model_decision_failure")
+    recommended = str(latest.get("recommended_skill") or context.get("primary_model_recommended_next_skill") or "")
     return (
-        f"Previous recoverable model decision failure: {failure_code}.\n"
-        "Recovery requirement: return visible content containing one compact JSON skill object now.\n"
+        f"Previous recoverable turn failure: {failure_code}.\n"
+        f"Recovery best next skill: {recommended}.\n"
+        "Recovery requirement: return visible content containing one compact JSON skill object or safe natural intent now.\n"
     )
 
 
@@ -488,9 +493,11 @@ def _workspace_patch_params(*, payload: dict[str, Any], context: dict[str, Any])
 
 def _workspace_create_file_params(*, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
     payload_params = payload.get("params")
+    plans = _usable_create_file_plans(context)
+    if _recovering_duplicate_create_target(context) and plans:
+        return _create_file_params_from_plan(plans[0])
     if isinstance(payload_params, dict) and _has_create_file_target_and_content(payload_params):
         return _create_file_params_from_plan(payload_params)
-    plans = _usable_create_file_plans(context)
     if not plans:
         raise ActionKernelError("MODEL_NATIVE_DECISION_CREATE_FILE_PLAN_MISSING")
     return _create_file_params_from_plan(plans[0])
@@ -499,6 +506,13 @@ def _workspace_create_file_params(*, payload: dict[str, Any], context: dict[str,
 def _usable_create_file_plans(context: dict[str, Any]) -> list[dict[str, Any]]:
     plans = context.get("_workspace_create_file_plans") or ()
     return [dict(item) for item in plans if isinstance(item, dict)]
+
+
+def _recovering_duplicate_create_target(context: dict[str, Any]) -> bool:
+    for item in context.get("recoverable_action_observations") or ():
+        if isinstance(item, dict) and item.get("failure_code") == "workspace_patch_create_target_exists":
+            return True
+    return False
 
 
 def _create_file_params_from_plan(plan: dict[str, Any]) -> dict[str, Any]:

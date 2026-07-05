@@ -117,6 +117,7 @@ class ModelLedProductActionKernelTaskLoop:
         max_model_calls: int = 6,
         max_material_actions: int = 3,
         max_recoverable_model_decision_failures: int = 0,
+        max_recoverable_action_failures: int = 0,
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_fake",
         explicit_noop_proof_ref: str | None = None,
     ) -> None:
@@ -130,11 +131,13 @@ class ModelLedProductActionKernelTaskLoop:
         self.max_model_calls = max_model_calls
         self.max_material_actions = max_material_actions
         self.max_recoverable_model_decision_failures = max(0, max_recoverable_model_decision_failures)
+        self.max_recoverable_action_failures = max(0, max_recoverable_action_failures)
         self.model_contract_ref = model_contract_ref
         self.explicit_noop_proof_ref = explicit_noop_proof_ref
         self.model_calls_used = 0
         self.material_actions_used = 0
         self.recoverable_decision_observations: list[dict[str, Any]] = []
+        self.recoverable_action_observations: list[dict[str, Any]] = []
         self.capability_sequence: list[str] = []
         self.dispatch_results: list[UnifiedDispatchResult] = []
         self.mission_ids: list[str] = []
@@ -170,6 +173,8 @@ class ModelLedProductActionKernelTaskLoop:
                 self.product_receipt_refs.extend(dispatch_result.receipt_refs)
                 self.product_finalgate_refs.extend(dispatch_result.finalgate_refs)
                 if dispatch_result.status is not DispatchStatus.COMPLETED:
+                    if self._recover_action_failure(dispatch_result, decision, context):
+                        continue
                     return self._block(dispatch_result.blocked_reason or "product_action_kernel_dispatch_blocked")
                 if dispatch_result.receipt_refs:
                     self.material_actions_used += 1
@@ -230,8 +235,11 @@ class ModelLedProductActionKernelTaskLoop:
                 for result in self.dispatch_results
             ],
             "recoverable_decision_observations": [dict(item) for item in self.recoverable_decision_observations],
+            "recoverable_action_observations": [dict(item) for item in self.recoverable_action_observations],
             "recoverable_model_decision_failure_count": len(self.recoverable_decision_observations),
+            "recoverable_action_failure_count": len(self.recoverable_action_observations),
             "max_recoverable_model_decision_failures": self.max_recoverable_model_decision_failures,
+            "max_recoverable_action_failures": self.max_recoverable_action_failures,
             "model_calls_used": self.model_calls_used,
             "max_model_calls": self.max_model_calls,
             "material_actions_used": self.material_actions_used,
@@ -257,6 +265,34 @@ class ModelLedProductActionKernelTaskLoop:
                 "turn_index": self.model_calls_used,
                 "recovery_action": "ask_model_again_with_visible_json_skill",
                 "recommended_skill": context.get("primary_model_recommended_next_skill"),
+                "data_not_authority": True,
+                "can_execute": False,
+            }
+        )
+        return True
+
+    def _recover_action_failure(
+        self,
+        dispatch_result: UnifiedDispatchResult,
+        decision: ActionEnvelope,
+        context: dict[str, Any],
+    ) -> bool:
+        reason = dispatch_result.blocked_reason or ""
+        if not _is_recoverable_action_failure(reason):
+            return False
+        if len(self.recoverable_action_observations) >= self.max_recoverable_action_failures:
+            return False
+        create_plans = _workspace_create_file_plans(self.workspace_root, mission_objective=self.mission_objective)
+        self.recoverable_action_observations.append(
+            {
+                "failure_code": reason,
+                "turn_index": self.model_calls_used,
+                "capability_id": decision.capability_id,
+                "operation": decision.operation,
+                "target_ref_hash": stable_hash(str(decision.target_ref or "")),
+                "recovery_action": "route_to_next_missing_workspace_create_file_plan",
+                "recommended_skill": "create_file" if create_plans else context.get("primary_model_recommended_next_skill"),
+                "remaining_create_file_plan_count": len(create_plans),
                 "data_not_authority": True,
                 "can_execute": False,
             }
@@ -508,6 +544,12 @@ def _is_recoverable_model_decision_failure(reason: str) -> bool:
     return reason in {
         "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT",
         "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED",
+    }
+
+
+def _is_recoverable_action_failure(reason: str) -> bool:
+    return reason in {
+        "workspace_patch_create_target_exists",
     }
 
 
