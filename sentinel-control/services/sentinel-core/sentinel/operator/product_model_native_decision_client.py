@@ -103,7 +103,7 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         f"Best next skill: {recommended}\n"
         f"Product receipts so far: {receipt_count}\n"
         "Choose exactly one next skill for this turn.\n"
-        "Prefer one compact JSON object such as {\"skill\":\"run_check\"}, "
+        "Prefer one compact JSON object such as {\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
         "{\"skill\":\"send_message\"}, {\"skill\":\"spawn_worker\"}, or {\"skill\":\"finish\"}.\n"
         "Natural intent is acceptable when the transport preserves visible text, but JSON is most reliable.\n"
         "Do not request login, payment, credentials, provider-native tools, or fallback/AUTO."
@@ -188,6 +188,8 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
     if "capability_id" in payload and "operation" in payload:
         return "__canonical__"
     lowered = text.lower()
+    if any(marker in lowered for marker in ("create app", "local app", "patch", "edit", "update file", "replace marker")):
+        return "patch"
     if any(marker in lowered for marker in ("run check", "run the check", "bounded check", "check", "test", "verify code")):
         return "run_check"
     if any(marker in lowered for marker in ("send", "notify", "message", "channel")):
@@ -209,6 +211,12 @@ def _normalize_skill(value: str) -> str | None:
         "run": "run_check",
         "run_check": "run_check",
         "check": "run_check",
+        "patch": "patch",
+        "edit": "patch",
+        "update": "patch",
+        "create_app": "patch",
+        "build_app": "patch",
+        "workspace_patch": "patch",
         "send": "send_message",
         "send_message": "send_message",
         "spawn_worker": "spawn_worker",
@@ -254,7 +262,9 @@ def _completed_sequence_skills(context: dict[str, Any]) -> set[str]:
         if str(item.get("status") or "") not in {"completed", "passed"}:
             continue
         action = f"{item.get('capability_id')}.{item.get('operation')}"
-        if action == "code_execution_sandbox.code_exec.run_profile":
+        if action == "workspace_patch.apply_patch":
+            completed.add("patch")
+        elif action == "code_execution_sandbox.code_exec.run_profile":
             completed.add("run_check")
         elif action == "bounded_channel.send_message":
             completed.add("send_message")
@@ -283,6 +293,15 @@ def _skill_to_action(
             params=dict(payload.get("params") or {}),
             target_ref=str(payload["target_ref"]) if payload.get("target_ref") is not None else None,
             idempotency_key=str(payload["idempotency_key"]) if payload.get("idempotency_key") else None,
+        )
+    if skill == "patch":
+        params = _workspace_patch_params(payload=payload, context=context)
+        return ActionEnvelope(
+            capability_id="workspace_patch",
+            operation="apply_patch",
+            target_ref=str(params["target_path"]),
+            params=params,
+            idempotency_key=_idempotency_key("patch", context, text),
         )
     if skill == "run_check":
         params = dict(payload.get("params") or {})
@@ -337,6 +356,34 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("extract", context, text),
         )
     raise ActionKernelError("MODEL_NATIVE_DECISION_SKILL_NOT_MAPPED")
+
+
+def _workspace_patch_params(*, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    payload_params = payload.get("params")
+    if isinstance(payload_params, dict) and _looks_like_patch_params(payload_params):
+        plan = dict(payload_params)
+    else:
+        plans = context.get("_workspace_patch_plans") or ()
+        plan = next((dict(item) for item in plans if isinstance(item, dict)), None)
+        if plan is None:
+            raise ActionKernelError("MODEL_NATIVE_DECISION_PATCH_PLAN_MISSING")
+    target_path = str(plan.get("target_path") or "").strip()
+    expected_base_hash = str(plan.get("expected_base_hash") or "").strip()
+    old_text = str(plan.get("old_text") or "")
+    new_text = str(plan.get("new_text") or "")
+    if not target_path or not expected_base_hash or not old_text:
+        raise ActionKernelError("MODEL_NATIVE_DECISION_PATCH_PLAN_MISSING")
+    return {
+        "target_path": target_path,
+        "target_paths": [target_path],
+        "expected_base_hash": expected_base_hash,
+        "old_text": old_text,
+        "new_text": new_text,
+    }
+
+
+def _looks_like_patch_params(params: dict[str, Any]) -> bool:
+    return all(str(params.get(key) or "") for key in ("target_path", "expected_base_hash", "old_text"))
 
 
 def _channel_params(*, payload: dict[str, Any], text: str, context: dict[str, Any]) -> dict[str, Any]:

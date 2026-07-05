@@ -82,6 +82,49 @@ def test_ambiguous_safe_intent_uses_primary_recommended_skill() -> None:
     assert decision.params["max_actions"] == 1
 
 
+def test_natural_app_creation_intent_maps_to_workspace_patch_plan() -> None:
+    base_hash = "a" * 64
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["Build the local app by replacing the Sentinel marker."]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="patch",
+            workspace_patch_plans=[
+                {
+                    "target_path": "app.py",
+                    "expected_base_hash": base_hash,
+                    "old_text": "TODO_SENTINEL_APP",
+                    "new_text": "Sentinel model-led local app worked.",
+                }
+            ],
+        )
+    )
+
+    assert decision.capability_id == "workspace_patch"
+    assert decision.operation == "apply_patch"
+    assert decision.target_ref == "app.py"
+    assert decision.params == {
+        "target_path": "app.py",
+        "target_paths": ["app.py"],
+        "expected_base_hash": base_hash,
+        "old_text": "TODO_SENTINEL_APP",
+        "new_text": "Sentinel model-led local app worked.",
+    }
+
+
+def test_patch_intent_without_patch_plan_blocks_honestly() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["Create the local app now."]),
+        request_factory=_request_factory,
+    )
+
+    with pytest.raises(ActionKernelError, match="MODEL_NATIVE_DECISION_PATCH_PLAN_MISSING"):
+        client.complete(_context(recommended_skill="patch"))
+
+
 def test_preferred_skill_sequence_overrides_legacy_patch_recommendation_after_code_receipt() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(["Continue with the next useful mission step."]),
@@ -235,6 +278,65 @@ def test_model_native_client_drives_product_loop_bundle_and_replay(tmp_path) -> 
     assert verified.accepted is True
 
 
+def test_model_native_client_patches_local_app_then_checks_channel_worker_finish(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "app.py").write_text(
+        'def main():\n    return "TODO_SENTINEL_APP"\n\nif __name__ == "__main__":\n    print(main())\n',
+        encoding="utf-8",
+    )
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                "Build the local app.",
+                "Run the bounded local check.",
+                {"metadata": {"reply": "Send the completion message to the bounded local channel."}},
+                "Delegate a verifier worker.",
+                "I have enough product proof. Summarize and finish.",
+            ]
+        ),
+        request_factory=_request_factory,
+        preferred_skill_sequence=("patch", "run_check", "send_message", "spawn_worker", "finish"),
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_pack1_local_app",
+        mission_objective="Create a useful local Sentinel app, run a bounded check, notify the local channel, delegate verifier, and finish.",
+        decision_client=client,
+        allowed_domains=("example.com", "local.worker"),
+        max_model_calls=6,
+        max_material_actions=4,
+    )
+    replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=result.mission_ids)
+    export = MissionArtifactBundleExporter(host.kernel.store).export_product_loop(
+        loop_result=result,
+        mission_objective="Controlled local app creation product loop proof.",
+        model_visible_skills=tuple(host.product_task_loop_entrypoint_frame()["model_visible_skills"]),
+    )
+    verified = MissionArtifactBundleVerifier.verify_bundle(export.bundle_dir)
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "workspace_patch:apply_patch",
+        "code_execution_sandbox:code_exec.run_profile",
+        "bounded_channel:send_message",
+        "worker_fleet:spawn_worker",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 4
+    assert len(result.product_receipt_refs) == 4
+    assert client.call_count == 5
+    assert "Sentinel model-led local app worked." in (workspace / "app.py").read_text(encoding="utf-8")
+    assert replay.reexecuted_actions is False
+    assert replay.receipt_writes_delta == 0
+    assert replay.finalgate_writes_delta == 0
+    assert replay.artifact_hashes_stable is True
+    assert export.accepted is True
+    assert verified.accepted is True
+
+
 class _FakeModelClient:
     def __init__(self, outputs: list[Any]) -> None:
         self.outputs = list(outputs)
@@ -261,6 +363,7 @@ def _context(
     recommended_skill: str,
     recent_product_receipt_refs: list[str] | None = None,
     dispatch_summaries: list[dict[str, object]] | None = None,
+    workspace_patch_plans: list[dict[str, object]] | None = None,
 ) -> dict[str, Any]:
     action_map = {
         "run_check": "code_execution_sandbox.code_exec.run_profile",
@@ -282,4 +385,5 @@ def _context(
         "runtime_internal_action_map": action_map,
         "recent_product_receipt_refs": recent_product_receipt_refs or [],
         "dispatch_summaries": dispatch_summaries or [],
+        "_workspace_patch_plans": workspace_patch_plans or [],
     }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from enum import StrEnum
 from pathlib import Path
@@ -183,6 +184,7 @@ class ModelLedProductActionKernelTaskLoop:
             "primary_model_next_recommended_skills": list(model_skill_surface["recommended_next_skills"]),
             "primary_model_recommended_next_skill": model_skill_surface["primary_recommended_skill"],
             "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
+            "_workspace_patch_plans": _workspace_patch_plans(self.workspace_root),
             "model_visible_available_actions": list(actions),
             "skill_decision_frame": {
                 "primary_truth": "product_action_kernel_runtimehost",
@@ -502,6 +504,32 @@ def _artifact_hashes(store: MissionRunStore, mission_ids: tuple[str, ...]) -> tu
             payload = json.loads(path.read_text(encoding="utf-8"))
             hashes.append(stable_hash(payload))
     return tuple(hashes)
+
+
+def _workspace_patch_plans(workspace_root: Path) -> list[dict[str, str]]:
+    plans: list[dict[str, str]] = []
+    for relative_path, marker, replacement in (
+        ("app.py", "TODO_SENTINEL_APP", "Sentinel model-led local app worked."),
+        ("README.md", "TODO_SENTINEL_APP", "Sentinel model-led local app worked."),
+    ):
+        path = workspace_root / relative_path
+        if not path.is_file():
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if marker not in content:
+            continue
+        plans.append(
+            {
+                "target_path": relative_path,
+                "expected_base_hash": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "old_text": marker,
+                "new_text": replacement,
+            }
+        )
+    return plans
 
 
 __all__ = [
