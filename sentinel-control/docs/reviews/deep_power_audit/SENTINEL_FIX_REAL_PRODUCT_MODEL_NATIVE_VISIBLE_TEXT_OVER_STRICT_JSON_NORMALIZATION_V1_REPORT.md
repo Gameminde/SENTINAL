@@ -9,6 +9,7 @@ Implementation commits:
 ```text
 20a9c15f64e21ba37cc63b6e722b0d6a09180d29
 779dc8a7c3a4f55c327dd942f38c7e934c9a9576
+ca595956c27e0e7c049401da71e79b52fa95ab27
 ```
 
 ## 4B Failure Interpreted
@@ -43,6 +44,7 @@ Changed:
 sentinel/operator/product_model_native_decision_client.py
 sentinel/agent/model_execution/openai_compatible.py
 sentinel/operator/model_client.py
+sentinel/operator/model_led_product_action_kernel_task_loop.py
 ```
 
 Before:
@@ -57,6 +59,7 @@ After:
 normalization failure blocks only when no usable visible text exists
 product_model_native_intent_v1 keeps provider visible text in memory for immediate product-native skill mapping
 raw_provider_response remains hash-only/sanitized in persisted provider payloads
+after create-file plans are done, dead patch recommendations are hidden and run_check becomes the living next skill
 ```
 
 This preserves the empty-content blocker while allowing safe natural/semi-structured text such as:
@@ -85,6 +88,7 @@ Added:
 ```text
 test_visible_text_survives_strict_json_normalization_failure
 test_catalog_model_client_preserves_product_native_visible_text_memory_only
+test_created_app_workspace_recommends_run_check_not_dead_patch
 ```
 
 The test first failed with:
@@ -139,6 +143,24 @@ Result:
 67 passed
 ```
 
+Because the four-file validation slice exceeded the 300 second combined command timeout, the same files were also run individually with durations:
+
+```text
+py -3.13 -m pytest tests/operator/test_real_monster_product_model_native_decision_client.py -q --durations=10 --maxfail=1
+py -3.13 -m pytest tests/operator/test_power_cleanup_pack10_product_task_loop_runtimehost_entrypoint.py -q --durations=10 --maxfail=1
+py -3.13 -m pytest tests/operator/test_power_unification_pack6_signed_mission_artifacts_and_replay_verifier.py -q --durations=10 --maxfail=1
+py -3.13 -m pytest tests/test_llm_operator_model_client_v0.py -q --durations=10 --maxfail=1
+```
+
+Result:
+
+```text
+29 passed
+12 passed
+10 passed
+17 passed
+```
+
 ```text
 py -3.13 -m compileall -q sentinel
 ```
@@ -183,6 +205,7 @@ no credential/session/cookie persistence
 empty visible provider output still blocks
 visible non-JSON provider text is in-memory only for ProductModelNativeDecisionClient
 hard boundary credential requests still block
+non-executable patch is not shown as the primary next skill when no patch plan exists
 ActionEnvelope remains internal runtime format
 ```
 
