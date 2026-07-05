@@ -333,6 +333,7 @@ class SentinelRuntimeHost:
         allowed_domains: tuple[str, ...] = (),
         max_model_calls: int = 6,
         max_material_actions: int = 3,
+        max_recoverable_model_decision_failures: int = 0,
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_entrypoint",
         explicit_noop_proof_ref: str | None = None,
     ) -> object:
@@ -349,6 +350,7 @@ class SentinelRuntimeHost:
             allowed_domains=allowed_domains,
             max_model_calls=max_model_calls,
             max_material_actions=max_material_actions,
+            max_recoverable_model_decision_failures=max_recoverable_model_decision_failures,
             model_contract_ref=model_contract_ref,
             explicit_noop_proof_ref=explicit_noop_proof_ref,
         )

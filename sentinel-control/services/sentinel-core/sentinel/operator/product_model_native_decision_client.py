@@ -95,6 +95,7 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
     objective = str(context.get("mission_objective") or "")
     progress = str(context.get("progress_state") or "")
     receipt_count = len(context.get("recent_product_receipt_refs") or ())
+    recovery_hint = _recovery_prompt_hint(context)
     return (
         "You are the brain. Sentinel is the body/runtime/proof layer.\n"
         f"Mission objective: {objective}\n"
@@ -102,6 +103,7 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         f"Visible skills: {skills}\n"
         f"Best next skill: {recommended}\n"
         f"Product receipts so far: {receipt_count}\n"
+        f"{recovery_hint}"
         "Choose exactly one next skill for this turn.\n"
         "Prefer one compact JSON object such as {\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
         "{\"skill\":\"send_message\"}, {\"skill\":\"spawn_worker\"}, or {\"skill\":\"finish\"}.\n"
@@ -115,6 +117,9 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
         return raw_output
     payload = _extract_payload(raw_output)
     text = _extract_text(raw_output, payload)
+    visible_content_failure = _visible_content_failure(payload)
+    if visible_content_failure is not None:
+        raise ActionKernelError(visible_content_failure)
     hard_boundary = _hard_boundary_action(text, payload)
     if hard_boundary is not None:
         return hard_boundary
@@ -124,6 +129,27 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
     if skill is None:
         skill = _recommended_skill(context)
     return _skill_to_action(skill, payload=payload, text=text, context=context)
+
+
+def _recovery_prompt_hint(context: dict[str, Any]) -> str:
+    observations = context.get("recoverable_decision_observations")
+    if not isinstance(observations, list) or not observations:
+        return ""
+    latest = observations[-1] if isinstance(observations[-1], dict) else {}
+    failure_code = str(latest.get("failure_code") or "recoverable_model_decision_failure")
+    return (
+        f"Previous recoverable model decision failure: {failure_code}.\n"
+        "Recovery requirement: return visible content containing one compact JSON skill object now.\n"
+    )
+
+
+def _visible_content_failure(payload: dict[str, Any]) -> str | None:
+    normalization = str(payload.get("normalization_strategy") or "")
+    if normalization == "empty_visible_content":
+        return "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"
+    if normalization in {"no_json_object_detected", "truncated_or_invalid_json", "strict_json_rejected", "json_value_not_object"}:
+        return "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"
+    return None
 
 
 def _extract_payload(raw_output: Any) -> dict[str, Any]:

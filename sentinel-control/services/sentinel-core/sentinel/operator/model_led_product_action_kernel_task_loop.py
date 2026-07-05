@@ -116,6 +116,7 @@ class ModelLedProductActionKernelTaskLoop:
         allowed_domains: tuple[str, ...] = (),
         max_model_calls: int = 6,
         max_material_actions: int = 3,
+        max_recoverable_model_decision_failures: int = 0,
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_fake",
         explicit_noop_proof_ref: str | None = None,
     ) -> None:
@@ -128,10 +129,12 @@ class ModelLedProductActionKernelTaskLoop:
         self.allowed_domains = tuple(allowed_domains)
         self.max_model_calls = max_model_calls
         self.max_material_actions = max_material_actions
+        self.max_recoverable_model_decision_failures = max(0, max_recoverable_model_decision_failures)
         self.model_contract_ref = model_contract_ref
         self.explicit_noop_proof_ref = explicit_noop_proof_ref
         self.model_calls_used = 0
         self.material_actions_used = 0
+        self.recoverable_decision_observations: list[dict[str, Any]] = []
         self.capability_sequence: list[str] = []
         self.dispatch_results: list[UnifiedDispatchResult] = []
         self.mission_ids: list[str] = []
@@ -144,7 +147,14 @@ class ModelLedProductActionKernelTaskLoop:
                 if self.model_calls_used >= self.max_model_calls:
                     return self._block("MODEL_CALL_BUDGET_EXHAUSTED")
                 context = self._compile_context()
-                decision = self.decision_client.complete(context)
+                try:
+                    decision = self.decision_client.complete(context)
+                except ActionKernelError as exc:
+                    self.model_calls_used += 1
+                    reason = str(exc) or exc.__class__.__name__
+                    if self._recover_model_decision_failure(reason, context):
+                        continue
+                    return self._block(reason)
                 self.model_calls_used += 1
                 sequence_entry = f"{decision.capability_id}:{decision.operation}"
                 self.capability_sequence.append(sequence_entry)
@@ -215,6 +225,9 @@ class ModelLedProductActionKernelTaskLoop:
                 }
                 for result in self.dispatch_results
             ],
+            "recoverable_decision_observations": [dict(item) for item in self.recoverable_decision_observations],
+            "recoverable_model_decision_failure_count": len(self.recoverable_decision_observations),
+            "max_recoverable_model_decision_failures": self.max_recoverable_model_decision_failures,
             "model_calls_used": self.model_calls_used,
             "max_model_calls": self.max_model_calls,
             "material_actions_used": self.material_actions_used,
@@ -228,6 +241,25 @@ class ModelLedProductActionKernelTaskLoop:
                 "fallback_auto",
             ],
         }
+
+    def _recover_model_decision_failure(self, reason: str, context: dict[str, Any]) -> bool:
+        if not _is_recoverable_model_decision_failure(reason):
+            return False
+        if self.material_actions_used > 0 or self.product_receipt_refs:
+            return False
+        if len(self.recoverable_decision_observations) >= self.max_recoverable_model_decision_failures:
+            return False
+        self.recoverable_decision_observations.append(
+            {
+                "failure_code": reason,
+                "turn_index": self.model_calls_used,
+                "recovery_action": "ask_model_again_with_visible_json_skill",
+                "recommended_skill": context.get("primary_model_recommended_next_skill"),
+                "data_not_authority": True,
+                "can_execute": False,
+            }
+        )
+        return True
 
     def _available_actions(self) -> tuple[str, ...]:
         if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
@@ -465,6 +497,13 @@ def _entrypoint_hard_boundary_reason(decision: ActionEnvelope) -> str | None:
     if capability in hard_capabilities or any(marker in action_text for marker in hard_markers):
         return "skill_not_product_dispatchable"
     return None
+
+
+def _is_recoverable_model_decision_failure(reason: str) -> bool:
+    return reason in {
+        "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT",
+        "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED",
+    }
 
 
 def _synthetic_blocked_dispatch_result(

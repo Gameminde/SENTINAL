@@ -125,6 +125,37 @@ def test_patch_intent_without_patch_plan_blocks_honestly() -> None:
         client.complete(_context(recommended_skill="patch"))
 
 
+def test_empty_visible_provider_content_blocks_instead_of_falling_back_to_patch() -> None:
+    base_hash = "a" * 64
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "normalization_strategy": "empty_visible_content",
+                    "visible_content_char_count": 0,
+                    "json_object_detected": False,
+                }
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+
+    with pytest.raises(ActionKernelError, match="MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"):
+        client.complete(
+            _context(
+                recommended_skill="patch",
+                workspace_patch_plans=[
+                    {
+                        "target_path": "app.py",
+                        "expected_base_hash": base_hash,
+                        "old_text": "TODO_SENTINEL_APP",
+                        "new_text": "Sentinel model-led local app worked.",
+                    }
+                ],
+            )
+        )
+
+
 def test_repeated_patch_sequence_uses_next_workspace_patch_plan() -> None:
     first_hash = "a" * 64
     second_hash = "b" * 64
@@ -465,6 +496,73 @@ def test_model_native_client_creates_multi_file_local_app_then_checks_channel_wo
     assert verified.accepted is True
 
 
+def test_product_loop_can_recover_once_from_empty_visible_content_before_material_action(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Recoverable product loop\n", encoding="utf-8")
+    decision_client = _RecoveringDecisionClient(
+        [
+            ActionKernelError("MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"),
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "fake_pass", "args": ["."]},
+            ),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Recovered from empty first model turn and finished."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_empty_content_recovery",
+        mission_objective="Recover from one empty provider turn, run a bounded check, and finish.",
+        decision_client=decision_client,
+        allowed_domains=("example.com",),
+        max_model_calls=4,
+        max_material_actions=1,
+        max_recoverable_model_decision_failures=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.model_call_count == 3
+    assert result.capability_sequence == (
+        "code_execution_sandbox:code_exec.run_profile",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 1
+    assert decision_client.contexts[1]["recoverable_decision_observations"][0]["failure_code"] == (
+        "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"
+    )
+
+
+def test_product_loop_default_blocks_empty_visible_content_before_material_action(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Recoverable product loop\n", encoding="utf-8")
+    decision_client = _RecoveringDecisionClient([ActionKernelError("MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT")])
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_empty_content_default_block",
+        mission_objective="Default behavior should not silently retry empty provider turns.",
+        decision_client=decision_client,
+        allowed_domains=("example.com",),
+        max_model_calls=2,
+        max_material_actions=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
+    assert result.blocked_reason == "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"
+    assert result.material_action_count == 0
+    assert result.product_receipt_refs == ()
+
+
 class _FakeModelClient:
     def __init__(self, outputs: list[Any]) -> None:
         self.outputs = list(outputs)
@@ -475,6 +573,21 @@ class _FakeModelClient:
         if not self.outputs:
             raise AssertionError("fake model exhausted")
         return self.outputs.pop(0)
+
+
+class _RecoveringDecisionClient:
+    def __init__(self, outputs: list[Any]) -> None:
+        self.outputs = list(outputs)
+        self.contexts: list[dict[str, Any]] = []
+
+    def complete(self, context: dict[str, Any]) -> ActionEnvelope:
+        self.contexts.append(context)
+        if not self.outputs:
+            raise AssertionError("recovering model exhausted")
+        output = self.outputs.pop(0)
+        if isinstance(output, ActionKernelError):
+            raise output
+        return output
 
 
 def _request_factory(context: dict[str, Any], prompt: str) -> dict[str, str]:
