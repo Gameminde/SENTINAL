@@ -120,7 +120,7 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
     payload = _extract_payload(raw_output)
     text = _extract_text(raw_output, payload)
     visible_content_failure = _visible_content_failure(payload)
-    if visible_content_failure is not None:
+    if visible_content_failure is not None and not text.strip():
         raise ActionKernelError(visible_content_failure)
     hard_boundary = _hard_boundary_action(text, payload)
     if hard_boundary is not None:

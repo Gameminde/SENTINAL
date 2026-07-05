@@ -379,6 +379,33 @@ def test_safe_provider_wrapper_key_is_dropped_before_intent_mapping() -> None:
     assert client.safe_diagnostics[-1]["raw_model_material_persisted"] is False
 
 
+def test_visible_text_survives_strict_json_normalization_failure() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "normalization_strategy": "no_json_object_detected",
+                    "content": "Run the bounded local check.",
+                }
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="run_check",
+            bounded_check_plan={"profile_id": "python_compileall", "args": ["."]},
+        )
+    )
+
+    assert decision.capability_id == "code_execution_sandbox"
+    assert decision.operation == "code_exec.run_profile"
+    assert decision.params == {"profile_id": "python_compileall", "args": ["."]}
+    assert client.safe_diagnostics[-1]["failure_code"] is None
+    assert client.safe_diagnostics[-1]["mapped_action"] == "code_execution_sandbox.code_exec.run_profile"
+
+
 def test_model_native_client_drives_product_loop_bundle_and_replay(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
