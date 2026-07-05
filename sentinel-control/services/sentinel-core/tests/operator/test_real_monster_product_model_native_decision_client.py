@@ -969,6 +969,56 @@ def test_product_loop_recovers_failed_semantic_check_with_patch_then_finish(tmp_
     assert app_path.read_text(encoding="utf-8") == fixed_app
 
 
+def test_sequence_skips_exhausted_create_file_after_semantic_check_passed() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["Continue with the next product proof."]),
+        request_factory=_request_factory,
+        preferred_skill_sequence=(
+            "create_file",
+            "create_file",
+            "create_file",
+            "run_check",
+            "send_message",
+            "finish",
+        ),
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="create_file",
+            recent_product_receipt_refs=["r1", "r2", "r3", "r4"],
+            dispatch_summaries=[
+                {
+                    "status": "completed",
+                    "capability_id": "workspace_patch",
+                    "operation": "apply_patch",
+                },
+                {
+                    "status": "completed",
+                    "capability_id": "workspace_patch",
+                    "operation": "apply_patch",
+                },
+                {
+                    "status": "completed",
+                    "capability_id": "workspace_patch",
+                    "operation": "apply_patch",
+                },
+                {
+                    "status": "completed",
+                    "capability_id": "code_execution_sandbox",
+                    "operation": "code_exec.run_profile",
+                },
+            ],
+            workspace_create_file_plans=[],
+            workspace_patch_plans=[],
+            bounded_check_plan={"profile_id": "pytest_file", "args": ["tests/test_app.py"]},
+        )
+    )
+
+    assert decision.capability_id == "bounded_channel"
+    assert decision.operation == "send_message"
+
+
 class _FakeModelClient:
     def __init__(self, outputs: list[Any]) -> None:
         self.outputs = list(outputs)

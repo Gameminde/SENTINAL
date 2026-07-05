@@ -335,11 +335,23 @@ def _recommended_skill(context: dict[str, Any]) -> str:
 def _next_sequence_skill(sequence: tuple[str, ...], context: dict[str, Any]) -> str | None:
     completed = _completed_sequence_skill_counts(context)
     for skill in sequence:
+        if not _sequence_skill_is_live(skill, context):
+            continue
         if completed.get(skill, 0) > 0:
             completed[skill] -= 1
             continue
         return skill
     return sequence[-1] if sequence else None
+
+
+def _sequence_skill_is_live(skill: str, context: dict[str, Any]) -> bool:
+    if skill == "create_file":
+        return bool(_usable_create_file_plans(context))
+    if skill == "patch":
+        if _recovering_failed_semantic_check(context):
+            return True
+        return bool(context.get("_workspace_patch_plans") or ())
+    return True
 
 
 def _completed_sequence_skills(context: dict[str, Any]) -> set[str]:
@@ -535,6 +547,13 @@ def _usable_create_file_plans(context: dict[str, Any]) -> list[dict[str, Any]]:
 def _recovering_duplicate_create_target(context: dict[str, Any]) -> bool:
     for item in context.get("recoverable_action_observations") or ():
         if isinstance(item, dict) and item.get("failure_code") == "workspace_patch_create_target_exists":
+            return True
+    return False
+
+
+def _recovering_failed_semantic_check(context: dict[str, Any]) -> bool:
+    for item in context.get("recoverable_action_observations") or ():
+        if isinstance(item, dict) and item.get("failure_code") == "code_exec_failed":
             return True
     return False
 
