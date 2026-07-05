@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import pytest
@@ -680,7 +681,7 @@ def test_product_loop_recovers_duplicate_create_file_target_to_next_missing_app_
                     "skill": "create_file",
                     "params": {
                         "target_path": "app.py",
-                        "new_text": 'def main():\n    return "first app"\n',
+                        "new_text": 'def main():\n    return "Sentinel arbitrary local app worked."\n',
                     },
                 },
                 {
@@ -724,7 +725,10 @@ def test_product_loop_recovers_duplicate_create_file_target_to_next_missing_app_
     assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
     assert result.material_action_count == 6
     assert len(result.product_receipt_refs) == 6
-    assert (workspace / "app.py").read_text(encoding="utf-8") == 'def main():\n    return "first app"\n'
+    assert (
+        (workspace / "app.py").read_text(encoding="utf-8")
+        == 'def main():\n    return "Sentinel arbitrary local app worked."\n'
+    )
     assert (workspace / "README.md").is_file()
     assert (workspace / "tests" / "test_app.py").is_file()
     assert client.safe_diagnostics[2]["mapped_action"] == "workspace_patch.apply_patch"
@@ -886,6 +890,83 @@ def test_created_app_workspace_recommends_run_check_not_dead_patch(tmp_path) -> 
 
     assert decision_client.contexts[0]["primary_model_recommended_next_skill"] == "run_check"
     assert decision_client.contexts[0]["primary_model_next_recommended_skills"][0] == "run_check"
+    assert decision_client.contexts[0]["_bounded_check_plan"] == {
+        "profile_id": "pytest_file",
+        "args": ["tests/test_app.py"],
+    }
+    assert decision_client.contexts[0]["workspace_file_summaries"][0]["path"] == "app.py"
+    assert "def main" in decision_client.contexts[0]["workspace_file_summaries"][0]["content_excerpt"]
+
+
+def test_product_loop_recovers_failed_semantic_check_with_patch_then_finish(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    (workspace / "tests").mkdir(parents=True)
+    bad_app = 'def greet(name):\n    return f"Hello, {name}!"\n'
+    fixed_app = (
+        'APP_MESSAGE = "Sentinel arbitrary local app worked."\n\n'
+        "def main():\n"
+        "    return APP_MESSAGE\n"
+    )
+    app_path = workspace / "app.py"
+    app_path.write_text(bad_app, encoding="utf-8")
+    (workspace / "README.md").write_text("# Sentinel Local App\n", encoding="utf-8")
+    (workspace / "tests" / "test_app.py").write_text(
+        "from app import main\n\n\n"
+        "def test_main_returns_message():\n"
+        '    assert main() == "Sentinel arbitrary local app worked."\n',
+        encoding="utf-8",
+    )
+    decision_client = _RecoveringDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "pytest_file", "args": ["tests/test_app.py"]},
+            ),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "app.py",
+                    "expected_base_hash": _sha256_file(app_path),
+                    "old_text": bad_app,
+                    "new_text": fixed_app,
+                },
+            ),
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "pytest_file", "args": ["tests/test_app.py"]},
+            ),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Semantic app test recovered and passed."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_semantic_check_recovery",
+        mission_objective="Create and repair a tiny Python app from scratch until semantic tests pass.",
+        decision_client=decision_client,
+        max_model_calls=4,
+        max_material_actions=3,
+        max_recoverable_action_failures=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "code_execution_sandbox:code_exec.run_profile",
+        "workspace_patch:apply_patch",
+        "code_execution_sandbox:code_exec.run_profile",
+        "sentinel_loop:finish",
+    )
+    assert decision_client.contexts[1]["recoverable_action_observations"][0]["failure_code"] == "code_exec_failed"
+    assert decision_client.contexts[1]["primary_model_recommended_next_skill"] == "patch"
+    assert app_path.read_text(encoding="utf-8") == fixed_app
 
 
 class _FakeModelClient:
@@ -922,6 +1003,10 @@ def _request_factory(context: dict[str, Any], prompt: str) -> dict[str, str]:
         "prompt_hash": str(abs(hash(prompt))),
         "context_loop_id": str(context["loop_id"]),
     }
+
+
+def _sha256_file(path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _context(

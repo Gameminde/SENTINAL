@@ -96,6 +96,7 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
     progress = str(context.get("progress_state") or "")
     receipt_count = len(context.get("recent_product_receipt_refs") or ())
     recovery_hint = _recovery_prompt_hint(context)
+    workspace_hint = _workspace_file_prompt_hint(context)
     return (
         "You are the brain. Sentinel is the body/runtime/proof layer.\n"
         f"Mission objective: {objective}\n"
@@ -104,14 +105,37 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         f"Best next skill: {recommended}\n"
         f"Product receipts so far: {receipt_count}\n"
         f"{recovery_hint}"
+        f"{workspace_hint}"
         "Choose exactly one next skill for this turn.\n"
         "Prefer one compact JSON object such as "
         "{\"skill\":\"create_file\",\"params\":{\"target_path\":\"app.py\",\"new_text\":\"...\"}}, "
+        "{\"skill\":\"patch\",\"params\":{\"target_path\":\"app.py\",\"expected_base_hash\":\"...\",\"old_text\":\"...\",\"new_text\":\"...\"}}, "
         "{\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
         "{\"skill\":\"send_message\"}, {\"skill\":\"spawn_worker\"}, or {\"skill\":\"finish\"}.\n"
         "Natural intent is acceptable when the transport preserves visible text, but JSON is most reliable.\n"
         "Do not request login, payment, credentials, provider-native tools, or fallback/AUTO."
     )
+
+
+def _workspace_file_prompt_hint(context: dict[str, Any]) -> str:
+    summaries = [item for item in context.get("workspace_file_summaries") or () if isinstance(item, dict)]
+    if not summaries:
+        return ""
+    lines = [
+        "Safe workspace file snippets for repair, hashes, and semantic checks:",
+    ]
+    for item in summaries[:3]:
+        path = str(item.get("path") or "")
+        sha = str(item.get("sha256") or "")
+        excerpt = str(item.get("content_excerpt") or "")
+        if not path or not excerpt:
+            continue
+        lines.append(f"FILE {path} sha256={sha}")
+        lines.append(excerpt[:1200])
+    lines.append(
+        "If repairing a file, return patch with params target_path, expected_base_hash, old_text, and new_text."
+    )
+    return "\n".join(lines) + "\n"
 
 
 def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> ActionEnvelope:

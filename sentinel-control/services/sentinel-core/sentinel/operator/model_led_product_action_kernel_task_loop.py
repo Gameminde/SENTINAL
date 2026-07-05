@@ -206,6 +206,7 @@ class ModelLedProductActionKernelTaskLoop:
             ),
             "_workspace_patch_plans_are_pending": True,
             "_bounded_check_plan": _bounded_check_plan(self.workspace_root),
+            "workspace_file_summaries": _workspace_file_summaries(self.workspace_root),
             "model_visible_available_actions": list(actions),
             "skill_decision_frame": {
                 "primary_truth": "product_action_kernel_runtimehost",
@@ -283,6 +284,14 @@ class ModelLedProductActionKernelTaskLoop:
         if len(self.recoverable_action_observations) >= self.max_recoverable_action_failures:
             return False
         create_plans = _workspace_create_file_plans(self.workspace_root, mission_objective=self.mission_objective)
+        recommended_skill = "patch" if reason == "code_exec_failed" else (
+            "create_file" if create_plans else context.get("primary_model_recommended_next_skill")
+        )
+        recovery_action = (
+            "repair_workspace_file_then_rerun_semantic_check"
+            if reason == "code_exec_failed"
+            else "route_to_next_missing_workspace_create_file_plan"
+        )
         self.recoverable_action_observations.append(
             {
                 "failure_code": reason,
@@ -290,8 +299,8 @@ class ModelLedProductActionKernelTaskLoop:
                 "capability_id": decision.capability_id,
                 "operation": decision.operation,
                 "target_ref_hash": stable_hash(str(decision.target_ref or "")),
-                "recovery_action": "route_to_next_missing_workspace_create_file_plan",
-                "recommended_skill": "create_file" if create_plans else context.get("primary_model_recommended_next_skill"),
+                "recovery_action": recovery_action,
+                "recommended_skill": recommended_skill,
                 "remaining_create_file_plan_count": len(create_plans),
                 "data_not_authority": True,
                 "can_execute": False,
@@ -307,6 +316,11 @@ class ModelLedProductActionKernelTaskLoop:
             actions.append("workspace_patch.create_file")
         if _workspace_patch_plans(self.workspace_root):
             actions.append("workspace_patch.apply_patch")
+        if (
+            self._latest_dispatch_blocked_reason() == "code_exec_failed"
+            and "workspace_patch.apply_patch" not in actions
+        ):
+            actions.append("workspace_patch.apply_patch")
         actions.extend([
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
@@ -320,6 +334,11 @@ class ModelLedProductActionKernelTaskLoop:
         if self.product_receipt_refs:
             actions.append("sentinel_loop.finish")
         return tuple(actions)
+
+    def _latest_dispatch_blocked_reason(self) -> str | None:
+        if not self.dispatch_results:
+            return None
+        return self.dispatch_results[-1].blocked_reason
 
     def _progress_state(self) -> str:
         if not self.product_receipt_refs:
@@ -550,6 +569,7 @@ def _is_recoverable_model_decision_failure(reason: str) -> bool:
 
 def _is_recoverable_action_failure(reason: str) -> bool:
     return reason in {
+        "code_exec_failed",
         "workspace_patch_create_target_exists",
     }
 
@@ -666,9 +686,33 @@ def _workspace_create_file_plans(workspace_root: Path, *, mission_objective: str
 
 
 def _bounded_check_plan(workspace_root: Path) -> dict[str, Any]:
+    if (workspace_root / "tests" / "test_app.py").is_file():
+        return {"profile_id": "pytest_file", "args": ["tests/test_app.py"]}
     if (workspace_root / "app.py").is_file():
         return {"profile_id": "python_compileall", "args": ["."]}
     return {}
+
+
+def _workspace_file_summaries(workspace_root: Path) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    for relative_path in ("app.py", "tests/test_app.py", "README.md"):
+        path = workspace_root / relative_path
+        if not path.is_file():
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        summaries.append(
+            {
+                "path": relative_path,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "content_excerpt": content[:1200],
+                "data_not_authority": True,
+                "can_execute": False,
+            }
+        )
+    return summaries
 
 
 __all__ = [
