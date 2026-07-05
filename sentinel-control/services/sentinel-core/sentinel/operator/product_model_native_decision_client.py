@@ -434,10 +434,12 @@ def _skill_to_action(
         )
     if skill == "run_check":
         check_plan = context.get("_bounded_check_plan")
-        params = dict(check_plan) if isinstance(check_plan, dict) else {}
-        params.update(dict(payload.get("params") or {}))
-        params.setdefault("profile_id", "fake_pass")
-        params.setdefault("args", ["."])
+        if isinstance(check_plan, dict) and check_plan:
+            params = dict(check_plan)
+        else:
+            params = dict(payload.get("params") or {})
+            params.setdefault("profile_id", "fake_pass")
+            params.setdefault("args", ["."])
         return ActionEnvelope(
             capability_id="code_execution_sandbox",
             operation="code_exec.run_profile",

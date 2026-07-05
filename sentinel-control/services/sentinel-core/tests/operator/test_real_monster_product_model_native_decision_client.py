@@ -35,6 +35,34 @@ def test_json_skill_run_check_maps_to_internal_action_envelope() -> None:
     assert decision.can_execute is False
 
 
+def test_run_check_uses_bounded_plan_over_model_raw_shell_params() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "skill": "run_check",
+                    "params": {
+                        "profile_id": "raw_shell",
+                        "args": ["py -3.13 -m pytest . -q"],
+                    },
+                }
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="run_check",
+            bounded_check_plan={"profile_id": "pytest_file", "args": ["tests/test_app.py"]},
+        )
+    )
+
+    assert decision.capability_id == "code_execution_sandbox"
+    assert decision.operation == "code_exec.run_profile"
+    assert decision.params == {"profile_id": "pytest_file", "args": ["tests/test_app.py"]}
+
+
 def test_metadata_reply_natural_send_message_maps_to_bounded_channel() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient([{"metadata": {"reply": "I will send the completion message now."}}]),
