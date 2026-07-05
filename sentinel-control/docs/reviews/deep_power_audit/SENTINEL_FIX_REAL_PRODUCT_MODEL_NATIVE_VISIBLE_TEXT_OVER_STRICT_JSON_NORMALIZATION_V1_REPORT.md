@@ -4,10 +4,11 @@
 
 `FIX_REAL_PRODUCT_MODEL_NATIVE_VISIBLE_TEXT_OVER_STRICT_JSON_NORMALIZATION_V1 = LOCALLY_COMMITTED`
 
-Implementation commit:
+Implementation commits:
 
 ```text
 20a9c15f64e21ba37cc63b6e722b0d6a09180d29
+779dc8a7c3a4f55c327dd942f38c7e934c9a9576
 ```
 
 ## 4B Failure Interpreted
@@ -40,6 +41,8 @@ Changed:
 
 ```text
 sentinel/operator/product_model_native_decision_client.py
+sentinel/agent/model_execution/openai_compatible.py
+sentinel/operator/model_client.py
 ```
 
 Before:
@@ -52,6 +55,8 @@ After:
 
 ```text
 normalization failure blocks only when no usable visible text exists
+product_model_native_intent_v1 keeps provider visible text in memory for immediate product-native skill mapping
+raw_provider_response remains hash-only/sanitized in persisted provider payloads
 ```
 
 This preserves the empty-content blocker while allowing safe natural/semi-structured text such as:
@@ -72,12 +77,14 @@ Changed:
 
 ```text
 tests/operator/test_real_monster_product_model_native_decision_client.py
+tests/test_llm_operator_model_client_v0.py
 ```
 
 Added:
 
 ```text
 test_visible_text_survives_strict_json_normalization_failure
+test_catalog_model_client_preserves_product_native_visible_text_memory_only
 ```
 
 The test first failed with:
@@ -123,6 +130,16 @@ Result:
 ```
 
 ```text
+py -3.13 -m pytest tests/operator/test_real_monster_product_model_native_decision_client.py tests/operator/test_power_cleanup_pack10_product_task_loop_runtimehost_entrypoint.py tests/operator/test_power_unification_pack6_signed_mission_artifacts_and_replay_verifier.py tests/test_llm_operator_model_client_v0.py -q
+```
+
+Result:
+
+```text
+67 passed
+```
+
+```text
 py -3.13 -m compileall -q sentinel
 ```
 
@@ -164,6 +181,7 @@ no provider-native tools
 no raw provider/reasoning persistence
 no credential/session/cookie persistence
 empty visible provider output still blocks
+visible non-JSON provider text is in-memory only for ProductModelNativeDecisionClient
 hard boundary credential requests still block
 ActionEnvelope remains internal runtime format
 ```
@@ -187,4 +205,3 @@ real provider
 -> finish
 -> replay no-react
 ```
-
