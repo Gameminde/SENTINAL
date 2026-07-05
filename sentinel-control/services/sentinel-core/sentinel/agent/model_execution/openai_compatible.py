@@ -184,7 +184,7 @@ class OpenAICompatibleChatProvider(RealModelProvider):
         raw_text_in_memory_only: str | None = None
         finish_reason, finish_reason_hash = _safe_provider_label(choice.get("finish_reason"))
         output_truncated = finish_reason == "length"
-        if raw_text_transport in {"mutation_patch_v2", "read_only_audit_report_v1"}:
+        if raw_text_transport in {"mutation_patch_v2", "read_only_audit_report_v1", "product_model_native_intent_v1"}:
             parsed_content = {
                 "raw_text_hash": text_hash(content),
                 "raw_text_transport": raw_text_transport,

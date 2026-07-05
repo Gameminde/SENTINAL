@@ -101,6 +101,12 @@ class OperatorCatalogModelClient:
                 )
             return _blocked(response.error_class, provider_response_hash=response.sanitized_response_hash)
         content = dict(response.content)
+        if (
+            request.runtime == "product_model_native_decision"
+            and request.request_metadata.get("raw_text_transport") == "product_model_native_intent_v1"
+            and response.raw_text_in_memory_only
+        ):
+            content["content"] = response.raw_text_in_memory_only
         content.setdefault("raw_provider_response", response.content)
         return content
 

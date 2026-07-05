@@ -33,7 +33,7 @@ from sentinel.agent.model_execution.policy import (
     ModelRetryPolicy,
     ModelTimeoutPolicy,
 )
-from sentinel.agent.model_execution.redaction import stable_hash
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.llm_adapter import OperatorLLMConversationAdapter
 from sentinel.operator.llm_frame import OperatorConversationFrame
 from sentinel.operator.model_client import OperatorCatalogModelClient
@@ -131,6 +131,41 @@ def test_catalog_model_client_calls_aliyun_dashscope_openai_compatible_backend(
     )
     assert recorder.calls[0]["headers"]["Authorization"] == "Bearer unit-aliyun-key"
     assert recorder.calls[0]["json"]["model"] == "deepseek-v4-pro"
+
+
+def test_catalog_model_client_preserves_product_native_visible_text_memory_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    visible_text = "Run the bounded local check."
+    monkeypatch.setenv("SENTINEL_CERT_MODEL_API_KEY", "unit-aliyun-key")
+    monkeypatch.setenv(
+        "SENTINEL_ALIYUN_DASHSCOPE_BASE_URL",
+        "https://unit-workspace.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+    )
+    recorder = RecordingHttpxClient(_provider_payload(visible_text, model="deepseek-v4-pro"))
+    monkeypatch.setattr("httpx.Client", recorder)
+    contract = _contract(
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model="deepseek-v4-pro",
+    )
+    request = _real_model_request_for_contract(contract).model_copy(
+        update={
+            "runtime": "product_model_native_decision",
+            "request_metadata": {
+                "routing_policy": "explicit_user_model_contract_only",
+                "raw_text_transport": "product_model_native_intent_v1",
+            },
+            "prompt_text_in_memory_only": "Choose the next product skill.",
+        }
+    )
+
+    result = OperatorCatalogModelClient(user_model_contract=contract).complete(request)
+
+    assert result["content"] == visible_text
+    assert result["raw_text_transport"] == "product_model_native_intent_v1"
+    assert result["raw_text_hash"] == text_hash(visible_text)
+    assert visible_text not in json.dumps(result["raw_provider_response"], sort_keys=True)
 
 
 def test_catalog_model_client_accepts_single_fenced_mission_understanding_v2_json(
