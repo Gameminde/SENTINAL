@@ -305,8 +305,9 @@ class ModelLedProductActionKernelTaskLoop:
         actions = []
         if _workspace_create_file_plans(self.workspace_root, mission_objective=self.mission_objective):
             actions.append("workspace_patch.create_file")
+        if _workspace_patch_plans(self.workspace_root):
+            actions.append("workspace_patch.apply_patch")
         actions.extend([
-            "workspace_patch.apply_patch",
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
             "real_browser_control.real_browser.search",

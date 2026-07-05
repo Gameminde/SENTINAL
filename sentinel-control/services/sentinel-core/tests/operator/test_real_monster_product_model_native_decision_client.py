@@ -856,6 +856,38 @@ def test_product_loop_can_recover_from_empty_visible_content_after_material_rece
     assert decision_client.contexts[2]["recent_product_receipt_refs"] == [result.product_receipt_refs[0]]
 
 
+def test_created_app_workspace_recommends_run_check_not_dead_patch(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    (workspace / "tests").mkdir(parents=True)
+    (workspace / "app.py").write_text(
+        'APP_MESSAGE = "Sentinel arbitrary local app worked."\n\n'
+        "def main():\n"
+        "    return APP_MESSAGE\n",
+        encoding="utf-8",
+    )
+    (workspace / "README.md").write_text("# Sentinel Local App\n", encoding="utf-8")
+    (workspace / "tests" / "test_app.py").write_text(
+        "from app import main\n\n\n"
+        "def test_main_returns_message():\n"
+        '    assert main() == "Sentinel arbitrary local app worked."\n',
+        encoding="utf-8",
+    )
+    decision_client = _RecoveringDecisionClient([ActionKernelError("STOP_AFTER_CONTEXT_CAPTURE")])
+
+    host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_created_app_ready_for_check",
+        mission_objective="Create a tiny Python app from scratch, run checks, send completion, and finish.",
+        decision_client=decision_client,
+        max_model_calls=1,
+        max_material_actions=1,
+    )
+
+    assert decision_client.contexts[0]["primary_model_recommended_next_skill"] == "run_check"
+    assert decision_client.contexts[0]["primary_model_next_recommended_skills"][0] == "run_check"
+
+
 class _FakeModelClient:
     def __init__(self, outputs: list[Any]) -> None:
         self.outputs = list(outputs)
