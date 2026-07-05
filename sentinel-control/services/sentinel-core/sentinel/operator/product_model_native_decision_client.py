@@ -188,7 +188,21 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
     if "capability_id" in payload and "operation" in payload:
         return "__canonical__"
     lowered = text.lower()
-    if any(marker in lowered for marker in ("create app", "local app", "patch", "edit", "update file", "replace marker")):
+    if any(
+        marker in lowered
+        for marker in (
+            "add file",
+            "app test file",
+            "create app",
+            "local app",
+            "patch",
+            "readme",
+            "test file",
+            "edit",
+            "update file",
+            "replace marker",
+        )
+    ):
         return "patch"
     if any(marker in lowered for marker in ("run check", "run the check", "bounded check", "check", "test", "verify code")):
         return "run_check"
@@ -247,15 +261,25 @@ def _recommended_skill(context: dict[str, Any]) -> str:
 
 
 def _next_sequence_skill(sequence: tuple[str, ...], context: dict[str, Any]) -> str | None:
-    completed = _completed_sequence_skills(context)
+    completed = _completed_sequence_skill_counts(context)
     for skill in sequence:
-        if skill not in completed:
-            return skill
+        if completed.get(skill, 0) > 0:
+            completed[skill] -= 1
+            continue
+        return skill
     return sequence[-1] if sequence else None
 
 
 def _completed_sequence_skills(context: dict[str, Any]) -> set[str]:
-    completed: set[str] = set()
+    return {skill for skill, count in _completed_sequence_skill_counts(context).items() if count > 0}
+
+
+def _completed_sequence_skill_counts(context: dict[str, Any]) -> dict[str, int]:
+    completed: dict[str, int] = {}
+
+    def add(skill: str) -> None:
+        completed[skill] = completed.get(skill, 0) + 1
+
     for item in context.get("dispatch_summaries") or ():
         if not isinstance(item, dict):
             continue
@@ -263,20 +287,32 @@ def _completed_sequence_skills(context: dict[str, Any]) -> set[str]:
             continue
         action = f"{item.get('capability_id')}.{item.get('operation')}"
         if action == "workspace_patch.apply_patch":
-            completed.add("patch")
+            add("patch")
         elif action == "code_execution_sandbox.code_exec.run_profile":
-            completed.add("run_check")
+            add("run_check")
         elif action == "bounded_channel.send_message":
-            completed.add("send_message")
+            add("send_message")
         elif action == "worker_fleet.spawn_worker":
-            completed.add("spawn_worker")
+            add("spawn_worker")
         elif action == "sentinel_loop.finish":
-            completed.add("finish")
+            add("finish")
     if context.get("recent_product_receipt_refs") and not completed:
         # Conservative fallback for older contexts that have receipts but no
         # dispatch summaries: first material skill is done.
-        completed.add("run_check")
+        add("run_check")
     return completed
+
+
+def _completed_action_count(context: dict[str, Any], *, capability_id: str, operation: str) -> int:
+    count = 0
+    for item in context.get("dispatch_summaries") or ():
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("status") or "") not in {"completed", "passed"}:
+            continue
+        if item.get("capability_id") == capability_id and item.get("operation") == operation:
+            count += 1
+    return count
 
 
 def _skill_to_action(
@@ -304,7 +340,9 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("patch", context, text),
         )
     if skill == "run_check":
-        params = dict(payload.get("params") or {})
+        check_plan = context.get("_bounded_check_plan")
+        params = dict(check_plan) if isinstance(check_plan, dict) else {}
+        params.update(dict(payload.get("params") or {}))
         params.setdefault("profile_id", "fake_pass")
         params.setdefault("args", ["."])
         return ActionEnvelope(
@@ -364,7 +402,16 @@ def _workspace_patch_params(*, payload: dict[str, Any], context: dict[str, Any])
         plan = dict(payload_params)
     else:
         plans = context.get("_workspace_patch_plans") or ()
-        plan = next((dict(item) for item in plans if isinstance(item, dict)), None)
+        usable_plans = [dict(item) for item in plans if isinstance(item, dict)]
+        if context.get("_workspace_patch_plans_are_pending") is True:
+            plan = usable_plans[0] if usable_plans else None
+        else:
+            completed_patch_count = _completed_action_count(
+                context,
+                capability_id="workspace_patch",
+                operation="apply_patch",
+            )
+            plan = usable_plans[completed_patch_count] if completed_patch_count < len(usable_plans) else None
         if plan is None:
             raise ActionKernelError("MODEL_NATIVE_DECISION_PATCH_PLAN_MISSING")
     target_path = str(plan.get("target_path") or "").strip()

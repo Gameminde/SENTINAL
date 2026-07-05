@@ -185,6 +185,8 @@ class ModelLedProductActionKernelTaskLoop:
             "primary_model_recommended_next_skill": model_skill_surface["primary_recommended_skill"],
             "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
             "_workspace_patch_plans": _workspace_patch_plans(self.workspace_root),
+            "_workspace_patch_plans_are_pending": True,
+            "_bounded_check_plan": _bounded_check_plan(self.workspace_root),
             "model_visible_available_actions": list(actions),
             "skill_decision_frame": {
                 "primary_truth": "product_action_kernel_runtimehost",
@@ -509,6 +511,17 @@ def _artifact_hashes(store: MissionRunStore, mission_ids: tuple[str, ...]) -> tu
 def _workspace_patch_plans(workspace_root: Path) -> list[dict[str, str]]:
     plans: list[dict[str, str]] = []
     for relative_path, marker, replacement in (
+        ("app.py", "TODO_SENTINEL_APP_MESSAGE", "Sentinel model-led local app worked."),
+        (
+            "README.md",
+            "TODO_SENTINEL_APP_README",
+            "This multi-file local app is built through the Sentinel ProductActionKernel spine.",
+        ),
+        (
+            "tests/test_app.py",
+            "TODO_SENTINEL_APP_TEST",
+            'from app import main\n\n\ndef test_main_returns_message():\n    assert main() == "Sentinel model-led local app worked."\n',
+        ),
         ("app.py", "TODO_SENTINEL_APP", "Sentinel model-led local app worked."),
         ("README.md", "TODO_SENTINEL_APP", "Sentinel model-led local app worked."),
     ):
@@ -530,6 +543,12 @@ def _workspace_patch_plans(workspace_root: Path) -> list[dict[str, str]]:
             }
         )
     return plans
+
+
+def _bounded_check_plan(workspace_root: Path) -> dict[str, Any]:
+    if (workspace_root / "app.py").is_file():
+        return {"profile_id": "python_compileall", "args": ["."]}
+    return {}
 
 
 __all__ = [
