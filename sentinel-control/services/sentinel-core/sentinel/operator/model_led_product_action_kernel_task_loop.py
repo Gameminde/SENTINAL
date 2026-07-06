@@ -259,6 +259,8 @@ class ModelLedProductActionKernelTaskLoop:
         if not _is_recoverable_model_decision_failure(reason):
             return False
         max_recoveries = self.max_recoverable_model_decision_failures
+        if reason == "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED":
+            max_recoveries = max(max_recoveries, 1)
         if self.product_receipt_refs:
             max_recoveries = max(max_recoveries, 1)
         if len(self.recoverable_decision_observations) >= max_recoveries:

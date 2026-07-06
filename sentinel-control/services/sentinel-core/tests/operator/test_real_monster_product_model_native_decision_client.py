@@ -1087,25 +1087,77 @@ def test_product_loop_can_recover_once_from_empty_visible_content_before_materia
     )
 
 
-def test_product_loop_default_blocks_empty_visible_content_before_material_action(tmp_path) -> None:
+def test_product_loop_default_recovers_one_visible_content_unsupported_before_material_action(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / "README.md").write_text("# Recoverable product loop\n", encoding="utf-8")
-    decision_client = _RecoveringDecisionClient([ActionKernelError("MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT")])
+    decision_client = _RecoveringDecisionClient(
+        [
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": _sha256_file(workspace / "README.md"),
+                    "old_text": "# Recoverable product loop\n",
+                    "new_text": "# Recoverable product loop\n\nRecovered from unsupported visible content.\n",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Recovered from unsupported first visible content and finished."},
+            ),
+        ]
+    )
 
     result = host.run_product_action_kernel_task_loop(
         workspace_root=workspace,
-        session_id="session_real_product_empty_content_default_block",
-        mission_objective="Default behavior should not silently retry empty provider turns.",
+        session_id="session_real_product_visible_content_unsupported_default_recovery",
+        mission_objective="Recover once from unsupported first visible content, patch, and finish.",
         decision_client=decision_client,
         allowed_domains=("example.com",),
-        max_model_calls=2,
+        max_model_calls=4,
+        max_material_actions=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "workspace_patch:apply_patch",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 1
+    assert decision_client.contexts[1]["recoverable_decision_observations"][0]["failure_code"] == (
+        "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"
+    )
+
+
+def test_product_loop_default_blocks_repeated_visible_content_unsupported_before_material_action(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Recoverable product loop\n", encoding="utf-8")
+    decision_client = _RecoveringDecisionClient(
+        [
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_visible_content_unsupported_repeated_default_block",
+        mission_objective="Default behavior should block repeated unsupported provider turns before material work.",
+        decision_client=decision_client,
+        allowed_domains=("example.com",),
+        max_model_calls=3,
         max_material_actions=1,
     )
 
     assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
-    assert result.blocked_reason == "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"
+    assert result.blocked_reason == "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"
     assert result.material_action_count == 0
     assert result.product_receipt_refs == ()
 
