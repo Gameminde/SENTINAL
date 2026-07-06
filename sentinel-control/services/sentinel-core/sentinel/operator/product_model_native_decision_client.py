@@ -273,7 +273,7 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
         )
     ):
         return "patch"
-    if any(marker in lowered for marker in ("worker", "delegate", "spawn")):
+    if _has_worker_intent(lowered):
         return "spawn_worker"
     if any(marker in lowered for marker in ("run check", "run the check", "bounded check", "check", "test", "verify code")):
         return "run_check"
@@ -288,6 +288,10 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
     if any(marker in lowered for marker in ("finish", "done", "complete", "enough proof", "summarize")):
         return "finish"
     return None
+
+
+def _has_worker_intent(lowered_text: str) -> bool:
+    return bool(re.search(r"\b(worker|delegate|spawn|verifier|researcher)\b", lowered_text))
 
 
 def _normalize_skill(value: str) -> str | None:

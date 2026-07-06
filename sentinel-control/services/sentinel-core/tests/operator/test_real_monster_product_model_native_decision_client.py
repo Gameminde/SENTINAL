@@ -130,6 +130,27 @@ def test_natural_finish_intent_maps_to_finish_only_after_receipt_context() -> No
     assert "summary" in str(decision.params["safe_summary"]).lower()
 
 
+def test_delegated_product_finish_intent_does_not_spawn_another_worker() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["The delegated product proof is complete. Summarize and finish."]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="finish",
+            recent_product_receipt_refs=["product_action_kernel_receipt_worker"],
+            dispatch_summaries=[
+                {"capability_id": "worker_fleet", "operation": "spawn_worker", "status": "completed"},
+                {"capability_id": "worker_fleet", "operation": "spawn_worker", "status": "completed"},
+            ],
+        )
+    )
+
+    assert decision.capability_id == "sentinel_loop"
+    assert decision.operation == "finish"
+
+
 def test_ambiguous_safe_intent_uses_primary_recommended_skill() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(["Looks good, continue with the strongest safe next step."]),

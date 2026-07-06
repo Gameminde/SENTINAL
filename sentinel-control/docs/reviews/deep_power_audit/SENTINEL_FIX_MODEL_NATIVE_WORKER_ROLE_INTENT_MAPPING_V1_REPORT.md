@@ -34,6 +34,14 @@ browser operator -> browser_operator
 
 The runtime still owns authority and execution. The model can request a role, but `WorkerOrchestrationRuntime` still delegates reduced child authority and blocks unsupported/high-risk worker requests.
 
+The mapper also avoids a false worker match on completion language such as:
+
+```text
+The delegated product proof is complete. Summarize and finish.
+```
+
+`delegated` no longer matches the worker intent substring `delegate`; completion intent routes to `sentinel_loop.finish` once product receipts exist.
+
 ## Files Changed
 
 ```text
@@ -47,6 +55,9 @@ tests/operator/test_real_monster_product_model_native_decision_client.py
 py -3.13 -m pytest tests/operator/test_real_monster_product_model_native_decision_client.py::test_natural_worker_role_intent_maps_to_reduced_worker_role -q
 4 passed
 
+py -3.13 -m pytest tests/operator/test_real_monster_product_model_native_decision_client.py::test_delegated_product_finish_intent_does_not_spawn_another_worker tests/operator/test_real_monster_product_model_native_decision_client.py::test_natural_worker_role_intent_maps_to_reduced_worker_role -q
+5 passed
+
 py -3.13 -m pytest tests/operator/test_real_monster_product_model_native_decision_client.py -q --durations=10 --maxfail=1
 38 passed
 
@@ -55,6 +66,17 @@ py -3.13 -m pytest tests/operator/test_power_unification_pack5_multi_worker_long
 
 py -3.13 -m compileall -q sentinel
 passed
+```
+
+Local Attempt 6 preflight path:
+
+```text
+create_file -> create_file -> create_file -> run_check -> send_message -> spawn_worker -> spawn_worker -> finish
+status = completed
+worker_roles = researcher, report_writer
+authority_expanded = false, false
+receipt_count = 7
+replay reexecuted_actions = false
 ```
 
 ## Hard Boundaries
