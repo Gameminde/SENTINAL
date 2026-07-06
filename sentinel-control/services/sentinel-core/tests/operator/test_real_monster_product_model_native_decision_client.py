@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from sentinel.operator import channel_adapter
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
 from sentinel.operator.mission_artifact_bundle import (
     MissionArtifactBundleExporter,
@@ -111,6 +112,36 @@ def test_model_supplied_channel_fields_cannot_override_granted_local_channel() -
     }
     assert "Sentinel number analyzer app is ready." in decision.params["body"]
     assert "attacker@example.com" not in str(decision.params)
+
+
+def test_metadata_reply_send_message_uses_granted_telegram_destination() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient([{"metadata": {"reply": "Send the live completion update now."}}]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="send_message",
+            live_channel_destination_grants=[
+                {
+                    "adapter_id": "telegram_live_adapter",
+                    "channel": "telegram",
+                    "destination_ref": "telegram:configured-chat",
+                }
+            ],
+        )
+    )
+
+    assert decision.capability_id == "bounded_channel"
+    assert decision.operation == "send_message"
+    assert decision.params["adapter_id"] == "telegram_live_adapter"
+    assert decision.params["channel"] == "telegram"
+    assert decision.params["recipients"] == ["telegram:configured-chat"]
+    assert decision.params["recipient_provenance"] == {
+        "telegram:configured-chat": "mission_level_destination_grant",
+    }
+    assert "live completion" in decision.params["body"].lower()
 
 
 def test_natural_finish_intent_maps_to_finish_only_after_receipt_context() -> None:
@@ -1134,6 +1165,58 @@ def test_product_loop_default_recovers_one_visible_content_unsupported_before_ma
     )
 
 
+def test_product_loop_routes_model_native_send_to_granted_telegram_transport(tmp_path, monkeypatch) -> None:
+    calls: list[object] = []
+
+    class _TelegramResponse:
+        status = 200
+
+        def read(self, _limit: int = 8192) -> bytes:
+            return b'{"ok":true,"result":{"message_id":4242}}'
+
+    def fake_urlopen(request, timeout):
+        calls.append((request, timeout))
+        return _TelegramResponse()
+
+    monkeypatch.setenv("SENTINEL_TELEGRAM_BOT_TOKEN", "test-token-not-persisted")
+    monkeypatch.setenv("SENTINEL_TELEGRAM_CHAT_ID", "test-chat-not-persisted")
+    monkeypatch.setattr(channel_adapter, "_default_urlopen", fake_urlopen)
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Live channel product spine\n", encoding="utf-8")
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {"metadata": {"reply": "Send the bounded live Telegram completion update now."}},
+                {"skill": "finish", "params": {"safe_summary": "Telegram product spine send completed."}},
+            ]
+        ),
+        request_factory=_request_factory,
+        preferred_skill_sequence=("send_message", "finish"),
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_live_telegram_product_spine",
+        mission_objective="Send one bounded live Telegram completion update and finish.",
+        decision_client=client,
+        allowed_domains=("telegram:configured-chat",),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED, result.blocked_reason
+    assert result.capability_sequence == ("bounded_channel:send_message", "sentinel_loop:finish")
+    assert len(calls) == 1
+    rendered = "\n".join(
+        path.read_text(encoding="utf-8", errors="ignore") for path in (tmp_path / "runs").rglob("*.json")
+    )
+    assert "telegram:4242" in rendered
+    assert "test-token-not-persisted" not in rendered
+    assert "test-chat-not-persisted" not in rendered
+
+
 def test_product_loop_default_blocks_repeated_visible_content_unsupported_before_material_action(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
@@ -1643,6 +1726,7 @@ def _context(
     workspace_patch_plans: list[dict[str, object]] | None = None,
     workspace_create_file_plans: list[dict[str, object]] | None = None,
     bounded_check_plan: dict[str, object] | None = None,
+    live_channel_destination_grants: list[dict[str, object]] | None = None,
 ) -> dict[str, Any]:
     action_map = {
         "create_file": "workspace_patch.apply_patch",
@@ -1668,4 +1752,5 @@ def _context(
         "_workspace_patch_plans": workspace_patch_plans or [],
         "_workspace_create_file_plans": workspace_create_file_plans or [],
         "_bounded_check_plan": bounded_check_plan or {},
+        "live_channel_destination_grants": live_channel_destination_grants or [],
     }

@@ -618,6 +618,18 @@ def _channel_params(*, payload: dict[str, Any], text: str, context: dict[str, An
             if isinstance(value, str) and value.strip():
                 model_message = value
                 break
+    granted_destination = _granted_channel_destination(context)
+    if granted_destination is not None:
+        recipient = granted_destination["destination_ref"]
+        return {
+            "adapter_id": granted_destination["adapter_id"],
+            "channel": granted_destination["channel"],
+            "body": _bounded_channel_body(model_message or text, context),
+            "recipients": [recipient],
+            "recipient_provenance": {recipient: "mission_level_destination_grant"},
+            "evidence_refs": ["evidence:monster_runtime_product_loop"],
+            "idempotency_key": _idempotency_key("channel", context, text),
+        }
     return {
         "adapter_id": "monster_fake_channel",
         "channel": "webhook",
@@ -627,6 +639,25 @@ def _channel_params(*, payload: dict[str, Any], text: str, context: dict[str, An
         "evidence_refs": ["evidence:monster_runtime_product_loop"],
         "idempotency_key": _idempotency_key("channel", context, text),
     }
+
+
+def _granted_channel_destination(context: dict[str, Any]) -> dict[str, str] | None:
+    grants = context.get("live_channel_destination_grants")
+    if not isinstance(grants, list):
+        return None
+    for item in grants:
+        if not isinstance(item, dict):
+            continue
+        adapter_id = str(item.get("adapter_id") or "").strip()
+        channel = str(item.get("channel") or "").strip().lower()
+        destination_ref = str(item.get("destination_ref") or "").strip().lower()
+        if adapter_id and channel == "telegram" and destination_ref == "telegram:configured-chat":
+            return {
+                "adapter_id": adapter_id,
+                "channel": channel,
+                "destination_ref": destination_ref,
+            }
+    return None
 
 
 def _worker_params(*, payload: dict[str, Any], text: str) -> dict[str, Any]:

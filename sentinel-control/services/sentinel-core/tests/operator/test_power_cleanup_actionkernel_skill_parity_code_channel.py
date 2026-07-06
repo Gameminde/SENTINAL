@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from sentinel.operator import channel_adapter
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
 from sentinel.operator.channel_adapter_replay import ChannelAdapterReplayBuilder
 from sentinel.operator.code_execution_sandbox_replay import CodeExecutionReplayView
@@ -37,7 +38,7 @@ def test_code_execution_routes_through_product_action_kernel_adapter(tmp_path: P
     result = host.pump_daemon_once(mission.record.mission_id)
 
     assert result.dispatch_result is not None
-    assert result.dispatch_result.status is DispatchStatus.COMPLETED
+    assert result.dispatch_result.status is DispatchStatus.COMPLETED, result.dispatch_result.blocked_reason
     assert result.dispatch_result.adapter_id == "product_action_kernel_adapter"
     assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.COMPLETED
     state = host.lifecycle.derive_request_state(mission.record.mission_id, mission.execution_request.request_id)
@@ -135,7 +136,7 @@ def test_bounded_channel_routes_through_product_action_kernel_adapter(tmp_path: 
     result = host.pump_daemon_once(mission.record.mission_id)
 
     assert result.dispatch_result is not None
-    assert result.dispatch_result.status is DispatchStatus.COMPLETED
+    assert result.dispatch_result.status is DispatchStatus.COMPLETED, result.dispatch_result.blocked_reason
     assert result.dispatch_result.adapter_id == "product_action_kernel_adapter"
     assert host.kernel.store.load_record(mission.record.mission_id).status is OperatorMissionStatus.COMPLETED
 
@@ -176,7 +177,11 @@ def test_bounded_channel_real_send_not_available_without_explicit_grant(tmp_path
     mission = _create_channel_mission(
         host,
         workspace,
-        parameters=_channel_params(adapter_id="telegram_live_adapter", channel="telegram"),
+        parameters=_channel_params(
+            adapter_id="telegram_live_adapter",
+            channel="telegram",
+            recipients=["telegram:configured-chat"],
+        ),
     )
 
     result = host.pump_daemon_once(mission.record.mission_id)
@@ -184,6 +189,76 @@ def test_bounded_channel_real_send_not_available_without_explicit_grant(tmp_path
     assert result.dispatch_result is not None
     assert result.dispatch_result.status is DispatchStatus.BLOCKED
     assert result.dispatch_result.blocked_reason == "bounded_channel_real_transport_not_authorized"
+
+
+def test_bounded_channel_telegram_routes_real_transport_with_explicit_grant(tmp_path: Path, monkeypatch) -> None:
+    calls: list[object] = []
+
+    class _TelegramResponse:
+        status = 200
+
+        def read(self, _limit: int = 8192) -> bytes:
+            return b'{"ok":true,"result":{"message_id":4242}}'
+
+    def fake_urlopen(request, timeout):
+        calls.append((request, timeout))
+        return _TelegramResponse()
+
+    monkeypatch.setenv("SENTINEL_TELEGRAM_BOT_TOKEN", "test-token-not-persisted")
+    monkeypatch.setenv("SENTINEL_TELEGRAM_CHAT_ID", "test-chat-not-persisted")
+    monkeypatch.setattr(channel_adapter, "_default_urlopen", fake_urlopen)
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    mission = _create_channel_mission(
+        host,
+        workspace,
+        parameters=_channel_params(
+            adapter_id="telegram_live_adapter",
+            channel="telegram",
+            recipients=["telegram:configured-chat"],
+        ),
+        allowed_tools=["bounded_channel", "channel_draft_send", "channel:telegram"],
+        allowed_actions=["bounded_channel.send_message", "send_message"],
+        allowed_domains=["telegram:configured-chat"],
+    )
+
+    result = host.pump_daemon_once(mission.record.mission_id)
+
+    assert result.dispatch_result is not None
+    assert result.dispatch_result.status is DispatchStatus.COMPLETED, result.dispatch_result.blocked_reason
+    assert result.dispatch_result.adapter_id == "product_action_kernel_adapter"
+    assert len(calls) == 1
+    product_receipt = _product_receipt(host, mission.record.mission_id, result.dispatch_result.receipt_refs[0])
+    assert product_receipt["skill_id"] == "bounded_channel"
+    assert product_receipt["backend_id"] == "bounded_channel_skill"
+    replay = ChannelAdapterReplayBuilder(host.kernel.store).build(mission.record.mission_id)
+    assert replay.reexecuted_actions is False
+    assert replay.send_results[0].status == "sent"
+    rendered = "\n".join(path.read_text(encoding="utf-8", errors="ignore") for path in (tmp_path / "runs").rglob("*.json"))
+    assert "test-token-not-persisted" not in rendered
+    assert "test-chat-not-persisted" not in rendered
+    assert "telegram:4242" in rendered
+
+
+def test_bounded_channel_telegram_requires_process_config_before_send(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("SENTINEL_TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SENTINEL_TELEGRAM_CHAT_ID", raising=False)
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    mission = _create_channel_mission(
+        host,
+        workspace,
+        parameters=_channel_params(adapter_id="telegram_live_adapter", channel="telegram"),
+        allowed_tools=["bounded_channel", "channel_draft_send", "channel:telegram"],
+        allowed_actions=["bounded_channel.send_message", "send_message"],
+        allowed_domains=["telegram:configured-chat"],
+    )
+
+    result = host.pump_daemon_once(mission.record.mission_id)
+
+    assert result.dispatch_result is not None
+    assert result.dispatch_result.status is DispatchStatus.BLOCKED
+    assert result.dispatch_result.blocked_reason == "bounded_channel_real_transport_config_missing"
 
 
 def test_bounded_channel_unavailable_becomes_recoverable_observation(tmp_path: Path) -> None:
@@ -325,13 +400,17 @@ def _channel_params(
     *,
     adapter_id: str = "pack8_fake_channel",
     channel: str = "webhook",
+    recipients: list[str] | None = None,
 ) -> dict[str, object]:
+    granted_recipients = recipients or ["founder@example.com"]
     return {
         "adapter_id": adapter_id,
         "channel": channel,
         "body": "Safe bounded channel dispatch.",
-        "recipients": ["founder@example.com"],
-        "recipient_provenance": {"founder@example.com": "mission_level_destination_grant"},
+        "recipients": granted_recipients,
+        "recipient_provenance": {
+            recipient: "mission_level_destination_grant" for recipient in granted_recipients
+        },
         "evidence_refs": ["evidence:pack8_channel_context"],
         "idempotency_key": "pack8-send-1",
     }

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable
@@ -11,7 +12,11 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.agent.organs.channel_draft_send_organ_v1 import ChannelSendTransportReceipt
 from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
 from sentinel.operator.authority_issuer import MissionAuthorityEnvelopeIssuer
-from sentinel.operator.channel_adapter import ChannelConnectorRuntime
+from sentinel.operator.channel_adapter import (
+    ChannelConnectorRuntime,
+    ChannelConnectorRuntimeError,
+    build_telegram_channel_transport_from_env,
+)
 from sentinel.operator.channel_adapter_models import (
     ChannelAdapterConfig,
     ChannelAdapterKind,
@@ -452,7 +457,7 @@ def _default_bounded_channel_executor(envelope: ActionEnvelope, context: dict[st
     channel = str(params.get("channel") or "webhook").strip().lower()
     transports = {}
     if adapter_id != "missing_local_transport":
-        transports[adapter_id] = _local_channel_transport
+        transports[adapter_id] = _channel_transport_for(channel)
     channel_runtime = ChannelConnectorRuntime(
         kernel,
         transports=transports,
@@ -462,14 +467,14 @@ def _default_bounded_channel_executor(envelope: ActionEnvelope, context: dict[st
         adapter_id=adapter_id,
         kind=ChannelAdapterKind.WEBHOOK,
         provider_kind=ChannelProviderKind.WEBHOOK,
-        display_name="Pack 8 local bounded channel",
+        display_name=_channel_display_name(channel),
         recipient_policy=ChannelRecipientPolicy(
             allowed_domains=list(authority.allowed_domains or []),
             max_recipients=max(int(getattr(authority, "max_recipients", 1) or 1), 1),
         ),
         scope_policy=ChannelScopePolicy(allowed_channels=[channel]),
         approval_policy={"approval_required_for_send": False},
-        metadata={"transport_kind": "local_fake_product_dispatch"},
+        metadata={"transport_kind": _channel_transport_kind(channel)},
     )
     channel_runtime.register_adapter(mission_id=str(context.get("mission_id") or ""), config=config)
     channel_authority = _channel_send_authority(authority)
@@ -565,7 +570,14 @@ def _bounded_channel_preflight(
     channel = str(params.get("channel") or "webhook").strip().lower()
     if not adapter_id:
         return "bounded_channel_adapter_required"
-    if channel != "webhook":
+    if channel == "telegram":
+        if "channel:telegram" not in set(authority.allowed_tools or []):
+            return "bounded_channel_real_transport_not_authorized"
+        if "telegram:configured-chat" not in set(authority.allowed_domains or []):
+            return "bounded_channel_real_transport_not_authorized"
+        if not _telegram_config_present():
+            return "bounded_channel_real_transport_config_missing"
+    elif channel != "webhook":
         return "bounded_channel_real_transport_not_authorized"
     if "channel_draft_send" not in set(authority.allowed_tools or []):
         return "authority_incompatible_dispatch"
@@ -621,6 +633,27 @@ def _local_channel_transport(request: Any) -> ChannelSendTransportReceipt:
     return ChannelSendTransportReceipt(
         delivery_ref=f"local-pack8:{mission_id}:{channel}:{len(recipients)}",
     )
+
+
+def _channel_transport_for(channel: str) -> Callable[[Any], ChannelSendTransportReceipt]:
+    if channel == "telegram":
+        try:
+            return build_telegram_channel_transport_from_env()
+        except ChannelConnectorRuntimeError as exc:
+            raise RuntimeError("bounded_channel_real_transport_config_missing") from exc
+    return _local_channel_transport
+
+
+def _channel_display_name(channel: str) -> str:
+    return "Telegram bounded live channel" if channel == "telegram" else "Pack 8 local bounded channel"
+
+
+def _channel_transport_kind(channel: str) -> str:
+    return "telegram_real_product_dispatch" if channel == "telegram" else "local_fake_product_dispatch"
+
+
+def _telegram_config_present() -> bool:
+    return bool(os.environ.get("SENTINEL_TELEGRAM_BOT_TOKEN")) and bool(os.environ.get("SENTINEL_TELEGRAM_CHAT_ID"))
 
 
 class _ProductLocalCloakBrowserEngine:

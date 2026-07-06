@@ -228,6 +228,7 @@ class ModelLedProductActionKernelTaskLoop:
             "recent_product_receipt_refs": list(sanitize_operator_refs(self.product_receipt_refs)),
             "recent_product_finalgate_refs": list(sanitize_operator_refs(self.product_finalgate_refs)),
             "explicit_noop_proof_ref": self.explicit_noop_proof_ref,
+            "live_channel_destination_grants": _live_channel_destination_grants(self.allowed_domains),
             "dispatch_summaries": [
                 {
                     "mission_id": result.mission_id,
@@ -596,7 +597,10 @@ def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str
     if capability == "code_execution_sandbox":
         return ["code_execution_sandbox"], ["code_execution_sandbox.code_exec.run_profile", "code_exec.run_profile"]
     if capability == "bounded_channel":
-        return ["bounded_channel", "channel_draft_send"], ["bounded_channel.send_message", "send_message"]
+        tools = ["bounded_channel", "channel_draft_send"]
+        if _is_telegram_channel_decision(decision):
+            tools.append("channel:telegram")
+        return tools, ["bounded_channel.send_message", "send_message"]
     if capability == "workspace_patch":
         return ["workspace_patch"], [f"{capability}.{operation}", operation]
     return [capability], [f"{capability}.{operation}", operation]
@@ -606,7 +610,25 @@ def _allowed_domains_for_action(decision: ActionEnvelope, allowed_domains: tuple
     domains = list(allowed_domains)
     if decision.capability_id == "real_browser_control":
         domains.append(BOUNDED_URL_AUTHORITY_REF)
+    if _is_telegram_channel_decision(decision):
+        domains.append("telegram:configured-chat")
     return list(dict.fromkeys(domains))
+
+
+def _is_telegram_channel_decision(decision: ActionEnvelope) -> bool:
+    return decision.capability_id == "bounded_channel" and str(decision.params.get("channel") or "").lower() == "telegram"
+
+
+def _live_channel_destination_grants(allowed_domains: tuple[str, ...]) -> list[dict[str, str]]:
+    if "telegram:configured-chat" not in set(allowed_domains):
+        return []
+    return [
+        {
+            "adapter_id": "telegram_live_adapter",
+            "channel": "telegram",
+            "destination_ref": "telegram:configured-chat",
+        }
+    ]
 
 
 def _entrypoint_hard_boundary_reason(decision: ActionEnvelope) -> str | None:
