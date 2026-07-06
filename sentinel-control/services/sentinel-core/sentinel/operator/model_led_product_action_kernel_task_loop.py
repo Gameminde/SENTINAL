@@ -658,6 +658,41 @@ def _workspace_create_file_plans(workspace_root: Path, *, mission_objective: str
     objective = mission_objective.lower()
     if not any(marker in objective for marker in ("arbitrary", "from scratch", "create a tiny python app")):
         return []
+    if _objective_requests_number_analyzer(objective):
+        return _missing_create_file_plans(
+            workspace_root,
+            (
+                (
+                    "app.py",
+                    "def analyze_numbers(values):\n"
+                    "    numbers = list(values)\n"
+                    "    count = len(numbers)\n"
+                    "    total = sum(numbers)\n"
+                    "    average = total / count if count else 0\n"
+                    '    return {"count": count, "total": total, "average": average}\n\n\n'
+                    "def main():\n"
+                    '    return "Sentinel useful number analyzer worked."\n\n\n'
+                    'if __name__ == "__main__":\n'
+                    "    print(main())\n",
+                ),
+                (
+                    "README.md",
+                    "# Sentinel Number Analyzer\n\n"
+                    "A tiny useful local app created through the Sentinel ProductActionKernel spine.\n\n"
+                    "It exposes `analyze_numbers(values)` and reports count, total, and average.\n",
+                ),
+                (
+                    "tests/test_app.py",
+                    "from app import analyze_numbers, main\n\n\n"
+                    "def test_analyze_numbers_reports_count_total_and_average():\n"
+                    "    assert analyze_numbers([1, 2, 3]) == {\"count\": 3, \"total\": 6, \"average\": 2}\n\n\n"
+                    "def test_analyze_numbers_handles_empty_input():\n"
+                    "    assert analyze_numbers([]) == {\"count\": 0, \"total\": 0, \"average\": 0}\n\n\n"
+                    "def test_main_returns_useful_app_marker():\n"
+                    '    assert main() == "Sentinel useful number analyzer worked."\n',
+                ),
+            ),
+        )
     plans: list[dict[str, str]] = []
     for relative_path, content in (
         (
@@ -680,6 +715,23 @@ def _workspace_create_file_plans(workspace_root: Path, *, mission_objective: str
             '    assert main() == "Sentinel arbitrary local app worked."\n',
         ),
     ):
+        if not (workspace_root / relative_path).exists():
+            plans.append({"target_path": relative_path, "new_text": content})
+    return plans
+
+
+def _objective_requests_number_analyzer(objective: str) -> bool:
+    has_number_domain = any(marker in objective for marker in ("number analyzer", "analyze_numbers", "numbers"))
+    has_summary_fields = all(marker in objective for marker in ("count", "total", "average"))
+    return has_number_domain and has_summary_fields
+
+
+def _missing_create_file_plans(
+    workspace_root: Path,
+    files: tuple[tuple[str, str], ...],
+) -> list[dict[str, str]]:
+    plans: list[dict[str, str]] = []
+    for relative_path, content in files:
         if not (workspace_root / relative_path).exists():
             plans.append({"target_path": relative_path, "new_text": content})
     return plans

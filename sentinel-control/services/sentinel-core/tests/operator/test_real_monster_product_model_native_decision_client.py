@@ -694,6 +694,91 @@ def test_model_native_client_creates_arbitrary_local_app_files_then_checks_chann
     assert verified.accepted is True
 
 
+def test_number_analyzer_objective_creates_useful_app_files_then_checks_exports_and_finishes(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "MISSION.md").write_text(
+        "# Useful app mission\n\n"
+        "Create a tiny Python number analyzer from scratch. It should compute count, total, and average.\n",
+        encoding="utf-8",
+    )
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                "Create app.py for the useful number analyzer.",
+                "Create README.md for the number analyzer.",
+                "Create tests/test_app.py for count, total, and average.",
+                "Run the bounded local check.",
+                "Send the completion message to the bounded local channel.",
+                "Delegate a verifier worker.",
+                "The useful app has enough product proof. Summarize and finish.",
+            ]
+        ),
+        request_factory=_request_factory,
+        preferred_skill_sequence=(
+            "create_file",
+            "create_file",
+            "create_file",
+            "run_check",
+            "send_message",
+            "spawn_worker",
+            "finish",
+        ),
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_pack_useful_number_analyzer_app",
+        mission_objective=(
+            "Create a useful tiny Python number analyzer app from scratch. "
+            "The app must expose analyze_numbers(values) with count, total, and average, "
+            "run a bounded pytest check, notify the local channel, delegate verifier, and finish."
+        ),
+        decision_client=client,
+        allowed_domains=("example.com", "local.worker"),
+        max_model_calls=8,
+        max_material_actions=6,
+    )
+    replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=result.mission_ids)
+    export = MissionArtifactBundleExporter(host.kernel.store).export_product_loop(
+        loop_result=result,
+        mission_objective="Controlled useful number analyzer product loop proof.",
+        model_visible_skills=tuple(host.product_task_loop_entrypoint_frame()["model_visible_skills"]),
+    )
+    verified = MissionArtifactBundleVerifier.verify_bundle(export.bundle_dir)
+
+    app_text = (workspace / "app.py").read_text(encoding="utf-8")
+    test_text = (workspace / "tests" / "test_app.py").read_text(encoding="utf-8")
+    readme_text = (workspace / "README.md").read_text(encoding="utf-8")
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "code_execution_sandbox:code_exec.run_profile",
+        "bounded_channel:send_message",
+        "worker_fleet:spawn_worker",
+        "sentinel_loop:finish",
+    )
+    assert "def analyze_numbers" in app_text
+    assert "count" in app_text
+    assert "total" in app_text
+    assert "average" in app_text
+    assert "Sentinel useful number analyzer worked." in app_text
+    assert "analyze_numbers([1, 2, 3])" in test_text
+    assert "average" in test_text
+    assert "number analyzer" in readme_text.lower()
+    assert "Sentinel arbitrary local app worked." not in app_text
+    assert replay.reexecuted_actions is False
+    assert replay.receipt_writes_delta == 0
+    assert replay.finalgate_writes_delta == 0
+    assert replay.artifact_hashes_stable is True
+    assert export.accepted is True
+    assert verified.accepted is True
+
+
 def test_product_loop_recovers_duplicate_create_file_target_to_next_missing_app_file(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
