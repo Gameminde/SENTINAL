@@ -20,6 +20,7 @@ This rollup is a truth-control document. It does not claim Sentinel is complete.
 REAL_PRODUCT_ATTEMPT_4F_SEMANTIC_CHANNEL_WORKER_FINISH_V1 = VALID_SUCCESS
 REAL_MONSTER_PRODUCT_ATTEMPT_5C_CHANNEL_GRANT_NORMALIZED_USEFUL_APP_EXPORT_V1 = VALID_SUCCESS
 REAL_MONSTER_PRODUCT_ATTEMPT_6_MULTI_WORKER_PRODUCT_BUILD_AND_VERIFY_V1 = VALID_FAILED
+REAL_MONSTER_PRODUCT_ATTEMPT_6B_MULTI_WORKER_QUALITY_GATED_PRODUCT_BUILD_V1 = VALID_FAILED
 ```
 
 The 4F proof path:
@@ -231,6 +232,7 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | 5B | `VALID_FAILED` | Useful app and pytest passed, but model-supplied channel field overrode grant and blocked channel |
 | 5C | `VALID_SUCCESS` | Real provider completed useful app + semantic check + channel + worker + finish + artifact export/verifier + replay |
 | 6 | `VALID_FAILED` | Real provider drove Phase 2 spine through app + channel + worker + export/verifier + replay, but only one worker spawned and workspace pytest failed on malformed root-level test |
+| 6B | `VALID_FAILED` | Real provider produced a useful first patch, then empty visible content blocked post-material recovery and harness export attempted a blocked loop |
 
 ## Not Yet Proven
 
@@ -302,25 +304,25 @@ replay side effects = not observed
 Attempt 6 exposed the next blocker:
 
 ```text
-generated test hygiene + multi-worker contract enforcement before finish
+post-material empty provider content recovery + blocked-loop export guard
 ```
 
 Implement next:
 
 ```text
-FIX_REAL_MONSTER_PRODUCT_ATTEMPT6_WORKER_AND_TEST_QUALITY_GATE_V1
+FIX_REAL_MONSTER_PRODUCT_ATTEMPT6B_POST_MATERIAL_EMPTY_PROVIDER_RECOVERY_V1
 ```
 
 Then prepare:
 
 ```text
-REAL_MONSTER_PRODUCT_ATTEMPT_6B_MULTI_WORKER_QUALITY_GATED_PRODUCT_BUILD_V1
+REAL_MONSTER_PRODUCT_ATTEMPT_6C_POST_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1
 ```
 
 Purpose:
 
 ```text
-Move from partial delegated proof to quality-gated delegated product work.
+Move from post-material provider empty-content failure to recovered delegated product work.
 ```
 
 Target path:
