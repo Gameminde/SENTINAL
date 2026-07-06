@@ -22,6 +22,7 @@ REAL_MONSTER_PRODUCT_ATTEMPT_5C_CHANNEL_GRANT_NORMALIZED_USEFUL_APP_EXPORT_V1 = 
 REAL_MONSTER_PRODUCT_ATTEMPT_6_MULTI_WORKER_PRODUCT_BUILD_AND_VERIFY_V1 = VALID_FAILED
 REAL_MONSTER_PRODUCT_ATTEMPT_6B_MULTI_WORKER_QUALITY_GATED_PRODUCT_BUILD_V1 = VALID_FAILED
 REAL_MONSTER_PRODUCT_ATTEMPT_6C_POST_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1 = VALID_FAILED
+REAL_MONSTER_PRODUCT_ATTEMPT_6D_PRE_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1 = VALID_FAILED
 ```
 
 The 4F proof path:
@@ -237,6 +238,7 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | 6 | `VALID_FAILED` | Real provider drove Phase 2 spine through app + channel + worker + export/verifier + replay, but only one worker spawned and workspace pytest failed on malformed root-level test |
 | 6B | `VALID_FAILED` | Real provider produced a useful first patch, then empty visible content blocked post-material recovery and harness export attempted a blocked loop |
 | 6C | `VALID_FAILED` | Real provider reached the product loop, but first-turn visible content was unsupported and terminalized before any material action |
+| 6D | `VALID_FAILED` | Pre-material recovery reached a useful app.py patch, then post-material provider friction blocked before README/tests/check/channel/workers |
 
 ## Not Yet Proven
 
@@ -340,30 +342,64 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_MONSTER_PRODUCT_ATT
 C:\Users\youcef cheriet\.sentinel-runs\monster-runtime\real-monster-product-attempt6c-20260706-114536
 ```
 
-## Next Proof Contract
+## Latest Attempt 6D Truth
 
-Attempt 6C exposed the next blocker:
+6D safe metrics:
 
 ```text
-pre-material visible content unsupported terminalizes first turn
+verdict = VALID_FAILED
+failure_classification = MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED
+actionable_failure_classification = POST_MATERIAL_RECOVERY_DEPTH_INSUFFICIENT
+provider_decision_calls = 3
+model_native_intent_accepted_count = 1
+material_action_count = 1
+product_receipt_count = 1
+product_finalgate_count = 1
+task_loop_certificate_count = 1
+mission_status = blocked
+blocked_reason = MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED
+generated_app_py = true
+has_analyze_numbers = true
+replay_no_react = true
+safety_scan_high_risk_hit_count = 0
+```
+
+6D report:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_MONSTER_PRODUCT_ATTEMPT_6D_PRE_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1_REPORT.md
+```
+
+6D run root:
+
+```text
+C:\Users\youcef cheriet\.sentinel-runs\monster-runtime\real-monster-product-attempt6d-20260706-115451
+```
+
+## Next Proof Contract
+
+Attempt 6D exposed the next blocker:
+
+```text
+post-material recovery depth is insufficient after useful app.py exists
 ```
 
 Implement next:
 
 ```text
-FIX_REAL_MONSTER_PRODUCT_ATTEMPT6C_PRE_MATERIAL_VISIBLE_CONTENT_RECOVERY_V1
+FIX_REAL_MONSTER_PRODUCT_POST_APP_ARTIFACT_RECOVERY_PLANS_V1
 ```
 
 Then prepare:
 
 ```text
-REAL_MONSTER_PRODUCT_ATTEMPT_6D_PRE_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1
+REAL_MONSTER_PRODUCT_ATTEMPT_6E_POST_APP_ARTIFACT_RECOVERY_PLANS_V1
 ```
 
 Purpose:
 
 ```text
-Move from first-turn unsupported visible-content failure to recovered delegated product work.
+Move from one useful app.py patch to deterministic README/tests/check/channel/worker product completion.
 ```
 
 Target path:
