@@ -21,6 +21,7 @@ REAL_PRODUCT_ATTEMPT_4F_SEMANTIC_CHANNEL_WORKER_FINISH_V1 = VALID_SUCCESS
 REAL_MONSTER_PRODUCT_ATTEMPT_5C_CHANNEL_GRANT_NORMALIZED_USEFUL_APP_EXPORT_V1 = VALID_SUCCESS
 REAL_MONSTER_PRODUCT_ATTEMPT_6_MULTI_WORKER_PRODUCT_BUILD_AND_VERIFY_V1 = VALID_FAILED
 REAL_MONSTER_PRODUCT_ATTEMPT_6B_MULTI_WORKER_QUALITY_GATED_PRODUCT_BUILD_V1 = VALID_FAILED
+REAL_MONSTER_PRODUCT_ATTEMPT_6C_POST_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1 = VALID_FAILED
 ```
 
 The 4F proof path:
@@ -219,6 +220,8 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | Model-supplied channel field overrode granted local channel | Attempt 5B | `9c69c2c fix: keep bounded channel grant owned by runtime` | `SENTINEL_FIX_MODEL_NATIVE_CHANNEL_GRANT_NORMALIZATION_V1_REPORT.md` |
 | Model-native worker role wording mapped to default/verifier role | Attempt 6 preflight | `6ce35b0 fix: map model-native worker roles` | `SENTINEL_FIX_MODEL_NATIVE_WORKER_ROLE_INTENT_MAPPING_V1_REPORT.md` |
 | Finish wording accidentally matched worker intent substring | Attempt 6 preflight | `b3c241c fix: avoid worker intent false finish match` | `SENTINEL_FIX_MODEL_NATIVE_WORKER_ROLE_INTENT_MAPPING_V1_REPORT.md` |
+| Finish before second worker plus root-level test collection gap | Attempt 6 | `2f8230e fix: gate phase 2 finish on worker and test quality` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_ATTEMPT6_WORKER_AND_TEST_QUALITY_GATE_V1_REPORT.md` |
+| Post-material empty provider turn terminalized loop | Attempt 6B | `c062049 fix: recover empty provider turns after product receipts` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_ATTEMPT6B_POST_MATERIAL_EMPTY_PROVIDER_RECOVERY_V1_REPORT.md` |
 
 ## Attempt Progression
 
@@ -233,6 +236,7 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | 5C | `VALID_SUCCESS` | Real provider completed useful app + semantic check + channel + worker + finish + artifact export/verifier + replay |
 | 6 | `VALID_FAILED` | Real provider drove Phase 2 spine through app + channel + worker + export/verifier + replay, but only one worker spawned and workspace pytest failed on malformed root-level test |
 | 6B | `VALID_FAILED` | Real provider produced a useful first patch, then empty visible content blocked post-material recovery and harness export attempted a blocked loop |
+| 6C | `VALID_FAILED` | Real provider reached the product loop, but first-turn visible content was unsupported and terminalized before any material action |
 
 ## Not Yet Proven
 
@@ -255,6 +259,12 @@ persistent project memory as product behavior
 Latest relevant commits:
 
 ```text
+6e9f1f7 docs: record post-material provider recovery fix
+c062049 fix: recover empty provider turns after product receipts
+fcd7dbc docs: record real monster attempt 6b valid failure
+9cae4a0 docs: record attempt 6 worker quality gate fix
+2f8230e fix: gate phase 2 finish on worker and test quality
+93456ff docs: record real monster attempt 6 valid failure
 b3c241c fix: avoid worker intent false finish match
 4ab8cc1 docs: start monster runtime phase 2 contract
 6ce35b0 fix: map model-native worker roles
@@ -299,30 +309,61 @@ cookie/session/raw DOM persistence = not observed
 replay side effects = not observed
 ```
 
-## Next Proof Contract
+## Latest Attempt 6C Truth
 
-Attempt 6 exposed the next blocker:
+6C safe metrics:
 
 ```text
-post-material empty provider content recovery + blocked-loop export guard
+verdict = VALID_FAILED
+failure_classification = MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED
+provider_decision_calls = 1
+model_native_intent_accepted_count = 0
+material_action_count = 0
+product_receipt_count = 0
+product_finalgate_count = 0
+task_loop_certificate_count = 1
+mission_status = blocked
+blocked_reason = MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED
+replay_no_react = true
+safety_scan_high_risk_hit_count = 0
+```
+
+6C report:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_MONSTER_PRODUCT_ATTEMPT_6C_POST_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1_REPORT.md
+```
+
+6C run root:
+
+```text
+C:\Users\youcef cheriet\.sentinel-runs\monster-runtime\real-monster-product-attempt6c-20260706-114536
+```
+
+## Next Proof Contract
+
+Attempt 6C exposed the next blocker:
+
+```text
+pre-material visible content unsupported terminalizes first turn
 ```
 
 Implement next:
 
 ```text
-FIX_REAL_MONSTER_PRODUCT_ATTEMPT6B_POST_MATERIAL_EMPTY_PROVIDER_RECOVERY_V1
+FIX_REAL_MONSTER_PRODUCT_ATTEMPT6C_PRE_MATERIAL_VISIBLE_CONTENT_RECOVERY_V1
 ```
 
 Then prepare:
 
 ```text
-REAL_MONSTER_PRODUCT_ATTEMPT_6C_POST_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1
+REAL_MONSTER_PRODUCT_ATTEMPT_6D_PRE_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1
 ```
 
 Purpose:
 
 ```text
-Move from post-material provider empty-content failure to recovered delegated product work.
+Move from first-turn unsupported visible-content failure to recovered delegated product work.
 ```
 
 Target path:
