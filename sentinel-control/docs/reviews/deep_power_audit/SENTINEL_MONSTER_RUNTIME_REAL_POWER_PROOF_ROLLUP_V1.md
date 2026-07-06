@@ -23,6 +23,7 @@ REAL_MONSTER_PRODUCT_ATTEMPT_6_MULTI_WORKER_PRODUCT_BUILD_AND_VERIFY_V1 = VALID_
 REAL_MONSTER_PRODUCT_ATTEMPT_6B_MULTI_WORKER_QUALITY_GATED_PRODUCT_BUILD_V1 = VALID_FAILED
 REAL_MONSTER_PRODUCT_ATTEMPT_6C_POST_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1 = VALID_FAILED
 REAL_MONSTER_PRODUCT_ATTEMPT_6D_PRE_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1 = VALID_FAILED
+REAL_MONSTER_PRODUCT_ATTEMPT_6E_POST_APP_ARTIFACT_RECOVERY_PLANS_V1 = VALID_SUCCESS
 ```
 
 The 4F proof path:
@@ -189,11 +190,12 @@ These are proven by real model/provider calls, not only fake clients or local py
 | Semantic bounded check | proven | 5C external pytest `3 passed` |
 | Bounded fake/local channel send | proven | `bounded_channel.send_message` present in 5C and 6 sequences |
 | Worker verifier dispatch | proven | `worker_fleet.spawn_worker` present in 5C and 6 sequences |
+| Two reduced-authority worker roles in one product mission | proven | 6E spawned `researcher` and `report_writer`, both with `authority_expanded = false` |
 | Model-led finish | proven | `sentinel_loop.finish`, mission completed |
 | Product receipts / FinalGate | proven | 6: 7 receipts, 7 FinalGates |
-| Artifact export + offline verifier | proven | 5C and 6 export accepted and verifier accepted from exported bundle |
+| Artifact export + offline verifier | proven | 5C, 6, and 6E export accepted and verifier accepted from exported bundle |
 | Replay no-react | proven | no model/dispatch/command/channel/receipt/finalgate deltas |
-| Raw material persistence scan | proven clean for 5C | high-risk hit count 0 |
+| Raw material persistence scan | proven clean for 5C and 6E | high-risk hit count 0 |
 
 ## Controlled / Local Proven
 
@@ -201,7 +203,7 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 
 | Capability | Current proof level | Notes |
 | --- | --- | --- |
-| Worker replay no-respawn | local/focused plus real-provider partial | Worker dispatch and replay no-react are real-provider proven in 5C and 6; two distinct workers remain unproven |
+| Worker replay no-respawn | real-provider proven | 6E replay proof records no worker respawn and no worker reexecute |
 | Product spine slices | local/focused proven | Pack 9/10 tests validate product loop entrypoint and no-react replay |
 | Browser product backend wiring | local/focused / prior attempts | Not proven in 4F tranche |
 | Cloak/session browser backend | local readiness / separate attempts | Not proven inside current product loop |
@@ -223,6 +225,8 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | Finish wording accidentally matched worker intent substring | Attempt 6 preflight | `b3c241c fix: avoid worker intent false finish match` | `SENTINEL_FIX_MODEL_NATIVE_WORKER_ROLE_INTENT_MAPPING_V1_REPORT.md` |
 | Finish before second worker plus root-level test collection gap | Attempt 6 | `2f8230e fix: gate phase 2 finish on worker and test quality` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_ATTEMPT6_WORKER_AND_TEST_QUALITY_GATE_V1_REPORT.md` |
 | Post-material empty provider turn terminalized loop | Attempt 6B | `c062049 fix: recover empty provider turns after product receipts` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_ATTEMPT6B_POST_MATERIAL_EMPTY_PROVIDER_RECOVERY_V1_REPORT.md` |
+| Pre-material unsupported visible content terminalized first turn | Attempt 6C | `dfeaf2a fix: recover unsupported provider turns before material work` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_ATTEMPT6C_PRE_MATERIAL_VISIBLE_CONTENT_RECOVERY_V1_REPORT.md` |
+| Repeated post-app provider friction blocked completion | Attempt 6D | `0c5a092 fix: route post-app provider friction through product recovery` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_POST_APP_ARTIFACT_RECOVERY_PLANS_V1_REPORT.md` |
 
 ## Attempt Progression
 
@@ -239,6 +243,7 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | 6B | `VALID_FAILED` | Real provider produced a useful first patch, then empty visible content blocked post-material recovery and harness export attempted a blocked loop |
 | 6C | `VALID_FAILED` | Real provider reached the product loop, but first-turn visible content was unsupported and terminalized before any material action |
 | 6D | `VALID_FAILED` | Pre-material recovery reached a useful app.py patch, then post-material provider friction blocked before README/tests/check/channel/workers |
+| 6E | `VALID_SUCCESS` | Real provider + product body completed app.py, README, tests, semantic check, channel, two workers, artifact export/verifier, finish, and replay no-react |
 
 ## Not Yet Proven
 
@@ -261,6 +266,12 @@ persistent project memory as product behavior
 Latest relevant commits:
 
 ```text
+ff08d90 docs: record post-app product recovery plan fix
+0c5a092 fix: route post-app provider friction through product recovery
+346047c docs: record pre-material visible content recovery fix
+dfeaf2a fix: recover unsupported provider turns before material work
+c523900 docs: record real monster attempt 6d app artifact gap
+22f2e54 docs: record real monster attempt 6c visible content gap
 6e9f1f7 docs: record post-material provider recovery fix
 c062049 fix: recover empty provider turns after product receipts
 fcd7dbc docs: record real monster attempt 6b valid failure
@@ -376,30 +387,74 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_MONSTER_PRODUCT_ATT
 C:\Users\youcef cheriet\.sentinel-runs\monster-runtime\real-monster-product-attempt6d-20260706-115451
 ```
 
+## Latest Attempt 6E Truth
+
+6E safe metrics:
+
+```text
+verdict = VALID_SUCCESS
+provider_decision_calls = 9
+model_native_intent_accepted_count = 2
+model_native_failure_codes = MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT x7
+material_action_count = 7
+product_receipt_count = 7
+product_finalgate_count = 7
+task_loop_certificate_count = 1
+mission_status = completed
+blocked_reason = null
+external_pytest = 2 passed
+bounded_channel_send = true
+worker_receipt_count = 2
+distinct_worker_role_count = 2
+worker_authority_expanded = false, false
+artifact_export_accepted = true
+artifact_verifier_accepted = true
+checked_from_exported_bundle_only = true
+replay_no_react = true
+safety_scan_high_risk_hit_count = 0
+```
+
+6E report:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_MONSTER_PRODUCT_ATTEMPT_6E_POST_APP_ARTIFACT_RECOVERY_PLANS_V1_REPORT.md
+```
+
+6E run root:
+
+```text
+C:\Users\youcef cheriet\.sentinel-runs\monster-runtime\real-monster-product-attempt6e-20260706-120749
+```
+
 ## Next Proof Contract
 
-Attempt 6D exposed the next blocker:
+Attempt 6E closed the Phase 2 delegated production-runtime proof. The next proof should promote one live surface into the same product spine rather than open a special side path.
 
 ```text
-post-material recovery depth is insufficient after useful app.py exists
+MONSTER_RUNTIME_PHASE_3_LIVE_SURFACE_PROMOTION_V1
 ```
 
-Implement next:
+Candidate targets:
 
 ```text
-FIX_REAL_MONSTER_PRODUCT_POST_APP_ARTIFACT_RECOVERY_PLANS_V1
+real channel transport in product spine
+Cloak browser in product spine
 ```
 
-Then prepare:
+Do not start by adding a new parallel browser/channel route. The next pack must consume:
 
 ```text
-REAL_MONSTER_PRODUCT_ATTEMPT_6E_POST_APP_ARTIFACT_RECOVERY_PLANS_V1
+RuntimeHost -> ProductActionKernel -> MissionWorkspace -> skill runtime -> receipts/replay/export verifier
 ```
 
-Purpose:
+Success target:
 
 ```text
-Move from one useful app.py patch to deterministic README/tests/check/channel/worker product completion.
+one real live surface action
+product-spine receipt
+artifact export + verifier accepted
+replay no-react
+hard-boundary scan clean
 ```
 
 Target path:
