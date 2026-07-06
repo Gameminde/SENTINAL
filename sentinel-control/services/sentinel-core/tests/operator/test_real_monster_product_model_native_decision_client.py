@@ -1169,6 +1169,66 @@ def test_product_loop_can_recover_from_empty_visible_content_after_material_rece
     assert decision_client.contexts[2]["recent_product_receipt_refs"] == [result.product_receipt_refs[0]]
 
 
+def test_product_loop_default_recovers_empty_visible_content_after_material_receipt(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    (workspace / "README.md").write_text("# Recoverable product loop\n", encoding="utf-8")
+    decision_client = _RecoveringDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "README.md",
+                    "expected_base_hash": _sha256_file(workspace / "README.md"),
+                    "old_text": "# Recoverable product loop\n",
+                    "new_text": "# Recoverable product loop\n\nFirst material receipt exists.\n",
+                },
+            ),
+            ActionKernelError("MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"),
+            ActionEnvelope(
+                capability_id="bounded_channel",
+                operation="send_message",
+                params={
+                    "adapter_id": "monster_fake_channel",
+                    "channel": "webhook",
+                    "body": "Recovered after post-material empty provider turn.",
+                    "recipients": ["founder@example.com"],
+                    "recipient_provenance": {"founder@example.com": "mission_level_destination_grant"},
+                    "evidence_refs": ["evidence:post_material_recovery_default"],
+                },
+            ),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Default post-material empty provider recovery completed."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_post_material_empty_content_default_recovery",
+        mission_objective="Recover by default from an empty provider turn after a first material receipt.",
+        decision_client=decision_client,
+        allowed_domains=("example.com",),
+        max_model_calls=5,
+        max_material_actions=2,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "workspace_patch:apply_patch",
+        "bounded_channel:send_message",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 2
+    assert decision_client.contexts[2]["recoverable_decision_observations"][0]["failure_code"] == (
+        "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"
+    )
+
+
 def test_created_app_workspace_recommends_run_check_not_dead_patch(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
