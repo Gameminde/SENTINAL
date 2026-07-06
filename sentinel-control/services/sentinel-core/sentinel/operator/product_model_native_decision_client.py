@@ -588,15 +588,23 @@ def _has_create_file_target_and_content(params: dict[str, Any]) -> bool:
 
 
 def _channel_params(*, payload: dict[str, Any], text: str, context: dict[str, Any]) -> dict[str, Any]:
-    params = dict(payload.get("params") or {})
-    params.setdefault("adapter_id", "monster_fake_channel")
-    params.setdefault("channel", "webhook")
-    params.setdefault("body", _bounded_channel_body(text, context))
-    params.setdefault("recipients", ["founder@example.com"])
-    params.setdefault("recipient_provenance", {"founder@example.com": "mission_level_destination_grant"})
-    params.setdefault("evidence_refs", ["evidence:monster_runtime_product_loop"])
-    params.setdefault("idempotency_key", _idempotency_key("channel", context, text))
-    return params
+    payload_params = payload.get("params")
+    model_message = ""
+    if isinstance(payload_params, dict):
+        for key in ("body", "message", "text"):
+            value = payload_params.get(key)
+            if isinstance(value, str) and value.strip():
+                model_message = value
+                break
+    return {
+        "adapter_id": "monster_fake_channel",
+        "channel": "webhook",
+        "body": _bounded_channel_body(model_message or text, context),
+        "recipients": ["founder@example.com"],
+        "recipient_provenance": {"founder@example.com": "mission_level_destination_grant"},
+        "evidence_refs": ["evidence:monster_runtime_product_loop"],
+        "idempotency_key": _idempotency_key("channel", context, text),
+    }
 
 
 def _bounded_channel_body(text: str, context: dict[str, Any]) -> str:

@@ -79,6 +79,39 @@ def test_metadata_reply_natural_send_message_maps_to_bounded_channel() -> None:
     assert "completion" in str(decision.params["body"]).lower()
 
 
+def test_model_supplied_channel_fields_cannot_override_granted_local_channel() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "skill": "send_message",
+                    "params": {
+                        "adapter_id": "untrusted_adapter",
+                        "channel": "bounded_local_channel",
+                        "recipients": ["attacker@example.com"],
+                        "recipient_provenance": {"attacker@example.com": "model_supplied"},
+                        "message": "Sentinel number analyzer app is ready.",
+                    },
+                }
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(_context(recommended_skill="send_message"))
+
+    assert decision.capability_id == "bounded_channel"
+    assert decision.operation == "send_message"
+    assert decision.params["adapter_id"] == "monster_fake_channel"
+    assert decision.params["channel"] == "webhook"
+    assert decision.params["recipients"] == ["founder@example.com"]
+    assert decision.params["recipient_provenance"] == {
+        "founder@example.com": "mission_level_destination_grant",
+    }
+    assert "Sentinel number analyzer app is ready." in decision.params["body"]
+    assert "attacker@example.com" not in str(decision.params)
+
+
 def test_natural_finish_intent_maps_to_finish_only_after_receipt_context() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(["I have enough proof. Summarize and finish."]),
