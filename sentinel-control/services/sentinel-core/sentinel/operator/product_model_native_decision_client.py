@@ -273,11 +273,13 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
         )
     ):
         return "patch"
+    if any(marker in lowered for marker in ("worker", "delegate", "spawn")):
+        return "spawn_worker"
     if any(marker in lowered for marker in ("run check", "run the check", "bounded check", "check", "test", "verify code")):
         return "run_check"
     if any(marker in lowered for marker in ("send", "notify", "message", "channel")):
         return "send_message"
-    if any(marker in lowered for marker in ("worker", "delegate", "verifier")):
+    if "verifier" in lowered:
         return "spawn_worker"
     if any(marker in lowered for marker in ("extract", "product card", "visible card")):
         return "extract"
@@ -454,7 +456,7 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("send_message", context, text),
         )
     if skill == "spawn_worker":
-        params = dict(payload.get("params") or {})
+        params = _worker_params(payload=payload, text=text)
         params.setdefault("role", "verifier")
         params.setdefault("objective", "Verify the product mission proof bundle and receipts.")
         params.setdefault("delegated_skills", ["read"])
@@ -605,6 +607,25 @@ def _channel_params(*, payload: dict[str, Any], text: str, context: dict[str, An
         "evidence_refs": ["evidence:monster_runtime_product_loop"],
         "idempotency_key": _idempotency_key("channel", context, text),
     }
+
+
+def _worker_params(*, payload: dict[str, Any], text: str) -> dict[str, Any]:
+    params = dict(payload.get("params") or {})
+    lowered = text.lower()
+    if "role" not in params:
+        if "code fixer" in lowered or "code_fixer" in lowered or "implementation" in lowered:
+            params["role"] = "code_fixer"
+        elif "report writer" in lowered or "report_writer" in lowered or "summarize" in lowered:
+            params["role"] = "report_writer"
+        elif "researcher" in lowered or "research" in lowered:
+            params["role"] = "researcher"
+        elif "browser operator" in lowered or "browser_operator" in lowered:
+            params["role"] = "browser_operator"
+        elif "verifier" in lowered or "verify" in lowered:
+            params["role"] = "verifier"
+    if "objective" not in params and text.strip():
+        params["objective"] = _bounded_text(text, 180)
+    return params
 
 
 def _bounded_channel_body(text: str, context: dict[str, Any]) -> str:

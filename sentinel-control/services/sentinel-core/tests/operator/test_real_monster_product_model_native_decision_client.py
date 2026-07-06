@@ -144,6 +144,29 @@ def test_ambiguous_safe_intent_uses_primary_recommended_skill() -> None:
     assert decision.params["max_actions"] == 1
 
 
+@pytest.mark.parametrize(
+    ("reply", "expected_role"),
+    [
+        ("Delegate a code fixer worker to inspect the implementation plan.", "code_fixer"),
+        ("Spawn a verifier worker to check receipts and tests.", "verifier"),
+        ("Ask a report writer worker to summarize the proof bundle.", "report_writer"),
+        ("Use a researcher worker to review the workspace evidence.", "researcher"),
+    ],
+)
+def test_natural_worker_role_intent_maps_to_reduced_worker_role(reply: str, expected_role: str) -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient([reply]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(_context(recommended_skill="spawn_worker"))
+
+    assert decision.capability_id == "worker_fleet"
+    assert decision.operation == "spawn_worker"
+    assert decision.params["role"] == expected_role
+    assert decision.params["max_actions"] == 1
+
+
 def test_natural_app_creation_intent_maps_to_workspace_patch_plan() -> None:
     base_hash = "a" * 64
     client = ProductModelNativeDecisionClient(
