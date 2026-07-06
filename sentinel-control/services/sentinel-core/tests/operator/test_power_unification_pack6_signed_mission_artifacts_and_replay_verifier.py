@@ -81,6 +81,56 @@ def test_verifier_accepts_valid_code_channel_worker_bundle(tmp_path: Path) -> No
     assert verified.local_integrity_seal == export.local_integrity_seal
 
 
+def test_channel_only_product_loop_exports_mission_workspace_bundle(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack6_channel_only_bundle",
+        mission_objective="Send one bounded local channel message and finish.",
+        decision_client=ProductActionKernelLoopDecisionClient(
+            [
+                ActionEnvelope(
+                    capability_id="bounded_channel",
+                    operation="send_message",
+                    params={
+                        "adapter_id": "pack6_fake_channel",
+                        "channel": "webhook",
+                        "body": "Safe bounded channel-only Pack 6 dispatch.",
+                        "recipients": ["founder@example.com"],
+                        "recipient_provenance": {"founder@example.com": "mission_level_destination_grant"},
+                        "evidence_refs": ["evidence:pack6_channel_only_product_loop"],
+                        "idempotency_key": "pack6-channel-only-send-1",
+                    },
+                    idempotency_key="pack6-channel-only-channel",
+                ),
+                ActionEnvelope(
+                    capability_id="sentinel_loop",
+                    operation="finish",
+                    params={"safe_summary": "Pack 6 channel-only product loop completed."},
+                    idempotency_key="pack6-channel-only-finish",
+                ),
+            ]
+        ),
+        allowed_domains=("example.com",),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    export = MissionArtifactBundleExporter(host.kernel.store).export_product_loop(
+        loop_result=result,
+        mission_objective="Export a channel-only product mission.",
+        model_visible_skills=tuple(host.product_task_loop_entrypoint_frame()["model_visible_skills"]),
+    )
+
+    bundle = _load_bundle(export.bundle_dir)
+    owner_mission_dir = host.kernel.store.mission_dir(str(export.bundle_manifest["owner_mission_id"]))
+    assert (owner_mission_dir / "mission_workspace" / "manifest.json").exists()
+    assert export.accepted is True
+    assert bundle["verifier_result"]["accepted"] is True
+    assert bundle["replay_proof"]["no_channel_resend"] is True
+
+
 def test_verifier_rejects_missing_product_action_kernel_receipt(tmp_path: Path) -> None:
     host, result = _run_code_channel_worker_mission(tmp_path)
     export = MissionArtifactBundleExporter(host.kernel.store).export_product_loop(

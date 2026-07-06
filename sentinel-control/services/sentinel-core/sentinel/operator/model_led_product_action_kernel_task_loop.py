@@ -433,6 +433,8 @@ class ModelLedProductActionKernelTaskLoop:
                 reason=hard_boundary_reason,
             )
         tools, actions = _authority_for_action(decision)
+        if _is_telegram_channel_decision(decision) and "telegram:configured-chat" in set(self.allowed_domains):
+            tools.append("channel:telegram")
         mission = self.host.lifecycle.create_mission(
             session_id=f"{self.session_id}:{self.model_calls_used}",
             draft=MissionDraft(
@@ -477,6 +479,12 @@ class ModelLedProductActionKernelTaskLoop:
             parameters=dict(decision.params),
             workspace_ref=f"workspace:{self.workspace_root}",
             model_contract_ref=self.model_contract_ref,
+        )
+        self.host.prepare_mission_workspace(
+            mission_id=mission.record.mission_id,
+            workspace_root=self.workspace_root,
+            allowed_domains=tuple(_allowed_domains_for_action(decision, self.allowed_domains)),
+            channel_destination_refs=tuple(_channel_destination_refs_for_action(decision)),
         )
         pump = self.host.pump_daemon_once(mission.record.mission_id)
         if pump.dispatch_result is None:
@@ -598,8 +606,6 @@ def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str
         return ["code_execution_sandbox"], ["code_execution_sandbox.code_exec.run_profile", "code_exec.run_profile"]
     if capability == "bounded_channel":
         tools = ["bounded_channel", "channel_draft_send"]
-        if _is_telegram_channel_decision(decision):
-            tools.append("channel:telegram")
         return tools, ["bounded_channel.send_message", "send_message"]
     if capability == "workspace_patch":
         return ["workspace_patch"], [f"{capability}.{operation}", operation]
@@ -610,13 +616,21 @@ def _allowed_domains_for_action(decision: ActionEnvelope, allowed_domains: tuple
     domains = list(allowed_domains)
     if decision.capability_id == "real_browser_control":
         domains.append(BOUNDED_URL_AUTHORITY_REF)
-    if _is_telegram_channel_decision(decision):
-        domains.append("telegram:configured-chat")
     return list(dict.fromkeys(domains))
 
 
 def _is_telegram_channel_decision(decision: ActionEnvelope) -> bool:
     return decision.capability_id == "bounded_channel" and str(decision.params.get("channel") or "").lower() == "telegram"
+
+
+def _channel_destination_refs_for_action(decision: ActionEnvelope) -> tuple[str, ...]:
+    if decision.capability_id != "bounded_channel":
+        return ()
+    recipients = decision.params.get("recipients")
+    if not isinstance(recipients, list):
+        return ()
+    refs = [str(recipient) for recipient in recipients if str(recipient).strip()]
+    return tuple(dict.fromkeys(refs))
 
 
 def _live_channel_destination_grants(allowed_domains: tuple[str, ...]) -> list[dict[str, str]]:
