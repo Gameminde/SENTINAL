@@ -1281,6 +1281,77 @@ def test_product_loop_default_recovers_empty_visible_content_after_material_rece
     )
 
 
+def test_product_loop_uses_post_app_recovery_plans_after_repeated_provider_friction(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    app_text = (
+        "def analyze_numbers(values):\n"
+        "    if not values:\n"
+        "        return {\"count\": 0, \"total\": 0, \"average\": 0.0}\n"
+        "    count = len(values)\n"
+        "    total = sum(values)\n"
+        "    average = total / count\n"
+        "    return {\"count\": count, \"total\": total, \"average\": average}\n"
+    )
+    decision_client = _RecoveringDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="workspace_patch",
+                operation="apply_patch",
+                params={
+                    "target_path": "app.py",
+                    "target_paths": ["app.py"],
+                    "create_file": True,
+                    "new_text": app_text,
+                },
+            ),
+            ActionKernelError("MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+            ActionKernelError("MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED"),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_post_app_artifact_recovery_plans",
+        mission_objective=(
+            "Create a useful tiny Python number analyzer app from scratch. "
+            "The app must expose analyze_numbers(values) with count, total, and average, "
+            "run bounded semantic tests, notify the local channel, delegate researcher and report_writer workers, and finish."
+        ),
+        decision_client=decision_client,
+        allowed_domains=("example.com", "local.worker"),
+        max_model_calls=9,
+        max_material_actions=8,
+        max_recoverable_action_failures=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "code_execution_sandbox:code_exec.run_profile",
+        "bounded_channel:send_message",
+        "worker_fleet:spawn_worker",
+        "worker_fleet:spawn_worker",
+        "sentinel_loop:finish",
+    )
+    assert (workspace / "README.md").is_file()
+    assert (workspace / "tests" / "test_app.py").is_file()
+    test_text = (workspace / "tests" / "test_app.py").read_text(encoding="utf-8")
+    assert "from app import analyze_numbers" in test_text
+    assert "import analyze_numbers, main" not in test_text
+    worker_receipts = _collect_worker_receipts_for_test(host, result.mission_ids)
+    assert {receipt["worker_role"] for receipt in worker_receipts} == {"researcher", "report_writer"}
+
+
 def test_created_app_workspace_recommends_run_check_not_dead_patch(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"

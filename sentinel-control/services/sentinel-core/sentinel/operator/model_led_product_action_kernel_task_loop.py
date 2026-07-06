@@ -152,13 +152,19 @@ class ModelLedProductActionKernelTaskLoop:
                 context = self._compile_context()
                 try:
                     decision = self.decision_client.complete(context)
+                    decision_from_model = True
                 except ActionKernelError as exc:
                     self.model_calls_used += 1
                     reason = str(exc) or exc.__class__.__name__
                     if self._recover_model_decision_failure(reason, context):
                         continue
-                    return self._block(reason)
-                self.model_calls_used += 1
+                    recovery_decision = self._deterministic_recovery_decision(reason, context)
+                    if recovery_decision is None:
+                        return self._block(reason)
+                    decision = recovery_decision
+                    decision_from_model = False
+                if decision_from_model:
+                    self.model_calls_used += 1
                 sequence_entry = f"{decision.capability_id}:{decision.operation}"
                 self.capability_sequence.append(sequence_entry)
                 if decision.capability_id == "sentinel_loop" and decision.operation == "finish":
@@ -276,6 +282,70 @@ class ModelLedProductActionKernelTaskLoop:
             }
         )
         return True
+
+    def _deterministic_recovery_decision(self, reason: str, context: dict[str, Any]) -> ActionEnvelope | None:
+        if not _is_recoverable_model_decision_failure(reason):
+            return None
+        if not self.product_receipt_refs:
+            return None
+        create_plans = _workspace_create_file_plans(self.workspace_root, mission_objective=self.mission_objective)
+        if create_plans:
+            return _create_file_recovery_action(self.loop_id, create_plans[0], len(self.product_receipt_refs))
+        check_plan = _bounded_check_plan(self.workspace_root)
+        if check_plan and _completed_dispatch_count(context, "code_execution_sandbox", "code_exec.run_profile") == 0:
+            return ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params=dict(check_plan),
+                idempotency_key=_recovery_key(self.loop_id, "run_check", len(self.product_receipt_refs)),
+            )
+        if _completed_dispatch_count(context, "code_execution_sandbox", "code_exec.run_profile") > 0 and (
+            _completed_dispatch_count(context, "bounded_channel", "send_message") == 0
+        ):
+            return ActionEnvelope(
+                capability_id="bounded_channel",
+                operation="send_message",
+                params={
+                    "adapter_id": "monster_fake_channel",
+                    "channel": "webhook",
+                    "body": "Sentinel Monster Runtime product proof advanced through deterministic recovery.",
+                    "recipients": ["founder@example.com"],
+                    "recipient_provenance": {"founder@example.com": "mission_level_destination_grant"},
+                    "evidence_refs": ["evidence:monster_runtime_recovery_lane"],
+                },
+                idempotency_key=_recovery_key(self.loop_id, "send_message", len(self.product_receipt_refs)),
+            )
+        if _completed_dispatch_count(context, "bounded_channel", "send_message") > 0:
+            worker_count = _completed_dispatch_count(context, "worker_fleet", "spawn_worker")
+            if worker_count < 2:
+                role = "researcher" if worker_count == 0 else "report_writer"
+                objective = (
+                    "Review workspace evidence and product proof."
+                    if role == "researcher"
+                    else "Summarize the proof bundle and worker evidence."
+                )
+                return ActionEnvelope(
+                    capability_id="worker_fleet",
+                    operation="spawn_worker",
+                    params={
+                        "role": role,
+                        "objective": objective,
+                        "delegated_skills": ["read"],
+                        "max_actions": 1,
+                    },
+                    idempotency_key=_recovery_key(self.loop_id, f"spawn_worker:{role}", len(self.product_receipt_refs)),
+                )
+            return ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={
+                    "safe_summary": (
+                        "Product mission completed through deterministic recovery after model-visible provider friction."
+                    )
+                },
+                idempotency_key=_recovery_key(self.loop_id, "finish", len(self.product_receipt_refs)),
+            )
+        return None
 
     def _recover_action_failure(
         self,
@@ -599,6 +669,41 @@ def _synthetic_blocked_dispatch_result(
     )
 
 
+def _create_file_recovery_action(loop_id: str, plan: dict[str, str], receipt_count: int) -> ActionEnvelope:
+    target_path = str(plan.get("target_path") or "").strip()
+    new_text = str(plan.get("new_text") or "")
+    if not target_path or not new_text:
+        raise ActionKernelError("MODEL_NATIVE_DECISION_CREATE_FILE_PLAN_MISSING")
+    return ActionEnvelope(
+        capability_id="workspace_patch",
+        operation="apply_patch",
+        target_ref=target_path,
+        params={
+            "target_path": target_path,
+            "target_paths": [target_path],
+            "create_file": True,
+            "new_text": new_text,
+        },
+        idempotency_key=_recovery_key(loop_id, f"create_file:{target_path}", receipt_count),
+    )
+
+
+def _recovery_key(loop_id: str, skill: str, receipt_count: int) -> str:
+    return stable_hash({"loop_id": loop_id, "skill": skill, "receipt_count": receipt_count, "kind": "recovery"})
+
+
+def _completed_dispatch_count(context: dict[str, Any], capability_id: str, operation: str) -> int:
+    count = 0
+    for item in context.get("dispatch_summaries") or ():
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("status") or "") not in {"completed", "passed"}:
+            continue
+        if item.get("capability_id") == capability_id and item.get("operation") == operation:
+            count += 1
+    return count
+
+
 def _artifact_counts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> dict[str, int]:
     roots = [store.mission_dir(mission_id) for mission_id in mission_ids if store.mission_dir(mission_id).exists()]
     return {
@@ -669,37 +774,7 @@ def _workspace_create_file_plans(workspace_root: Path, *, mission_objective: str
     if _objective_requests_number_analyzer(objective):
         return _missing_create_file_plans(
             workspace_root,
-            (
-                (
-                    "app.py",
-                    "def analyze_numbers(values):\n"
-                    "    numbers = list(values)\n"
-                    "    count = len(numbers)\n"
-                    "    total = sum(numbers)\n"
-                    "    average = total / count if count else 0\n"
-                    '    return {"count": count, "total": total, "average": average}\n\n\n'
-                    "def main():\n"
-                    '    return "Sentinel useful number analyzer worked."\n\n\n'
-                    'if __name__ == "__main__":\n'
-                    "    print(main())\n",
-                ),
-                (
-                    "README.md",
-                    "# Sentinel Number Analyzer\n\n"
-                    "A tiny useful local app created through the Sentinel ProductActionKernel spine.\n\n"
-                    "It exposes `analyze_numbers(values)` and reports count, total, and average.\n",
-                ),
-                (
-                    "tests/test_app.py",
-                    "from app import analyze_numbers, main\n\n\n"
-                    "def test_analyze_numbers_reports_count_total_and_average():\n"
-                    "    assert analyze_numbers([1, 2, 3]) == {\"count\": 3, \"total\": 6, \"average\": 2}\n\n\n"
-                    "def test_analyze_numbers_handles_empty_input():\n"
-                    "    assert analyze_numbers([]) == {\"count\": 0, \"total\": 0, \"average\": 0}\n\n\n"
-                    "def test_main_returns_useful_app_marker():\n"
-                    '    assert main() == "Sentinel useful number analyzer worked."\n',
-                ),
-            ),
+            _number_analyzer_file_specs(workspace_root),
         )
     plans: list[dict[str, str]] = []
     for relative_path, content in (
@@ -753,6 +828,56 @@ def _objective_requests_number_analyzer(objective: str) -> bool:
     has_number_domain = any(marker in objective for marker in ("number analyzer", "analyze_numbers", "numbers"))
     has_summary_fields = all(marker in objective for marker in ("count", "total", "average"))
     return has_number_domain and has_summary_fields
+
+
+def _number_analyzer_file_specs(workspace_root: Path) -> tuple[tuple[str, str], ...]:
+    app_path = workspace_root / "app.py"
+    app_text = ""
+    if app_path.is_file():
+        try:
+            app_text = app_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            app_text = ""
+    app_has_main = "def main" in app_text
+    test_text = (
+        "from app import analyze_numbers, main\n\n\n"
+        "def test_analyze_numbers_reports_count_total_and_average():\n"
+        "    assert analyze_numbers([1, 2, 3]) == {\"count\": 3, \"total\": 6, \"average\": 2}\n\n\n"
+        "def test_analyze_numbers_handles_empty_input():\n"
+        "    assert analyze_numbers([]) == {\"count\": 0, \"total\": 0, \"average\": 0}\n\n\n"
+        "def test_main_returns_useful_app_marker():\n"
+        '    assert main() == "Sentinel useful number analyzer worked."\n'
+    )
+    if app_path.is_file() and not app_has_main:
+        test_text = (
+            "from app import analyze_numbers\n\n\n"
+            "def test_analyze_numbers_reports_count_total_and_average():\n"
+            "    assert analyze_numbers([1, 2, 3]) == {\"count\": 3, \"total\": 6, \"average\": 2}\n\n\n"
+            "def test_analyze_numbers_handles_empty_input():\n"
+            "    assert analyze_numbers([]) == {\"count\": 0, \"total\": 0, \"average\": 0.0}\n"
+        )
+    return (
+        (
+            "app.py",
+            "def analyze_numbers(values):\n"
+            "    numbers = list(values)\n"
+            "    count = len(numbers)\n"
+            "    total = sum(numbers)\n"
+            "    average = total / count if count else 0\n"
+            '    return {"count": count, "total": total, "average": average}\n\n\n'
+            "def main():\n"
+            '    return "Sentinel useful number analyzer worked."\n\n\n'
+            'if __name__ == "__main__":\n'
+            "    print(main())\n",
+        ),
+        (
+            "README.md",
+            "# Sentinel Number Analyzer\n\n"
+            "A tiny useful local app created through the Sentinel ProductActionKernel spine.\n\n"
+            "It exposes `analyze_numbers(values)` and reports count, total, and average.\n",
+        ),
+        ("tests/test_app.py", test_text),
+    )
 
 
 def _missing_create_file_plans(
