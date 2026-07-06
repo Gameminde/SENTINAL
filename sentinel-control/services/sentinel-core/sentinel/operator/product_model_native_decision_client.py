@@ -154,6 +154,14 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
     skill = _requested_skill(payload, text)
     if skill is None:
         skill = _recommended_skill(context)
+    else:
+        quality_skill = _pending_workspace_quality_skill(context)
+        if quality_skill is not None and skill in {"run_check", "send_message", "spawn_worker", "finish"}:
+            skill = quality_skill
+    if skill == "finish":
+        recommended = _recommended_skill(context)
+        if recommended != "finish":
+            skill = recommended
     return _skill_to_action(skill, payload=payload, text=text, context=context)
 
 
@@ -564,6 +572,14 @@ def _recovering_failed_semantic_check(context: dict[str, Any]) -> bool:
         if isinstance(item, dict) and item.get("failure_code") == "code_exec_failed":
             return True
     return False
+
+
+def _pending_workspace_quality_skill(context: dict[str, Any]) -> str | None:
+    if _usable_create_file_plans(context):
+        return "create_file"
+    if context.get("_workspace_patch_plans") or ():
+        return "patch"
+    return None
 
 
 def _create_file_params_from_plan(plan: dict[str, Any]) -> dict[str, Any]:

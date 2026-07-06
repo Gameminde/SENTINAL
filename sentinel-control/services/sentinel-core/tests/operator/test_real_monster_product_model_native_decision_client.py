@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from typing import Any
 
 import pytest
@@ -149,6 +150,41 @@ def test_delegated_product_finish_intent_does_not_spawn_another_worker() -> None
 
     assert decision.capability_id == "sentinel_loop"
     assert decision.operation == "finish"
+
+
+def test_finish_intent_before_required_second_worker_routes_to_spawn_worker() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["The delegated product proof is complete. Summarize and finish."]),
+        request_factory=_request_factory,
+        preferred_skill_sequence=(
+            "create_file",
+            "create_file",
+            "create_file",
+            "run_check",
+            "send_message",
+            "spawn_worker",
+            "spawn_worker",
+            "finish",
+        ),
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="finish",
+            recent_product_receipt_refs=["r1", "r2", "r3", "r4", "r5", "r6"],
+            dispatch_summaries=[
+                {"capability_id": "workspace_patch", "operation": "apply_patch", "status": "completed"},
+                {"capability_id": "workspace_patch", "operation": "apply_patch", "status": "completed"},
+                {"capability_id": "workspace_patch", "operation": "apply_patch", "status": "completed"},
+                {"capability_id": "code_execution_sandbox", "operation": "code_exec.run_profile", "status": "completed"},
+                {"capability_id": "bounded_channel", "operation": "send_message", "status": "completed"},
+                {"capability_id": "worker_fleet", "operation": "spawn_worker", "status": "completed"},
+            ],
+        )
+    )
+
+    assert decision.capability_id == "worker_fleet"
+    assert decision.operation == "spawn_worker"
 
 
 def test_ambiguous_safe_intent_uses_primary_recommended_skill() -> None:
@@ -856,6 +892,89 @@ def test_number_analyzer_objective_creates_useful_app_files_then_checks_exports_
     assert verified.accepted is True
 
 
+def test_phase2_quality_gate_handles_root_test_hygiene_and_two_workers_before_finish(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "skill": "create_file",
+                    "params": {
+                        "target_path": "test_app.py",
+                        "new_text": (
+                            "from app import analyze_numbers\n\n\n"
+                            "def test_root_file_is_malformed():\n"
+                            "    result([1, 2, 3])\n"
+                        ),
+                    },
+                },
+                "Continue creating the useful number analyzer product files.",
+                "Continue creating the useful number analyzer product files.",
+                "Continue creating the useful number analyzer product files.",
+                "Continue creating the test hygiene config.",
+                "Run the bounded semantic check.",
+                "Send the bounded local completion message.",
+                "Delegate a researcher worker to inspect the product evidence.",
+                "The delegated product proof is complete. Summarize and finish.",
+                "The delegated product proof is complete. Summarize and finish.",
+            ]
+        ),
+        request_factory=_request_factory,
+        preferred_skill_sequence=(
+            "create_file",
+            "create_file",
+            "create_file",
+            "run_check",
+            "send_message",
+            "spawn_worker",
+            "spawn_worker",
+            "finish",
+        ),
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_monster_attempt6b_local_quality_gate",
+        mission_objective=(
+            "Create a useful tiny Python number analyzer app from scratch. "
+            "It must expose analyze_numbers(values) with count, total, and average, "
+            "run semantic tests, send a bounded fake/local channel update, "
+            "delegate a researcher worker and a verifier worker under reduced authority, and finish."
+        ),
+        decision_client=client,
+        allowed_domains=("example.com", "local.worker"),
+        max_model_calls=10,
+        max_material_actions=9,
+    )
+    replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=result.mission_ids)
+    worker_roles = [
+        str(item.get("worker_role") or "")
+        for item in _collect_worker_receipts_for_test(host, result.mission_ids)
+    ]
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "workspace_patch:apply_patch",
+        "code_execution_sandbox:code_exec.run_profile",
+        "bounded_channel:send_message",
+        "worker_fleet:spawn_worker",
+        "worker_fleet:spawn_worker",
+        "sentinel_loop:finish",
+    )
+    assert (workspace / "pytest.ini").read_text(encoding="utf-8") == "[pytest]\ntestpaths = tests\n"
+    assert (workspace / "tests" / "test_app.py").is_file()
+    assert sorted(worker_roles) == ["report_writer", "researcher"]
+    assert replay.reexecuted_actions is False
+    assert replay.receipt_writes_delta == 0
+    assert replay.finalgate_writes_delta == 0
+
+
 def test_product_loop_recovers_duplicate_create_file_target_to_next_missing_app_file(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
@@ -1088,6 +1207,81 @@ def test_created_app_workspace_recommends_run_check_not_dead_patch(tmp_path) -> 
     assert "def main" in decision_client.contexts[0]["workspace_file_summaries"][0]["content_excerpt"]
 
 
+def test_root_level_test_file_is_repair_plan_before_bounded_check(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    (workspace / "tests").mkdir(parents=True)
+    (workspace / "app.py").write_text(
+        "def analyze_numbers(values):\n"
+        "    numbers = list(values)\n"
+        "    return {\"count\": len(numbers), \"total\": sum(numbers), \"average\": 0 if not numbers else sum(numbers) / len(numbers)}\n",
+        encoding="utf-8",
+    )
+    (workspace / "test_app.py").write_text(
+        "from app import analyze_numbers\n\n\n"
+        "def test_root_file_is_malformed():\n"
+        "    result([1, 2, 3])\n",
+        encoding="utf-8",
+    )
+    (workspace / "tests" / "test_app.py").write_text(
+        "from app import analyze_numbers\n\n\n"
+        "def test_analyze_numbers():\n"
+        "    assert analyze_numbers([1, 2, 3])[\"total\"] == 6\n",
+        encoding="utf-8",
+    )
+    (workspace / "README.md").write_text("# Sentinel Number Analyzer\n", encoding="utf-8")
+    decision_client = _RecoveringDecisionClient([ActionKernelError("STOP_AFTER_CONTEXT_CAPTURE")])
+
+    host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_real_product_root_test_hygiene",
+        mission_objective="Create a useful tiny Python number analyzer app from scratch, run checks, send completion, and finish.",
+        decision_client=decision_client,
+        max_model_calls=1,
+        max_material_actions=1,
+    )
+
+    assert decision_client.contexts[0]["primary_model_recommended_next_skill"] == "create_file"
+    assert decision_client.contexts[0]["_workspace_create_file_plans"][0]["target_path"] == "pytest.ini"
+    assert "testpaths = tests" in decision_client.contexts[0]["_workspace_create_file_plans"][0]["new_text"]
+
+
+def test_exhausted_create_sequence_still_honors_hygiene_create_plan_before_run_check() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["Continue with the next product proof."]),
+        request_factory=_request_factory,
+        preferred_skill_sequence=(
+            "create_file",
+            "create_file",
+            "create_file",
+            "run_check",
+            "send_message",
+            "spawn_worker",
+            "finish",
+        ),
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="run_check",
+            recent_product_receipt_refs=["r1", "r2", "r3"],
+            dispatch_summaries=[
+                {"capability_id": "workspace_patch", "operation": "apply_patch", "status": "completed"},
+                {"capability_id": "workspace_patch", "operation": "apply_patch", "status": "completed"},
+                {"capability_id": "workspace_patch", "operation": "apply_patch", "status": "completed"},
+            ],
+            workspace_create_file_plans=[
+                {"target_path": "pytest.ini", "new_text": "[pytest]\ntestpaths = tests\n"}
+            ],
+            bounded_check_plan={"profile_id": "pytest_file", "args": ["tests/test_app.py"]},
+        )
+    )
+
+    assert decision.capability_id == "workspace_patch"
+    assert decision.operation == "apply_patch"
+    assert decision.target_ref == "pytest.ini"
+
+
 def test_product_loop_recovers_failed_semantic_check_with_patch_then_finish(tmp_path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
@@ -1247,6 +1441,15 @@ def _request_factory(context: dict[str, Any], prompt: str) -> dict[str, str]:
 
 def _sha256_file(path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _collect_worker_receipts_for_test(host: SentinelRuntimeHost, mission_ids: tuple[str, ...]) -> list[dict[str, Any]]:
+    receipts: list[dict[str, Any]] = []
+    for mission_id in mission_ids:
+        mission_dir = host.kernel.store.mission_dir(mission_id)
+        for path in sorted(mission_dir.glob("worker_fleet/receipts/*.json")):
+            receipts.append(json.loads(path.read_text(encoding="utf-8")))
+    return receipts
 
 
 def _context(

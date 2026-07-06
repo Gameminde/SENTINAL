@@ -655,6 +655,9 @@ def _workspace_patch_plans(workspace_root: Path) -> list[dict[str, str]]:
 def _workspace_create_file_plans(workspace_root: Path, *, mission_objective: str = "") -> list[dict[str, str]]:
     if _workspace_patch_plans(workspace_root):
         return []
+    hygiene_plans = _workspace_test_hygiene_create_file_plans(workspace_root)
+    if hygiene_plans:
+        return hygiene_plans
     objective = mission_objective.lower()
     if not any(marker in objective for marker in ("arbitrary", "from scratch", "create a tiny python app")):
         return []
@@ -718,6 +721,27 @@ def _workspace_create_file_plans(workspace_root: Path, *, mission_objective: str
         if not (workspace_root / relative_path).exists():
             plans.append({"target_path": relative_path, "new_text": content})
     return plans
+
+
+def _workspace_test_hygiene_create_file_plans(workspace_root: Path) -> list[dict[str, str]]:
+    if (workspace_root / "pytest.ini").exists():
+        return []
+    tests_dir = workspace_root / "tests"
+    if not tests_dir.is_dir() or not any(tests_dir.glob("test*.py")):
+        return []
+    root_test_files = [
+        path
+        for path in workspace_root.glob("test*.py")
+        if path.is_file() and path.parent.resolve() == workspace_root.resolve()
+    ]
+    if not root_test_files:
+        return []
+    return [
+        {
+            "target_path": "pytest.ini",
+            "new_text": "[pytest]\ntestpaths = tests\n",
+        }
+    ]
 
 
 def _objective_requests_number_analyzer(objective: str) -> bool:
