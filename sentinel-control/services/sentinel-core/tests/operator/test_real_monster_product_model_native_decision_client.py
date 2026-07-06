@@ -144,6 +144,52 @@ def test_metadata_reply_send_message_uses_granted_telegram_destination() -> None
     assert "live completion" in decision.params["body"].lower()
 
 
+def test_canonicalish_bounded_channel_output_is_remapped_through_granted_telegram_destination() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "capability_id": "bounded_channel",
+                    "operation": "send_message",
+                    "params": {
+                        "adapter_id": "model_supplied_adapter",
+                        "channel": "telegram",
+                        "recipients": ["telegram:configured-chat"],
+                        "recipient_provenance": {"telegram:configured-chat": "model_supplied_authority"},
+                        "message": "Send the live Telegram update.",
+                        "can_execute": True,
+                    },
+                }
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="send_message",
+            live_channel_destination_grants=[
+                {
+                    "adapter_id": "telegram_live_adapter",
+                    "channel": "telegram",
+                    "destination_ref": "telegram:configured-chat",
+                }
+            ],
+        )
+    )
+
+    assert decision.capability_id == "bounded_channel"
+    assert decision.operation == "send_message"
+    assert decision.params["adapter_id"] == "telegram_live_adapter"
+    assert decision.params["channel"] == "telegram"
+    assert decision.params["recipients"] == ["telegram:configured-chat"]
+    assert decision.params["recipient_provenance"] == {
+        "telegram:configured-chat": "mission_level_destination_grant",
+    }
+    assert "model_supplied_authority" not in str(decision.params)
+    assert "can_execute" not in decision.params
+
+
 def test_natural_finish_intent_maps_to_finish_only_after_receipt_context() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(["I have enough proof. Summarize and finish."]),

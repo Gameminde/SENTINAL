@@ -251,7 +251,7 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
         if normalized is not None:
             return normalized
     if "capability_id" in payload and "operation" in payload:
-        return "__canonical__"
+        return _canonical_payload_skill(payload)
     lowered = text.lower()
     if any(
         marker in lowered
@@ -329,6 +329,34 @@ def _normalize_skill(value: str) -> str | None:
         "extract_product_cards": "extract",
     }
     return aliases.get(lowered)
+
+
+def _canonical_payload_skill(payload: dict[str, Any]) -> str:
+    capability_id = str(payload.get("capability_id") or "").strip()
+    operation = str(payload.get("operation") or "").strip()
+    action = f"{capability_id}.{operation}"
+    if action == "bounded_channel.send_message":
+        return "send_message"
+    if action == "code_execution_sandbox.code_exec.run_profile":
+        return "run_check"
+    if action == "workspace_patch.apply_patch":
+        params = payload.get("params")
+        if isinstance(params, dict) and _looks_like_create_file_params(params):
+            return "create_file"
+        return "patch"
+    if action == "worker_fleet.spawn_worker":
+        return "spawn_worker"
+    if action == "sentinel_loop.finish":
+        return "finish"
+    if action == "real_browser_control.real_browser.extract_product_cards":
+        return "extract"
+    if action in {
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.inspect_result",
+        "real_browser_control.real_browser.open_result",
+    }:
+        return "browse_search"
+    return "__canonical__"
 
 
 def _recommended_skill(context: dict[str, Any]) -> str:
