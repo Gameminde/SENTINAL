@@ -4,7 +4,7 @@
 
 ```text
 SENTINEL_MONSTER_RUNTIME_REAL_POWER_PROOF_ROLLUP_V1 = CREATED
-rollup_scope = Monster Runtime real-provider product proof through Attempt 6
+rollup_scope = Monster Runtime real-provider product proof through Attempt 7D
 runtime_code_change = no
 provider_call = no
 real_browser_run = no
@@ -24,6 +24,7 @@ REAL_MONSTER_PRODUCT_ATTEMPT_6B_MULTI_WORKER_QUALITY_GATED_PRODUCT_BUILD_V1 = VA
 REAL_MONSTER_PRODUCT_ATTEMPT_6C_POST_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1 = VALID_FAILED
 REAL_MONSTER_PRODUCT_ATTEMPT_6D_PRE_MATERIAL_RECOVERY_MULTI_WORKER_PRODUCT_BUILD_V1 = VALID_FAILED
 REAL_MONSTER_PRODUCT_ATTEMPT_6E_POST_APP_ARTIFACT_RECOVERY_PLANS_V1 = VALID_SUCCESS
+REAL_MONSTER_PRODUCT_ATTEMPT_7D_REAL_TELEGRAM_PRODUCT_SPINE_ARTIFACT_BUNDLE_V1 = VALID_SUCCESS
 ```
 
 The 4F proof path:
@@ -189,11 +190,12 @@ These are proven by real model/provider calls, not only fake clients or local py
 | Useful multi-file local app creation | proven | 5C created `analyze_numbers(values)` app, README, and pytest file |
 | Semantic bounded check | proven | 5C external pytest `3 passed` |
 | Bounded fake/local channel send | proven | `bounded_channel.send_message` present in 5C and 6 sequences |
+| Live Telegram channel send in product spine | proven | 7D sent exactly once through Telegram live transport, with ProductActionKernel receipt, FinalGate, artifact bundle verifier, and replay no-resend |
 | Worker verifier dispatch | proven | `worker_fleet.spawn_worker` present in 5C and 6 sequences |
 | Two reduced-authority worker roles in one product mission | proven | 6E spawned `researcher` and `report_writer`, both with `authority_expanded = false` |
 | Model-led finish | proven | `sentinel_loop.finish`, mission completed |
 | Product receipts / FinalGate | proven | 6: 7 receipts, 7 FinalGates |
-| Artifact export + offline verifier | proven | 5C, 6, and 6E export accepted and verifier accepted from exported bundle |
+| Artifact export + offline verifier | proven | 5C, 6, 6E, and 7D export accepted and verifier accepted from exported bundle |
 | Replay no-react | proven | no model/dispatch/command/channel/receipt/finalgate deltas |
 | Raw material persistence scan | proven clean for 5C and 6E | high-risk hit count 0 |
 
@@ -227,6 +229,9 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | Post-material empty provider turn terminalized loop | Attempt 6B | `c062049 fix: recover empty provider turns after product receipts` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_ATTEMPT6B_POST_MATERIAL_EMPTY_PROVIDER_RECOVERY_V1_REPORT.md` |
 | Pre-material unsupported visible content terminalized first turn | Attempt 6C | `dfeaf2a fix: recover unsupported provider turns before material work` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_ATTEMPT6C_PRE_MATERIAL_VISIBLE_CONTENT_RECOVERY_V1_REPORT.md` |
 | Repeated post-app provider friction blocked completion | Attempt 6D | `0c5a092 fix: route post-app provider friction through product recovery` | `SENTINEL_FIX_REAL_MONSTER_PRODUCT_POST_APP_ARTIFACT_RECOVERY_PLANS_V1_REPORT.md` |
+| Channel-only product loop lacked MissionWorkspace export body | Attempt 7A | `efe6dd5 fix: prepare mission workspace for product loop actions` | `SENTINEL_FIX_PRODUCT_TASK_LOOP_MISSION_WORKSPACE_BODY_FOR_CHANNEL_ONLY_RUNS_V1_REPORT.md` |
+| Canonical-ish model output leaked as raw internal ActionEnvelope | Attempt 7B | `ab0f4b8 fix: remap model-native canonical payloads through safe skills` | `SENTINEL_FIX_MODEL_NATIVE_CANONICAL_PAYLOAD_REMAP_TO_SAFE_SKILLS_V1_REPORT.md` |
+| Negative hard-boundary instruction text echoed into channel body | Attempt 7C | `6c573af fix: sanitize channel body boundary text` | `SENTINEL_FIX_CHANNEL_BODY_NEGATIVE_BOUNDARY_TEXT_SANITIZATION_V1_REPORT.md` |
 
 ## Attempt Progression
 
@@ -244,6 +249,10 @@ These are useful and verified locally, but not yet re-proven by the exact 5C rea
 | 6C | `VALID_FAILED` | Real provider reached the product loop, but first-turn visible content was unsupported and terminalized before any material action |
 | 6D | `VALID_FAILED` | Pre-material recovery reached a useful app.py patch, then post-material provider friction blocked before README/tests/check/channel/workers |
 | 6E | `VALID_SUCCESS` | Real provider + product body completed app.py, README, tests, semantic check, channel, two workers, artifact export/verifier, finish, and replay no-react |
+| 7A | `VALID_FAILED` | Real provider drove live Telegram send and finish, but channel-only path lacked MissionWorkspace artifact export body |
+| 7B | `VALID_FAILED` | Mission workspace body was fixed, but canonical-ish model payload leaked as unsafe internal ActionEnvelope |
+| 7C | `VALID_FAILED` | Canonical remap worked, but hard-boundary wording was echoed into outbound channel body and correctly blocked |
+| 7D | `VALID_SUCCESS` | Real provider drove live Telegram send through product spine, mission workspace export, offline verifier, finish, and replay no-resend |
 
 ## Not Yet Proven
 
@@ -251,14 +260,21 @@ Do not overclaim these:
 
 ```text
 real browser/Cloak inside this product spine
-real external channel send inside this product spine
 long-running multi-worker task decomposition
 production-grade generated app usefulness beyond a small number analyzer
-two distinct workers in one real-provider product mission
 quality-gated finish after all semantic tests pass
 deployment
 real user data integration
 persistent project memory as product behavior
+```
+
+Live Telegram send inside the product spine is now proven by 7D, but broader channel generality is not yet proven:
+
+```text
+multiple real channel providers
+long-running live channel conversations
+channel receive -> reason -> send loops
+multi-destination live channel missions
 ```
 
 ## Current Git Truth
@@ -266,6 +282,11 @@ persistent project memory as product behavior
 Latest relevant commits:
 
 ```text
+6c573af fix: sanitize channel body boundary text
+ab0f4b8 fix: remap model-native canonical payloads through safe skills
+efe6dd5 fix: prepare mission workspace for product loop actions
+14effe2 docs: record real monster attempt 7a telegram gap
+4895b30 docs: record live channel product spine promotion
 ff08d90 docs: record post-app product recovery plan fix
 0c5a092 fix: route post-app provider friction through product recovery
 346047c docs: record pre-material visible content recovery fix
@@ -314,7 +335,7 @@ Throughout this tranche:
 provider-native tools = disabled
 fallback/AUTO = disabled
 real browser = not run in this product-spine tranche
-real external channel = not sent in this product-spine tranche
+real external channel = Telegram sent exactly once in 7D under mission-level grant
 raw provider output persistence = not observed
 raw reasoning persistence = not observed
 credential persistence = not observed
@@ -424,6 +445,62 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_MONSTER_PRODUCT_ATT
 
 ```text
 C:\Users\youcef cheriet\.sentinel-runs\monster-runtime\real-monster-product-attempt6e-20260706-120749
+```
+
+## Latest Attempt 7D Truth
+
+7D safe metrics:
+
+```text
+verdict = VALID_SUCCESS
+provider_decision_calls = 2
+model_native_intent_accepted_count = 2
+material_action_count = 1
+telegram_send_count = 1
+telegram_delivery_count = 1
+channel_receipt_count = 1
+product_receipt_count = 1
+product_finalgate_count = 1
+task_loop_finalgate_count = 1
+mission_status = completed
+blocked_reason = null
+mission_workspace_manifest_count = 1
+artifact_export_accepted = true
+artifact_verifier_accepted = true
+checked_from_exported_bundle_only = true
+replay_no_react = true
+safety_scan_high_risk_hit_count = 0
+```
+
+7D proof path:
+
+```text
+real provider
+-> model-native product decision
+-> RuntimeHost product task loop
+-> MissionWorkspaceRuntime body
+-> ProductActionKernel
+-> bounded_channel.send_message
+-> Telegram live transport
+-> channel receipt
+-> ProductActionKernel receipt
+-> model finish
+-> product task-loop FinalGate
+-> mission artifact bundle export
+-> offline verifier accepted
+-> replay no-resend
+```
+
+7D report:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_MONSTER_PRODUCT_ATTEMPT_7D_REAL_TELEGRAM_PRODUCT_SPINE_ARTIFACT_BUNDLE_V1_REPORT.md
+```
+
+7D run root:
+
+```text
+C:\Users\youcef cheriet\.sentinel-runs\monster-runtime\real-monster-product-attempt7d-20260710-154133
 ```
 
 ## Next Proof Contract
