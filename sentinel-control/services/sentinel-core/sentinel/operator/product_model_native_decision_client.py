@@ -708,10 +708,43 @@ def _worker_params(*, payload: dict[str, Any], text: str) -> dict[str, Any]:
 
 
 def _bounded_channel_body(text: str, context: dict[str, Any]) -> str:
-    if text.strip():
-        return f"Sentinel completion update: {_bounded_text(text, 160)}"
+    safe_text = _safe_channel_body_text(text)
+    if safe_text:
+        return f"Sentinel completion update: {safe_text}"
     objective = _bounded_text(str(context.get("mission_objective") or "mission"), 140)
-    return f"Sentinel completion update: {objective}"
+    safe_objective = _safe_channel_body_text(objective)
+    if safe_objective:
+        return f"Sentinel completion update: {safe_objective}"
+    return "Sentinel completion update: granted mission progress completed inside scope."
+
+
+def _safe_channel_body_text(text: str) -> str:
+    candidate = _bounded_text(text, 160)
+    if not candidate:
+        return ""
+    lowered = candidate.lower()
+    hard_markers = (
+        "account",
+        "api key",
+        "authorization",
+        "bearer",
+        "browser",
+        "checkout",
+        "contact supplier",
+        "credential",
+        "fallback/auto",
+        "login",
+        "password",
+        "payment",
+        "provider-native",
+        "provider_native",
+        "secret",
+        "session token",
+        "spend",
+    )
+    if any(marker in lowered for marker in hard_markers):
+        return ""
+    return candidate
 
 
 def _safe_finish_summary(text: str, context: dict[str, Any]) -> str:
@@ -730,6 +763,8 @@ def _bounded_query(text: str) -> str:
 
 def _hard_boundary_action(text: str, payload: dict[str, Any]) -> ActionEnvelope | None:
     lowered = f"{text}\n{json.dumps(_safe_payload_shape(payload), sort_keys=True)}".lower()
+    if _contains_negative_boundary_instruction(lowered):
+        return None
     if any(marker in lowered for marker in ("pay", "payment", "checkout", "spend")):
         return ActionEnvelope(capability_id="payment_authority", operation="spend")
     if any(marker in lowered for marker in ("login", "log in", "sign in", "account creation", "create account")):
@@ -739,8 +774,28 @@ def _hard_boundary_action(text: str, payload: dict[str, Any]) -> ActionEnvelope 
     return None
 
 
+def _contains_negative_boundary_instruction(lowered_text: str) -> bool:
+    negations = ("do not", "don't", "dont", "never", "without")
+    boundary_markers = (
+        "account",
+        "checkout",
+        "contact supplier",
+        "credential",
+        "login",
+        "payment",
+        "provider-native",
+        "secret",
+        "spend",
+    )
+    return any(negation in lowered_text for negation in negations) and any(
+        marker in lowered_text for marker in boundary_markers
+    )
+
+
 def _credential_boundary_requested(text: str, payload: dict[str, Any]) -> bool:
     lowered = f"{text}\n{json.dumps(_safe_payload_shape(payload), sort_keys=True)}".lower()
+    if _contains_negative_boundary_instruction(lowered):
+        return False
     return any(marker in lowered for marker in ("credential", "password", "private key", "api secret", "api key"))
 
 

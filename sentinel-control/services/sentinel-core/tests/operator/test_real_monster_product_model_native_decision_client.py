@@ -190,6 +190,44 @@ def test_canonicalish_bounded_channel_output_is_remapped_through_granted_telegra
     assert "can_execute" not in decision.params
 
 
+def test_send_message_body_does_not_echo_hard_boundary_prompt_terms() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {
+                    "metadata": {
+                        "reply": (
+                            "Send the live completion update now. Do not request login, payment, "
+                            "credentials, browser, or provider-native tools."
+                        )
+                    }
+                }
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="send_message",
+            live_channel_destination_grants=[
+                {
+                    "adapter_id": "telegram_live_adapter",
+                    "channel": "telegram",
+                    "destination_ref": "telegram:configured-chat",
+                }
+            ],
+        )
+    )
+
+    body = decision.params["body"].lower()
+    assert decision.capability_id == "bounded_channel"
+    assert decision.operation == "send_message"
+    assert "sentinel completion update:" in body
+    for marker in ("login", "payment", "credential", "browser", "provider-native"):
+        assert marker not in body
+
+
 def test_natural_finish_intent_maps_to_finish_only_after_receipt_context() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(["I have enough proof. Summarize and finish."]),
