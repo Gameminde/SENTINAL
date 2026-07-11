@@ -22,11 +22,11 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-11
-canonical_locked_phase = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
+canonical_locked_phase = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
 active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
-latest_local_hardening = BROWSER_ENVIRONMENT_STATE_ACTUATION
+latest_local_hardening = BROWSER_NATIVE_MEMORY_AND_RECOVERY
 branch = experimental/real-model-lab-freeze-v1
-next_work = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
+next_work = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -45,40 +45,39 @@ Playwright-led: Cloak/session is the product-leading backend, Playwright is
 quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
-The latest local lock is `BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1`.
-It connects the BrowserEnvironmentState graph to browser actuation. Search,
-extract, verify, and recoverable browser misses now return a
-`browser_environment_state` context card, and browser action receipts carry a
-`browser_environment_state_hash` so the action is tied to the exact safe browser
-state seen by the model. The full graph is not persisted in the browser runtime
-artifact path; receipts keep the hash and existing world/decision frames remain
-bounded evidence. No provider call, real browser run, external channel send, or
-push was performed by the pack.
+The latest local lock is
+`BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1`. It carries
+the latest BrowserEnvironmentState into DecisionContext as browser-native memory:
+latest/previous state hashes, state deltas, page kind, product-card counts,
+cookie/storage counts, recommended recovery skills, and recoverable failure
+state. This gives the model continuity across browser turns without exposing
+raw cookie values, storage values, raw DOM, screenshots, provider reasoning, or
+credentials. No provider call, real browser run, external channel send, or push
+was performed by the pack.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
 workspace body, bounded channel send, code/workspace skills, worker
-orchestration, signed artifact verifier work, Browser Cortex cutover truth, and
-now graph-backed browser actuation. The next browser step is not another
-Alibaba run. It is
-`BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1`: use the
-environment state as live browser memory/recovery context across model turns,
-with Playwright still quarantined as compatibility/test debt.
+orchestration, signed artifact verifier work, Browser Cortex cutover truth,
+graph-backed browser actuation, and now graph-backed browser memory/recovery.
+The next browser step is a real-power readiness gate, not an uncontrolled
+Alibaba run: verify provider config, Cloak readiness, browser env state flow,
+and no raw browser material persistence before any live attempt.
 
 The next experimental threshold is deliberately power-focused:
 
 ```text
-Browser Cortex Pack 3
--> browser environment state as model-turn memory
--> recovery uses previous state graph and current graph
--> search/inspect/extract become smoother across turns
+Browser Cortex Real-Power Readiness Gate
+-> provider config present before call
+-> Cloak/session ready before provider call
+-> BrowserEnvironmentState reaches model context
+-> receipts/replay can prove no side-effect redo
 -> model sees simple browser skills
 -> hidden organs supply perception/recovery/extraction
 -> receipts/replay/FinalGate stay in background
 ```
 
-Real browser product proof resumes only after local graph-backed browser memory
-and recovery are proven.
+Real browser product proof resumes only after this readiness gate passes.
 
 The current top-level lock reports are:
 
@@ -87,6 +86,7 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_ORGANS_TECHNOLOG
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1_REPORT.md
 ```
 
 The current experimental read-only operator reports are:

@@ -1,5 +1,50 @@
 # Current State Lock
 
+## Browser Cortex Model Browser Native Memory And Recovery - LOCKED
+
+Recorded at: 2026-07-11
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Cloak Actuation Upgrade lock as the top-level working truth while preserving
+that lock as scoped historical evidence.
+
+```text
+current_phase = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
+previous_phase = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
+next_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Pack 3 Truth
+
+```text
+BrowserEnvironmentState promoted into DecisionContext = CLOSED
+browser_environment_memory = CLOSED
+latest_state_hash / previous_state_hash / state_changed = CLOSED
+stable_ref_count_delta = CLOSED
+latest product/relevant card counts = CLOSED
+latest cookie/storage counts = SAFE_COUNTS_ONLY
+recoverable browser state visible to next model turn = CLOSED
+raw browser value sanitation in context memory = CLOSED
+provider call = NO
+real browser run = NO
+external channel send = NO
+push during implementation = NO
+implementation_commit = 2965ddc feat: carry browser environment memory in decisions
+```
+
+### Browser Cortex Pack 3 Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/decision_context.py
+sentinel-control/services/sentinel-core/tests/operator/test_browser_cortex_pack3_model_browser_native_memory.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is the Browser Cortex real-power readiness gate.
+
 ## Browser Cortex Cloak Actuation Upgrade - LOCKED
 
 Recorded at: 2026-07-11
