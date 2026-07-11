@@ -1,5 +1,45 @@
 # Current State Lock
 
+## Browser Cortex Real Power Readiness Gate - LOCKED
+
+Recorded at: 2026-07-11
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Model Browser Native Memory And Recovery lock as the top-level working truth
+while preserving that lock as scoped historical evidence.
+
+```text
+current_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
+previous_phase = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
+next_phase = RESTORE_BROWSER_CORTEX_REAL_POWER_ENV_AND_RERUN_GATE_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Readiness Truth
+
+```text
+readiness_verdict = NO_GO_CONFIG_MISSING
+provider config present = YES
+browser target env present = NO
+browser headless env present = NO
+Cloak binary override env present = NO
+provider call = NO
+real browser run = NO
+external channel send = NO
+runtime changes = NO
+push during gate = NO
+```
+
+### Browser Cortex Readiness Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is restoring browser/Cloak real-power environment and re-running this gate.
+
 ## Browser Cortex Model Browser Native Memory And Recovery - LOCKED
 
 Recorded at: 2026-07-11

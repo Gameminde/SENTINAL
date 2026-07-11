@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
-previous_phase = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
-next_work = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
+current_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
+previous_phase = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
+next_work = RESTORE_BROWSER_CORTEX_REAL_POWER_ENV_AND_RERUN_GATE_V1
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -49,10 +49,11 @@ fragmented across operator browser runtime, agent organs, `sentinel/agent/browse
 canonical browser organs, Cloak/session, Playwright compatibility, CDP/BiDi,
 DevTools, accessibility, world-model, recovery, and special-authority layers.
 
-The latest local lock is
-`BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1`. It carries
-the safe browser environment state graph into DecisionContext as browser-native
-memory and recovery context. This makes the intended product truth explicit:
+The latest local lock is `BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1`. It
+confirms the local Browser Cortex product spine is ready enough for a
+config-gated real attempt, but blocks any real provider/browser attempt in the
+current environment because browser target/headless config and the Cloak binary
+override are missing. This makes the intended product truth explicit:
 
 ```text
 real_browser_control_product_spine = PRODUCT_SPINE
@@ -68,12 +69,13 @@ browser action receipt = environment_state_hash linked
 full state persistence in browser artifacts = blocked / hash only
 browser_environment_memory = latest/previous state hashes and safe deltas
 recoverable browser state = visible to next model turn
+current real-attempt readiness = NO_GO_CONFIG_MISSING
 ```
 
 This lock does not claim real Alibaba/browser product proof. It prevents the
-next packs from treating browser perception as raw DOM, screenshots, cookies, or
-Playwright locator mechanics. The next build step is
-`BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1`.
+next run from consuming provider budget while browser/Cloak readiness is
+missing. The next build step is
+`RESTORE_BROWSER_CORTEX_REAL_POWER_ENV_AND_RERUN_GATE_V1`.
 
 Real now:
 
