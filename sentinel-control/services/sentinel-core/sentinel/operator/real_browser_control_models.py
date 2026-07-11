@@ -150,6 +150,7 @@ class RealBrowserActionReceipt(SentinelModel):
     replay_behavior: str = "no_reexecute_on_replay"
     before_state_hash: str
     after_state_hash: str
+    browser_environment_state_hash: str = ""
     bounded_observation_summary_hash: str
     result_hash: str = ""
     receipt_hash: str = ""
@@ -196,6 +197,7 @@ class RealBrowserActionReceipt(SentinelModel):
             "replay_behavior": redact_operator_text(self.replay_behavior),
             "before_state_hash": self.before_state_hash,
             "after_state_hash": self.after_state_hash,
+            "browser_environment_state_hash": self.browser_environment_state_hash,
             "bounded_observation_summary_hash": self.bounded_observation_summary_hash,
             "created_at": self.created_at.isoformat(),
             "data_not_authority": self.data_not_authority,

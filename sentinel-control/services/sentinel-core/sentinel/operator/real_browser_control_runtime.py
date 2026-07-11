@@ -25,6 +25,7 @@ from sentinel.operator.action_power_contract import (
 )
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
 from sentinel.operator.browser_backend_selector import BrowserBackendSelection, select_browser_backend
+from sentinel.operator.browser_environment_state import BrowserEnvironmentStateBuilder
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.model_skill_surface import model_skill_for_action
@@ -1183,12 +1184,18 @@ class RealBrowserControlRuntime:
             replay_behavior="no_reexecute_on_replay",
             before_state_hash=before_state_hash,
             after_state_hash=after_state_hash,
+            browser_environment_state_hash=str(
+                (context_cards or {}).get("browser_environment_state_hash") or ""
+            ),
             bounded_observation_summary_hash=stable_hash(
                 {
                     "safe_url_origin_hash": self.engine.safe_url_origin_hash,
                     "after_state_hash": after_state_hash,
                     "action_kind": action_kind,
                     "element_ref_hash": text_hash(element_ref),
+                    "browser_environment_state_hash": str(
+                        (context_cards or {}).get("browser_environment_state_hash") or ""
+                    ),
                 }
             ),
         )
@@ -1381,6 +1388,18 @@ class RealBrowserControlRuntime:
         frame_dump = frame.model_dump(mode="json")
         registry_dump = registry.safe_model_dump()
         actionability_dump = actionability_frame.safe_model_dump()
+        environment_state = BrowserEnvironmentStateBuilder().build(
+            snapshot=snapshot,
+            mission_objective=authority.mission_objective,
+            origin_hash=self.engine.safe_url_origin_hash,
+            selected_backend_id=self.selected_backend_id,
+            actual_backend_id=self.actual_backend_id,
+            session_backend_kind=_engine_session_backend_kind(self.engine),
+            extracted_text=extracted_text,
+            world_model=world_model,
+        )
+        environment_dump = environment_state.safe_model_dump()
+        environment_hash = stable_hash(environment_dump)
         self._write_artifact("world_models", world_model.world_model_id, world_dump)
         self._write_artifact("decision_frames", frame.frame_id, frame_dump)
         cards = {
@@ -1389,6 +1408,8 @@ class RealBrowserControlRuntime:
             "browser_decision_frame": frame_dump,
             "browser_actionability_registry": registry_dump,
             "actionability_frame": actionability_dump,
+            "browser_environment_state": environment_dump,
+            "browser_environment_state_hash": environment_hash,
             "browser_backend_execution": {
                 "selected_backend_id": self.selected_backend_id,
                 "actual_backend_id": self.actual_backend_id,
