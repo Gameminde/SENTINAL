@@ -21,13 +21,13 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 ## Current Snapshot
 
 ```text
-snapshot_date = 2026-06-23
-canonical_locked_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
-active_experimental_lane = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
-latest_local_hardening = PACK_3_13_MODEL_DECISION_EXTRACTION_LAYER_V1
+snapshot_date = 2026-07-11
+canonical_locked_phase = BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1
+active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
+latest_local_hardening = BROWSER_PRODUCT_CUTOVER_LOCK
 branch = experimental/real-model-lab-freeze-v1
-next_work = ATTEMPT_5J_EXTRACTION_LAYER_REAL_READ_ONLY_RECEIPT
-doctrine = product power under provable authority
+next_work = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
+doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
 Sentinel is no longer a vision document. It is now a local controlled-agent
@@ -38,54 +38,51 @@ live-desktop monitoring foundation, realtime voice foundation, a durable
 credential vault / secret broker foundation, and governed account creation /
 login plus sandbox spend / paper trading special-authority foundations. The
 latest convergence work measures that power honestly at task level: governance
-and local runtime are strong, controlled coding/workspace and live Playwright
-browser backends are repeatable on fixtures, and the real-model lane has now
-been exercised through explicit provider calls, read-only self-exploration,
-Stage B report diagnostics, and a production-spine read-only fake-model gate.
-Wave 1 remains experimental and not fully certified: public-SaaS evidence,
-long-duration soak, production-spine integration for all real-model paths, and
-holdout certification still remain open.
+and local runtime are strong, controlled coding/workspace, real provider
+read-only, code/patch/channel/browser attempts, and Monster Runtime product
+spine proofs have all been exercised. The current browser lane is no longer
+Playwright-led: Cloak/session is the product-leading backend, Playwright is
+quarantined as explicit compatibility/test debt, and the Browser Cortex program
+is consolidating existing browser organs into one product spine.
 
-The latest lock is the `ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE`. It classifies
-the `ArtifactRefStore.get` p95 failure as pre-existing benchmark methodology
-debt on Windows first-touch random file reads, removes an avoidable read-path
-metadata probe, splits cold first-touch measurement from the canonical warm
-integrity-verified 5 ms get gate, and restores the full sentinel-core suite to
-green: 2,749 passed, 3 skipped, 0 failed. It does not start the real-model
-provider run. No new actuator family or special-authority surface was added.
+The latest lock is `BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1`.
+It adds a data-only browser cutover registry and exposes
+`browser_product_cutover_frame` from RuntimeHost. The only model-visible product
+browser path is `real_browser_control_product_spine`; Cloak/session and
+BrowserSessionManager L5 are hidden product backends; Playwright is
+compatibility-only and cannot certify product browser power. No provider call,
+real browser run, external channel send, or push was performed by the pack.
 
-The active experimental branch now contains the Pack 3 product nervous-system
-vertical slice plus the Pack 3.13 read-only model decision extraction layer.
-The route has progressed from setup and schema failures into a real
-provider-facing read-only decision lane. Pack 3.13 translates common model
-dialects such as `tool/params`, `tool_name/args`, `next_step.name/input`, and
-`function.name/arguments` into Sentinel's canonical `ReadOnlyDecision` before
-strict validation and governed execution. Unsafe action, authority, credential,
-workspace, raw provider, and reasoning fields remain blocked. This is not
-fallback, not AUTO routing, not provider-native tools, and not a new capability
-surface.
+The active experimental branch contains the Monster Runtime product-spine
+program: simple model-facing skills, ProductActionKernel dispatch, mission
+workspace body, bounded channel send, code/workspace skills, worker
+orchestration, signed artifact verifier work, and now Browser Cortex cutover
+truth. The next browser step is not another Alibaba run. It is
+`BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1`: fuse Cloak/session,
+CDP/BiDi, accessibility, world model, network/storage/session metadata, visual
+fallback refs, and existing browser organs into a single state graph consumed
+by the product browser spine.
 
-The next experimental threshold is deliberately small and power-focused:
+The next experimental threshold is deliberately power-focused:
 
 ```text
-real provider
--> explicit bootstrap
--> read-only decision lane
--> extraction / normalization
--> canonical ReadOnlyDecision
--> strict validation
--> governed read-only action
--> receipt
+Browser Cortex Pack 1
+-> Cloak/session product browser body
+-> BrowserEnvironmentState graph
+-> safe browser state metadata, no raw secrets/session values
+-> model sees simple browser skills
+-> hidden organs supply perception/recovery/extraction
+-> receipts/replay/FinalGate stay in background
 ```
 
-Pack 4 does not begin until at least one real governed read-only action creates
-a receipt while the workspace remains unchanged and replay material purity
-holds.
+Real browser product proof resumes only after local Browser Cortex state graph
+and Cloak actuation upgrades are proven.
 
-The current top-level lock report is:
+The current top-level lock reports are:
 
 ```text
-sentinel-control/docs/reviews/ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCK_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1_REPORT.md
 ```
 
 The current experimental read-only operator reports are:

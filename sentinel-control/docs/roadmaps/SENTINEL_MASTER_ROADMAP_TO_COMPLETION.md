@@ -37,28 +37,35 @@ provable.
 Current state:
 
 ```text
-current_phase = ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED
-previous_phase = SENTINEL_HIGH_SENSITIVITY_RUNTIME_REMEDIATION_LOCKED
-next_work = REAL_WORLD_POWER_CONVERGENCE_WAVE_1_REAL_MODEL_AGENT_CERTIFICATION
-roadmap_doctrine = product power under provable authority
+current_phase = BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1
+previous_phase = SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2
+next_work = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
-The active strategy is now the
-`SENTINEL_REAL_WORLD_POWER_BASELINE_AND_CONVERGENCE_PROGRAM`. The task-level
-current evidence measures real power at `5.7 / 10`: Sentinel's authority,
-proof, and local runtime spine are strong, but broad live backend reach and a
-production operator product remain limited. The convergence roadmap is the
-canonical active build sequence. Wave 1 remains `PARTIALLY_CLOSED`: controlled
-coding/workspace and live Playwright browser backends are certified through
-repeated vertical gauntlets, while real-model, process-restart, public-SaaS,
-and soak proof remain open.
+The active strategy is now the Monster Runtime / Browser Cortex unification
+program. Sentinel has enough browser organs to be powerful, but that power is
+fragmented across operator browser runtime, agent organs, `sentinel/agent/browser`,
+canonical browser organs, Cloak/session, Playwright compatibility, CDP/BiDi,
+DevTools, accessibility, world-model, recovery, and special-authority layers.
 
-The latest lock is `ARTIFACT_REF_STORE_PERFORMANCE_GREEN_GATE_LOCKED`. It closes
-the remaining baseline performance gate after the high-sensitivity remediation:
-`ArtifactRefStore.get` now distinguishes cold first-touch filesystem latency
-from the canonical warm integrity-verified 5 ms get budget, and the complete
-sentinel-core suite is green. Security Testing Special Authority remains future
-work and is deferred.
+The latest lock is `BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1`.
+It adds a data-only browser product cutover registry and wires the
+`browser_product_cutover_frame` into RuntimeHost. This makes the intended
+product truth explicit:
+
+```text
+real_browser_control_product_spine = PRODUCT_SPINE
+Cloak/session = HIDDEN_BACKEND / product-leading
+BrowserSessionManager L5 = HIDDEN_BACKEND / product backend
+Playwright = COMPATIBILITY_ONLY / not product proof
+legacy Playwright renderer/interaction = DELETE_AFTER_PARITY
+special authority browser organs = SPECIAL_AUTHORITY_LOCKED
+```
+
+This lock does not claim real Alibaba/browser product proof. It prevents the
+next packs from treating Playwright or parallel browser organ paths as official
+product power. The next build step is `BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1`.
 
 Real now:
 

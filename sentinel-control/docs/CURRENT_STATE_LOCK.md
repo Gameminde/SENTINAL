@@ -1,5 +1,52 @@
 # Current State Lock
 
+## Browser Cortex Product Cutover Lock - LOCKED
+
+Recorded at: 2026-07-11
+
+This section is the canonical current state. It supersedes older browser and
+performance locks as the top-level working truth while preserving those reports
+as scoped historical evidence.
+
+```text
+current_phase = BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1
+previous_phase = SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2
+next_phase = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Cutover Truth
+
+```text
+Sentinel browser power = ABUNDANT_BUT_FRAGMENTED
+browser_product_cutover_registry = CLOSED / data-only map
+RuntimeHost browser_product_cutover_frame = CLOSED
+product browser path = real_browser_control_product_spine
+Cloak/session backend = HIDDEN_BACKEND / product-leading
+BrowserSessionManager L5 = HIDDEN_BACKEND / product backend
+Playwright product proof = BLOCKED / compatibility-only
+Playwright physical deletion = DEFERRED_UNTIL_CLOAK_CORTEX_PARITY
+special authority browser organs = LOCKED / preserved, not deleted
+provider call = NO
+real browser run = NO
+external channel send = NO
+push during implementation = NO
+implementation_commit = 99b3313 feat: lock browser product cutover
+```
+
+### Browser Cortex Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/browser_product_cutover_registry.py
+sentinel-control/services/sentinel-core/tests/operator/test_browser_cortex_pack0_product_browser_cutover_lock.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is Browser Cortex Pack 1, the environment state graph.
+
 ## ArtifactRefStore Performance Green Gate - LOCKED
 
 Recorded at: 2026-06-14
