@@ -22,11 +22,11 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-11
-canonical_locked_phase = BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1
+canonical_locked_phase = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
 active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
-latest_local_hardening = BROWSER_PRODUCT_CUTOVER_LOCK
+latest_local_hardening = BROWSER_ENVIRONMENT_STATE_GRAPH
 branch = experimental/real-model-lab-freeze-v1
-next_work = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
+next_work = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -45,44 +45,46 @@ Playwright-led: Cloak/session is the product-leading backend, Playwright is
 quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
-The latest lock is `BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1`.
-It adds a data-only browser cutover registry and exposes
-`browser_product_cutover_frame` from RuntimeHost. The only model-visible product
-browser path is `real_browser_control_product_spine`; Cloak/session and
-BrowserSessionManager L5 are hidden product backends; Playwright is
-compatibility-only and cannot certify product browser power. No provider call,
-real browser run, external channel send, or push was performed by the pack.
+The latest local lock is `BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1`.
+It adds a data-only `BrowserEnvironmentState` graph and exposes
+`browser_environment_state_contract` from RuntimeHost beside the browser
+cutover frame. The graph fuses safe page state, accessibility refs, search/action
+candidates, product/result cards, backend truth, network/console counts,
+cookie/storage metadata, blocker signals, and visual fallback refs without
+persisting raw cookie values, storage values, raw DOM, screenshots, provider
+reasoning, or credentials. No provider call, real browser run, external channel
+send, or push was performed by the pack.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
 workspace body, bounded channel send, code/workspace skills, worker
-orchestration, signed artifact verifier work, and now Browser Cortex cutover
-truth. The next browser step is not another Alibaba run. It is
-`BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1`: fuse Cloak/session,
-CDP/BiDi, accessibility, world model, network/storage/session metadata, visual
-fallback refs, and existing browser organs into a single state graph consumed
-by the product browser spine.
+orchestration, signed artifact verifier work, Browser Cortex cutover truth, and
+now a first browser environment state graph. The next browser step is not
+another Alibaba run. It is `BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1`:
+make the Cloak/session product backend actuate the graph-backed browser skills
+more directly, with Playwright still quarantined as compatibility/test debt.
 
 The next experimental threshold is deliberately power-focused:
 
 ```text
-Browser Cortex Pack 1
--> Cloak/session product browser body
--> BrowserEnvironmentState graph
--> safe browser state metadata, no raw secrets/session values
+Browser Cortex Pack 2
+-> Cloak/session product backend actuation
+-> BrowserEnvironmentState consumed by browser skill spine
+-> stronger search/inspect/extract recovery
 -> model sees simple browser skills
 -> hidden organs supply perception/recovery/extraction
 -> receipts/replay/FinalGate stay in background
 ```
 
-Real browser product proof resumes only after local Browser Cortex state graph
-and Cloak actuation upgrades are proven.
+Real browser product proof resumes only after the local Cloak actuation upgrade
+is proven against the environment graph.
 
 The current top-level lock reports are:
 
 ```text
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1_REPORT.md
 ```
 
 The current experimental read-only operator reports are:

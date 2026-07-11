@@ -1,5 +1,56 @@
 # Current State Lock
 
+## Browser Cortex Environment State Graph - LOCKED
+
+Recorded at: 2026-07-11
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Product Cutover Lock as the top-level working truth while preserving that lock
+as scoped historical evidence.
+
+```text
+current_phase = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
+previous_phase = BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1
+next_phase = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Pack 1 Truth
+
+```text
+BrowserEnvironmentState graph = CLOSED / data-only map
+RuntimeHost browser_environment_state_contract = CLOSED
+backend truth included = selected_backend_id / actual_backend_id / session_backend_kind
+page/action/extraction graph = CLOSED
+network/console metadata = SAFE_COUNTS_AND_HASHES_ONLY
+cookie/storage metadata = SAFE_METADATA_ONLY / NO_RAW_VALUES
+blocker graph = CLOSED
+visual fallback refs = HASH_ONLY / NO_SCREENSHOT_PERSISTENCE
+raw DOM persistence = BLOCKED
+raw screenshot persistence = BLOCKED
+raw provider/reasoning persistence = BLOCKED
+data_not_authority = TRUE
+can_execute = FALSE
+provider call = NO
+real browser run = NO
+external channel send = NO
+push during implementation = NO
+implementation_commit = 2a81869 feat: add browser environment state graph
+```
+
+### Browser Cortex Pack 1 Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/browser_environment_state.py
+sentinel-control/services/sentinel-core/sentinel/operator/runtime_host.py
+sentinel-control/services/sentinel-core/tests/operator/test_browser_cortex_pack1_environment_state_graph.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is Browser Cortex Pack 2, the Cloak actuation upgrade.
+
 ## Browser Cortex Product Cutover Lock - LOCKED
 
 Recorded at: 2026-07-11
