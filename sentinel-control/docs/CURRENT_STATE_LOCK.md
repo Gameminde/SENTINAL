@@ -1,5 +1,53 @@
 # Current State Lock
 
+## Browser Cortex Cloak Actuation Upgrade - LOCKED
+
+Recorded at: 2026-07-11
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Environment State Graph lock as the top-level working truth while preserving
+that lock as scoped historical evidence.
+
+```text
+current_phase = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
+previous_phase = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
+next_phase = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Pack 2 Truth
+
+```text
+BrowserEnvironmentState consumed by real browser actuation = CLOSED
+Runtime action context_cards include browser_environment_state = CLOSED
+Runtime action context_cards include browser_environment_state_hash = CLOSED
+RealBrowserActionReceipt browser_environment_state_hash = CLOSED
+Recoverable browser search miss carries environment state = CLOSED
+Full environment state persistence in real_browser_control artifacts = BLOCKED / hash only
+raw cookie/storage/DOM/screenshot/provider reasoning persistence = BLOCKED
+Playwright product proof = BLOCKED / compatibility-only
+data_not_authority = TRUE
+provider call = NO
+real browser run = NO
+external channel send = NO
+push during implementation = NO
+implementation_commit = 322be7b feat: connect browser environment state to actuation
+```
+
+### Browser Cortex Pack 2 Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/browser_environment_state.py
+sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
+sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_models.py
+sentinel-control/services/sentinel-core/tests/operator/test_browser_cortex_pack2_cloak_actuation_upgrade.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is Browser Cortex Pack 3, model/browser native memory and recovery.
+
 ## Browser Cortex Environment State Graph - LOCKED
 
 Recorded at: 2026-07-11

@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
-previous_phase = BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1
-next_work = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
+current_phase = BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1
+previous_phase = BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1
+next_work = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -49,10 +49,9 @@ fragmented across operator browser runtime, agent organs, `sentinel/agent/browse
 canonical browser organs, Cloak/session, Playwright compatibility, CDP/BiDi,
 DevTools, accessibility, world-model, recovery, and special-authority layers.
 
-The latest local lock is `BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1`.
-It adds a data-only browser environment state graph and wires the
-`browser_environment_state_contract` into RuntimeHost beside the product
-cutover frame. This makes the intended product truth explicit:
+The latest local lock is `BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1`.
+It connects the safe browser environment state graph to real browser actuation
+context and receipts. This makes the intended product truth explicit:
 
 ```text
 real_browser_control_product_spine = PRODUCT_SPINE
@@ -63,12 +62,15 @@ legacy Playwright renderer/interaction = DELETE_AFTER_PARITY
 special authority browser organs = SPECIAL_AUTHORITY_LOCKED
 BrowserEnvironmentState = SAFE_BROWSER_STATE_GRAPH / not authority
 raw cookies/storage/DOM/screenshots/provider reasoning = NOT_EXPOSED
+browser action context = graph-backed
+browser action receipt = environment_state_hash linked
+full state persistence in browser artifacts = blocked / hash only
 ```
 
 This lock does not claim real Alibaba/browser product proof. It prevents the
 next packs from treating browser perception as raw DOM, screenshots, cookies, or
 Playwright locator mechanics. The next build step is
-`BROWSER_CORTEX_PACK_2_CLOAK_ACTUATION_UPGRADE_V1`.
+`BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1`.
 
 Real now:
 
