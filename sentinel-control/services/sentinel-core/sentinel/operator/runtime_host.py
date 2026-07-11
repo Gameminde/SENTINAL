@@ -33,6 +33,7 @@ from sentinel.operator.mission_lifecycle_service import MissionExecutionRequest
 from sentinel.operator.mission_execution_coordinator import MissionExecutionCoordinator
 from sentinel.operator.mission_lifecycle_service import MissionLifecycleService
 from sentinel.operator.mission_workspace_runtime import MissionWorkspaceRuntime, mission_workspace_product_body_frame
+from sentinel.operator.browser_environment_state import browser_environment_state_contract
 from sentinel.operator.browser_product_cutover_registry import build_default_browser_product_cutover_registry
 from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import OperatorMissionStatus
@@ -269,6 +270,7 @@ class SentinelRuntimeHost:
             .compile_frame()
             .safe_model_dump()
         )
+        browser_environment_contract = browser_environment_state_contract()
         return {
             "entrypoint_id": "product_action_kernel_task_loop",
             "enabled": True,
@@ -284,6 +286,7 @@ class SentinelRuntimeHost:
             "runtime_internal_action_map": dict(model_skill_surface["runtime_internal_action_map"]),
             "model_visible_available_actions": model_visible_available_actions,
             "browser_product_cutover_frame": browser_product_cutover_frame,
+            "browser_environment_state_contract": browser_environment_contract,
             "hidden_backend_bindings": [
                 "browser_l5_l6_backend",
                 "cloak_session_backend",
