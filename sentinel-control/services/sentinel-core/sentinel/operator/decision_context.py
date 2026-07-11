@@ -127,6 +127,15 @@ class DecisionContextCompiler:
             and result.status in {"completed", "passed", "success"}
         ]
         real_browser_cards = _latest_real_browser_context_cards(real_browser_results)
+        browser_environment_state = _safe_browser_environment_state(
+            real_browser_cards.get("browser_environment_state")
+        )
+        browser_environment_state_hash = (
+            str(real_browser_cards.get("browser_environment_state_hash") or "")
+            if browser_environment_state
+            else ""
+        )
+        browser_environment_memory = _browser_environment_memory(real_browser_results)
         grounded_evidence_summary = _grounded_evidence_summary(grounded_summary_results)
         latest_patch_index = _latest_success_index(
             sequenced_observations,
@@ -366,6 +375,9 @@ class DecisionContextCompiler:
             "grounded_evidence_summary": grounded_evidence_summary,
             "browser_world_model_summary": real_browser_cards.get("browser_world_model_summary") if real_browser_mode else {},
             "browser_world_model": real_browser_cards.get("browser_world_model") if real_browser_mode else {},
+            "browser_environment_state": browser_environment_state if real_browser_mode else {},
+            "browser_environment_state_hash": browser_environment_state_hash if real_browser_mode else "",
+            "browser_environment_memory": browser_environment_memory if real_browser_mode else {},
             "browser_decision_frame": real_browser_cards.get("browser_decision_frame") if real_browser_mode else {},
             "browser_actionability_registry": real_browser_cards.get("browser_actionability_registry") if real_browser_mode else {},
             "actionability_frame": real_browser_cards.get("actionability_frame") if real_browser_mode else {},
@@ -970,6 +982,108 @@ def _latest_real_browser_context_cards(real_browser_results: list[ActionResult])
         if result.context_cards:
             return result.context_cards
     return {}
+
+
+def _browser_environment_memory(real_browser_results: list[ActionResult]) -> dict[str, Any]:
+    entries = _browser_environment_entries(real_browser_results)
+    if not entries:
+        return {
+            "present": False,
+            "state_count": 0,
+            "latest_state_hash": "",
+            "previous_state_hash": "",
+            "state_changed": False,
+        }
+    latest = entries[-1]
+    previous = entries[-2] if len(entries) > 1 else None
+    latest_state = latest["state"]
+    previous_state = previous["state"] if previous is not None else None
+    latest_page = _state_section(latest_state, "page_state")
+    previous_page = _state_section(previous_state, "page_state") if previous_state else {}
+    latest_extraction = _state_section(latest_state, "extraction_graph")
+    latest_session = _state_section(latest_state, "session_graph")
+    latest_recoverable = next((entry for entry in reversed(entries) if entry["result"].recoverable), None)
+    return {
+        "present": True,
+        "state_count": len(entries),
+        "latest_state_hash": latest["state_hash"],
+        "previous_state_hash": previous["state_hash"] if previous is not None else "",
+        "state_changed": bool(previous is not None and previous["state_hash"] != latest["state_hash"]),
+        "latest_page_kind_guess": str(latest_page.get("page_kind_guess") or ""),
+        "latest_stable_ref_count": _safe_int(latest_page.get("stable_ref_count")),
+        "stable_ref_count_delta": _safe_int(latest_page.get("stable_ref_count"))
+        - _safe_int(previous_page.get("stable_ref_count")),
+        "latest_product_or_result_candidate_count": _safe_int(
+            latest_extraction.get("product_or_result_candidate_count")
+        ),
+        "latest_relevant_product_candidate_count": _safe_int(
+            latest_extraction.get("relevant_product_candidate_count")
+        ),
+        "latest_cookie_count": _safe_int(latest_session.get("cookie_count"))
+        or _safe_len(latest_session.get("cookies")),
+        "latest_storage_key_count": _safe_int(latest_session.get("storage_key_count"))
+        or _safe_len(latest_session.get("storage_keys")),
+        "recommended_recovery_skills": [
+            str(skill)
+            for skill in latest_state.get("recommended_model_skills", [])
+            if isinstance(skill, str)
+        ][:6],
+        "latest_recoverable_state_hash": latest_recoverable["state_hash"] if latest_recoverable else "",
+        "latest_recoverable_failure_code": latest_recoverable["result"].failure_code if latest_recoverable else "",
+    }
+
+
+def _browser_environment_entries(real_browser_results: list[ActionResult]) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for result in real_browser_results:
+        cards = result.context_cards if isinstance(result.context_cards, dict) else {}
+        state = _safe_browser_environment_state(cards.get("browser_environment_state"))
+        if not state:
+            continue
+        state_hash = str(cards.get("browser_environment_state_hash") or stable_hash(state))
+        entries.append({"result": result, "state": state, "state_hash": state_hash})
+    return entries
+
+
+def _safe_browser_environment_state(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return _drop_raw_browser_values(value)
+
+
+def _drop_raw_browser_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        safe: dict[str, Any] = {}
+        for key, child in value.items():
+            key_text = str(key)
+            lowered = key_text.lower()
+            if lowered in {"value", "cookie_value", "storage_value", "session_token"}:
+                continue
+            if lowered.startswith("raw_") and lowered not in {"raw_material_persisted"}:
+                continue
+            safe[key_text] = _drop_raw_browser_values(child)
+        return safe
+    if isinstance(value, list):
+        return [_drop_raw_browser_values(item) for item in value]
+    return value
+
+
+def _state_section(state: dict[str, Any] | None, name: str) -> dict[str, Any]:
+    if not isinstance(state, dict):
+        return {}
+    section = state.get(name)
+    return section if isinstance(section, dict) else {}
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_len(value: Any) -> int:
+    return len(value) if isinstance(value, list) else 0
 
 
 def _top_stable_refs(cards: dict[str, Any]) -> list[dict[str, Any]]:
