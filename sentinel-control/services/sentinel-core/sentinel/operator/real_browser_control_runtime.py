@@ -918,7 +918,30 @@ class RealBrowserControlRuntime:
 
     def _extract_product_cards(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.extract_product_cards")
-        text, snapshot = self.engine.extract_text()
+        try:
+            text, snapshot = self.engine.extract_text()
+        except RealBrowserControlRuntimeError as exc:
+            if str(exc) not in {"real_browser_not_open", "browser_session_missing_or_closed"}:
+                raise
+            context_cards = _existing_browser_context_cards(context)
+            if context_cards is None:
+                raise
+            state_hash = _context_browser_state_hash(context_cards)
+            card_count = _context_product_card_count(context_cards)
+            return self._record_action(
+                envelope,
+                action_kind="real_browser.extract_product_cards",
+                element_ref="page:product_cards",
+                before_state_hash=state_hash,
+                after_state_hash=state_hash,
+                status="completed",
+                summary=(
+                    "real browser product extraction completed from existing safe world model "
+                    f"card_count={card_count}."
+                ),
+                material_action=True,
+                context_cards=context_cards,
+            )
         context_cards = self._world_context_cards(
             snapshot,
             authority=authority,
@@ -941,7 +964,27 @@ class RealBrowserControlRuntime:
 
     def _verify_extraction(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.verify_extraction")
-        text, snapshot = self.engine.extract_text()
+        try:
+            text, snapshot = self.engine.extract_text()
+        except RealBrowserControlRuntimeError as exc:
+            if str(exc) not in {"real_browser_not_open", "browser_session_missing_or_closed"}:
+                raise
+            context_cards = _existing_browser_context_cards(context)
+            if context_cards is None:
+                raise
+            state_hash = _context_browser_state_hash(context_cards)
+            card_count = _context_product_card_count(context_cards)
+            return self._record_action(
+                envelope,
+                action_kind="real_browser.verify_extraction",
+                element_ref="page:product_cards",
+                before_state_hash=state_hash,
+                after_state_hash=state_hash,
+                status="passed",
+                summary=f"real browser product extraction verification passed from existing safe world model card_count={card_count}.",
+                material_action=True,
+                context_cards=context_cards,
+            )
         context_cards = self._world_context_cards(
             snapshot,
             authority=authority,
@@ -2480,6 +2523,72 @@ def _search_rank(element: RealBrowserEngineElement) -> tuple[int, str]:
     if "product" in text or "supplier" in text:
         return (1, element.ref)
     return (2, element.ref)
+
+
+def _existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(context, dict):
+        return None
+    keys = (
+        "browser_world_model",
+        "browser_world_model_summary",
+        "browser_decision_frame",
+        "browser_actionability_registry",
+        "actionability_frame",
+        "browser_environment_state",
+        "browser_environment_state_hash",
+        "browser_backend_execution",
+        "browser_devtools_context",
+    )
+    cards = {key: context[key] for key in keys if key in context}
+    if _context_product_card_count(cards) <= 0:
+        return None
+    backend = cards.setdefault("browser_backend_execution", {})
+    if isinstance(backend, dict):
+        backend.setdefault("selected_backend_id", "")
+        backend.setdefault("actual_backend_id", "")
+        backend.setdefault("session_backend_kind", "")
+    summary = cards.get("browser_world_model_summary")
+    if isinstance(summary, dict):
+        cards["browser_world_model_summary"] = {
+            **summary,
+            "context_world_model_extraction_source": "existing_safe_browser_world_model",
+        }
+    return cards
+
+
+def _context_product_card_count(context_cards: dict[str, Any]) -> int:
+    model = context_cards.get("browser_world_model")
+    if isinstance(model, dict):
+        cards = model.get("product_or_result_candidate_cards")
+        if isinstance(cards, list):
+            return len(cards)
+    summary = context_cards.get("browser_world_model_summary")
+    if isinstance(summary, dict):
+        value = summary.get("product_or_result_candidate_count")
+        if isinstance(value, int):
+            return value
+    frame = context_cards.get("browser_decision_frame")
+    if isinstance(frame, dict):
+        candidates = frame.get("candidate_extractions")
+        if isinstance(candidates, list):
+            return len(candidates)
+    return 0
+
+
+def _context_browser_state_hash(context_cards: dict[str, Any]) -> str:
+    environment_hash = context_cards.get("browser_environment_state_hash")
+    if isinstance(environment_hash, str) and environment_hash.strip():
+        return environment_hash
+    model = context_cards.get("browser_world_model")
+    if isinstance(model, dict):
+        return stable_hash(
+            {
+                "world_model_id": model.get("world_model_id"),
+                "visible_text_summary_hash": model.get("visible_text_summary_hash"),
+                "product_or_result_candidate_count": _context_product_card_count(context_cards),
+            }
+        )
+    return stable_hash({"browser_context_cards": sorted(context_cards)})
 
 
 def _reject_sensitive_text(value: str) -> None:

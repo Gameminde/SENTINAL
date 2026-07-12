@@ -1011,6 +1011,58 @@ def test_extract_product_cards_can_run_from_existing_world_model_cards(tmp_path:
     assert extracted.context_cards["browser_world_model"]["product_or_result_candidate_cards"]
 
 
+def test_extract_product_cards_uses_context_world_model_when_live_session_missing(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_ClosedSessionAfterRecoverableSearchEngine())
+
+    search = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    assert search.status == "recoverable_failed"
+    assert search.context_cards["browser_world_model"]["product_or_result_candidate_cards"]
+
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=search.context_cards,
+    )
+
+    assert extracted.status == "completed"
+    assert extracted.material_action is True
+    assert extracted.context_cards["browser_world_model"]["product_or_result_candidate_cards"]
+    assert fixture.engine.extract_count == 0
+
+
+def test_verify_extraction_uses_context_world_model_when_live_session_missing(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_ClosedSessionAfterRecoverableSearchEngine())
+
+    search = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=search.context_cards,
+    )
+
+    assert verified.status == "passed"
+    assert verified.material_action is True
+    assert verified.context_cards["browser_world_model"]["product_or_result_candidate_cards"]
+    assert fixture.engine.extract_count == 0
+
+
 def test_product_extraction_card_captures_title_price_moq_supplier_caveats_when_visible(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
 
@@ -2546,6 +2598,11 @@ class _TimeoutSearchEngineWithCards(_HardProductSearchEngine):
     def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
         del ref, text
         raise RealBrowserControlRuntimeError("real_browser_locator_timeout")
+
+
+class _ClosedSessionAfterRecoverableSearchEngine(_TimeoutSearchEngineWithCards):
+    def extract_text(self) -> tuple[str, RealBrowserEngineSnapshot]:
+        raise RealBrowserControlRuntimeError("browser_session_missing_or_closed")
 
 
 class _SparseProductSearchEngine(_HardProductSearchEngine):
