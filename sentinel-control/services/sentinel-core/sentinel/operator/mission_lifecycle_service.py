@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,33 @@ from sentinel.operator.models import (
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority, reject_operator_control_payload
 from sentinel.shared.models import SentinelModel, new_id
+
+
+def _filesystem_path(path: Path) -> str:
+    rendered = str(path)
+    if os.name != "nt" or rendered.startswith("\\\\?\\"):
+        return rendered
+    if rendered.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + rendered[2:]
+    return "\\\\?\\" + rendered
+
+
+def _path_exists(path: Path) -> bool:
+    return os.path.exists(_filesystem_path(path))
+
+
+def _read_json_file(path: Path) -> dict[str, Any]:
+    with open(_filesystem_path(path), encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError("mission lifecycle json payload invalid")
+    return payload
+
+
+def _iter_json_files(root: Path) -> list[Path]:
+    if not _path_exists(root):
+        return []
+    return sorted((item for item in root.iterdir() if item.suffix == ".json"), key=lambda item: item.name)
 
 
 class MissionExecutionRequestState(StrEnum):
@@ -244,7 +272,7 @@ class MissionLifecycleService:
         )
 
     def load_execution_request(self, mission_id: str, request_id: str) -> MissionExecutionRequest:
-        payload = json.loads(self._request_path(mission_id, request_id).read_text(encoding="utf-8"))
+        payload = _read_json_file(self._request_path(mission_id, request_id))
         request = MissionExecutionRequest.model_validate(payload)
         if not request.verify_hash():
             raise ValueError("mission execution request hash mismatch")
@@ -253,9 +281,9 @@ class MissionLifecycleService:
     def load_execution_parameters(self, mission_id: str, request_id: str) -> dict[str, Any]:
         request = self.load_execution_request(mission_id, request_id)
         path = self._parameters_path(mission_id, request_id)
-        if not path.exists():
+        if not _path_exists(path):
             return {}
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = _read_json_file(path)
         parameters = payload.get("parameters")
         if not isinstance(parameters, dict):
             raise ValueError("mission execution parameters payload invalid")
@@ -274,11 +302,9 @@ class MissionLifecycleService:
 
     def list_execution_requests(self, mission_id: str) -> list[MissionExecutionRequest]:
         root = self._request_root(mission_id)
-        if not root.exists():
-            return []
         requests = [
-            MissionExecutionRequest.model_validate(json.loads(path.read_text(encoding="utf-8")))
-            for path in sorted(root.glob("*.json"))
+            MissionExecutionRequest.model_validate(_read_json_file(path))
+            for path in _iter_json_files(root)
         ]
         for request in requests:
             if not request.verify_hash():

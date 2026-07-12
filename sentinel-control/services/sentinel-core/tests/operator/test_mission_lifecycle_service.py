@@ -46,6 +46,36 @@ def test_lifecycle_persists_authority_and_execution_request_before_enqueue(tmp_p
     assert lifecycle.derive_request_state(result.record.mission_id, result.execution_request.request_id).state is MissionExecutionRequestState.QUEUED
 
 
+def test_lifecycle_loads_execution_request_on_long_windows_path(tmp_path: Path) -> None:
+    long_root = tmp_path / ("sentinel_browser_cortex_product_spine_" + ("x" * 5)) / "runs"
+    kernel = MissionKernel(run_root=long_root)
+    lifecycle = MissionLifecycleService(kernel)
+
+    result = lifecycle.create_mission(
+        session_id="session_lifecycle_long_path",
+        draft=_draft(),
+        authority_summary=_summary(),
+        approval_scope=_approval_scope(),
+        policy=_policy(),
+        capability_id="read_only_research",
+        operation="inspect_repository",
+        parameters={"workspace": "."},
+        workspace_ref="snapshot:unit",
+        model_contract_ref="model_contract:unit",
+    )
+    request_path = (
+        long_root
+        / result.record.mission_id
+        / "execution_requests"
+        / f"{result.execution_request.request_id}.json"
+    )
+
+    assert len(str(request_path.resolve())) > 260
+    assert lifecycle.load_execution_request(result.record.mission_id, result.execution_request.request_id) == result.execution_request
+    assert lifecycle.latest_execution_request(result.record.mission_id) == result.execution_request
+    assert lifecycle.list_execution_requests(result.record.mission_id) == [result.execution_request]
+
+
 def test_lifecycle_does_not_enqueue_when_authority_issuance_fails(tmp_path: Path) -> None:
     kernel = MissionKernel(run_root=tmp_path / "runs")
     lifecycle = MissionLifecycleService(kernel)
