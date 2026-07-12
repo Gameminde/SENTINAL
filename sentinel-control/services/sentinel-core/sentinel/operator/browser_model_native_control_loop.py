@@ -120,6 +120,17 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
                 intent_kind="finish",
                 diagnostics=diagnostics,
             )
+        if (
+            _has_verified_browser_extraction(context)
+            and _has_grounded_evidence_summary(context)
+            and not _has_relevant_product_evidence(context)
+        ):
+            return _mapped(
+                "real_browser_control.real_browser.search",
+                params={"query": _query_from_mission(context)},
+                intent_kind="finish_requires_relevant_product_evidence",
+                diagnostics=diagnostics,
+            )
         if _has_verified_browser_extraction(context):
             return _mapped("sentinel_loop.summarize_evidence", intent_kind="finish_requires_summary", diagnostics=diagnostics)
         if _has_browser_extraction(context):

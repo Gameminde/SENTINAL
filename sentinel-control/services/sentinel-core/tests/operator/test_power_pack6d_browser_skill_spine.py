@@ -1693,6 +1693,94 @@ def test_relevance_gap_after_search_does_not_repeat_search_as_primary(tmp_path: 
     assert mapping.envelope.operation != "real_browser.search"
 
 
+def test_finish_intent_after_irrelevant_summary_routes_to_relevance_recovery(tmp_path: Path) -> None:
+    class _UnrelatedCatalogEngine(_IrrelevantProductSearchEngine):
+        def __init__(self) -> None:
+            super().__init__()
+            self.display_text = (
+                "Televisions. Price EUR 120 per unit. MOQ 2 pieces. Supplier Electronics Test Store. "
+                "Bitcoin miner. Price EUR 300 per unit. MOQ 1 piece. Supplier Crypto Hardware Store."
+            )
+
+        def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+            self._require_editable(ref)
+            self.press_count += 1
+            if key == "Enter" and self.search_query:
+                self.results_visible = True
+                self.display_text = (
+                    "Televisions. Price EUR 120 per unit. MOQ 2 pieces. Supplier Electronics Test Store. "
+                    "Bitcoin miner. Price EUR 300 per unit. MOQ 1 piece. Supplier Crypto Hardware Store."
+                )
+            return self._snapshot()
+
+        def click(self, ref: str) -> RealBrowserEngineSnapshot:
+            element = self._require_interactable(ref)
+            self.click_count += 1
+            if element.ref == "button:search" and self.search_query:
+                self.results_visible = True
+                self.display_text = (
+                    "Televisions. Price EUR 120 per unit. MOQ 2 pieces. Supplier Electronics Test Store. "
+                    "Bitcoin miner. Price EUR 300 per unit. MOQ 1 piece. Supplier Crypto Hardware Store."
+                )
+            return self._snapshot()
+
+        def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+            return (
+                RealBrowserEngineElement("input:search", "textbox", "Search products"),
+                RealBrowserEngineElement(
+                    "link:televisions",
+                    "link",
+                    "Televisions EUR 120 MOQ 2 pieces",
+                    text_preview="Televisions EUR 120 MOQ 2 pieces Supplier Electronics Test Store",
+                ),
+                RealBrowserEngineElement(
+                    "link:bitcoin_miner",
+                    "link",
+                    "Bitcoin miner EUR 300 MOQ 1 piece",
+                    text_preview="Bitcoin miner EUR 300 MOQ 1 piece Supplier Crypto Hardware Store",
+                ),
+            )
+
+    fixture = _BrowserSkillFixture(tmp_path, engine=_UnrelatedCatalogEngine())
+    opened = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+    searched = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context=opened.context_cards,
+    )
+    extracted = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_product_cards"),
+        authority=fixture.authority,
+        context=searched.context_cards,
+    )
+    verified = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context=extracted.context_cards,
+    )
+    summary = fixture.action_kernel.execute(
+        ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+        authority=fixture.authority,
+        context=_compile_browser_context(fixture, observations=[opened, searched, extracted, verified]),
+    )
+    context = _compile_browser_context(fixture, observations=[opened, searched, extracted, verified, summary])
+
+    mapping = map_browser_model_native_intent("I have enough evidence, summarize and finish.", context=context)
+
+    assert context["completion_requirements"]["has_relevant_product_evidence"] is False
+    assert mapping.envelope is not None
+    assert mapping.envelope.operation == "real_browser.search"
+    assert mapping.intent_kind == "finish_requires_relevant_product_evidence"
+
+
 def test_finish_requires_relevance_assessment(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
     opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
