@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -986,9 +987,9 @@ class UnifiedExecutionDispatcher:
         completion_lane_count = 0
         for receipt_ref in result.receipt_refs:
             path = _product_action_kernel_artifact_path(self.kernel, result.mission_id, "receipts", receipt_ref)
-            if not path.exists():
+            if not _json_artifact_exists(path):
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
-            receipt = ProductActionKernelReceipt.model_validate(json.loads(path.read_text(encoding="utf-8")))
+            receipt = ProductActionKernelReceipt.model_validate(_load_json_artifact(path))
             if receipt.mission_id != result.mission_id:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_mission_mismatch")
             if receipt.execution_request_id != result.execution_request_id:
@@ -1024,11 +1025,9 @@ class UnifiedExecutionDispatcher:
             return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
         for finalgate_ref in result.finalgate_refs:
             path = _product_action_kernel_artifact_path(self.kernel, result.mission_id, "finalgate", finalgate_ref)
-            if not path.exists():
+            if not _json_artifact_exists(path):
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
-            certificate = ProductActionKernelFinalGateCertificate.model_validate(
-                json.loads(path.read_text(encoding="utf-8"))
-            )
+            certificate = ProductActionKernelFinalGateCertificate.model_validate(_load_json_artifact(path))
             if certificate.mission_id != result.mission_id:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_mission_mismatch")
             if certificate.execution_request_id != result.execution_request_id:
@@ -1279,6 +1278,28 @@ def _product_action_kernel_artifact_path(
         / collection
         / f"{ref}.json"
     )
+
+
+def _filesystem_path(path: Path) -> str:
+    rendered = str(path)
+    if os.name != "nt" or rendered.startswith("\\\\?\\"):
+        return rendered
+    if rendered.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + rendered[2:]
+    return "\\\\?\\" + rendered
+
+
+def _json_artifact_exists(path: Path) -> bool:
+    if path.exists():
+        return True
+    if os.name != "nt":
+        return False
+    return os.path.exists(_filesystem_path(path))
+
+
+def _load_json_artifact(path: Path) -> dict[str, Any]:
+    with open(_filesystem_path(path), encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def _workspace_from_ref(workspace_ref: str) -> Path:

@@ -71,6 +71,26 @@ def test_browse_search_routes_through_runtimehost_product_action_kernel(tmp_path
     assert product_receipt["organ_id"] == "browser_l5_l6_backend"
 
 
+def test_browse_search_product_proof_survives_long_run_root(tmp_path: Path) -> None:
+    long_root = tmp_path.parent / "lp" / "browser_product_spine_segment"
+    host = SentinelRuntimeHost(run_root=long_root / "runs").start().host
+    workspace = _workspace(tmp_path)
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_long_path_receipt_proof",
+        mission_objective="Run browser search through a long-path product proof root.",
+        decision_client=_browser_search_finish_client(),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.product_receipt_refs
+    assert result.product_finalgate_refs
+
+
 def test_extract_routes_through_runtimehost_product_action_kernel(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
