@@ -365,17 +365,29 @@ class ModelLedProductActionKernelTaskLoop:
         reason = dispatch_result.blocked_reason or ""
         if not _is_recoverable_action_failure(reason):
             return False
-        if len(self.recoverable_action_observations) >= self.max_recoverable_action_failures:
+        max_recoveries = self.max_recoverable_action_failures
+        if _is_recoverable_browser_action_failure(reason):
+            max_recoveries = max(max_recoveries, 1)
+        if len(self.recoverable_action_observations) >= max_recoveries:
             return False
         create_plans = _workspace_create_file_plans(self.workspace_root, mission_objective=self.mission_objective)
-        recommended_skill = "patch" if reason == "code_exec_failed" else (
-            "create_file" if create_plans else context.get("primary_model_recommended_next_skill")
-        )
-        recovery_action = (
-            "repair_workspace_file_then_rerun_semantic_check"
-            if reason == "code_exec_failed"
-            else "route_to_next_missing_workspace_create_file_plan"
-        )
+        failure_context_cards = dispatch_result.safe_context_cards if isinstance(dispatch_result.safe_context_cards, dict) else {}
+        failure_card_count = _product_card_count_from_context_cards(failure_context_cards)
+        if reason == "code_exec_failed":
+            recommended_skill = "patch"
+            recovery_action = "repair_workspace_file_then_rerun_semantic_check"
+        elif create_plans:
+            recommended_skill = "create_file"
+            recovery_action = "route_to_next_missing_workspace_create_file_plan"
+        elif _is_recoverable_browser_action_failure(reason) and failure_card_count:
+            recommended_skill = "extract"
+            recovery_action = "route_to_visible_browser_cards_extraction"
+        elif _is_recoverable_browser_action_failure(reason):
+            recommended_skill = "browse_search"
+            recovery_action = "refresh_browser_world_model_and_retry_best_safe_skill"
+        else:
+            recommended_skill = context.get("primary_model_recommended_next_skill")
+            recovery_action = "route_to_next_safe_model_visible_skill"
         self.recoverable_action_observations.append(
             {
                 "failure_code": reason,
@@ -386,6 +398,7 @@ class ModelLedProductActionKernelTaskLoop:
                 "recovery_action": recovery_action,
                 "recommended_skill": recommended_skill,
                 "remaining_create_file_plan_count": len(create_plans),
+                "browser_product_card_count": failure_card_count,
                 "data_not_authority": True,
                 "can_execute": False,
             }
@@ -705,6 +718,15 @@ def _is_recoverable_action_failure(reason: str) -> bool:
     return reason in {
         "code_exec_failed",
         "workspace_patch_create_target_exists",
+    } or _is_recoverable_browser_action_failure(reason)
+
+
+def _is_recoverable_browser_action_failure(reason: str) -> bool:
+    return reason in {
+        "real_browser_search_control_not_found",
+        "real_browser_search_actuation_failed",
+        "real_browser_open_result_actuation_failed",
+        "real_browser_element_ref_unknown",
     }
 
 

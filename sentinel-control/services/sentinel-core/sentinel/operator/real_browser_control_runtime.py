@@ -959,7 +959,7 @@ class RealBrowserControlRuntime:
             after_state_hash=snapshot.state_hash,
             status=status,
             summary=f"real browser product extraction verification {status} card_count={len(cards)}.",
-            material_action=False,
+            material_action=True,
             context_cards=context_cards,
         )
 

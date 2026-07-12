@@ -112,12 +112,19 @@ def _candidate_actions(world_model: BrowserWorldModel, allowed_actions: tuple[st
 
 
 def _recommended_next_actions(world_model: BrowserWorldModel, allowed_actions: tuple[str, ...]) -> tuple[str, ...]:
+    if world_model.product_or_result_candidate_cards:
+        card_actions = [
+            action
+            for action in (
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.verify_extraction",
+            )
+            if action in allowed_actions
+        ]
+        if card_actions:
+            return tuple(dict.fromkeys(card_actions))
     preferred = [f"real_browser_control.{action}" for action in world_model.recommended_browser_actions]
     actions = [action for action in preferred if action in allowed_actions]
-    if "real_browser_control.real_browser.extract_product_cards" in allowed_actions and world_model.product_or_result_candidate_cards:
-        actions.append("real_browser_control.real_browser.extract_product_cards")
-    if "real_browser_control.real_browser.verify_extraction" in allowed_actions and world_model.product_or_result_candidate_cards:
-        actions.append("real_browser_control.real_browser.verify_extraction")
     if not actions and "real_browser_control.real_browser.observe" in allowed_actions:
         actions.append("real_browser_control.real_browser.observe")
     return tuple(dict.fromkeys(actions))
