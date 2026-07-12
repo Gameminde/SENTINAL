@@ -37,8 +37,8 @@ provable.
 Current state:
 
 ```text
-current_phase = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
-previous_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1
+current_phase = FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1
+previous_phase = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
 next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
@@ -50,10 +50,12 @@ canonical browser organs, Cloak/session, Playwright compatibility, CDP/BiDi,
 DevTools, accessibility, world-model, recovery, and special-authority layers.
 
 The latest local lock is
-`FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1`. It fixes the
-readiness cleanup mismatch exposed by the V2 gate and re-checks Cloak readiness
-successfully before provider consumption. This makes the intended product truth
-explicit:
+`FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1`. It closes the final
+pre-provider product-spine gap after the Cloak readiness cleanup: browser-native
+model intent now reaches the product decision client, safe browser dispatch
+context reaches the next product loop turn, and `sentinel_loop.summarize_evidence`
+is a governed internal completion-lane action. This makes the intended product
+truth explicit:
 
 ```text
 real_browser_control_product_spine = PRODUCT_SPINE
@@ -69,6 +71,8 @@ browser action receipt = environment_state_hash linked
 full state persistence in browser artifacts = blocked / hash only
 browser_environment_memory = latest/previous state hashes and safe deltas
 recoverable browser state = visible to next model turn
+product-native browser intent mapper = wired
+verified browser extraction -> summarize_evidence -> finish lane = wired
 current real-attempt readiness = GO_AFTER_CLOAK_CLEANUP_FIX
 selected/actual browser backend = cloak_browser / cloak_browser
 profile material persisted after readiness = no
@@ -76,8 +80,9 @@ provider_call_allowed before real attempt = yes
 ```
 
 This lock does not claim real Alibaba/browser product proof. It prevents the
-next run from starting before the readiness cleanup fix is committed. The next
-build step is `REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1`.
+next run from starting before product-native browser completion is wired through
+the ProductActionKernel spine. The next build step is
+`REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1`.
 
 Real now:
 

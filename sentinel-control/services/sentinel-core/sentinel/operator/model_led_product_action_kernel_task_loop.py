@@ -173,7 +173,7 @@ class ModelLedProductActionKernelTaskLoop:
                     return self._complete("model_led_product_action_kernel_task_loop_finish")
                 if self.material_actions_used >= self.max_material_actions:
                     return self._block("MATERIAL_ACTION_BUDGET_EXHAUSTED")
-                dispatch_result = self._dispatch_product_action(decision)
+                dispatch_result = self._dispatch_product_action(decision, loop_context=context)
                 self.dispatch_results.append(dispatch_result)
                 self.mission_ids.append(dispatch_result.mission_id)
                 self.product_receipt_refs.extend(dispatch_result.receipt_refs)
@@ -192,6 +192,17 @@ class ModelLedProductActionKernelTaskLoop:
         model_skill_surface = compile_model_skill_surface(
             model_visible_actions=actions,
             recommended_actions=actions,
+        )
+        dispatch_summaries = _dispatch_summaries(self.dispatch_results)
+        safe_context_cards = _merged_dispatch_context_cards(self.dispatch_results)
+        completion_requirements = _product_completion_requirements(self.dispatch_results, safe_context_cards)
+        grounded_evidence_summary = _grounded_evidence_summary_card(safe_context_cards)
+        real_browser_summary = _real_browser_control_summary(self.dispatch_results)
+        bounded_observation_summaries = _bounded_observation_summaries(self.dispatch_results)
+        finish_available = bool(
+            completion_requirements.get("has_real_browser_verified_extraction_receipt")
+            and completion_requirements.get("has_grounded_evidence_summary")
+            and completion_requirements.get("has_relevant_product_evidence")
         )
         return {
             "loop_id": self.loop_id,
@@ -229,19 +240,16 @@ class ModelLedProductActionKernelTaskLoop:
             "recent_product_finalgate_refs": list(sanitize_operator_refs(self.product_finalgate_refs)),
             "explicit_noop_proof_ref": self.explicit_noop_proof_ref,
             "live_channel_destination_grants": _live_channel_destination_grants(self.allowed_domains),
-            "dispatch_summaries": [
-                {
-                    "mission_id": result.mission_id,
-                    "status": result.status.value,
-                    "capability_id": result.capability_id,
-                    "operation": result.operation,
-                    "adapter_id": result.adapter_id,
-                    "receipt_refs": sanitize_operator_refs(result.receipt_refs),
-                    "finalgate_refs": sanitize_operator_refs(result.finalgate_refs),
-                    "blocked_reason": result.blocked_reason,
-                }
-                for result in self.dispatch_results
-            ],
+            "dispatch_summaries": dispatch_summaries,
+            "bounded_observation_summaries": bounded_observation_summaries,
+            "completion_requirements": completion_requirements,
+            "browser_world_model": safe_context_cards.get("browser_world_model"),
+            "browser_world_model_summary": safe_context_cards.get("browser_world_model_summary"),
+            "browser_decision_frame": safe_context_cards.get("browser_decision_frame"),
+            "real_browser_control_summary": real_browser_summary,
+            "grounded_evidence_summary": grounded_evidence_summary,
+            "finish_available": finish_available,
+            "objective_satisfied": finish_available,
             "recoverable_decision_observations": [dict(item) for item in self.recoverable_decision_observations],
             "recoverable_action_observations": [dict(item) for item in self.recoverable_action_observations],
             "recoverable_model_decision_failure_count": len(self.recoverable_decision_observations),
@@ -385,6 +393,18 @@ class ModelLedProductActionKernelTaskLoop:
         return True
 
     def _available_actions(self) -> tuple[str, ...]:
+        completion_requirements = _product_completion_requirements(self.dispatch_results, _merged_dispatch_context_cards(self.dispatch_results))
+        if (
+            completion_requirements.get("has_real_browser_verified_extraction_receipt")
+            and not completion_requirements.get("has_grounded_evidence_summary")
+        ):
+            return ("sentinel_loop.summarize_evidence",)
+        if (
+            completion_requirements.get("has_real_browser_verified_extraction_receipt")
+            and completion_requirements.get("has_grounded_evidence_summary")
+            and completion_requirements.get("has_relevant_product_evidence")
+        ):
+            return ("sentinel_loop.finish",)
         if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
             return ("sentinel_loop.finish",)
         actions = []
@@ -423,7 +443,7 @@ class ModelLedProductActionKernelTaskLoop:
             return "product_action_kernel_loop_material_budget_ready_to_finish"
         return "product_action_kernel_loop_material_receipts_available"
 
-    def _dispatch_product_action(self, decision: ActionEnvelope) -> UnifiedDispatchResult:
+    def _dispatch_product_action(self, decision: ActionEnvelope, *, loop_context: dict[str, Any]) -> UnifiedDispatchResult:
         hard_boundary_reason = _entrypoint_hard_boundary_reason(decision)
         if hard_boundary_reason is not None:
             return _synthetic_blocked_dispatch_result(
@@ -435,6 +455,9 @@ class ModelLedProductActionKernelTaskLoop:
         tools, actions = _authority_for_action(decision)
         if _is_telegram_channel_decision(decision) and "telegram:configured-chat" in set(self.allowed_domains):
             tools.append("channel:telegram")
+        parameters = dict(decision.params)
+        if decision.capability_id == "sentinel_loop" and decision.operation == "summarize_evidence":
+            parameters["loop_context"] = _completion_lane_context(loop_context)
         mission = self.host.lifecycle.create_mission(
             session_id=f"{self.session_id}:{self.model_calls_used}",
             draft=MissionDraft(
@@ -476,7 +499,7 @@ class ModelLedProductActionKernelTaskLoop:
             ),
             capability_id=decision.capability_id,
             operation=decision.operation,
-            parameters=dict(decision.params),
+            parameters=parameters,
             workspace_ref=f"workspace:{self.workspace_root}",
             model_contract_ref=self.model_contract_ref,
         )
@@ -738,6 +761,129 @@ def _completed_dispatch_count(context: dict[str, Any], capability_id: str, opera
         if item.get("capability_id") == capability_id and item.get("operation") == operation:
             count += 1
     return count
+
+
+def _dispatch_summaries(results: list[UnifiedDispatchResult]) -> list[dict[str, Any]]:
+    return [
+        {
+            "mission_id": result.mission_id,
+            "status": result.status.value,
+            "capability_id": result.capability_id,
+            "operation": result.operation,
+            "adapter_id": result.adapter_id,
+            "receipt_refs": sanitize_operator_refs(result.receipt_refs),
+            "finalgate_refs": sanitize_operator_refs(result.finalgate_refs),
+            "blocked_reason": result.blocked_reason,
+            "receipt_count": len(result.receipt_refs),
+        }
+        for result in results
+    ]
+
+
+def _bounded_observation_summaries(results: list[UnifiedDispatchResult]) -> list[dict[str, Any]]:
+    return [
+        {
+            "capability_id": result.capability_id,
+            "operation": result.operation,
+            "status": result.status.value,
+            "receipt_count": len(result.receipt_refs),
+            "blocked_reason": result.blocked_reason,
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        for result in results
+    ]
+
+
+def _merged_dispatch_context_cards(results: list[UnifiedDispatchResult]) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    for result in results:
+        if isinstance(result.safe_context_cards, dict):
+            for key, value in result.safe_context_cards.items():
+                if value is not None:
+                    merged[str(key)] = value
+    return merged
+
+
+def _real_browser_control_summary(results: list[UnifiedDispatchResult]) -> dict[str, Any] | None:
+    for result in reversed(results):
+        if result.capability_id != "real_browser_control":
+            continue
+        return {
+            "latest_action": {
+                "operation": result.operation,
+                "status": result.status.value,
+                "receipt_count": len(result.receipt_refs),
+            },
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+    return None
+
+
+def _grounded_evidence_summary_card(safe_context_cards: dict[str, Any]) -> dict[str, Any]:
+    summary = safe_context_cards.get("grounded_evidence_summary")
+    if isinstance(summary, dict):
+        return {"present": True, **summary}
+    return {"present": False, "data_not_authority": True, "can_execute": False}
+
+
+def _product_completion_requirements(
+    results: list[UnifiedDispatchResult],
+    safe_context_cards: dict[str, Any],
+) -> dict[str, Any]:
+    operations = {
+        (result.capability_id, result.operation)
+        for result in results
+        if result.status is DispatchStatus.COMPLETED and result.receipt_refs
+    }
+    summary = _grounded_evidence_summary_card(safe_context_cards)
+    product_card_count = _product_card_count_from_context_cards(safe_context_cards)
+    has_grounded_summary = bool(summary.get("present") is True)
+    return {
+        "has_real_browser_search_receipt": ("real_browser_control", "real_browser.search") in operations,
+        "has_real_browser_extraction_receipt": ("real_browser_control", "real_browser.extract_product_cards") in operations,
+        "has_real_browser_verified_extraction_receipt": ("real_browser_control", "real_browser.verify_extraction") in operations,
+        "has_grounded_evidence_summary": has_grounded_summary,
+        "has_relevant_product_evidence": bool(summary.get("has_relevant_product_evidence") is True),
+        "under_price_condition_supported_by_visible_evidence": summary.get(
+            "under_price_condition_supported_by_visible_evidence",
+            "unknown",
+        ),
+        "product_or_result_candidate_card_count": product_card_count,
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def _product_card_count_from_context_cards(safe_context_cards: dict[str, Any]) -> int:
+    model = safe_context_cards.get("browser_world_model")
+    if isinstance(model, dict):
+        cards = model.get("product_or_result_candidate_cards")
+        if isinstance(cards, list):
+            return len(cards)
+    summary = safe_context_cards.get("browser_world_model_summary")
+    if isinstance(summary, dict):
+        for key in ("product_or_result_candidate_count", "product_candidate_count", "result_candidate_count"):
+            value = summary.get(key)
+            if isinstance(value, int):
+                return value
+    return 0
+
+
+def _completion_lane_context(loop_context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "mission_objective": loop_context.get("mission_objective"),
+        "completion_requirements": loop_context.get("completion_requirements"),
+        "real_browser_control_summary": loop_context.get("real_browser_control_summary"),
+        "bounded_observation_summaries": loop_context.get("bounded_observation_summaries"),
+        "browser_world_model": loop_context.get("browser_world_model"),
+        "browser_world_model_summary": loop_context.get("browser_world_model_summary"),
+        "browser_decision_frame": loop_context.get("browser_decision_frame"),
+        "grounded_evidence_summary": loop_context.get("grounded_evidence_summary"),
+        "data_not_authority": True,
+        "can_execute": False,
+    }
 
 
 def _artifact_counts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> dict[str, int]:

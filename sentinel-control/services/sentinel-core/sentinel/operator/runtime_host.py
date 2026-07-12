@@ -10,7 +10,7 @@ from pydantic import Field
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.agent.organs.channel_draft_send_organ_v1 import ChannelSendTransportReceipt
-from sentinel.operator.action_kernel import ActionEnvelope, ActionResult
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
 from sentinel.operator.authority_issuer import MissionAuthorityEnvelopeIssuer
 from sentinel.operator.channel_adapter import (
     ChannelConnectorRuntime,
@@ -211,6 +211,15 @@ class SentinelRuntimeHost:
                             simple_skill_id="spawn_worker",
                             organ_id="worker_fleet_backend",
                             preflight_validator=_worker_fleet_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="sentinel_loop",
+                            operation="summarize_evidence",
+                            executor=_default_sentinel_loop_executor,
+                            product_dispatchable_skill_ids=("sentinel_loop",),
+                            backend_id="sentinel_loop_skill",
+                            simple_skill_id="finish",
+                            organ_id="sentinel_loop",
                         ),
                     ),
                 ),
@@ -534,6 +543,17 @@ def _default_worker_fleet_executor(envelope: ActionEnvelope, context: dict[str, 
         product_context=context,
     )
     return runtime.execute(envelope, authority=authority, context=context)
+
+
+def _default_sentinel_loop_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    authority = context.get("authority")
+    if not isinstance(authority, MissionAuthorityEnvelope):
+        raise RuntimeError("sentinel_loop_runtime_context_missing")
+    loop_context = envelope.params.get("loop_context")
+    effective_context = dict(context)
+    if isinstance(loop_context, dict):
+        effective_context.update(loop_context)
+    return ActionKernel().execute(envelope, authority=authority, context=effective_context)
 
 
 def _real_browser_preflight(

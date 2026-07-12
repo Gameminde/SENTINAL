@@ -16,10 +16,13 @@ from sentinel.operator.product_model_native_decision_client import (
     ProductModelNativeDecisionClient,
 )
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
+    ModelLedProductActionKernelTaskLoop,
+    ProductActionKernelLoopDecisionClient,
     ProductActionKernelTaskLoopReplay,
     ProductActionKernelTaskLoopStatus,
 )
 from sentinel.operator.runtime_host import SentinelRuntimeHost
+from sentinel.operator.unified_execution_dispatcher import DispatchStatus, UnifiedDispatchResult
 
 
 def test_json_skill_run_check_maps_to_internal_action_envelope() -> None:
@@ -614,6 +617,164 @@ def test_raw_provider_or_reasoning_material_is_rejected_not_persisted() -> None:
 
     assert client.safe_diagnostics[-1]["raw_model_material_persisted"] is False
     assert "secret chain" not in str(client.safe_diagnostics)
+
+
+def test_product_native_client_uses_browser_native_mapper_for_verify_intent() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["Verify the extracted cards."]),
+        request_factory=_request_factory,
+    )
+    context = _context(
+        recommended_skill="extract",
+        dispatch_summaries=[
+            {
+                "capability_id": "real_browser_control",
+                "operation": "real_browser.extract_product_cards",
+                "status": "completed",
+            }
+        ],
+    )
+    context["completion_requirements"] = {"has_real_browser_extraction_receipt": True}
+
+    decision = client.complete(context)
+
+    assert decision.capability_id == "real_browser_control"
+    assert decision.operation == "real_browser.verify_extraction"
+    assert client.safe_diagnostics[-1]["mapped_action"] == "real_browser_control.real_browser.verify_extraction"
+
+
+def test_product_native_client_routes_verified_browser_extraction_to_summary_lane() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(["I have enough evidence, summarize and finish."]),
+        request_factory=_request_factory,
+    )
+    context = _context(
+        recommended_skill="finish",
+        dispatch_summaries=[
+            {
+                "capability_id": "real_browser_control",
+                "operation": "real_browser.extract_product_cards",
+                "status": "completed",
+            },
+            {
+                "capability_id": "real_browser_control",
+                "operation": "real_browser.verify_extraction",
+                "status": "completed",
+            },
+        ],
+    )
+    context["real_browser_control_summary"] = {
+        "latest_action": {
+            "operation": "real_browser.verify_extraction",
+            "status": "completed",
+            "receipt_count": 1,
+        }
+    }
+    context["completion_requirements"] = {
+        "has_real_browser_extraction_receipt": True,
+        "has_real_browser_verified_extraction_receipt": True,
+    }
+
+    decision = client.complete(context)
+
+    assert decision.capability_id == "sentinel_loop"
+    assert decision.operation == "summarize_evidence"
+    assert client.safe_diagnostics[-1]["mapped_action"] == "sentinel_loop.summarize_evidence"
+
+
+def test_product_action_kernel_loop_dispatches_summarize_evidence(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    decision_client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "browser evidence summarized"},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_product_loop_summarize_evidence",
+        mission_objective="Summarize verified browser evidence and finish.",
+        decision_client=decision_client,
+        max_model_calls=3,
+        max_material_actions=2,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.final_reason == "model_led_product_action_kernel_task_loop_finish"
+    assert "sentinel_loop:summarize_evidence" in result.capability_sequence
+    assert result.dispatch_results[0].status.value == "completed"
+
+
+def test_product_task_loop_context_exposes_verified_browser_cards_completion_lane(tmp_path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    loop = ModelLedProductActionKernelTaskLoop(
+        host=host,
+        workspace_root=workspace,
+        session_id="session_product_loop_browser_context",
+        mission_objective="Summarize verified Alibaba product cards and finish.",
+        decision_client=ProductActionKernelLoopDecisionClient([]),
+    )
+    browser_cards = {
+        "browser_world_model": {
+            "product_or_result_candidate_cards": [
+                {
+                    "title": "Lightweight sunglasses",
+                    "visible_price": "EUR 4.80",
+                    "currency_or_unit": "EUR / piece",
+                    "minimum_order": "unknown",
+                    "supplier_or_store": "Visible supplier",
+                    "relevance_to_objective": "relevant",
+                    "price_condition_supported": "supported",
+                    "objective_relevance_assessed": True,
+                    "evidence_ref_hash": "evidence_ref_hash:test",
+                }
+            ]
+        },
+        "browser_world_model_summary": {"product_or_result_candidate_count": 1},
+    }
+    loop.dispatch_results.extend(
+        [
+            UnifiedDispatchResult(
+                status=DispatchStatus.COMPLETED,
+                mission_id="mission_extract",
+                execution_request_id="request_extract",
+                capability_id="real_browser_control",
+                operation="real_browser.extract_product_cards",
+                receipt_refs=["receipt_extract"],
+                finalgate_status="accepted",
+                safe_context_cards=browser_cards,
+            ),
+            UnifiedDispatchResult(
+                status=DispatchStatus.COMPLETED,
+                mission_id="mission_verify",
+                execution_request_id="request_verify",
+                capability_id="real_browser_control",
+                operation="real_browser.verify_extraction",
+                receipt_refs=["receipt_verify"],
+                finalgate_status="accepted",
+                safe_context_cards=browser_cards,
+            ),
+        ]
+    )
+    loop.product_receipt_refs.extend(["receipt_extract", "receipt_verify"])
+
+    context = loop._compile_context()
+
+    assert context["model_visible_available_actions"] == ["sentinel_loop.summarize_evidence"]
+    assert context["completion_requirements"]["has_real_browser_extraction_receipt"] is True
+    assert context["completion_requirements"]["has_real_browser_verified_extraction_receipt"] is True
+    assert context["completion_requirements"]["product_or_result_candidate_card_count"] == 1
+    assert context["browser_world_model"]["product_or_result_candidate_cards"][0]["title"] == "Lightweight sunglasses"
+    assert context["real_browser_control_summary"]["latest_action"]["operation"] == "real_browser.verify_extraction"
 
 
 def test_safe_provider_wrapper_key_is_dropped_before_intent_mapping() -> None:

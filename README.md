@@ -22,9 +22,9 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-12
-canonical_locked_phase = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
+canonical_locked_phase = FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1
 active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
-latest_local_hardening = CLOAK_SESSION_READINESS_TIMEOUT_PROFILE_CLEANUP
+latest_local_hardening = PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE
 branch = experimental/real-model-lab-freeze-v1
 next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
@@ -46,14 +46,12 @@ quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
 The latest local lock is
-`FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1`. It fixes the
-readiness cleanup mismatch exposed by the V2 gate: the detector counted
-sensitive browser-profile folders such as local storage/session storage, but
-the remover only deleted exact `profile` directories. After the fix, the
-process-scoped Cloak readiness probe returns `provider_call_allowed=true`,
-selected/actual backend `cloak_browser`, session kind `cloakbrowser`, backend
-receipt match true, and `profile_material_persisted=false`. No provider call,
-real provider mission, external channel send, push, or real product claim was
+`FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1`. It closes the final
+pre-provider Browser Cortex product-spine gap: browser-native model intent now
+feeds the product-native decision client, safe browser dispatch context reaches
+the next loop turn, and `sentinel_loop.summarize_evidence` is a governed
+internal completion-lane action through ProductActionKernel. No provider call,
+real browser mission, external channel send, push, or real product claim was
 performed by the fix.
 
 The active experimental branch contains the Monster Runtime product-spine
@@ -77,6 +75,7 @@ Browser Cortex Real-Power Readiness Gate
 -> receipts/replay can prove no side-effect redo
 -> model sees simple browser skills
 -> hidden organs supply perception/recovery/extraction
+-> product-native mapper routes verify/summary/finish from safe browser context
 -> receipts/replay/FinalGate stay in background
 ```
 
@@ -93,6 +92,7 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_3_MO
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1_REPORT.md
 ```
 
 The current experimental read-only operator reports are:

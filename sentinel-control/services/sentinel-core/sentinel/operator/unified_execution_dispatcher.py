@@ -58,6 +58,7 @@ class UnifiedDispatchResult(SentinelModel):
     terminal_certificate_refs: list[str] = Field(default_factory=list)
     artifact_refs: list[str] = Field(default_factory=list)
     live_event_refs: list[str] = Field(default_factory=list)
+    safe_context_cards: dict[str, Any] = Field(default_factory=dict)
     finalgate_status: str | None = None
     blocked_reason: str | None = None
     dispatch_hash: str = ""
@@ -93,6 +94,7 @@ class UnifiedDispatchResult(SentinelModel):
             "terminal_certificate_refs": sanitize_operator_refs(self.terminal_certificate_refs),
             "artifact_refs": sanitize_operator_refs(self.artifact_refs),
             "live_event_refs": sanitize_operator_refs(self.live_event_refs),
+            "safe_context_cards": redact_operator_value(self.safe_context_cards),
             "finalgate_status": redact_operator_text(self.finalgate_status or "") or None,
             "blocked_reason": redact_operator_text(self.blocked_reason or "") or None,
             "dispatch_hash": self.dispatch_hash,
@@ -604,6 +606,7 @@ class ProductActionKernelDispatchAdapter:
                     or action_result.blocked_reason
                     or "product_action_kernel_execution_failed"
                 ),
+                safe_context_cards=redact_operator_value(action_result.context_cards),
             )
         certificate = self._write_finalgate(
             request=request,
@@ -624,6 +627,7 @@ class ProductActionKernelDispatchAdapter:
             receipt_refs=[receipt.receipt_id],
             finalgate_refs=[certificate.certificate_id],
             finalgate_status="accepted",
+            safe_context_cards=redact_operator_value(action_result.context_cards),
         )
 
     def _resolve_parameters(
@@ -979,6 +983,7 @@ class UnifiedExecutionDispatcher:
         if not result.receipt_refs:
             return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
         material_count = 0
+        completion_lane_count = 0
         for receipt_ref in result.receipt_refs:
             path = _product_action_kernel_artifact_path(self.kernel, result.mission_id, "receipts", receipt_ref)
             if not path.exists():
@@ -994,7 +999,14 @@ class UnifiedExecutionDispatcher:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_authority_not_allowed")
             if receipt.execution_status in {"completed", "success", "passed"} and receipt.material_action:
                 material_count += 1
-        if material_count < 1:
+            if (
+                receipt.capability_id == "sentinel_loop"
+                and receipt.operation == "summarize_evidence"
+                and receipt.execution_status in {"completed", "success", "passed"}
+                and not receipt.material_action
+            ):
+                completion_lane_count += 1
+        if material_count < 1 and completion_lane_count < 1:
             return DispatchProofVerificationResult(ok=False, failure_code="proof_material_observation_missing")
         return DispatchProofVerificationResult(
             ok=True,

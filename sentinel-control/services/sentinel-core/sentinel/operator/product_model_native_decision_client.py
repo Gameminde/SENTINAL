@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
+from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
 
 
 class ProductModelClient(Protocol):
@@ -151,6 +152,9 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
         return hard_boundary
     if _credential_boundary_requested(text, payload):
         raise ActionKernelError("MODEL_NATIVE_DECISION_HARD_BOUNDARY_CREDENTIAL_ACCESS")
+    browser_mapping = _browser_native_mapping(raw_output, payload=payload, text=text, context=context)
+    if browser_mapping is not None:
+        return browser_mapping
     skill = _requested_skill(payload, text)
     if skill is None:
         skill = _recommended_skill(context)
@@ -163,6 +167,137 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
         if recommended != "finish":
             skill = recommended
     return _skill_to_action(skill, payload=payload, text=text, context=context)
+
+
+def _browser_native_mapping(
+    raw_output: Any,
+    *,
+    payload: dict[str, Any],
+    text: str,
+    context: dict[str, Any],
+) -> ActionEnvelope | None:
+    if not _should_use_browser_native_mapping(payload=payload, text=text, context=context):
+        return None
+    mapping = map_browser_model_native_intent(raw_output, context=_browser_native_context(context))
+    if mapping.blocked or mapping.envelope is None:
+        reason = mapping.blocked_reason or mapping.safe_diagnostics.get("failure_code") or "MODEL_NATIVE_BROWSER_INTENT_MAPPING_FAILED"
+        raise ActionKernelError(str(reason))
+    if not mapping.envelope.capability_id or not mapping.envelope.operation:
+        reason = mapping.safe_diagnostics.get("failure_code") or "MODEL_NATIVE_BROWSER_INTENT_MAPPING_FAILED"
+        raise ActionKernelError(str(reason))
+    return mapping.envelope
+
+
+def _should_use_browser_native_mapping(
+    *,
+    payload: dict[str, Any],
+    text: str,
+    context: dict[str, Any],
+) -> bool:
+    if _payload_names_browser_action(payload):
+        return True
+    has_browser_progress = _context_has_browser_progress(context)
+    if has_browser_progress:
+        return True
+    if _payload_names_browser_completion_action(payload) and has_browser_progress:
+        return True
+    if not _context_prefers_browser_work(context):
+        return False
+    lowered = text.lower()
+    return _text_mentions_browser_work(lowered)
+
+
+def _payload_names_browser_action(payload: dict[str, Any]) -> bool:
+    capability = str(payload.get("capability_id") or "").strip()
+    operation = str(payload.get("operation") or "").strip()
+    action = str(payload.get("action") or "").strip()
+    joined = ".".join(part for part in (capability, operation) if part)
+    value = action or joined
+    return value.startswith("real_browser_control.")
+
+
+def _payload_names_browser_completion_action(payload: dict[str, Any]) -> bool:
+    capability = str(payload.get("capability_id") or "").strip()
+    operation = str(payload.get("operation") or "").strip()
+    action = str(payload.get("action") or "").strip()
+    joined = ".".join(part for part in (capability, operation) if part)
+    value = action or joined
+    return value in {
+        "sentinel_loop.summarize_evidence",
+        "sentinel_loop.finish",
+    }
+
+
+def _context_has_browser_progress(context: dict[str, Any]) -> bool:
+    requirements = context.get("completion_requirements")
+    if isinstance(requirements, dict) and any(
+        str(key).startswith("has_real_browser_") and value is True
+        for key, value in requirements.items()
+    ):
+        return True
+    if context.get("real_browser_control_summary") or context.get("browser_world_model"):
+        return True
+    for item in context.get("dispatch_summaries") or ():
+        if isinstance(item, dict) and item.get("capability_id") == "real_browser_control":
+            return True
+    return False
+
+
+def _context_prefers_browser_work(context: dict[str, Any]) -> bool:
+    recommended_skill = str(context.get("primary_model_recommended_next_skill") or "")
+    if recommended_skill in {"browse_search", "extract"}:
+        return True
+    for key in ("primary_model_recommended_next_action", "model_visible_recommended_next_action", "recommended_next_action"):
+        action = str(context.get(key) or "")
+        if action.startswith("real_browser_control."):
+            return True
+    objective = str(context.get("mission_objective") or "").lower()
+    return _text_mentions_browser_work(objective)
+
+
+def _text_mentions_browser_work(lowered: str) -> bool:
+    return any(
+        marker in lowered
+        for marker in (
+            "alibaba",
+            "browser",
+            "browse",
+            "web page",
+            "website",
+            "search result",
+            "product page",
+            "open result",
+            "visible card",
+            "glasses",
+            "sunglasses",
+            "under 5",
+            "under five",
+            "5 eur",
+            "5 euro",
+        )
+    )
+
+
+def _browser_native_context(context: dict[str, Any]) -> dict[str, Any]:
+    browser_context = dict(context)
+    available = list(browser_context.get("available_actions") or browser_context.get("model_visible_available_actions") or ())
+    if not available:
+        available = [
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_product_cards",
+            "real_browser_control.real_browser.verify_extraction",
+            "sentinel_loop.summarize_evidence",
+            "sentinel_loop.finish",
+        ]
+    browser_context.setdefault("available_actions", available)
+    if "primary_model_recommended_next_action" not in browser_context:
+        action_map = browser_context.get("runtime_internal_action_map")
+        recommended_skill = str(browser_context.get("primary_model_recommended_next_skill") or "")
+        if isinstance(action_map, dict) and recommended_skill in action_map:
+            browser_context["primary_model_recommended_next_action"] = action_map[recommended_skill]
+    return browser_context
 
 
 def _recovery_prompt_hint(context: dict[str, Any]) -> str:
@@ -420,6 +555,19 @@ def _completed_sequence_skill_counts(context: dict[str, Any]) -> dict[str, int]:
             add("send_message")
         elif action == "worker_fleet.spawn_worker":
             add("spawn_worker")
+        elif action in {
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+        }:
+            add("browse_search")
+        elif action in {
+            "real_browser_control.real_browser.extract_product_cards",
+            "real_browser_control.real_browser.verify_extraction",
+        }:
+            add("extract")
+        elif action == "sentinel_loop.summarize_evidence":
+            add("finish")
         elif action == "sentinel_loop.finish":
             add("finish")
     if context.get("recent_product_receipt_refs") and not completed:

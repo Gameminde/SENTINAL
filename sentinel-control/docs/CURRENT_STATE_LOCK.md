@@ -1,5 +1,51 @@
 # Current State Lock
 
+## Fix Product Browser Native Mapper To Product Spine - LOCKED
+
+Recorded at: 2026-07-12
+
+This section is the canonical current state. It supersedes the Cloak session
+readiness cleanup lock as the top-level working truth while preserving that lock
+as scoped historical evidence.
+
+```text
+current_phase = FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1
+previous_phase = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
+next_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Product Browser Native Mapper Truth
+
+```text
+product native browser intent mapper = WIRED
+browser verify intent -> real_browser.verify_extraction = YES
+verified extraction -> sentinel_loop.summarize_evidence = YES
+sentinel_loop.summarize_evidence product dispatch = YES
+safe browser context carried to next product turn = YES
+completion lane visible after verified extraction = YES
+browser mapper hijacks non-browser channel/worker/workspace = NO
+provider call during fix = NO
+real browser mission during fix = NO
+push during fix = NO
+```
+
+### Product Browser Native Mapper Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/product_model_native_decision_client.py
+sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py
+sentinel-control/services/sentinel-core/sentinel/operator/runtime_connections.py
+sentinel-control/services/sentinel-core/sentinel/operator/runtime_host.py
+sentinel-control/services/sentinel-core/sentinel/operator/unified_execution_dispatcher.py
+sentinel-control/services/sentinel-core/tests/operator/test_real_monster_product_model_native_decision_client.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is exactly one real Browser Cortex provider/browser attempt.
+
 ## Fix Cloak Session Readiness Timeout And Profile Cleanup - LOCKED
 
 Recorded at: 2026-07-12
