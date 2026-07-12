@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_VALID_FAILED
-previous_phase = FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1
-next_work = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
+current_phase = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
+previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_VALID_FAILED
+next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -50,7 +50,7 @@ canonical browser organs, Cloak/session, Playwright compatibility, CDP/BiDi,
 DevTools, accessibility, world-model, recovery, and special-authority layers.
 
 The latest local lock is
-`REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_VALID_FAILED`.
+`FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1`.
 Browser Cortex Alibaba V2 through V6 were valid failed proofs. They
 exposed, in order: long-path mission execution request IO, high-level browser
 search not self-opening the selected Cloak/session backend, product-loop
@@ -64,8 +64,9 @@ long-path aware, make env-configured product browser actions use the
 Cloak-first real browser engine factory, make high-level search self-open
 Cloak/session, route recoverable browser search failures with visible cards into
 extraction, and let extraction/verification produce material receipts from
-existing safe world-model cards when that context is present. This makes the
-current product truth explicit:
+existing safe world-model cards when that context is present. The latest local
+fix also propagates completed browser search safe context into the next
+extraction/verification mission. This makes the current product truth explicit:
 
 ```text
 real_browser_control_product_spine = PRODUCT_SPINE
@@ -88,18 +89,18 @@ env-configured product browser engine = Cloak-first factory
 real_browser.search self-opens selected Cloak/session backend = fixed
 recoverable browser search with visible cards = extract_product_cards lane
 existing safe world-model cards without live session = extraction/verification proof lane
-completed search safe context propagation to next mission = OPEN / V6 BLOCKER
+completed search safe context propagation to next mission = FIXED LOCALLY
 verify_extraction = material proof receipt for product proof
 local product browser fixture = explicit fake/local profile only
-current real-attempt readiness = WAIT_FOR_SAFE_CONTEXT_PROPAGATION_FIX
+current real-attempt readiness = GO_AFTER_SAFE_CONTEXT_PROPAGATION_FIX
 selected/actual browser backend = cloak_browser / cloak_browser
 profile material persisted after readiness = no
 provider_call_allowed before real attempt = yes
 ```
 
 This lock does not claim real Alibaba/browser product proof. It preserves V2
-through V6 as valid failed proofs and prepares the next implementation fix:
-`FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1`.
+through V6 as valid failed proofs and prepares the next single real attempt:
+`REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX`.
 
 Real now:
 

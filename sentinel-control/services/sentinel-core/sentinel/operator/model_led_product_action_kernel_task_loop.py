@@ -471,6 +471,13 @@ class ModelLedProductActionKernelTaskLoop:
         parameters = dict(decision.params)
         if decision.capability_id == "sentinel_loop" and decision.operation == "summarize_evidence":
             parameters["loop_context"] = _completion_lane_context(loop_context)
+        if decision.capability_id == "real_browser_control" and decision.operation in {
+            "real_browser.extract_product_cards",
+            "real_browser.verify_extraction",
+        }:
+            browser_context = _browser_context_lane_context(loop_context)
+            if _product_card_count_from_context_cards(browser_context) > 0:
+                parameters["loop_context"] = browser_context
         mission = self.host.lifecycle.create_mission(
             session_id=f"{self.session_id}:{self.model_calls_used}",
             draft=MissionDraft(
@@ -903,6 +910,24 @@ def _completion_lane_context(loop_context: dict[str, Any]) -> dict[str, Any]:
         "browser_world_model_summary": loop_context.get("browser_world_model_summary"),
         "browser_decision_frame": loop_context.get("browser_decision_frame"),
         "grounded_evidence_summary": loop_context.get("grounded_evidence_summary"),
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def _browser_context_lane_context(loop_context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "mission_objective": loop_context.get("mission_objective"),
+        "completion_requirements": loop_context.get("completion_requirements"),
+        "browser_world_model": loop_context.get("browser_world_model"),
+        "browser_world_model_summary": loop_context.get("browser_world_model_summary"),
+        "browser_decision_frame": loop_context.get("browser_decision_frame"),
+        "browser_actionability_registry": loop_context.get("browser_actionability_registry"),
+        "actionability_frame": loop_context.get("actionability_frame"),
+        "browser_environment_state": loop_context.get("browser_environment_state"),
+        "browser_environment_state_hash": loop_context.get("browser_environment_state_hash"),
+        "browser_backend_execution": loop_context.get("browser_backend_execution"),
+        "browser_devtools_context": loop_context.get("browser_devtools_context"),
         "data_not_authority": True,
         "can_execute": False,
     }

@@ -520,6 +520,9 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
     )
     browser_handle = _mission_workspace_browser_session_handle(manifest.safe_model_dump())
     runtime_context = dict(context)
+    loop_context = envelope.params.get("loop_context")
+    if isinstance(loop_context, dict):
+        runtime_context.update(loop_context)
     runtime_context["mission_workspace_manifest"] = manifest.safe_model_dump()
     runtime = RealBrowserControlRuntime(
         kernel=kernel,

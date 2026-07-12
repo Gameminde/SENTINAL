@@ -271,6 +271,70 @@ def test_product_loop_continues_to_extract_after_recoverable_browser_search_with
     )
 
 
+def test_completed_browser_search_context_propagates_to_extract_when_live_session_missing(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    class CompletedSearchThenClosedSessionEngine(runtime_host_module._ProductLocalCloakBrowserEngine):
+        def extract_text(self):  # type: ignore[no-untyped-def]
+            raise RealBrowserControlRuntimeError("browser_session_missing_or_closed")
+
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
+    monkeypatch.setattr(
+        runtime_host_module,
+        "build_cloak_first_real_browser_engine_from_env",
+        CompletedSearchThenClosedSessionEngine,
+    )
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "glasses under 5 euro"},
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.extract_product_cards",
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.verify_extraction",
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Verified browser extraction summarized and finished."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_completed_search_context_to_extract",
+        mission_objective="Search bounded product cards, extract visible cards, verify, summarize, and finish.",
+        decision_client=client,
+        allowed_domains=("bounded.example",),
+        max_model_calls=6,
+        max_material_actions=4,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish",
+    )
+    assert client.contexts[1]["browser_world_model"]["product_or_result_candidate_cards"]
+    assert result.dispatch_results[1].safe_context_cards["browser_world_model_summary"][
+        "context_world_model_extraction_source"
+    ] == "existing_safe_browser_world_model"
+
+
 def test_playwright_requires_explicit_compatibility_selection(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
