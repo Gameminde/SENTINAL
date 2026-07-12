@@ -786,7 +786,20 @@ class RealBrowserControlRuntime:
         except RealBrowserControlRuntimeError as exc:
             if str(exc) not in {"real_browser_not_open", "browser_session_missing_or_closed"}:
                 raise
-            before_snapshot = self.engine.open()
+            try:
+                before_snapshot = self.engine.open()
+            except RealBrowserControlRuntimeError:
+                context_cards = _recoverable_existing_browser_context_cards(context)
+                return self._recoverable_actuation_failure(
+                    envelope,
+                    failure_code="real_browser_search_session_open_failed",
+                    safe_summary=(
+                        "Browser session was unavailable and could not be reopened during "
+                        "in-scope search recovery; existing safe browser context is available."
+                    ),
+                    context_cards=context_cards,
+                    browser_state_hash=_context_browser_state_hash(context_cards),
+                )
         candidates = _search_ref_candidates(before_snapshot, envelope)
         if not candidates:
             context_cards = self._world_context_cards(
@@ -2559,6 +2572,23 @@ def _existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any] |
             "context_world_model_extraction_source": "existing_safe_browser_world_model",
         }
     return cards
+
+
+def _recoverable_existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(context, dict):
+        return {}
+    keys = (
+        "browser_world_model",
+        "browser_world_model_summary",
+        "browser_decision_frame",
+        "browser_actionability_registry",
+        "actionability_frame",
+        "browser_environment_state",
+        "browser_environment_state_hash",
+        "browser_backend_execution",
+        "browser_devtools_context",
+    )
+    return {key: context[key] for key in keys if key in context}
 
 
 def _context_product_card_count(context_cards: dict[str, Any]) -> int:

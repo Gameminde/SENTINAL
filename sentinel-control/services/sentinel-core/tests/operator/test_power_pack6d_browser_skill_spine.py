@@ -883,6 +883,29 @@ def test_locator_timeout_returns_recoverable_observation_not_terminal_block(tmp_
     assert result.recovery_observation
 
 
+def test_search_reopen_failure_returns_recoverable_observation_not_terminal_block(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_ClosedSessionReopenFailureSearchEngine())
+
+    context = {
+        "available_actions": _browser_actions(),
+        "browser_world_model_summary": {"search_like_refs": ["input:search"]},
+    }
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context=context,
+    )
+
+    assert result.status == "recoverable_failed"
+    assert result.failure_class is ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE
+    assert result.blocked_reason == "real_browser_search_session_open_failed"
+    assert result.recoverable is True
+
+
 def test_search_recoverable_failure_updates_decision_context(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_TimeoutSearchEngineWithCards())
 
@@ -2710,6 +2733,17 @@ class _TimeoutSearchEngineWithCards(_HardProductSearchEngine):
 class _ClosedSessionAfterRecoverableSearchEngine(_TimeoutSearchEngineWithCards):
     def extract_text(self) -> tuple[str, RealBrowserEngineSnapshot]:
         raise RealBrowserControlRuntimeError("browser_session_missing_or_closed")
+
+
+class _ClosedSessionReopenFailureSearchEngine(_HardProductSearchEngine):
+    def __init__(self) -> None:
+        super().__init__(results_visible=False)
+
+    def observe(self) -> RealBrowserEngineSnapshot:
+        raise RealBrowserControlRuntimeError("browser_session_missing_or_closed")
+
+    def open(self) -> RealBrowserEngineSnapshot:
+        raise RealBrowserControlRuntimeError("cloakbrowser_open_failed:Error")
 
 
 class _SparseProductSearchEngine(_HardProductSearchEngine):
