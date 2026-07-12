@@ -1,29 +1,30 @@
 # Current State Lock
 
-## Fix Browser Extract From Context World Model Without Live Session - LOCKED
+## Browser Cortex Alibaba V6 Context Propagation Failure - LOCKED
 
 Recorded at: 2026-07-12
 
 This section is the canonical current state. It supersedes the Product Browser
 Proof IO / Env Cloak Backend lock as the top-level working truth while
-preserving V2, V3, V4, and V5 as scoped real-attempt evidence.
+preserving V2 through V6 as scoped real-attempt evidence.
 
 ```text
-current_phase = FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1
-previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V5_AFTER_RECOVERABLE_SEARCH_TO_EXTRACTION_FIX_VALID_FAILED
-next_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX
+current_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_VALID_FAILED
+previous_phase = FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1
+next_phase = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
-### Browser Cortex Attempts V2-V5 Truth
+### Browser Cortex Attempts V2-V6 Truth
 
 ```text
 V2 = VALID_FAILED / MISSION_EXECUTION_REQUEST_LONG_PATH_IO_GAP
 V3 = VALID_FAILED / BROWSER_SEARCH_SKILL_DID_NOT_OPEN_SESSION
 V4 = VALID_FAILED / PRODUCT_LOOP_BROWSER_RECOVERABLE_SEARCH_TO_EXTRACTION_GAP
 V5 = VALID_FAILED / EXTRACT_AFTER_RECOVERABLE_SEARCH_SESSION_CONTINUITY_GAP
+V6 = VALID_FAILED / PRODUCT_LOOP_BROWSER_CONTEXT_PROPAGATION_GAP_AFTER_MATERIAL_SEARCH
 provider route = aliyun_dashscope / aliyun_openai_compatible_chat / deepseek-v4-pro
-Cloak readiness before provider = PASSED for V2-V5
+Cloak readiness before provider = PASSED for V2-V6
 selected_backend_id = cloak_browser
 actual_backend_id = cloak_browser
 session_backend_kind = cloakbrowser
@@ -41,6 +42,7 @@ browser decision frame prioritizes extraction when product cards exist = FIXED
 product loop treats in-scope browser state/ref/search misses as recovery = FIXED
 visible cards after search recovery -> extract_product_cards lane = FIXED
 existing safe world-model cards -> extract/verify without live session = FIXED
+completed search safe context -> next extraction mission = OPEN / V6 BLOCKER
 verify_extraction proof receipt accepted by product proof = FIXED
 fallback/AUTO introduced = NO
 provider-native tools introduced = NO
@@ -53,8 +55,8 @@ implementation_commits = b3dae57, 30519f8, 6c1fa74, 51fea0c
 
 ```text
 local proof = search recoverable failure + visible cards -> extract -> verify -> summarize -> finish
-real Alibaba proof after this fix = NOT_RUN_YET
-next real attempt = V6 exactly once under strict one-run contract
+real Alibaba V6 proof = search material receipt succeeded; extraction context propagation failed
+next work = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
 ```
 
 ### Artifacts
@@ -68,6 +70,7 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWS
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V5_AFTER_RECOVERABLE_SEARCH_TO_EXTRACTION_FIX_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_REPORT.md
 sentinel-control/services/sentinel-core/sentinel/operator/browser_decision_frame.py
 sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py
 sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
@@ -76,8 +79,7 @@ sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pa
 
 Historical current-phase and next-phase blocks below remain evidence for their
 scoped locks. They must not be interpreted as the current build order. The next
-work is exactly one real Browser Cortex provider/browser attempt after the
-context-world-model extraction fix.
+work is the product-loop safe-context propagation fix exposed by V6.
 
 ## Fix Product Browser Proof IO And Env Cloak Backend - LOCKED
 

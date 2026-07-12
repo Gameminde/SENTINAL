@@ -22,11 +22,11 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-12
-canonical_locked_phase = FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1
+canonical_locked_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_VALID_FAILED
 active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
 latest_local_hardening = BROWSER_CONTEXT_WORLD_MODEL_EXTRACTION_WITHOUT_LIVE_SESSION
 branch = experimental/real-model-lab-freeze-v1
-next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX
+next_work = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -46,20 +46,18 @@ quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
 The latest local lock is
-`FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1`.
-Browser Cortex Alibaba V2 through V5 were useful valid failures: V2 exposed
+`REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_VALID_FAILED`.
+Browser Cortex Alibaba V2 through V6 were useful valid failures: V2 exposed
 long-path mission request IO, V3 exposed a high-level search skill that did not
 self-open the selected Cloak/session backend, V4 exposed the product loop
 blocking on a recoverable browser search failure even while safe product/result
 cards were visible, and V5 proved recovery reached `extract_product_cards` but
 then exposed extraction/verification still depending on a live session even when
-safe world-model cards already existed. The follow-up fixes make mission request
-IO long-path aware, make `real_browser.search` self-open the selected
-Cloak/session backend, route recoverable browser search failures with visible
-cards into extraction, and allow extraction/verification to produce material
-receipts from existing safe world-model cards when no live actuation is needed.
-No provider call, real browser mission, external channel send, or push was
-performed during the implementation fixes.
+safe world-model cards already existed. V6 then proved Cloak-backed
+`real_browser.search` can produce a material receipt, but the following
+extraction mission received empty `safe_context_cards` and blocked with
+`browser_session_missing_or_closed`; the browser world model from completed
+search did not propagate into the next material extraction request.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
@@ -85,11 +83,12 @@ Browser Cortex Real-Power Readiness Gate
 -> product-native mapper routes verify/summary/finish from safe browser context
 -> recoverable browser search with visible cards routes to extraction
 -> extraction/verification can consume existing safe world-model cards if live session is missing
+-> V6 blocker: completed search safe context is not propagated to the next extraction mission
 -> receipts/replay/FinalGate stay in background
 ```
 
-Real browser product proof resumes with exactly one V6 attempt after this
-context-world-model extraction fix.
+Real browser product proof pauses for
+`FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1`.
 
 The current top-level lock reports are:
 
@@ -104,6 +103,7 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWS
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V5_AFTER_RECOVERABLE_SEARCH_TO_EXTRACTION_FIX_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1_REPORT.md
