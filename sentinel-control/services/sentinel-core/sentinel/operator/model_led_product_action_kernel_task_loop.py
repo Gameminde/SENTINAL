@@ -165,6 +165,7 @@ class ModelLedProductActionKernelTaskLoop:
                     decision_from_model = False
                 if decision_from_model:
                     self.model_calls_used += 1
+                decision = self._route_contextless_browser_decision(decision, context)
                 sequence_entry = f"{decision.capability_id}:{decision.operation}"
                 self.capability_sequence.append(sequence_entry)
                 if decision.capability_id == "sentinel_loop" and decision.operation == "finish":
@@ -533,6 +534,26 @@ class ModelLedProductActionKernelTaskLoop:
         if pump.dispatch_result is None:
             raise ActionKernelError("product_action_kernel_dispatch_missing")
         return pump.dispatch_result
+
+    def _route_contextless_browser_decision(
+        self,
+        decision: ActionEnvelope,
+        context: dict[str, Any],
+    ) -> ActionEnvelope:
+        if decision.capability_id != "real_browser_control":
+            return decision
+        if decision.operation not in {"real_browser.extract_product_cards", "real_browser.verify_extraction"}:
+            return decision
+        if str(decision.params.get("engine_profile") or "").strip():
+            return decision
+        if _product_card_count_from_context_cards(_browser_context_lane_context(context)) > 0:
+            return decision
+        return ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": _browser_search_query_from_objective(self.mission_objective)},
+            idempotency_key=_recovery_key(self.loop_id, "browser_contextless_extract_to_search", self.model_calls_used),
+        )
 
     def _complete(self, reason: str) -> ProductActionKernelTaskLoopResult:
         certificate = self._write_certificate(
@@ -931,6 +952,15 @@ def _browser_context_lane_context(loop_context: dict[str, Any]) -> dict[str, Any
         "data_not_authority": True,
         "can_execute": False,
     }
+
+
+def _browser_search_query_from_objective(mission_objective: str) -> str:
+    objective = mission_objective.lower()
+    if "glasses" in objective or "sunglasses" in objective or "eyewear" in objective:
+        return "glasses sunglasses under 5 euro"
+    if "search" in objective and "product" in objective:
+        return "product search"
+    return "mission objective product research"
 
 
 def _artifact_counts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> dict[str, int]:

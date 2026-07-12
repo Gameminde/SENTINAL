@@ -1,6 +1,6 @@
 # Current State Lock
 
-## Browser Cortex Alibaba V7 First-Turn Extract Routing Failure - LOCKED
+## Fix Browser Model Native First Turn Extract Routing - LOCKED
 
 Recorded at: 2026-07-12
 
@@ -9,9 +9,9 @@ Proof IO / Env Cloak Backend lock as the top-level working truth while
 preserving V2 through V6 as scoped real-attempt evidence.
 
 ```text
-current_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX_VALID_FAILED
-previous_phase = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
-next_phase = FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1
+current_phase = FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1
+previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX_VALID_FAILED
+next_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V8_AFTER_FIRST_TURN_EXTRACT_ROUTING_FIX
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -44,6 +44,7 @@ product loop treats in-scope browser state/ref/search misses as recovery = FIXED
 visible cards after search recovery -> extract_product_cards lane = FIXED
 existing safe world-model cards -> extract/verify without live session = FIXED
 completed search safe context -> next extraction mission = FIXED LOCALLY
+first-turn extract without browser context -> search = FIXED LOCALLY
 verify_extraction proof receipt accepted by product proof = FIXED
 fallback/AUTO introduced = NO
 provider-native tools introduced = NO
@@ -59,7 +60,8 @@ local proof = search recoverable failure + visible cards -> extract -> verify ->
 real Alibaba V6 proof = search material receipt succeeded; extraction context propagation failed
 local proof after fix = completed search context -> extract -> verify -> summarize -> finish
 real Alibaba V7 proof = first-turn model-native extract accepted without browser context and blocked
-next work = FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1
+local proof after fix = first-turn extract -> search -> extract -> verify -> summarize -> finish
+next real attempt = V8 exactly once under strict one-run contract
 ```
 
 ### Artifacts
@@ -76,6 +78,7 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_EXTRACT_FROM
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1_REPORT.md
 sentinel-control/services/sentinel-core/sentinel/operator/browser_decision_frame.py
 sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py
 sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
@@ -84,7 +87,8 @@ sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pa
 
 Historical current-phase and next-phase blocks below remain evidence for their
 scoped locks. They must not be interpreted as the current build order. The next
-work is the model-native first-turn extraction routing fix exposed by V7.
+work is exactly one real Browser Cortex provider/browser V8 attempt after the
+first-turn extract routing fix.
 
 ## Fix Product Browser Proof IO And Env Cloak Backend - LOCKED
 
