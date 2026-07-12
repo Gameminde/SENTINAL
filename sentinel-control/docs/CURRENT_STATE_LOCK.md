@@ -1,5 +1,80 @@
 # Current State Lock
 
+## Fix Browser Product Loop Recoverable Search To Extraction - LOCKED
+
+Recorded at: 2026-07-12
+
+This section is the canonical current state. It supersedes the Product Browser
+Proof IO / Env Cloak Backend lock as the top-level working truth while
+preserving V2, V3, and V4 as scoped real-attempt evidence.
+
+```text
+current_phase = FIX_BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION_V1
+previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V4_AFTER_SELF_OPEN_SEARCH_FIX_VALID_FAILED
+next_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V5_AFTER_RECOVERABLE_SEARCH_TO_EXTRACTION_FIX
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Attempts V2-V4 Truth
+
+```text
+V2 = VALID_FAILED / MISSION_EXECUTION_REQUEST_LONG_PATH_IO_GAP
+V3 = VALID_FAILED / BROWSER_SEARCH_SKILL_DID_NOT_OPEN_SESSION
+V4 = VALID_FAILED / PRODUCT_LOOP_BROWSER_RECOVERABLE_SEARCH_TO_EXTRACTION_GAP
+provider route = aliyun_dashscope / aliyun_openai_compatible_chat / deepseek-v4-pro
+Cloak readiness before provider = PASSED for V2-V4
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+profile_material_persisted = NO
+raw provider/reasoning/DOM/screenshot/cookie/session/binary path scan = CLEAN
+push during attempts/fixes = NO
+```
+
+### Fix Truth
+
+```text
+mission execution request long-path IO = FIXED
+browser search self-opens selected Cloak/session backend = FIXED
+browser decision frame prioritizes extraction when product cards exist = FIXED
+product loop treats in-scope browser state/ref/search misses as recovery = FIXED
+visible cards after search recovery -> extract_product_cards lane = FIXED
+verify_extraction proof receipt accepted by product proof = FIXED
+fallback/AUTO introduced = NO
+provider-native tools introduced = NO
+high-risk browser power opened = NO
+real provider call during implementation fixes = NO
+implementation_commits = b3dae57, 30519f8, 6c1fa74
+```
+
+### Current Product Proof Boundary
+
+```text
+local proof = search recoverable failure + visible cards -> extract -> verify -> summarize -> finish
+real Alibaba proof after this fix = NOT_RUN_YET
+next real attempt = V5 exactly once under strict one-run contract
+```
+
+### Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V2_AFTER_PROOF_IO_AND_ENV_CLOAK_FIX_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_MISSION_EXECUTION_REQUEST_LONG_PATH_IO_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V3_AFTER_LIFECYCLE_IO_FIX_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_SEARCH_SELF_OPEN_CLOAK_SESSION_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V4_AFTER_SELF_OPEN_SEARCH_FIX_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/browser_decision_frame.py
+sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py
+sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
+sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pack4_browser_l5_l6_product_backend.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is exactly one real Browser Cortex provider/browser attempt after the
+recoverable-search-to-extraction fix.
+
 ## Fix Product Browser Proof IO And Env Cloak Backend - LOCKED
 
 Recorded at: 2026-07-12

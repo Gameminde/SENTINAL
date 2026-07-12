@@ -22,11 +22,11 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-12
-canonical_locked_phase = FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1
+canonical_locked_phase = FIX_BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION_V1
 active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
-latest_local_hardening = PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND
+latest_local_hardening = BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION
 branch = experimental/real-model-lab-freeze-v1
-next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V2_AFTER_PROOF_IO_AND_ENV_CLOAK_FIX
+next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V5_AFTER_RECOVERABLE_SEARCH_TO_EXTRACTION_FIX
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -46,15 +46,17 @@ quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
 The latest local lock is
-`FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1`. The first Browser
-Cortex Alibaba attempt after the native-mapper fix was accepted as a useful
-valid failure: Cloak readiness passed and a browser search receipt was produced,
-but the task loop blocked on long Windows proof-path IO, and the product browser
-executor was still using the local fixture engine. The follow-up fixes make
-ProductActionKernel proof reads long-path aware and route env-configured product
-browser actions through the Cloak-first engine factory instead of silently
-forcing the local fixture. No provider call, real browser mission, external
-channel send, or push was performed during those fixes.
+`FIX_BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION_V1`. Browser Cortex
+Alibaba V2, V3, and V4 were useful valid failures: V2 exposed long-path mission
+request IO, V3 exposed a high-level search skill that did not self-open the
+selected Cloak/session backend, and V4 exposed the product loop blocking on a
+recoverable browser search failure even while safe product/result cards were
+visible. The follow-up fixes make mission request IO long-path aware, make
+`real_browser.search` self-open the selected Cloak/session backend, and route
+recoverable browser search failures with visible cards into
+`extract_product_cards -> verify_extraction -> summarize_evidence -> finish`.
+No provider call, real browser mission, external channel send, or push was
+performed during those fixes.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
@@ -78,16 +80,24 @@ Browser Cortex Real-Power Readiness Gate
 -> model sees simple browser skills
 -> hidden organs supply perception/recovery/extraction
 -> product-native mapper routes verify/summary/finish from safe browser context
+-> recoverable browser search with visible cards routes to extraction
 -> receipts/replay/FinalGate stay in background
 ```
 
-Real browser product proof resumes only after this readiness gate passes.
+Real browser product proof resumes with exactly one V5 attempt after this
+recoverable-search-to-extraction fix.
 
 The current top-level lock reports are:
 
 ```text
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V2_AFTER_PROOF_IO_AND_ENV_CLOAK_FIX_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_MISSION_EXECUTION_REQUEST_LONG_PATH_IO_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V3_AFTER_LIFECYCLE_IO_FIX_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_SEARCH_SELF_OPEN_CLOAK_SESSION_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V4_AFTER_SELF_OPEN_SEARCH_FIX_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_PRODUCT_LOOP_RECOVERABLE_SEARCH_TO_EXTRACTION_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1_REPORT.md
