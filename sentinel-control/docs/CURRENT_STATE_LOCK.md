@@ -1,5 +1,72 @@
 # Current State Lock
 
+## Fix Product Browser Proof IO And Env Cloak Backend - LOCKED
+
+Recorded at: 2026-07-12
+
+This section is the canonical current state. It supersedes the Product Browser
+Native Mapper lock as the top-level working truth while preserving that lock and
+the Browser Cortex Alibaba V1 attempt as scoped historical evidence.
+
+```text
+current_phase = FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1
+previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1_VALID_FAILED
+next_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V2_AFTER_PROOF_IO_AND_ENV_CLOAK_FIX
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Alibaba V1 Truth
+
+```text
+REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1 = VALID_FAILED
+primary_failure_classification = PRODUCT_PROOF_LONG_PATH_IO_GAP
+secondary_failure_classification = PRODUCT_BROWSER_BACKEND_STILL_LOCAL_FIXTURE_PATH
+Cloak readiness before mission = PASSED
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+browser search receipt produced = YES
+browser FinalGate accepted = YES
+ProductActionKernel receipt produced = YES
+ProductActionKernel FinalGate accepted = YES
+task loop status = blocked
+task loop reason = proof_receipt_missing
+real Alibaba product proof = NO / fixture path exposed
+raw provider/reasoning/DOM/screenshot/cookie/session scan = CLEAN
+push during attempt = NO
+```
+
+### Fix Truth
+
+```text
+ProductActionKernel proof long-path IO = FIXED
+product proof reads use long-path-aware JSON artifact helpers = YES
+env-configured product browser route uses Cloak-first engine factory = YES
+fake/local browser profile remains explicit local test path = YES
+silent Playwright fallback introduced = NO
+provider call during fix = NO
+real browser mission during fix = NO
+external channel send during fix = NO
+push during fix = NO
+proof_io_fix_commit = 6087d81
+env_cloak_backend_fix_commit = 8fa9e86
+```
+
+### Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/unified_execution_dispatcher.py
+sentinel-control/services/sentinel-core/sentinel/operator/runtime_host.py
+sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pack4_browser_l5_l6_product_backend.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is exactly one real Browser Cortex provider/browser attempt after the proof
+IO and env Cloak backend fixes.
+
 ## Fix Product Browser Native Mapper To Product Spine - LOCKED
 
 Recorded at: 2026-07-12

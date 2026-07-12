@@ -22,11 +22,11 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-12
-canonical_locked_phase = FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1
+canonical_locked_phase = FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1
 active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
-latest_local_hardening = PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE
+latest_local_hardening = PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND
 branch = experimental/real-model-lab-freeze-v1
-next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1
+next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V2_AFTER_PROOF_IO_AND_ENV_CLOAK_FIX
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -46,13 +46,15 @@ quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
 The latest local lock is
-`FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1`. It closes the final
-pre-provider Browser Cortex product-spine gap: browser-native model intent now
-feeds the product-native decision client, safe browser dispatch context reaches
-the next loop turn, and `sentinel_loop.summarize_evidence` is a governed
-internal completion-lane action through ProductActionKernel. No provider call,
-real browser mission, external channel send, push, or real product claim was
-performed by the fix.
+`FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1`. The first Browser
+Cortex Alibaba attempt after the native-mapper fix was accepted as a useful
+valid failure: Cloak readiness passed and a browser search receipt was produced,
+but the task loop blocked on long Windows proof-path IO, and the product browser
+executor was still using the local fixture engine. The follow-up fixes make
+ProductActionKernel proof reads long-path aware and route env-configured product
+browser actions through the Cloak-first engine factory instead of silently
+forcing the local fixture. No provider call, real browser mission, external
+channel send, or push was performed during those fixes.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
@@ -84,6 +86,8 @@ Real browser product proof resumes only after this readiness gate passes.
 The current top-level lock reports are:
 
 ```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_BROWSER_PROOF_IO_AND_ENV_CLOAK_BACKEND_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_ORGANS_TECHNOLOGY_AUDIT_V2.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_0_PRODUCT_BROWSER_CUTOVER_LOCK_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_1_ENVIRONMENT_STATE_GRAPH_V1_REPORT.md
