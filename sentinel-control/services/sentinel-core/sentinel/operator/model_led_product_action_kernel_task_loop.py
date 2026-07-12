@@ -753,6 +753,7 @@ def _is_recoverable_browser_action_failure(reason: str) -> bool:
     return reason in {
         "real_browser_search_control_not_found",
         "real_browser_search_actuation_failed",
+        "real_browser_search_session_open_failed",
         "real_browser_open_result_actuation_failed",
         "real_browser_element_ref_unknown",
     }

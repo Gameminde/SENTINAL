@@ -321,6 +321,55 @@ def test_summarize_evidence_uses_product_loop_browser_cards(tmp_path: Path) -> N
     assert summary["cards"]
 
 
+def test_product_loop_recovers_browser_search_session_open_failure(tmp_path: Path, monkeypatch) -> None:
+    class SearchReopenFailureEngine(runtime_host_module._ProductLocalCloakBrowserEngine):
+        def observe(self):  # type: ignore[no-untyped-def]
+            raise RealBrowserControlRuntimeError("browser_session_missing_or_closed")
+
+        def open(self):  # type: ignore[no-untyped-def]
+            raise RealBrowserControlRuntimeError("cloakbrowser_open_failed:Error")
+
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
+    monkeypatch.setattr(
+        runtime_host_module,
+        "build_cloak_first_real_browser_engine_from_env",
+        SearchReopenFailureEngine,
+    )
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "glasses under 5 euro"},
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "sunglasses under 5 euro"},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_search_reopen_recoverable",
+        mission_objective="Search bounded product cards and recover if the browser session must be reopened.",
+        decision_client=client,
+        allowed_domains=("bounded.example",),
+        max_model_calls=3,
+        max_material_actions=2,
+        max_recoverable_action_failures=1,
+    )
+
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.search",
+    )
+    assert client.contexts[1]["recoverable_action_observations"][0]["failure_code"] == "real_browser_search_session_open_failed"
+
+
 def test_product_loop_does_not_block_browser_visible_trade_or_processor_text(
     tmp_path: Path,
     monkeypatch,
