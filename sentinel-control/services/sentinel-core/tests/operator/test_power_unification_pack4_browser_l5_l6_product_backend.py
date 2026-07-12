@@ -271,6 +271,56 @@ def test_product_loop_continues_to_extract_after_recoverable_browser_search_with
     )
 
 
+def test_summarize_evidence_uses_product_loop_browser_cards(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={
+                    "query": "glasses under 5 euro",
+                    "engine_profile": "fake_product_search",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.extract_product_cards",
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.verify_extraction",
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Verified browser extraction summarized and finished."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_summary_uses_loop_cards",
+        mission_objective="Search bounded product cards, extract visible cards, verify, summarize, and finish.",
+        decision_client=client,
+        allowed_domains=("bounded.example",),
+        max_model_calls=6,
+        max_material_actions=4,
+    )
+
+    summary_result = next(
+        item
+        for item in result.dispatch_results
+        if item.capability_id == "sentinel_loop" and item.operation == "summarize_evidence"
+    )
+    summary = summary_result.safe_context_cards["grounded_evidence_summary"]
+    assert summary["card_count"] > 0
+    assert summary["cards"]
+
+
 def test_product_loop_does_not_block_browser_visible_trade_or_processor_text(
     tmp_path: Path,
     monkeypatch,

@@ -179,6 +179,7 @@ class ActionKernel:
         if authority.revoked_at is not None:
             raise ActionKernelError("mission_authority_inactive")
         envelope = self._normalizer.normalize(envelope)
+        context = _effective_context_with_loop_context(context)
         if envelope.capability_id == "sentinel_loop" and envelope.operation == "finish":
             return ActionResult(
                 action_id=envelope.action_id,
@@ -205,6 +206,15 @@ class ActionKernel:
             if failure.recoverable:
                 return _recoverable_executor_result(envelope, failure=failure)
             raise ActionKernelError(failure.hard_stop_reason or failure.failure_code) from exc
+
+
+def _effective_context_with_loop_context(context: dict[str, Any]) -> dict[str, Any]:
+    loop_context = context.get("loop_context")
+    if not isinstance(loop_context, dict):
+        return context
+    merged = dict(context)
+    merged.update(loop_context)
+    return merged
 
 
 def _reject_forbidden_material(value: Any, *, context: str) -> None:
