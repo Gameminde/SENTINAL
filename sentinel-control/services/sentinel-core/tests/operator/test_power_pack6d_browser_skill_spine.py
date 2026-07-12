@@ -660,6 +660,48 @@ def test_cloak_readiness_gate_times_out_without_hanging_parent(tmp_path: Path) -
     assert "CLOAK_SESSION_READINESS_TIMEOUT" in cache_text
 
 
+def test_cloak_readiness_timeout_removes_sensitive_profile_dirs(tmp_path: Path) -> None:
+    class _ProfileWritingHangingManager:
+        backend_kind = "cloakbrowser"
+
+        def __init__(self, capture_root: Path) -> None:
+            self.capture_root = capture_root
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def open_session(self, request: Any) -> Any:
+            del request
+            sensitive_dir = self.capture_root / "bs" / "session_timeout" / "Local Storage"
+            sensitive_dir.mkdir(parents=True, exist_ok=True)
+            (sensitive_dir / "leveldb.log").write_text("profile material", encoding="utf-8")
+            self.started.set()
+            self.release.wait(timeout=5.0)
+            raise RuntimeError("late session completion after readiness timeout")
+
+        def close_all(self) -> None:
+            pass
+
+    capture_root = tmp_path / "capture"
+    manager = _ProfileWritingHangingManager(capture_root)
+
+    try:
+        readiness = check_cloak_session_readiness(
+            target_url="https://bounded.example.test/catalog",
+            session_manager=manager,
+            capture_root=capture_root,
+            timeout_ms=30_000,
+            wall_timeout_ms=100,
+        )
+    finally:
+        manager.release.set()
+
+    assert manager.started.wait(timeout=0.5)
+    assert readiness.ready is False
+    assert readiness.failure_code == "CLOAK_SESSION_READINESS_TIMEOUT"
+    assert readiness.profile_material_persisted is False
+    assert not (capture_root / "bs" / "session_timeout" / "Local Storage").exists()
+
+
 def test_cloak_selected_actual_backend_receipt_matches_after_ready(tmp_path: Path) -> None:
     readiness = check_cloak_session_readiness(
         target_url="https://bounded.example.test/catalog",

@@ -22,11 +22,11 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-12
-canonical_locked_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1
+canonical_locked_phase = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
 active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
-latest_local_hardening = CLOAK_SESSION_READINESS_TIMEOUT_GATE
+latest_local_hardening = CLOAK_SESSION_READINESS_TIMEOUT_PROFILE_CLEANUP
 branch = experimental/real-model-lab-freeze-v1
-next_work = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
+next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -46,25 +46,24 @@ quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
 The latest local lock is
-`BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1`. It
-confirms the Browser Cortex local spine can reach Cloak-first backend selection
-with a process-scoped bounded target and local browser binary override:
-selected backend and actual backend both report `cloak_browser`, with session
-kind `cloakbrowser`. The gate still blocks before provider consumption because
-Cloak/session readiness timed out on the bounded target and profile material was
-created during the probe. The probe profile directory was removed immediately.
-No provider call, real provider mission, external channel send, source runtime
-change, or push was performed.
+`FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1`. It fixes the
+readiness cleanup mismatch exposed by the V2 gate: the detector counted
+sensitive browser-profile folders such as local storage/session storage, but
+the remover only deleted exact `profile` directories. After the fix, the
+process-scoped Cloak readiness probe returns `provider_call_allowed=true`,
+selected/actual backend `cloak_browser`, session kind `cloakbrowser`, backend
+receipt match true, and `profile_material_persisted=false`. No provider call,
+real provider mission, external channel send, push, or real product claim was
+performed by the fix.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
 workspace body, bounded channel send, code/workspace skills, worker
 orchestration, signed artifact verifier work, Browser Cortex cutover truth,
 graph-backed browser actuation, and now graph-backed browser memory/recovery.
-The next browser step is a focused Cloak readiness/runtime cleanup fix, not an
-uncontrolled provider run: diagnose the session readiness timeout, make timeout
-closure clean, ensure probe profile cleanup before readiness can pass, and keep
-provider calls blocked until Cloak readiness is true.
+The next browser step is the first post-fix real Browser Cortex provider/browser
+attempt under a strict one-run contract. The readiness gate is now green, but
+Alibaba/product research is not yet product-proven under the Browser Cortex lane.
 
 The next experimental threshold is deliberately power-focused:
 
@@ -72,8 +71,8 @@ The next experimental threshold is deliberately power-focused:
 Browser Cortex Real-Power Readiness Gate
 -> provider config present before call
 -> process-scoped browser target and binary override reached cloak_browser
--> Cloak/session timed out before provider call
--> probe profile material was cleaned up after no-go
+-> Cloak/session readiness now passes after cleanup fix
+-> profile material is removed before readiness can be accepted
 -> BrowserEnvironmentState reaches model context
 -> receipts/replay can prove no side-effect redo
 -> model sees simple browser skills
@@ -93,6 +92,7 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_2_CL
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1_REPORT.md
 ```
 
 The current experimental read-only operator reports are:

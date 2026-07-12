@@ -1,5 +1,49 @@
 # Current State Lock
 
+## Fix Cloak Session Readiness Timeout And Profile Cleanup - LOCKED
+
+Recorded at: 2026-07-12
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Real Power Readiness Gate V2 lock as the top-level working truth while
+preserving that lock as scoped historical evidence.
+
+```text
+current_phase = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
+previous_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1
+next_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Cloak Readiness Cleanup Truth
+
+```text
+profile material count/remove mismatch = FIXED
+sensitive profile directories removed on timeout = YES
+Cloak readiness re-check = PASSED
+provider_call_allowed = YES
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+receipt_backend_match = YES
+profile_material_persisted = NO
+provider call during fix = NO
+real provider mission during fix = NO
+push during fix = NO
+```
+
+### Cloak Readiness Cleanup Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
+sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is exactly one real Browser Cortex provider/browser attempt.
+
 ## Browser Cortex Real Power Readiness Gate V2 Cloak Session Timeout - LOCKED
 
 Recorded at: 2026-07-12

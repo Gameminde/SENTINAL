@@ -2245,18 +2245,6 @@ def _safe_origin_hash(target_url: str) -> str:
 def _profile_file_count(capture_root: Path | None) -> int:
     if capture_root is None or not capture_root.exists():
         return 0
-    sensitive_names = {
-        "cookies",
-        "history",
-        "login data",
-        "preferences",
-        "local state",
-        "web data",
-        "sessions",
-        "session storage",
-        "local storage",
-        "indexeddb",
-    }
     count = 0
     for path in capture_root.rglob("*"):
         if not path.is_file():
@@ -2265,7 +2253,7 @@ def _profile_file_count(capture_root: Path | None) -> int:
         if "profile" in lowered_parts:
             count += 1
             continue
-        if any(part in sensitive_names for part in lowered_parts):
+        if any(part in _PROFILE_MATERIAL_NAMES for part in lowered_parts):
             count += 1
     return count
 
@@ -2273,8 +2261,40 @@ def _profile_file_count(capture_root: Path | None) -> int:
 def _remove_profile_material(capture_root: Path | None) -> None:
     if capture_root is None or not capture_root.exists():
         return
-    for profile_dir in list(capture_root.rglob("profile")):
-        shutil.rmtree(profile_dir, ignore_errors=True)
+    for path in sorted(capture_root.rglob("*"), key=lambda candidate: len(candidate.parts), reverse=True):
+        if not _is_profile_material_path(capture_root, path):
+            continue
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+        else:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
+
+
+_PROFILE_MATERIAL_NAMES = {
+    "cookies",
+    "history",
+    "login data",
+    "preferences",
+    "local state",
+    "web data",
+    "sessions",
+    "session storage",
+    "local storage",
+    "indexeddb",
+}
+
+
+def _is_profile_material_path(capture_root: Path, path: Path) -> bool:
+    try:
+        lowered_parts = {part.lower() for part in path.relative_to(capture_root).parts}
+    except ValueError:
+        return False
+    return "profile" in lowered_parts or any(part in _PROFILE_MATERIAL_NAMES for part in lowered_parts)
 
 
 def _browser_session_symbols() -> tuple[Any, Any, Any]:
