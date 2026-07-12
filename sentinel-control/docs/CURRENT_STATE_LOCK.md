@@ -1,5 +1,49 @@
 # Current State Lock
 
+## Browser Cortex Real Power Readiness Gate V2 Cloak Session Timeout - LOCKED
+
+Recorded at: 2026-07-12
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Real Power Readiness Gate V1 lock as the top-level working truth while
+preserving that lock as scoped historical evidence.
+
+```text
+current_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1
+previous_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
+next_phase = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
+roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+```
+
+### Browser Cortex Readiness V2 Truth
+
+```text
+readiness_verdict = NO_GO_CLOAK_SESSION_READINESS_TIMEOUT
+process-scoped browser target override = YES
+process-scoped browser binary override = YES
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+provider_call_allowed = NO
+provider call = NO
+real provider mission = NO
+external channel send = NO
+runtime changes = NO
+probe profile cleanup = YES
+push during gate = NO
+```
+
+### Browser Cortex Readiness V2 Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1_REPORT.md
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order. The next
+work is fixing Cloak/session readiness timeout and probe profile cleanup before
+any provider call.
+
 ## Browser Cortex Real Power Readiness Gate - LOCKED
 
 Recorded at: 2026-07-11

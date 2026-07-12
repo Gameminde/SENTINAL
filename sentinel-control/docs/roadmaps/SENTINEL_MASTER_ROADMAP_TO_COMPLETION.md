@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
-previous_phase = BROWSER_CORTEX_PACK_3_MODEL_BROWSER_NATIVE_MEMORY_AND_RECOVERY_V1
-next_work = RESTORE_BROWSER_CORTEX_REAL_POWER_ENV_AND_RERUN_GATE_V1
+current_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1
+previous_phase = BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1
+next_work = FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -49,11 +49,12 @@ fragmented across operator browser runtime, agent organs, `sentinel/agent/browse
 canonical browser organs, Cloak/session, Playwright compatibility, CDP/BiDi,
 DevTools, accessibility, world-model, recovery, and special-authority layers.
 
-The latest local lock is `BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V1`. It
-confirms the local Browser Cortex product spine is ready enough for a
-config-gated real attempt, but blocks any real provider/browser attempt in the
-current environment because browser target/headless config and the Cloak binary
-override are missing. This makes the intended product truth explicit:
+The latest local lock is
+`BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1`. It
+confirms the local Browser Cortex product spine can reach Cloak-first backend
+selection with process-scoped browser target and local binary override, but
+blocks any real provider/browser attempt because Cloak/session readiness timed
+out before provider consumption. This makes the intended product truth explicit:
 
 ```text
 real_browser_control_product_spine = PRODUCT_SPINE
@@ -69,13 +70,15 @@ browser action receipt = environment_state_hash linked
 full state persistence in browser artifacts = blocked / hash only
 browser_environment_memory = latest/previous state hashes and safe deltas
 recoverable browser state = visible to next model turn
-current real-attempt readiness = NO_GO_CONFIG_MISSING
+current real-attempt readiness = NO_GO_CLOAK_SESSION_READINESS_TIMEOUT
+selected/actual browser backend = cloak_browser / cloak_browser
+probe profile cleanup after no-go = completed
 ```
 
 This lock does not claim real Alibaba/browser product proof. It prevents the
-next run from consuming provider budget while browser/Cloak readiness is
-missing. The next build step is
-`RESTORE_BROWSER_CORTEX_REAL_POWER_ENV_AND_RERUN_GATE_V1`.
+next run from consuming provider budget while Cloak/session readiness is not
+cleanly passing. The next build step is
+`FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1`.
 
 Real now:
 
