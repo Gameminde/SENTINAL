@@ -239,6 +239,34 @@ def test_real_browser_search_dispatches_to_selected_backend(tmp_path: Path) -> N
     assert ("open_tab", "", "") not in manager.interact_calls
 
 
+def test_real_browser_search_opens_cloak_session_when_not_already_open(tmp_path: Path) -> None:
+    manager = _StrictBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert result.status == "completed"
+    assert manager.open_calls == 1
+    assert manager.observe_calls >= 1
+    assert ("fill", "Search products", "glasses under 5 euro") in manager.interact_calls
+
+
 def test_search_material_receipt_records_backend_truth(tmp_path: Path) -> None:
     engine = BrowserSessionManagerRealBrowserEngine(
         target_url="https://bounded.example.test/catalog",
@@ -2286,6 +2314,26 @@ class _FakeBrowserSessionManager:
                 "console_error_count": 1,
             },
         }
+
+
+class _StrictBrowserSessionManager(_FakeBrowserSessionManager):
+    def __init__(self) -> None:
+        super().__init__()
+        self._opened = False
+
+    def open_session(self, request: Any) -> Any:
+        self._opened = True
+        return super().open_session(request)
+
+    def observe(self, request: Any) -> Any:
+        if not self._opened or _request_value(request, "session_id") != self._session_id:
+            return SimpleNamespace(accepted=False, reason="browser_session_missing_or_closed")
+        return super().observe(request)
+
+    def interact(self, request: Any) -> Any:
+        if not self._opened or _request_value(request, "session_id") != self._session_id:
+            return SimpleNamespace(accepted=False, reason="browser_session_missing_or_closed")
+        return super().interact(request)
 
 
 class _FailingDevToolsBrowserSessionManager(_FakeBrowserSessionManager):

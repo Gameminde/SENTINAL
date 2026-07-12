@@ -780,7 +780,12 @@ class RealBrowserControlRuntime:
         if not query.strip():
             raise RealBrowserControlRuntimeError("real_browser_search_query_required")
         _reject_browser_skill_boundary_text(query)
-        before_snapshot = self.engine.observe()
+        try:
+            before_snapshot = self.engine.observe()
+        except RealBrowserControlRuntimeError as exc:
+            if str(exc) not in {"real_browser_not_open", "browser_session_missing_or_closed"}:
+                raise
+            before_snapshot = self.engine.open()
         candidates = _search_ref_candidates(before_snapshot, envelope)
         if not candidates:
             context_cards = self._world_context_cards(
