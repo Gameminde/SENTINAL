@@ -397,11 +397,11 @@ class BrowserSessionManagerRealBrowserEngine:
         return self._last_text, snapshot
 
     def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
-        del ref
         self.press_count += 1
-        if key == "Enter":
-            raise RealBrowserControlRuntimeError("real_browser_press_key_uses_search_button_fallback")
-        raise RealBrowserControlRuntimeError("real_browser_press_key_not_supported_by_session_backend")
+        if key != "Enter":
+            raise RealBrowserControlRuntimeError("real_browser_press_key_not_supported_by_session_backend")
+        result = self.session_manager.interact(self._request("press_key", ref=ref, text=key))
+        return self._snapshot_from_result(result, fallback_title="Browser session key press")
 
     def wait_for_text(self, text: str, timeout_ms: int = 1000) -> tuple[bool, RealBrowserEngineSnapshot]:
         self.wait_count += 1
@@ -457,6 +457,7 @@ class BrowserSessionManagerRealBrowserEngine:
                     BrowserSessionActionKind.FILL,
                     BrowserSessionActionKind.SELECT,
                     BrowserSessionActionKind.WAIT_FOR_TEXT,
+                    BrowserSessionActionKind.PRESS_KEY,
                 ],
                 max_steps=50,
                 max_tabs=4,
@@ -810,6 +811,10 @@ class RealBrowserControlRuntime:
                 except RealBrowserControlRuntimeError as exc:
                     errors.append(str(exc))
                     snapshot = self._click_search_button_if_available()
+                try:
+                    snapshot = self.engine.wait_for_load()
+                except RealBrowserControlRuntimeError as exc:
+                    errors.append(str(exc))
                 context_cards = self._world_context_cards(
                     snapshot,
                     authority=authority,

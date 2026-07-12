@@ -43,6 +43,7 @@ class BrowserSessionActionKind(StrEnum):
     SELECT = "select"
     HOVER = "hover"
     WAIT_FOR_TEXT = "wait_for_text"
+    PRESS_KEY = "press_key"
     OPEN_TAB = "open_tab"
     SWITCH_TAB = "switch_tab"
     CLOSE_TAB = "close_tab"
@@ -1067,6 +1068,9 @@ class BrowserSessionManagerL5Live:
         if action == BrowserSessionActionKind.WAIT_FOR_TEXT.value:
             page.get_by_text(req.text or "").first.wait_for(state="visible", timeout=timeout_ms)
             return
+        if action == BrowserSessionActionKind.PRESS_KEY.value:
+            self._execute_with_locator_fallback(page, req, lambda locator: locator.press(req.text or "", timeout=timeout_ms))
+            return
         if action == BrowserSessionActionKind.CLICK.value:
             self._execute_with_locator_fallback(page, req, lambda locator: locator.click(timeout=timeout_ms))
             return
@@ -1283,6 +1287,7 @@ _PROMOTED_SESSION_ACTIONS = {
     BrowserSessionActionKind.SELECT.value,
     BrowserSessionActionKind.HOVER.value,
     BrowserSessionActionKind.WAIT_FOR_TEXT.value,
+    BrowserSessionActionKind.PRESS_KEY.value,
     BrowserSessionActionKind.OPEN_TAB.value,
     BrowserSessionActionKind.SWITCH_TAB.value,
     BrowserSessionActionKind.CLOSE_TAB.value,

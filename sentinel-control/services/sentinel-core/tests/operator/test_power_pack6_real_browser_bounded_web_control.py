@@ -452,7 +452,7 @@ def test_power_pack6b_hard_browser_mission_can_search_extract_and_finish_with_re
     assert result.status is ModelLedTaskLoopStatus.COMPLETED
     assert fixture.engine.type_count == 1
     assert fixture.engine.press_count == 1
-    assert fixture.engine.wait_count == 0
+    assert fixture.engine.wait_count == 1
     assert fixture.engine.extract_count == 2
     assert "sentinel_loop:summarize_evidence" in result.capability_sequence
     assert decisions.contexts[-1]["objective_satisfied"] is True

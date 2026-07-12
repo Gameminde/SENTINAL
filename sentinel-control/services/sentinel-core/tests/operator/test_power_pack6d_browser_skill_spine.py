@@ -239,6 +239,25 @@ def test_real_browser_search_dispatches_to_selected_backend(tmp_path: Path) -> N
     assert ("open_tab", "", "") not in manager.interact_calls
 
 
+def test_browser_session_engine_press_key_dispatches_to_l5_backend(tmp_path: Path) -> None:
+    manager = _FakeBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    snapshot = engine.press_key("input:search", "Enter")
+
+    assert ("press_key", "Search products", "Enter") in manager.interact_calls
+    assert snapshot.state_hash
+
+
 def test_real_browser_search_opens_cloak_session_when_not_already_open(tmp_path: Path) -> None:
     manager = _StrictBrowserSessionManager()
     engine = BrowserSessionManagerRealBrowserEngine(

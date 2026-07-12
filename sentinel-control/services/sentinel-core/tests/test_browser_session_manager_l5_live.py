@@ -76,6 +76,9 @@ class _FallbackLocator:
             raise TimeoutError("exact role/name locator missed")
         self.page.fills.append({"role": self.role, "name": self.name, "exact": self.exact, "nth": self.nth, "text": text, "timeout": timeout})
 
+    def press(self, key: str, *, timeout: int) -> None:
+        self.page.presses.append({"role": self.role, "name": self.name, "exact": self.exact, "nth": self.nth, "key": key, "timeout": timeout})
+
 
 class _FallbackRoleQuery:
     def __init__(self, page: "_FallbackRolePage", *, role: str, name: str | None, exact: bool | None) -> None:
@@ -92,6 +95,7 @@ class _FallbackRolePage:
     def __init__(self) -> None:
         self.role_calls: list[dict[str, Any]] = []
         self.fills: list[dict[str, Any]] = []
+        self.presses: list[dict[str, Any]] = []
 
     def get_by_role(self, role: str, *, name: str | None = None, exact: bool | None = None) -> _FallbackRoleQuery:
         self.role_calls.append({"role": role, "name": name, "exact": exact})
@@ -141,6 +145,43 @@ def test_live_browser_session_falls_back_from_exact_role_name_to_fuzzy_same_role
     ]
     assert page.fills == [
         {"role": "textbox", "name": "Search all products", "exact": False, "nth": 0, "text": "glasses under 5 euro", "timeout": 250}
+    ]
+
+
+def test_live_browser_session_promotes_press_key_for_search_submit(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.PRESS_KEY],
+    )
+    page = _FallbackRolePage()
+    request = BrowserSessionRequest(
+        mission=_envelope(),
+        url=URL,
+        contract=contract,
+        action_kind=BrowserSessionActionKind.PRESS_KEY,
+        target_role="textbox",
+        target_name="Search all products",
+        text="Enter",
+        capture_screenshot=False,
+    )
+
+    manager._execute_step(_FallbackSession(page), request, timeout_ms=250)
+
+    assert page.presses == [
+        {"role": "textbox", "name": "Search all products", "exact": True, "nth": 0, "key": "Enter", "timeout": 250}
     ]
 
 
