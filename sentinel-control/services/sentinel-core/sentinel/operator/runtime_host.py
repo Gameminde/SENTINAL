@@ -520,7 +520,9 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
     )
     browser_handle = _mission_workspace_browser_session_handle(manifest.safe_model_dump())
     runtime_context = dict(context)
-    loop_context = envelope.params.get("loop_context")
+    loop_context = context.get("loop_context")
+    if not isinstance(loop_context, dict):
+        loop_context = envelope.params.get("loop_context")
     if isinstance(loop_context, dict):
         runtime_context.update(loop_context)
     runtime_context["mission_workspace_manifest"] = manifest.safe_model_dump()
@@ -553,7 +555,9 @@ def _default_sentinel_loop_executor(envelope: ActionEnvelope, context: dict[str,
     authority = context.get("authority")
     if not isinstance(authority, MissionAuthorityEnvelope):
         raise RuntimeError("sentinel_loop_runtime_context_missing")
-    loop_context = envelope.params.get("loop_context")
+    loop_context = context.get("loop_context")
+    if not isinstance(loop_context, dict):
+        loop_context = envelope.params.get("loop_context")
     effective_context = dict(context)
     if isinstance(loop_context, dict):
         effective_context.update(loop_context)

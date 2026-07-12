@@ -449,6 +449,54 @@ def test_first_turn_extract_without_browser_context_routes_to_search_before_extr
     assert result.dispatch_results[1].operation == "real_browser.extract_product_cards"
 
 
+def test_browser_loop_context_is_not_scanned_as_action_payload(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={
+                    "query": "glasses under 5 euro",
+                    "engine_profile": "fake_product_search",
+                },
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.extract_product_cards",
+            ),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Browser extraction completed."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_context_not_action_payload",
+        mission_objective=(
+            "Search bounded product cards for glasses under 5 euro, extract visible cards, "
+            "then finish. Do not login, contact supplier, enter credentials, pay, or checkout."
+        ),
+        decision_client=client,
+        allowed_domains=("bounded.example",),
+        max_model_calls=4,
+        max_material_actions=2,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "sentinel_loop:finish",
+    )
+    assert result.dispatch_results[1].operation == "real_browser.extract_product_cards"
+    assert result.dispatch_results[1].blocked_reason is None
+
+
 def test_playwright_requires_explicit_compatibility_selection(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)

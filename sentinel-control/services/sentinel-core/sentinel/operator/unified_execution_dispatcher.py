@@ -541,11 +541,12 @@ class ProductActionKernelDispatchAdapter:
                     finalgate_status="rejected",
                     blocked_reason=preflight_failure,
                 )
+        action_params, execution_loop_context = _split_action_params_from_execution_context(params)
         envelope = ActionEnvelope(
             capability_id=request.capability_id,
             operation=request.operation,
-            target_ref=_target_ref_from_parameters(params),
-            params=params,
+            target_ref=_target_ref_from_parameters(action_params),
+            params=action_params,
             authority_ref=request.authority_envelope_ref,
             decision_ref=decision.decision_id,
             expected_receipt_type="ProductActionKernelReceipt",
@@ -565,6 +566,7 @@ class ProductActionKernelDispatchAdapter:
                     "backend_id": route.backend_id,
                     "organ_id": route.organ_id,
                     "simple_skill_id": route.simple_skill_id or "",
+                    "loop_context": execution_loop_context,
                     "authority": authority,
                     "kernel": context.kernel,
                 },
@@ -1264,6 +1266,12 @@ def _target_ref_from_parameters(params: dict[str, Any]) -> str | None:
         if isinstance(value, str) and value.strip():
             return value
     return None
+
+
+def _split_action_params_from_execution_context(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    action_params = dict(params)
+    loop_context = action_params.pop("loop_context", None)
+    return action_params, loop_context if isinstance(loop_context, dict) else None
 
 
 def _product_action_kernel_artifact_path(
