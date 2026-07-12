@@ -189,6 +189,22 @@ def test_browser_session_action_terms_do_not_false_positive_but_session_key_stil
     assert scan_forbidden_payload_flat({"session": {"cookie": "opaque-ref-only"}}) == ["$.session", "$.session.cookie"]
 
 
+def test_browser_visible_product_text_does_not_false_positive_as_external_action() -> None:
+    payload = {
+        "browser_world_model": {
+            "product_or_result_candidate_cards": [
+                {"title": "Processeur audio", "short_features": ["Processeur audio Processeur audio"]},
+                {"title": "Trade Assurance Logo", "short_features": ["Trade Assurance Icon"]},
+            ],
+            "top_visible_text_snippets": ["Processeur audio", "Trade Assurance Logo"],
+        }
+    }
+
+    assert scan_forbidden_payload_flat(payload) == []
+    assert scan_forbidden_payload_flat({"trade": True}) == ["$.trade"]
+    assert scan_forbidden_payload_flat({"process": True}) == ["$.process"]
+
+
 def test_scanner_results_are_deterministic() -> None:
     payload = {"metadata": {"api_call": True, "provider_override": "auto", "token": "Bearer " + "A" * 16}}
 

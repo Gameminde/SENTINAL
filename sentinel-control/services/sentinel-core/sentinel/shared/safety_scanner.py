@@ -201,7 +201,7 @@ DOWNSTREAM_DANGEROUS_FORBIDDEN_KEYS = frozenset(
 _FORBIDDEN_TEXT_BY_CATEGORY: dict[OrganSafetyScanCategory, set[str]] = {
     OrganSafetyScanCategory.PROVIDER_OVERRIDE: SHARED_PROVIDER_OVERRIDE_KEYS,
     OrganSafetyScanCategory.AUTHORITY_EXPANSION: SHARED_AUTHORITY_EXPANSION_KEYS,
-    OrganSafetyScanCategory.EXTERNAL_ACTION: SHARED_EXTERNAL_ACTION_KEYS,
+    OrganSafetyScanCategory.EXTERNAL_ACTION: SHARED_EXTERNAL_ACTION_KEYS - {"process", "trade"},
     OrganSafetyScanCategory.BROWSER_DANGEROUS: {
         "browser_download",
         "browser_login",

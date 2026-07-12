@@ -271,6 +271,72 @@ def test_product_loop_continues_to_extract_after_recoverable_browser_search_with
     )
 
 
+def test_product_loop_does_not_block_browser_visible_trade_or_processor_text(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    class SearchActuationFailingCatalogEngine(runtime_host_module._ProductLocalCloakBrowserEngine):
+        def type_text(self, ref: str, text: str):  # type: ignore[no-untyped-def]
+            del ref, text
+            raise RealBrowserControlRuntimeError("locator_timeout")
+
+        def _page_text(self) -> str:
+            return "\n".join(
+                [
+                    "Processeur audio Processeur audio",
+                    "Trade Assurance Logo",
+                    "Trade Assurance Icon",
+                ]
+            )
+
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
+    monkeypatch.setattr(
+        runtime_host_module,
+        "build_cloak_first_real_browser_engine_from_env",
+        SearchActuationFailingCatalogEngine,
+    )
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "glasses sunglasses under 5 euro"},
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.extract_product_cards",
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.verify_extraction",
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence"),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Visible browser evidence handled without unsafe-payload false positive."},
+            ),
+        ]
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_visible_text_false_positive",
+        mission_objective="Search bounded product cards, extract visible cards, verify, summarize, and finish.",
+        decision_client=client,
+        allowed_domains=("bounded.example",),
+        max_model_calls=6,
+        max_material_actions=4,
+        max_recoverable_action_failures=1,
+    )
+
+    assert "real_browser_control:real_browser.search" in result.capability_sequence
+    assert "real_browser_control:real_browser.extract_product_cards" in result.capability_sequence
+    assert result.blocked_reason != "mission_execution_request_parameters: unsafe operator payload"
+
+
 def test_completed_browser_search_context_propagates_to_extract_when_live_session_missing(
     tmp_path: Path,
     monkeypatch,
