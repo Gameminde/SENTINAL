@@ -5,6 +5,7 @@ import sys
 import types
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -60,6 +61,87 @@ def _envelope() -> MissionAuthorityEnvelope:
         max_actions=20,
         max_cost_usd=0.0,
     )
+
+
+class _FallbackLocator:
+    def __init__(self, page: "_FallbackRolePage", *, role: str, name: str | None, exact: bool | None, nth: int) -> None:
+        self.page = page
+        self.role = role
+        self.name = name
+        self.exact = exact
+        self.nth = nth
+
+    def fill(self, text: str, *, timeout: int) -> None:
+        if self.exact is True:
+            raise TimeoutError("exact role/name locator missed")
+        self.page.fills.append({"role": self.role, "name": self.name, "exact": self.exact, "nth": self.nth, "text": text, "timeout": timeout})
+
+
+class _FallbackRoleQuery:
+    def __init__(self, page: "_FallbackRolePage", *, role: str, name: str | None, exact: bool | None) -> None:
+        self.page = page
+        self.role = role
+        self.name = name
+        self.exact = exact
+
+    def nth(self, nth: int) -> _FallbackLocator:
+        return _FallbackLocator(self.page, role=self.role, name=self.name, exact=self.exact, nth=nth)
+
+
+class _FallbackRolePage:
+    def __init__(self) -> None:
+        self.role_calls: list[dict[str, Any]] = []
+        self.fills: list[dict[str, Any]] = []
+
+    def get_by_role(self, role: str, *, name: str | None = None, exact: bool | None = None) -> _FallbackRoleQuery:
+        self.role_calls.append({"role": role, "name": name, "exact": exact})
+        return _FallbackRoleQuery(self, role=role, name=name, exact=exact)
+
+
+class _FallbackSession:
+    def __init__(self, page: _FallbackRolePage) -> None:
+        self.page = page
+
+
+def test_live_browser_session_falls_back_from_exact_role_name_to_fuzzy_same_role(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.FILL],
+    )
+    page = _FallbackRolePage()
+    request = BrowserSessionRequest(
+        mission=_envelope(),
+        url=URL,
+        contract=contract,
+        action_kind=BrowserSessionActionKind.FILL,
+        target_role="textbox",
+        target_name="Search all products",
+        text="glasses under 5 euro",
+        capture_screenshot=False,
+    )
+
+    manager._execute_step(_FallbackSession(page), request, timeout_ms=250)
+
+    assert page.role_calls == [
+        {"role": "textbox", "name": "Search all products", "exact": True},
+        {"role": "textbox", "name": "Search all products", "exact": False},
+    ]
+    assert page.fills == [
+        {"role": "textbox", "name": "Search all products", "exact": False, "nth": 0, "text": "glasses under 5 euro", "timeout": 250}
+    ]
 
 
 def test_live_browser_session_persists_form_state_across_steps(tmp_path: Path) -> None:

@@ -1067,20 +1067,31 @@ class BrowserSessionManagerL5Live:
         if action == BrowserSessionActionKind.WAIT_FOR_TEXT.value:
             page.get_by_text(req.text or "").first.wait_for(state="visible", timeout=timeout_ms)
             return
-        locator = self._locator(page, req)
         if action == BrowserSessionActionKind.CLICK.value:
-            locator.click(timeout=timeout_ms)
+            self._execute_with_locator_fallback(page, req, lambda locator: locator.click(timeout=timeout_ms))
             return
         if action in {BrowserSessionActionKind.TYPE.value, BrowserSessionActionKind.FILL.value}:
-            locator.fill(req.text or "", timeout=timeout_ms)
+            self._execute_with_locator_fallback(page, req, lambda locator: locator.fill(req.text or "", timeout=timeout_ms))
             return
         if action == BrowserSessionActionKind.SELECT.value:
-            locator.select_option(req.values, timeout=timeout_ms)
+            self._execute_with_locator_fallback(page, req, lambda locator: locator.select_option(req.values, timeout=timeout_ms))
             return
         if action == BrowserSessionActionKind.HOVER.value:
-            locator.hover(timeout=timeout_ms)
+            self._execute_with_locator_fallback(page, req, lambda locator: locator.hover(timeout=timeout_ms))
             return
         raise RuntimeError(f"browser_session_action_not_implemented:{action}")
+
+    def _execute_with_locator_fallback(self, page: Any, req: BrowserSessionRequest, action: Any) -> None:
+        last_error: Exception | None = None
+        for locator in self._locator_candidates(page, req):
+            try:
+                action(locator)
+                return
+            except Exception as exc:
+                last_error = exc
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("browser_session_target_missing")
 
     @staticmethod
     def _locator(page: Any, req: BrowserSessionRequest) -> Any:
@@ -1090,9 +1101,21 @@ class BrowserSessionManagerL5Live:
         raise RuntimeError("browser_session_target_missing")
 
     @staticmethod
-    def _role_locator(page: Any, role: str, name: str | None, nth: int) -> Any:
+    def _locator_candidates(page: Any, req: BrowserSessionRequest) -> list[Any]:
+        nth = req.target_nth or 0
+        if not req.target_role:
+            raise RuntimeError("browser_session_target_missing")
+        if not req.target_name:
+            return [BrowserSessionManagerL5Live._role_locator(page, req.target_role, None, nth)]
+        return [
+            BrowserSessionManagerL5Live._role_locator(page, req.target_role, req.target_name, nth),
+            BrowserSessionManagerL5Live._role_locator(page, req.target_role, req.target_name, nth, exact=False),
+        ]
+
+    @staticmethod
+    def _role_locator(page: Any, role: str, name: str | None, nth: int, *, exact: bool = True) -> Any:
         if name:
-            return page.get_by_role(role, name=name, exact=True).nth(nth)
+            return page.get_by_role(role, name=name, exact=exact).nth(nth)
         return page.get_by_role(role).nth(nth)
 
     def _capture_receipt(self, req: BrowserSessionRequest, session: _LiveBrowserSession, *, action_kind: str, status: BrowserSessionStatus, safe_summary: str, execution_effect: str) -> BrowserSessionReceipt:
