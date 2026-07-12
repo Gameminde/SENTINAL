@@ -2154,6 +2154,35 @@ def test_hard_boundary_intent_blocks_contact_supplier_payment_login_credentials(
         assert mapping.envelope is None
 
 
+def test_negated_hard_boundary_words_do_not_block_safe_completion_intent(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    context = {
+        "finish_available": True,
+        "grounded_evidence_summary": {
+            "present": True,
+            "has_relevant_product_evidence": True,
+        },
+        "bounded_observation_summaries": [
+            {
+                "capability_id": "real_browser_control",
+                "operation": "real_browser.verify_extraction",
+                "status": "completed",
+                "receipt_count": 1,
+            }
+        ],
+    }
+
+    mapping = map_browser_model_native_intent(
+        "I have enough visible evidence to summarize and finish without login, contact supplier, payment, credentials, upload, or download.",
+        context=context,
+    )
+
+    assert mapping.blocked is False
+    assert mapping.envelope is not None
+    assert mapping.envelope.capability_id == "sentinel_loop"
+    assert mapping.envelope.operation == "finish"
+
+
 def test_metadata_reply_with_natural_intent_is_parsed_without_raw_persistence(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
     opened = fixture.runtime.execute(

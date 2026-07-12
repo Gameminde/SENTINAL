@@ -433,7 +433,31 @@ def _is_hard_boundary_intent(normalized: str) -> bool:
         return False
     if "submit search" in normalized or "search submit" in normalized:
         return False
-    return any(marker in normalized for marker in _HARD_BOUNDARY_MARKERS)
+    return any(_contains_affirmative_boundary_marker(normalized, marker) for marker in _HARD_BOUNDARY_MARKERS)
+
+
+def _contains_affirmative_boundary_marker(normalized: str, marker: str) -> bool:
+    for match in re.finditer(re.escape(marker), normalized):
+        prefix = normalized[max(0, match.start() - 96) : match.start()]
+        if _is_negated_boundary_context(prefix):
+            continue
+        return True
+    return False
+
+
+def _is_negated_boundary_context(prefix: str) -> bool:
+    """Treat model statements that preserve boundaries as safe context.
+
+    A model may say "finish without login/contact/payment" while explaining its
+    next safe step. That is not an intent to log in, contact, or pay.
+    """
+
+    return bool(
+        re.search(
+            r"\b(do not|don't|dont|must not|should not|will not|won't|wont|cannot|can not|never|no|without|avoid|avoiding)\b.{0,80}$",
+            prefix,
+        )
+    )
 
 
 def _mentions_open(normalized: str) -> bool:
