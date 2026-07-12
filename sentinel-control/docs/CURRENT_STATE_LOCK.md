@@ -1,6 +1,6 @@
 # Current State Lock
 
-## Fix Product Loop Browser Safe Context Propagation After Material Search - LOCKED
+## Browser Cortex Alibaba V7 First-Turn Extract Routing Failure - LOCKED
 
 Recorded at: 2026-07-12
 
@@ -9,13 +9,13 @@ Proof IO / Env Cloak Backend lock as the top-level working truth while
 preserving V2 through V6 as scoped real-attempt evidence.
 
 ```text
-current_phase = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
-previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_VALID_FAILED
-next_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX
+current_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX_VALID_FAILED
+previous_phase = FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1
+next_phase = FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1
 roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
-### Browser Cortex Attempts V2-V6 Truth
+### Browser Cortex Attempts V2-V7 Truth
 
 ```text
 V2 = VALID_FAILED / MISSION_EXECUTION_REQUEST_LONG_PATH_IO_GAP
@@ -23,8 +23,9 @@ V3 = VALID_FAILED / BROWSER_SEARCH_SKILL_DID_NOT_OPEN_SESSION
 V4 = VALID_FAILED / PRODUCT_LOOP_BROWSER_RECOVERABLE_SEARCH_TO_EXTRACTION_GAP
 V5 = VALID_FAILED / EXTRACT_AFTER_RECOVERABLE_SEARCH_SESSION_CONTINUITY_GAP
 V6 = VALID_FAILED / PRODUCT_LOOP_BROWSER_CONTEXT_PROPAGATION_GAP_AFTER_MATERIAL_SEARCH
+V7 = VALID_FAILED / FIRST_TURN_EXTRACT_WITHOUT_BROWSER_CONTEXT_GAP
 provider route = aliyun_dashscope / aliyun_openai_compatible_chat / deepseek-v4-pro
-Cloak readiness before provider = PASSED for V2-V6
+Cloak readiness before provider = PASSED for V2-V7
 selected_backend_id = cloak_browser
 actual_backend_id = cloak_browser
 session_backend_kind = cloakbrowser
@@ -57,7 +58,8 @@ implementation_commits = b3dae57, 30519f8, 6c1fa74, 51fea0c
 local proof = search recoverable failure + visible cards -> extract -> verify -> summarize -> finish
 real Alibaba V6 proof = search material receipt succeeded; extraction context propagation failed
 local proof after fix = completed search context -> extract -> verify -> summarize -> finish
-next real attempt = V7 exactly once under strict one-run contract
+real Alibaba V7 proof = first-turn model-native extract accepted without browser context and blocked
+next work = FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1
 ```
 
 ### Artifacts
@@ -73,6 +75,7 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWS
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_BROWSER_EXTRACT_FROM_CONTEXT_WORLD_MODEL_WITHOUT_LIVE_SESSION_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V6_AFTER_CONTEXT_WORLD_MODEL_EXTRACTION_FIX_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_LOOP_BROWSER_SAFE_CONTEXT_PROPAGATION_AFTER_MATERIAL_SEARCH_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX_REPORT.md
 sentinel-control/services/sentinel-core/sentinel/operator/browser_decision_frame.py
 sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py
 sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
@@ -81,8 +84,7 @@ sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pa
 
 Historical current-phase and next-phase blocks below remain evidence for their
 scoped locks. They must not be interpreted as the current build order. The next
-work is exactly one real Browser Cortex provider/browser V7 attempt after the
-safe-context propagation fix.
+work is the model-native first-turn extraction routing fix exposed by V7.
 
 ## Fix Product Browser Proof IO And Env Cloak Backend - LOCKED
 
