@@ -44,6 +44,7 @@ from sentinel.operator.real_browser_control_runtime import (
     RealBrowserControlRuntime,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
+    build_cloak_first_real_browser_engine_from_env,
 )
 from sentinel.operator.runtime_connections import RuntimeConnectionRegistry, build_default_runtime_connection_registry
 from sentinel.operator.unified_execution_dispatcher import (
@@ -523,7 +524,7 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
     runtime = RealBrowserControlRuntime(
         kernel=kernel,
         mission_id=mission_id,
-        engine=_ProductLocalCloakBrowserEngine(),
+        engine=_product_browser_engine(envelope),
         session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
         selected_backend_id=CLOAK_BROWSER_BACKEND_ID,
         product_context=runtime_context,
@@ -565,6 +566,15 @@ def _real_browser_preflight(
         if params.get("explicit_compatibility_selection") is not True:
             return "real_browser_playwright_compatibility_requires_explicit_selection"
     return None
+
+
+def _product_browser_engine(envelope: ActionEnvelope) -> object:
+    engine_profile = str(envelope.params.get("engine_profile") or "").strip().lower()
+    if engine_profile in {"fake_product_search", "local_fake", "inmemory"}:
+        return _ProductLocalCloakBrowserEngine()
+    if os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip():
+        return build_cloak_first_real_browser_engine_from_env()
+    return _ProductLocalCloakBrowserEngine()
 
 
 def _worker_fleet_preflight(

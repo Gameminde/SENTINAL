@@ -10,6 +10,7 @@ from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ProductActionKernelTaskLoopReplay,
     ProductActionKernelTaskLoopStatus,
 )
+from sentinel.operator import runtime_host as runtime_host_module
 from sentinel.operator.real_browser_control_runtime import InMemoryRealBrowserEngine, RealBrowserControlRuntime
 from sentinel.operator.runtime_host import SentinelRuntimeHost
 
@@ -158,6 +159,45 @@ def test_cloak_selected_as_product_backend_when_available(tmp_path: Path) -> Non
     assert browser_receipt["actual_backend_id"] == "cloak_browser"
     assert browser_receipt["session_backend_kind"] == "cloakbrowser"
     assert browser_receipt["backend_mismatch"] is False
+
+
+def test_env_configured_browser_product_route_uses_cloak_first_engine_factory(tmp_path: Path, monkeypatch) -> None:
+    calls: list[bool] = []
+
+    def fake_factory() -> object:
+        calls.append(True)
+        return runtime_host_module._ProductLocalCloakBrowserEngine()
+
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
+    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_env_cloak_backend",
+        mission_objective="Search through the env-configured Cloak product browser backend.",
+        decision_client=ProductActionKernelLoopDecisionClient(
+            [
+                ActionEnvelope(
+                    capability_id="real_browser_control",
+                    operation="real_browser.search",
+                    params={"query": "glasses under 5 euro"},
+                ),
+                ActionEnvelope(
+                    capability_id="sentinel_loop",
+                    operation="finish",
+                    params={"safe_summary": "Browser env route completed."},
+                ),
+            ]
+        ),
+        allowed_domains=("bounded.example",),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert calls == [True]
 
 
 def test_playwright_requires_explicit_compatibility_selection(tmp_path: Path) -> None:
