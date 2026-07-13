@@ -13,7 +13,7 @@ current phase, maturity taxonomy, or build sequence.
 Sentinel is not an IDE.
 Sentinel is not just a browser agent.
 Sentinel is not just a chatbot.
-Sentinel is an agentic operating system for controlled real-world power.
+Sentinel is a cognitive operating system for controlled real-world power.
 ```
 
 The product experience is simple:
@@ -37,11 +37,25 @@ provable.
 Current state:
 
 ```text
-current_phase = FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1
-previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V7_AFTER_SAFE_CONTEXT_PROPAGATION_FIX_VALID_FAILED
-next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V8_AFTER_FIRST_TURN_EXTRACT_ROUTING_FIX
-roadmap_doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
+current_phase = BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
+previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V17_AFTER_NEGATIVE_RELEVANCE_COMPLETION_AND_REPLAY_HASHING_VALID_SUCCESS
+next_work = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+roadmap_doctrine = model thinks, Sentinel senses/executes/proves, hard stop only real damage
 ```
+
+The active north star is now recorded in:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md
+```
+
+V17 proves browser product-loop completion through real provider, model-native
+browser skill, ProductActionKernel, Cloak/session, search, extraction,
+verification, grounded summary, finish, FinalGate, and replay no-react. It does
+not yet prove deep browser intelligence or strong search quality. The current
+implementation therefore upgrades BrowserEnvironmentState into an
+evidence-bearing cognitive graph and makes search materiality distinguish input
+filling from real state/result/request progress.
 
 The active strategy is now the Monster Runtime / Browser Cortex unification
 program. Sentinel has enough browser organs to be powerful, but that power is

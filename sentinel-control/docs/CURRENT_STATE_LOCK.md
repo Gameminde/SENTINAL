@@ -1,5 +1,66 @@
 # Current State Lock
 
+## Browser Cortex Search Quality And Environment Understanding V1 - IMPLEMENTED CANDIDATE
+
+Recorded at: 2026-07-13
+
+This section is the canonical current state. It supersedes the older V8-era
+top-level Browser Cortex lock while preserving all historical browser-attempt
+sections below as scoped evidence.
+
+```text
+current_phase = BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
+previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V17_AFTER_NEGATIVE_RELEVANCE_COMPLETION_AND_REPLAY_HASHING_VALID_SUCCESS
+next_phase = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+roadmap_doctrine = cognitive OS: model thinks, Sentinel senses/executes/proves, hard stop only real damage
+```
+
+### Accepted Product Truth
+
+```text
+REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V17_AFTER_NEGATIVE_RELEVANCE_COMPLETION_AND_REPLAY_HASHING
+= VALID_SUCCESS
+
+real provider -> model-native browser skill -> ProductActionKernel -> Cloak/session
+-> search -> extraction -> verification -> grounded summary -> finish
+-> FinalGate -> replay no-react
+```
+
+V17 proves product loop completion, but it does not yet prove deep browser
+intelligence, strong search quality, or full environment understanding.
+
+### Current Implementation Truth
+
+```text
+SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1 = LOCKED
+BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1 = IMPLEMENTED_CANDIDATE_LOCAL_PROOF
+
+BrowserEnvironmentState schema_version = browser_environment_state_v1
+cognitive_graph_ready = true
+state_fields include value/confidence/evidence_refs/freshness/source/uncertainty_reason
+search materiality receipt fields = implemented
+input filling alone = not successful search
+raw DOM/cookies/session/token/provider reasoning persistence = blocked by safe state contract
+implementation_commit = 16facc2afa46c8f1d9a60a824396db93b22b19bf
+provider call during implementation = NO
+real browser run during implementation = NO
+push = NO
+```
+
+### Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/browser_environment_state.py
+sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_models.py
+sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
+sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order.
+
 ## Fix Browser Model Native First Turn Extract Routing - LOCKED
 
 Recorded at: 2026-07-12

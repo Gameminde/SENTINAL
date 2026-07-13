@@ -73,6 +73,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Monster runtime objective lock | `SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1` | control lock, no runtime change | `local docs commit` | Establishes the final execution doctrine and scorecard: one product spine, simple model-facing skills, organs as hidden backends, ActionEnvelope internal only, recover by default inside granted scope, hard stop only real damage |
 | Controlled attempt: Product task-loop RuntimeHost entrypoint | `REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1` | controlled valid success, no provider | `local report commit` | Proves RuntimeHost -> ModelLedProductActionKernelTaskLoop -> ProductActionKernel dispatch for code execution and bounded fake/local channel send, then model finish with ProductActionKernel receipts, FinalGate certificates, replay no-react, and clean raw-material scan |
 | Power unification: direct bypass and dual-path census | `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1` | docs-only implemented | `local report commit` | Converts deep-code-audit bypass findings into a 20-row executable migration table with BYPASS_REMOVE/WRAP/PRODUCT_WIRE/KEEP_INTERNAL/DEPRECATE/LOCK_HIGH_RISK classifications |
+| Cognitive OS lock and browser search quality foundation | `BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1` | implemented candidate, local proof only | `16facc2afa46c8f1d9a60a824396db93b22b19bf` | Locks the Cognitive OS north star, exposes evidence/confidence/freshness/source/uncertainty-bearing BrowserEnvironmentState to the product browser spine, and records search materiality so input fill alone is not search success |
 
 New canonical next sequence:
 
@@ -102,7 +103,8 @@ done POWER_CLEANUP_PACK_10_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 done SENTINEL_MONSTER_RUNTIME_OBJECTIVE_LOCK_V1
 done REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 done POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
-next POWER_UNIFICATION_PACK_1_DIRECT_BYPASS_ELIMINATION_V1
+done BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
+next BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F
