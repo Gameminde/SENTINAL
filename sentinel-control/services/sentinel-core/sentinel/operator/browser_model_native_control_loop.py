@@ -116,19 +116,19 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
         if _finish_is_available(context):
             return _mapped(
                 "sentinel_loop.finish",
-                params={"safe_summary": "Browser task evidence verified; model requested finish."},
+                params={"safe_summary": "Browser task evidence verified and relevance assessed; model requested finish."},
                 intent_kind="finish",
                 diagnostics=diagnostics,
             )
         if (
             _has_verified_browser_extraction(context)
             and _has_grounded_evidence_summary(context)
-            and not _has_relevant_product_evidence(context)
+            and _has_objective_relevance_assessment(context)
         ):
             return _mapped(
-                "real_browser_control.real_browser.search",
-                params={"query": _query_from_mission(context)},
-                intent_kind="finish_requires_relevant_product_evidence",
+                "sentinel_loop.finish",
+                params={"safe_summary": "Browser task evidence verified; finish with grounded caveats."},
+                intent_kind="finish_after_grounded_relevance_assessment",
                 diagnostics=diagnostics,
             )
         if _has_verified_browser_extraction(context):
@@ -568,7 +568,7 @@ def _primary_recommended_action(context: dict[str, Any]) -> str | None:
 def _strongest_contextual_browser_action(context: dict[str, Any]) -> str | None:
     if _has_verified_browser_extraction(context) and not _has_grounded_evidence_summary(context):
         return "sentinel_loop.summarize_evidence"
-    if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and (context.get("finish_available") or context.get("objective_satisfied")):
+    if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and _has_objective_relevance_assessment(context):
         return "sentinel_loop.finish"
     if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and not _has_relevant_product_evidence(context):
         primary = _primary_recommended_action(context)
@@ -698,7 +698,7 @@ def _finish_is_available(context: dict[str, Any]) -> bool:
         (context.get("finish_available") or context.get("objective_satisfied"))
         and _has_verified_browser_extraction(context)
         and _has_grounded_evidence_summary(context)
-        and _has_relevant_product_evidence(context)
+        and _has_objective_relevance_assessment(context)
     )
 
 
@@ -739,6 +739,16 @@ def _has_grounded_evidence_summary(context: dict[str, Any]) -> bool:
             and item.get("status") in {"completed", "passed", "success"}
         ):
             return True
+    return False
+
+
+def _has_objective_relevance_assessment(context: dict[str, Any]) -> bool:
+    summary = context.get("grounded_evidence_summary")
+    if isinstance(summary, dict) and summary.get("objective_relevance_assessed") is True:
+        return True
+    requirements = context.get("completion_requirements")
+    if isinstance(requirements, dict):
+        return bool(requirements.get("has_objective_relevance_assessment") is True)
     return False
 
 

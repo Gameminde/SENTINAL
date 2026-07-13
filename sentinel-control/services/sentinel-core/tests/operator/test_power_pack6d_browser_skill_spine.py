@@ -1632,7 +1632,7 @@ def test_summary_grounded_in_verified_cards_and_relevance(tmp_path: Path) -> Non
     assert "Unknown fields remain unknown" in grounded["summary_text"]
 
 
-def test_visible_irrelevant_cards_do_not_fake_success(tmp_path: Path) -> None:
+def test_visible_irrelevant_cards_finish_with_negative_relevance_not_fake_match(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_IrrelevantProductSearchEngine())
 
     opened = fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
@@ -1656,11 +1656,8 @@ def test_visible_irrelevant_cards_do_not_fake_success(tmp_path: Path) -> None:
     assert summary.context_cards["grounded_evidence_summary"]["matched_products"] == []
     assert context["completion_requirements"]["has_objective_relevance_assessment"] is True
     assert context["completion_requirements"]["has_relevant_product_evidence"] is False
-    assert context["finish_available"] is False
-    assert context["primary_model_recommended_next_action"] in {
-        "real_browser_control.real_browser.search",
-        "real_browser_control.real_browser.inspect_result",
-    }
+    assert context["finish_available"] is True
+    assert context["primary_model_recommended_next_action"] == "sentinel_loop.finish"
 
 
 def test_relevance_gap_after_search_does_not_repeat_search_as_primary(tmp_path: Path) -> None:
@@ -1707,16 +1704,17 @@ def test_relevance_gap_after_search_does_not_repeat_search_as_primary(tmp_path: 
     )
     context = _compile_browser_context(fixture, observations=[opened, extracted, verified, summary, searched])
 
-    assert context["completion_requirements"]["requires_relevant_product_evidence"] is True
+    assert context["completion_requirements"]["requires_relevant_product_evidence"] is False
     assert context["primary_model_recommended_next_action"] != "real_browser_control.real_browser.search"
 
     mapping = map_browser_model_native_intent("I will continue with the strongest safe next step.", context=context)
 
     assert mapping.envelope is not None
-    assert mapping.envelope.operation != "real_browser.search"
+    assert mapping.envelope.capability_id == "sentinel_loop"
+    assert mapping.envelope.operation == "finish"
 
 
-def test_finish_intent_after_irrelevant_summary_routes_to_relevance_recovery(tmp_path: Path) -> None:
+def test_finish_intent_after_irrelevant_summary_finishes_with_grounded_caveat(tmp_path: Path) -> None:
     class _UnrelatedCatalogEngine(_IrrelevantProductSearchEngine):
         def __init__(self) -> None:
             super().__init__()
@@ -1800,8 +1798,9 @@ def test_finish_intent_after_irrelevant_summary_routes_to_relevance_recovery(tmp
 
     assert context["completion_requirements"]["has_relevant_product_evidence"] is False
     assert mapping.envelope is not None
-    assert mapping.envelope.operation == "real_browser.search"
-    assert mapping.intent_kind == "finish_requires_relevant_product_evidence"
+    assert mapping.envelope.capability_id == "sentinel_loop"
+    assert mapping.envelope.operation == "finish"
+    assert mapping.intent_kind == "finish"
 
 
 def test_finish_requires_relevance_assessment(tmp_path: Path) -> None:
@@ -2160,6 +2159,7 @@ def test_negated_hard_boundary_words_do_not_block_safe_completion_intent(tmp_pat
         "finish_available": True,
         "grounded_evidence_summary": {
             "present": True,
+            "objective_relevance_assessed": True,
             "has_relevant_product_evidence": True,
         },
         "bounded_observation_summaries": [

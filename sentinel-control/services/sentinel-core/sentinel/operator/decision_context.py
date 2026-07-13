@@ -161,7 +161,6 @@ class DecisionContextCompiler:
                     real_browser_verified_extraction_results
                     and grounded_summary_results
                     and grounded_evidence_summary["objective_relevance_assessed"] is True
-                    and grounded_evidence_summary["has_relevant_product_evidence"] is True
                 )
             )
         elif browser_mode:
@@ -757,9 +756,7 @@ def _real_browser_progress_guidance(
         "requires_objective_relevance_assessment": has_verified_extraction
         and has_grounded_summary
         and not has_relevance_assessment,
-        "requires_relevant_product_evidence": has_verified_extraction
-        and has_relevance_assessment
-        and not has_relevant_product_evidence,
+        "requires_relevant_product_evidence": False,
         "requires_finish_action": True,
         "has_real_browser_open_receipt": has_open,
         "has_real_browser_observation_receipt": has_observation,

@@ -203,7 +203,7 @@ class ModelLedProductActionKernelTaskLoop:
         finish_available = bool(
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
             and completion_requirements.get("has_grounded_evidence_summary")
-            and completion_requirements.get("has_relevant_product_evidence")
+            and completion_requirements.get("has_objective_relevance_assessment")
         )
         return {
             "loop_id": self.loop_id,
@@ -416,7 +416,7 @@ class ModelLedProductActionKernelTaskLoop:
         if (
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
             and completion_requirements.get("has_grounded_evidence_summary")
-            and completion_requirements.get("has_relevant_product_evidence")
+            and completion_requirements.get("has_objective_relevance_assessment")
         ):
             return ("sentinel_loop.finish",)
         if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
@@ -896,6 +896,7 @@ def _product_completion_requirements(
         "has_real_browser_extraction_receipt": ("real_browser_control", "real_browser.extract_product_cards") in operations,
         "has_real_browser_verified_extraction_receipt": ("real_browser_control", "real_browser.verify_extraction") in operations,
         "has_grounded_evidence_summary": has_grounded_summary,
+        "has_objective_relevance_assessment": bool(summary.get("objective_relevance_assessed") is True),
         "has_relevant_product_evidence": bool(summary.get("has_relevant_product_evidence") is True),
         "under_price_condition_supported_by_visible_evidence": summary.get(
             "under_price_condition_supported_by_visible_evidence",
