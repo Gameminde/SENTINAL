@@ -75,6 +75,7 @@ This prevents the work from collapsing back into one visible symptom, such as br
 | Power unification: direct bypass and dual-path census | `POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1` | docs-only implemented | `local report commit` | Converts deep-code-audit bypass findings into a 20-row executable migration table with BYPASS_REMOVE/WRAP/PRODUCT_WIRE/KEEP_INTERNAL/DEPRECATE/LOCK_HIGH_RISK classifications |
 | Cognitive OS lock and browser search quality foundation | `BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1` | implemented candidate, local proof only | `16facc2afa46c8f1d9a60a824396db93b22b19bf` | Locks the Cognitive OS north star, exposes evidence/confidence/freshness/source/uncertainty-bearing BrowserEnvironmentState to the product browser spine, and records search materiality so input fill alone is not search success |
 | Browser Cortex quality corpus and search understanding gate | `BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1` | implemented candidate, local corpus proof only | local commit containing this report | Adds counterfactual BrowserEnvironmentState consumption proof, a frozen 24-case deterministic corpus, 20-task/5-site holdout manifest, search-progress evaluator, fill-only false-success invariant, semantic entity graph, and safe state-field redaction correction |
+| Browser Cortex deterministic corpus execution and baseline | `BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1` | valid failed deterministic baseline | local commit containing this report | Executes all 24 frozen deterministic cases through the product browser spine, records permanent baseline JSON, proves replay no-react and no fill-only false success, and blocks real holdout until deterministic recovery/uncertainty gaps are fixed |
 
 New canonical next sequence:
 
@@ -106,7 +107,8 @@ done REAL_POWER_ATTEMPT_PRODUCT_TASK_LOOP_RUNTIMEHOST_ENTRYPOINT_V1
 done POWER_UNIFICATION_PACK_0_DIRECT_BYPASS_AND_DUAL_PATH_CENSUS_V1
 done BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
 done BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
-next BROWSER_CORTEX_REAL_HOLDOUT_QUALITY_GATE_V1
+done BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1
+next FIX_BROWSER_CORTEX_DETERMINISTIC_RECOVERY_AND_UNCERTAINTY_GAPS_V1
 ```
 
 ## Why 6D Was Delayed Until After A-F

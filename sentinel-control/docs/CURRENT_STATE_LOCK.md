@@ -1,5 +1,79 @@
 # Current State Lock
 
+## Browser Cortex Deterministic Corpus Execution And Baseline V1 - VALID FAILED BASELINE
+
+Recorded at: 2026-07-13
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Quality Corpus And Search Understanding Gate section as the top-level Browser
+Cortex build truth while preserving older sections below as scoped evidence.
+
+```text
+current_phase = BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1
+previous_phase = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+next_phase = FIX_BROWSER_CORTEX_DETERMINISTIC_RECOVERY_AND_UNCERTAINTY_GAPS_V1
+roadmap_doctrine = cognitive OS: model thinks, Sentinel senses/executes/proves, hard stop only real damage
+```
+
+### Baseline Truth
+
+```text
+BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1
+= VALID_FAILED
+
+baseline_target_commit = afe40f8
+corpus_version = browser_cortex_quality_corpus_v1
+manifest_hash = 63900f4198852ce755803f1284f8b65cab849d2b51cb9a02031c44203af7c4be
+executed_case_count = 24 / 24
+pass_count = 21
+fail_count = 3
+replay_no_react_rate = 1.0
+provider call = NO
+real browser run = NO
+push = NO
+```
+
+### Deterministic Quality Truth
+
+```text
+search_control_identification_accuracy = 0.9167
+search_materiality_precision = 1.0
+search_materiality_recall = 0.9091
+result_region_f1 = 0.9583
+semantic_entity_coverage = 0.8333
+recovery_success_rate = 0.4
+uncertainty_accuracy = 0.5
+fill_only_false_success = 0
+unsupported_claims = 0
+raw_secret_exposure = 0
+replay_side_effects = 0
+```
+
+The deterministic gate is not passed. Real holdout quality should not run yet.
+
+Remaining deterministic blockers:
+
+```text
+det_url_query_no_result = material search without result region blocks instead of clean uncertain completion
+det_localized_ui = localized search control is not selected/executed correctly
+det_stale_controls = stale control recovery does not reach refreshed expected control/materiality
+```
+
+### Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1_BASELINE.json
+sentinel-control/services/sentinel-core/sentinel/operator/browser_cortex_deterministic_fixture.py
+sentinel-control/services/sentinel-core/sentinel/operator/browser_cortex_deterministic_runner.py
+sentinel-control/services/sentinel-core/sentinel/operator/browser_cortex_quality_gate.py
+sentinel-control/services/sentinel-core/sentinel/operator/runtime_host.py
+sentinel-control/services/sentinel-core/tests/operator/test_browser_cortex_deterministic_corpus_execution_baseline.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order.
+
 ## Browser Cortex Quality Corpus And Search Understanding Gate V1 - IMPLEMENTED CANDIDATE
 
 Recorded at: 2026-07-13

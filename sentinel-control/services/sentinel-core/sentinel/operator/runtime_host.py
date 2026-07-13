@@ -576,6 +576,18 @@ def _real_browser_preflight(
 
 
 def _product_browser_engine(envelope: ActionEnvelope) -> object:
+    browser_cortex_case_id = str(envelope.params.get("browser_cortex_case_id") or "").strip()
+    if browser_cortex_case_id:
+        from sentinel.operator.browser_cortex_deterministic_fixture import (
+            browser_cortex_deterministic_fixture_engine_for_case,
+        )
+        from sentinel.operator.browser_cortex_quality_gate import build_browser_cortex_quality_corpus
+
+        manifest = build_browser_cortex_quality_corpus(baseline_commit=str(envelope.params.get("baseline_commit") or "local"))
+        for case in manifest.deterministic_cases:
+            if case.task_id == browser_cortex_case_id:
+                return browser_cortex_deterministic_fixture_engine_for_case(case)
+        raise RuntimeError("browser_cortex_deterministic_case_not_found")
     engine_profile = str(envelope.params.get("engine_profile") or "").strip().lower()
     if engine_profile in {"fake_product_search", "local_fake", "inmemory"}:
         return _ProductLocalCloakBrowserEngine()

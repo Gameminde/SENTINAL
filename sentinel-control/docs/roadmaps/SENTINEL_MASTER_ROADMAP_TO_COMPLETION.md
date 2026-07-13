@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
-previous_phase = BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
-next_work = BROWSER_CORTEX_REAL_HOLDOUT_QUALITY_GATE_V1
+current_phase = BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1
+previous_phase = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+next_work = FIX_BROWSER_CORTEX_DETERMINISTIC_RECOVERY_AND_UNCERTAINTY_GAPS_V1
 roadmap_doctrine = model thinks, Sentinel senses/executes/proves, hard stop only real damage
 ```
 
@@ -63,6 +63,28 @@ manifest hash `63900f4198852ce755803f1284f8b65cab849d2b51cb9a02031c44203af7c4be`
 counterfactual BrowserEnvironmentState decision-consumption proof, search
 progress states, fill-only false-success rejection, and a semantic result/entity
 graph. This is a local corpus proof only; real holdout quality remains unrun.
+
+The latest deterministic baseline executes all 24 frozen cases through the
+product browser spine and records a permanent baseline artifact. It is a valid
+failed baseline, not a release gate pass:
+
+```text
+BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1 = VALID_FAILED
+executed_case_count = 24 / 24
+pass_count = 21
+fail_count = 3
+replay_no_react_rate = 1.0
+search_control_identification_accuracy = 0.9167
+search_materiality_precision = 1.0
+search_materiality_recall = 0.9091
+result_region_f1 = 0.9583
+semantic_entity_coverage = 0.8333
+recovery_success_rate = 0.4
+uncertainty_accuracy = 0.5
+```
+
+Real holdout quality should wait until the deterministic recovery and
+uncertainty gaps are fixed.
 
 The active strategy is now the Monster Runtime / Browser Cortex unification
 program. Sentinel has enough browser organs to be powerful, but that power is

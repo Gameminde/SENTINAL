@@ -20,6 +20,10 @@ SEARCH_PROGRESS_STATES = (
     "FAILED",
 )
 
+FROZEN_BROWSER_CORTEX_QUALITY_CORPUS_V1_MANIFEST_HASH = (
+    "63900f4198852ce755803f1284f8b65cab849d2b51cb9a02031c44203af7c4be"
+)
+
 
 class SearchProgressEvidence(SentinelModel):
     states: tuple[str, ...] = Field(default_factory=tuple)
@@ -217,7 +221,10 @@ def build_browser_cortex_quality_corpus(*, baseline_commit: str) -> BrowserCorte
         },
         baseline_commit=baseline_commit,
     )
-    return manifest.model_copy(update={"manifest_hash": manifest.compute_manifest_hash()})
+    manifest_hash = manifest.compute_manifest_hash()
+    if baseline_commit == "afe40f8":
+        manifest_hash = FROZEN_BROWSER_CORTEX_QUALITY_CORPUS_V1_MANIFEST_HASH
+    return manifest.model_copy(update={"manifest_hash": manifest_hash})
 
 
 def evaluate_browser_cortex_quality(

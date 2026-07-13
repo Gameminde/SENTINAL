@@ -1,0 +1,3143 @@
+{
+  "baseline_commit": "afe40f8",
+  "case_results": [
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_conventional_search_form",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "ef8d9e345ae809e73e53dac57420befe5d5579b26aca7276caa1a6322318c0a1",
+      "mission_objective": "Deterministic browser cortex task 0: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "dd0bcd872874567d3ddcd97d23887f1111c78827eee970809e9ba7bebfa7f5a7",
+      "pre_environment_state_hash": "a834f276b2b174329f8c45c88c5e49f1c32a74d1bf50d6adc57c3f4560066a67",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_d17620def5f74810aa12f784455aaa54",
+        "product_action_kernel_receipt_07ac16629b52490fafb5c5d864f14120",
+        "product_action_kernel_receipt_cc64c83477e344b7851819d9699bd716",
+        "product_action_kernel_receipt_5c9ca50c35954fcf92dd0bc937d4c9df"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_d17620def5f74810aa12f784455aaa54",
+        "product_action_kernel_receipt_07ac16629b52490fafb5c5d864f14120",
+        "product_action_kernel_receipt_cc64c83477e344b7851819d9699bd716",
+        "product_action_kernel_receipt_5c9ca50c35954fcf92dd0bc937d4c9df"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_0d9a134167bd41c2b00e02f9f46c014b",
+          "mission_a8d2adbb94d743a8924f438171958d55",
+          "mission_64933bdde735448db974aad87a908773",
+          "mission_b896bdfb7fb448f7ac71934b11970615"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "5222371f940c47e3f85cfa9265fc06bf49dabe33a1feb9ba66b54b83f69d5a47"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "570b341caada82a2106db208ab4adf6d106ddffeb3fbf162a85081896ddd0964"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_32f8a12c33c54533a1f33ea1721cbfb7",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "6c7de4608721fc2cfa3250da1b14463cba4e5f8946145c6fd609c5b85b20821f"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_conventional_search_form Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "570b341caada82a2106db208ab4adf6d106ddffeb3fbf162a85081896ddd0964"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_50a07ff2b84e4058ab29d7f3e23778be",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_multiple_search_fields",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "59ec28ccb9e7621dcac048da617f61971a41f98fdab9770df2f75f9ed8795df4",
+      "mission_objective": "Deterministic browser cortex task 1: find objective-relevant entities.",
+      "observed_search_control": "input:header_search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "f8ad2f15b0ce552d683545b126c54b2eb41dd7b8f51c210758e2108937b962e1",
+      "pre_environment_state_hash": "89f07283cf46fe3ddee9ea2f1db2f23a6908769524db6f5dd814e92346e5781e",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_ac621394270f45359a0000511c5037fb",
+        "product_action_kernel_receipt_f96b9e30a3f84e3e84e208a0d3cd89aa",
+        "product_action_kernel_receipt_ac88ee2cc6744a7796689274a6103028",
+        "product_action_kernel_receipt_b3fd3ed1fa974a8093dd7958471ae0dd"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_ac621394270f45359a0000511c5037fb",
+        "product_action_kernel_receipt_f96b9e30a3f84e3e84e208a0d3cd89aa",
+        "product_action_kernel_receipt_ac88ee2cc6744a7796689274a6103028",
+        "product_action_kernel_receipt_b3fd3ed1fa974a8093dd7958471ae0dd"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_0beaac5db4bc4ff8840019332f5df9b8",
+          "mission_25de67544a4a4d699155410906e94ace",
+          "mission_60c8c10006a141e6950c1d33cdb472cb",
+          "mission_634be69a8cf64b52a0f3e37d27b358ac"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "cfca901afadee68afae3afa4098de0b9ca4d72fd34b2ca47d28a33dda59a3182"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "ee27b24cb036393bd41fb283a9c129b62d843391e732c79182c918387a81256f"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_0ec5d8b2c3244ae5babb36d69e485d15",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "6874f266e174fa365f28f0060154a91bff31bb31443a0888cc9ce406f720feb0"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_multiple_search_fields Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "ee27b24cb036393bd41fb283a9c129b62d843391e732c79182c918387a81256f"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_0aa82dc702334650985a558792279dec",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_spa_search",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "9cf9634ee022cb242c8d9501f78ec6b68dcdfda443d170a22bfcc2d2f06ad15d",
+      "mission_objective": "Deterministic browser cortex task 2: find objective-relevant entities.",
+      "observed_search_control": "input:spa_search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "77231ab012aaf55dd5bca9a5c78a00244285a691946c25cb036ff639b43cf825",
+      "pre_environment_state_hash": "d0a74cffe00cdff538df7059bd0ec84e09a6863141865f060c64ff7edaabea81",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_b85179d0aaa54d0f93f77b58f54b56a6",
+        "product_action_kernel_receipt_3e463266c6a94aca893be97528aec70c",
+        "product_action_kernel_receipt_cc717b0625804cf0add6715d282d7d22",
+        "product_action_kernel_receipt_f664f870a98649f7963d12f613349d2b"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_b85179d0aaa54d0f93f77b58f54b56a6",
+        "product_action_kernel_receipt_3e463266c6a94aca893be97528aec70c",
+        "product_action_kernel_receipt_cc717b0625804cf0add6715d282d7d22",
+        "product_action_kernel_receipt_f664f870a98649f7963d12f613349d2b"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_ce3eaa445ef24d4ab3b11d51f274e04b",
+          "mission_213a4c8e9a53481e89e27cfdca78fc08",
+          "mission_6344200947da4777a196a3c6d655c130",
+          "mission_8e3517eef0b940628fa09c7455eeb37f"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "779133d1d64a39b4ea2201e0a5fedfeaf32ad68440af5018424f3ce1e6974f98"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "32f5318f00e8bb7ff66a07dfb5b4d8733e9b58fbe0d5544aa32dad6b420eed22"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_c6976b2ac5924eb2ac650f049473ec63",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "5a09d2713cba6a4408bcf59fa648497aab5e9535762369c7caa156cbe3b8c609"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_spa_search Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "32f5318f00e8bb7ff66a07dfb5b4d8733e9b58fbe0d5544aa32dad6b420eed22"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_ef22963211c44133bb0d846fa0b88b70",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_result_no_url",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "3e9fe242419f76fcd432ed4310ba6b5519aaf09c671aabc6706aa1c3f8a26bd3",
+      "mission_objective": "Deterministic browser cortex task 3: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "131c027ac6c270925d2b72a3a3a4c3726013325e823ccce3027eb47c8964446e",
+      "pre_environment_state_hash": "f6217c28c93b9520d93669ea4ca95429fd84b1de2dda9ef5c5789a1a66a10c9a",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_4be71022795a472d9e648efc37e89c0d",
+        "product_action_kernel_receipt_adf2e6948bec493db077a21a808dab5d",
+        "product_action_kernel_receipt_e1f008ac8ffa4580afc675d1bdba37a6",
+        "product_action_kernel_receipt_1b0f5cee8bb646efb5dfe8eab529a17c"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_4be71022795a472d9e648efc37e89c0d",
+        "product_action_kernel_receipt_adf2e6948bec493db077a21a808dab5d",
+        "product_action_kernel_receipt_e1f008ac8ffa4580afc675d1bdba37a6",
+        "product_action_kernel_receipt_1b0f5cee8bb646efb5dfe8eab529a17c"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_309339f7933145fc8f3edb45b14cbf94",
+          "mission_2a3dc1b325a04fb5a7638a87e6fd2e76",
+          "mission_c7880f8cf8b64ee8aae2711b6d8781ed",
+          "mission_02603808f1ea474e818ee204c3363747"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "0071abbc8216a630a144ffad7154f03369e1bd65e5753a557effdf98ad039c6d"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "fb93473f2a57822717dcde1d3f381bb1b7c0d8a169bb0ecc01fc172e5806066d"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_8682a715bf834799ab027c43a53c7032",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "f33bd8f9920e37a9d58bc63fc51b0d18817dfb62dbd0e0603d2c79b97cce86b6"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_result_no_url Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "fb93473f2a57822717dcde1d3f381bb1b7c0d8a169bb0ecc01fc172e5806066d"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_ac5d0ccb86d941bcb55311134f315e3c",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.verify_extraction"
+      ],
+      "case_id": "det_url_query_no_result",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": false
+      },
+      "failure_classification": "MISSION_NOT_COMPLETED",
+      "finalgate_result": "blocked",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "2bee9cbd0e23ec22eebf1e27073ce5eeb2a8346f6db06d12990e0def2660ddbf",
+      "mission_objective": "Deterministic browser cortex task 4: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "FAIL",
+      "post_environment_state_hash": "9d97d469695947d217e00b7cef08cf16b301e40e5fde76f709b87b1179ec1ddd",
+      "pre_environment_state_hash": "bcb34fd717437a4923fe3b7d20b25300a3d3627bdd386931ad54b5c529a6a76b",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_e7aa48f214d440558c831ac694332947",
+        "product_action_kernel_receipt_92c862455cf74827bbdb2c691f71f9f9",
+        "product_action_kernel_receipt_d841b7c07f52459fac88131e6bd15008",
+        "product_action_kernel_receipt_04ff991aeb8040af99f49366a6328eae"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_e7aa48f214d440558c831ac694332947",
+        "product_action_kernel_receipt_92c862455cf74827bbdb2c691f71f9f9",
+        "product_action_kernel_receipt_d841b7c07f52459fac88131e6bd15008",
+        "product_action_kernel_receipt_04ff991aeb8040af99f49366a6328eae"
+      ],
+      "recovery_attempts": [
+        {
+          "failure_code": "product_action_kernel_execution_failed",
+          "terminal": true
+        }
+      ],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_98b56ccb946f43f3ac51278622226d12",
+          "mission_97fb2c498fa545fe82dac0dff5fee42c",
+          "mission_32ac9049f7194d94877fa594ce5b9db5",
+          "mission_c9119f3c8c434d748bfba60ed01b092e"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 0,
+        "detected": false,
+        "expected": false
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "875c5fdbe6a9ec6aae623e5d08a3c12f98173f9b4ad3d4188523966fca27fac3"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_shadow_dom",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "2da2bd227a43923d318e8382d78b7227523b3bb38c05f2d4de7cf4164b4f7f50",
+      "mission_objective": "Deterministic browser cortex task 5: find objective-relevant entities.",
+      "observed_search_control": "shadow:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "1be49ea4bab68780a25529a4b636870ee7e2fab71dd7bf764b3fb7ac41765551",
+      "pre_environment_state_hash": "55eb81f1af4b64040cba5eb2741cc6246210208dd5009165d29cb98b83ecb5f1",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_a659f49dc6a6401e899b5eb0917ef5a2",
+        "product_action_kernel_receipt_8649b31d58ef401f883cc5a5a9833b08",
+        "product_action_kernel_receipt_dd64e406f0644e1da768c21d7b2527e2",
+        "product_action_kernel_receipt_d427cab3629f43ba92b1b8689eb39abd"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_a659f49dc6a6401e899b5eb0917ef5a2",
+        "product_action_kernel_receipt_8649b31d58ef401f883cc5a5a9833b08",
+        "product_action_kernel_receipt_dd64e406f0644e1da768c21d7b2527e2",
+        "product_action_kernel_receipt_d427cab3629f43ba92b1b8689eb39abd"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_2c5912b4c1454cb097127ed96ddf4118",
+          "mission_dced1c5f5fe34f65b1e5b5bdafd213ac",
+          "mission_2f12ada251f34368bcdd305a1d1404e3",
+          "mission_99d622784f5a4a57b17e3dd595e7db11"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "900e437bea4f8f599ec6fd1a5ee174f7889004b285eedf0d147f3a570d276535"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "776490ed3b6094486980e32e0dde1529d1a2ea018f64f0c9ddd582aa1a474f61"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_79009dc69d48484f817e211273b4bdde",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "de1e77901219f8c34633c6af6b9edb76a038eeb8b2ddc2d2c4be054a1a27d9b7"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_shadow_dom Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "776490ed3b6094486980e32e0dde1529d1a2ea018f64f0c9ddd582aa1a474f61"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_69dd683128c4449ead142547da87dd5c",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_iframe",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "80ea86dc91ddb79241400141b9f1b7f03225bfc89209c3b43f3fbaad4d7ef3c6",
+      "mission_objective": "Deterministic browser cortex task 6: find objective-relevant entities.",
+      "observed_search_control": "frame:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "dcd6aa1f345e123551c3bd263e05f3bca36ae86cba585d4ad01cad748c052574",
+      "pre_environment_state_hash": "0c14bbdd65f86c75544f22ee43b1fed397636cc1a3b1f762889bc680e3569e15",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_cb53c9a3a9e7488f8a5c7c4a10d9da6e",
+        "product_action_kernel_receipt_85b7efb71b5042529542a4701f9f9005",
+        "product_action_kernel_receipt_8b5b733eab9e4d81a3f58c9cf47dc9a1",
+        "product_action_kernel_receipt_d057124380304f43b5cad6cfabd2d09b"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_cb53c9a3a9e7488f8a5c7c4a10d9da6e",
+        "product_action_kernel_receipt_85b7efb71b5042529542a4701f9f9005",
+        "product_action_kernel_receipt_8b5b733eab9e4d81a3f58c9cf47dc9a1",
+        "product_action_kernel_receipt_d057124380304f43b5cad6cfabd2d09b"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_a3e8b0f57354458ea6ed8767ed11f3b4",
+          "mission_4a3a32b371fa41ab85d1326595110fc9",
+          "mission_5a4370c52dba4e0e8d18ce54c91a8579",
+          "mission_3e74375c55c84d1fbc7f485216b6960b"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "5c3d2206b56dc39a3b86d13569789b09d7e92852ed47f1885cf26074f03ae5e4"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "753e8ffd287be44a1df2b899b3117f692043ce928f9d76f83a6aa85fa904ccb8"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_deb42c6dec4846b38126b56b171d5de1",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "a7e7a73114e3e61d3dd8527527582818a73c3c8015789f175180e984112f9a0f"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_iframe Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "753e8ffd287be44a1df2b899b3117f692043ce928f9d76f83a6aa85fa904ccb8"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_d93fa38813d94db6a9692926b9239fb3",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_dynamic_loading",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "04a4cdfec0910f393750df858fc05c7297223d6665a38ac9d28874b9a326f9c9",
+      "mission_objective": "Deterministic browser cortex task 7: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "dd32dac0fb5921d9df0fbcd5c2735c3af2b5a13ebfebc2334f86f3b28eae1b3d",
+      "pre_environment_state_hash": "f55d42dee57038a50fece3702443061f2b10588e568d22537f44e21f81458250",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_a8451ed6a3204c318b1ca7e009a64639",
+        "product_action_kernel_receipt_f535907efe89419394d76ebe11a08f61",
+        "product_action_kernel_receipt_bddcc0115c0e42f6a5f014a3cab3f708",
+        "product_action_kernel_receipt_ba54538bc3084f0dadb8567b1b4f9bf1"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_a8451ed6a3204c318b1ca7e009a64639",
+        "product_action_kernel_receipt_f535907efe89419394d76ebe11a08f61",
+        "product_action_kernel_receipt_bddcc0115c0e42f6a5f014a3cab3f708",
+        "product_action_kernel_receipt_ba54538bc3084f0dadb8567b1b4f9bf1"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_97ca37f3d7fa465f899fa6ae3cdfe03c",
+          "mission_242a94f7d8ce4b7ba5e2f6bc3045365d",
+          "mission_9dc42a8ab23048cabe3dcd251da776d9",
+          "mission_9aaafc2e066047988532fd368138ecd1"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "91ab055f52ac2dbe72d85c0c62cdf3236c6039a1ac3462550649d5254661fcfe"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "b91a5be47c7b871c0523f55f7663d7d3c1f3c6bc614cdbc028235780390f251d"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_9c9600ae544a4c9ba5272ab4b1dc9edb",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "12a68ae3a61b968aa5bd9f5a84b5d3b68ac3a8e5dddfa19c82840d6a7f1c11cd"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_dynamic_loading Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "b91a5be47c7b871c0523f55f7663d7d3c1f3c6bc614cdbc028235780390f251d"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_f27c8c1a6e3d48d28678c32310cb4e8c",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_pagination",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "b655f45eb8d34842ddca7a79627c820c44da59567d32e444fec1417e5bc36485",
+      "mission_objective": "Deterministic browser cortex task 8: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "3271708a977e93527c8ccf1d743e7f41a00ab4feab50c99f916730ec9730514d",
+      "pre_environment_state_hash": "c7a2d397f693678eac4220e4f8f48c106decc26712a8550d87da5b6716c5052e",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_e58f5823001a4db0830c57ecd3c1fe68",
+        "product_action_kernel_receipt_e1bac44410964988aa56a51cb1fbfb87",
+        "product_action_kernel_receipt_b4684f04eafd4be4b129a099559cab92",
+        "product_action_kernel_receipt_606053173c204e469464173929cc0bb0"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_e58f5823001a4db0830c57ecd3c1fe68",
+        "product_action_kernel_receipt_e1bac44410964988aa56a51cb1fbfb87",
+        "product_action_kernel_receipt_b4684f04eafd4be4b129a099559cab92",
+        "product_action_kernel_receipt_606053173c204e469464173929cc0bb0"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_91067306dcea4e46bd788377829c4648",
+          "mission_3ef984e0d12644f693a3742de3635c33",
+          "mission_4b4473a97cd349be91afa37b010938f4",
+          "mission_8f735aa2c1524caebcb21d1032e4dbf3"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "98e77c1208afbd8b82fb7b64ca56b1d2ed8e4c0be162fc393f90901c2bdc4cb7"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "34841ff88a59a9a0f0bec4d4fba83c8a148aba9cd60899fa3d10695afa1fc362"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_02fb966da8e94cf4835de5a1ae66ba00",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e10ba00cc5639501a4578e6f2e785b86b27c2534aafedd402c932ace08a1454f"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_pagination Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "34841ff88a59a9a0f0bec4d4fba83c8a148aba9cd60899fa3d10695afa1fc362"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_ce58995c9bf94dfb86c0ea34b73e6ed0",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_infinite_scroll",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "712a0bcc16e3c56a734c75f5d14ab0c86f5fec3215be65eba973b822839a4eef",
+      "mission_objective": "Deterministic browser cortex task 9: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "0cb2184fe34d53d2502e452b6d5ab3ec8f4a007aa427805ee38fcf2145b23b4d",
+      "pre_environment_state_hash": "9c68a9458a4ebe8235da6032ad3453543cad485a96b29fa40de694ee254a8976",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_754796eb85a542dca6d53fde091964f2",
+        "product_action_kernel_receipt_c982105da97549b789f061129f70186a",
+        "product_action_kernel_receipt_04e017709a0b45fdb621e70683b89504",
+        "product_action_kernel_receipt_281fa23a916a40b79306901aa7e56f52"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_754796eb85a542dca6d53fde091964f2",
+        "product_action_kernel_receipt_c982105da97549b789f061129f70186a",
+        "product_action_kernel_receipt_04e017709a0b45fdb621e70683b89504",
+        "product_action_kernel_receipt_281fa23a916a40b79306901aa7e56f52"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_640b40d7565342c0a6d3895245ab69ef",
+          "mission_38efee7ba47346b7ac39ef21fcc5abc2",
+          "mission_85a4714300564ce3a801925dec5268f0",
+          "mission_c5af02a989064210b581a18b10ae8e69"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "fb2371f7fd42a099c3104f61e7e60bc3f2c2ba1070f9373cabece6264f54b445"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "7fc07c3051fa6dd21afe0e90904d58214d86d6edccf456b340856531ac8459be"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_a840c7e3544c4d8daa5cfa816b43139c",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "83d46bae68b0b57c024c303657f3da225bdb56a7f618482b7d34e03635ae9b4b"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_infinite_scroll Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "7fc07c3051fa6dd21afe0e90904d58214d86d6edccf456b340856531ac8459be"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_f0501ab2607140fab249955c0e521335",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_autocomplete",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "be8ee87722a9b45af0762bb87151310cfbe34b327aa7d7cf86dfda00f437f068",
+      "mission_objective": "Deterministic browser cortex task 10: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "e422882e78542806ffc84863b6e8c686988a8269e0a3e5d6a3d7b68c670d1815",
+      "pre_environment_state_hash": "ab16ae047085bb0a5cb966a59151b955012b2c4c5af444942da214ebd719762d",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_a07a55bd3c014163a02e71226331bd24",
+        "product_action_kernel_receipt_c0979f3ec3b140fc9844f2f54225c102",
+        "product_action_kernel_receipt_c2765e30a0d442baa99e69e9d46f5d19",
+        "product_action_kernel_receipt_f8bac83998b44e3ea7daede2acc2b877"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_a07a55bd3c014163a02e71226331bd24",
+        "product_action_kernel_receipt_c0979f3ec3b140fc9844f2f54225c102",
+        "product_action_kernel_receipt_c2765e30a0d442baa99e69e9d46f5d19",
+        "product_action_kernel_receipt_f8bac83998b44e3ea7daede2acc2b877"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_6a83f6cac72a4ef3ae5ef614ccbbbac4",
+          "mission_61fd94aacde74821adab84b998fb3c16",
+          "mission_62afb062b8c946898254aaf81fccfc26",
+          "mission_c2f8d167f10749c4bd9c114a472a1e41"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "bbe0b6069ab05331021e95ca07a87598c63112ba9597352f1f0f1f2eb1b2990c"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "0b8b337c73b3606e8e141e17a73d72fe7a1383ab4ccaaee6e1e8a9f967c7cd4b"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_dbd2662669be4afcbdfeb31049fe9cef",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "8527ce6641231590b210da8e44b52e692741eb2facd546c047551d8709001ade"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_autocomplete Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "0b8b337c73b3606e8e141e17a73d72fe7a1383ab4ccaaee6e1e8a9f967c7cd4b"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_67a06742a117412eb3ba576847fee61c",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_modal_overlay",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "c5a0a7b3df843bf12ed42c52c493f0e338462a2170c2c07a794ffc560a897934",
+      "mission_objective": "Deterministic browser cortex task 11: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "cddb8e80e95f9320d10e2b57baee14f09200c5763e6131d7cb7a195cae9d0eb7",
+      "pre_environment_state_hash": "998eb4c16582659b63ffa4da7c56a3b735f286e9614c1590ac7b2e9553c47715",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_12f405955df84ee38111e94acb32bacf",
+        "product_action_kernel_receipt_f6b572f72c97482ba2e7cb470fb4eef9",
+        "product_action_kernel_receipt_51d1b2f048ce4607950ba33ec7ab6fdb",
+        "product_action_kernel_receipt_2d2c1b0208a548a49df8294dce817611"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_12f405955df84ee38111e94acb32bacf",
+        "product_action_kernel_receipt_f6b572f72c97482ba2e7cb470fb4eef9",
+        "product_action_kernel_receipt_51d1b2f048ce4607950ba33ec7ab6fdb",
+        "product_action_kernel_receipt_2d2c1b0208a548a49df8294dce817611"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_1fc05f91ab244acca4090e2e4e5a9885",
+          "mission_f0abe7718f9341068ab5bf8656fec5c2",
+          "mission_a4a9e82cd9024df5b7901b3183052f1f",
+          "mission_02c5291a2f004039ba284bc90004a515"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "0b251437b68a3dd52ea039abdc28dc912c3f4345dea8ac7ef499f1c977cdc919"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "0b61f3c55c439b2b945e9bf43e790ced516c4eb17800fbd75c15e5c2346275ed"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_e078ea7133d94fcd9d9ae63b7c204f04",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e1e37874b50afb61d0be5a49cfafbba8fd74d8c25760739750b726466ed15d4b"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_modal_overlay Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "0b61f3c55c439b2b945e9bf43e790ced516c4eb17800fbd75c15e5c2346275ed"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_b82a403daf5b414fa41fce9645ec095d",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_localized_ui",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "SEARCH_CONTROL_MISMATCH,SEARCH_MATERIALITY_MISMATCH,RESULT_REGION_MISMATCH",
+      "finalgate_result": "blocked",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "e5e8a4dcb01b3d957b1888bf458a524935e3b29472185387b4874df82e2a6b2a",
+      "mission_objective": "Deterministic browser cortex task 12: find objective-relevant entities.",
+      "observed_search_control": "",
+      "pass_fail": "FAIL",
+      "post_environment_state_hash": "73eb7819a1b309773ee76cce55bf04a8bfb12eddb0e47e8f2e1de7154cf4506e",
+      "pre_environment_state_hash": "73eb7819a1b309773ee76cce55bf04a8bfb12eddb0e47e8f2e1de7154cf4506e",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_c58c93a6313f4066b1a7be35c5d33b98"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_c58c93a6313f4066b1a7be35c5d33b98"
+      ],
+      "recovery_attempts": [
+        {
+          "browser_product_card_count": 0,
+          "can_execute": false,
+          "capability_id": "real_browser_control",
+          "data_not_authority": true,
+          "failure_code": "real_browser_search_control_not_found",
+          "operation": "real_browser.search",
+          "recommended_skill": "browse_search",
+          "recovery_action": "refresh_browser_world_model_and_retry_best_safe_skill",
+          "remaining_create_file_plan_count": 0,
+          "target_ref_hash": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "turn_index": 1
+        }
+      ],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_723cd62f972247508f432b5f0d691049"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 0,
+        "detected": false,
+        "expected": true
+      },
+      "search_progress": {},
+      "selected_skill": "browse_search",
+      "semantic_entities": [],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_negative_relevance",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": false
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "0a4dfcb847a4156f44f3052b41a5f04ce099527dec2a582719b0d80a392dbd9e",
+      "mission_objective": "Deterministic browser cortex task 13: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "85497c00705dd69eaac4efcdde9365332becb36c421bd537f986476a673b504d",
+      "pre_environment_state_hash": "62bcfa346d153be25973e1c793de4eb13b60391ce1bbcfdd0db4391cd8146d39",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_5edc744a58c64e2ba75bcb03e396899e",
+        "product_action_kernel_receipt_a8b666396aa14766aa9c0b1493f56bfb",
+        "product_action_kernel_receipt_74cbbd8676344e3f811c5e44a0062144",
+        "product_action_kernel_receipt_c04a6bf6dc204af9b7d0f4418ceb95d3"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_5edc744a58c64e2ba75bcb03e396899e",
+        "product_action_kernel_receipt_a8b666396aa14766aa9c0b1493f56bfb",
+        "product_action_kernel_receipt_74cbbd8676344e3f811c5e44a0062144",
+        "product_action_kernel_receipt_c04a6bf6dc204af9b7d0f4418ceb95d3"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_ec81a70cf5bd4803aec6d380c1dd36da",
+          "mission_825c601bb83540c993c42a9083ef2b9c",
+          "mission_789afb79987d4c758cd7f2ba13902c6a",
+          "mission_35a54947cb834bddb5e7536efddd34ba"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "2be1395668cd75f302e367d1c74aa137d8ceff832159ce52af68feff0556a3a2"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "7da41f6eafbbdf8b176c1f6944f3dd245095e5401300437146007ce374f3800d"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "100",
+            "price_range": "unknown",
+            "price_value": "18.00 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store not relevant to objective",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_dd9e52c26bfd4503a78f782e4b8534b6",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "55090fe049c7a6c347f14a7201165a24cf6568837343734da054c51b68c10498"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_negative_relevance Deterministic product card 18.00 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "7da41f6eafbbdf8b176c1f6944f3dd245095e5401300437146007ce374f3800d"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "100",
+            "price_range": "unknown",
+            "price_value": "18.00 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store not relevant to objective",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_63e6b760caa948aaa318786b9bc64217",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "747d26b1b6b43e3d5a4b07008576f44db0a0908c70af17dbcd28d7058b5fde4e"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 18.00 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_client_side_filter",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "609be44d04c8084008bc79195d4e5296c5e14ac58d4129a43f3cd974e30032ab",
+      "mission_objective": "Deterministic browser cortex task 14: find objective-relevant entities.",
+      "observed_search_control": "input:filter",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "b26a4c973b6d49fe445c731e36de3ae548a75dc481748b318deda4d948fb292a",
+      "pre_environment_state_hash": "41a70c3ca0be92cfefc47edfedc47cbabdc70567e434c83fe166a98076cea826",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_7f6e58af97a94da485816cca50d40548",
+        "product_action_kernel_receipt_73c6af09d3da41318a1c4f26b96686af",
+        "product_action_kernel_receipt_a96adf7a3d054780836d6efdfe6385f9",
+        "product_action_kernel_receipt_455a62ad6257422d9ca69347a458249b"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_7f6e58af97a94da485816cca50d40548",
+        "product_action_kernel_receipt_73c6af09d3da41318a1c4f26b96686af",
+        "product_action_kernel_receipt_a96adf7a3d054780836d6efdfe6385f9",
+        "product_action_kernel_receipt_455a62ad6257422d9ca69347a458249b"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_bcc71c0975194a668692e160421819a4",
+          "mission_1db5c70f4ea440848aab0bba1acce044",
+          "mission_82d177c64d544a2ebf962f01cea6aecc",
+          "mission_13d55d6903834f54981ad1873d6e3209"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "48ea93f0d6bdda25baa84e934ef5211e2af03efd53d43ad78c785376dcdede31"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "68b458e3e4ac903dbeb338c404e41cbeebfade8c2c7d133722cada019aeb5c21"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_c3544006580e47d69a9313c61fa356d5",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "88109ad6a4adb2296519305ce71652ffc4dbca7f08f14722fe01632dd09f8c5a"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_client_side_filter Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "68b458e3e4ac903dbeb338c404e41cbeebfade8c2c7d133722cada019aeb5c21"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_50fca3cc645640a88d61b7a97cd18d48",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.verify_extraction"
+      ],
+      "case_id": "det_network_failure",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "blocked",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "fcecf1e5940412c62238068092be1a74666c51189572a92c4b88f1cb0d5bd7cc",
+      "mission_objective": "Deterministic browser cortex task 15: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "46288789861ecdc54fb5eba5b5caf8c52ecdecaf9b2eb41d1f9869bf72783f01",
+      "pre_environment_state_hash": "384de0ba5b47706c61da0f53a659919a44b50ec996b417cffcfabcd0995b73cd",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_b47531cb5725498a831e2c25c1ff162a",
+        "product_action_kernel_receipt_9579852dfba9483b8e1480c75e8c2555",
+        "product_action_kernel_receipt_7a83d47c82854b4a915c2fcfeded6df7",
+        "product_action_kernel_receipt_62234b2e555b4063899eb693a910f545"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_b47531cb5725498a831e2c25c1ff162a",
+        "product_action_kernel_receipt_9579852dfba9483b8e1480c75e8c2555",
+        "product_action_kernel_receipt_7a83d47c82854b4a915c2fcfeded6df7",
+        "product_action_kernel_receipt_62234b2e555b4063899eb693a910f545"
+      ],
+      "recovery_attempts": [
+        {
+          "failure_code": "product_action_kernel_execution_failed",
+          "terminal": true
+        }
+      ],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_e2d9c312152040d5a9fff7da4cf29ab3",
+          "mission_a39650e9f00846319150bd473dcc0b4f",
+          "mission_aa29e8a7d6af4782971fa76ef6be9dde",
+          "mission_093a7dcda6d4482bb33041dbea029740"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 0,
+        "detected": false,
+        "expected": false
+      },
+      "search_progress": {
+        "confidence": 0.48,
+        "current_state": "UNCERTAIN",
+        "evidence_refs": [
+          "faf66f0a0faf83bc8862e3e5e1d1039e9759884b908debb4a6d30b27e316244d"
+        ],
+        "search_materially_successful": false,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "QUERY_REFLECTED",
+          "UNCERTAIN"
+        ],
+        "uncertainty_reason": "input and query reflection are not material search proof without submission and request/result evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_stale_controls",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "SEARCH_CONTROL_MISMATCH,SEARCH_MATERIALITY_MISMATCH",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "a5c966cee19ad7ef00f24e24e39132af88a8018fb646121fe8fd423afb321163",
+      "mission_objective": "Deterministic browser cortex task 16: find objective-relevant entities.",
+      "observed_search_control": "",
+      "pass_fail": "FAIL",
+      "post_environment_state_hash": "9467652d4443b040291ca58320a64c2d036568c3a0a25096481b96320d2bad7b",
+      "pre_environment_state_hash": "9467652d4443b040291ca58320a64c2d036568c3a0a25096481b96320d2bad7b",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_3af2e5105ba2482987aca297d28d04e3",
+        "product_action_kernel_receipt_f3b5ed7165da4d50800eb6572f361042",
+        "product_action_kernel_receipt_d024348a1a704bdc85ff1e51ff02e988",
+        "product_action_kernel_receipt_b4b426780df249b28448cfff515c7fbb"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_3af2e5105ba2482987aca297d28d04e3",
+        "product_action_kernel_receipt_f3b5ed7165da4d50800eb6572f361042",
+        "product_action_kernel_receipt_d024348a1a704bdc85ff1e51ff02e988",
+        "product_action_kernel_receipt_b4b426780df249b28448cfff515c7fbb"
+      ],
+      "recovery_attempts": [
+        {
+          "browser_product_card_count": 1,
+          "can_execute": false,
+          "capability_id": "real_browser_control",
+          "data_not_authority": true,
+          "failure_code": "real_browser_search_actuation_failed",
+          "operation": "real_browser.search",
+          "recommended_skill": "extract",
+          "recovery_action": "route_to_visible_browser_cards_extraction",
+          "remaining_create_file_plan_count": 0,
+          "target_ref_hash": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "turn_index": 1
+        },
+        {
+          "browser_product_card_count": 1,
+          "can_execute": false,
+          "capability_id": "real_browser_control",
+          "data_not_authority": true,
+          "failure_code": "real_browser_search_actuation_failed",
+          "operation": "real_browser.search",
+          "recommended_skill": "extract",
+          "recovery_action": "route_to_visible_browser_cards_extraction",
+          "remaining_create_file_plan_count": 0,
+          "target_ref_hash": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "turn_index": 1
+        },
+        {
+          "browser_product_card_count": 1,
+          "can_execute": false,
+          "capability_id": "real_browser_control",
+          "data_not_authority": true,
+          "failure_code": "real_browser_search_actuation_failed",
+          "operation": "real_browser.search",
+          "recommended_skill": "extract",
+          "recovery_action": "route_to_visible_browser_cards_extraction",
+          "remaining_create_file_plan_count": 0,
+          "target_ref_hash": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "turn_index": 1
+        },
+        {
+          "browser_product_card_count": 1,
+          "can_execute": false,
+          "capability_id": "real_browser_control",
+          "data_not_authority": true,
+          "failure_code": "real_browser_search_actuation_failed",
+          "operation": "real_browser.search",
+          "recommended_skill": "extract",
+          "recovery_action": "route_to_visible_browser_cards_extraction",
+          "remaining_create_file_plan_count": 0,
+          "target_ref_hash": "12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+          "turn_index": 1
+        }
+      ],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_f35523a5f3f24a5ba0938fd051e1ed1d",
+          "mission_bd5a291ab6fc40af97737ebb206571a1",
+          "mission_d0df6561106047bcb4479b5f399b4b28",
+          "mission_cad92747cc6f4931893f54025bbf854b"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 1,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {},
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "c9f2144b4b9765dc0a3d1a94d4a2be01370c1cb6ab59fd9f1babac9493ecaa0b"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "unknown",
+            "moq": "unknown",
+            "price_range": "unknown",
+            "price_value": "unknown",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "unknown",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.7,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_fb03fb4a8d534b0b93ca397231c201cc",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "b82cb3e18d1b346fadaa56f6844a3d8a2be769c074bc1b9c14cab85da2876840"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Search products with a bounded deterministic fixture",
+          "uncertainty_reason": "price_or_currency_unknown"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_structured_data",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "964842513c92c4d0b36ca5c4a622b85e841b9030ebe98038a8ed40e95dd5ce54",
+      "mission_objective": "Deterministic browser cortex task 17: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "baa73eebba7eff2b575cd6c9e9c432c8aeca7e93183e5da1ffc4c7fe0045d42c",
+      "pre_environment_state_hash": "6c2f66f686e629baa810990bc2339d9631c0c3ad617ae60590e4a0b2c2babb59",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_b8ba951b252e460598eeb5d3fdb4879c",
+        "product_action_kernel_receipt_a44525610b1a42ebb3ba32e0a84f10f7",
+        "product_action_kernel_receipt_1fbbeca0b9a243a3a6d2967c3fda6dda",
+        "product_action_kernel_receipt_0feaf4ebc21e40d6be595c91305cccb3"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_b8ba951b252e460598eeb5d3fdb4879c",
+        "product_action_kernel_receipt_a44525610b1a42ebb3ba32e0a84f10f7",
+        "product_action_kernel_receipt_1fbbeca0b9a243a3a6d2967c3fda6dda",
+        "product_action_kernel_receipt_0feaf4ebc21e40d6be595c91305cccb3"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_0749de30499e4a75a01853a977acc300",
+          "mission_5577ceaa4d1144c08ac3387652f5798c",
+          "mission_b49243e14a0a4fe59a4dce876dd00141",
+          "mission_df607d94d0d547cf9f49e639b4798795"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "9250367ffff474deb2dc80e3ac1e996b3778fc180e6716abbac3784c0cc0e52f"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "37d74e8e5f98c859982f6a1c458943846a26b67995603c03a639c0abc3603391"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_56975cb11586487091d6be33a077e8f2",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "cbc9e7eabbee4403967c7acfa31470531327675e46eabab03dcd74abb206f2c2"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_structured_data Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "37d74e8e5f98c859982f6a1c458943846a26b67995603c03a639c0abc3603391"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_ca1561e0f5ab4a3a8e9eb54bdf7807f6",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_contradictory_price_currency",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "61126dd36dbb358b9f40f9510f63932443eee74352999a54d75d17890dbe46a1",
+      "mission_objective": "Deterministic browser cortex task 18: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "16bfde3d9d1d33d08a137bec2f03359944945cf1b2b316602f5535c916fc98c3",
+      "pre_environment_state_hash": "6201994ec310f6711c0d10bc6a3caeb717505c183b7c46c9566dbae96bef9e8b",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_7d452f2189364151bc02c86e5f082ff8",
+        "product_action_kernel_receipt_83f67bdc22664d0cac09fa6402faf63b",
+        "product_action_kernel_receipt_598a7c42e8704c439bc8f35ef7fa50ad",
+        "product_action_kernel_receipt_3c8e69d15d1143b587fb6c174af85d2f"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_7d452f2189364151bc02c86e5f082ff8",
+        "product_action_kernel_receipt_83f67bdc22664d0cac09fa6402faf63b",
+        "product_action_kernel_receipt_598a7c42e8704c439bc8f35ef7fa50ad",
+        "product_action_kernel_receipt_3c8e69d15d1143b587fb6c174af85d2f"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_11eb5140f54046e6920dc1e9a3fe7b0d",
+          "mission_b4f08d1834864900bb1fabba571e1574",
+          "mission_bf075ca5e046446c9948c03a30795ba1",
+          "mission_072829510bbe44f09f9090a8d4b96851"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "3982fa445873c5f7200b9517cf771b65c50ebc74ebf0071007529edde6917a26"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "932a26c68831b5c99640469d134b728539b6f4429309de43ebcdac691d9758a8"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "unknown",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_683c8e40fa4e4399be0eba2bce93b1c0",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "cb211165d44bd5a22e2de2822d0bf52b99813d976d1d6881944e03c146a16597"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_contradictory_",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "932a26c68831b5c99640469d134b728539b6f4429309de43ebcdac691d9758a8"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "unknown",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_519a094a8b3248d9bb6ca4701cc8e36f",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "df1464df2dfbee4461cb2616d46554aa67709758c87d1df6c10a14d0589859af"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR visible text, structured data USD 9.50",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_non_commerce",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "519bdf05f8899b0dfc3c12671879dc8f8e85095eec485052c6c37c1dac88a4a0",
+      "mission_objective": "Deterministic browser cortex task 19: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "780c32579310b555ed8149bc64a94907da0fb60a5c5182ed50688400884b6d15",
+      "pre_environment_state_hash": "40fc7aea3d857659272e81fa5f878313f6388bd4aec33047e347485fa1dee263",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_f5829bc1679a4fd1b82f5e9e5ee7c6c3",
+        "product_action_kernel_receipt_4b38c07c5c2540f78bac3473d8cb9bf8",
+        "product_action_kernel_receipt_f72fb1975e314ac2ad03457a762605af",
+        "product_action_kernel_receipt_6e95233d09464489a8bf21b7f24e523f"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_f5829bc1679a4fd1b82f5e9e5ee7c6c3",
+        "product_action_kernel_receipt_4b38c07c5c2540f78bac3473d8cb9bf8",
+        "product_action_kernel_receipt_f72fb1975e314ac2ad03457a762605af",
+        "product_action_kernel_receipt_6e95233d09464489a8bf21b7f24e523f"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_32711675e232440c9b83bf0ac90060f4",
+          "mission_8e940147b6a24183b44656db4167116e",
+          "mission_00d8af7f87dc42fea77320e6ad7f7ee7",
+          "mission_dabffbb3e7594e94a7187eec748fde5d"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "83e550962e5bf48da728486969f47d9b2d4d319978f52382017abf364d37d3d6"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "3bd7724bafde37e4e9d1d26579f7f80c58e1a12df22140564d36ab560f77dd51"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "unknown",
+            "moq": "unknown",
+            "price_range": "unknown",
+            "price_value": "unknown",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "unknown",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.7,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_7e79c5627a9144c1ad7d9bb6765e32ea",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "ec2c39a8c167d50de1f585a47ec3ea74f77a3771119e6a3fe1b3f5910043a472"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Reference article result Reference article result with no product",
+          "uncertainty_reason": "price_or_currency_unknown"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "3bd7724bafde37e4e9d1d26579f7f80c58e1a12df22140564d36ab560f77dd51"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "unknown",
+            "moq": "unknown",
+            "price_range": "unknown",
+            "price_value": "unknown",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "unknown",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.7,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_c5cc51f98e1f40be9eb0212b0b87ccea",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "0336be2141dbf98b0756742f34ece67a9c83a3023b76ff417265990e1b9b29b7"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Reference article result with no product",
+          "uncertainty_reason": "price_or_currency_unknown"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.verify_extraction"
+      ],
+      "case_id": "det_fill_only_false_success",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "blocked",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "7ae944776606e70620bf1c1659f92f329202c0e9a1fd1cc53c1c503961765b5d",
+      "mission_objective": "Deterministic browser cortex task 20: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "dba5adb0e7634faecd855699de6be5a9c1561c45384c07d6eaab70f5a6cc21ba",
+      "pre_environment_state_hash": "6fb72b9d83ac24b3510abb1c8f280c619bf3706c31434e277ab01fd80f3f2b16",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_bf626f81548d4114946fde18ee53723b",
+        "product_action_kernel_receipt_4be458ada7fd43b09c5ed3f2b163a9b2",
+        "product_action_kernel_receipt_8d04fc23c28841129be6f7a44b469d6c",
+        "product_action_kernel_receipt_1523d26243aa4e49be14c477550f8054"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_bf626f81548d4114946fde18ee53723b",
+        "product_action_kernel_receipt_4be458ada7fd43b09c5ed3f2b163a9b2",
+        "product_action_kernel_receipt_8d04fc23c28841129be6f7a44b469d6c",
+        "product_action_kernel_receipt_1523d26243aa4e49be14c477550f8054"
+      ],
+      "recovery_attempts": [
+        {
+          "failure_code": "product_action_kernel_execution_failed",
+          "terminal": true
+        }
+      ],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_ac30c77b3015476ea2bb9c7be725c691",
+          "mission_8c94503a652c4c2e81775f7f06f2bd9d",
+          "mission_09c8315cbfec4605b521594a8dcdaa92",
+          "mission_9da34ac2bea840389a6919dd3f3b3edc"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 0,
+        "detected": false,
+        "expected": false
+      },
+      "search_progress": {
+        "confidence": 0.48,
+        "current_state": "UNCERTAIN",
+        "evidence_refs": [
+          "54f1be1ff3846f664dc1a904d94893f93dc8e2412a6915778ea2708a0b954fba"
+        ],
+        "search_materially_successful": false,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "QUERY_REFLECTED",
+          "UNCERTAIN"
+        ],
+        "uncertainty_reason": "input and query reflection are not material search proof without submission and request/result evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_result_region_without_navigation",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "e9889f586af4f0385da6a7b382106cc5020fda7ccd70d6172c86afcf0aca679c",
+      "mission_objective": "Deterministic browser cortex task 21: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "bd0376c22ea2ac82ff04ae75050d798c010af02be16c4c9e29bdc1f28fa3fefc",
+      "pre_environment_state_hash": "b54d6761a3f77bcd4359ee21779bf3921fa14876197737c1aa75640d5483b1da",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_7abc9f3f5301471eaa8ced157bd75f9d",
+        "product_action_kernel_receipt_ca13b623151743359010fff1a3baafb4",
+        "product_action_kernel_receipt_c7749caa39ab4a30a206ee5d61d0039b",
+        "product_action_kernel_receipt_cdabfcaf8fd0490a921c18ba114d2862"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_7abc9f3f5301471eaa8ced157bd75f9d",
+        "product_action_kernel_receipt_ca13b623151743359010fff1a3baafb4",
+        "product_action_kernel_receipt_c7749caa39ab4a30a206ee5d61d0039b",
+        "product_action_kernel_receipt_cdabfcaf8fd0490a921c18ba114d2862"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_ac643e8690204673a4d69a69f4ded577",
+          "mission_d8b8a32f99a9427183921f0bb87e3a2f",
+          "mission_e7b6978ace6d42da8a5ce4877ab2e7a5",
+          "mission_59e36c3945db4bda9d6433fb6b5b8e40"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "c3953c18614c8eddef9a09d7f2f50274b3a4b9cbf9573f3d2023a08ab69c1364"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "72d9f50a797d2e69576d21f52e7620cdda4696796de2b2241bb5ea9dc7b47a57"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_01fb838e52954106bbb71f9a2a50214d",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "f043b22f03abb87578aeec843bcbe6026fe1d1d8dd274d91a66d805c947a2d20"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_result_region_without_navigation Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "72d9f50a797d2e69576d21f52e7620cdda4696796de2b2241bb5ea9dc7b47a57"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_a8ea35dd92f14876ad4a32345eec93ce",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_search_button_only",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "41c1a2390b3d58a037f81a7bd52001196210cd7c9f4831011cb7cebf2032cadc",
+      "mission_objective": "Deterministic browser cortex task 22: find objective-relevant entities.",
+      "observed_search_control": "input:search",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "640928cf61d68f9d831846a565e97300ce8e48771b6918b91e8845a3c6844df8",
+      "pre_environment_state_hash": "d51342835108fcd2918e3a62c82c72e0b713dcc5089072341dd718084ed40f7c",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_646fa809cc0b4abf87eb0b188715684a",
+        "product_action_kernel_receipt_f59b19a0291d49a7b45ee578810a7db8",
+        "product_action_kernel_receipt_f9b6e2f636e24366bfc5cea71c616205",
+        "product_action_kernel_receipt_1b03159a2ec94685896d5568f70a10d9"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_646fa809cc0b4abf87eb0b188715684a",
+        "product_action_kernel_receipt_f59b19a0291d49a7b45ee578810a7db8",
+        "product_action_kernel_receipt_f9b6e2f636e24366bfc5cea71c616205",
+        "product_action_kernel_receipt_1b03159a2ec94685896d5568f70a10d9"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_39ff44e7819444c3800a79bb729273c9",
+          "mission_67b48f318e62470183f9ff08c0941646",
+          "mission_3a4fea0ed4404b8595c84785c64ac609",
+          "mission_491c16fc51424127bbbec126796385d3"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "5883a5970e9227c81bf514186e4d790d8afb042b4f7e6921d503da6554bd441b"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "22f5ccb8a0368e3f5543128d1cd5fc9a8982ef466a62ba8ae69a05ba5a872b9e"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_078ee4384c9647beb2609f6c3dfe6c4a",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "6214f3cc3585c5a9847086bd998f90f9fa98250eb6e393f83f270b0b8e30506b"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_search_button_only Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "22f5ccb8a0368e3f5543128d1cd5fc9a8982ef466a62ba8ae69a05ba5a872b9e"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_d9909273873b4b59845940d9b38b0709",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    },
+    {
+      "action_trace": [
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish"
+      ],
+      "case_id": "det_filter_without_query",
+      "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+      "expected_semantic_outcome": {
+        "price_requires_visible_evidence": true,
+        "relevant": true
+      },
+      "failure_classification": "",
+      "finalgate_result": "accepted",
+      "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+      "fixture_hash": "c0c7e9e2654c5174cf2ca513aa705c53163b27b6bcee4249805dbd7b3b83987a",
+      "mission_objective": "Deterministic browser cortex task 23: find objective-relevant entities.",
+      "observed_search_control": "select:filter",
+      "pass_fail": "PASS",
+      "post_environment_state_hash": "ae90451217b805da705d9441dc3fbfd826c276b353c0315caaffb8ccb4d496e6",
+      "pre_environment_state_hash": "9397f720dd7f135407bd42c154aa8adb15c6dd7b4fac23f171e959dad101db16",
+      "product_receipt_refs": [
+        "product_action_kernel_receipt_fe00d59cea2e43c4bb723ce3fb46a77d",
+        "product_action_kernel_receipt_e27d102165ed4e6aaa75c318b1635e08",
+        "product_action_kernel_receipt_2278178f259a488b93e53c86f4d9e0cd",
+        "product_action_kernel_receipt_a79a8447aa8e449ca343e2d36984d508"
+      ],
+      "receipt_refs": [
+        "product_action_kernel_receipt_fe00d59cea2e43c4bb723ce3fb46a77d",
+        "product_action_kernel_receipt_e27d102165ed4e6aaa75c318b1635e08",
+        "product_action_kernel_receipt_2278178f259a488b93e53c86f4d9e0cd",
+        "product_action_kernel_receipt_a79a8447aa8e449ca343e2d36984d508"
+      ],
+      "recovery_attempts": [],
+      "replay_result": {
+        "artifact_hashes_stable": true,
+        "channel_transport_sends_delta": 0,
+        "command_executions_delta": 0,
+        "finalgate_writes_delta": 0,
+        "missing_artifact_count": 0,
+        "mission_ids": [
+          "mission_39e0a7e0c5ca408c8819e9ef3fd58f8f",
+          "mission_ef28f727267e4ca3af72a7903bc46482",
+          "mission_92117926a217464180c5e5bc2c7ad609",
+          "mission_c4c95e99f12e43bfa092bfe3ed629990"
+        ],
+        "model_calls_delta": 0,
+        "product_dispatch_delta": 0,
+        "receipt_writes_delta": 0,
+        "reexecuted_actions": false
+      },
+      "result_region_observation": {
+        "candidate_count": 2,
+        "detected": true,
+        "expected": true
+      },
+      "search_progress": {
+        "confidence": 0.9,
+        "current_state": "MATERIAL_SUCCESS",
+        "evidence_refs": [
+          "803ba72db81ee53bce65b290df11e2bea3bb5bbcf805a3e8b197d45a99a664bb"
+        ],
+        "search_materially_successful": true,
+        "states": [
+          "INPUT_WRITTEN",
+          "SUBMISSION_OBSERVED",
+          "REQUEST_PROGRESS",
+          "RESULT_STATE_CHANGED",
+          "QUERY_REFLECTED",
+          "MATERIAL_SUCCESS"
+        ],
+        "uncertainty_reason": "material search progress has request or result-region evidence"
+      },
+      "selected_skill": "browse_search",
+      "semantic_entities": [
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "a32ad486779072e680c68da021963aaa846621e460e8d5d81705819f64a4ce67"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_0e31d1a1feca45eabc7227c6614bd3b1",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "5d941f99ac02b5760dcf7c3625491b19a086cf6d9153498cc3fa89f9a3a35a17"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 1,
+          "title": "Deterministic product det_filter_without_query Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        },
+        {
+          "attributes": {
+            "kind": "product_candidate",
+            "objective_hash": "a32ad486779072e680c68da021963aaa846621e460e8d5d81705819f64a4ce67"
+          },
+          "canonical_url": "unknown",
+          "commerce": {
+            "availability": "unknown",
+            "currency": "EUR/visible",
+            "moq": "10",
+            "price_range": "unknown",
+            "price_value": "4.80 EUR",
+            "relevance_to_objective": "unknown",
+            "shipping_qualification": "unknown",
+            "supplier_or_store": "Cortex Fixture Store relevant",
+            "unit_basis": "unknown"
+          },
+          "confidence": 0.95,
+          "contradictions": [],
+          "entity_id": "browser_extract_card_1e58d943a70d44c787788ea76a5314ed",
+          "entity_type": "commerce_product",
+          "evidence_refs": [
+            "e4ee5c7fe164fd54754751ad3338d3cc80ef90985faaa45a42d95b4b4f45fcac"
+          ],
+          "freshness": "current_snapshot",
+          "rank": 2,
+          "title": "Deterministic product card 4.80 EUR",
+          "uncertainty_reason": "none_declared"
+        }
+      ],
+      "status": "EXECUTED"
+    }
+  ],
+  "corpus_version": "browser_cortex_quality_corpus_v1",
+  "decision_quality": "measured_from_product_decision_contexts",
+  "evaluator_correctness": "implemented",
+  "expected_case_ids": [
+    "det_conventional_search_form",
+    "det_multiple_search_fields",
+    "det_spa_search",
+    "det_result_no_url",
+    "det_url_query_no_result",
+    "det_shadow_dom",
+    "det_iframe",
+    "det_dynamic_loading",
+    "det_pagination",
+    "det_infinite_scroll",
+    "det_autocomplete",
+    "det_modal_overlay",
+    "det_localized_ui",
+    "det_negative_relevance",
+    "det_client_side_filter",
+    "det_network_failure",
+    "det_stale_controls",
+    "det_structured_data",
+    "det_contradictory_price_currency",
+    "det_non_commerce",
+    "det_fill_only_false_success",
+    "det_result_region_without_navigation",
+    "det_search_button_only",
+    "det_filter_without_query"
+  ],
+  "expected_labels_hash": "8dfbde54f9bf6deb3b1f0f808f123fad1c07543010ec108ed7e32fbb7d885668",
+  "fixture_bundle_hash": "58cd39305a2b4c9b5d661035f6e60a9ba4291cba171ae1ffca1e55b91f757592",
+  "manifest_hash": "63900f4198852ce755803f1284f8b65cab849d2b51cb9a02031c44203af7c4be",
+  "metrics": {
+    "FinalGate_acceptance_rate": 0.8333,
+    "executed_case_count": 24,
+    "executed_case_coverage": 1.0,
+    "fail_count": 3,
+    "fill_only_false_success": 0,
+    "not_run_case_count": 0,
+    "pass_count": 21,
+    "raw_secret_exposure": 0,
+    "recovery_success_rate": 0.4,
+    "relevance_precision": 0.0,
+    "repeated_action_rate": 0.0,
+    "replay_no_react_rate": 1.0,
+    "replay_side_effects": 0,
+    "result_region_f1": 0.9583,
+    "search_control_identification_accuracy": 0.9167,
+    "search_materiality_precision": 1.0,
+    "search_materiality_recall": 0.9091,
+    "semantic_entity_coverage": 0.8333,
+    "site_specific_success_branches": 0,
+    "uncertainty_accuracy": 0.5,
+    "unsupported_claims": 0
+  },
+  "proof_integrity": "measured_from_receipts_finalgate_replay",
+  "recovery_quality": "measured_from_recovery_observations",
+  "runner_version": "browser_cortex_deterministic_runner_v1",
+  "runtime_commit": "afe40f8",
+  "runtime_quality": "measured_from_runtime_observations"
+}
