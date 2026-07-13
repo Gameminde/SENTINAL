@@ -479,6 +479,13 @@ def test_backend_match_ignores_open_receipt_without_backend_truth() -> None:
     receipts = (
         {"receipt_kind": "real_browser_open", "action": "real_browser.open"},
         {
+            "capability_id": "real_browser_control",
+            "operation": "real_browser.search",
+            "selected_backend_id": "compatibility_noise",
+            "actual_backend_id": "compatibility_noise",
+            "session_backend_kind": "playwright",
+        },
+        {
             "receipt_kind": "real_browser_action",
             "action": "real_browser.search",
             "selected_backend_id": CLOAK_BROWSER_BACKEND_ID,

@@ -41,7 +41,12 @@ def browser_receipts_backend_match(
     material_backend_receipts = [
         receipt
         for receipt in receipts
-        if receipt.get("selected_backend_id") is not None or receipt.get("actual_backend_id") is not None
+        if (
+            str(receipt.get("receipt_id") or "").startswith("real_browser_action_")
+            or str(receipt.get("receipt_kind") or "") == "real_browser_action"
+            or str(receipt.get("action_kind") or "").startswith("real_browser.")
+        )
+        and (receipt.get("selected_backend_id") is not None or receipt.get("actual_backend_id") is not None)
     ]
     if not material_backend_receipts:
         return False
