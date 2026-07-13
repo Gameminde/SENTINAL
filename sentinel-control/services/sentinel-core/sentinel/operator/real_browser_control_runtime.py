@@ -25,6 +25,7 @@ from sentinel.operator.action_power_contract import (
 )
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
 from sentinel.operator.browser_backend_selector import BrowserBackendSelection, select_browser_backend
+from sentinel.operator.browser_cortex_quality_gate import derive_search_progress_state
 from sentinel.operator.browser_environment_state import BrowserEnvironmentStateBuilder
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.kernel import MissionKernel
@@ -2664,7 +2665,7 @@ def _search_materiality(
         and query_reflected
         and (result_region_changed or request_observed)
     )
-    return {
+    materiality = {
         "input_written": bool(input_written),
         "submission_attempted": bool(submission_attempted),
         "request_observed": request_observed,
@@ -2688,6 +2689,8 @@ def _search_materiality(
             }
         ),
     }
+    materiality["search_progress"] = derive_search_progress_state(materiality).model_dump(mode="json")
+    return materiality
 
 
 def _snapshot_result_region_count(snapshot: RealBrowserEngineSnapshot) -> int:

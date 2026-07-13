@@ -37,9 +37,9 @@ provable.
 Current state:
 
 ```text
-current_phase = BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
-previous_phase = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V17_AFTER_NEGATIVE_RELEVANCE_COMPLETION_AND_REPLAY_HASHING_VALID_SUCCESS
-next_work = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+current_phase = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+previous_phase = BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
+next_work = BROWSER_CORTEX_REAL_HOLDOUT_QUALITY_GATE_V1
 roadmap_doctrine = model thinks, Sentinel senses/executes/proves, hard stop only real damage
 ```
 
@@ -56,6 +56,13 @@ not yet prove deep browser intelligence or strong search quality. The current
 implementation therefore upgrades BrowserEnvironmentState into an
 evidence-bearing cognitive graph and makes search materiality distinguish input
 filling from real state/result/request progress.
+
+The latest local Browser Cortex gate adds a frozen quality corpus and evaluator:
+24 deterministic cases, 20 real-world holdout tasks across 5 public sites,
+manifest hash `63900f4198852ce755803f1284f8b65cab849d2b51cb9a02031c44203af7c4be`,
+counterfactual BrowserEnvironmentState decision-consumption proof, search
+progress states, fill-only false-success rejection, and a semantic result/entity
+graph. This is a local corpus proof only; real holdout quality remains unrun.
 
 The active strategy is now the Monster Runtime / Browser Cortex unification
 program. Sentinel has enough browser organs to be powerful, but that power is

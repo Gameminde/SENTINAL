@@ -1,5 +1,64 @@
 # Current State Lock
 
+## Browser Cortex Quality Corpus And Search Understanding Gate V1 - IMPLEMENTED CANDIDATE
+
+Recorded at: 2026-07-13
+
+This section is the canonical current state. It supersedes the Browser Cortex
+Search Quality V1 section as the top-level Browser Cortex build truth while
+preserving older sections below as scoped evidence.
+
+```text
+current_phase = BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+previous_phase = BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
+next_phase = BROWSER_CORTEX_REAL_HOLDOUT_QUALITY_GATE_V1
+roadmap_doctrine = cognitive OS: model thinks, Sentinel senses/executes/proves, hard stop only real damage
+```
+
+### Current Implementation Truth
+
+```text
+BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1
+= IMPLEMENTED_CANDIDATE_LOCAL_CORPUS_PROOF
+
+counterfactual BrowserEnvironmentState decision consumption = implemented
+safe state_fields.value preservation = implemented
+frozen deterministic corpus cases = 24
+real-world holdout tasks = 20
+real-world public sites = 5
+corpus_version = browser_cortex_quality_corpus_v1
+manifest_hash = 63900f4198852ce755803f1284f8b65cab849d2b51cb9a02031c44203af7c4be
+search progress states = implemented
+semantic result/entity graph = implemented
+fill-only false success invariant = implemented
+provider call during implementation = NO
+real browser run during implementation = NO
+push = NO
+```
+
+### Honest Limits
+
+```text
+real model decision improvement = not measured in this tranche
+independent real holdout quality = not run
+deep browser intelligence = not claimed
+strong search quality = not claimed
+```
+
+### Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_QUALITY_CORPUS_AND_SEARCH_UNDERSTANDING_GATE_V1_REPORT.md
+sentinel-control/services/sentinel-core/sentinel/operator/browser_cortex_quality_gate.py
+sentinel-control/services/sentinel-core/sentinel/operator/decision_context.py
+sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py
+sentinel-control/services/sentinel-core/sentinel/operator/skill_decision_frame.py
+sentinel-control/services/sentinel-core/tests/operator/test_browser_cortex_quality_corpus_and_search_understanding_gate.py
+```
+
+Historical current-phase and next-phase blocks below remain evidence for their
+scoped locks. They must not be interpreted as the current build order.
+
 ## Browser Cortex Search Quality And Environment Understanding V1 - IMPLEMENTED CANDIDATE
 
 Recorded at: 2026-07-13

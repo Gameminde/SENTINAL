@@ -417,6 +417,8 @@ def test_search_receipt_records_materiality_not_just_input_fill(tmp_path: Path) 
     assert materiality["request_observed"] is False
     assert materiality["search_materially_successful"] is False
     assert materiality["search_materially_uncertain"] is True
+    assert materiality["search_progress"]["current_state"] == "UNCERTAIN"
+    assert materiality["search_progress"]["search_materially_successful"] is False
 
 
 def test_browser_session_manager_l5_used_for_live_backend_when_available(tmp_path: Path) -> None:
@@ -2177,7 +2179,7 @@ def test_ambiguous_safe_intent_uses_primary_skill_recommendation(tmp_path: Path)
 
     assert mapping.envelope is not None
     assert mapping.envelope.operation == "real_browser.extract_product_cards"
-    assert context["primary_model_recommended_next_action"] != (
+    assert context["primary_model_recommended_next_action"] == (
         f"{mapping.envelope.capability_id}.{mapping.envelope.operation}"
     )
 

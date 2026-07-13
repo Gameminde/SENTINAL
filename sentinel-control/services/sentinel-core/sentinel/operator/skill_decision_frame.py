@@ -253,6 +253,25 @@ def _real_browser_recommendations(visible_actions: list[str], progress_state: st
         return _first_available(visible_actions, ["sentinel_loop.summarize_evidence"])
     if progress_state == "real_browser_extraction_needs_verification":
         return _first_available(visible_actions, ["real_browser_control.real_browser.verify_extraction"])
+    if progress_state == "real_browser_environment_cards_need_extraction":
+        return _first_available(
+            visible_actions,
+            [
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.verify_extraction",
+                "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.search",
+            ],
+        )
+    if progress_state == "real_browser_environment_search_controls_ready":
+        return _first_available(
+            visible_actions,
+            [
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.inspect_result",
+            ],
+        )
     if progress_state == "real_browser_verified_extraction_needs_relevant_products":
         return _first_available(
             visible_actions,

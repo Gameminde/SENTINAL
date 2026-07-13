@@ -337,10 +337,11 @@ def test_power_pack6b_decision_context_after_open_exposes_browser_world_model_fr
     context = decisions.contexts[1]
 
     assert result.status is ModelLedTaskLoopStatus.BLOCKED
-    assert context["progress_state"] == "real_browser_opened_world_model_ready"
-    assert context["recommended_next_action"] == "real_browser_control.real_browser.observe"
+    assert context["progress_state"] == "real_browser_environment_cards_need_extraction"
+    assert context["recommended_next_action"] == "real_browser_control.real_browser.extract_product_cards"
     assert context["finish_available"] is False
     assert context["objective_satisfied"] is False
+    assert context["browser_environment_memory"]["latest_product_or_result_candidate_count"] >= 1
     assert context["browser_world_model_summary"]["search_like_refs"] == ["input:search"]
     assert context["browser_decision_frame"]["current_progress_state"] == "real_browser_opened_world_model_ready"
     assert context["top_stable_refs"]

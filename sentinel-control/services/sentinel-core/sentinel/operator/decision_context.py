@@ -201,6 +201,11 @@ class DecisionContextCompiler:
                 post_patch_verification_results=post_patch_verification_results,
             )
         )
+        if real_browser_mode:
+            progress_guidance = _browser_environment_progress_guidance(
+                progress_guidance,
+                browser_environment_state=browser_environment_state,
+            )
         actionability_registry = build_default_actionability_registry()
         skill_exposure_frame = actionability_registry.compile_frame(
             available_actions=available_actions,
@@ -867,6 +872,95 @@ def _real_browser_progress_guidance(
     }
 
 
+def _browser_environment_progress_guidance(
+    progress_guidance: dict[str, Any],
+    *,
+    browser_environment_state: dict[str, Any],
+) -> dict[str, Any]:
+    if not browser_environment_state:
+        return progress_guidance
+    progress_state = str(progress_guidance.get("progress_state") or "")
+    if progress_state in {
+        "real_browser_objective_satisfied",
+        "real_browser_verified_extraction_needs_summary",
+        "real_browser_extraction_needs_verification",
+        "real_browser_verified_extraction_needs_relevant_products",
+    }:
+        return progress_guidance
+    candidate_count = _browser_environment_candidate_count(browser_environment_state)
+    search_ref_count = _browser_environment_search_ref_count(browser_environment_state)
+    if candidate_count > 0:
+        completion_requirements = dict(progress_guidance.get("completion_requirements") or {})
+        completion_requirements["browser_environment_candidate_cards_visible"] = True
+        completion_requirements["browser_environment_candidate_card_count"] = candidate_count
+        return {
+            "progress_state": "real_browser_environment_cards_need_extraction",
+            "next_recommended_actions": [
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.verify_extraction",
+                "real_browser_control.real_browser.inspect_result",
+                "real_browser_control.real_browser.search",
+            ],
+            "objective_remaining_steps": [
+                "extract visible product/result cards from browser environment state",
+                "verify extraction",
+                "summarize grounded evidence",
+                "finish",
+            ],
+            "completion_requirements": completion_requirements,
+        }
+    if search_ref_count > 0 and progress_state != "real_browser_not_started":
+        completion_requirements = dict(progress_guidance.get("completion_requirements") or {})
+        completion_requirements["browser_environment_search_controls_visible"] = True
+        completion_requirements["browser_environment_search_control_count"] = search_ref_count
+        return {
+            "progress_state": "real_browser_environment_search_controls_ready",
+            "next_recommended_actions": [
+                "real_browser_control.real_browser.search",
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.inspect_result",
+            ],
+            "objective_remaining_steps": [
+                "execute material browser search using ranked search controls",
+                "observe material search state change",
+                "extract/verify product or result cards",
+                "finish",
+            ],
+            "completion_requirements": completion_requirements,
+        }
+    return progress_guidance
+
+
+def _browser_environment_candidate_count(state: dict[str, Any]) -> int:
+    extraction_graph = _state_section(state, "extraction_graph")
+    count = _safe_int(extraction_graph.get("product_or_result_candidate_count"))
+    if count:
+        return count
+    result_value = _state_field_value(state, "result_regions")
+    return _safe_int(result_value.get("candidate_count")) if isinstance(result_value, dict) else 0
+
+
+def _browser_environment_search_ref_count(state: dict[str, Any]) -> int:
+    action_graph = _state_section(state, "action_graph")
+    count = _safe_len(action_graph.get("search_like_refs"))
+    if count:
+        return count
+    search_value = _state_field_value(state, "search_controls")
+    if isinstance(search_value, dict):
+        return _safe_int(search_value.get("ranked_count")) or _safe_len(search_value.get("search_like_refs"))
+    return 0
+
+
+def _state_field_value(state: dict[str, Any], name: str) -> Any:
+    fields = state.get("state_fields")
+    if not isinstance(fields, dict):
+        return {}
+    field = fields.get(name)
+    if not isinstance(field, dict):
+        return {}
+    return field.get("value", {})
+
+
 def _browser_summary(browser_results: list[ActionResult]) -> dict[str, Any]:
     latest_observation = next((result for result in reversed(browser_results) if result.operation == "browser.observe"), None)
     latest_action = next(
@@ -1045,24 +1139,41 @@ def _browser_environment_entries(real_browser_results: list[ActionResult]) -> li
 def _safe_browser_environment_state(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         return {}
-    return _drop_raw_browser_values(value)
+    return _drop_raw_browser_values(value, path=())
 
 
-def _drop_raw_browser_values(value: Any) -> Any:
+def _drop_raw_browser_values(value: Any, *, path: tuple[str, ...]) -> Any:
     if isinstance(value, dict):
         safe: dict[str, Any] = {}
         for key, child in value.items():
             key_text = str(key)
             lowered = key_text.lower()
-            if lowered in {"value", "cookie_value", "storage_value", "session_token"}:
+            child_path = (*path, lowered)
+            if lowered in {"cookie_value", "storage_value", "session_token"}:
+                continue
+            if lowered == "value" and _is_sensitive_browser_value_path(path):
                 continue
             if lowered.startswith("raw_") and lowered not in {"raw_material_persisted"}:
                 continue
-            safe[key_text] = _drop_raw_browser_values(child)
+            safe[key_text] = _drop_raw_browser_values(child, path=child_path)
         return safe
     if isinstance(value, list):
-        return [_drop_raw_browser_values(item) for item in value]
+        return [_drop_raw_browser_values(item, path=path) for item in value]
     return value
+
+
+def _is_sensitive_browser_value_path(path: tuple[str, ...]) -> bool:
+    sensitive_terms = {
+        "cookies",
+        "cookie",
+        "storage_keys",
+        "storage",
+        "session_graph",
+        "storage_session_metadata",
+        "local_storage",
+        "session_storage",
+    }
+    return any(part in sensitive_terms for part in path)
 
 
 def _state_section(state: dict[str, Any] | None, name: str) -> dict[str, Any]:
