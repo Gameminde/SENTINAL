@@ -29,6 +29,18 @@ The model should not think in Sentinel internals. It should think in mission
 skills and task intentions. Sentinel maps those intentions to internal runtime
 actions, selects backends, executes, recovers, and proves what happened.
 
+The architecture is now explicitly governed by:
+
+```text
+SENTINEL_MODEL_AMPLIFICATION_NOT_MODEL_REPLACEMENT_DOCTRINE_V1
+```
+
+This means Sentinel must amplify the model's open-ended intelligence rather
+than replace it with a closed rule-based controller. Classifiers, planners,
+score functions, schemas, and recommendation engines are advisory evidence,
+mechanical reflexes, authority boundaries, proof verifiers, or executors. They
+must not silently become hidden cognitive governors.
+
 ## Authority And Proof Invariants
 
 The model may think, inspect, compare, plan, hypothesize, and experiment freely
@@ -237,4 +249,3 @@ no raw secret-bearing browser material exposed
 no parallel browser architecture introduced
 next real run tests browser understanding quality, not mere completion
 ```
-
