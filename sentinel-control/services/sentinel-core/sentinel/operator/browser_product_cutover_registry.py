@@ -29,6 +29,7 @@ class BrowserProductCutoverPath(SentinelModel):
     product_model_visible: bool = False
     product_proof_allowed: bool = False
     consumed_by_browser_cortex: bool = False
+    executable_trace_proof: str = ""
     silent_fallback_allowed: bool = False
     delete_after_parity: bool = False
     lock_reason: str = ""
@@ -76,6 +77,7 @@ class BrowserProductCutoverPath(SentinelModel):
 class BrowserProductCutoverFrame(SentinelModel):
     frame_id: str = Field(default_factory=lambda: new_id("browser_product_cutover_frame"))
     paths: tuple[BrowserProductCutoverPath, ...] = Field(default_factory=tuple)
+    registry_truth_mismatch_count: int = 0
     invariant: str = "browser_cutover_classification_is_map_not_authority"
     data_not_authority: bool = True
     authority_effect: str = "none"
@@ -84,6 +86,12 @@ class BrowserProductCutoverFrame(SentinelModel):
 
     @model_validator(mode="after")
     def _frame_is_cutover_truth_not_power(self) -> "BrowserProductCutoverFrame":
+        mismatch_count = sum(
+            1
+            for path in self.paths
+            if path.consumed_by_browser_cortex and not path.executable_trace_proof
+        )
+        object.__setattr__(self, "registry_truth_mismatch_count", mismatch_count)
         assert_data_not_authority(
             context="browser_product_cutover_frame",
             authority_effect=self.authority_effect,
@@ -139,6 +147,7 @@ def build_default_browser_product_cutover_registry() -> BrowserProductCutoverReg
                 product_model_visible=True,
                 product_proof_allowed=True,
                 consumed_by_browser_cortex=True,
+                executable_trace_proof="runtimehost_product_action_kernel_real_browser_control",
             ),
             _path(
                 "browser_session_manager_l5_live",
@@ -150,6 +159,7 @@ def build_default_browser_product_cutover_registry() -> BrowserProductCutoverReg
                 backend_id="cloak_browser",
                 product_proof_allowed=True,
                 consumed_by_browser_cortex=True,
+                executable_trace_proof="browser_session_manager_real_browser_engine",
             ),
             _path(
                 "cloak_session_backend",
@@ -161,6 +171,7 @@ def build_default_browser_product_cutover_registry() -> BrowserProductCutoverReg
                 backend_id="cloak_browser",
                 product_proof_allowed=True,
                 consumed_by_browser_cortex=True,
+                executable_trace_proof="browser_session_manager_l5_cloak_backend",
             ),
             _path(
                 "browser_world_model_builder",
@@ -170,6 +181,7 @@ def build_default_browser_product_cutover_registry() -> BrowserProductCutoverReg
                 classification=BrowserProductPathClassification.HIDDEN_BACKEND,
                 migration_decision="cortex_state_graph_component",
                 consumed_by_browser_cortex=True,
+                executable_trace_proof="real_browser_control_world_context_cards",
             ),
             _path(
                 "browser_model_native_control_loop",
@@ -179,6 +191,7 @@ def build_default_browser_product_cutover_registry() -> BrowserProductCutoverReg
                 classification=BrowserProductPathClassification.HIDDEN_BACKEND,
                 migration_decision="intent_to_internal_action_mapper",
                 consumed_by_browser_cortex=True,
+                executable_trace_proof="product_model_native_decision_client",
             ),
             _path(
                 "browser_devtools_machine_intelligence",
@@ -187,6 +200,7 @@ def build_default_browser_product_cutover_registry() -> BrowserProductCutoverReg
                 classification=BrowserProductPathClassification.HIDDEN_BACKEND,
                 migration_decision="feed_safe_cdp_bidi_devtools_metadata_into_cortex",
                 consumed_by_browser_cortex=True,
+                executable_trace_proof="browser_observation_bundle",
             ),
             _path(
                 "browser_failure_recovery_engine",
@@ -195,6 +209,7 @@ def build_default_browser_product_cutover_registry() -> BrowserProductCutoverReg
                 classification=BrowserProductPathClassification.HIDDEN_BACKEND,
                 migration_decision="recover_in_scope_browser_failures_below_model",
                 consumed_by_browser_cortex=True,
+                executable_trace_proof="browser_recovery_evidence",
             ),
             _path(
                 "playwright_real_browser_engine",
@@ -294,6 +309,7 @@ def _path(
     product_model_visible: bool = False,
     product_proof_allowed: bool = False,
     consumed_by_browser_cortex: bool = False,
+    executable_trace_proof: str = "",
     silent_fallback_allowed: bool = False,
     delete_after_parity: bool = False,
     lock_reason: str = "",
@@ -310,6 +326,7 @@ def _path(
         product_model_visible=product_model_visible,
         product_proof_allowed=product_proof_allowed,
         consumed_by_browser_cortex=consumed_by_browser_cortex,
+        executable_trace_proof=executable_trace_proof,
         silent_fallback_allowed=silent_fallback_allowed,
         delete_after_parity=delete_after_parity,
         lock_reason=lock_reason,

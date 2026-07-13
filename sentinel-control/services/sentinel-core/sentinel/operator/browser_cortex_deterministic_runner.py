@@ -136,6 +136,24 @@ class BrowserCortexDeterministicDecisionClient:
                 },
                 idempotency_key=f"browser_cortex:{self.case.task_id}:search",
             )
+        if completion.get("has_confirmed_no_results_search_receipt") and not completion.get(
+            "has_grounded_evidence_summary"
+        ):
+            return ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="summarize_evidence",
+                params={"safe_summary": f"Confirmed negative search summary for {self.case.task_id}."},
+                idempotency_key=f"browser_cortex:{self.case.task_id}:negative_summary",
+            )
+        if completion.get("has_confirmed_no_results_search_receipt") and completion.get(
+            "has_grounded_evidence_summary"
+        ):
+            return ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": f"Finished confirmed negative search case {self.case.task_id}."},
+                idempotency_key=f"browser_cortex:{self.case.task_id}:negative_finish",
+            )
         if (
             completion.get("product_or_result_candidate_card_count", 0)
             and not completion.get("has_real_browser_extraction_receipt")

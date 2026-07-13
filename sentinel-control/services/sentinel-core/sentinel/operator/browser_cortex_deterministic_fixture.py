@@ -188,6 +188,15 @@ class BrowserCortexDeterministicFixtureEngine:
             elements.insert(0, RealBrowserEngineElement("input:footer_search", "textbox", "Newsletter search"))
         if "modal_overlay" in self.spec.category_tags and not self.submitted:
             elements.append(RealBrowserEngineElement("button:close_modal", "button", "Close modal", text_preview="Close"))
+        if self.submitted and not self.spec.expected_result_region and "url_query_no_result" in self.spec.category_tags:
+            elements.append(
+                RealBrowserEngineElement(
+                    "region:no_results",
+                    "generic",
+                    "No matching results",
+                    text_preview="Search completed but no matching result region is visible.",
+                )
+            )
         if self.results_visible:
             elements.extend(self._result_elements())
         return tuple(elements)

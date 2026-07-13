@@ -171,7 +171,7 @@ class ModelLedProductActionKernelTaskLoop:
                     if not self.product_receipt_refs and not self.explicit_noop_proof_ref:
                         return self._block("MODEL_FINISH_BEFORE_PRODUCT_RECEIPT")
                     return self._complete("model_led_product_action_kernel_task_loop_finish")
-                if self.material_actions_used >= self.max_material_actions:
+                if self.material_actions_used >= self.max_material_actions and not _is_completion_lane_decision(decision):
                     return self._block("MATERIAL_ACTION_BUDGET_EXHAUSTED")
                 dispatch_result = self._dispatch_product_action(decision, loop_context=context)
                 self.dispatch_results.append(dispatch_result)
@@ -188,19 +188,29 @@ class ModelLedProductActionKernelTaskLoop:
             return self._block(str(exc) or exc.__class__.__name__)
 
     def _compile_context(self) -> dict[str, Any]:
-        actions = self._available_actions()
-        model_skill_surface = compile_model_skill_surface(
-            model_visible_actions=actions,
-            recommended_actions=actions,
-        )
         dispatch_summaries = _dispatch_summaries(self.dispatch_results)
         safe_context_cards = _merged_dispatch_context_cards(self.dispatch_results)
         completion_requirements = _product_completion_requirements(self.dispatch_results, safe_context_cards)
+        browser_cognitive_frame = _browser_cognitive_decision_frame(safe_context_cards)
+        actions = self._available_actions()
+        recommended_actions = _product_context_recommended_actions(
+            available_actions=actions,
+            completion_requirements=completion_requirements,
+            browser_cognitive_frame=browser_cognitive_frame,
+        )
+        model_skill_surface = compile_model_skill_surface(
+            model_visible_actions=actions,
+            recommended_actions=recommended_actions,
+        )
         grounded_evidence_summary = _grounded_evidence_summary_card(safe_context_cards)
         real_browser_summary = _real_browser_control_summary(self.dispatch_results)
         bounded_observation_summaries = _bounded_observation_summaries(self.dispatch_results)
-        finish_available = bool(
+        has_terminal_browser_evidence = bool(
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
+            or completion_requirements.get("has_confirmed_no_results_search_receipt")
+        )
+        finish_available = bool(
+            has_terminal_browser_evidence
             and completion_requirements.get("has_grounded_evidence_summary")
             and completion_requirements.get("has_objective_relevance_assessment")
         )
@@ -232,6 +242,8 @@ class ModelLedProductActionKernelTaskLoop:
                 "model_skill_surface": model_skill_surface,
                 "model_visible_skills": list(model_skill_surface["model_visible_skills"]),
                 "model_visible_actions": list(actions),
+                "browser_environment_state": safe_context_cards.get("browser_environment_state"),
+                "browser_cognitive_decision_frame": browser_cognitive_frame,
                 "runtime_bridge": "RuntimeHost -> UnifiedExecutionDispatcher -> ProductActionKernelDispatchAdapter",
                 "action_envelope_language": "internal_runtime_only",
             },
@@ -243,9 +255,14 @@ class ModelLedProductActionKernelTaskLoop:
             "dispatch_summaries": dispatch_summaries,
             "bounded_observation_summaries": bounded_observation_summaries,
             "completion_requirements": completion_requirements,
+            "browser_cognitive_decision_frame": browser_cognitive_frame,
             "browser_world_model": safe_context_cards.get("browser_world_model"),
             "browser_world_model_summary": safe_context_cards.get("browser_world_model_summary"),
             "browser_decision_frame": safe_context_cards.get("browser_decision_frame"),
+            "browser_environment_state": safe_context_cards.get("browser_environment_state"),
+            "browser_environment_state_hash": safe_context_cards.get("browser_environment_state_hash"),
+            "browser_observation_bundle": safe_context_cards.get("browser_observation_bundle"),
+            "browser_search_materiality": safe_context_cards.get("browser_search_materiality"),
             "real_browser_control_summary": real_browser_summary,
             "grounded_evidence_summary": grounded_evidence_summary,
             "finish_available": finish_available,
@@ -407,13 +424,17 @@ class ModelLedProductActionKernelTaskLoop:
 
     def _available_actions(self) -> tuple[str, ...]:
         completion_requirements = _product_completion_requirements(self.dispatch_results, _merged_dispatch_context_cards(self.dispatch_results))
-        if (
+        has_terminal_browser_evidence = bool(
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
+            or completion_requirements.get("has_confirmed_no_results_search_receipt")
+        )
+        if (
+            has_terminal_browser_evidence
             and not completion_requirements.get("has_grounded_evidence_summary")
         ):
             return ("sentinel_loop.summarize_evidence",)
         if (
-            completion_requirements.get("has_real_browser_verified_extraction_receipt")
+            has_terminal_browser_evidence
             and completion_requirements.get("has_grounded_evidence_summary")
             and completion_requirements.get("has_objective_relevance_assessment")
         ):
@@ -890,10 +911,12 @@ def _product_completion_requirements(
     summary = _grounded_evidence_summary_card(safe_context_cards)
     product_card_count = _product_card_count_from_context_cards(safe_context_cards)
     has_grounded_summary = bool(summary.get("present") is True)
+    confirmed_no_results = _has_confirmed_no_results_search(safe_context_cards)
     return {
         "has_real_browser_search_receipt": ("real_browser_control", "real_browser.search") in operations,
         "has_real_browser_extraction_receipt": ("real_browser_control", "real_browser.extract_product_cards") in operations,
         "has_real_browser_verified_extraction_receipt": ("real_browser_control", "real_browser.verify_extraction") in operations,
+        "has_confirmed_no_results_search_receipt": confirmed_no_results,
         "has_grounded_evidence_summary": has_grounded_summary,
         "has_objective_relevance_assessment": bool(summary.get("objective_relevance_assessed") is True),
         "has_relevant_product_evidence": bool(summary.get("has_relevant_product_evidence") is True),
@@ -905,6 +928,147 @@ def _product_completion_requirements(
         "data_not_authority": True,
         "can_execute": False,
     }
+
+
+def _browser_cognitive_decision_frame(safe_context_cards: dict[str, Any]) -> dict[str, Any]:
+    environment = safe_context_cards.get("browser_environment_state")
+    if not isinstance(environment, dict):
+        return {
+            "canonical_state_source": "none",
+            "primary_recommended_skill": "browse_search",
+            "candidate_entities": [],
+            "result_regions": {"candidate_count": 0, "relevant_candidate_count": 0},
+            "search_controls": {"ranked_count": 0, "search_like_refs": []},
+            "available_safe_browser_skills": ["browse_search"],
+            "recommended_recovery_paths": [],
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+    state_fields = environment.get("state_fields") if isinstance(environment.get("state_fields"), dict) else {}
+    result_regions = _state_field_value(state_fields, "result_regions")
+    search_controls = _state_field_value(state_fields, "search_controls")
+    recovery_paths = _state_field_value(state_fields, "recommended_recovery_paths").get("paths", [])
+    candidate_entities = _candidate_entities_from_environment(environment)
+    candidate_count = _safe_int(result_regions.get("candidate_count"))
+    relevant_count = _safe_int(result_regions.get("relevant_candidate_count"))
+    skills = [str(skill) for skill in environment.get("recommended_model_skills", []) if str(skill)]
+    if candidate_count:
+        primary = "extract"
+    elif search_controls.get("ranked_count") or "browse_search" in skills:
+        primary = "browse_search"
+    else:
+        primary = "browse_search"
+    return {
+        "canonical_state_source": "BrowserEnvironmentState",
+        "state_hash": safe_context_cards.get("browser_environment_state_hash"),
+        "state_id": environment.get("state_id"),
+        "page_identity": _state_field_value(state_fields, "page_identity"),
+        "lifecycle_state": _state_field_value(state_fields, "page_lifecycle"),
+        "search_controls": search_controls,
+        "result_regions": {
+            "candidate_count": candidate_count,
+            "relevant_candidate_count": relevant_count,
+        },
+        "candidate_entities": candidate_entities,
+        "uncertainty": _state_field_value(state_fields, "uncertainty"),
+        "recommended_recovery_paths": recovery_paths if isinstance(recovery_paths, list) else [],
+        "available_safe_browser_skills": skills,
+        "primary_recommended_skill": primary,
+        "evidence_refs": _state_field_evidence_refs(state_fields),
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def _product_context_recommended_actions(
+    *,
+    available_actions: tuple[str, ...],
+    completion_requirements: dict[str, Any],
+    browser_cognitive_frame: dict[str, Any],
+) -> tuple[str, ...]:
+    has_terminal_browser_evidence = bool(
+        completion_requirements.get("has_real_browser_verified_extraction_receipt")
+        or completion_requirements.get("has_confirmed_no_results_search_receipt")
+    )
+    if (
+        has_terminal_browser_evidence
+        and not completion_requirements.get("has_grounded_evidence_summary")
+        and "sentinel_loop.summarize_evidence" in available_actions
+    ):
+        return ("sentinel_loop.summarize_evidence",)
+    if (
+        has_terminal_browser_evidence
+        and completion_requirements.get("has_grounded_evidence_summary")
+        and "sentinel_loop.finish" in available_actions
+    ):
+        return ("sentinel_loop.finish",)
+    primary_skill = browser_cognitive_frame.get("primary_recommended_skill")
+    if primary_skill == "extract":
+        preferred = (
+            "real_browser_control.real_browser.extract_product_cards",
+            "real_browser_control.real_browser.verify_extraction",
+        )
+    elif primary_skill == "browse_search":
+        preferred = ("real_browser_control.real_browser.search",)
+    else:
+        preferred = ()
+    ordered = [action for action in preferred if action in available_actions]
+    if ordered:
+        return tuple(ordered)
+    ordered.extend(action for action in available_actions if action not in ordered)
+    return tuple(ordered)
+
+
+def _state_field_value(state_fields: dict[str, Any], key: str) -> dict[str, Any]:
+    value = state_fields.get(key)
+    if isinstance(value, dict):
+        field_value = value.get("value")
+        if isinstance(field_value, dict):
+            return field_value
+    return {}
+
+
+def _state_field_evidence_refs(state_fields: dict[str, Any]) -> list[str]:
+    refs: list[str] = []
+    for value in state_fields.values():
+        if isinstance(value, dict):
+            evidence = value.get("evidence_refs")
+            if isinstance(evidence, list):
+                refs.extend(str(item) for item in evidence if str(item))
+    return list(dict.fromkeys(refs))
+
+
+def _candidate_entities_from_environment(environment: dict[str, Any]) -> list[dict[str, Any]]:
+    extraction = environment.get("extraction_graph")
+    if not isinstance(extraction, dict):
+        return []
+    cards = extraction.get("cards")
+    if not isinstance(cards, list):
+        return []
+    entities = []
+    for index, card in enumerate(cards[:8]):
+        if not isinstance(card, dict):
+            continue
+        entities.append(
+            {
+                "rank": index,
+                "title": card.get("title", "unknown"),
+                "visible_price": card.get("visible_price", "unknown"),
+                "currency_or_unit": card.get("currency_or_unit", "unknown"),
+                "minimum_order": card.get("minimum_order", "unknown"),
+                "supplier_or_store": card.get("supplier_or_store", "unknown"),
+                "relevance_to_objective": card.get("relevance_to_objective", "unknown"),
+                "evidence_ref_hash": card.get("evidence_ref_hash", ""),
+            }
+        )
+    return entities
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _product_card_count_from_context_cards(safe_context_cards: dict[str, Any]) -> int:
@@ -922,12 +1086,30 @@ def _product_card_count_from_context_cards(safe_context_cards: dict[str, Any]) -
     return 0
 
 
+def _has_confirmed_no_results_search(safe_context_cards: dict[str, Any]) -> bool:
+    materiality = safe_context_cards.get("browser_search_materiality")
+    if not isinstance(materiality, dict):
+        return False
+    outcome = materiality.get("typed_search_outcome")
+    if not isinstance(outcome, dict):
+        return False
+    return bool(
+        outcome.get("outcome_kind") == "NO_RESULTS_CONFIRMED"
+        and outcome.get("search_materially_successful") is True
+    )
+
+
+def _is_completion_lane_decision(decision: ActionEnvelope) -> bool:
+    return decision.capability_id == "sentinel_loop" and decision.operation in {"summarize_evidence", "finish"}
+
+
 def _completion_lane_context(loop_context: dict[str, Any]) -> dict[str, Any]:
     return {
         "mission_objective": loop_context.get("mission_objective"),
         "completion_requirements": loop_context.get("completion_requirements"),
         "real_browser_control_summary": loop_context.get("real_browser_control_summary"),
         "bounded_observation_summaries": loop_context.get("bounded_observation_summaries"),
+        "browser_search_materiality": loop_context.get("browser_search_materiality"),
         "browser_world_model": loop_context.get("browser_world_model"),
         "browser_world_model_summary": loop_context.get("browser_world_model_summary"),
         "browser_decision_frame": loop_context.get("browser_decision_frame"),

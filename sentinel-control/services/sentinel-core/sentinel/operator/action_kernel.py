@@ -306,6 +306,32 @@ def _grounded_evidence_summary(context: dict[str, Any]) -> dict[str, Any]:
                 "confidence": _card_float(card, "confidence"),
             }
         )
+    if not safe_cards and _has_confirmed_no_results_search(context):
+        materiality = context.get("browser_search_materiality") if isinstance(context, dict) else {}
+        outcome = materiality.get("typed_search_outcome") if isinstance(materiality, dict) else {}
+        evidence_refs = outcome.get("evidence_refs") if isinstance(outcome, dict) else ()
+        return {
+            "summary_kind": "grounded_browser_negative_search_summary",
+            "card_count": 0,
+            "cards": [],
+            "matched_products": [],
+            "uncertain_products": [],
+            "objective_relevance_assessed": True,
+            "has_relevant_product_evidence": False,
+            "under_price_condition_supported_by_visible_evidence": "not_supported",
+            "summary_text": (
+                "The bounded browser search completed with material request/query evidence, "
+                "but the stabilized page showed no matching product result region."
+            ),
+            "negative_result_confirmed": True,
+            "search_outcome_kind": "NO_RESULTS_CONFIRMED",
+            "evidence_refs": tuple(str(ref) for ref in evidence_refs) if isinstance(evidence_refs, (list, tuple)) else (),
+            "unknown_policy": "no_product_fields_invented_for_negative_search_result",
+            "source": "browser_search_materiality_and_receipts",
+            "data_not_authority": True,
+            "authority_effect": "none",
+            "can_execute": False,
+        }
     matched = [
         card
         for card in safe_cards
@@ -370,6 +396,19 @@ def _browser_product_cards(context: dict[str, Any]) -> list[Any]:
     if isinstance(summary, dict) and int(summary.get("product_or_result_candidate_count") or 0) > 0:
         return []
     return []
+
+
+def _has_confirmed_no_results_search(context: dict[str, Any]) -> bool:
+    materiality = context.get("browser_search_materiality") if isinstance(context, dict) else None
+    if not isinstance(materiality, dict):
+        return False
+    outcome = materiality.get("typed_search_outcome")
+    if not isinstance(outcome, dict):
+        return False
+    return bool(
+        outcome.get("outcome_kind") == "NO_RESULTS_CONFIRMED"
+        and outcome.get("search_materially_successful") is True
+    )
 
 
 def _cards_from_context_obj(value: Any) -> list[Any]:

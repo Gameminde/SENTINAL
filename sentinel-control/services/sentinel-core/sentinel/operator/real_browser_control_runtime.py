@@ -27,6 +27,12 @@ from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompile
 from sentinel.operator.browser_backend_selector import BrowserBackendSelection, select_browser_backend
 from sentinel.operator.browser_cortex_quality_gate import derive_search_progress_state
 from sentinel.operator.browser_environment_state import BrowserEnvironmentStateBuilder
+from sentinel.operator.browser_observation_bundle import build_browser_observation_bundle
+from sentinel.operator.browser_search_outcomes import derive_browser_search_outcome
+from sentinel.operator.browser_semantic_control_classifier import (
+    classify_search_controls,
+    is_search_like_control,
+)
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.model_skill_surface import model_skill_for_action
@@ -817,6 +823,7 @@ class RealBrowserControlRuntime:
                 browser_state_hash=before_snapshot.state_hash,
             )
         errors: list[str] = []
+        recovery_evidence: dict[str, Any] | None = None
         for ref in candidates:
             input_written = False
             submission_attempted = False
@@ -860,7 +867,57 @@ class RealBrowserControlRuntime:
                     search_materiality=search_materiality,
                 )
             except RealBrowserControlRuntimeError as exc:
-                errors.append(str(exc))
+                error = str(exc)
+                errors.append(error)
+                if recovery_evidence is None and _search_error_can_refresh_refs(error):
+                    recovery_evidence = _browser_recovery_evidence(
+                        authority=authority,
+                        failure_code=error,
+                        browser_state_hash=before_snapshot.state_hash,
+                        context_cards=self._world_context_cards(
+                            self.engine.observe(),
+                            authority=authority,
+                            context=context,
+                            progress_state="real_browser_search_recovery_world_model_ready",
+                        ),
+                    )
+                    try:
+                        snapshot = self.engine.type_text(ref, query)
+                        input_written = True
+                        submission_attempted = True
+                        snapshot = self.engine.press_key(ref, "Enter")
+                        try:
+                            snapshot = self.engine.wait_for_load()
+                        except RealBrowserControlRuntimeError as load_exc:
+                            errors.append(str(load_exc))
+                        context_cards = self._world_context_cards(
+                            snapshot,
+                            authority=authority,
+                            context=context,
+                            progress_state="real_browser_search_results_world_model_ready",
+                        )
+                        context_cards["browser_recovery_evidence"] = recovery_evidence
+                        search_materiality = _search_materiality(
+                            before_snapshot=before_snapshot,
+                            after_snapshot=snapshot,
+                            query=query,
+                            context_cards=context_cards,
+                            input_written=input_written,
+                            submission_attempted=submission_attempted,
+                        )
+                        return self._record_action(
+                            envelope,
+                            action_kind="real_browser.search",
+                            element_ref=ref,
+                            before_state_hash=before_snapshot.state_hash,
+                            after_state_hash=snapshot.state_hash,
+                            status="completed",
+                            summary=f"real browser search recovered and submitted through skill ref {ref} query_hash={text_hash(query)}.",
+                            context_cards=context_cards,
+                            search_materiality=search_materiality,
+                        )
+                    except RealBrowserControlRuntimeError as retry_exc:
+                        errors.append(str(retry_exc))
                 continue
         recovery_snapshot = self.engine.observe()
         context_cards = self._world_context_cards(
@@ -869,6 +926,14 @@ class RealBrowserControlRuntime:
             context=context,
             progress_state="real_browser_search_recovery_world_model_ready",
         )
+        if recovery_evidence is None:
+            recovery_evidence = _browser_recovery_evidence(
+                authority=authority,
+                failure_code="real_browser_search_actuation_failed",
+                browser_state_hash=recovery_snapshot.state_hash,
+                context_cards=context_cards,
+            )
+        context_cards["browser_recovery_evidence"] = recovery_evidence
         return self._recoverable_actuation_failure(
             envelope,
             failure_code="real_browser_search_actuation_failed",
@@ -1240,6 +1305,9 @@ class RealBrowserControlRuntime:
         context_cards: dict[str, Any] | None = None,
         search_materiality: dict[str, Any] | None = None,
     ) -> ActionResult:
+        action_context_cards = dict(context_cards or {})
+        if search_materiality:
+            action_context_cards["browser_search_materiality"] = dict(search_materiality)
         product_context = dict(self.product_context)
         workspace_context = _browser_product_workspace_context(product_context)
         internal_action_id = f"{envelope.capability_id}.{envelope.operation}"
@@ -1267,7 +1335,7 @@ class RealBrowserControlRuntime:
             before_state_hash=before_state_hash,
             after_state_hash=after_state_hash,
             browser_environment_state_hash=str(
-                (context_cards or {}).get("browser_environment_state_hash") or ""
+                action_context_cards.get("browser_environment_state_hash") or ""
             ),
             search_materiality=dict(search_materiality or {}),
             bounded_observation_summary_hash=stable_hash(
@@ -1277,7 +1345,7 @@ class RealBrowserControlRuntime:
                     "action_kind": action_kind,
                     "element_ref_hash": text_hash(element_ref),
                     "browser_environment_state_hash": str(
-                        (context_cards or {}).get("browser_environment_state_hash") or ""
+                        action_context_cards.get("browser_environment_state_hash") or ""
                     ),
                     "search_materiality": search_materiality or {},
                 }
@@ -1315,7 +1383,7 @@ class RealBrowserControlRuntime:
             material_action=material_action,
             observation_summary=summary,
             result_hash=receipt.result_hash,
-            context_cards=context_cards or {},
+            context_cards=action_context_cards,
         )
 
     def _resolve_ref_or_recover(
@@ -1472,6 +1540,11 @@ class RealBrowserControlRuntime:
         frame_dump = frame.model_dump(mode="json")
         registry_dump = registry.safe_model_dump()
         actionability_dump = actionability_frame.safe_model_dump()
+        devtools_context = _engine_safe_devtools_context(self.engine)
+        observation_bundle = build_browser_observation_bundle(
+            page_state_hash=snapshot.state_hash,
+            devtools_context=devtools_context,
+        )
         environment_state = BrowserEnvironmentStateBuilder().build(
             snapshot=snapshot,
             mission_objective=authority.mission_objective,
@@ -1481,6 +1554,8 @@ class RealBrowserControlRuntime:
             session_backend_kind=_engine_session_backend_kind(self.engine),
             extracted_text=extracted_text,
             world_model=world_model,
+            network_events=observation_bundle.network_events,
+            console_messages=observation_bundle.console_events,
         )
         environment_dump = environment_state.safe_model_dump()
         environment_hash = stable_hash(environment_dump)
@@ -1494,6 +1569,7 @@ class RealBrowserControlRuntime:
             "actionability_frame": actionability_dump,
             "browser_environment_state": environment_dump,
             "browser_environment_state_hash": environment_hash,
+            "browser_observation_bundle": observation_bundle.safe_model_dump(),
             "browser_backend_execution": {
                 "selected_backend_id": self.selected_backend_id,
                 "actual_backend_id": self.actual_backend_id,
@@ -1507,7 +1583,6 @@ class RealBrowserControlRuntime:
                 ),
             },
         }
-        devtools_context = _engine_safe_devtools_context(self.engine)
         if devtools_context is not None:
             cards["browser_devtools_context"] = devtools_context
         return cards
@@ -2408,7 +2483,58 @@ def _engine_safe_devtools_context(engine: RealBrowserEngine) -> dict[str, Any] |
     if not callable(value):
         return None
     context = value()
-    return context if isinstance(context, dict) and context else None
+    return _sanitize_safe_devtools_context(context) if isinstance(context, dict) and context else None
+
+
+def _sanitize_safe_devtools_context(context: dict[str, Any]) -> dict[str, Any]:
+    allowed_top_level = {
+        "source",
+        "available",
+        "backend_kind",
+        "page_target_count",
+        "snapshot_hash",
+        "network_ledger_hash",
+        "console_ledger_hash",
+        "performance_trace_hash",
+        "failure_code",
+        "diagnostic_hash",
+        "safe_metadata",
+    }
+    allowed_metadata = {
+        "source_backend_kind",
+        "session_ref",
+        "url_hash",
+        "title_hash",
+        "step_index",
+        "network_event_count",
+        "network_failure_count",
+        "console_message_count",
+        "console_error_count",
+        "request_classes",
+        "response_status_classes",
+        "query_linked_request_evidence",
+    }
+    safe: dict[str, Any] = {}
+    for key, value in context.items():
+        if key not in allowed_top_level:
+            continue
+        if key != "safe_metadata":
+            if isinstance(value, (str, int, bool, float)):
+                safe[key] = value
+            continue
+        if not isinstance(value, dict):
+            continue
+        metadata: dict[str, Any] = {}
+        for meta_key, meta_value in value.items():
+            if meta_key not in allowed_metadata:
+                continue
+            if isinstance(meta_value, dict):
+                metadata[meta_key] = stable_hash(meta_value)
+            elif isinstance(meta_value, (str, int, bool, float)):
+                metadata[meta_key] = meta_value
+        if metadata:
+            safe["safe_metadata"] = metadata
+    return safe
 
 
 def _combine_safe_devtools_metadata(metadata_items: list[dict[str, Any]]) -> dict[str, Any]:
@@ -2497,15 +2623,16 @@ def _search_ref_candidates(snapshot: RealBrowserEngineSnapshot, envelope: Action
     refs: list[str] = []
     if explicit:
         refs.append(explicit)
-    ranked = sorted(
-        (
-            element
-            for element in snapshot.elements
-            if element.visible and element.enabled and not bool(getattr(element, "secret", False)) and _is_search_like_element(element)
-        ),
-        key=_search_rank,
+    refs.extend(
+        ranked_search_ref
+        for ranked_search_ref in (
+            candidate.control_ref
+            for candidate in classify_search_controls(
+                snapshot.elements,
+                mission_objective=str(envelope.params.get("query") or envelope.params.get("text") or ""),
+            )
+        )
     )
-    refs.extend(element.ref for element in ranked)
     return tuple(dict.fromkeys(refs))
 
 
@@ -2546,19 +2673,13 @@ def _validate_selected_browser_backend(
 
 
 def _is_search_like_element(element: RealBrowserEngineElement) -> bool:
-    if element.role not in {"textbox", "combobox", "searchbox"}:
-        return False
-    text = f"{element.ref} {element.name} {element.text_preview} {element.value_preview}".lower()
-    return any(marker in text for marker in ("search", "find", "query", "keyword", "product", "supplier"))
+    return is_search_like_control(element)
 
 
 def _search_rank(element: RealBrowserEngineElement) -> tuple[int, str]:
-    text = f"{element.ref} {element.name} {element.text_preview}".lower()
-    if "search" in text:
-        return (0, element.ref)
-    if "product" in text or "supplier" in text:
-        return (1, element.ref)
-    return (2, element.ref)
+    candidates = classify_search_controls((element,))
+    confidence = candidates[0].confidence if candidates else 0.0
+    return (-int(confidence * 1000), element.ref)
 
 
 def _existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any] | None:
@@ -2644,6 +2765,67 @@ def _context_browser_state_hash(context_cards: dict[str, Any]) -> str:
     return stable_hash({"browser_context_cards": sorted(context_cards)})
 
 
+def _search_error_can_refresh_refs(error: str) -> bool:
+    lowered = error.lower()
+    return any(marker in lowered for marker in ("stale", "detached", "not_textbox", "disabled", "hidden"))
+
+
+def _browser_recovery_evidence(
+    *,
+    authority: MissionAuthorityEnvelope,
+    failure_code: str,
+    browser_state_hash: str,
+    context_cards: dict[str, Any],
+) -> dict[str, Any]:
+    from sentinel.agent.organs.browser_failure_recovery_engine_v1 import (
+        BrowserFailureRecoveryContract,
+        BrowserFailureRecoveryEngineV1,
+        BrowserFailureRecoveryRequest,
+    )
+
+    evidence_bundle_hash = stable_hash(
+        {
+            "failure_code": failure_code,
+            "browser_state_hash": browser_state_hash,
+            "environment_hash": context_cards.get("browser_environment_state_hash"),
+        }
+    )
+    signals = {
+        "source": "real_browser_control_runtime",
+        "failure_code_hash": text_hash(failure_code),
+        "stale_ref": "stale" in failure_code.lower(),
+        "disabled_target": any(marker in failure_code.lower() for marker in ("disabled", "hidden", "not_textbox")),
+        "network_failure_count": _context_network_failure_count(context_cards),
+    }
+    contract = BrowserFailureRecoveryContract(
+        mission_id=authority.id,
+        allowed_domains=["bounded.example"],
+        max_recovery_steps=4,
+    )
+    request = BrowserFailureRecoveryRequest(
+        mission=authority,
+        url="https://bounded.example/recovery",
+        contract=contract,
+        evidence_bundle_hash=evidence_bundle_hash,
+        failure_signals=signals,
+    )
+    result = BrowserFailureRecoveryEngineV1().plan(request)
+    planned_actions = tuple(step.action_kind.name for step in result.plan.steps)
+    return {
+        "source": "BrowserFailureRecoveryEngineV1",
+        "consumed_by_product_runtime": True,
+        "status": result.status.value,
+        "plan_hash": result.plan.plan_hash,
+        "planned_actions": planned_actions,
+        "failure_kinds": tuple(failure.kind.value for failure in result.plan.failures),
+        "recovery_receipt_ref": result.receipt.receipt_id,
+        "parallel_finalgate_used": False,
+        "data_not_authority": True,
+        "can_execute": False,
+        "can_grant_authority": False,
+    }
+
+
 def _search_materiality(
     *,
     before_snapshot: RealBrowserEngineSnapshot,
@@ -2658,24 +2840,46 @@ def _search_materiality(
     request_observed = _context_network_event_count(context_cards) > 0
     result_region_changed = after_cards > before_cards
     query_reflected = _query_reflected(after_snapshot, query)
+    empty_result_evidence = _snapshot_empty_result_evidence(after_snapshot)
     navigation_or_state_changed = bool(result_region_changed or request_observed)
-    materially_successful = bool(
+    preliminary_material = bool(
         input_written
         and submission_attempted
         and query_reflected
         and (result_region_changed or request_observed)
     )
+    outcome = derive_browser_search_outcome(
+        input_written=input_written,
+        submission_attempted=submission_attempted,
+        request_observed=request_observed,
+        query_reflected=query_reflected,
+        result_region_changed=result_region_changed,
+        before_result_region_count=before_cards,
+        after_result_region_count=after_cards,
+        query_hash=text_hash(query),
+        pre_state_hash=before_snapshot.state_hash,
+        post_state_hash=after_snapshot.state_hash,
+        empty_result_evidence=empty_result_evidence,
+        evidence_refs=(
+            f"pre_state:{before_snapshot.state_hash}",
+            f"post_state:{after_snapshot.state_hash}",
+            f"context:{context_cards.get('browser_environment_state_hash')}",
+        ),
+    )
+    materially_successful = bool(preliminary_material and outcome.search_materially_successful)
     materiality = {
         "input_written": bool(input_written),
         "submission_attempted": bool(submission_attempted),
         "request_observed": request_observed,
         "navigation_or_state_changed": navigation_or_state_changed,
         "result_region_changed": result_region_changed,
+        "empty_result_evidence": empty_result_evidence,
         "query_reflected": query_reflected,
         "before_result_region_count": before_cards,
         "after_result_region_count": after_cards,
         "search_materially_successful": materially_successful,
         "search_materially_uncertain": bool(input_written and submission_attempted and not materially_successful),
+        "typed_search_outcome": outcome.safe_model_dump(),
         "query_hash": text_hash(query),
         "evidence_hash": stable_hash(
             {
@@ -2686,11 +2890,31 @@ def _search_materiality(
                 "after_cards": after_cards,
                 "request_observed": request_observed,
                 "query_reflected": query_reflected,
+                "typed_outcome": outcome.outcome_kind.value,
             }
         ),
     }
     materiality["search_progress"] = derive_search_progress_state(materiality).model_dump(mode="json")
     return materiality
+
+
+def _snapshot_empty_result_evidence(snapshot: RealBrowserEngineSnapshot) -> bool:
+    markers = (
+        "no matching result",
+        "no results",
+        "0 results",
+        "aucun resultat",
+        "aucun résultat",
+        "nothing found",
+        "empty result",
+    )
+    for element in snapshot.elements:
+        if not element.visible or bool(getattr(element, "secret", False)):
+            continue
+        text = f"{element.name} {element.text_preview} {element.value_preview}".lower()
+        if any(marker in text for marker in markers):
+            return True
+    return False
 
 
 def _snapshot_result_region_count(snapshot: RealBrowserEngineSnapshot) -> int:
@@ -2721,6 +2945,18 @@ def _context_network_event_count(context_cards: dict[str, Any]) -> int:
         if isinstance(protocol, dict):
             try:
                 return int(protocol.get("network_event_count") or 0)
+            except (TypeError, ValueError):
+                return 0
+    return 0
+
+
+def _context_network_failure_count(context_cards: dict[str, Any]) -> int:
+    devtools = context_cards.get("browser_devtools_context")
+    if isinstance(devtools, dict):
+        metadata = devtools.get("safe_metadata")
+        if isinstance(metadata, dict):
+            try:
+                return int(metadata.get("network_failure_count") or 0)
             except (TypeError, ValueError):
                 return 0
     return 0

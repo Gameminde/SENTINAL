@@ -6,6 +6,10 @@ from typing import TYPE_CHECKING, Any
 from pydantic import Field
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
+from sentinel.operator.browser_semantic_control_classifier import (
+    classify_search_controls,
+    is_search_like_control,
+)
 from sentinel.shared.models import SentinelModel, new_id
 
 if TYPE_CHECKING:
@@ -127,7 +131,13 @@ class BrowserWorldModelBuilder:
             visible_parts.append(extracted_text[:1200])
         visible_text = "\n".join(part for part in visible_parts if part)
         snippets = _snippets(visible_text)
-        search_like_refs = tuple(element.ref for element in observable if _is_search_like(element))
+        search_like_refs = tuple(
+            candidate.control_ref
+            for candidate in classify_search_controls(
+                observable,
+                mission_objective=mission_objective,
+            )
+        )
         form_controls = tuple(element.ref for element in observable if element.role in {"textbox", "combobox"})
         button_refs = tuple(element.ref for element in observable if element.role == "button")
         link_refs = tuple(element.ref for element in observable if element.role == "link")
@@ -200,10 +210,7 @@ def _contains_sensitive_marker(value: str) -> bool:
 
 
 def _is_search_like(element: "RealBrowserEngineElement") -> bool:
-    if element.role not in {"textbox", "combobox", "searchbox"}:
-        return False
-    text = f"{element.ref} {element.name} {element.text_preview} {element.value_preview}".lower()
-    return any(marker in text for marker in ("search", "find", "query", "keyword", "product", "supplier"))
+    return is_search_like_control(element)
 
 
 def _snippets(text: str) -> list[str]:
@@ -296,6 +303,8 @@ def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCa
     if not text.strip():
         return None
     product_text = _strip_search_intro(text)
+    if _is_empty_result_notice(product_text):
+        return None
     has_product_signal = bool(
         re.search(r"(\$|€|eur|usd|price|moq|minimum order|supplier|store|piece|unit|pcs?)", product_text, flags=re.I)
     )
@@ -345,6 +354,23 @@ def _has_product_signal(text: str) -> bool:
             ),
             text,
             flags=re.I,
+        )
+    )
+
+
+def _is_empty_result_notice(text: str) -> bool:
+    normalized = " ".join(text.lower().split())
+    return any(
+        marker in normalized
+        for marker in (
+            "no matching result",
+            "no matching results",
+            "no results",
+            "0 results",
+            "nothing found",
+            "empty result",
+            "aucun resultat",
+            "aucun résultat",
         )
     )
 
