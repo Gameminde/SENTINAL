@@ -817,12 +817,17 @@ class RealBrowserControlRuntime:
             )
         errors: list[str] = []
         for ref in candidates:
+            input_written = False
+            submission_attempted = False
             try:
                 snapshot = self.engine.type_text(ref, query)
+                input_written = True
                 try:
+                    submission_attempted = True
                     snapshot = self.engine.press_key(ref, "Enter")
                 except RealBrowserControlRuntimeError as exc:
                     errors.append(str(exc))
+                    submission_attempted = True
                     snapshot = self._click_search_button_if_available()
                 try:
                     snapshot = self.engine.wait_for_load()
@@ -834,6 +839,14 @@ class RealBrowserControlRuntime:
                     context=context,
                     progress_state="real_browser_search_results_world_model_ready",
                 )
+                search_materiality = _search_materiality(
+                    before_snapshot=before_snapshot,
+                    after_snapshot=snapshot,
+                    query=query,
+                    context_cards=context_cards,
+                    input_written=input_written,
+                    submission_attempted=submission_attempted,
+                )
                 return self._record_action(
                     envelope,
                     action_kind="real_browser.search",
@@ -843,6 +856,7 @@ class RealBrowserControlRuntime:
                     status="completed",
                     summary=f"real browser search submitted through skill ref {ref} query_hash={text_hash(query)}.",
                     context_cards=context_cards,
+                    search_materiality=search_materiality,
                 )
             except RealBrowserControlRuntimeError as exc:
                 errors.append(str(exc))
@@ -1223,6 +1237,7 @@ class RealBrowserControlRuntime:
         summary: str,
         material_action: bool = True,
         context_cards: dict[str, Any] | None = None,
+        search_materiality: dict[str, Any] | None = None,
     ) -> ActionResult:
         product_context = dict(self.product_context)
         workspace_context = _browser_product_workspace_context(product_context)
@@ -1253,6 +1268,7 @@ class RealBrowserControlRuntime:
             browser_environment_state_hash=str(
                 (context_cards or {}).get("browser_environment_state_hash") or ""
             ),
+            search_materiality=dict(search_materiality or {}),
             bounded_observation_summary_hash=stable_hash(
                 {
                     "safe_url_origin_hash": self.engine.safe_url_origin_hash,
@@ -1262,6 +1278,7 @@ class RealBrowserControlRuntime:
                     "browser_environment_state_hash": str(
                         (context_cards or {}).get("browser_environment_state_hash") or ""
                     ),
+                    "search_materiality": search_materiality or {},
                 }
             ),
         )
@@ -2624,6 +2641,101 @@ def _context_browser_state_hash(context_cards: dict[str, Any]) -> str:
             }
         )
     return stable_hash({"browser_context_cards": sorted(context_cards)})
+
+
+def _search_materiality(
+    *,
+    before_snapshot: RealBrowserEngineSnapshot,
+    after_snapshot: RealBrowserEngineSnapshot,
+    query: str,
+    context_cards: dict[str, Any],
+    input_written: bool,
+    submission_attempted: bool,
+) -> dict[str, Any]:
+    before_cards = _snapshot_result_region_count(before_snapshot)
+    after_cards = _snapshot_result_region_count(after_snapshot)
+    request_observed = _context_network_event_count(context_cards) > 0
+    result_region_changed = after_cards > before_cards
+    query_reflected = _query_reflected(after_snapshot, query)
+    navigation_or_state_changed = bool(result_region_changed or request_observed)
+    materially_successful = bool(
+        input_written
+        and submission_attempted
+        and query_reflected
+        and (result_region_changed or request_observed)
+    )
+    return {
+        "input_written": bool(input_written),
+        "submission_attempted": bool(submission_attempted),
+        "request_observed": request_observed,
+        "navigation_or_state_changed": navigation_or_state_changed,
+        "result_region_changed": result_region_changed,
+        "query_reflected": query_reflected,
+        "before_result_region_count": before_cards,
+        "after_result_region_count": after_cards,
+        "search_materially_successful": materially_successful,
+        "search_materially_uncertain": bool(input_written and submission_attempted and not materially_successful),
+        "query_hash": text_hash(query),
+        "evidence_hash": stable_hash(
+            {
+                "before_state_hash": before_snapshot.state_hash,
+                "after_state_hash": after_snapshot.state_hash,
+                "context_hash": context_cards.get("browser_environment_state_hash"),
+                "before_cards": before_cards,
+                "after_cards": after_cards,
+                "request_observed": request_observed,
+                "query_reflected": query_reflected,
+            }
+        ),
+    }
+
+
+def _snapshot_result_region_count(snapshot: RealBrowserEngineSnapshot) -> int:
+    count = 0
+    for element in snapshot.elements:
+        if not element.visible or not element.enabled or bool(getattr(element, "secret", False)):
+            continue
+        if element.role not in {"link", "article", "card", "generic"}:
+            continue
+        text = f"{element.name} {element.text_preview} {element.value_preview}"
+        if any(marker in text.lower() for marker in ("product", "price", "moq", "supplier", "store", "glasses", "sunglasses", "eur", "usd", "$")):
+            count += 1
+    return count
+
+
+def _context_network_event_count(context_cards: dict[str, Any]) -> int:
+    devtools = context_cards.get("browser_devtools_context")
+    if isinstance(devtools, dict):
+        metadata = devtools.get("safe_metadata")
+        if isinstance(metadata, dict):
+            try:
+                return int(metadata.get("network_event_count") or 0)
+            except (TypeError, ValueError):
+                return 0
+    environment = context_cards.get("browser_environment_state")
+    if isinstance(environment, dict):
+        protocol = environment.get("protocol_graph")
+        if isinstance(protocol, dict):
+            try:
+                return int(protocol.get("network_event_count") or 0)
+            except (TypeError, ValueError):
+                return 0
+    return 0
+
+
+def _query_reflected(snapshot: RealBrowserEngineSnapshot, query: str) -> bool:
+    normalized_query = " ".join(query.lower().split())
+    if not normalized_query:
+        return False
+    for element in snapshot.elements:
+        text = " ".join(
+            str(part)
+            for part in (element.name, element.text_preview, element.value_preview)
+            if part
+        ).lower()
+        if normalized_query in " ".join(text.split()):
+            return True
+    return False
 
 
 def _reject_sensitive_text(value: str) -> None:

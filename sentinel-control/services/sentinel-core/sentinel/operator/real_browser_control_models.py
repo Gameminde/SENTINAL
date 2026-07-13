@@ -151,6 +151,7 @@ class RealBrowserActionReceipt(SentinelModel):
     before_state_hash: str
     after_state_hash: str
     browser_environment_state_hash: str = ""
+    search_materiality: dict[str, object] = Field(default_factory=dict)
     bounded_observation_summary_hash: str
     result_hash: str = ""
     receipt_hash: str = ""
@@ -198,6 +199,7 @@ class RealBrowserActionReceipt(SentinelModel):
             "before_state_hash": self.before_state_hash,
             "after_state_hash": self.after_state_hash,
             "browser_environment_state_hash": self.browser_environment_state_hash,
+            "search_materiality": dict(self.search_materiality),
             "bounded_observation_summary_hash": self.bounded_observation_summary_hash,
             "created_at": self.created_at.isoformat(),
             "data_not_authority": self.data_not_authority,

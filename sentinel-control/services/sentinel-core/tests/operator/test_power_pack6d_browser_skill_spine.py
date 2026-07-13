@@ -313,6 +313,110 @@ def test_search_material_receipt_records_backend_truth(tmp_path: Path) -> None:
     assert receipt["selected_backend_id"] == CLOAK_BROWSER_BACKEND_ID
     assert receipt["actual_backend_id"] == CLOAK_BROWSER_BACKEND_ID
     assert receipt["session_backend_kind"] == "cloakbrowser"
+    assert receipt["search_materiality"]["input_written"] is True
+    assert receipt["search_materiality"]["submission_attempted"] is True
+    assert receipt["search_materiality"]["result_region_changed"] is True
+    assert receipt["search_materiality"]["search_materially_successful"] is True
+
+
+def test_browser_environment_state_exposes_cognitive_fields_with_evidence(tmp_path: Path) -> None:
+    engine = _PlaywrightCompatibilitySearchEngine(results_visible=True)
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(PLAYWRIGHT_BROWSER_MODULE,)),
+        selected_backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+    )
+
+    result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+
+    environment = result.context_cards["browser_environment_state"]
+    assert environment["schema_version"] == "browser_environment_state_v1"
+    assert environment["cognitive_graph_ready"] is True
+    for section in (
+        "session_state",
+        "page_identity",
+        "navigation_state",
+        "tabs_and_frames",
+        "page_lifecycle",
+        "forms",
+        "search_controls",
+        "interactive_controls",
+        "result_regions",
+        "candidate_entity_regions",
+        "network_summary",
+        "console_summary",
+        "structured_data",
+        "storage_session_metadata",
+        "overlays_modals_blockers",
+        "visual_fallback_refs",
+        "available_safe_browser_skills",
+        "uncertainty",
+        "recommended_recovery_paths",
+    ):
+        field = environment["state_fields"][section]
+        assert {"value", "confidence", "evidence_refs", "freshness", "source", "uncertainty_reason"}.issubset(field)
+        assert field["evidence_refs"], section
+        assert 0.0 <= field["confidence"] <= 1.0
+
+
+def test_browser_environment_state_excludes_raw_secret_bearing_material(tmp_path: Path) -> None:
+    engine = _SecretBearingBrowserEngine()
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(PLAYWRIGHT_BROWSER_MODULE,)),
+        selected_backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+    )
+
+    result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=fixture.authority,
+        context={},
+    )
+
+    dumped = str(result.context_cards["browser_environment_state"]).lower()
+    assert "sessionid=raw-secret" not in dumped
+    assert "bearer raw-token" not in dumped
+    assert "<html" not in dumped
+    assert "cookie" in dumped
+    assert "redacted_hash:" in dumped
+
+
+def test_search_receipt_records_materiality_not_just_input_fill(tmp_path: Path) -> None:
+    engine = _InputOnlySearchEngine()
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(PLAYWRIGHT_BROWSER_MODULE,)),
+        selected_backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    materiality = receipt["search_materiality"]
+
+    assert materiality["input_written"] is True
+    assert materiality["submission_attempted"] is True
+    assert materiality["query_reflected"] is True
+    assert materiality["navigation_or_state_changed"] is False
+    assert materiality["result_region_changed"] is False
+    assert materiality["request_observed"] is False
+    assert materiality["search_materially_successful"] is False
+    assert materiality["search_materially_uncertain"] is True
 
 
 def test_browser_session_manager_l5_used_for_live_backend_when_available(tmp_path: Path) -> None:
@@ -2780,6 +2884,54 @@ class _ClosedSessionReopenFailureSearchEngine(_HardProductSearchEngine):
 
     def open(self) -> RealBrowserEngineSnapshot:
         raise RealBrowserControlRuntimeError("cloakbrowser_open_failed:Error")
+
+
+class _InputOnlySearchEngine(_HardProductSearchEngine):
+    browser_backend_id = "playwright_real_browser_engine"
+
+    def __init__(self) -> None:
+        super().__init__(results_visible=False)
+        self.display_text = "Catalog search page. Search products."
+
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        self._require_editable(ref)
+        self.press_count += 1
+        return self._snapshot()
+
+    def click(self, ref: str) -> RealBrowserEngineSnapshot:
+        self._require_interactable(ref)
+        self.click_count += 1
+        return self._snapshot()
+
+    def wait_for_load(self) -> RealBrowserEngineSnapshot:
+        self.wait_count += 1
+        return self._snapshot()
+
+
+class _SecretBearingBrowserEngine(_HardProductSearchEngine):
+    browser_backend_id = "playwright_real_browser_engine"
+
+    def __init__(self) -> None:
+        super().__init__(results_visible=True)
+        self.display_text = "<html><body>sessionid=raw-secret Bearer raw-token Cookie: private</body></html>"
+
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        return (
+            RealBrowserEngineElement(
+                "input:search",
+                "textbox",
+                "Search products",
+                text_preview="Cookie: sessionid=raw-secret",
+                value_preview="Bearer raw-token",
+            ),
+            RealBrowserEngineElement("input:secret", "textbox", "password", secret=True, value_preview="raw-password"),
+            RealBrowserEngineElement(
+                "link:glasses_card",
+                "link",
+                "Polarized sunglasses $4.80 MOQ 10 pieces",
+                text_preview="Polarized sunglasses $4.80 MOQ 10 pieces Yiwu Test Store",
+            ),
+        )
 
 
 class _SparseProductSearchEngine(_HardProductSearchEngine):

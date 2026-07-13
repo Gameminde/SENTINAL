@@ -76,7 +76,9 @@ class BrowserVisualGraph(SentinelModel):
 
 
 class BrowserEnvironmentState(SentinelModel):
+    schema_version: str = "browser_environment_state_v1"
     state_id: str = Field(default_factory=lambda: new_id("browser_env_state"))
+    cognitive_graph_ready: bool = True
     backend_truth: BrowserBackendTruth
     page_state: BrowserPageStateGraph
     action_graph: BrowserActionGraph
@@ -85,6 +87,7 @@ class BrowserEnvironmentState(SentinelModel):
     session_graph: BrowserSessionGraph
     blocker_graph: BrowserBlockerGraph
     visual_graph: BrowserVisualGraph
+    state_fields: dict[str, dict[str, Any]] = Field(default_factory=dict)
     world_model_summary: dict[str, Any]
     recommended_model_skills: tuple[str, ...] = Field(default_factory=tuple)
     raw_material_persisted: bool = False
@@ -142,60 +145,80 @@ class BrowserEnvironmentStateBuilder:
             compatibility_only=actual_backend_id == "playwright_real_browser_engine",
             product_backend_proven=actual_backend_id == "cloak_browser",
         )
+        page_state = BrowserPageStateGraph(
+            page_state_hash=snapshot.state_hash,
+            origin_hash=origin_hash,
+            page_kind_guess=model.page_kind_guess,
+            title_hash_or_safe_title=model.title_hash_or_safe_title,
+            visible_text_summary_hash=model.visible_text_summary_hash,
+            stable_ref_count=len(model.stable_refs),
+        )
+        action_graph = BrowserActionGraph(
+            accessibility_refs=tuple(_safe_accessibility_ref(card) for card in model.stable_refs),
+            search_like_refs=model.search_like_refs,
+            form_controls=model.form_controls,
+            button_refs=model.button_refs,
+            link_refs=model.link_refs,
+            recommended_browser_actions=model.recommended_browser_actions,
+        )
+        extraction_graph = BrowserExtractionGraph(
+            product_or_result_candidate_count=len(model.product_or_result_candidate_cards),
+            relevant_product_candidate_count=sum(
+                1
+                for card in model.product_or_result_candidate_cards
+                if card.relevance_to_objective in {"relevant", "partial"}
+            ),
+            cards=tuple(_safe_card(card) for card in model.product_or_result_candidate_cards),
+        )
+        protocol_graph = BrowserProtocolGraph(
+            network_event_count=len(network_events),
+            console_event_count=len(console_messages),
+            network_events=tuple(_safe_network_event(event) for event in network_events[:20]),
+            console_events=tuple(_safe_console_event(event) for event in console_messages[:20]),
+        )
+        session_graph = BrowserSessionGraph(
+            cookie_count=len(cookie_metadata),
+            storage_key_count=len(storage_metadata),
+            cookies=tuple(_safe_cookie_meta(item) for item in cookie_metadata[:20]),
+            storage_keys=tuple(_safe_storage_meta(item) for item in storage_metadata[:20]),
+            login_state=_login_state(model),
+            profile_material_persisted=False,
+        )
+        blocker_graph = BrowserBlockerGraph(
+            modal_or_consent_signals=model.modal_or_consent_signals,
+            captcha_or_login_signals=model.captcha_or_login_signals,
+            dynamic_loading_signals=model.dynamic_loading_signals,
+            hard_boundary_signals=_hard_boundary_signals(model),
+        )
+        visual_graph = BrowserVisualGraph(
+            visual_refs_available=bool(screenshot_ref),
+            screenshot_ref_hash=text_hash(screenshot_ref) if screenshot_ref else "",
+            screenshot_persisted=False,
+        )
+        recommended_model_skills = _recommended_model_skills(model)
         return BrowserEnvironmentState(
             backend_truth=backend_truth,
-            page_state=BrowserPageStateGraph(
-                page_state_hash=snapshot.state_hash,
-                origin_hash=origin_hash,
-                page_kind_guess=model.page_kind_guess,
-                title_hash_or_safe_title=model.title_hash_or_safe_title,
-                visible_text_summary_hash=model.visible_text_summary_hash,
-                stable_ref_count=len(model.stable_refs),
-            ),
-            action_graph=BrowserActionGraph(
-                accessibility_refs=tuple(_safe_accessibility_ref(card) for card in model.stable_refs),
-                search_like_refs=model.search_like_refs,
-                form_controls=model.form_controls,
-                button_refs=model.button_refs,
-                link_refs=model.link_refs,
-                recommended_browser_actions=model.recommended_browser_actions,
-            ),
-            extraction_graph=BrowserExtractionGraph(
-                product_or_result_candidate_count=len(model.product_or_result_candidate_cards),
-                relevant_product_candidate_count=sum(
-                    1
-                    for card in model.product_or_result_candidate_cards
-                    if card.relevance_to_objective in {"relevant", "partial"}
-                ),
-                cards=tuple(_safe_card(card) for card in model.product_or_result_candidate_cards),
-            ),
-            protocol_graph=BrowserProtocolGraph(
-                network_event_count=len(network_events),
-                console_event_count=len(console_messages),
-                network_events=tuple(_safe_network_event(event) for event in network_events[:20]),
-                console_events=tuple(_safe_console_event(event) for event in console_messages[:20]),
-            ),
-            session_graph=BrowserSessionGraph(
-                cookie_count=len(cookie_metadata),
-                storage_key_count=len(storage_metadata),
-                cookies=tuple(_safe_cookie_meta(item) for item in cookie_metadata[:20]),
-                storage_keys=tuple(_safe_storage_meta(item) for item in storage_metadata[:20]),
-                login_state=_login_state(model),
-                profile_material_persisted=False,
-            ),
-            blocker_graph=BrowserBlockerGraph(
-                modal_or_consent_signals=model.modal_or_consent_signals,
-                captcha_or_login_signals=model.captcha_or_login_signals,
-                dynamic_loading_signals=model.dynamic_loading_signals,
-                hard_boundary_signals=_hard_boundary_signals(model),
-            ),
-            visual_graph=BrowserVisualGraph(
-                visual_refs_available=bool(screenshot_ref),
-                screenshot_ref_hash=text_hash(screenshot_ref) if screenshot_ref else "",
-                screenshot_persisted=False,
+            page_state=page_state,
+            action_graph=action_graph,
+            extraction_graph=extraction_graph,
+            protocol_graph=protocol_graph,
+            session_graph=session_graph,
+            blocker_graph=blocker_graph,
+            visual_graph=visual_graph,
+            state_fields=_browser_cognitive_state_fields(
+                backend_truth=backend_truth,
+                page_state=page_state,
+                action_graph=action_graph,
+                extraction_graph=extraction_graph,
+                protocol_graph=protocol_graph,
+                session_graph=session_graph,
+                blocker_graph=blocker_graph,
+                visual_graph=visual_graph,
+                recommended_model_skills=recommended_model_skills,
+                model=model,
             ),
             world_model_summary=model.compact_summary(),
-            recommended_model_skills=_recommended_model_skills(model),
+            recommended_model_skills=recommended_model_skills,
         )
 
 
@@ -226,6 +249,255 @@ def browser_environment_state_contract() -> dict[str, Any]:
         "can_grant_authority": False,
         "can_execute": False,
     }
+
+
+def _browser_cognitive_state_fields(
+    *,
+    backend_truth: BrowserBackendTruth,
+    page_state: BrowserPageStateGraph,
+    action_graph: BrowserActionGraph,
+    extraction_graph: BrowserExtractionGraph,
+    protocol_graph: BrowserProtocolGraph,
+    session_graph: BrowserSessionGraph,
+    blocker_graph: BrowserBlockerGraph,
+    visual_graph: BrowserVisualGraph,
+    recommended_model_skills: tuple[str, ...],
+    model: BrowserWorldModel,
+) -> dict[str, dict[str, Any]]:
+    page_evidence = (
+        f"state:{page_state.page_state_hash}",
+        f"origin:{page_state.origin_hash}",
+        f"visible_text:{page_state.visible_text_summary_hash}",
+    )
+    ref_evidence = tuple(f"ref:{stable_hash(ref)}" for ref in action_graph.search_like_refs[:8]) or page_evidence[:1]
+    card_evidence = tuple(
+        str(card.get("evidence_ref_hash") or f"card:{stable_hash(card)}")
+        for card in extraction_graph.cards[:8]
+    ) or page_evidence[:1]
+    blocker_evidence = tuple(
+        f"blocker:{text_hash(signal)}"
+        for signal in (
+            *blocker_graph.modal_or_consent_signals,
+            *blocker_graph.captcha_or_login_signals,
+            *blocker_graph.dynamic_loading_signals,
+            *blocker_graph.hard_boundary_signals,
+        )
+    ) or page_evidence[:1]
+    source = "cloak_session_cdp_a11y_safe_dom_world_model"
+    return {
+        "session_state": _state_field(
+            {
+                "backend": backend_truth.model_dump(mode="json"),
+                "cookie_count": session_graph.cookie_count,
+                "storage_key_count": session_graph.storage_key_count,
+                "login_state": session_graph.login_state,
+                "profile_material_persisted": session_graph.profile_material_persisted,
+            },
+            confidence=0.82,
+            evidence_refs=page_evidence,
+            source=source,
+            uncertainty_reason="safe metadata only; raw session values are intentionally unavailable",
+        ),
+        "page_identity": _state_field(
+            {
+                "page_kind_guess": page_state.page_kind_guess,
+                "title_hash_or_safe_title": page_state.title_hash_or_safe_title,
+                "origin_hash": page_state.origin_hash,
+            },
+            confidence=0.78,
+            evidence_refs=page_evidence,
+            source=source,
+            uncertainty_reason="classification is heuristic until corroborated by structured data and network state",
+        ),
+        "navigation_state": _state_field(
+            {"origin_hash": page_state.origin_hash, "page_state_hash": page_state.page_state_hash},
+            confidence=0.72,
+            evidence_refs=page_evidence,
+            source=source,
+            uncertainty_reason="URL path is not exposed; state hash and origin are used instead",
+        ),
+        "tabs_and_frames": _state_field(
+            {"tab_count": 1, "frame_count": 1, "active_tab_known": True},
+            confidence=0.58,
+            evidence_refs=page_evidence,
+            source=source,
+            uncertainty_reason="first runtime version exposes active bounded page only",
+        ),
+        "page_lifecycle": _state_field(
+            {"lifecycle": _lifecycle_guess(blocker_graph), "dynamic_loading_signals": list(blocker_graph.dynamic_loading_signals)},
+            confidence=0.62,
+            evidence_refs=blocker_evidence,
+            source=source,
+            uncertainty_reason="lifecycle is inferred from visible dynamic-loading signals",
+        ),
+        "forms": _state_field(
+            {"form_controls": list(action_graph.form_controls)},
+            confidence=0.76 if action_graph.form_controls else 0.42,
+            evidence_refs=ref_evidence,
+            source=source,
+            uncertainty_reason="form ownership/action URL is not exposed in safe model context",
+        ),
+        "search_controls": _state_field(
+            {"search_like_refs": list(action_graph.search_like_refs), "ranked_count": len(action_graph.search_like_refs)},
+            confidence=0.86 if action_graph.search_like_refs else 0.35,
+            evidence_refs=ref_evidence,
+            source=source,
+            uncertainty_reason="ranking is based on role/name/value/ref semantics",
+        ),
+        "interactive_controls": _state_field(
+            {
+                "button_refs": list(action_graph.button_refs),
+                "link_refs": list(action_graph.link_refs),
+                "accessibility_ref_count": len(action_graph.accessibility_refs),
+            },
+            confidence=0.8 if action_graph.accessibility_refs else 0.34,
+            evidence_refs=ref_evidence,
+            source=source,
+            uncertainty_reason="hidden, disabled, and secret controls are excluded from model-facing refs",
+        ),
+        "result_regions": _state_field(
+            {
+                "candidate_count": extraction_graph.product_or_result_candidate_count,
+                "relevant_candidate_count": extraction_graph.relevant_product_candidate_count,
+            },
+            confidence=0.82 if extraction_graph.product_or_result_candidate_count else 0.3,
+            evidence_refs=card_evidence,
+            source=source,
+            uncertainty_reason="candidate regions are inferred from repeated visible product/result signals",
+        ),
+        "candidate_entity_regions": _state_field(
+            {"cards": list(extraction_graph.cards[:6])},
+            confidence=0.78 if extraction_graph.cards else 0.3,
+            evidence_refs=card_evidence,
+            source=source,
+            uncertainty_reason="fields may remain unknown unless visible evidence supports them",
+        ),
+        "network_summary": _state_field(
+            {"network_event_count": protocol_graph.network_event_count, "events": list(protocol_graph.network_events)},
+            confidence=0.68 if protocol_graph.network_event_count else 0.24,
+            evidence_refs=tuple(f"network:{stable_hash(event)}" for event in protocol_graph.network_events[:8]) or page_evidence[:1],
+            source=source,
+            uncertainty_reason="network metadata is optional and never includes raw bodies or credentials",
+        ),
+        "console_summary": _state_field(
+            {"console_event_count": protocol_graph.console_event_count, "events": list(protocol_graph.console_events)},
+            confidence=0.65 if protocol_graph.console_event_count else 0.24,
+            evidence_refs=tuple(f"console:{stable_hash(event)}" for event in protocol_graph.console_events[:8]) or page_evidence[:1],
+            source=source,
+            uncertainty_reason="console metadata is optional and text is hash-only",
+        ),
+        "structured_data": _state_field(
+            {"available": bool(extraction_graph.cards), "candidate_card_count": extraction_graph.product_or_result_candidate_count},
+            confidence=0.55 if extraction_graph.cards else 0.2,
+            evidence_refs=card_evidence,
+            source=source,
+            uncertainty_reason="JSON-LD and microdata are not yet separately harvested in this first runtime version",
+        ),
+        "storage_session_metadata": _state_field(
+            {"cookies": list(session_graph.cookies), "storage_keys": list(session_graph.storage_keys)},
+            confidence=0.78,
+            evidence_refs=tuple(f"storage:{stable_hash(item)}" for item in (*session_graph.cookies, *session_graph.storage_keys)) or page_evidence[:1],
+            source=source,
+            uncertainty_reason="names/domains/keys are hash-only; values are never exposed",
+        ),
+        "overlays_modals_blockers": _state_field(
+            {
+                "modal_or_consent_signals": list(blocker_graph.modal_or_consent_signals),
+                "captcha_or_login_signals": list(blocker_graph.captcha_or_login_signals),
+                "hard_boundary_signals": list(blocker_graph.hard_boundary_signals),
+            },
+            confidence=0.76 if blocker_evidence else 0.35,
+            evidence_refs=blocker_evidence,
+            source=source,
+            uncertainty_reason="blockers are inferred from safe visible text and signals",
+        ),
+        "visual_fallback_refs": _state_field(
+            {
+                "visual_refs_available": visual_graph.visual_refs_available,
+                "screenshot_ref_hash": visual_graph.screenshot_ref_hash,
+                "screenshot_persisted": visual_graph.screenshot_persisted,
+            },
+            confidence=0.5 if visual_graph.visual_refs_available else 0.2,
+            evidence_refs=page_evidence[:1],
+            source=source,
+            uncertainty_reason="screenshots are not persisted by default",
+        ),
+        "available_safe_browser_skills": _state_field(
+            {"skills": list(recommended_model_skills), "runtime_actions": list(action_graph.recommended_browser_actions)},
+            confidence=0.84,
+            evidence_refs=page_evidence,
+            source=source,
+            uncertainty_reason="skills are safe mission-level suggestions, not authority grants",
+        ),
+        "uncertainty": _state_field(
+            {
+                "page_kind_guess": model.page_kind_guess,
+                "known_unknowns": _known_unknowns(extraction_graph, protocol_graph),
+            },
+            confidence=0.7,
+            evidence_refs=page_evidence,
+            source=source,
+            uncertainty_reason="Sentinel exposes uncertainty explicitly instead of pretending browser understanding is complete",
+        ),
+        "recommended_recovery_paths": _state_field(
+            {"paths": _recommended_recovery_paths(action_graph, extraction_graph, blocker_graph)},
+            confidence=0.8,
+            evidence_refs=(*page_evidence[:1], *ref_evidence[:3], *card_evidence[:3]),
+            source=source,
+            uncertainty_reason="recovery paths are recommendations for in-scope failures, not automatic authority expansion",
+        ),
+    }
+
+
+def _state_field(
+    value: Any,
+    *,
+    confidence: float,
+    evidence_refs: tuple[str, ...],
+    source: str,
+    uncertainty_reason: str,
+) -> dict[str, Any]:
+    return {
+        "value": value,
+        "confidence": max(0.0, min(1.0, float(confidence))),
+        "evidence_refs": list(evidence_refs or ("unknown:evidence",)),
+        "freshness": "current_snapshot",
+        "source": source,
+        "uncertainty_reason": uncertainty_reason,
+    }
+
+
+def _lifecycle_guess(blocker_graph: BrowserBlockerGraph) -> str:
+    if blocker_graph.dynamic_loading_signals:
+        return "dynamic_loading_or_partial"
+    return "stable_current_snapshot"
+
+
+def _known_unknowns(extraction_graph: BrowserExtractionGraph, protocol_graph: BrowserProtocolGraph) -> list[str]:
+    unknowns: list[str] = []
+    if not extraction_graph.cards:
+        unknowns.append("no_product_or_result_cards_confirmed")
+    if protocol_graph.network_event_count == 0:
+        unknowns.append("network_metadata_absent")
+    for card in extraction_graph.cards:
+        for key in ("visible_price", "currency_or_unit", "minimum_order", "supplier_or_store"):
+            if card.get(key) == "unknown":
+                unknowns.append(f"{key}_unknown")
+    return list(dict.fromkeys(unknowns or ["none_declared"]))
+
+
+def _recommended_recovery_paths(
+    action_graph: BrowserActionGraph,
+    extraction_graph: BrowserExtractionGraph,
+    blocker_graph: BrowserBlockerGraph,
+) -> list[str]:
+    if blocker_graph.captcha_or_login_signals:
+        return ["stop_or_request_authority_for_human_verification_boundary"]
+    if extraction_graph.product_or_result_candidate_count:
+        return ["extract_product_cards", "verify_extraction", "summarize_grounded_evidence"]
+    if action_graph.search_like_refs:
+        return ["retry_best_ranked_search_control", "try_alternate_submit", "refresh_world_model"]
+    return ["observe_again", "scroll_or_wait_for_results", "report_uncertain_page_shape"]
 
 
 def _safe_accessibility_ref(card: Any) -> dict[str, str]:
