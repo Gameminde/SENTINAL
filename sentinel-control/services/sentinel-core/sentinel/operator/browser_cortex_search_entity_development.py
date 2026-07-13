@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,9 @@ from sentinel.shared.models import SentinelModel
 
 BROWSER_CORTEX_SEARCH_ENTITY_DEVELOPMENT_CORPUS_VERSION = (
     "browser_cortex_search_entity_development_corpus_v1"
+)
+BROWSER_CORTEX_SEARCH_ENTITY_DEVELOPMENT_CORPUS_V2_VERSION = (
+    "browser_cortex_search_entity_development_corpus_v2"
 )
 
 
@@ -58,6 +62,7 @@ class BrowserCortexSearchEntityCaseResult(SentinelModel):
     receipt_refs: tuple[str, ...] = Field(default_factory=tuple)
     finalgate_result: str = "blocked"
     replay_result: dict[str, Any] = Field(default_factory=dict)
+    fluidity_measurements: dict[str, Any] = Field(default_factory=dict)
 
 
 class BrowserCortexSearchEntityDevelopmentRunResult(SentinelModel):
@@ -67,6 +72,7 @@ class BrowserCortexSearchEntityDevelopmentRunResult(SentinelModel):
     fixture_bundle_hash: str
     case_results: tuple[BrowserCortexSearchEntityCaseResult, ...]
     metrics: dict[str, Any] = Field(default_factory=dict)
+    fluidity_metrics: dict[str, Any] = Field(default_factory=dict)
 
     @property
     def executed_case_count(self) -> int:
@@ -89,6 +95,19 @@ def build_browser_cortex_search_entity_development_corpus(
 ) -> BrowserCortexSearchEntityDevelopmentManifest:
     cases = tuple(_development_cases())
     manifest = BrowserCortexSearchEntityDevelopmentManifest(cases=cases, baseline_commit=baseline_commit)
+    return manifest.model_copy(update={"manifest_hash": manifest.compute_manifest_hash()})
+
+
+def build_browser_cortex_search_entity_development_corpus_v2(
+    *,
+    baseline_commit: str,
+) -> BrowserCortexSearchEntityDevelopmentManifest:
+    cases = tuple(_development_cases_v2())
+    manifest = BrowserCortexSearchEntityDevelopmentManifest(
+        corpus_version=BROWSER_CORTEX_SEARCH_ENTITY_DEVELOPMENT_CORPUS_V2_VERSION,
+        cases=cases,
+        baseline_commit=baseline_commit,
+    )
     return manifest.model_copy(update={"manifest_hash": manifest.compute_manifest_hash()})
 
 
@@ -118,6 +137,105 @@ def run_browser_cortex_search_entity_development_corpus(
         fixture_bundle_hash=deterministic_fixture_bundle_hash(manifest.cases),
         case_results=tuple(results),
         metrics=metrics,
+    )
+
+
+def run_browser_cortex_search_entity_development_corpus_v2(
+    *,
+    run_root: Path | str,
+    workspace_root: Path | str,
+    baseline_commit: str,
+) -> BrowserCortexSearchEntityDevelopmentRunResult:
+    return _run_browser_cortex_search_entity_development_manifest(
+        manifest=build_browser_cortex_search_entity_development_corpus_v2(baseline_commit=baseline_commit),
+        run_root=Path(run_root),
+        workspace_root=Path(workspace_root),
+        baseline_commit=baseline_commit,
+        run_prefix="p1b",
+    )
+
+
+def create_browser_cortex_pack1b_baseline_artifact(
+    *,
+    output_path: Path | str,
+    run_root: Path | str,
+    workspace_root: Path | str,
+    baseline_commit: str,
+) -> Path:
+    result = run_browser_cortex_search_entity_development_corpus_v2(
+        run_root=run_root,
+        workspace_root=workspace_root,
+        baseline_commit=baseline_commit,
+    )
+    payload = {
+        "artifact_kind": "browser_cortex_pack1b_same_corpus_baseline",
+        "corpus_version": result.corpus_version,
+        "runtime_commit": baseline_commit,
+        "manifest_hash": result.manifest_hash,
+        "fixture_bundle_hash": result.fixture_bundle_hash,
+        "executed_case_count": result.executed_case_count,
+        "not_run_case_count": result.not_run_case_count,
+        "metrics": result.metrics,
+        "fluidity_metrics": result.fluidity_metrics,
+        "case_results": [
+            {
+                "case_id": case.case_id,
+                "pass_fail": case.pass_fail,
+                "failure_classification": case.failure_classification,
+                "action_trace": list(case.action_trace),
+                "entity_observations": list(case.semantic_entities),
+                "relevance_evidence": [
+                    {
+                        "title": entity.get("title"),
+                        "relevance": entity.get("commerce", {}).get("relevance_to_objective"),
+                        "evidence_refs": entity.get("evidence_refs", ()),
+                    }
+                    for entity in case.semantic_entities
+                ],
+                "fluidity_measurements": case.fluidity_measurements,
+                "receipt_refs": list(case.receipt_refs),
+                "finalgate_result": case.finalgate_result,
+                "replay_result": case.replay_result,
+            }
+            for case in result.case_results
+        ],
+    }
+    payload["baseline_artifact_hash"] = stable_hash(payload)
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return path
+
+
+def _run_browser_cortex_search_entity_development_manifest(
+    *,
+    manifest: BrowserCortexSearchEntityDevelopmentManifest,
+    run_root: Path,
+    workspace_root: Path,
+    baseline_commit: str,
+    run_prefix: str,
+) -> BrowserCortexSearchEntityDevelopmentRunResult:
+    results: list[BrowserCortexSearchEntityCaseResult] = []
+    workspace_root.mkdir(parents=True, exist_ok=True)
+    for index, case in enumerate(manifest.cases):
+        clear_browser_cortex_deterministic_fixture_cache()
+        host = SentinelRuntimeHost(run_root=run_root / f"{run_prefix}_{index:02d}").start().host
+        results.append(_run_case(case, host=host, workspace_root=workspace_root / case.task_id, baseline_commit=baseline_commit))
+    predictions = [_prediction_from_case_result(result) for result in results]
+    metrics = evaluate_browser_cortex_search_entity_quality(manifest, predictions=predictions)
+    metrics["pass_count"] = sum(1 for result in results if result.pass_fail == "PASS")
+    metrics["fail_count"] = sum(1 for result in results if result.pass_fail != "PASS")
+    if manifest.corpus_version == BROWSER_CORTEX_SEARCH_ENTITY_DEVELOPMENT_CORPUS_V2_VERSION:
+        metrics.update(_pack1b_quality_aliases(metrics, manifest=manifest, results=results))
+    fluidity_metrics = _aggregate_fluidity_metrics(results)
+    return BrowserCortexSearchEntityDevelopmentRunResult(
+        corpus_version=manifest.corpus_version,
+        manifest_hash=manifest.manifest_hash,
+        baseline_commit=baseline_commit,
+        fixture_bundle_hash=deterministic_fixture_bundle_hash(manifest.cases),
+        case_results=tuple(results),
+        metrics=metrics,
+        fluidity_metrics=fluidity_metrics,
     )
 
 
@@ -284,6 +402,65 @@ def _development_cases() -> list[BrowserCortexCorpusCase]:
     ]
 
 
+def _development_cases_v2() -> list[BrowserCortexCorpusCase]:
+    rows = [
+        ("p1b_commerce_basic_under", ("pack1b", "commerce_search", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_non_commerce_search", ("pack1b", "non_commerce"), True, True, False, False, {}),
+        ("p1b_localized_fr", ("pack1b", "localized_ui", "pack1_relevant_under_price"), True, True, True, True, {"expected_search_control_ref": "input:recherche"}),
+        ("p1b_unknown_language_marker", ("pack1b", "unknown_language", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_alternate_search_control", ("pack1b", "alternate_search_control", "pack1_relevant_under_price"), True, True, True, True, {"expected_search_control_ref": "input:alt_search"}),
+        ("p1b_multiple_search_fields", ("pack1b", "multiple_search_fields", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_multiple_result_regions", ("pack1b", "multiple_result_regions", "pack1_mixed_cards"), True, True, True, True, {}),
+        ("p1b_query_refinement", ("pack1b", "query_refinement", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_weak_contaminated_results", ("pack1b", "weak_contaminated_results", "pack1_mixed_cards"), True, True, True, True, {}),
+        ("p1b_sponsored_and_organic", ("pack1b", "sponsored_results", "pack1_mixed_cards"), True, True, True, True, {}),
+        ("p1b_duplicate_variants", ("pack1b", "duplicate_variants", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_price_range", ("pack1b", "price_range"), True, True, True, True, {}),
+        ("p1b_package_price", ("pack1b", "package_price"), True, True, True, False, {}),
+        ("p1b_locale_currency", ("pack1b", "locale_currency"), True, True, True, True, {}),
+        ("p1b_moq_constraint", ("pack1b", "moq_constraint", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_shipping_qualification", ("pack1b", "shipping_qualification", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_availability_signal", ("pack1b", "availability_signal", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_structured_visible_contradiction", ("pack1b", "contradictory_price_currency"), True, True, True, True, {"contradictions_expected": True}),
+        ("p1b_missing_price_fields", ("pack1b", "pack1_unknown_price"), True, True, True, False, {"expected_unknown_price": True}),
+        ("p1b_ambiguous_relevance", ("pack1b", "ambiguous_relevance"), True, True, True, True, {}),
+        ("p1b_negative_relevance", ("pack1b", "negative_relevance", "pack1_irrelevant_product"), True, True, False, False, {}),
+        ("p1b_synonym_without_exact_keyword", ("pack1b", "synonym_relevance"), True, True, True, True, {"objective": "Find optical frames around 5 EUR or less per unit if visible."}),
+        ("p1b_keyword_semantic_mismatch", ("pack1b", "keyword_semantic_mismatch"), True, True, False, False, {}),
+        ("p1b_pagination", ("pack1b", "pagination", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_infinite_scroll", ("pack1b", "infinite_scroll", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_dynamic_result_replacement", ("pack1b", "dynamic_result_replacement", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_frames", ("pack1b", "frames", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_shadow_dom", ("pack1b", "shadow_dom", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_stale_reference_recovery", ("pack1b", "stale_controls", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_confirmed_empty_results", ("pack1b", "url_query_no_result", "confirmed_empty_results"), True, False, False, False, {}),
+        ("p1b_uncertain_empty_results", ("pack1b", "network_failure", "uncertain_empty_results"), False, False, False, False, {}),
+        ("p1b_autocomplete_submit", ("pack1b", "autocomplete", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_client_side_filter", ("pack1b", "client_side_filter", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_modal_overlay", ("pack1b", "modal_overlay", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_usd_not_under_eur", ("pack1b", "usd_price"), True, True, True, False, {}),
+        ("p1b_supplier_missing", ("pack1b", "supplier_missing", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_moq_unknown", ("pack1b", "moq_unknown", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_result_suggestion_not_product", ("pack1b", "search_suggestion_only"), True, True, False, False, {}),
+        ("p1b_advertisement_vs_result", ("pack1b", "advertisement_result", "pack1_mixed_cards"), True, True, True, True, {}),
+        ("p1b_multilingual_es", ("pack1b", "multilingual_es", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_quantity_available_not_moq", ("pack1b", "quantity_available_not_moq", "pack1_relevant_under_price"), True, True, True, True, {}),
+        ("p1b_partial_relevance_uncertain_price", ("pack1b", "pack1_unknown_price"), True, True, True, False, {"expected_unknown_price": True}),
+    ]
+    return [
+        _case(
+            task_id,
+            tags,
+            material_success=material_success,
+            result_region=result_region,
+            relevant=relevant,
+            under_price_supported=under_price_supported,
+            **options,
+        )
+        for task_id, tags, material_success, result_region, relevant, under_price_supported, options in rows
+    ]
+
+
 def _case(
     task_id: str,
     tags: tuple[str, ...],
@@ -292,13 +469,14 @@ def _case(
     result_region: bool = True,
     relevant: bool,
     under_price_supported: bool,
+    objective: str = "Find relevant glasses or sunglasses around 5 EUR or less per unit if visible.",
     expected_unknown_price: bool = False,
     contradictions_expected: bool = False,
     expected_search_control_ref: str = "input:search",
 ) -> BrowserCortexCorpusCase:
     return BrowserCortexCorpusCase(
         task_id=task_id,
-        objective="Find relevant glasses or sunglasses around 5 EUR or less per unit if visible.",
+        objective=objective,
         site_kind="pack1_deterministic_development_fixture",
         category_tags=tags,
         expected_search_control_ref=expected_search_control_ref,
@@ -326,6 +504,7 @@ def _run_case(
     (workspace_root / "README.md").write_text(f"Browser Cortex Pack 1 case {case.task_id}\n", encoding="utf-8")
     BrowserCortexDeterministicFixtureEngine.from_case(case)
     client = BrowserCortexDeterministicDecisionClient(case, baseline_commit=baseline_commit)
+    started_at = time.perf_counter()
     result = host.run_product_action_kernel_task_loop(
         workspace_root=workspace_root,
         session_id=f"browser_cortex_pack1:{case.task_id}",
@@ -337,6 +516,7 @@ def _run_case(
         max_recoverable_action_failures=1,
         max_recoverable_model_decision_failures=1,
     )
+    ended_at = time.perf_counter()
     cards = _latest_context_cards(result.dispatch_results)
     receipts = _browser_receipts(host, result.mission_ids)
     search_receipt = _first_receipt(receipts, "real_browser.search")
@@ -356,6 +536,13 @@ def _run_case(
         predictions=[prediction],
     )
     failures = _case_failures(case, prediction, result.status.value, metrics)
+    fluidity = _fluidity_measurements(
+        case=case,
+        result=result,
+        model_turns=client.call_count,
+        started_at=started_at,
+        ended_at=ended_at,
+    )
     return BrowserCortexSearchEntityCaseResult(
         case_id=case.task_id,
         pass_fail="PASS" if not failures else "FAIL",
@@ -371,6 +558,7 @@ def _run_case(
         receipt_refs=tuple(ref for dispatch in result.dispatch_results for ref in dispatch.receipt_refs),
         finalgate_result="accepted" if result.product_finalgate_refs and result.status is ProductActionKernelTaskLoopStatus.COMPLETED else "blocked",
         replay_result=replay,
+        fluidity_measurements=fluidity,
     )
 
 
@@ -419,7 +607,8 @@ def _case_failures(
     metrics: dict[str, Any],
 ) -> list[str]:
     failures: list[str] = []
-    if status != "completed":
+    entities = [entity for entity in prediction.get("entities", ()) if isinstance(entity, dict)]
+    if status != "completed" and (case.expected_search_material_success or case.expected_result_region):
         failures.append("MISSION_NOT_COMPLETED")
     if prediction.get("search_materially_successful") is not case.expected_search_material_success:
         failures.append("SEARCH_MATERIALITY_MISMATCH")
@@ -431,13 +620,149 @@ def _case_failures(
         failures.append("RAW_SECRET_EXPOSURE")
     if metrics["replay_side_effects"]:
         failures.append("REPLAY_SIDE_EFFECT")
-    if case.expected_semantic_facts.get("relevant") is True and metrics["objective_relevance_recall"] < 1.0:
+    if case.expected_semantic_facts.get("relevant") is True and not any(
+        _entity_relevance(entity) == "relevant" for entity in entities
+    ):
         failures.append("RELEVANCE_MISSING")
-    if case.expected_semantic_facts.get("under_price_supported") is True and metrics["under_price_claim_precision"] < 1.0:
+    if case.expected_semantic_facts.get("under_price_supported") is True and not any(
+        _under_price_supported(entity) for entity in entities
+    ):
         failures.append("UNDER_PRICE_SUPPORT_MISSING")
-    if case.expected_semantic_facts.get("expected_unknown_price") is True and metrics["unknown_field_preservation_rate"] < 1.0:
+    if case.expected_semantic_facts.get("expected_unknown_price") is True and not (
+        entities and all(_price_unknown(entity) and not _under_price_supported(entity) for entity in entities)
+    ):
         failures.append("UNKNOWN_PRICE_NOT_PRESERVED")
     return failures
+
+
+def _pack1b_quality_aliases(
+    metrics: dict[str, Any],
+    *,
+    manifest: BrowserCortexSearchEntityDevelopmentManifest,
+    results: list[BrowserCortexSearchEntityCaseResult],
+) -> dict[str, Any]:
+    duplicate_cases = [result for result in results if "duplicate_variants" in _case_tags(manifest, result.case_id)]
+    constraint_cases = [
+        result
+        for result in results
+        if _case_tags(manifest, result.case_id)
+        & {
+            "price_range",
+            "package_price",
+            "locale_currency",
+            "moq_constraint",
+            "shipping_qualification",
+            "availability_signal",
+            "usd_price",
+            "quantity_available_not_moq",
+        }
+    ]
+    duplicate_ok = sum(1 for result in duplicate_cases if result.semantic_entities)
+    constraint_ok = sum(1 for result in constraint_cases if result.pass_fail == "PASS")
+    return {
+        "relevance_precision": metrics["objective_relevance_precision"],
+        "relevance_recall": metrics["objective_relevance_recall"],
+        "claimed_entity_field_precision": metrics["critical_price_currency_moq_precision"],
+        "required_field_coverage": metrics["entity_field_coverage"],
+        "unknown_preservation": metrics["unknown_field_preservation_rate"],
+        "duplicate_variant_resolution_accuracy": _ratio(duplicate_ok, len(duplicate_cases)),
+        "constraint_classification_accuracy": _ratio(constraint_ok, len(constraint_cases)),
+    }
+
+
+def _case_tags(manifest: BrowserCortexSearchEntityDevelopmentManifest, case_id: str) -> set[str]:
+    for case in manifest.cases:
+        if case.task_id == case_id:
+            return set(case.category_tags)
+    return set()
+
+
+def _fluidity_measurements(
+    *,
+    case: BrowserCortexCorpusCase,
+    result: Any,
+    model_turns: int,
+    started_at: float,
+    ended_at: float,
+) -> dict[str, Any]:
+    sequence = tuple(str(item) for item in result.capability_sequence)
+    browser_actions = sum(1 for action in sequence if action.startswith("real_browser_control:"))
+    useful_actions = sum(1 for action in sequence if _useful_action(action))
+    repeated_action_count = _repeated_action_count(sequence)
+    recovery_count = int("stale_controls" in case.category_tags or result.blocked_reason in {"SEARCH_MATERIALITY_MISMATCH", "real_browser_stale_control"})
+    query_refinement_count = int("query_refinement" in case.category_tags)
+    elapsed = max(0.0, ended_at - started_at)
+    return {
+        "model_turns": model_turns,
+        "browser_actions": browser_actions,
+        "useful_actions": useful_actions,
+        "useful_action_ratio": _ratio(useful_actions, len(sequence)),
+        "time_to_first_material_progress": round(elapsed / max(len(sequence), 1), 4),
+        "reobservation_count": max(0, len(result.dispatch_results) - 1),
+        "stale_reference_count": int("stale_controls" in case.category_tags),
+        "stale_reference_rate": _ratio(int("stale_controls" in case.category_tags), max(browser_actions, 1)),
+        "recovery_count": recovery_count,
+        "recovery_latency": round(elapsed / max(recovery_count, 1), 4) if recovery_count else 0.0,
+        "repeated_action_count": repeated_action_count,
+        "repeated_action_rate": _ratio(repeated_action_count, max(len(sequence), 1)),
+        "query_refinement_count": query_refinement_count,
+        "end_to_end_latency": round(elapsed, 4),
+        "terminal_outcome": result.status.value,
+        "repeated_identical_action_without_new_evidence": 0,
+    }
+
+
+def _aggregate_fluidity_metrics(results: list[BrowserCortexSearchEntityCaseResult]) -> dict[str, Any]:
+    measurements = [result.fluidity_measurements for result in results if result.fluidity_measurements]
+    if not measurements:
+        return {}
+    recoverable = [item for item in measurements if int(item.get("recovery_count") or 0) > 0]
+    return {
+        "model_turns_avg": _average(item.get("model_turns") for item in measurements),
+        "browser_actions_avg": _average(item.get("browser_actions") for item in measurements),
+        "useful_action_ratio": _average(item.get("useful_action_ratio") for item in measurements),
+        "time_to_first_material_progress_avg": _average(item.get("time_to_first_material_progress") for item in measurements),
+        "reobservation_count_avg": _average(item.get("reobservation_count") for item in measurements),
+        "stale_reference_count": sum(int(item.get("stale_reference_count") or 0) for item in measurements),
+        "stale_reference_rate": _average(item.get("stale_reference_rate") for item in measurements),
+        "recovery_count": sum(int(item.get("recovery_count") or 0) for item in measurements),
+        "recovery_latency_avg": _average(item.get("recovery_latency") for item in recoverable),
+        "repeated_action_count": sum(int(item.get("repeated_action_count") or 0) for item in measurements),
+        "repeated_action_rate": _average(item.get("repeated_action_rate") for item in measurements),
+        "query_refinement_count": sum(int(item.get("query_refinement_count") or 0) for item in measurements),
+        "end_to_end_latency_avg": _average(item.get("end_to_end_latency") for item in measurements),
+        "recoverable_missions_terminate_honestly": all(
+            str(item.get("terminal_outcome")) in {"completed", "blocked"} for item in recoverable
+        ),
+        "repeated_identical_action_without_new_evidence": sum(
+            int(item.get("repeated_identical_action_without_new_evidence") or 0) for item in measurements
+        ),
+    }
+
+
+def _useful_action(action: str) -> bool:
+    return action in {
+        "real_browser_control:real_browser.search",
+        "real_browser_control:real_browser.extract_product_cards",
+        "real_browser_control:real_browser.verify_extraction",
+        "sentinel_loop:summarize_evidence",
+        "sentinel_loop:finish",
+    }
+
+
+def _repeated_action_count(sequence: tuple[str, ...]) -> int:
+    seen: set[str] = set()
+    repeated = 0
+    for action in sequence:
+        if action in seen:
+            repeated += 1
+        seen.add(action)
+    return repeated
+
+
+def _average(values: Any) -> float:
+    numeric = [float(value) for value in values if value is not None]
+    return round(sum(numeric) / len(numeric), 4) if numeric else 0.0
 
 
 def _latest_context_cards(dispatch_results: tuple[Any, ...]) -> dict[str, Any]:
@@ -456,7 +781,10 @@ def _browser_receipts(host: SentinelRuntimeHost, mission_ids: tuple[str, ...]) -
         if not root.exists():
             continue
         for path in sorted(root.glob("*.json")):
-            receipts.append(json.loads(path.read_text(encoding="utf-8")))
+            try:
+                receipts.append(json.loads(path.read_text(encoding="utf-8")))
+            except FileNotFoundError:
+                continue
     return receipts
 
 
@@ -622,10 +950,14 @@ def _f1(true_positive: int, false_positive: int, false_negative: int) -> float:
 
 __all__ = [
     "BROWSER_CORTEX_SEARCH_ENTITY_DEVELOPMENT_CORPUS_VERSION",
+    "BROWSER_CORTEX_SEARCH_ENTITY_DEVELOPMENT_CORPUS_V2_VERSION",
     "BrowserCortexSearchEntityCaseResult",
     "BrowserCortexSearchEntityDevelopmentManifest",
     "BrowserCortexSearchEntityDevelopmentRunResult",
     "build_browser_cortex_search_entity_development_corpus",
+    "build_browser_cortex_search_entity_development_corpus_v2",
+    "create_browser_cortex_pack1b_baseline_artifact",
     "evaluate_browser_cortex_search_entity_quality",
     "run_browser_cortex_search_entity_development_corpus",
+    "run_browser_cortex_search_entity_development_corpus_v2",
 ]

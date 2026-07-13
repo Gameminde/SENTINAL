@@ -589,12 +589,19 @@ def _product_browser_engine(envelope: ActionEnvelope) -> object:
                 return browser_cortex_deterministic_fixture_engine_for_case(case)
         from sentinel.operator.browser_cortex_search_entity_development import (
             build_browser_cortex_search_entity_development_corpus,
+            build_browser_cortex_search_entity_development_corpus_v2,
         )
 
         development_manifest = build_browser_cortex_search_entity_development_corpus(
             baseline_commit=str(envelope.params.get("baseline_commit") or "local")
         )
         for case in development_manifest.cases:
+            if case.task_id == browser_cortex_case_id:
+                return browser_cortex_deterministic_fixture_engine_for_case(case)
+        development_manifest_v2 = build_browser_cortex_search_entity_development_corpus_v2(
+            baseline_commit=str(envelope.params.get("baseline_commit") or "local")
+        )
+        for case in development_manifest_v2.cases:
             if case.task_id == browser_cortex_case_id:
                 return browser_cortex_deterministic_fixture_engine_for_case(case)
         raise RuntimeError("browser_cortex_deterministic_case_not_found")

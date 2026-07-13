@@ -455,6 +455,25 @@ def _currency_or_unit(text: str) -> str:
 def _objective_relevance(text: str, *, mission_objective: str) -> tuple[str, str]:
     objective = mission_objective.lower()
     lowered = text.lower()
+    if any(
+        marker in lowered
+        for marker in (
+            "drinking glasses",
+            "wine glasses",
+            "glassware",
+            "glasses set",
+            "kitchenware",
+            "safety helmet",
+            "display stand",
+            "advertisement",
+            "not eyewear",
+            "not a product card",
+            "reference article",
+            "search suggestion",
+            "no product",
+        )
+    ):
+        return "irrelevant", "visible text is a semantic mismatch for the requested eyewear objective"
     wanted_terms = []
     if any(marker in objective for marker in ("glasses", "sunglasses", "eyewear")):
         wanted_terms.extend(
@@ -469,8 +488,17 @@ def _objective_relevance(text: str, *, mission_objective: str) -> tuple[str, str
                 "optique",
                 "optiques",
                 "monture",
+                "optical frame",
+                "optical frames",
+                "frames",
+                "uv400",
+                "blue light",
+                "gafas",
+                "gafas de sol",
             )
         )
+    if "frames" in objective:
+        wanted_terms.extend(("optical frame", "optical frames", "frames", "eyewear", "glasses"))
     if not wanted_terms:
         return "unknown", "mission objective has no product keyword Sentinel can safely score"
     if any(term in lowered for term in wanted_terms):

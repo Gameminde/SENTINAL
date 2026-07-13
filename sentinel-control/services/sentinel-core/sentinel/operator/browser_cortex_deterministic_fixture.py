@@ -204,6 +204,8 @@ class BrowserCortexDeterministicFixtureEngine:
     def _result_elements(self) -> list[RealBrowserEngineElement]:
         if not self.spec.expected_result_region:
             return []
+        if "pack1b" in self.spec.category_tags:
+            return self._pack1b_result_elements()
         if "non_commerce" in self.spec.category_tags:
             return [
                 RealBrowserEngineElement(
@@ -307,6 +309,197 @@ class BrowserCortexDeterministicFixtureEngine:
             )
         ]
 
+    def _pack1b_result_elements(self) -> list[RealBrowserEngineElement]:
+        tags = set(self.spec.category_tags)
+        if "non_commerce" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_article",
+                    "link",
+                    "Reference article result",
+                    text_preview="Reference article about eyewear imports with no product price, MOQ, or supplier.",
+                )
+            ]
+        if "search_suggestion_only" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_suggestion",
+                    "link",
+                    "Search suggestion for glasses",
+                    text_preview="Search suggestion for glasses under 5 EUR, not a product card, no supplier, no MOQ.",
+                )
+            ]
+        if "duplicate_variants" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_variant_a",
+                    "link",
+                    "Polarized sunglasses sample black",
+                    text_preview="Polarized sunglasses sample black 4.80 EUR per piece MOQ 10 pieces Supplier VisionCraft Store.",
+                ),
+                RealBrowserEngineElement(
+                    "link:p1b_variant_b",
+                    "link",
+                    "Polarized sunglasses sample blue",
+                    text_preview="Polarized sunglasses sample blue 4.80 EUR per piece MOQ 10 pieces Supplier VisionCraft Store.",
+                ),
+            ]
+        if "multiple_result_regions" in tags or "weak_contaminated_results" in tags or "sponsored_results" in tags or "advertisement_result" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_sponsored",
+                    "link",
+                    "Sponsored display stand",
+                    text_preview="Sponsored display stand advertisement 2.50 EUR MOQ 500 Supplier DisplayAds Store not eyewear.",
+                ),
+                RealBrowserEngineElement(
+                    "link:p1b_relevant",
+                    "link",
+                    "UV400 sunglasses sample",
+                    text_preview="Organic result UV400 sunglasses sample 4.60 EUR per piece MOQ 12 pieces Supplier VisionCraft Store shipping not included.",
+                ),
+                RealBrowserEngineElement(
+                    "link:p1b_irrelevant",
+                    "link",
+                    "Industrial safety helmet",
+                    text_preview="Industrial safety helmet 4.20 EUR per piece MOQ 20 pieces Supplier HelmetWorks Store.",
+                ),
+            ]
+        if "price_range" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_price_range",
+                    "link",
+                    "Kids sunglasses price range sample",
+                    text_preview="Kids sunglasses price range sample 3.20-4.90 EUR per piece MOQ 24 pieces Supplier VisionCraft Store.",
+                )
+            ]
+        if "package_price" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_package_price",
+                    "link",
+                    "Bulk eyeglasses package sample",
+                    text_preview="Bulk eyeglasses package sample package price 40.00 EUR for 10 units MOQ 10 packs Supplier VisionCraft Store.",
+                )
+            ]
+        if "pack1_unknown_price" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_unknown_price",
+                    "link",
+                    "Rimless eyeglasses catalog sample",
+                    text_preview="Rimless eyeglasses catalog sample price unavailable MOQ 10 pieces Supplier VisionCraft Store.",
+                )
+            ]
+        if "locale_currency" in tags or "multilingual_es" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_locale",
+                    "link",
+                    "Gafas de sol muestra",
+                    text_preview="Gafas de sol muestra 4,80 EUR por pieza MOQ 10 piezas Supplier VisionCraft Store.",
+                )
+            ]
+        if "usd_price" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_usd",
+                    "link",
+                    "Blue light glasses USD sample",
+                    text_preview="Blue light glasses USD sample USD 4.80 per piece MOQ 10 pieces Supplier VisionCraft Store.",
+                )
+            ]
+        if "ambiguous_relevance" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_ambiguous",
+                    "link",
+                    "Fashion eyewear accessory sample",
+                    text_preview="Fashion eyewear accessory sample 4.95 EUR per piece MOQ 20 pieces Supplier VisionCraft Store caveat unclear prescription use.",
+                )
+            ]
+        if "negative_relevance" in tags or "pack1_irrelevant_product" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_negative",
+                    "link",
+                    "Industrial safety helmet sample",
+                    text_preview="Industrial safety helmet sample 4.80 EUR per piece MOQ 20 pieces Supplier HelmetWorks Store.",
+                )
+            ]
+        if "synonym_relevance" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_synonym",
+                    "link",
+                    "Optical frames sample",
+                    text_preview="Optical frames sample 4.70 EUR per piece MOQ 10 pieces Supplier VisionCraft Store.",
+                )
+            ]
+        if "keyword_semantic_mismatch" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_drinking_glasses",
+                    "link",
+                    "Drinking glasses set",
+                    text_preview="Drinking glasses set 4.80 EUR per set MOQ 30 sets Supplier KitchenWare Store.",
+                )
+            ]
+        if "supplier_missing" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_supplier_missing",
+                    "link",
+                    "Rimless glasses supplier hidden",
+                    text_preview="Rimless glasses supplier hidden 4.90 EUR per piece MOQ 10 pieces shipping not included.",
+                )
+            ]
+        if "moq_unknown" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_moq_unknown",
+                    "link",
+                    "Blue light glasses MOQ unknown",
+                    text_preview="Blue light glasses MOQ unknown 4.90 EUR per piece Supplier VisionCraft Store.",
+                )
+            ]
+        if "quantity_available_not_moq" in tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:p1b_quantity",
+                    "link",
+                    "Reading glasses quantity available",
+                    text_preview="Reading glasses quantity available 4.75 EUR per piece 500 pieces available Supplier VisionCraft Store.",
+                )
+            ]
+        base = "Polarized sunglasses sample 4.80 EUR per piece MOQ 10 pieces Supplier VisionCraft Store"
+        caveats: list[str] = []
+        if "shipping_qualification" in tags:
+            caveats.append("shipping not included")
+        if "availability_signal" in tags:
+            caveats.append("available in stock")
+        if "pagination" in tags:
+            caveats.append("page 2 result")
+        if "infinite_scroll" in tags:
+            caveats.append("loaded after scroll")
+        if "dynamic_result_replacement" in tags:
+            caveats.append("updated after dynamic replacement")
+        if "frames" in tags:
+            caveats.append("inside safe frame")
+        if "shadow_dom" in tags:
+            caveats.append("inside safe shadow component")
+        if "unknown_language" in tags:
+            caveats.append("unknown-language marker visible")
+        return [
+            RealBrowserEngineElement(
+                "link:p1b_default_relevant",
+                "link",
+                "Polarized sunglasses sample",
+                text_preview=f"{base} {' '.join(caveats)}.".strip(),
+            )
+        ]
+
     def _page_text(self) -> str:
         if not self.results_visible:
             if self.submitted and not self.spec.expected_result_region:
@@ -315,6 +508,10 @@ class BrowserCortexDeterministicFixtureEngine:
         return " ".join(element.text_preview for element in self._result_elements())
 
     def _search_name(self) -> str:
+        if "alternate_search_control" in self.spec.category_tags:
+            return "Find in catalog"
+        if "unknown_language" in self.spec.category_tags:
+            return "Recherche / Search / Buscar"
         if "localized_ui" in self.spec.category_tags:
             return "Rechercher"
         if "autocomplete" in self.spec.category_tags:
