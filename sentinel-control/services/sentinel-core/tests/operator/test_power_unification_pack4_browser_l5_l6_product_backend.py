@@ -673,6 +673,32 @@ def test_browser_replay_does_not_reopen_research_reextract(tmp_path: Path) -> No
     assert replay.artifact_hashes_stable is True
 
 
+def test_browser_replay_hashes_large_artifacts_without_reparsing_json(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_replay_large_artifact",
+        mission_objective="Search browser product route and verify replay no-react.",
+        decision_client=_browser_search_finish_client(),
+        allowed_domains=("bounded.example",),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+    mission_dir = host.kernel.store.mission_dir(result.mission_ids[0])
+    large_artifact = mission_dir / "execution_request_parameters" / "large_world_model.json"
+    large_artifact.parent.mkdir(parents=True, exist_ok=True)
+    large_artifact.write_text(json.dumps({"cards": [{"title": "x" * 2000}] * 300}), encoding="utf-8")
+
+    replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=result.mission_ids)
+
+    assert replay.reexecuted_actions is False
+    assert replay.receipt_writes_delta == 0
+    assert replay.finalgate_writes_delta == 0
+    assert replay.artifact_hashes_stable is True
+
+
 def _browser_search_finish_client() -> ProductActionKernelLoopDecisionClient:
     return ProductActionKernelLoopDecisionClient(
         [

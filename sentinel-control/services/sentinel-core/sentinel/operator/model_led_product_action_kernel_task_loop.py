@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -981,8 +980,7 @@ def _artifact_hashes(store: MissionRunStore, mission_ids: tuple[str, ...]) -> tu
         if not mission_dir.exists():
             continue
         for path in sorted(mission_dir.rglob("*.json")):
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            hashes.append(stable_hash(payload))
+            hashes.append(hashlib.sha256(path.read_bytes()).hexdigest())
     return tuple(hashes)
 
 
