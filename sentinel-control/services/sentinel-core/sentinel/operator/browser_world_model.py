@@ -42,16 +42,22 @@ class BrowserExtractionCard(SentinelModel):
     card_id: str = Field(default_factory=lambda: new_id("browser_extract_card"))
     kind: str
     title: str = "unknown"
+    product_url_hash: str = "unknown"
     visible_price: str = "unknown"
+    price_range: str = "unknown"
     currency_or_unit: str = "unknown"
+    unit_basis: str = "unknown"
     minimum_order: str = "unknown"
+    shipping_qualification: str = "unknown"
     supplier_or_store: str = "unknown"
+    availability: str = "unknown"
     relevance_to_objective: str = "unknown"
     relevance_reason: str = "unknown"
     price_condition_supported: str = "unknown"
     objective_relevance_assessed: bool = False
     short_features: tuple[str, ...] = Field(default_factory=tuple)
     caveats: tuple[str, ...] = Field(default_factory=tuple)
+    contradictions: tuple[str, ...] = Field(default_factory=tuple)
     evidence_ref_hash: str
     confidence: float = 0.0
 
@@ -329,16 +335,22 @@ def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCa
             caveats.append(marker)
     return ProductCandidateCard(
         title=_clip(title or "unknown", 120),
+        product_url_hash=stable_hash({"candidate_url_text": title or product_text}),
         visible_price=_clip(price or "unknown", 80),
+        price_range=_price_range(product_text),
         currency_or_unit=_currency_or_unit(price or product_text),
+        unit_basis=_unit_basis(product_text),
         minimum_order=_clip(moq or "unknown", 80),
+        shipping_qualification=_shipping_qualification(product_text),
         supplier_or_store=_clip(supplier or "unknown", 120),
+        availability=_availability(product_text),
         relevance_to_objective=relevance,
         relevance_reason=_clip(relevance_reason, 180),
         price_condition_supported=price_support,
         objective_relevance_assessed=True,
         short_features=tuple(_snippets(product_text)[:3]),
         caveats=tuple(dict.fromkeys(caveats)) or ("unknown",),
+        contradictions=_contradictions(product_text),
         evidence_ref_hash=stable_hash({"source_hash": text_hash(product_text), "card_kind": "product_candidate"}),
         confidence=0.72 if price != "unknown" or moq != "unknown" else 0.42,
     )
@@ -497,6 +509,48 @@ def _normalize_minimum_order(value: str) -> str:
     if value == "unknown":
         return value
     return re.sub(r"^(MOQ|minimum order)\s*[:\-]?\s*", "", value, flags=re.I).strip() or value
+
+
+def _price_range(text: str) -> str:
+    match = re.search(
+        r"(\d+(?:[.,]\d+)?\s?(?:-|to)\s?\d+(?:[.,]\d+)?\s?(?:EUR|USD|â‚¬|\$))",
+        text,
+        flags=re.I,
+    )
+    return match.group(1).strip() if match else "unknown"
+
+
+def _unit_basis(text: str) -> str:
+    lowered = text.lower()
+    if any(marker in lowered for marker in ("per piece", "/piece", "piece", "pcs", "unit")):
+        return "visible_unit"
+    return "unknown"
+
+
+def _shipping_qualification(text: str) -> str:
+    lowered = text.lower()
+    if "shipping not included" in lowered:
+        return "shipping_not_included"
+    if "shipping" in lowered:
+        return "shipping_mentioned"
+    return "unknown"
+
+
+def _availability(text: str) -> str:
+    lowered = text.lower()
+    if any(marker in lowered for marker in ("in stock", "available")):
+        return "available_visible"
+    if any(marker in lowered for marker in ("out of stock", "unavailable")):
+        return "unavailable_visible"
+    return "unknown"
+
+
+def _contradictions(text: str) -> tuple[str, ...]:
+    lowered = text.lower()
+    findings: list[str] = []
+    if ("eur" in lowered or "â‚¬" in text) and ("usd" in lowered or "$" in text):
+        findings.append("visible_or_structured_currency_conflict")
+    return tuple(findings)
 
 
 def _blocker_signals(text: str) -> dict[str, list[str]]:

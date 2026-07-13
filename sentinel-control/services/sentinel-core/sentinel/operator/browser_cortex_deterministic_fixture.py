@@ -213,10 +213,89 @@ class BrowserCortexDeterministicFixtureEngine:
                     text_preview="Reference article result with no product price or supplier.",
                 )
             ]
+        if "pack1_mixed_cards" in self.spec.category_tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:pack1_relevant_under",
+                    "link",
+                    "Polarized sunglasses sample",
+                    text_preview=(
+                        "Polarized sunglasses sample 4.80 EUR per piece MOQ 10 pieces "
+                        "Supplier VisionCraft Store shipping not included."
+                    ),
+                ),
+                RealBrowserEngineElement(
+                    "link:pack1_irrelevant",
+                    "link",
+                    "Safety helmets sample",
+                    text_preview=(
+                        "Industrial safety helmets 3.90 EUR per piece MOQ 50 pieces "
+                        "Supplier HelmetWorks Store."
+                    ),
+                ),
+            ]
+        if "pack1_relevant_under_price" in self.spec.category_tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:pack1_relevant_under",
+                    "link",
+                    "Polarized sunglasses sample",
+                    text_preview=(
+                        "Polarized sunglasses sample 4.80 EUR per piece MOQ 10 pieces "
+                        "Supplier VisionCraft Store shipping not included available."
+                    ),
+                )
+            ]
+        if "pack1_above_price" in self.spec.category_tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:pack1_above_price",
+                    "link",
+                    "Prescription eyeglasses premium sample",
+                    text_preview=(
+                        "Prescription eyeglasses premium sample 18.00 EUR per piece MOQ 100 pieces "
+                        "Supplier VisionCraft Store."
+                    ),
+                )
+            ]
+        if "pack1_unknown_price" in self.spec.category_tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:pack1_unknown_price",
+                    "link",
+                    "Rimless eyeglasses catalog sample",
+                    text_preview=(
+                        "Rimless eyeglasses catalog sample price unavailable MOQ 10 pieces "
+                        "Supplier VisionCraft Store."
+                    ),
+                )
+            ]
+        if "pack1_irrelevant_product" in self.spec.category_tags:
+            return [
+                RealBrowserEngineElement(
+                    "link:pack1_irrelevant",
+                    "link",
+                    "Industrial safety helmet sample",
+                    text_preview=(
+                        "Industrial safety helmet sample 4.80 EUR per piece MOQ 20 pieces "
+                        "Supplier HelmetWorks Store."
+                    ),
+                )
+            ]
         relevance_text = "relevant" if self.spec.relevant else "not relevant to objective"
         price_text = "4.80 EUR MOQ 10" if self.spec.relevant else "18.00 EUR MOQ 100"
         if "contradictory_price_currency" in self.spec.category_tags:
-            price_text = "4.80 EUR visible text, structured data USD 9.50"
+            return [
+                RealBrowserEngineElement(
+                    "link:pack1_currency_conflict",
+                    "link",
+                    "Fashion sunglasses currency conflict sample",
+                    text_preview=(
+                        "Fashion sunglasses currency conflict sample 4.80 EUR visible text, "
+                        "structured data USD 9.50 MOQ 10 pieces Supplier VisionCraft Store."
+                    ),
+                )
+            ]
         return [
             RealBrowserEngineElement(
                 "link:result_1",

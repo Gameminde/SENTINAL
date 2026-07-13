@@ -236,7 +236,7 @@ raw secret/provider/reasoning/DOM/cookie/session persistence = 0
 The next execution program is:
 
 ```text
-BROWSER_CORTEX_SEARCH_QUALITY_AND_ENVIRONMENT_UNDERSTANDING_V1
+BROWSER_CORTEX_INTEGRATION_PACK_1_SEARCH_AND_ENTITY_QUALITY_UPGRADE_V1
 ```
 
 The first coherent tranche must land:

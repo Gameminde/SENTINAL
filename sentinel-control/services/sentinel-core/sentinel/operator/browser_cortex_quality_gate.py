@@ -75,6 +75,7 @@ class SemanticResultEntity(SentinelModel):
                 "supplier_or_store": _unknown_if_blank(card.get("supplier_or_store") or card.get("supplier")),
                 "availability": _unknown_if_blank(card.get("availability")),
                 "relevance_to_objective": _unknown_if_blank(card.get("relevance_to_objective")),
+                "price_condition_supported": _unknown_if_blank(card.get("price_condition_supported")),
             },
             evidence_refs=(str(card.get("evidence_ref_hash") or f"card:{stable_hash(card)}"),),
             confidence=_confidence_from_card(card),

@@ -587,6 +587,16 @@ def _product_browser_engine(envelope: ActionEnvelope) -> object:
         for case in manifest.deterministic_cases:
             if case.task_id == browser_cortex_case_id:
                 return browser_cortex_deterministic_fixture_engine_for_case(case)
+        from sentinel.operator.browser_cortex_search_entity_development import (
+            build_browser_cortex_search_entity_development_corpus,
+        )
+
+        development_manifest = build_browser_cortex_search_entity_development_corpus(
+            baseline_commit=str(envelope.params.get("baseline_commit") or "local")
+        )
+        for case in development_manifest.cases:
+            if case.task_id == browser_cortex_case_id:
+                return browser_cortex_deterministic_fixture_engine_for_case(case)
         raise RuntimeError("browser_cortex_deterministic_case_not_found")
     engine_profile = str(envelope.params.get("engine_profile") or "").strip().lower()
     if engine_profile in {"fake_product_search", "local_fake", "inmemory"}:
