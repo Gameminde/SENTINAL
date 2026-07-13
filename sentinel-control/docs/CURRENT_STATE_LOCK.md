@@ -22,6 +22,7 @@ BROWSER_CORTEX_DETERMINISTIC_CORPUS_EXECUTION_AND_BASELINE_V1
 = VALID_FAILED
 
 baseline_target_commit = afe40f8
+implementation_commit = e64dce3
 corpus_version = browser_cortex_quality_corpus_v1
 manifest_hash = 63900f4198852ce755803f1284f8b65cab849d2b51cb9a02031c44203af7c4be
 executed_case_count = 24 / 24
