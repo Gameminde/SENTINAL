@@ -1,0 +1,1345 @@
+{
+  "artifact_safety_scan": {
+    "hit_count": 0,
+    "hit_patterns": []
+  },
+  "browser_backend_identity": {
+    "actual_backend_id_required": "cloak_browser",
+    "selected_backend_id": "cloak_browser",
+    "session_backend_kind": "cloakbrowser"
+  },
+  "calibration_version": "browser_cortex_real_calibration_non_holdout_v1",
+  "manifest_file_sha256": "ff0089daeeac3452aa2d4a2da25e5edc98382ad1ae3e762ed6cf69fdc03c69b3",
+  "preflight_readiness": {
+    "actual_backend_id": "cloak_browser",
+    "diagnostic_hash": "1f02ada293cdf1f1f234c7b22b85dd5cf20f7f03624e75d5d8022f2e84761bbe",
+    "failure_code": null,
+    "profile_material_persisted": false,
+    "provider_call_allowed": true,
+    "readiness_receipt_hash": "3f1538f773a1e8f26706c68605deac776b9bea7ec3254e1fee0bf874a0627148",
+    "ready": true,
+    "receipt_backend_match": true,
+    "safe_url_origin_hash": "5a2d420be6d6846bcd92a9cfba3987d3017434b99d7b64207ede77fe83653be6",
+    "selected_backend_id": "cloak_browser",
+    "session_backend_kind": "cloakbrowser"
+  },
+  "provider_model_identity": {
+    "backend_id": "aliyun_openai_compatible_chat",
+    "model_id": "deepseek-v4-pro",
+    "provider_id": "aliyun_dashscope"
+  },
+  "quality_gate": {
+    "body_versus_mind_failure_classification_complete": true,
+    "end_to_end_grounded_completion_rate": 0.0,
+    "hard_boundary_violations": 0,
+    "quality_gate_pass": false,
+    "raw_secret_exposure": 0,
+    "raw_secret_hit_patterns": [],
+    "repeated_identical_action_without_new_evidence": 0,
+    "replay_side_effects": 0,
+    "search_materiality_precision": 1.0,
+    "tasks_measured": 0,
+    "tasks_total": 12,
+    "unsupported_claims": 0
+  },
+  "raw_material_persistence_policy": {
+    "cookies_or_session_persisted": false,
+    "raw_dom_persisted": false,
+    "raw_provider_output_persisted": false,
+    "raw_provider_reasoning_persisted": false,
+    "raw_screenshot_persisted": false
+  },
+  "run_root_hash": "46a244d800fcdfaed589f1bb06083f4f2da20ffccfde4849f530df2e5d850372",
+  "suspicious_claims_re_evaluation": {
+    "commerce_product_on_non_commerce_count": 0,
+    "duplicate_canonical_identity_total": 0,
+    "non_commerce_entity_types": [],
+    "unexpected_valid_strategy_count": 0,
+    "unique_safe_action_sequences": 1
+  },
+  "task_results": [
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 93.1655,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "561b8613e3c6a0c828527feeb4330b0a648998574003fb719d57c2215e6c0e6f",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 5,
+      "objective_hash": "5f30606d20a4b7da821075fcc653b061ed95edd2a4ba3c85d2fd1f0bbe0e9da7",
+      "provider_decision_count": 5,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "cbce99d0300f19fbfb7823fe5779591142a66730118f01f52bb10bbfe630407f",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "aad7d7d603fb18ccd880ce404e8a223591f2d3fcb2b2f6770a6d317613d7bada",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "3931102346a0895330b3a12dffb9934c409471b5721e2f3b6dd70cc59581cee5",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "b98ea795b8b7251c84c11056980fc373b601f81b6d33839186be8dad8dd1a664",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "833c5af789e9b9063e7a1bcc1bb4b5cd1cee1b22f9c215c93f8de6ab49a26459",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "webscraper.io",
+      "raw_exception_persisted": false,
+      "site_id": "webscraper_ecommerce",
+      "task_id": "calib_commerce_positive_price_laptop"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 54.8328,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "6eeaf59142f3995342a29a8c27b41c65240e0cce2572dc353f49d4b89a9fa62d",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "a58295aea38fad5ce7186153e0af5a002e130104a870aed4aa9a86fd29f06c61",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "84f4d061d99034dd89181696ac7f7c4b12459ce70dfc795177d70b7d532d5719",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "d8ef68e165bb287461dbc7ad6cf6475e46360bed05e420388b37d98f96ae4102",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "26db1d54c12b2fb6d05997f437eea0bb8f1310c7caf74f00517e96d4fea4009c",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": "TIMEOUT",
+          "hash": "a8eafb2c461db07b985c280597f024624274c8d1300bbe99d4e7fbb239b7d941",
+          "keys": [
+            "metadata",
+            "reply"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "webscraper.io",
+      "raw_exception_persisted": false,
+      "site_id": "webscraper_ecommerce",
+      "task_id": "calib_commerce_duplicate_variant_phone"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 41.7401,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "67feb228922143868eb760c8b344516b5d0228c184bc43320ca88ff18d679d0c",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "00fb735501263df06cbb2b268a2e85b93ce4fa4cc894e5d92ff2ac1e52c2dd6f",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "8edc7156c269c3715635137ce9d9d7edd18dc7afe8edebcaaa5b7fe7dd66c266",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "8c49fb7566bd7e12569d6a9edc72b08ca5ad0346324f1fe30474a6bb36fdb4b3",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "c335bb7c03679dd4f81f38b72b69e59b30f97d18a9b9a624acb151bcc99c564c",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "21924ce7e7e14c2f0c379e9b12478452f828a0c34f89e3915a962d4684a92365",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "demoblaze.com",
+      "raw_exception_persisted": false,
+      "site_id": "demoblaze_catalog",
+      "task_id": "calib_dynamic_commerce_positive_phone"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 49.4731,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "98f2b73cdad80ef46613c1ffe79e984284a24423081cea5e563423783a8b0f05",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "035eed23774be428d99903dc52002afaa1a55740856c8d37555dad81dba13d10",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "db7c981c3581f9e6e56dad64100db1c6a7232512b6541f71a4bb936043908a4f",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "1e3f775825ca1869a3fa33aecd045c54d8b4957f19d7d33615db0c4828219970",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "51ba1f75ba798ca6b1314dde9b1880ff524f349ef2dd37b95f1d760713f02e84",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "f7e35ac162f4ecb4c7dead9a84ff850f5977865523084183d1caf65898a3f7c4",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "developer.mozilla.org",
+      "raw_exception_persisted": false,
+      "site_id": "mdn_search",
+      "task_id": "calib_non_commerce_websocket_reference"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 11.294,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "af830411453d02162d91e715c86a64b25b05b0084a618a257151248b8aa8e444",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 1,
+      "objective_hash": "671b80c316cdc5af3bbcbef2984ec882c7388bb70b06ede2dccea1fc37c2da2a",
+      "provider_decision_count": 1,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "33ce4db8d25bc2c8badf915ad06cb307c228e3d65ee9081631164efaa7026bd7",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "developer.mozilla.org",
+      "raw_exception_persisted": false,
+      "site_id": "mdn_search",
+      "task_id": "calib_non_commerce_irrelevant_keyword_glasses"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 47.7552,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "62392d1795b1575425b14f5025a34abc1edcac9639bf5d165a0af78d57504ce5",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "dac9156438bfa18a93fe543b14829192132b04564f0fe9b717d502880dd3762a",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "2575bb5fea30b344385ee327610cc23943012f5eb2e2b820a8529fe630210526",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "d4d4d362c90253a1042c31f8539cac3a3ca1b2209217f12b099362d97553d3c7",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "65e788d3942715447ba63dc6d674dd283ffd7794e8f30aa23cf4d0aa57e59728",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "ca9d3dd83f4113eb9473d0250b6b11da972421e9ec088ceb3fdd9237e77c8832",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "quotes.toscrape.com",
+      "raw_exception_persisted": false,
+      "site_id": "quotes_toscrape_search",
+      "task_id": "calib_quotes_form_positive_author_tag"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 64.7932,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "3a12c9499d62a65a022c4ca8cc2a4feb8e175086fa70fd8ac574cb6554fe1b87",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "7324f22aa18d0381c4d2c4b002c530008a5532ec2b70d441bf4888c99764d480",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "14ef8202d69ce31fb541ddf7139529f774ecea3b048fb9a8a1de1ebea2304ef7",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "1cbfc1c0a48b3497c199dabcaf82db5abe221eb3c9a17a8a702efb0a7496a43a",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "8c3debe3219a3d5f10e0e36a702cfc6acc09ba7d1ed3b32b40e96853b94f5aab",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "62d40871be3a3f76a47aa51ec6b35e1db1ac30bde1ff31988dbcab85df1c1bab",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "quotes.toscrape.com",
+      "raw_exception_persisted": false,
+      "site_id": "quotes_toscrape_search",
+      "task_id": "calib_quotes_form_confirmed_no_result"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 61.6563,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "efb1e7f78c7e7b16fb741420689f42983b3852aa2b9482bd5e0ee0456b3cd2c5",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "90c4cc61326ed99f795414a41eed78542bb2375fd7e63f90fafd5fbc5f40675a",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "d0cc7509eb4e432d2f5f7ea04abd23e5ed30764917526ecfa3dde08bed2c272e",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "0ed7348bf8c883dbf03ba9501826d1c35b1a7a1db5d168e1ee899764ea000d73",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "ecb23d7f4dc94ef396bce4289e8ed1916cfa183c6bb8cbaac32a5d9016888204",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "18c3b2af996920b1a13fe8592f20186a468c05f6a6c0c75ecf6bea9b6c56f19d",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "scrapethissite.com",
+      "raw_exception_persisted": false,
+      "site_id": "scrapethissite_forms",
+      "task_id": "calib_table_numeric_constraint_hockey"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 69.949,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "473763b4ce135f7d5eb5cdc0b087b37d57473f25a4b19da8e62cc2a1fe65b3dd",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "b263a434adb2719dfd5ce3c9adec1c2b7df19ccbdb6eae091ce20149a5bd1f9c",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "7ab1fb5fcae82dc3313bf0d4275fd64a5b82065d1c39205bbec99205e187077a",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "20e4880b8a305680aed3b4b98d08be91f3010713c5df5b0d87df84374fe768d7",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "9e54b0c6daae6c4be647ebbb213edc68b7578211e929f058f776b9046d742eae",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "8ed6d4c17f763f0fb52c0b3dc30fcf16b28c3bea9da776bc0cf93902b7ad3edc",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "scrapethissite.com",
+      "raw_exception_persisted": false,
+      "site_id": "scrapethissite_forms",
+      "task_id": "calib_table_irrelevant_keyword_filter"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 74.0383,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "94ae231581b1b432ccb23249085abbf54c418f00bbf4ad47157a9d226c63914c",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "bb8c6045b3e12df9011d17ec40de442b739003a4997e7fc285bca571deee01da",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "0b3b81a5944984e179d07353a7e3b507d76cb4c9131986440931e7a4a44a3680",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "b9ba96d41d148f674cdec4b439178e8c7dbd1db22ae463628b5c9f070bcb98b6",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "e29224a38bba16e73c5f1c7afd186d7dac15d8311a747d521799186236647d82",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "25dae801069fdff5e83af4b40a508890555e482017e7b312aadcc9f87ab6e6b1",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "service-public.fr",
+      "raw_exception_persisted": false,
+      "site_id": "service_public_fr_search",
+      "task_id": "calib_multilingual_fr_passport_info"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 61.3454,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "2be73fd2505c07f0344ff38ac0e39ef7988211748aa28d1f1ae8dce62a2279dd",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "2027ad7b42a8b3a41275ad04ab9b4e2b03524c4c7cdf17b922f2b08eaa288a1f",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "9809d3a5d1989e8b91554a85919e8d6683fdadb044fed41ff340f036a3815ed1",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "e2fc527a3e1663af4d14e5aa5cc6ad5a40cce5e650021bd1b8f4ba6ab00b7455",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "78c35a4c8ee0f182d6ebe7919cc40a76db81fb60478e9a696e61918e95065b3a",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "44eb8da973c025c98c23513645a999da23c0e854f9b6651abe1a668137080e27",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "developer.mozilla.org",
+      "raw_exception_persisted": false,
+      "site_id": "mdn_search",
+      "task_id": "calib_mdn_query_refinement_cache_api"
+    },
+    {
+      "action_trace": [],
+      "blocked_reason": "FileNotFoundError",
+      "end_to_end_latency_seconds": 42.7443,
+      "failure_classification": {
+        "body_failure": true,
+        "class": "INFRASTRUCTURE_OR_BODY_EXCEPTION",
+        "evidence_failure": false,
+        "exception_class": "FileNotFoundError",
+        "exception_hash": "852883c2158ad3975ad05a012bf97f3422451d5ba7304de7a80e32974b23e82b",
+        "infrastructure_failure": true,
+        "mind_failure": false
+      },
+      "mission_outcome": "exception_preserved",
+      "model_native_intent_accepted_count": 4,
+      "objective_hash": "62129db57e4e0e45cb4800e5034f5e74b9dc42d312491c2511d817f107b6c15d",
+      "provider_decision_count": 4,
+      "provider_model_identity": {
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "deepseek-v4-pro",
+        "provider_id": "aliyun_dashscope"
+      },
+      "provider_response_shapes": [
+        {
+          "blocked_reason": null,
+          "hash": "1645b2a7aa9bb3c7acc5899e54b65379d0bf964d6008fa1c99f8196a5949a536",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": "TIMEOUT",
+          "hash": "a8eafb2c461db07b985c280597f024624274c8d1300bbe99d4e7fbb239b7d941",
+          "keys": [
+            "metadata",
+            "reply"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "ef7df64bf687b804bf3d9e8687ded4207606082e5dfc1aad801eb49577ec7c14",
+          "keys": [
+            "content",
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        },
+        {
+          "blocked_reason": null,
+          "hash": "d6d71745c87d44de6cfbd2fc2e725931673e0f1b72c98530e2771477823b5121",
+          "keys": [
+            "content_extraction_source",
+            "finish_reason",
+            "normalization_strategy",
+            "output_truncated",
+            "raw_provider_response",
+            "raw_text_hash",
+            "raw_text_transport",
+            "reasoning_char_count",
+            "reasoning_hash",
+            "reasoning_present",
+            "visible_content_char_count",
+            "visible_content_estimated_tokens"
+          ],
+          "provider_error_class": null,
+          "provider_failure": false
+        }
+      ],
+      "public_site": "demoblaze.com",
+      "raw_exception_persisted": false,
+      "site_id": "demoblaze_catalog",
+      "task_id": "calib_demoblaze_unknown_supplier_moq"
+    }
+  ],
+  "verdict": "VALID_CALIBRATION_MEASURED + QUALITY_GATE_FAIL"
+}

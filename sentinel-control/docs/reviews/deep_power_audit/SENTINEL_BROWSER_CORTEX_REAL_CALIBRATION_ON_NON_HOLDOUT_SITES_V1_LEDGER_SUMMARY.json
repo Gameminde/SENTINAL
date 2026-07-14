@@ -1,0 +1,206 @@
+{
+  "run_root_hash": "46a244d800fcdfaed589f1bb06083f4f2da20ffccfde4849f530df2e5d850372",
+  "tasks": [
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_commerce_duplicate_variant_phone"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_control_not_found": 1
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.extract_product_cards": 1,
+        "real_browser_control:real_browser.search": 1,
+        "real_browser_control:real_browser.verify_extraction": 1,
+        "sentinel_loop:summarize_evidence": 1
+      },
+      "dispatch_status_counts": {
+        "blocked": 1,
+        "completed": 3
+      },
+      "finalgate_file_count": 5,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4,
+        "real_browser_control": 2
+      },
+      "task_id": "calib_commerce_positive_price_laptop"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_demoblaze_unknown_supplier_moq"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_dynamic_commerce_positive_phone"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_mdn_query_refinement_cache_api"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_multilingual_fr_passport_info"
+    },
+    {
+      "blocked_reason_counts": {},
+      "capability_counts": {},
+      "dispatch_status_counts": {},
+      "finalgate_file_count": 0,
+      "mission_count": 1,
+      "receipt_kind_counts": {},
+      "task_id": "calib_non_commerce_irrelevant_keyword_glasses"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_non_commerce_websocket_reference"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_quotes_form_confirmed_no_result"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_quotes_form_positive_author_tag"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_table_irrelevant_keyword_filter"
+    },
+    {
+      "blocked_reason_counts": {
+        "real_browser_search_session_open_failed": 4
+      },
+      "capability_counts": {
+        "real_browser_control:real_browser.search": 4
+      },
+      "dispatch_status_counts": {
+        "blocked": 4
+      },
+      "finalgate_file_count": 0,
+      "mission_count": 4,
+      "receipt_kind_counts": {
+        "product_action_kernel": 4
+      },
+      "task_id": "calib_table_numeric_constraint_hockey"
+    }
+  ]
+}
