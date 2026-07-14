@@ -1,0 +1,80 @@
+{
+  "provenance_kind": "browser_cortex_real_calibration_non_holdout_pre_provider_provenance",
+  "tranche": "BROWSER_CORTEX_REAL_CALIBRATION_ON_NON_HOLDOUT_SITES_V1",
+  "pack_1b_stage_a_commit": {
+    "short": "20f0bae",
+    "full": "20f0bae9b7777407f50e16682f0111072ba37879",
+    "subject": "test: add browser cortex pack1b generalization corpus"
+  },
+  "baseline_artifact_runtime_commit": {
+    "short": "afe40f8",
+    "full": "afe40f8f9893416ceb59489f7ceb62b2ba499150",
+    "subject": "feat: add browser cortex quality gate",
+    "interpretation": "historical baseline metadata carried by the same-corpus Pack 1B artifact, not the actual executable HEAD for the current calibration tranche"
+  },
+  "actual_executable_head": {
+    "short": "28615d1",
+    "full": "28615d15efcda9024636cc6297f821716b9f5a52",
+    "subject": "docs: record browser cortex pack1b development gate"
+  },
+  "runtime_tree_hash": "88c0b4ef4127711a1442bd236fe704eb039a4279",
+  "repository_tree_hash": "306bfd232c42a851c0d63336a4819a20d8c848d3",
+  "pack_1b_baseline_artifact": {
+    "path": "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_INTEGRATION_PACK_1B_V2_BASELINE_ARTIFACT.json",
+    "embedded_baseline_artifact_hash": "481f56a86751d8a12f4d53487c2018d0705dd0a8d0e005a0e47be50bc62339f6",
+    "file_sha256": "4eff79456e57c01a5db96658806626b59482be7ade9e4a9a91dc1cb7134d0c61",
+    "pack_1b_corpus_manifest_hash": "64b5bbb2b5c258f8adac33716478cae73b86b23dcb981d9239acd5c2aa1efb84",
+    "pack_1b_fixture_bundle_hash": "a463324578c36f00959fb99e12686031bf511025b2363b57cc594436706d83ee"
+  },
+  "calibration_manifest": {
+    "path": "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_CALIBRATION_NON_HOLDOUT_MANIFEST_V1.json",
+    "file_sha256": "4dbaca3fdbfae5a97912d17412525b783ca80d372b717ae3fd8772b86bb0122d",
+    "task_count": 12,
+    "public_site_count": 6,
+    "frozen_holdout_domains_excluded": [
+      "alibaba.com",
+      "wikipedia.org",
+      "github.com",
+      "arxiv.org",
+      "books.toscrape.com"
+    ]
+  },
+  "provider_model_identity": {
+    "provider_id": "alibaba_model_studio_certification",
+    "backend_id": "alibaba_model_studio_openai_compatible_chat",
+    "model_id": "deepseek-v4-pro",
+    "credential_env_name": "SENTINEL_CERT_MODEL_API_KEY",
+    "credential_present": true,
+    "credential_value_persisted": false,
+    "base_url_env_name": "SENTINEL_CERT_MODEL_BASE_URL",
+    "base_url_present": true,
+    "base_url_hash": "96fd7aa96afa8bb6bae02001907b8b4f598bfe3ca55b04ced7961ebf42e95497",
+    "raw_endpoint_persisted": false
+  },
+  "browser_backend_identity": {
+    "selected_backend_id": "cloak_browser",
+    "actual_backend_id": "cloak_browser",
+    "session_backend_kind": "cloakbrowser",
+    "silent_fallback_allowed": false,
+    "playwright_allowed": false
+  },
+  "readiness_probe_summary": {
+    "ready": true,
+    "provider_call_allowed": true,
+    "selected_backend_id": "cloak_browser",
+    "actual_backend_id": "cloak_browser",
+    "session_backend_kind": "cloakbrowser",
+    "safe_url_origin_hash": "42a29d368ecb8e3daa582a2964b0ee37ddcf5baf2c4effb85f98761a82f8f0cb",
+    "readiness_receipt_hash": "d89ba51af5f339c41ba0f4f03d4a74a494ba03e0ae910537e43fff327d4537ae",
+    "diagnostic_hash": "1f02ada293cdf1f1f234c7b22b85dd5cf20f7f03624e75d5d8022f2e84761bbe",
+    "receipt_backend_match": true,
+    "profile_material_persisted": false,
+    "provider_calls_consumed": 0
+  },
+  "local_calibration_hypotheses_to_test_without_fixing_first": [
+    "non-commerce observations may still become commerce_product entities",
+    "duplicate canonical URLs may survive despite duplicate accuracy = 1.0",
+    "deterministic trajectories may overstate model freedom and fluidity"
+  ],
+  "mismatch_reason": "The Pack 1B artifact runtime_commit field is a historical baseline_commit label from the baseline artifact generation path. The current executable calibration HEAD is 28615d15efcda9024636cc6297f821716b9f5a52; the Pack 1B Stage A implementation commit remains 20f0bae9b7777407f50e16682f0111072ba37879. The existing artifact was not rewritten."
+}

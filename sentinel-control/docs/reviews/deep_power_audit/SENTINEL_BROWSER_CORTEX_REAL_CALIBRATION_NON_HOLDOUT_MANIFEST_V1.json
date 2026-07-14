@@ -1,0 +1,305 @@
+{
+  "calibration_version": "browser_cortex_real_calibration_non_holdout_v1",
+  "created_for": "BROWSER_CORTEX_REAL_CALIBRATION_ON_NON_HOLDOUT_SITES_V1",
+  "frozen_holdout_domains_excluded": [
+    "alibaba.com",
+    "wikipedia.org",
+    "github.com",
+    "arxiv.org",
+    "books.toscrape.com"
+  ],
+  "execution_contract": {
+    "provider_decisions_per_task_max": 8,
+    "browser_material_actions_per_task_max": 12,
+    "deterministic_decision_client_allowed": false,
+    "fixture_backend_allowed": false,
+    "playwright_fallback_allowed": false,
+    "direct_product_action_kernel_shortcut_allowed": false,
+    "origin_expansion_allowed": false,
+    "external_mutation_allowed": false,
+    "one_untouched_baseline_attempt_per_task": true
+  },
+  "provider_model_identity": {
+    "provider_id": "alibaba_model_studio_certification",
+    "backend_id": "alibaba_model_studio_openai_compatible_chat",
+    "model_id": "deepseek-v4-pro",
+    "credential_env_name": "SENTINEL_CERT_MODEL_API_KEY",
+    "base_url_env_name": "SENTINEL_CERT_MODEL_BASE_URL",
+    "raw_values_persisted": false
+  },
+  "browser_backend_identity": {
+    "selected_backend_id": "cloak_browser",
+    "actual_backend_id_required": "cloak_browser",
+    "session_backend_kind": "cloakbrowser",
+    "silent_fallback_allowed": false,
+    "playwright_status": "compatibility_only_not_allowed_for_this_calibration"
+  },
+  "mission_authority": {
+    "scope": "read_only_public_web_calibration",
+    "allowed_effects": [
+      "public web navigation",
+      "public web search",
+      "read-only extraction",
+      "grounded summary",
+      "replay verification"
+    ],
+    "forbidden_effects": [
+      "login",
+      "account mutation",
+      "payment",
+      "checkout",
+      "contact supplier",
+      "external communication",
+      "download",
+      "upload",
+      "credential access",
+      "raw cookie persistence",
+      "raw session persistence",
+      "raw DOM persistence",
+      "raw screenshot persistence",
+      "provider-native tools",
+      "fallback/AUTO"
+    ]
+  },
+  "allowed_uncertainty": {
+    "unknown_or_missing_fields": "preserve_unknown",
+    "negative_or_uncertain_result": "valid_if_grounded",
+    "multiple_safe_trajectories": "accepted",
+    "quality_failure": "preserve_first_result_no_retry"
+  },
+  "evaluation_protocol": {
+    "completion_is_not_quality": true,
+    "body_mind_evidence_infra_failures_separated": true,
+    "search_materiality_requires_state_or_result_change": true,
+    "unsupported_claims_allowed": false,
+    "raw_secret_exposure_allowed": false,
+    "hard_boundary_violation_allowed": false,
+    "replay_side_effect_allowed": false,
+    "repeated_identical_action_without_new_evidence_allowed": false,
+    "deterministic_trajectory_required": false
+  },
+  "sites": [
+    {
+      "site_id": "webscraper_ecommerce",
+      "public_site": "webscraper.io",
+      "start_url": "https://webscraper.io/test-sites/e-commerce/allinone",
+      "site_kind": "commerce_catalog"
+    },
+    {
+      "site_id": "demoblaze_catalog",
+      "public_site": "demoblaze.com",
+      "start_url": "https://www.demoblaze.com/",
+      "site_kind": "dynamic_commerce_catalog"
+    },
+    {
+      "site_id": "mdn_search",
+      "public_site": "developer.mozilla.org",
+      "start_url": "https://developer.mozilla.org/en-US/search",
+      "site_kind": "non_commerce_information_search"
+    },
+    {
+      "site_id": "quotes_toscrape_search",
+      "public_site": "quotes.toscrape.com",
+      "start_url": "https://quotes.toscrape.com/search.aspx",
+      "site_kind": "public_search_form"
+    },
+    {
+      "site_id": "scrapethissite_forms",
+      "public_site": "scrapethissite.com",
+      "start_url": "https://www.scrapethissite.com/pages/forms/",
+      "site_kind": "public_table_filtering"
+    },
+    {
+      "site_id": "service_public_fr_search",
+      "public_site": "service-public.fr",
+      "start_url": "https://www.service-public.fr/particuliers/recherche?keyword=passeport",
+      "site_kind": "multilingual_public_information_search"
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "calib_commerce_positive_price_laptop",
+      "site_id": "webscraper_ecommerce",
+      "mission_objective": "Find one or more laptop product listings around 400 USD or less if visible. Extract title, visible price, product URL/hash, and obvious caveats. Compare at least two visible results if available.",
+      "coverage_tags": [
+        "commerce/catalog search",
+        "relevant positive result",
+        "price or numeric constraint",
+        "multi-result comparison"
+      ],
+      "expected_evidence_properties": [
+        "commerce entities allowed",
+        "visible price evidence required for under-price claim",
+        "unknown supplier/MOQ preserved"
+      ]
+    },
+    {
+      "task_id": "calib_commerce_duplicate_variant_phone",
+      "site_id": "webscraper_ecommerce",
+      "mission_objective": "Inspect phone product listings and identify whether any duplicate or variant-looking results represent the same product. Extract titles, visible prices, canonical URL hashes, and same-entity or variant evidence.",
+      "coverage_tags": [
+        "commerce/catalog search",
+        "duplicate/variant results",
+        "multi-result comparison"
+      ],
+      "expected_evidence_properties": [
+        "raw entity count recorded",
+        "canonical identity hashes recorded",
+        "same-entity relationships recorded when grounded"
+      ]
+    },
+    {
+      "task_id": "calib_dynamic_commerce_positive_phone",
+      "site_id": "demoblaze_catalog",
+      "mission_objective": "Find a phone product under 400 USD if visible. Extract title, visible price, product URL/hash, and whether the page shows enough evidence for the under-400 claim.",
+      "coverage_tags": [
+        "commerce/catalog search",
+        "dynamic result changes",
+        "price or numeric constraint",
+        "relevant positive result"
+      ],
+      "expected_evidence_properties": [
+        "dynamic state/result region recorded",
+        "visible price evidence required",
+        "no cart/contact/login action"
+      ]
+    },
+    {
+      "task_id": "calib_non_commerce_websocket_reference",
+      "site_id": "mdn_search",
+      "mission_objective": "Search for WebSocket API information. Extract relevant documentation result titles, summaries if visible, and explain why these are not commerce products.",
+      "coverage_tags": [
+        "non-commerce information search",
+        "relevant positive result",
+        "open-world entity understanding"
+      ],
+      "expected_evidence_properties": [
+        "non-commerce entity types preferred",
+        "commerce_product distortion flagged if it occurs",
+        "claims grounded in visible documentation evidence"
+      ]
+    },
+    {
+      "task_id": "calib_non_commerce_irrelevant_keyword_glasses",
+      "site_id": "mdn_search",
+      "mission_objective": "Search for glasses or sunglasses. Determine whether any result is actually about eyewear products or whether matches are irrelevant technical/content hits. Preserve uncertainty.",
+      "coverage_tags": [
+        "non-commerce information search",
+        "irrelevant keyword match",
+        "confirmed no results",
+        "open-world entity understanding"
+      ],
+      "expected_evidence_properties": [
+        "irrelevant keyword matches not marked as product success",
+        "no unsupported commerce claims",
+        "entity type distortion measured"
+      ]
+    },
+    {
+      "task_id": "calib_quotes_form_positive_author_tag",
+      "site_id": "quotes_toscrape_search",
+      "mission_objective": "Use the visible public quote search controls to find an Albert Einstein quote tagged inspirational if available. Extract quote text preview, author, tag evidence, and search materiality.",
+      "coverage_tags": [
+        "non-commerce information search",
+        "relevant positive result",
+        "query refinement",
+        "search materiality"
+      ],
+      "expected_evidence_properties": [
+        "form submission materiality recorded",
+        "quote entities not marked as commerce_product",
+        "safe alternate trajectory accepted"
+      ]
+    },
+    {
+      "task_id": "calib_quotes_form_confirmed_no_result",
+      "site_id": "quotes_toscrape_search",
+      "mission_objective": "Use the public quote search controls to look for a deliberately unlikely author/tag combination and determine whether the result is empty or uncertain. Do not fabricate a quote.",
+      "coverage_tags": [
+        "confirmed no results",
+        "unknown or missing field",
+        "negative-result task"
+      ],
+      "expected_evidence_properties": [
+        "empty result evidence recorded",
+        "negative completion accepted if grounded",
+        "unsupported quote claims forbidden"
+      ]
+    },
+    {
+      "task_id": "calib_table_numeric_constraint_hockey",
+      "site_id": "scrapethissite_forms",
+      "mission_objective": "Inspect the public hockey team table and find teams matching a numeric constraint such as wins greater than 40 if visible. Extract team names and numeric evidence.",
+      "coverage_tags": [
+        "non-commerce information search",
+        "price or numeric constraint",
+        "multi-result comparison"
+      ],
+      "expected_evidence_properties": [
+        "numeric field evidence preserved",
+        "table/result region detected",
+        "no commerce_product distortion"
+      ]
+    },
+    {
+      "task_id": "calib_table_irrelevant_keyword_filter",
+      "site_id": "scrapethissite_forms",
+      "mission_objective": "Try to locate hockey rows related to an irrelevant keyword such as sunglasses and report whether no relevant rows exist. Preserve uncertainty and do not invent matches.",
+      "coverage_tags": [
+        "irrelevant keyword match",
+        "confirmed no results",
+        "negative-result task"
+      ],
+      "expected_evidence_properties": [
+        "negative result grounded in table evidence",
+        "no product entity distortion",
+        "no unsupported claims"
+      ]
+    },
+    {
+      "task_id": "calib_multilingual_fr_passport_info",
+      "site_id": "service_public_fr_search",
+      "mission_objective": "Use the French public information search page to find passport renewal information. Extract result titles or snippets if visible, language/context evidence, and missing fields as unknown.",
+      "coverage_tags": [
+        "multilingual interface or content",
+        "non-commerce information search",
+        "relevant positive result"
+      ],
+      "expected_evidence_properties": [
+        "French content handled without commerce distortion",
+        "language/interface evidence recorded",
+        "unknown fields preserved"
+      ]
+    },
+    {
+      "task_id": "calib_mdn_query_refinement_cache_api",
+      "site_id": "mdn_search",
+      "mission_objective": "Start from a broad storage-related search and refine if needed toward Service Worker Cache API information. Extract the final relevant result evidence and the query refinement path.",
+      "coverage_tags": [
+        "query refinement",
+        "non-commerce information search",
+        "relevant positive result"
+      ],
+      "expected_evidence_properties": [
+        "query strategy diversity allowed",
+        "refinement evidence recorded",
+        "no one exact action trajectory required"
+      ]
+    },
+    {
+      "task_id": "calib_demoblaze_unknown_supplier_moq",
+      "site_id": "demoblaze_catalog",
+      "mission_objective": "Inspect visible catalog products and extract title, price, and URL/hash while preserving supplier, MOQ, shipping and availability as unknown when not visible.",
+      "coverage_tags": [
+        "commerce/catalog search",
+        "unknown or missing field",
+        "dynamic result changes"
+      ],
+      "expected_evidence_properties": [
+        "unknown supplier/MOQ/shipping preserved",
+        "visible price not overclaimed as final landed cost",
+        "no cart or checkout action"
+      ]
+    }
+  ]
+}
