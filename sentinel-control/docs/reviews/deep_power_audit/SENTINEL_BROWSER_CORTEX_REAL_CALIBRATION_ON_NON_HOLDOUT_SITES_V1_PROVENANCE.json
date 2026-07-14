@@ -36,7 +36,7 @@
   },
   "calibration_manifest": {
     "path": "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_CALIBRATION_NON_HOLDOUT_MANIFEST_V1.json",
-    "file_sha256": "4dbaca3fdbfae5a97912d17412525b783ca80d372b717ae3fd8772b86bb0122d",
+    "file_sha256": "ff0089daeeac3452aa2d4a2da25e5edc98382ad1ae3e762ed6cf69fdc03c69b3",
     "task_count": 12,
     "public_site_count": 6,
     "frozen_holdout_domains_excluded": [
@@ -48,13 +48,13 @@
     ]
   },
   "provider_model_identity": {
-    "provider_id": "alibaba_model_studio_certification",
-    "backend_id": "alibaba_model_studio_openai_compatible_chat",
+    "provider_id": "aliyun_dashscope",
+    "backend_id": "aliyun_openai_compatible_chat",
     "model_id": "deepseek-v4-pro",
     "credential_env_name": "SENTINEL_CERT_MODEL_API_KEY",
     "credential_present": true,
     "credential_value_persisted": false,
-    "base_url_env_name": "SENTINEL_CERT_MODEL_BASE_URL",
+    "base_url_env_name": "SENTINEL_ALIYUN_DASHSCOPE_BASE_URL",
     "base_url_present": true,
     "base_url_hash": "96fd7aa96afa8bb6bae02001907b8b4f598bfe3ca55b04ced7961ebf42e95497",
     "raw_endpoint_persisted": false

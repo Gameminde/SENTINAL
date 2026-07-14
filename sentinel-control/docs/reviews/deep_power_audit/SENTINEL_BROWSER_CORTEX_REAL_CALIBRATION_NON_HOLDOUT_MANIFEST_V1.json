@@ -20,11 +20,11 @@
     "one_untouched_baseline_attempt_per_task": true
   },
   "provider_model_identity": {
-    "provider_id": "alibaba_model_studio_certification",
-    "backend_id": "alibaba_model_studio_openai_compatible_chat",
+    "provider_id": "aliyun_dashscope",
+    "backend_id": "aliyun_openai_compatible_chat",
     "model_id": "deepseek-v4-pro",
     "credential_env_name": "SENTINEL_CERT_MODEL_API_KEY",
-    "base_url_env_name": "SENTINEL_CERT_MODEL_BASE_URL",
+    "base_url_env_name": "SENTINEL_ALIYUN_DASHSCOPE_BASE_URL",
     "raw_values_persisted": false
   },
   "browser_backend_identity": {
