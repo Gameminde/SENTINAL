@@ -15,10 +15,18 @@
   "actual_executable_head": {
     "short": "28615d1",
     "full": "28615d15efcda9024636cc6297f821716b9f5a52",
-    "subject": "docs: record browser cortex pack1b development gate"
+    "subject": "docs: record browser cortex pack1b development gate",
+    "note": "pre-freeze HEAD observed before writing this calibration manifest/provenance"
+  },
+  "provider_preflight_executable_head": {
+    "short": "e1a15ba",
+    "full": "e1a15ba01d33e650481af4cf595787697c67c6aa",
+    "subject": "docs: freeze browser cortex non-holdout calibration",
+    "note": "docs-only calibration freeze commit; runtime_tree_hash remains unchanged before provider use"
   },
   "runtime_tree_hash": "88c0b4ef4127711a1442bd236fe704eb039a4279",
-  "repository_tree_hash": "306bfd232c42a851c0d63336a4819a20d8c848d3",
+  "repository_tree_hash_before_freeze": "306bfd232c42a851c0d63336a4819a20d8c848d3",
+  "repository_tree_hash_after_freeze": "60a312608fed2dcf7083cf35522f88b3416a8ba6",
   "pack_1b_baseline_artifact": {
     "path": "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_INTEGRATION_PACK_1B_V2_BASELINE_ARTIFACT.json",
     "embedded_baseline_artifact_hash": "481f56a86751d8a12f4d53487c2018d0705dd0a8d0e005a0e47be50bc62339f6",
