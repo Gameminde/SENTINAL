@@ -6,7 +6,7 @@
 REAL_BROWSER_BODY_SESSION_LIFECYCLE_AND_ACTUATION_STABILITY_V1
 = VALID_BODY_STABLE_CANARY_NOT_RUN
 
-implementation_commit = TO_BE_FILLED_AFTER_LOCAL_COMMIT
+implementation_commit = 22f8caf9d54eb6dc7a69dff98a649195a2780034
 provider_calls = 0
 real_provider_used = no
 real_browser_live_canary_run = no
