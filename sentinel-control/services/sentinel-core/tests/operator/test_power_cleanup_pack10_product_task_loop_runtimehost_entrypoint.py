@@ -202,10 +202,15 @@ def test_browser_live_skill_routes_through_product_entrypoint_after_pack4(tmp_pa
         mission_objective="Browser high-level power routes through the product entrypoint.",
         decision_client=ProductActionKernelLoopDecisionClient(
             [
-                ActionEnvelope(capability_id="real_browser_control", operation="real_browser.search", params={"query": "x"}),
+                ActionEnvelope(
+                    capability_id="real_browser_control",
+                    operation="real_browser.search",
+                    params={"query": "x", "engine_profile": "fake_product_search"},
+                ),
                 ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={"safe_summary": "Browser product route completed."}),
             ]
         ),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
         max_model_calls=3,
         max_material_actions=1,
     )

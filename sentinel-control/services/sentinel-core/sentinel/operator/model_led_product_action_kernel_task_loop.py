@@ -119,6 +119,7 @@ class ModelLedProductActionKernelTaskLoop:
         max_recoverable_action_failures: int = 0,
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_fake",
         explicit_noop_proof_ref: str | None = None,
+        product_task_resource_scope: object | None = None,
     ) -> None:
         self.loop_id = new_id("product_action_kernel_task_loop")
         self.host = host
@@ -133,6 +134,7 @@ class ModelLedProductActionKernelTaskLoop:
         self.max_recoverable_action_failures = max(0, max_recoverable_action_failures)
         self.model_contract_ref = model_contract_ref
         self.explicit_noop_proof_ref = explicit_noop_proof_ref
+        self.product_task_resource_scope = product_task_resource_scope
         self.model_calls_used = 0
         self.material_actions_used = 0
         self.recoverable_decision_observations: list[dict[str, Any]] = []
@@ -550,7 +552,10 @@ class ModelLedProductActionKernelTaskLoop:
             allowed_domains=tuple(_allowed_domains_for_action(decision, self.allowed_domains)),
             channel_destination_refs=tuple(_channel_destination_refs_for_action(decision)),
         )
-        pump = self.host.pump_daemon_once(mission.record.mission_id)
+        pump = self.host.pump_daemon_once(
+            mission.record.mission_id,
+            product_task_resource_scope=self.product_task_resource_scope,
+        )
         if pump.dispatch_result is None:
             raise ActionKernelError("product_action_kernel_dispatch_missing")
         return pump.dispatch_result
@@ -697,10 +702,7 @@ def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str
 
 
 def _allowed_domains_for_action(decision: ActionEnvelope, allowed_domains: tuple[str, ...]) -> list[str]:
-    domains = list(allowed_domains)
-    if decision.capability_id == "real_browser_control":
-        domains.append(BOUNDED_URL_AUTHORITY_REF)
-    return list(dict.fromkeys(domains))
+    return list(dict.fromkeys(allowed_domains))
 
 
 def _is_telegram_channel_decision(decision: ActionEnvelope) -> bool:

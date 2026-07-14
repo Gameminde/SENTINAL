@@ -552,7 +552,16 @@ def test_cloak_readiness_gate_passes_when_fake_cloak_session_opens(tmp_path: Pat
     assert readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
     assert readiness.session_backend_kind == "cloakbrowser"
     assert readiness.readiness_receipt_hash
-    assert manager.open_calls == 1
+    assert readiness.backend_selected is True
+    assert readiness.backend_identity_matched is True
+    assert readiness.process_operational is True
+    assert readiness.context_operational is True
+    assert readiness.page_operational is True
+    assert readiness.multi_action_reuse_operational is True
+    assert readiness.cleanup_operational is True
+    assert readiness.reopen_operational is True
+    assert manager.open_calls == 2
+    assert manager.observe_calls >= 2
 
 
 def test_cloak_engine_close_removes_profile_material(tmp_path: Path) -> None:
@@ -704,7 +713,9 @@ def test_cloak_local_binary_override_allows_readiness_without_download(tmp_path:
     assert readiness.provider_call_allowed is True
     assert readiness.failure_code is None
     assert readiness.selected_backend_id == readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
-    assert manager.open_calls == 1
+    assert manager.open_calls == 2
+    assert readiness.multi_action_reuse_operational is True
+    assert readiness.reopen_operational is True
     cache_text = cache_path.read_text(encoding="utf-8")
     assert str(local_binary) not in cache_text
     assert "cloakbrowser.example" not in cache_text

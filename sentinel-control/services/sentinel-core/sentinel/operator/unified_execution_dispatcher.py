@@ -327,10 +327,12 @@ class UnifiedExecutionDispatchContext:
         kernel: MissionKernel,
         lifecycle: MissionLifecycleService,
         decision_store: MissionExecutionDecisionStore,
+        product_task_resource_scope: object | None = None,
     ) -> None:
         self.kernel = kernel
         self.lifecycle = lifecycle
         self.decision_store = decision_store
+        self.product_task_resource_scope = product_task_resource_scope
 
     def completed_result(
         self,
@@ -569,6 +571,7 @@ class ProductActionKernelDispatchAdapter:
                     "loop_context": execution_loop_context,
                     "authority": authority,
                     "kernel": context.kernel,
+                    "product_task_resource_scope": context.product_task_resource_scope,
                 },
             )
         except ActionKernelError as exc:
@@ -740,7 +743,13 @@ class UnifiedExecutionDispatcher:
         self.adapter_registry = adapter_registry
         self.decision_store = MissionExecutionDecisionStore(kernel)
 
-    def dispatch(self, *, request: MissionExecutionRequest, authority: MissionAuthorityEnvelope) -> UnifiedDispatchResult:
+    def dispatch(
+        self,
+        *,
+        request: MissionExecutionRequest,
+        authority: MissionAuthorityEnvelope,
+        product_task_resource_scope: object | None = None,
+    ) -> UnifiedDispatchResult:
         decision = self.coordinator.decide(request)
         self.decision_store.persist(decision)
         self.kernel.store.append_event(
@@ -808,7 +817,12 @@ class UnifiedExecutionDispatcher:
                 request,
                 decision,
                 authority,
-                UnifiedExecutionDispatchContext(kernel=self.kernel, lifecycle=self.lifecycle, decision_store=self.decision_store),
+                UnifiedExecutionDispatchContext(
+                    kernel=self.kernel,
+                    lifecycle=self.lifecycle,
+                    decision_store=self.decision_store,
+                    product_task_resource_scope=product_task_resource_scope,
+                ),
             )
         except Exception as exc:  # noqa: BLE001
             result = self._block(request, decision, f"adapter_exception:{exc.__class__.__name__}")

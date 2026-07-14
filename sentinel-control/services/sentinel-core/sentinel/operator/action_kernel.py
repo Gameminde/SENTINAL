@@ -35,6 +35,26 @@ FORBIDDEN_ACTION_PAYLOAD_MARKERS = (
     "fallback:auto",
 )
 
+TRUSTED_RUNTIME_CONTEXT_KEYS = frozenset(
+    {
+        "adapter_id",
+        "authority",
+        "backend_id",
+        "decision_id",
+        "execution_request_id",
+        "kernel",
+        "mission_id",
+        "mission_workspace_manifest",
+        "model_contract_ref",
+        "organ_id",
+        "parameter_hash",
+        "product_task_resource_scope",
+        "root_browser_runtime_lease",
+        "simple_skill_id",
+        "workspace_ref",
+    }
+)
+
 
 class ActionKernelError(RuntimeError):
     pass
@@ -212,8 +232,14 @@ def _effective_context_with_loop_context(context: dict[str, Any]) -> dict[str, A
     loop_context = context.get("loop_context")
     if not isinstance(loop_context, dict):
         return context
+    model_evidence = {
+        str(key): value
+        for key, value in loop_context.items()
+        if str(key) not in TRUSTED_RUNTIME_CONTEXT_KEYS
+    }
     merged = dict(context)
-    merged.update(loop_context)
+    merged.update(model_evidence)
+    merged["model_evidence"] = model_evidence
     return merged
 
 

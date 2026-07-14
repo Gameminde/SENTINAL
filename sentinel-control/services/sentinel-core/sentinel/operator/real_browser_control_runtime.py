@@ -69,6 +69,15 @@ class CloakSessionReadinessResult:
     diagnostic_hash: str = ""
     receipt_backend_match: bool = False
     profile_material_persisted: bool = False
+    backend_selected: bool = False
+    backend_identity_matched: bool = False
+    process_operational: bool = False
+    devtools_operational: bool = False
+    context_operational: bool = False
+    page_operational: bool = False
+    multi_action_reuse_operational: bool = False
+    cleanup_operational: bool = False
+    reopen_operational: bool = False
 
     def safe_model_dump(self) -> dict[str, Any]:
         return {
@@ -83,6 +92,15 @@ class CloakSessionReadinessResult:
             "diagnostic_hash": self.diagnostic_hash,
             "receipt_backend_match": self.receipt_backend_match,
             "profile_material_persisted": self.profile_material_persisted,
+            "backend_selected": self.backend_selected,
+            "backend_identity_matched": self.backend_identity_matched,
+            "process_operational": self.process_operational,
+            "devtools_operational": self.devtools_operational,
+            "context_operational": self.context_operational,
+            "page_operational": self.page_operational,
+            "multi_action_reuse_operational": self.multi_action_reuse_operational,
+            "cleanup_operational": self.cleanup_operational,
+            "reopen_operational": self.reopen_operational,
         }
 
 
@@ -484,16 +502,15 @@ class BrowserSessionManagerRealBrowserEngine:
         if self._authority is None:
             raise RealBrowserControlRuntimeError("real_browser_session_authority_missing")
         host = self._target_host()
-        allowed_domains = sorted({*self._authority.allowed_domains, host})
-        allowed_actions = sorted(
-            {
-                *self._authority.allowed_actions,
-                "browser_session_open",
-                "browser_session_observe",
-                "browser_session_interact",
+        allowed_domains = set(self._authority.allowed_domains)
+        if host not in allowed_domains and BOUNDED_URL_AUTHORITY_REF not in allowed_domains:
+            raise RealBrowserControlRuntimeError("real_browser_target_host_not_authorized")
+        return self._authority.model_copy(
+            update={
+                "allowed_domains": list(dict.fromkeys(self._authority.allowed_domains)),
+                "allowed_actions": list(dict.fromkeys(self._authority.allowed_actions)),
             }
         )
-        return self._authority.model_copy(update={"allowed_domains": allowed_domains, "allowed_actions": allowed_actions})
 
     def _target_host(self) -> str:
         host = (urlparse(self.target_url).hostname or "").lower()
@@ -1537,7 +1554,11 @@ class RealBrowserControlRuntime:
             decision_frame=frame,
         )
         world_dump = world_model.model_dump(mode="json")
-        frame_dump = frame.model_dump(mode="json")
+        frame_dump = _browser_decision_frame_with_visible_card_extraction_priority(
+            frame.model_dump(mode="json"),
+            world_model=world_model,
+            progress_state=progress_state,
+        )
         registry_dump = registry.safe_model_dump()
         actionability_dump = actionability_frame.safe_model_dump()
         devtools_context = _engine_safe_devtools_context(self.engine)
@@ -2286,9 +2307,28 @@ def _probe_cloak_readiness(
     capture_path: Path | None,
 ) -> CloakSessionReadinessResult:
     authority = _cloak_readiness_authority(target_url)
+    close_attempted = False
     try:
         engine.bind_authority(authority)
-        snapshot = engine.open()
+        first_snapshot = engine.open()
+        first_observe = engine.observe()
+        second_observe = engine.observe()
+        devtools_operational = True
+        devtools = getattr(engine.session_manager, "devtools_metadata_for_session", None)
+        if callable(devtools):
+            try:
+                devtools_operational = devtools(
+                    mission_id=authority.id,
+                    session_id=str(getattr(engine, "_session_id", "") or ""),
+                    capability="readiness_probe",
+                ) is not None
+            except Exception:
+                devtools_operational = False
+        close = getattr(engine, "close", None)
+        if callable(close):
+            close()
+            close_attempted = True
+        reopened_snapshot = engine.open()
         result = _cloak_readiness_result(
             ready=True,
             selected_backend_id=selected_backend_id,
@@ -2300,13 +2340,30 @@ def _probe_cloak_readiness(
                     "selected_backend_id": selected_backend_id,
                     "actual_backend_id": actual_backend_id,
                     "session_backend_kind": session_backend_kind,
-                    "browser_state_hash": snapshot.state_hash,
+                    "first_browser_state_hash": first_snapshot.state_hash,
+                    "first_observe_state_hash": first_observe.state_hash,
+                    "second_observe_state_hash": second_observe.state_hash,
+                    "reopened_state_hash": reopened_snapshot.state_hash,
                     "safe_url_origin_hash": safe_origin_hash,
                 }
             ),
             failure_code=None,
-            diagnostic_payload={"readiness": "ready"},
+            diagnostic_payload={
+                "readiness": "ready",
+                "first_state_hash": first_snapshot.state_hash,
+                "second_state_hash": second_observe.state_hash,
+                "reopened_state_hash": reopened_snapshot.state_hash,
+            },
             capture_root=capture_path,
+            backend_selected=selected_backend_id == CLOAK_BROWSER_BACKEND_ID,
+            backend_identity_matched=selected_backend_id == actual_backend_id == CLOAK_BROWSER_BACKEND_ID,
+            process_operational=True,
+            devtools_operational=devtools_operational,
+            context_operational=True,
+            page_operational=True,
+            multi_action_reuse_operational=bool(first_observe.state_hash and second_observe.state_hash),
+            cleanup_operational=close_attempted or callable(getattr(engine.session_manager, "close_all", None)),
+            reopen_operational=bool(reopened_snapshot.state_hash),
         )
     except Exception as exc:  # noqa: BLE001
         result = _cloak_readiness_result(
@@ -2354,7 +2411,7 @@ def _cloak_readiness_authority(target_url: str) -> MissionAuthorityEnvelope:
         allowed_actions=["real_browser.open", "browser_session_open", "browser_session_observe"],
         forbidden_actions=["login", "contact_supplier", "checkout", "payment", "credential_access"],
         allowed_domains=allowed_domains,
-        max_actions=1,
+        max_actions=4,
     )
 
 
@@ -2369,6 +2426,15 @@ def _cloak_readiness_result(
     diagnostic_payload: dict[str, Any],
     capture_root: Path | None,
     readiness_receipt_hash: str = "",
+    backend_selected: bool = False,
+    backend_identity_matched: bool = False,
+    process_operational: bool = False,
+    devtools_operational: bool = False,
+    context_operational: bool = False,
+    page_operational: bool = False,
+    multi_action_reuse_operational: bool = False,
+    cleanup_operational: bool = False,
+    reopen_operational: bool = False,
 ) -> CloakSessionReadinessResult:
     profile_material_persisted = _profile_file_count(capture_root) > 0
     return CloakSessionReadinessResult(
@@ -2383,6 +2449,15 @@ def _cloak_readiness_result(
         diagnostic_hash=stable_hash(diagnostic_payload),
         receipt_backend_match=bool(ready and selected_backend_id == actual_backend_id == CLOAK_BROWSER_BACKEND_ID),
         profile_material_persisted=profile_material_persisted,
+        backend_selected=backend_selected,
+        backend_identity_matched=backend_identity_matched,
+        process_operational=process_operational,
+        devtools_operational=devtools_operational,
+        context_operational=context_operational,
+        page_operational=page_operational,
+        multi_action_reuse_operational=multi_action_reuse_operational,
+        cleanup_operational=cleanup_operational,
+        reopen_operational=reopen_operational,
     )
 
 
@@ -2711,6 +2786,29 @@ def _existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any] |
             "context_world_model_extraction_source": "existing_safe_browser_world_model",
         }
     return cards
+
+
+def _browser_decision_frame_with_visible_card_extraction_priority(
+    frame_dump: dict[str, Any],
+    *,
+    world_model: BrowserWorldModel,
+    progress_state: str,
+) -> dict[str, Any]:
+    cards = tuple(world_model.product_or_result_candidate_cards or ())
+    if not cards or progress_state == "real_browser_product_extraction_verified":
+        return frame_dump
+    recommended = [
+        str(action)
+        for action in frame_dump.get("recommended_next_actions", [])
+        if str(action)
+    ]
+    extract_action = "real_browser_control.real_browser.extract_product_cards"
+    if extract_action not in recommended:
+        recommended.insert(0, extract_action)
+    else:
+        recommended = [extract_action, *[action for action in recommended if action != extract_action]]
+    frame_dump["recommended_next_actions"] = recommended
+    return frame_dump
 
 
 def _recoverable_existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any]:

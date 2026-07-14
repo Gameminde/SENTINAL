@@ -11,6 +11,7 @@ from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.agent.organs.channel_draft_send_organ_v1 import ChannelSendTransportReceipt
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
+from sentinel.operator.action_power_contract import ActionFailureClass
 from sentinel.operator.authority_issuer import MissionAuthorityEnvelopeIssuer
 from sentinel.operator.channel_adapter import (
     ChannelConnectorRuntime,
@@ -60,7 +61,57 @@ from sentinel.operator.worker_orchestration_runtime import (
     worker_orchestration_preflight,
 )
 from sentinel.operator.workflow_runtime import DurableMissionWorkflowRuntime
-from sentinel.shared.models import SentinelModel
+from sentinel.shared.models import SentinelModel, new_id
+
+
+LOCAL_FIXTURE_BROWSER_BACKEND_ID = "local_fixture_browser_engine"
+LOCAL_FIXTURE_BROWSER_SESSION_KIND = "local_fixture"
+
+_TRUSTED_RUNTIME_CONTEXT_KEYS = frozenset(
+    {
+        "adapter_id",
+        "authority",
+        "backend_id",
+        "execution_request_id",
+        "kernel",
+        "mission_id",
+        "mission_workspace_manifest",
+        "organ_id",
+        "parameter_hash",
+        "product_task_resource_scope",
+        "root_browser_runtime_lease",
+        "simple_skill_id",
+        "workspace_ref",
+    }
+)
+
+_MODEL_EVIDENCE_CONTEXT_ALLOWLIST = frozenset(
+    {
+        "actionability_frame",
+        "bounded_observation_summaries",
+        "browser_actionability_registry",
+        "browser_backend_execution",
+        "browser_cognitive_decision_frame",
+        "browser_decision_frame",
+        "browser_devtools_context",
+        "browser_environment_state",
+        "browser_environment_state_hash",
+        "browser_observation_bundle",
+        "browser_search_materiality",
+        "browser_world_model",
+        "browser_world_model_summary",
+        "completion_requirements",
+        "dispatch_summaries",
+        "finish_available",
+        "grounded_evidence_summary",
+        "last_browser_action_summary",
+        "mission_objective",
+        "objective_satisfied",
+        "progress_state",
+        "real_browser_control_summary",
+        "recoverable_action_observations",
+    }
+)
 
 
 class RuntimeHostStatus(StrEnum):
@@ -84,6 +135,175 @@ class RuntimeHostDaemonPumpResult(SentinelModel):
     claimed: bool
     tick_result: object | None = Field(default=None, exclude=True)
     dispatch_result: object | None = Field(default=None, exclude=True)
+
+
+class ProductTaskBrowserRuntimeLease:
+    """Root-task owner for one executable browser body.
+
+    The lease owns the engine/session resources. Child missions receive only
+    data-only refs and wrap the same engine in their per-mission runtime so
+    receipts stay attached to the child MissionRecord while the browser body
+    stays continuous.
+    """
+
+    backend_concurrency_capability = "one_active_cloak_context_global_measured"
+
+    def __init__(
+        self,
+        *,
+        root_scope_id: str,
+        root_session_id: str,
+        workspace_root: Path,
+    ) -> None:
+        self.root_scope_id = root_scope_id
+        self.root_session_id = root_session_id
+        self.workspace_root = workspace_root
+        self.lease_id = f"browser_runtime_lease_{stable_hash({'root_scope_id': root_scope_id})[:16]}"
+        self.safe_ref = f"root_browser_lease:{stable_hash({'lease_id': self.lease_id})[:16]}"
+        self.lease_hash = stable_hash(
+            {
+                "lease_id": self.lease_id,
+                "root_scope_id": self.root_scope_id,
+                "root_session_id_hash": text_hash(self.root_session_id),
+                "workspace_root_hash": stable_hash(str(self.workspace_root)),
+            }
+        )
+        self.lifecycle_state = "created"
+        self.engine: object | None = None
+        self.open_count = 0
+        self.close_count = 0
+        self.recovery_attempt_count = 0
+        self.last_failure_fingerprint: str | None = None
+
+    def engine_for(self, envelope: ActionEnvelope) -> object:
+        if self.engine is None:
+            self.engine = _product_browser_engine(envelope)
+            self.open_count += 1
+            self.lifecycle_state = "active"
+        return self.engine
+
+    def recover_engine_once(self, envelope: ActionEnvelope) -> bool:
+        if self.recovery_attempt_count >= 1:
+            return False
+        self.recovery_attempt_count += 1
+        self.close_engine(mark_state="recovering")
+        self.engine = _product_browser_engine(envelope)
+        self.open_count += 1
+        self.lifecycle_state = "active_after_recovery"
+        return True
+
+    def close_engine(self, *, mark_state: str = "closed") -> None:
+        engine = self.engine
+        self.engine = None
+        if engine is None:
+            self.lifecycle_state = mark_state
+            return
+        close = getattr(engine, "close", None)
+        close_all = getattr(engine, "close_all", None)
+        try:
+            if callable(close):
+                close()
+            elif callable(close_all):
+                close_all()
+        finally:
+            self.close_count += 1
+            self.lifecycle_state = mark_state
+
+    def close(self) -> None:
+        self.close_engine(mark_state="closed")
+
+    def safe_model_dump(self) -> dict[str, object]:
+        backend_id = _safe_engine_backend_id(self.engine)
+        return {
+            "lease_id": self.lease_id,
+            "safe_ref": self.safe_ref,
+            "lease_hash": self.lease_hash,
+            "root_scope_id_hash": stable_hash(self.root_scope_id),
+            "root_session_id_hash": text_hash(self.root_session_id),
+            "lifecycle_state": self.lifecycle_state,
+            "selected_backend_id": backend_id,
+            "actual_backend_id": backend_id,
+            "backend_concurrency_capability": self.backend_concurrency_capability,
+            "open_count": self.open_count,
+            "close_count": self.close_count,
+            "recovery_attempt_count": self.recovery_attempt_count,
+            "data_not_authority": True,
+            "can_grant_authority": False,
+            "can_execute": False,
+        }
+
+    def failure_fingerprint(
+        self,
+        *,
+        envelope: ActionEnvelope,
+        failure_code: str,
+        context_cards: dict[str, Any],
+    ) -> str:
+        return stable_hash(
+            {
+                "capability": envelope.capability_id,
+                "operation": envelope.operation,
+                "body_lifecycle_state": self.lifecycle_state,
+                "browser_environment_state_hash": str(context_cards.get("browser_environment_state_hash") or ""),
+                "session_lease_hash": self.lease_hash,
+                "failure_code": failure_code,
+                "backend_identity": _safe_engine_backend_id(self.engine),
+                "origin_hash": _safe_engine_origin_hash(self.engine),
+            }
+        )
+
+
+class ProductTaskResourceScope:
+    def __init__(
+        self,
+        *,
+        scope_id: str,
+        root_session_id: str,
+        workspace_root: Path,
+    ) -> None:
+        self.scope_id = scope_id
+        self.root_session_id = root_session_id
+        self.workspace_root = workspace_root
+        self.browser_lease: ProductTaskBrowserRuntimeLease | None = None
+        self.closed = False
+
+    def browser_engine_for(self, envelope: ActionEnvelope) -> object:
+        if self.closed:
+            raise RuntimeError("product_task_resource_scope_closed")
+        if self.browser_lease is None:
+            self.browser_lease = ProductTaskBrowserRuntimeLease(
+                root_scope_id=self.scope_id,
+                root_session_id=self.root_session_id,
+                workspace_root=self.workspace_root,
+            )
+        return self.browser_lease.engine_for(envelope)
+
+    def recover_browser_engine_once(self, envelope: ActionEnvelope) -> bool:
+        if self.browser_lease is None or self.closed:
+            return False
+        return self.browser_lease.recover_engine_once(envelope)
+
+    def browser_lease_card(self) -> dict[str, object]:
+        if self.browser_lease is None:
+            return {
+                "root_scope_id_hash": stable_hash(self.scope_id),
+                "root_session_id_hash": text_hash(self.root_session_id),
+                "lifecycle_state": "not_acquired",
+                "backend_concurrency_capability": ProductTaskBrowserRuntimeLease.backend_concurrency_capability,
+                "data_not_authority": True,
+                "can_grant_authority": False,
+                "can_execute": False,
+            }
+        return self.browser_lease.safe_model_dump()
+
+    def close(self) -> None:
+        if self.closed:
+            return
+        try:
+            if self.browser_lease is not None:
+                self.browser_lease.close()
+        finally:
+            self.closed = True
 
 
 class SentinelRuntimeHost:
@@ -232,6 +452,7 @@ class SentinelRuntimeHost:
             coordinator=self.coordinator,
             adapter_registry=self.adapter_registry,
         )
+        self._product_task_resource_scopes: dict[str, ProductTaskResourceScope] = {}
         self._status = RuntimeHostStatus.CREATED
 
     def start(self) -> RuntimeHostStatusView:
@@ -244,6 +465,7 @@ class SentinelRuntimeHost:
     def shutdown(self) -> RuntimeHostStatusView:
         if self._status is RuntimeHostStatus.STOPPED:
             return self.status()
+        self.close_all_product_task_resource_scopes()
         self.daemon.stop()
         self._status = RuntimeHostStatus.STOPPED
         return self.status()
@@ -367,23 +589,56 @@ class SentinelRuntimeHost:
             raise RuntimeError("runtime_host_not_started")
         from sentinel.operator.model_led_product_action_kernel_task_loop import ModelLedProductActionKernelTaskLoop
 
-        loop = ModelLedProductActionKernelTaskLoop(
-            host=self,
+        resource_scope = self.create_product_task_resource_scope(
+            root_session_id=session_id,
             workspace_root=workspace_root,
-            session_id=session_id,
-            mission_objective=mission_objective,
-            decision_client=decision_client,
-            allowed_domains=allowed_domains,
-            max_model_calls=max_model_calls,
-            max_material_actions=max_material_actions,
-            max_recoverable_model_decision_failures=max_recoverable_model_decision_failures,
-            max_recoverable_action_failures=max_recoverable_action_failures,
-            model_contract_ref=model_contract_ref,
-            explicit_noop_proof_ref=explicit_noop_proof_ref,
         )
-        return loop.run()
+        try:
+            loop = ModelLedProductActionKernelTaskLoop(
+                host=self,
+                workspace_root=workspace_root,
+                session_id=session_id,
+                mission_objective=mission_objective,
+                decision_client=decision_client,
+                allowed_domains=allowed_domains,
+                max_model_calls=max_model_calls,
+                max_material_actions=max_material_actions,
+                max_recoverable_model_decision_failures=max_recoverable_model_decision_failures,
+                max_recoverable_action_failures=max_recoverable_action_failures,
+                model_contract_ref=model_contract_ref,
+                explicit_noop_proof_ref=explicit_noop_proof_ref,
+                product_task_resource_scope=resource_scope,
+            )
+            return loop.run()
+        finally:
+            resource_scope.close()
+            self._product_task_resource_scopes.pop(resource_scope.scope_id, None)
 
-    def pump_daemon_once(self, mission_id: str) -> RuntimeHostDaemonPumpResult:
+    def create_product_task_resource_scope(
+        self,
+        *,
+        root_session_id: str,
+        workspace_root: Path | str,
+    ) -> ProductTaskResourceScope:
+        scope = ProductTaskResourceScope(
+            scope_id=f"product_task_resource_scope_{new_id('scope')}",
+            root_session_id=root_session_id,
+            workspace_root=Path(workspace_root).resolve(),
+        )
+        self._product_task_resource_scopes[scope.scope_id] = scope
+        return scope
+
+    def close_all_product_task_resource_scopes(self) -> None:
+        for scope in tuple(self._product_task_resource_scopes.values()):
+            scope.close()
+        self._product_task_resource_scopes.clear()
+
+    def pump_daemon_once(
+        self,
+        mission_id: str,
+        *,
+        product_task_resource_scope: object | None = None,
+    ) -> RuntimeHostDaemonPumpResult:
         if self._status is not RuntimeHostStatus.STARTED:
             raise RuntimeError("runtime_host_not_started")
         request = self.lifecycle.latest_execution_request(mission_id)
@@ -410,7 +665,11 @@ class SentinelRuntimeHost:
             safe_reason="Daemon lease claimed; unified dispatcher handoff starting.",
         )
         claimed_request = self.lifecycle.mark_request_claimed(mission_id, request.request_id)
-        dispatch_result = self.dispatcher.dispatch(request=request, authority=envelope)
+        dispatch_result = self.dispatcher.dispatch(
+            request=request,
+            authority=envelope,
+            product_task_resource_scope=product_task_resource_scope,
+        )
         return RuntimeHostDaemonPumpResult(
             mission_id=mission_id,
             execution_request_ref=claimed_request.request_id,
@@ -506,6 +765,24 @@ def _default_bounded_channel_executor(envelope: ActionEnvelope, context: dict[st
     )
 
 
+def _trusted_runtime_context_with_model_evidence(context: dict[str, Any], envelope: ActionEnvelope) -> dict[str, Any]:
+    loop_context = context.get("loop_context")
+    if not isinstance(loop_context, dict):
+        candidate = envelope.params.get("loop_context")
+        loop_context = candidate if isinstance(candidate, dict) else None
+    runtime_context = dict(context)
+    if not isinstance(loop_context, dict):
+        return runtime_context
+    model_evidence = {
+        key: value
+        for key, value in loop_context.items()
+        if key in _MODEL_EVIDENCE_CONTEXT_ALLOWLIST and key not in _TRUSTED_RUNTIME_CONTEXT_KEYS
+    }
+    runtime_context.update(model_evidence)
+    runtime_context["model_evidence"] = model_evidence
+    return runtime_context
+
+
 def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
     authority = context.get("authority")
     kernel = context.get("kernel")
@@ -519,22 +796,133 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
         allowed_domains=tuple(authority.allowed_domains or ()),
     )
     browser_handle = _mission_workspace_browser_session_handle(manifest.safe_model_dump())
-    runtime_context = dict(context)
-    loop_context = context.get("loop_context")
-    if not isinstance(loop_context, dict):
-        loop_context = envelope.params.get("loop_context")
-    if isinstance(loop_context, dict):
-        runtime_context.update(loop_context)
+    runtime_context = _trusted_runtime_context_with_model_evidence(context, envelope)
     runtime_context["mission_workspace_manifest"] = manifest.safe_model_dump()
-    runtime = RealBrowserControlRuntime(
+    scope = context.get("product_task_resource_scope")
+    if isinstance(scope, ProductTaskResourceScope):
+        engine = scope.browser_engine_for(envelope)
+        runtime_context["root_browser_runtime_lease"] = scope.browser_lease_card()
+        result = _execute_real_browser_action(
+            kernel=kernel,
+            mission_id=mission_id,
+            engine=engine,
+            session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
+            envelope=envelope,
+            authority=authority,
+            runtime_context=runtime_context,
+        )
+        if not _is_browser_body_failure(result):
+            return result
+        first_fingerprint = _body_failure_fingerprint(scope, envelope=envelope, result=result)
+        if not scope.recover_browser_engine_once(envelope):
+            return _body_session_unavailable_result(envelope, scope=scope, prior_result=result, fingerprint=first_fingerprint)
+        recovered_context = dict(runtime_context)
+        recovered_context["root_browser_runtime_lease"] = scope.browser_lease_card()
+        recovered = _execute_real_browser_action(
+            kernel=kernel,
+            mission_id=mission_id,
+            engine=scope.browser_engine_for(envelope),
+            session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
+            envelope=envelope,
+            authority=authority,
+            runtime_context=recovered_context,
+        )
+        second_fingerprint = _body_failure_fingerprint(scope, envelope=envelope, result=recovered)
+        if _is_browser_body_failure(recovered):
+            return _body_session_unavailable_result(
+                envelope,
+                scope=scope,
+                prior_result=recovered,
+                fingerprint=second_fingerprint,
+            )
+        return recovered
+    return _execute_real_browser_action(
         kernel=kernel,
         mission_id=mission_id,
         engine=_product_browser_engine(envelope),
         session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
-        selected_backend_id=CLOAK_BROWSER_BACKEND_ID,
+        envelope=envelope,
+        authority=authority,
+        runtime_context=runtime_context,
+    )
+
+
+def _execute_real_browser_action(
+    *,
+    kernel: MissionKernel,
+    mission_id: str,
+    engine: object,
+    session_ref: str,
+    envelope: ActionEnvelope,
+    authority: MissionAuthorityEnvelope,
+    runtime_context: dict[str, Any],
+) -> ActionResult:
+    runtime = RealBrowserControlRuntime(
+        kernel=kernel,
+        mission_id=mission_id,
+        engine=engine,
+        session_ref=session_ref,
+        selected_backend_id=_safe_engine_backend_id(engine),
         product_context=runtime_context,
     )
     return runtime.execute(envelope, authority=_real_browser_authority(authority), context=runtime_context)
+
+
+def _is_browser_body_failure(result: ActionResult) -> bool:
+    return result.failure_code in {
+        "real_browser_search_session_open_failed",
+        "real_browser_session_open_failed",
+        "real_browser_body_session_open_failed",
+    }
+
+
+def _body_failure_fingerprint(
+    scope: ProductTaskResourceScope,
+    *,
+    envelope: ActionEnvelope,
+    result: ActionResult,
+) -> str:
+    if scope.browser_lease is None:
+        return stable_hash({"failure_code": result.failure_code or "", "lease": "not_acquired"})
+    return scope.browser_lease.failure_fingerprint(
+        envelope=envelope,
+        failure_code=result.failure_code or result.blocked_reason or "browser_body_failure",
+        context_cards=result.context_cards,
+    )
+
+
+def _body_session_unavailable_result(
+    envelope: ActionEnvelope,
+    *,
+    scope: ProductTaskResourceScope,
+    prior_result: ActionResult,
+    fingerprint: str,
+) -> ActionResult:
+    context_cards = dict(prior_result.context_cards)
+    context_cards["body_circuit_breaker"] = {
+        "failure_code": "BODY_SESSION_UNAVAILABLE",
+        "prior_failure_code": prior_result.failure_code or prior_result.blocked_reason,
+        "failure_fingerprint": fingerprint,
+        "root_browser_runtime_lease": scope.browser_lease_card(),
+        "provider_recall_allowed": False,
+        "model_recall_allowed": False,
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+    return ActionResult(
+        action_id=envelope.action_id,
+        capability_id=envelope.capability_id,
+        operation=envelope.operation,
+        status="blocked",
+        material_action=False,
+        observation_summary="Browser body remained unavailable after one bounded mechanical recovery.",
+        blocked_reason="BODY_SESSION_UNAVAILABLE",
+        failure_class=ActionFailureClass.SOURCE_BUG_OR_RUNTIME_INVARIANT,
+        failure_code="BODY_SESSION_UNAVAILABLE",
+        recoverable=False,
+        context_cards=context_cards,
+        recommended_next_actions=(),
+    )
 
 
 def _default_worker_fleet_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
@@ -555,23 +943,31 @@ def _default_sentinel_loop_executor(envelope: ActionEnvelope, context: dict[str,
     authority = context.get("authority")
     if not isinstance(authority, MissionAuthorityEnvelope):
         raise RuntimeError("sentinel_loop_runtime_context_missing")
-    loop_context = context.get("loop_context")
-    if not isinstance(loop_context, dict):
-        loop_context = envelope.params.get("loop_context")
-    effective_context = dict(context)
-    if isinstance(loop_context, dict):
-        effective_context.update(loop_context)
+    effective_context = _trusted_runtime_context_with_model_evidence(context, envelope)
     return ActionKernel().execute(envelope, authority=authority, context=effective_context)
 
 
 def _real_browser_preflight(
     params: dict[str, Any],
-    _request: MissionExecutionRequest,
+    request: MissionExecutionRequest,
     _authority: MissionAuthorityEnvelope,
 ) -> str | None:
-    if str(params.get("engine_profile") or "").strip().lower() == "playwright_compat":
+    browser_cortex_case_id = str(params.get("browser_cortex_case_id") or "").strip()
+    engine_profile = str(params.get("engine_profile") or "").strip().lower()
+    if engine_profile == "playwright_compat":
         if params.get("explicit_compatibility_selection") is not True:
             return "real_browser_playwright_compatibility_requires_explicit_selection"
+    if browser_cortex_case_id or engine_profile in {"fake_product_search", "local_fake", "inmemory", "playwright_compat"}:
+        return None
+    needs_live_browser_config = request.operation in {
+        "real_browser.open",
+        "real_browser.observe",
+        "real_browser.search",
+        "real_browser.inspect_result",
+        "real_browser.open_result",
+    }
+    if needs_live_browser_config and not os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip():
+        return "real_browser_live_backend_config_missing"
     return None
 
 
@@ -610,7 +1006,23 @@ def _product_browser_engine(envelope: ActionEnvelope) -> object:
         return _ProductLocalCloakBrowserEngine()
     if os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip():
         return build_cloak_first_real_browser_engine_from_env()
-    return _ProductLocalCloakBrowserEngine()
+    raise RuntimeError("real_browser_live_backend_config_missing")
+
+
+def _safe_engine_backend_id(engine: object | None) -> str:
+    if engine is None:
+        return ""
+    return str(
+        getattr(engine, "browser_backend_id", None)
+        or getattr(engine, "backend_id", None)
+        or engine.__class__.__name__
+    )
+
+
+def _safe_engine_origin_hash(engine: object | None) -> str:
+    if engine is None:
+        return ""
+    return str(getattr(engine, "safe_url_origin_hash", "") or "")
 
 
 def _worker_fleet_preflight(
@@ -669,28 +1081,11 @@ def _channel_send_authority(authority: MissionAuthorityEnvelope) -> MissionAutho
 
 
 def _real_browser_authority(authority: MissionAuthorityEnvelope) -> MissionAuthorityEnvelope:
-    browser_actions = [
-        "real_browser.open",
-        "real_browser.observe",
-        "real_browser.search",
-        "real_browser.inspect_result",
-        "real_browser.open_result",
-        "real_browser.extract_product_cards",
-        "real_browser.verify_extraction",
-        "real_browser_control.real_browser.search",
-        "real_browser_control.real_browser.inspect_result",
-        "real_browser_control.real_browser.open_result",
-        "real_browser_control.real_browser.extract_product_cards",
-        "real_browser_control.real_browser.verify_extraction",
-    ]
-    allowed_actions = list(dict.fromkeys([*authority.allowed_actions, *browser_actions]))
-    allowed_tools = list(dict.fromkeys([*authority.allowed_tools, "real_browser_control"]))
-    allowed_domains = list(dict.fromkeys([*authority.allowed_domains, BOUNDED_URL_AUTHORITY_REF]))
     return authority.model_copy(
         update={
-            "allowed_actions": allowed_actions,
-            "allowed_tools": allowed_tools,
-            "allowed_domains": allowed_domains,
+            "allowed_actions": list(dict.fromkeys(authority.allowed_actions)),
+            "allowed_tools": list(dict.fromkeys(authority.allowed_tools)),
+            "allowed_domains": list(dict.fromkeys(authority.allowed_domains)),
         }
     )
 
@@ -733,9 +1128,9 @@ def _telegram_config_present() -> bool:
 
 
 class _ProductLocalCloakBrowserEngine:
-    browser_backend_id = CLOAK_BROWSER_BACKEND_ID
-    session_backend_kind = "cloakbrowser"
-    session_manager_backend_kind = "cloakbrowser"
+    browser_backend_id = LOCAL_FIXTURE_BROWSER_BACKEND_ID
+    session_backend_kind = LOCAL_FIXTURE_BROWSER_SESSION_KIND
+    session_manager_backend_kind = LOCAL_FIXTURE_BROWSER_SESSION_KIND
 
     def __init__(self) -> None:
         self.opened = True
@@ -751,6 +1146,7 @@ class _ProductLocalCloakBrowserEngine:
         self.press_count = 0
         self.wait_count = 0
         self.scroll_count = 0
+        self.close_count = 0
 
     @property
     def safe_url_origin_hash(self) -> str:
@@ -818,6 +1214,10 @@ class _ProductLocalCloakBrowserEngine:
         del delta_y
         self.scroll_count += 1
         return self._snapshot()
+
+    def close(self) -> None:
+        self.close_count += 1
+        self.opened = False
 
     def _snapshot(self) -> RealBrowserEngineSnapshot:
         text = self._page_text()
