@@ -721,6 +721,48 @@ def test_cloak_local_binary_override_allows_readiness_without_download(tmp_path:
     assert "cloakbrowser.example" not in cache_text
 
 
+def test_cloak_readiness_can_require_local_binary_override_before_launch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _installed_packaged_binary_info() -> dict[str, Any]:
+        return {
+            "installed": True,
+            "version": "146.0.test",
+            "bundled_version": "146.0.test",
+            "platform": "windows-x64",
+            "tier": "free",
+            "cache_dir": "C:/Users/example/.cloakbrowser/chromium",
+            "download_url": "https://cloakbrowser.example/download.zip",
+            "path": "C:/Users/example/.cloakbrowser/chromium/chrome.exe",
+        }
+
+    def _manager_must_not_launch(**_kwargs: Any) -> Any:
+        raise AssertionError("readiness must block before launching a packaged Cloak browser")
+
+    monkeypatch.delenv("CLOAKBROWSER_BINARY_PATH", raising=False)
+    monkeypatch.setattr(real_browser_runtime_module, "_cloak_binary_info", _installed_packaged_binary_info)
+    monkeypatch.setattr(real_browser_runtime_module, "_build_browser_session_manager", _manager_must_not_launch)
+
+    cache_path = tmp_path / "readiness.json"
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        capture_root=tmp_path / "capture",
+        cache_path=cache_path,
+        prepare_binary=False,
+        require_local_binary_override=True,
+    )
+
+    assert readiness.ready is False
+    assert readiness.provider_call_allowed is False
+    assert readiness.failure_code == "CLOAK_LOCAL_BINARY_OVERRIDE_REQUIRED"
+    assert readiness.actual_backend_id == ""
+    assert readiness.profile_material_persisted is False
+    cache_text = cache_path.read_text(encoding="utf-8")
+    assert "cloakbrowser.example" not in cache_text
+    assert "chrome.exe" not in cache_text
+
+
 def test_cloak_readiness_safe_receipts_do_not_count_as_profile_material(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     local_binary = tmp_path / "chrome.exe"
     local_binary.write_bytes(b"fake local browser executable")

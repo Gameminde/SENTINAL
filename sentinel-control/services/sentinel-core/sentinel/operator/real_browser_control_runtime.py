@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -1929,10 +1930,12 @@ def check_cloak_session_readiness_from_env(
     wall_timeout_ms: int | None = None,
     prepare_binary: bool | None = None,
     binary_bootstrap_timeout_ms: int = 120_000,
+    require_local_binary_override: bool | None = None,
 ) -> CloakSessionReadinessResult:
     target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
     headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
     prepare_value = os.environ.get("SENTINEL_CLOAK_PREPARE_BINARY", "").strip().lower()
+    require_override_value = os.environ.get("SENTINEL_REQUIRE_CLOAKBROWSER_BINARY_PATH", "").strip().lower()
     return check_cloak_session_readiness(
         target_url=target_url,
         capture_root=capture_root,
@@ -1942,6 +1945,11 @@ def check_cloak_session_readiness_from_env(
         wall_timeout_ms=wall_timeout_ms,
         prepare_binary=prepare_binary if prepare_binary is not None else prepare_value in {"1", "true", "yes", "on"},
         binary_bootstrap_timeout_ms=binary_bootstrap_timeout_ms,
+        require_local_binary_override=(
+            require_local_binary_override
+            if require_local_binary_override is not None
+            else require_override_value in {"1", "true", "yes", "on"}
+        ),
     )
 
 
@@ -1956,6 +1964,7 @@ def check_cloak_session_readiness(
     wall_timeout_ms: int | None = None,
     prepare_binary: bool = False,
     binary_bootstrap_timeout_ms: int = 120_000,
+    require_local_binary_override: bool = False,
 ) -> CloakSessionReadinessResult:
     target_url = target_url.strip()
     selection = select_browser_backend()
@@ -1992,6 +2001,7 @@ def check_cloak_session_readiness(
         binary_ready, binary_failure_code, binary_diagnostic = _cloak_binary_readiness(
             prepare_binary=prepare_binary,
             binary_bootstrap_timeout_ms=binary_bootstrap_timeout_ms,
+            require_local_binary_override=require_local_binary_override,
         )
         if not binary_ready:
             result = _cloak_readiness_result(
@@ -2046,6 +2056,7 @@ def _cloak_binary_readiness(
     *,
     prepare_binary: bool,
     binary_bootstrap_timeout_ms: int,
+    require_local_binary_override: bool = False,
 ) -> tuple[bool, str | None, dict[str, Any]]:
     try:
         info = _safe_cloak_binary_info(_cloak_binary_info())
@@ -2058,6 +2069,8 @@ def _cloak_binary_readiness(
             {"exception_class": exc.__class__.__name__, "reason_hash": text_hash(str(exc))},
         )
     override = _cloak_local_binary_override_info()
+    if require_local_binary_override and not override["configured"]:
+        return False, "CLOAK_LOCAL_BINARY_OVERRIDE_REQUIRED", {"binary": "local_override_required", **override, **info}
     if override["configured"] and not override["exists"]:
         return False, "CLOAK_LOCAL_BINARY_OVERRIDE_MISSING", {"binary": "local_override_missing", **override, **info}
     if override["configured"] and override["exists"]:
@@ -2266,6 +2279,7 @@ def _probe_cloak_readiness_with_wall_timeout(
                 close_all()
             except Exception:
                 pass
+        thread.join(timeout=0.5)
         _remove_profile_material(capture_path)
         return _cloak_readiness_result(
             ready=False,
@@ -2495,18 +2509,23 @@ def _profile_file_count(capture_root: Path | None) -> int:
 def _remove_profile_material(capture_root: Path | None) -> None:
     if capture_root is None or not capture_root.exists():
         return
-    for path in sorted(capture_root.rglob("*"), key=lambda candidate: len(candidate.parts), reverse=True):
-        if not _is_profile_material_path(capture_root, path):
-            continue
-        if path.is_dir():
-            shutil.rmtree(path, ignore_errors=True)
-        else:
-            try:
-                path.unlink()
-            except FileNotFoundError:
-                pass
-            except OSError:
-                pass
+    for attempt in range(6):
+        for path in sorted(capture_root.rglob("*"), key=lambda candidate: len(candidate.parts), reverse=True):
+            if not _is_profile_material_path(capture_root, path):
+                continue
+            if path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    pass
+        if _profile_file_count(capture_root) == 0:
+            return
+        if attempt < 5:
+            time.sleep(0.1)
 
 
 _PROFILE_MATERIAL_NAMES = {
