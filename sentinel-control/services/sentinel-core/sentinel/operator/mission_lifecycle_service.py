@@ -16,6 +16,7 @@ from sentinel.operator.authority_issuer import (
     MissionAuthorityEnvelopeRecord,
     MissionAuthorityPolicy,
 )
+from sentinel.operator.browser_search_parameter_boundary import reject_execution_parameters_for_route
 from sentinel.operator.daemon_runtime import MissionDaemonRuntime
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import (
@@ -24,7 +25,7 @@ from sentinel.operator.models import (
     MissionRecord,
 )
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
-from sentinel.operator.safety import assert_data_not_authority, reject_operator_control_payload
+from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel, new_id
 
 
@@ -194,7 +195,12 @@ class MissionLifecycleService:
         model_contract_ref: str,
         execution_options: dict[str, Any] | None = None,
     ) -> MissionLifecycleCreateResult:
-        reject_operator_control_payload(parameters, context="mission_execution_request_parameters")
+        reject_execution_parameters_for_route(
+            parameters,
+            capability_id=capability_id,
+            operation=operation,
+            context="mission_execution_request_parameters",
+        )
         normalized_execution_options = _normalize_execution_options(execution_options or {})
         _validate_execution_options_for_route(
             normalized_execution_options,
@@ -291,7 +297,12 @@ class MissionLifecycleService:
             raise ValueError("mission execution parameters hash mismatch")
         if stable_hash(redact_operator_value(parameters)) != request.parameter_hash:
             raise ValueError("mission execution parameters hash mismatch")
-        reject_operator_control_payload(parameters, context="mission_execution_request_parameters")
+        reject_execution_parameters_for_route(
+            parameters,
+            capability_id=request.capability_id,
+            operation=request.operation,
+            context="mission_execution_request_parameters",
+        )
         return dict(parameters)
 
     def latest_execution_request(self, mission_id: str) -> MissionExecutionRequest:

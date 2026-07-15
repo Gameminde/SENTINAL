@@ -11,6 +11,7 @@ from sentinel.operator.action_failure_policy import classify_action_execution_fa
 from sentinel.operator.action_power_contract import ActionAliasNormalizer, ActionFailureClass
 from sentinel.operator.action_power_contract import recoverable_action_observation
 from sentinel.operator.safety import assert_data_not_authority
+from sentinel.shared.safety_scanner import scan_secret_like_text
 from sentinel.shared.models import SentinelModel, new_id
 
 
@@ -85,7 +86,10 @@ class ActionEnvelope(SentinelModel):
             can_execute=self.can_execute,
         )
         _reject_forbidden_material(self.safe_identity_payload(), context="action_envelope")
-        _reject_forbidden_material(self.params, context="action_envelope_params")
+        _reject_forbidden_material(
+            _params_for_forbidden_material_scan(self.capability_id, self.operation, self.params),
+            context="action_envelope_params",
+        )
         return self
 
     @property
@@ -267,6 +271,18 @@ def _reject_forbidden_material(value: Any, *, context: str) -> None:
             if "raw_provider" in lowered or "raw prompt" in lowered or "raw response" in lowered:
                 raise ValueError(f"{context}: raw provider material is forbidden")
             raise ValueError(f"{context}: credential or secret material is forbidden")
+
+
+def _params_for_forbidden_material_scan(capability_id: str, operation: str, params: dict[str, Any]) -> dict[str, Any]:
+    if capability_id != "real_browser_control" or operation != "real_browser.search":
+        return params
+    scan_params = dict(params)
+    query = scan_params.get("query")
+    if isinstance(query, str):
+        if scan_secret_like_text(query, path="$.params.query"):
+            raise ValueError("action_envelope_params: credential or secret material is forbidden")
+        scan_params["query"] = "<typed_browser_search_query_data>"
+    return scan_params
 
 
 def _recoverable_executor_result(envelope: ActionEnvelope, *, failure: Any) -> ActionResult:

@@ -103,6 +103,18 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
     explicit = _canonical_action_from_payload(model_output)
     if explicit is not None:
         action_name, params, target_ref = explicit
+        unsupported_reason = _unsupported_explicit_action_reason(action_name)
+        if unsupported_reason is not None:
+            return BrowserModelNativeIntentMapping(
+                blocked=True,
+                blocked_reason=unsupported_reason,
+                intent_kind="explicit_action_blocked",
+                safe_diagnostics={
+                    **diagnostics,
+                    "failure_code": unsupported_reason,
+                    "requested_action_hash": text_hash(action_name),
+                },
+            )
         action_name = _completion_lane_override(action_name, params=params, normalized=normalized, context=context)
         return _mapped(action_name, params=params, target_ref=target_ref, intent_kind="canonical_action", diagnostics=diagnostics)
 
@@ -342,6 +354,17 @@ def _coerce_to_model_visible_action(action_name: str) -> str:
     if action_name.endswith(".verify_extraction"):
         return "real_browser_control.real_browser.verify_extraction"
     return _primary_browser_action_fallback()
+
+
+def _unsupported_explicit_action_reason(action_name: str) -> str | None:
+    if action_name in _MODEL_VISIBLE_BROWSER_ACTIONS:
+        return None
+    normalized = _normalize_text(action_name.replace("_", " "))
+    if any(_contains_affirmative_boundary_marker(normalized, marker) for marker in _HARD_BOUNDARY_MARKERS):
+        return "BROWSER_INTENT_HARD_BOUNDARY"
+    if action_name.startswith("real_browser_control.") or action_name.startswith("real_browser."):
+        return "BROWSER_INTENT_ACTION_NOT_MODEL_VISIBLE"
+    return None
 
 
 def _primary_browser_action_fallback() -> str:

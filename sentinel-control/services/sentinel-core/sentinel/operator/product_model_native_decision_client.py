@@ -7,6 +7,10 @@ from typing import Any, Protocol
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
+from sentinel.operator.browser_search_parameter_boundary import (
+    BrowserSearchParameterBoundaryError,
+    normalize_model_browser_search_parameters,
+)
 from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
 
 
@@ -185,7 +189,7 @@ def _browser_native_mapping(
     if not mapping.envelope.capability_id or not mapping.envelope.operation:
         reason = mapping.safe_diagnostics.get("failure_code") or "MODEL_NATIVE_BROWSER_INTENT_MAPPING_FAILED"
         raise ActionKernelError(str(reason))
-    return mapping.envelope
+    return _normalize_browser_search_action(mapping.envelope, fallback_query=_bounded_query(text) or "mission objective")
 
 
 def _should_use_browser_native_mapping(
@@ -194,6 +198,8 @@ def _should_use_browser_native_mapping(
     text: str,
     context: dict[str, Any],
 ) -> bool:
+    if _payload_names_simple_model_skill(payload):
+        return False
     if _payload_names_browser_action(payload):
         return True
     has_browser_progress = _context_has_browser_progress(context)
@@ -205,6 +211,17 @@ def _should_use_browser_native_mapping(
         return False
     lowered = text.lower()
     return _text_mentions_browser_work(lowered)
+
+
+def _payload_names_simple_model_skill(payload: dict[str, Any]) -> bool:
+    explicit = payload.get("skill")
+    if isinstance(explicit, str) and _normalize_skill(explicit) is not None:
+        return True
+    for key in ("action", "intent"):
+        value = payload.get(key)
+        if isinstance(value, str) and "." not in value and _normalize_skill(value) is not None:
+            return True
+    return False
 
 
 def _payload_names_browser_action(payload: dict[str, Any]) -> bool:
@@ -663,8 +680,10 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("finish", context, text),
         )
     if skill == "browse_search":
-        params = dict(payload.get("params") or {})
-        params.setdefault("query", _bounded_query(text) or "mission objective")
+        params = _normalize_model_browser_search_params(
+            payload.get("params"),
+            fallback_query=_bounded_query(text) or "mission objective",
+        )
         return ActionEnvelope(
             capability_id="real_browser_control",
             operation="real_browser.search",
@@ -679,6 +698,26 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("extract", context, text),
         )
     raise ActionKernelError("MODEL_NATIVE_DECISION_SKILL_NOT_MAPPED")
+
+
+def _normalize_browser_search_action(envelope: ActionEnvelope, *, fallback_query: str) -> ActionEnvelope:
+    if envelope.capability_id != "real_browser_control" or envelope.operation != "real_browser.search":
+        return envelope
+    params = _normalize_model_browser_search_params(envelope.params, fallback_query=fallback_query)
+    return ActionEnvelope(
+        capability_id=envelope.capability_id,
+        operation=envelope.operation,
+        target_ref=envelope.target_ref,
+        params=params,
+        idempotency_key=envelope.idempotency_key,
+    )
+
+
+def _normalize_model_browser_search_params(params: Any, *, fallback_query: str) -> dict[str, Any]:
+    try:
+        return normalize_model_browser_search_parameters(params, fallback_query=fallback_query)
+    except BrowserSearchParameterBoundaryError as exc:
+        raise ActionKernelError(str(exc)) from exc
 
 
 def _workspace_patch_params(*, payload: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
@@ -923,17 +962,22 @@ def _hard_boundary_action(text: str, payload: dict[str, Any]) -> ActionEnvelope 
 
 
 def _contains_negative_boundary_instruction(lowered_text: str) -> bool:
-    negations = ("do not", "don't", "dont", "never", "without")
+    negations = ("do not", "don't", "dont", "must not", "should not", "never", "no", "without", "avoid")
     boundary_markers = (
         "account",
         "checkout",
         "contact supplier",
         "credential",
+        "download",
         "login",
+        "log in",
         "payment",
         "provider-native",
         "secret",
+        "sign in",
         "spend",
+        "submit",
+        "upload",
     )
     return any(negation in lowered_text for negation in negations) and any(
         marker in lowered_text for marker in boundary_markers
