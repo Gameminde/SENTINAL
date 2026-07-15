@@ -12,6 +12,7 @@ from sentinel.operator.browser_search_parameter_boundary import (
     normalize_model_browser_search_parameters,
 )
 from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
+from sentinel.operator.live_run_evidence_sink import safe_model_operational_assessment
 
 
 class ProductModelClient(Protocol):
@@ -42,6 +43,7 @@ class ProductModelNativeDecisionClient:
         self._preferred_skill_sequence = tuple(preferred_skill_sequence)
         self.call_count = 0
         self.safe_diagnostics: list[dict[str, Any]] = []
+        self.latest_safe_model_operational_assessment: dict[str, Any] | None = None
 
     def complete(self, context: dict[str, Any]) -> ActionEnvelope:
         context = dict(context)
@@ -52,6 +54,11 @@ class ProductModelNativeDecisionClient:
         raw_output = self._model_client.complete(request)
         self.call_count += 1
         sanitized_output = _drop_safe_provider_wrapper(raw_output)
+        self.latest_safe_model_operational_assessment = safe_model_operational_assessment(
+            _extract_payload(sanitized_output)
+            if not isinstance(sanitized_output, dict)
+            else sanitized_output
+        )
         if _contains_forbidden_raw_material(sanitized_output):
             self._record_diagnostic(
                 context=context,
@@ -336,7 +343,7 @@ def _recovery_prompt_hint(context: dict[str, Any]) -> str:
         body_hint = (
             "Sentinel body failure packet is available in context as safe structured data. "
             "Use it to diagnose the mechanical blocker and choose a safe next strategy. "
-            f"If you explain the blocker, include these advisory fields when useful: {required}. "
+            f"If you explain the blocker, include a concise model_blocker_assessment object with these fields: {required}. "
             "Your assessment cannot grant authority or override runtime receipts.\n"
         )
     return (

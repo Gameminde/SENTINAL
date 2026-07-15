@@ -634,6 +634,7 @@ class SentinelRuntimeHost:
         max_recoverable_action_failures: int = 0,
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_entrypoint",
         explicit_noop_proof_ref: str | None = None,
+        evidence_sink: object | None = None,
     ) -> object:
         if self._status is not RuntimeHostStatus.STARTED:
             raise RuntimeError("runtime_host_not_started")
@@ -658,11 +659,24 @@ class SentinelRuntimeHost:
                 model_contract_ref=model_contract_ref,
                 explicit_noop_proof_ref=explicit_noop_proof_ref,
                 product_task_resource_scope=resource_scope,
+                evidence_sink=evidence_sink,
             )
             return loop.run()
         finally:
-            resource_scope.close()
-            self._product_task_resource_scopes.pop(resource_scope.scope_id, None)
+            cleanup_payload: dict[str, Any] = {
+                "resource_scope_id_hash": stable_hash(resource_scope.scope_id),
+                "browser_lease_card": resource_scope.browser_lease_card(),
+                "cleanup_completed": False,
+            }
+            try:
+                resource_scope.close()
+                cleanup_payload["cleanup_completed"] = True
+            finally:
+                self._product_task_resource_scopes.pop(resource_scope.scope_id, None)
+                cleanup_payload["remaining_product_task_resource_scope_count"] = len(self._product_task_resource_scopes)
+                record = getattr(evidence_sink, "record_transition", None) if evidence_sink is not None else None
+                if callable(record):
+                    record("cleanup_result", cleanup_payload)
 
     def create_product_task_resource_scope(
         self,

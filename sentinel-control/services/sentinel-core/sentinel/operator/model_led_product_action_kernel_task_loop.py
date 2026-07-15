@@ -120,6 +120,7 @@ class ModelLedProductActionKernelTaskLoop:
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_fake",
         explicit_noop_proof_ref: str | None = None,
         product_task_resource_scope: object | None = None,
+        evidence_sink: object | None = None,
     ) -> None:
         self.loop_id = new_id("product_action_kernel_task_loop")
         self.host = host
@@ -135,6 +136,7 @@ class ModelLedProductActionKernelTaskLoop:
         self.model_contract_ref = model_contract_ref
         self.explicit_noop_proof_ref = explicit_noop_proof_ref
         self.product_task_resource_scope = product_task_resource_scope
+        self.evidence_sink = evidence_sink
         self.model_calls_used = 0
         self.material_actions_used = 0
         self.recoverable_decision_observations: list[dict[str, Any]] = []
@@ -146,6 +148,16 @@ class ModelLedProductActionKernelTaskLoop:
         self.product_finalgate_refs: list[str] = []
 
     def run(self) -> ProductActionKernelTaskLoopResult:
+        self._record_evidence_transition(
+            "run_started",
+            {
+                "loop_id": self.loop_id,
+                "session_id": self.session_id,
+                "mission_objective": self.mission_objective,
+                "max_model_calls": self.max_model_calls,
+                "max_material_actions": self.max_material_actions,
+            },
+        )
         try:
             while True:
                 if self.model_calls_used >= self.max_model_calls:
@@ -154,6 +166,24 @@ class ModelLedProductActionKernelTaskLoop:
                 try:
                     decision = self.decision_client.complete(context)
                     decision_from_model = True
+                    self._record_evidence_transition(
+                        "provider_decision_received",
+                        {
+                            "provider_decision_count": getattr(self.decision_client, "call_count", self.model_calls_used + 1),
+                            "model_operational_assessment": getattr(
+                                self.decision_client,
+                                "latest_safe_model_operational_assessment",
+                                None,
+                            ),
+                            "context_hash": stable_hash(_safe_context_shape_for_evidence(context)),
+                        },
+                    )
+                    assessment = getattr(self.decision_client, "latest_safe_model_operational_assessment", None)
+                    if isinstance(assessment, dict) and assessment:
+                        self._record_evidence_transition(
+                            "model_blocker_assessment_received",
+                            {"model_blocker_assessment": assessment},
+                        )
                 except ActionKernelError as exc:
                     self.model_calls_used += 1
                     reason = str(exc) or exc.__class__.__name__
@@ -169,17 +199,27 @@ class ModelLedProductActionKernelTaskLoop:
                 decision = self._route_contextless_browser_decision(decision, context)
                 sequence_entry = f"{decision.capability_id}:{decision.operation}"
                 self.capability_sequence.append(sequence_entry)
+                self._record_evidence_transition(
+                    "action_envelope_accepted",
+                    _safe_action_envelope_evidence(decision),
+                )
                 if decision.capability_id == "sentinel_loop" and decision.operation == "finish":
                     if not self.product_receipt_refs and not self.explicit_noop_proof_ref:
                         return self._block("MODEL_FINISH_BEFORE_PRODUCT_RECEIPT")
                     return self._complete("model_led_product_action_kernel_task_loop_finish")
                 if self.material_actions_used >= self.max_material_actions and not _is_completion_lane_decision(decision):
                     return self._block("MATERIAL_ACTION_BUDGET_EXHAUSTED")
+                if decision.capability_id == "real_browser_control":
+                    self._record_evidence_transition(
+                        "browser_action_started",
+                        _safe_action_envelope_evidence(decision),
+                    )
                 dispatch_result = self._dispatch_product_action(decision, loop_context=context)
                 self.dispatch_results.append(dispatch_result)
                 self.mission_ids.append(dispatch_result.mission_id)
                 self.product_receipt_refs.extend(dispatch_result.receipt_refs)
                 self.product_finalgate_refs.extend(dispatch_result.finalgate_refs)
+                self._record_dispatch_evidence(dispatch_result)
                 if dispatch_result.status is not DispatchStatus.COMPLETED:
                     if self._recover_action_failure(dispatch_result, decision, context):
                         continue
@@ -608,6 +648,22 @@ class ModelLedProductActionKernelTaskLoop:
             accepted=True,
             reason=reason,
         )
+        self._record_evidence_transition(
+            "FinalGate_result",
+            {
+                "status": "completed",
+                "accepted": True,
+                "reason": reason,
+                "certificate_ref": certificate.certificate_id,
+            },
+        )
+        self._record_evidence_transition(
+            "terminal_verdict",
+            {
+                "verdict": "completed",
+                "final_reason": reason,
+            },
+        )
         return self._result(
             ProductActionKernelTaskLoopStatus.COMPLETED,
             reason,
@@ -619,6 +675,22 @@ class ModelLedProductActionKernelTaskLoop:
             status=ProductActionKernelTaskLoopStatus.BLOCKED,
             accepted=False,
             reason=reason,
+        )
+        self._record_evidence_transition(
+            "FinalGate_result",
+            {
+                "status": "blocked",
+                "accepted": False,
+                "reason": reason,
+                "certificate_ref": certificate.certificate_id,
+            },
+        )
+        self._record_evidence_transition(
+            "terminal_verdict",
+            {
+                "verdict": "blocked",
+                "blocked_reason": reason,
+            },
         )
         return self._result(
             ProductActionKernelTaskLoopStatus.BLOCKED,
@@ -674,6 +746,54 @@ class ModelLedProductActionKernelTaskLoop:
         )
         self.host.kernel.store.atomic_write_json(path, certificate.safe_model_dump())
         return certificate
+
+    def _record_evidence_transition(self, event_type: str, payload: dict[str, Any]) -> None:
+        sink = self.evidence_sink
+        if sink is None:
+            return
+        record = getattr(sink, "record_transition", None)
+        if callable(record):
+            record(event_type, payload)
+
+    def _record_dispatch_evidence(self, dispatch_result: UnifiedDispatchResult) -> None:
+        payload = {
+            "mission_id": dispatch_result.mission_id,
+            "capability_id": dispatch_result.capability_id,
+            "operation": dispatch_result.operation,
+            "status": dispatch_result.status.value,
+            "blocked_reason": dispatch_result.blocked_reason,
+            "receipt_refs": sanitize_operator_refs(dispatch_result.receipt_refs),
+            "finalgate_refs": sanitize_operator_refs(dispatch_result.finalgate_refs),
+        }
+        safe_context_cards = dispatch_result.safe_context_cards if isinstance(dispatch_result.safe_context_cards, dict) else {}
+        runtime_failure_fact = safe_context_cards.get("runtime_failure_fact")
+        if isinstance(runtime_failure_fact, dict):
+            self._record_evidence_transition(
+                "runtime_failure_fact_created",
+                {"runtime_failure_fact": runtime_failure_fact, **payload},
+            )
+        failure_packet = safe_context_cards.get("model_visible_body_failure_packet")
+        if isinstance(failure_packet, dict):
+            self._record_evidence_transition(
+                "model_visible_failure_packet_created",
+                {"model_visible_body_failure_packet": failure_packet, **payload},
+            )
+        model_assessment = safe_context_cards.get("model_blocker_assessment")
+        if isinstance(model_assessment, dict):
+            self._record_evidence_transition(
+                "model_blocker_assessment_received",
+                {"model_blocker_assessment": model_assessment, **payload},
+            )
+        if dispatch_result.receipt_refs:
+            self._record_evidence_transition(
+                "material_receipt_created",
+                payload,
+            )
+        if dispatch_result.finalgate_refs:
+            self._record_evidence_transition(
+                "FinalGate_result",
+                payload,
+            )
 
 
 class ProductActionKernelTaskLoopReplay(SentinelModel):
@@ -856,6 +976,36 @@ def _completed_dispatch_count(context: dict[str, Any], capability_id: str, opera
         if item.get("capability_id") == capability_id and item.get("operation") == operation:
             count += 1
     return count
+
+
+def _safe_action_envelope_evidence(decision: ActionEnvelope) -> dict[str, Any]:
+    return {
+        "capability_id": decision.capability_id,
+        "operation": decision.operation,
+        "params_hash": stable_hash(decision.params),
+        "target_ref_hash": stable_hash(str(decision.target_ref or "")),
+        "idempotency_key_hash": stable_hash(str(decision.idempotency_key or "")),
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def _safe_context_shape_for_evidence(context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "progress_state": context.get("progress_state"),
+        "model_visible_skills": list(context.get("model_visible_skills") or ()),
+        "primary_model_recommended_next_skill": context.get("primary_model_recommended_next_skill"),
+        "recent_product_receipt_count": len(context.get("recent_product_receipt_refs") or ()),
+        "recoverable_action_failure_count": context.get("recoverable_action_failure_count"),
+        "recoverable_model_decision_failure_count": context.get("recoverable_model_decision_failure_count"),
+        "has_runtime_failure_fact": isinstance(context.get("runtime_failure_fact"), dict),
+        "has_model_visible_body_failure_packet": isinstance(context.get("model_visible_body_failure_packet"), dict),
+        "has_model_blocker_assessment_schema": isinstance(context.get("model_blocker_assessment_schema"), dict),
+        "finish_available": bool(context.get("finish_available")),
+        "objective_satisfied": bool(context.get("objective_satisfied")),
+        "data_not_authority": True,
+        "can_execute": False,
+    }
 
 
 def _dispatch_summaries(results: list[UnifiedDispatchResult]) -> list[dict[str, Any]]:
