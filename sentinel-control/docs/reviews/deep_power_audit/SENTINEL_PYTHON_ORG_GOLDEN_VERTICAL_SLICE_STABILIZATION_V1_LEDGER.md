@@ -142,8 +142,8 @@ test-only fake raw path string is asserted absent from persisted evidence
 ## Live Stabilization Budget
 
 ```text
-live_missions_used = 1 / 3
-provider_decision_calls_used = 2 / 30
+live_missions_used = 2 / 3
+provider_decision_calls_used = 4 / 30
 max_provider_decisions_per_mission = 10
 max_material_actions_per_mission = 16
 current_tier = T3_REAL_MODEL_PRODUCT_PROVEN_ATTEMPTED_NOT_PASSED
@@ -214,11 +214,79 @@ git diff --check
 result = passed
 ```
 
+## Live Mission 2
+
+```text
+PYTHON_ORG_GOLDEN_VERTICAL_SLICE_STABILIZATION_V1_MISSION_2_LIVE = VALID_FAILED_PRODUCT_PROFILE_GAP
+provider_decision_calls = 2
+action_sequence = real_browser.search -> real_browser.extract_evidence
+safe_evidence_event_count = 17
+safe_evidence_snapshot_sha256 = C8D8158FBA061AE217BBF7E490014704A8E28403BC90BF83F5903B5FF1D1D355
+```
+
+Mission 2 proved that the previous context-transport fix worked live:
+
+```text
+real_browser.extract_evidence reached browser_action_started
+```
+
+The next deterministic blocker was:
+
+```text
+operation_not_supported
+```
+
+Root cause:
+
+```text
+RuntimeHost route and RealBrowserControlRuntime supported real_browser.extract_evidence,
+but RuntimeConnectionProfile for real_browser_control did not list
+real_browser.extract_evidence / real_browser.extract_entities as supported
+operations.
+```
+
+The harness also emitted a post-run `AttributeError` while summarizing the
+crash-safe sink. The sink had already persisted the authoritative event chain,
+so the product blocker above is the actionable mission truth.
+
+## Stage 3: Generic Browser Evidence Extraction Product Profile
+
+```text
+FIX_GENERIC_BROWSER_EVIDENCE_EXTRACTION_PRODUCT_PROFILE_V1 = T1_LOCAL_DETERMINISTIC_CANDIDATE
+implementation_commit = e350f79 fix: route generic browser evidence extraction
+```
+
+The fix updates the real-browser product connection profile so the coordinator
+routes generic evidence/entity extraction to the already existing RuntimeHost
+route and RealBrowserControlRuntime operation. It does not create a new browser
+stack or a Python.org-specific exception.
+
+### Local Validation
+
+```text
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pack4_browser_l5_l6_product_backend.py::test_generic_extract_evidence_routes_through_runtimehost_product_action_kernel -q
+result = passed
+
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pack4_browser_l5_l6_product_backend.py -q
+result = 28 passed
+
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_browser_search_actuation_open_world_feedback.py -q
+result = 4 passed
+
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_model_native_browser_search_typed_parameter_boundary.py -q
+result = 37 passed
+
+py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel/operator/runtime_connections.py sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pack4_browser_l5_l6_product_backend.py
+result = passed
+
+git diff --check
+result = passed
+```
+
 Next action:
 
 ```text
-Run Python.org golden mission 2 through real provider + real Cloak with the
-updated 10-decision / 16-material-action per-mission evaluation budget.
+Run Python.org golden mission 3 through real provider + real Cloak.
 ```
 
 The tranche stops when either:
