@@ -1,6 +1,8 @@
 ﻿from __future__ import annotations
 
 import json
+import threading
+import time
 from pathlib import Path
 
 from sentinel.mission.models import MissionAuthorityEnvelope
@@ -333,6 +335,65 @@ def test_root_browser_lease_closes_on_material_budget_exhaustion(tmp_path: Path,
     assert result.blocked_reason == "MATERIAL_ACTION_BUDGET_EXHAUSTED"
     assert len(engines) == 1
     assert engines[0].close_count == 1
+
+
+def test_live_cloak_root_leases_serialize_until_close(tmp_path: Path, monkeypatch) -> None:
+    class SlowClosableProductCloakEngine(_ClosableProductCloakEngine):
+        active_count = 0
+        max_active_count = 0
+        active_lock = threading.Lock()
+
+        def __init__(self) -> None:
+            super().__init__()
+            with self.active_lock:
+                type(self).active_count += 1
+                type(self).max_active_count = max(type(self).max_active_count, type(self).active_count)
+
+        def type_text(self, ref: str, text: str):  # type: ignore[no-untyped-def]
+            time.sleep(0.15)
+            return super().type_text(ref, text)
+
+        def close(self) -> None:
+            try:
+                super().close()
+            finally:
+                with self.active_lock:
+                    type(self).active_count -= 1
+
+    SlowClosableProductCloakEngine.active_count = 0
+    SlowClosableProductCloakEngine.max_active_count = 0
+
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
+    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", SlowClosableProductCloakEngine)
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    start_barrier = threading.Barrier(2)
+    results: list[ProductActionKernelTaskLoopStatus] = []
+
+    def _run(index: int) -> None:
+        workspace = tmp_path / f"workspace_{index}"
+        workspace.mkdir()
+        (workspace / "README.md").write_text("# concurrent browser root\n", encoding="utf-8")
+        start_barrier.wait(timeout=5)
+        result = host.run_product_action_kernel_task_loop(
+            workspace_root=workspace,
+            session_id=f"session_pack4_concurrent_root_{index}",
+            mission_objective="Run live-env browser root through serialized product spine.",
+            decision_client=_browser_search_finish_client_without_engine_profile(),
+            allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+            max_model_calls=3,
+            max_material_actions=1,
+        )
+        results.append(result.status)
+
+    threads = [threading.Thread(target=_run, args=(index,)) for index in (1, 2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert results == [ProductActionKernelTaskLoopStatus.COMPLETED, ProductActionKernelTaskLoopStatus.COMPLETED]
+    assert SlowClosableProductCloakEngine.max_active_count == 1
+    assert SlowClosableProductCloakEngine.active_count == 0
 
 
 def test_runtimehost_shutdown_closes_leaked_root_browser_lease(tmp_path: Path, monkeypatch) -> None:

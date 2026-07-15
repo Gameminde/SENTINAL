@@ -353,7 +353,8 @@ class BrowserSessionManagerRealBrowserEngine:
         self.scroll_count = 0
         self._authority: MissionAuthorityEnvelope | None = None
         self._session_id: str | None = None
-        self._capture_root = Path(capture_root) if capture_root is not None else None
+        effective_capture_root = Path(capture_root) if capture_root is not None else _default_browser_session_capture_root()
+        self._capture_root = effective_capture_root
         self._last_snapshot = RealBrowserEngineSnapshot(
             page_title="Browser session page",
             state_hash=stable_hash({"target_url_hash": stable_hash(target_url), "opened": False}),
@@ -362,7 +363,7 @@ class BrowserSessionManagerRealBrowserEngine:
         self._last_text = ""
         self._ref_targets: dict[str, tuple[str, str | None, int]] = {}
         self.session_manager = session_manager or _build_browser_session_manager(
-            capture_root=capture_root,
+            capture_root=effective_capture_root,
             headless=headless,
         )
 
@@ -506,10 +507,16 @@ class BrowserSessionManagerRealBrowserEngine:
         allowed_domains = set(self._authority.allowed_domains)
         if host not in allowed_domains and BOUNDED_URL_AUTHORITY_REF not in allowed_domains:
             raise RealBrowserControlRuntimeError("real_browser_target_host_not_authorized")
+        internal_session_actions = (
+            "browser_session_open",
+            "browser_session_observe",
+            "browser_session_interact",
+            "browser_session_close",
+        )
         return self._authority.model_copy(
             update={
                 "allowed_domains": list(dict.fromkeys(self._authority.allowed_domains)),
-                "allowed_actions": list(dict.fromkeys(self._authority.allowed_actions)),
+                "allowed_actions": list(dict.fromkeys(tuple(self._authority.allowed_actions) + internal_session_actions)),
             }
         )
 
@@ -2404,12 +2411,23 @@ def _probe_cloak_readiness(
 def _build_browser_session_manager(*, capture_root: str | Path | None, headless: bool) -> Any:
     from sentinel.agent.organs.browser_session_manager_l5_live import BrowserSessionManagerL5Live
 
-    default_root = Path(os.environ.get("TEMP") or os.environ.get("TMP") or ".") / "sentinel-browser-sessions"
     return BrowserSessionManagerL5Live(
-        capture_root=Path(capture_root) if capture_root is not None else default_root,
+        capture_root=Path(capture_root) if capture_root is not None else _default_browser_session_capture_root(),
         engine="cloak",
         headless=headless,
     )
+
+
+def _default_browser_session_capture_root() -> Path:
+    root = Path(os.environ.get("TEMP") or os.environ.get("TMP") or ".") / "sentinel-browser-sessions"
+    nonce = stable_hash(
+        {
+            "pid": os.getpid(),
+            "thread": threading.get_ident(),
+            "time_ns": time.time_ns(),
+        }
+    )[:16]
+    return root / f"browser_session_capture_{nonce}"
 
 
 def _cloak_readiness_authority(target_url: str) -> MissionAuthorityEnvelope:

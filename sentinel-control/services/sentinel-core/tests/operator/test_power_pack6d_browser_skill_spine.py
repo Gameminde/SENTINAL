@@ -286,6 +286,32 @@ def test_real_browser_search_opens_cloak_session_when_not_already_open(tmp_path:
     assert ("fill", "Search products", "glasses under 5 euro") in manager.interact_calls
 
 
+def test_browser_session_engine_translates_product_authority_to_l5_session_actions(tmp_path: Path) -> None:
+    manager = _AuthorityValidatingBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+    )
+    fixture = _BrowserSkillFixture(
+        tmp_path,
+        engine=engine,
+        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+    )
+
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert result.status == "completed"
+    assert manager.missing_required_actions == []
+
+
 def test_search_material_receipt_records_backend_truth(tmp_path: Path) -> None:
     engine = BrowserSessionManagerRealBrowserEngine(
         target_url="https://bounded.example.test/catalog",
@@ -2710,6 +2736,40 @@ class _StrictBrowserSessionManager(_FakeBrowserSessionManager):
     def interact(self, request: Any) -> Any:
         if not self._opened or _request_value(request, "session_id") != self._session_id:
             return SimpleNamespace(accepted=False, reason="browser_session_missing_or_closed")
+        return super().interact(request)
+
+
+class _AuthorityValidatingBrowserSessionManager(_StrictBrowserSessionManager):
+    required_internal_actions = {
+        "browser_session_open",
+        "browser_session_observe",
+        "browser_session_interact",
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.missing_required_actions: list[str] = []
+
+    def _validate_session_authority(self, request: Any) -> bool:
+        mission = _request_value(request, "mission")
+        allowed_actions = {str(item) for item in getattr(mission, "allowed_actions", ())}
+        missing = sorted(self.required_internal_actions - allowed_actions)
+        self.missing_required_actions.extend(missing)
+        return not missing
+
+    def open_session(self, request: Any) -> Any:
+        if not self._validate_session_authority(request):
+            return SimpleNamespace(accepted=False, reason="mission_authority_missing_browser_session_open")
+        return super().open_session(request)
+
+    def observe(self, request: Any) -> Any:
+        if not self._validate_session_authority(request):
+            return SimpleNamespace(accepted=False, reason="mission_authority_missing_browser_session_observe")
+        return super().observe(request)
+
+    def interact(self, request: Any) -> Any:
+        if not self._validate_session_authority(request):
+            return SimpleNamespace(accepted=False, reason="mission_authority_missing_browser_session_interact")
         return super().interact(request)
 
 

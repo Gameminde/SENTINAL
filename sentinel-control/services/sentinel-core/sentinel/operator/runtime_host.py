@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable
@@ -66,6 +67,8 @@ from sentinel.shared.models import SentinelModel, new_id
 
 LOCAL_FIXTURE_BROWSER_BACKEND_ID = "local_fixture_browser_engine"
 LOCAL_FIXTURE_BROWSER_SESSION_KIND = "local_fixture"
+
+_LIVE_CLOAK_ENGINE_LOCK = threading.RLock()
 
 _TRUSTED_RUNTIME_CONTEXT_KEYS = frozenset(
     {
@@ -174,12 +177,19 @@ class ProductTaskBrowserRuntimeLease:
         self.close_count = 0
         self.recovery_attempt_count = 0
         self.last_failure_fingerprint: str | None = None
+        self.live_context_lock_acquired = False
+        self.live_context_lock_acquire_count = 0
 
     def engine_for(self, envelope: ActionEnvelope) -> object:
         if self.engine is None:
-            self.engine = _product_browser_engine(envelope)
-            self.open_count += 1
-            self.lifecycle_state = "active"
+            self._acquire_live_context_lock_if_needed(envelope)
+            try:
+                self.engine = _product_browser_engine(envelope)
+                self.open_count += 1
+                self.lifecycle_state = "active"
+            except Exception:
+                self._release_live_context_lock_if_needed()
+                raise
         return self.engine
 
     def recover_engine_once(self, envelope: ActionEnvelope) -> bool:
@@ -187,15 +197,21 @@ class ProductTaskBrowserRuntimeLease:
             return False
         self.recovery_attempt_count += 1
         self.close_engine(mark_state="recovering")
-        self.engine = _product_browser_engine(envelope)
-        self.open_count += 1
-        self.lifecycle_state = "active_after_recovery"
+        self._acquire_live_context_lock_if_needed(envelope)
+        try:
+            self.engine = _product_browser_engine(envelope)
+            self.open_count += 1
+            self.lifecycle_state = "active_after_recovery"
+        except Exception:
+            self._release_live_context_lock_if_needed()
+            raise
         return True
 
     def close_engine(self, *, mark_state: str = "closed") -> None:
         engine = self.engine
         self.engine = None
         if engine is None:
+            self._release_live_context_lock_if_needed()
             self.lifecycle_state = mark_state
             return
         close = getattr(engine, "close", None)
@@ -206,11 +222,25 @@ class ProductTaskBrowserRuntimeLease:
             elif callable(close_all):
                 close_all()
         finally:
+            self._release_live_context_lock_if_needed()
             self.close_count += 1
             self.lifecycle_state = mark_state
 
     def close(self) -> None:
         self.close_engine(mark_state="closed")
+
+    def _acquire_live_context_lock_if_needed(self, envelope: ActionEnvelope) -> None:
+        if not _product_browser_engine_requires_global_lock(envelope):
+            return
+        _LIVE_CLOAK_ENGINE_LOCK.acquire()
+        self.live_context_lock_acquired = True
+        self.live_context_lock_acquire_count += 1
+
+    def _release_live_context_lock_if_needed(self) -> None:
+        if not self.live_context_lock_acquired:
+            return
+        self.live_context_lock_acquired = False
+        _LIVE_CLOAK_ENGINE_LOCK.release()
 
     def safe_model_dump(self) -> dict[str, object]:
         backend_id = _safe_engine_backend_id(self.engine)
@@ -224,6 +254,8 @@ class ProductTaskBrowserRuntimeLease:
             "selected_backend_id": backend_id,
             "actual_backend_id": backend_id,
             "backend_concurrency_capability": self.backend_concurrency_capability,
+            "global_context_lock_acquired": self.live_context_lock_acquired,
+            "global_context_lock_acquire_count": self.live_context_lock_acquire_count,
             "open_count": self.open_count,
             "close_count": self.close_count,
             "recovery_attempt_count": self.recovery_attempt_count,
@@ -1007,6 +1039,16 @@ def _product_browser_engine(envelope: ActionEnvelope) -> object:
     if os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip():
         return build_cloak_first_real_browser_engine_from_env()
     raise RuntimeError("real_browser_live_backend_config_missing")
+
+
+def _product_browser_engine_requires_global_lock(envelope: ActionEnvelope) -> bool:
+    browser_cortex_case_id = str(envelope.params.get("browser_cortex_case_id") or "").strip()
+    if browser_cortex_case_id:
+        return False
+    engine_profile = str(envelope.params.get("engine_profile") or "").strip().lower()
+    if engine_profile in {"fake_product_search", "local_fake", "inmemory", "playwright_compat"}:
+        return False
+    return bool(os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip())
 
 
 def _safe_engine_backend_id(engine: object | None) -> str:
