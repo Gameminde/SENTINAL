@@ -166,7 +166,7 @@ class BrowserEnvironmentStateBuilder:
             relevant_product_candidate_count=sum(
                 1
                 for card in model.product_or_result_candidate_cards
-                if card.relevance_to_objective in {"relevant", "partial"}
+                if card.kind == "product_candidate" and card.relevance_to_objective in {"relevant", "partial"}
             ),
             cards=tuple(_safe_card(card) for card in model.product_or_result_candidate_cards),
         )
@@ -514,16 +514,51 @@ def _safe_card(card: Any) -> dict[str, Any]:
     return {
         "card_id": str(card.card_id),
         "kind": str(card.kind),
+        "entity_family": _safe_text(str(getattr(card, "entity_family", "unknown"))),
+        "entity_kind": _safe_text(str(getattr(card, "entity_kind", str(card.kind)))),
         "title": _safe_text(str(card.title)),
         "visible_price": _safe_text(str(card.visible_price)),
         "currency_or_unit": _safe_text(str(card.currency_or_unit)),
         "minimum_order": _safe_text(str(card.minimum_order)),
         "supplier_or_store": _safe_text(str(card.supplier_or_store)),
         "relevance_to_objective": str(card.relevance_to_objective),
+        "relevance_reason": _safe_text(str(getattr(card, "relevance_reason", "unknown")), 180),
         "price_condition_supported": str(card.price_condition_supported),
         "evidence_ref_hash": str(card.evidence_ref_hash),
+        "evidence_refs": [str(ref)[:160] for ref in tuple(getattr(card, "evidence_refs", ()) or ())[:8]],
+        "extra_attributes": _safe_card_extensions(getattr(card, "extra_attributes", {}) or {}),
+        "relationships": _safe_card_relationships(getattr(card, "relationships", ()) or ()),
         "confidence": float(card.confidence),
     }
+
+
+def _safe_card_extensions(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    safe: dict[str, Any] = {}
+    for key, item in value.items():
+        rendered_key = _safe_text(str(key), 64)
+        if isinstance(item, bool | int | float):
+            safe[rendered_key] = item
+        else:
+            safe[rendered_key] = _safe_text(str(item), 160)
+    return safe
+
+
+def _safe_card_relationships(value: Any) -> list[dict[str, Any]]:
+    relationships = list(value) if isinstance(value, (list, tuple)) else []
+    safe: list[dict[str, Any]] = []
+    for item in relationships[:12]:
+        if not isinstance(item, dict):
+            continue
+        safe.append(
+            {
+                "type": _safe_text(str(item.get("type") or "unknown"), 64),
+                "target_hash": _safe_text(str(item.get("target_hash") or ""), 128),
+                "confidence": float(item.get("confidence") or 0.0),
+            }
+        )
+    return safe
 
 
 def _safe_network_event(event: dict[str, Any]) -> dict[str, Any]:

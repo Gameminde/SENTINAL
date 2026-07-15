@@ -1656,6 +1656,24 @@ class RealBrowserControlRuntime:
             recommended_next_actions=recommended,
             refreshed_candidate_refs=executable_refs,
         )
+        context_cards = dict(context_cards)
+        context_cards["runtime_failure_fact"] = _runtime_failure_fact(
+            envelope=envelope,
+            failure_code=failure_code,
+            safe_summary=safe_summary,
+            browser_state_hash=browser_state_hash,
+            context_cards=context_cards,
+        )
+        context_cards["model_visible_body_failure_packet"] = _model_visible_body_failure_packet(
+            envelope=envelope,
+            failure_code=failure_code,
+            safe_summary=safe_summary,
+            browser_state_hash=browser_state_hash,
+            context_cards=context_cards,
+            product_context=self.product_context,
+            child_browser_session_ref=self.session_ref,
+        )
+        context_cards["model_blocker_assessment_schema"] = _model_blocker_assessment_schema()
         return ActionResult(
             action_id=envelope.action_id,
             capability_id=envelope.capability_id,
@@ -2963,6 +2981,228 @@ def _browser_recovery_evidence(
         "can_execute": False,
         "can_grant_authority": False,
     }
+
+
+def _runtime_failure_fact(
+    *,
+    envelope: ActionEnvelope,
+    failure_code: str,
+    safe_summary: str,
+    browser_state_hash: str,
+    context_cards: dict[str, Any],
+) -> dict[str, Any]:
+    environment_hash = str(context_cards.get("browser_environment_state_hash") or "")
+    return {
+        "fact_kind": "runtime_failure_fact",
+        "attempted_operation": envelope.operation,
+        "capability_id": envelope.capability_id,
+        "action_hash": envelope.action_hash,
+        "failure_code": failure_code,
+        "failure_stage": _browser_failure_stage(failure_code, operation=envelope.operation),
+        "material_effect_observed": False,
+        "browser_state_hash": browser_state_hash,
+        "browser_environment_state_hash": environment_hash,
+        "safe_summary": safe_summary[:500],
+        "receipt_backed_after_product_dispatch": True,
+        "authority_effect": "none",
+        "data_not_authority": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+
+
+def _model_visible_body_failure_packet(
+    *,
+    envelope: ActionEnvelope,
+    failure_code: str,
+    safe_summary: str,
+    browser_state_hash: str,
+    context_cards: dict[str, Any],
+    product_context: dict[str, Any],
+    child_browser_session_ref: str,
+) -> dict[str, Any]:
+    world_summary = context_cards.get("browser_world_model_summary") if isinstance(context_cards, dict) else {}
+    world_model = context_cards.get("browser_world_model") if isinstance(context_cards, dict) else {}
+    environment = context_cards.get("browser_environment_state") if isinstance(context_cards, dict) else {}
+    actionability = context_cards.get("actionability_frame") if isinstance(context_cards, dict) else {}
+    recovery_evidence = context_cards.get("browser_recovery_evidence") if isinstance(context_cards, dict) else {}
+    recovery_attempts = product_context.get("recoverable_action_observations") if isinstance(product_context, dict) else ()
+    material_used = _safe_int(product_context.get("material_actions_used")) if isinstance(product_context, dict) else 0
+    material_max = _safe_int(product_context.get("max_material_actions")) if isinstance(product_context, dict) else 0
+    evidence_refs = _failure_packet_evidence_refs(
+        context_cards=context_cards,
+        browser_state_hash=browser_state_hash,
+    )
+    root_lease = product_context.get("root_browser_runtime_lease") if isinstance(product_context, dict) else None
+    state_fields = environment.get("state_fields") if isinstance(environment, dict) and isinstance(environment.get("state_fields"), dict) else {}
+    uncertainty = _state_field_value(state_fields, "uncertainty")
+    current_page = {
+        "page_kind_guess": world_summary.get("page_kind_guess") if isinstance(world_summary, dict) else "unknown",
+        "candidate_count": world_summary.get("product_or_result_candidate_count") if isinstance(world_summary, dict) else 0,
+        "candidate_entity_kind_counts": world_summary.get("candidate_entity_kind_counts") if isinstance(world_summary, dict) else {},
+        "search_like_refs": world_summary.get("search_like_refs") if isinstance(world_summary, dict) else [],
+        "browser_environment_state_hash": context_cards.get("browser_environment_state_hash"),
+    }
+    return {
+        "packet_kind": "model_visible_body_failure_packet",
+        "attempted_operation": envelope.operation,
+        "typed_outcome": {
+            "failure_code": failure_code,
+            "failure_class": ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE.value,
+            "recoverable": True,
+            "runtime_fact_hash": stable_hash(context_cards.get("runtime_failure_fact") or {}),
+        },
+        "failure_stage": _browser_failure_stage(failure_code, operation=envelope.operation),
+        "material_effect_observed": False,
+        "objective_progress": {
+            "candidate_entity_count": int(current_page.get("candidate_count") or 0),
+            "objective_relevance_assessed": bool(
+                isinstance(world_summary, dict) and world_summary.get("objective_relevance_assessed")
+            ),
+            "progress_state": str(product_context.get("progress_state") or ""),
+            "summary": safe_summary[:500],
+        },
+        "session_continuity": _session_continuity_packet(
+            root_lease=root_lease,
+            child_browser_session_ref=_safe_ref_hash(child_browser_session_ref),
+            runtime_session_ref_hash=_safe_ref_hash(str(product_context.get("browser_session_ref") or "")),
+        ),
+        "safe_current_page_state_summary": current_page,
+        "available_affordances": {
+            "search_like_refs": list(current_page.get("search_like_refs") or [])[:8],
+            "recovery_actions": list(actionability.get("recovery_actions") or [])[:8] if isinstance(actionability, dict) else [],
+            "recommended_browser_actions": (
+                list(world_model.get("recommended_browser_actions") or [])[:8]
+                if isinstance(world_model, dict)
+                else []
+            ),
+        },
+        "recovery_attempts_already_executed": len(recovery_attempts) if isinstance(recovery_attempts, (list, tuple)) else 0,
+        "retry_material_action_budget_remaining": max(material_max - material_used, 0) if material_max else 0,
+        "evidence_refs": evidence_refs,
+        "contradictions": _failure_packet_contradictions(world_model),
+        "unknowns": _failure_packet_unknowns(uncertainty=uncertainty, recovery_evidence=recovery_evidence),
+        "data_not_authority": True,
+        "authority_effect": "none",
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+
+
+def _model_blocker_assessment_schema() -> dict[str, Any]:
+    return {
+        "schema_kind": "model_blocker_assessment_schema",
+        "required_model_response_fields": [
+            "perceived_blocker",
+            "concise_failure_interpretation",
+            "proposed_next_strategy",
+            "required_evidence",
+            "missing_capability",
+            "objective_satisfied",
+            "confidence",
+        ],
+        "advisory_only": True,
+        "must_not_override_runtime_failure_fact": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+        "data_not_authority": True,
+    }
+
+
+def _browser_failure_stage(failure_code: str, *, operation: str) -> str:
+    if "search_control_not_found" in failure_code:
+        return "search_control_discovery"
+    if "search_actuation" in failure_code or "locator" in failure_code:
+        return "search_control_actuation"
+    if "session" in failure_code:
+        return "session_lifecycle"
+    if "ref" in failure_code or "hidden" in failure_code or "disabled" in failure_code:
+        return "ref_freshness_or_visibility"
+    if operation.endswith("verify_extraction"):
+        return "verification"
+    if operation.endswith("extract_product_cards"):
+        return "extraction"
+    return "browser_runtime"
+
+
+def _failure_packet_evidence_refs(*, context_cards: dict[str, Any], browser_state_hash: str) -> list[str]:
+    refs = [f"browser_state:{browser_state_hash}"]
+    environment_hash = str(context_cards.get("browser_environment_state_hash") or "")
+    if environment_hash:
+        refs.append(f"browser_environment_state:{environment_hash}")
+    environment = context_cards.get("browser_environment_state")
+    if isinstance(environment, dict):
+        state_fields = environment.get("state_fields")
+        if isinstance(state_fields, dict):
+            for value in state_fields.values():
+                if not isinstance(value, dict):
+                    continue
+                for ref in value.get("evidence_refs") or []:
+                    refs.append(str(ref))
+    return list(dict.fromkeys(ref for ref in refs if ref))[:20]
+
+
+def _failure_packet_contradictions(world_model: Any) -> list[str]:
+    cards = world_model.get("product_or_result_candidate_cards") if isinstance(world_model, dict) else []
+    contradictions: list[str] = []
+    if isinstance(cards, list):
+        for card in cards[:8]:
+            if isinstance(card, dict):
+                contradictions.extend(str(item) for item in card.get("contradictions") or [] if str(item))
+    return list(dict.fromkeys(contradictions))[:12]
+
+
+def _failure_packet_unknowns(*, uncertainty: Any, recovery_evidence: Any) -> list[str]:
+    unknowns: list[str] = []
+    if isinstance(uncertainty, dict):
+        known = uncertainty.get("known_unknowns")
+        if isinstance(known, list):
+            unknowns.extend(str(item) for item in known if str(item))
+    if isinstance(recovery_evidence, dict):
+        if not recovery_evidence.get("search_like_refs"):
+            unknowns.append("search_control_executability_unconfirmed")
+    return list(dict.fromkeys(unknowns or ["recovery_outcome_unknown"]))[:12]
+
+
+def _session_continuity_packet(
+    *,
+    root_lease: Any,
+    child_browser_session_ref: str,
+    runtime_session_ref_hash: str,
+) -> dict[str, Any]:
+    root = root_lease if isinstance(root_lease, dict) else {}
+    return {
+        "root_lease_present": bool(root.get("safe_ref")),
+        "root_lease_ref_hash": _safe_ref_hash(str(root.get("safe_ref") or "")),
+        "root_lifecycle_state": str(root.get("lifecycle_state") or "unknown"),
+        "root_open_count": _safe_int(root.get("open_count")),
+        "root_recovery_attempt_count": _safe_int(root.get("recovery_attempt_count")),
+        "child_mission_browser_session_ref_hash": child_browser_session_ref,
+        "runtime_session_ref_hash": runtime_session_ref_hash,
+        "child_session_refs_are_receipt_handles_not_engine_identity": True,
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def _safe_ref_hash(value: str) -> str:
+    return text_hash(value) if value else ""
+
+
+def _state_field_value(state_fields: dict[str, Any], key: str) -> dict[str, Any]:
+    value = state_fields.get(key)
+    if isinstance(value, dict):
+        field_value = value.get("value")
+        if isinstance(field_value, dict):
+            return field_value
+    return {}
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _search_materiality(

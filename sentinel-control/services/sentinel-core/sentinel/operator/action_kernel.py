@@ -323,6 +323,8 @@ def _summarize_evidence(envelope: ActionEnvelope, *, context: dict[str, Any]) ->
 
 def _grounded_evidence_summary(context: dict[str, Any]) -> dict[str, Any]:
     cards = _browser_product_cards(context)
+    if cards and not any(_card_value(card, "kind") == "product_candidate" for card in cards):
+        return _grounded_open_world_evidence_summary(cards)
     safe_cards: list[dict[str, Any]] = []
     for card in cards[:5]:
         safe_cards.append(
@@ -417,6 +419,53 @@ def _grounded_evidence_summary(context: dict[str, Any]) -> dict[str, Any]:
         "authority_effect": "none",
         "can_execute": False,
     }
+
+
+def _grounded_open_world_evidence_summary(cards: list[Any]) -> dict[str, Any]:
+    safe_entities: list[dict[str, Any]] = []
+    for card in cards[:8]:
+        safe_entities.append(
+            {
+                "kind": _card_value(card, "kind"),
+                "entity_family": _card_value(card, "entity_family"),
+                "entity_kind": _card_value(card, "entity_kind"),
+                "title": _card_value(card, "title"),
+                "relevance_to_objective": _card_value(card, "relevance_to_objective"),
+                "relevance_reason": _card_value(card, "relevance_reason"),
+                "objective_relevance_assessed": _card_bool(card, "objective_relevance_assessed"),
+                "short_features": _card_list(card, "short_features"),
+                "evidence_ref_hash": _card_value(card, "evidence_ref_hash"),
+                "evidence_refs": _card_list(card, "evidence_refs"),
+                "confidence": _card_float(card, "confidence"),
+            }
+        )
+    assessed = bool(safe_entities) and all(entity["objective_relevance_assessed"] for entity in safe_entities)
+    relevant = [entity for entity in safe_entities if entity["relevance_to_objective"] in {"relevant", "partial"}]
+    status = "supported" if any(entity["relevance_to_objective"] == "relevant" for entity in relevant) else "partial" if relevant else "uncertain"
+    return {
+        "summary_kind": "grounded_browser_open_world_evidence_summary",
+        "card_count": len(safe_entities),
+        "entities": safe_entities,
+        "cards": safe_entities,
+        "objective_relevance_assessed": assessed,
+        "objective_satisfaction_status": status,
+        "has_relevant_product_evidence": False,
+        "unsupported_claims": 0,
+        "summary_text": _open_world_summary_text(entity_count=len(safe_entities), status=status),
+        "unknown_policy": "unknown_fields_preserved_no_closed_ontology_forced",
+        "source": "browser_open_world_extraction_cards_and_receipts",
+        "data_not_authority": True,
+        "authority_effect": "none",
+        "can_execute": False,
+    }
+
+
+def _open_world_summary_text(*, entity_count: int, status: str) -> str:
+    return (
+        f"Open-world browser evidence entities: {entity_count}. "
+        f"Objective support: {status}. "
+        "Entity kinds remain extensible; unknown fields stay unknown and no product, price, MOQ, or supplier claim is inferred."
+    )
 
 
 def _browser_product_cards(context: dict[str, Any]) -> list[Any]:

@@ -41,6 +41,8 @@ class BrowserLinkCandidateCard(SentinelModel):
 class BrowserExtractionCard(SentinelModel):
     card_id: str = Field(default_factory=lambda: new_id("browser_extract_card"))
     kind: str
+    entity_family: str = "unknown"
+    entity_kind: str = "unknown"
     title: str = "unknown"
     product_url_hash: str = "unknown"
     visible_price: str = "unknown"
@@ -59,6 +61,9 @@ class BrowserExtractionCard(SentinelModel):
     caveats: tuple[str, ...] = Field(default_factory=tuple)
     contradictions: tuple[str, ...] = Field(default_factory=tuple)
     evidence_ref_hash: str
+    evidence_refs: tuple[str, ...] = Field(default_factory=tuple)
+    extra_attributes: dict[str, Any] = Field(default_factory=dict)
+    relationships: tuple[dict[str, Any], ...] = Field(default_factory=tuple)
     confidence: float = 0.0
 
 
@@ -102,10 +107,11 @@ class BrowserWorldModel(SentinelModel):
             "button_refs": list(self.button_refs[:8]),
             "link_refs": list(self.link_refs[:8]),
             "product_or_result_candidate_count": len(self.product_or_result_candidate_cards),
+            "candidate_entity_kind_counts": _entity_kind_counts(self.product_or_result_candidate_cards),
             "relevant_product_candidate_count": sum(
                 1
                 for card in self.product_or_result_candidate_cards
-                if card.relevance_to_objective in {"relevant", "partial"}
+                if card.kind == "product_candidate" and card.relevance_to_objective in {"relevant", "partial"}
             ),
             "objective_relevance_assessed": any(
                 card.objective_relevance_assessed for card in self.product_or_result_candidate_cards
@@ -236,6 +242,13 @@ def _is_browser_research_snippet(chunk: str) -> bool:
         for marker in (
             "search",
             "result",
+            "docs",
+            "documentation",
+            "api",
+            "reference",
+            "guide",
+            "tutorial",
+            "example",
             "product",
             "price",
             "moq",
@@ -288,7 +301,7 @@ def _extracted_text_sources(text: str) -> list[str]:
         sources.append(normalized[product_start:])
     chunks = [chunk.strip() for chunk in re.split(r"(?<=[.!?])\s+|[\n\r]+", normalized) if chunk.strip()]
     for index, chunk in enumerate(chunks):
-        if not _has_product_signal(chunk):
+        if not (_has_product_signal(chunk) or _has_documentation_signal(chunk)):
             continue
         window = " ".join(chunks[index : index + 4]).strip()
         if window:
@@ -310,6 +323,13 @@ def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCa
         return None
     product_text = _strip_search_intro(text)
     if _is_empty_result_notice(product_text):
+        return None
+    if _has_open_world_entity_signal(product_text, mission_objective=mission_objective) and not _has_product_signal(
+        product_text,
+        mission_objective=mission_objective,
+    ):
+        return _open_world_card_from_text(product_text, mission_objective=mission_objective)
+    if not _has_product_signal(product_text, mission_objective=mission_objective):
         return None
     has_product_signal = bool(
         re.search(r"(\$|€|eur|usd|price|moq|minimum order|supplier|store|piece|unit|pcs?)", product_text, flags=re.I)
@@ -333,7 +353,10 @@ def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCa
     for marker in ("shipping not included", "shipping", "customization", "unclear", "login required", "MOQ"):
         if marker.lower() in product_text.lower():
             caveats.append(marker)
+    evidence_hash = stable_hash({"source_hash": text_hash(product_text), "card_kind": "product_candidate"})
     return ProductCandidateCard(
+        entity_family="commerce",
+        entity_kind="commerce_product",
         title=_clip(title or "unknown", 120),
         product_url_hash=stable_hash({"candidate_url_text": title or product_text}),
         visible_price=_clip(price or "unknown", 80),
@@ -351,23 +374,176 @@ def _card_from_text(text: str, *, mission_objective: str) -> BrowserExtractionCa
         short_features=tuple(_snippets(product_text)[:3]),
         caveats=tuple(dict.fromkeys(caveats)) or ("unknown",),
         contradictions=_contradictions(product_text),
-        evidence_ref_hash=stable_hash({"source_hash": text_hash(product_text), "card_kind": "product_candidate"}),
+        evidence_ref_hash=evidence_hash,
+        evidence_refs=(f"entity:{evidence_hash}",),
+        extra_attributes={"entity_family": "commerce", "source": "safe_visible_text"},
         confidence=0.72 if price != "unknown" or moq != "unknown" else 0.42,
     )
 
 
-def _has_product_signal(text: str) -> bool:
-    return bool(
+def _has_product_signal(text: str, *, mission_objective: str = "") -> bool:
+    commerce_field = bool(
         re.search(
-            (
-                r"(\$|eur|usd|price|moq|minimum order|supplier|store|piece|unit|pcs?|"
-                r"product|glasses|sunglasses|eyeglasses|eyewear|spectacles|listing|catalog|"
-                r"lunettes?|optiques?|monture)"
-            ),
+            r"(\$|\beur\b|\busd\b|\bprice\b|\bmoq\b|\bminimum order\b|\bsupplier\b|\bstore\b|\bpiece\b|\bunit\b|\bpcs?\b)",
             text,
             flags=re.I,
         )
     )
+    if commerce_field:
+        return True
+    objective = mission_objective.lower()
+    commerce_objective = any(
+        marker in objective
+        for marker in (
+            "product",
+            "catalog",
+            "price",
+            "moq",
+            "supplier",
+            "store",
+            "buy",
+            "glasses",
+            "sunglasses",
+            "eyewear",
+        )
+    )
+    if not commerce_objective:
+        return False
+    return bool(
+        re.search(
+            r"\b(product|glasses|sunglasses|eyeglasses|eyewear|spectacles|listing|catalog|lunettes?|optiques?|monture)\b",
+            text,
+            flags=re.I,
+        )
+    )
+
+
+def _has_documentation_signal(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(docs?|documentation|reference|api|guide|tutorial|example|examples|pep|module|class|function|method|pathlib|python)\b",
+            text,
+            flags=re.I,
+        )
+    )
+
+
+def _has_open_world_entity_signal(text: str, *, mission_objective: str) -> bool:
+    if _has_documentation_signal(text):
+        return True
+    objective_terms = _objective_terms(mission_objective)
+    lowered = text.lower()
+    return bool(objective_terms and any(term in lowered for term in objective_terms))
+
+
+def _open_world_card_from_text(text: str, *, mission_objective: str) -> BrowserSearchResultCard:
+    entity_kind, entity_family = _open_world_entity_kind(text, mission_objective=mission_objective)
+    title = _extract_open_world_title(text)
+    relevance, relevance_reason = _open_world_objective_relevance(text, mission_objective=mission_objective)
+    evidence_hash = stable_hash({"source_hash": text_hash(text), "card_kind": entity_kind})
+    snippets = tuple(_open_world_snippets(text)[:3])
+    return BrowserSearchResultCard(
+        kind=entity_kind,
+        entity_family=entity_family,
+        entity_kind=entity_kind,
+        title=_clip(title or "unknown", 120),
+        relevance_to_objective=relevance,
+        relevance_reason=_clip(relevance_reason, 180),
+        objective_relevance_assessed=True,
+        short_features=snippets or ("unknown",),
+        caveats=("unknown",),
+        evidence_ref_hash=evidence_hash,
+        evidence_refs=(f"entity:{evidence_hash}",),
+        extra_attributes={
+            "entity_family": entity_family,
+            "source": "safe_visible_text",
+            "open_world_entity": True,
+        },
+        relationships=tuple(_open_world_relationships(text, mission_objective=mission_objective)),
+        confidence=0.68 if relevance in {"relevant", "partial"} else 0.45,
+    )
+
+
+def _open_world_entity_kind(text: str, *, mission_objective: str) -> tuple[str, str]:
+    lowered = f"{text} {mission_objective}".lower()
+    if re.search(r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b", text) or any(
+        marker in lowered for marker in ("api", "method", "function", "class", "module", "pathlib")
+    ):
+        return "api_symbol_result", "api_symbol"
+    if any(marker in lowered for marker in ("docs", "documentation", "reference", "guide", "tutorial", "example", "pep")):
+        return "documentation_result", "documentation"
+    return "unknown_entity_result", "unknown"
+
+
+def _extract_open_world_title(text: str) -> str:
+    cleaned = " ".join(text.split())
+    if not cleaned:
+        return "unknown"
+    sentence = re.split(r"(?<=[.!?])\s+", cleaned, maxsplit=1)[0]
+    return _normalize_title(sentence.strip(" -:,.")[:120] or cleaned[:120])
+
+
+def _objective_terms(mission_objective: str) -> tuple[str, ...]:
+    stopwords = {
+        "the",
+        "and",
+        "for",
+        "with",
+        "find",
+        "search",
+        "documentation",
+        "docs",
+        "official",
+        "summarize",
+        "useful",
+        "evidence",
+    }
+    terms: list[str] = []
+    for raw in re.findall(r"[A-Za-z][A-Za-z0-9_.-]{2,}", mission_objective.lower()):
+        if raw in stopwords:
+            continue
+        terms.append(raw)
+    return tuple(dict.fromkeys(terms))
+
+
+def _open_world_objective_relevance(text: str, *, mission_objective: str) -> tuple[str, str]:
+    terms = _objective_terms(mission_objective)
+    lowered = text.lower()
+    if not terms:
+        return "unknown", "mission objective has no stable semantic terms Sentinel can compare"
+    matches = [term for term in terms if term in lowered]
+    if len(matches) >= min(2, len(terms)):
+        return "relevant", "visible entity text overlaps mission semantic terms"
+    if matches:
+        return "partial", "visible entity text partially overlaps mission semantic terms"
+    return "unknown", "visible entity text does not expose enough evidence for Sentinel to judge"
+
+
+def _open_world_snippets(text: str) -> list[str]:
+    chunks = [chunk.strip() for chunk in re.split(r"[\n\r]+|(?<=[.!?])\s+", text) if chunk.strip()]
+    return [_clip(chunk, 180) for chunk in chunks[:4] if not _contains_sensitive_marker(chunk)]
+
+
+def _open_world_relationships(text: str, *, mission_objective: str) -> list[dict[str, Any]]:
+    relations: list[dict[str, Any]] = []
+    lowered = text.lower()
+    for term in _objective_terms(mission_objective):
+        if term in lowered:
+            relations.append(
+                {
+                    "type": "matches_objective_term",
+                    "target_hash": text_hash(term),
+                    "confidence": 0.7,
+                }
+            )
+    return relations[:6]
+
+
+def _entity_kind_counts(cards: tuple[BrowserExtractionCard, ...]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for card in cards:
+        counts[card.kind] = counts.get(card.kind, 0) + 1
+    return counts
 
 
 def _is_empty_result_notice(text: str) -> bool:
@@ -599,6 +775,8 @@ def _page_kind_guess(
 ) -> str:
     lowered = text.lower()
     if cards:
+        if not any(card.kind == "product_candidate" for card in cards):
+            return "documentation_search_or_index" if search_like_refs else "documentation_or_article"
         return "search_results" if search_like_refs else "product_listing"
     if "captcha" in lowered or "login" in lowered:
         return "blocked_or_login"

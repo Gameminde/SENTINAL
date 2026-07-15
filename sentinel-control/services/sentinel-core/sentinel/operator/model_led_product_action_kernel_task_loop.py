@@ -249,6 +249,9 @@ class ModelLedProductActionKernelTaskLoop:
                 "model_visible_actions": list(actions),
                 "browser_environment_state": safe_context_cards.get("browser_environment_state"),
                 "browser_cognitive_decision_frame": browser_cognitive_frame,
+                "runtime_failure_fact": safe_context_cards.get("runtime_failure_fact"),
+                "model_visible_body_failure_packet": safe_context_cards.get("model_visible_body_failure_packet"),
+                "model_blocker_assessment_schema": safe_context_cards.get("model_blocker_assessment_schema"),
                 "runtime_bridge": "RuntimeHost -> UnifiedExecutionDispatcher -> ProductActionKernelDispatchAdapter",
                 "action_envelope_language": "internal_runtime_only",
             },
@@ -268,6 +271,9 @@ class ModelLedProductActionKernelTaskLoop:
             "browser_environment_state_hash": safe_context_cards.get("browser_environment_state_hash"),
             "browser_observation_bundle": safe_context_cards.get("browser_observation_bundle"),
             "browser_search_materiality": safe_context_cards.get("browser_search_materiality"),
+            "runtime_failure_fact": safe_context_cards.get("runtime_failure_fact"),
+            "model_visible_body_failure_packet": safe_context_cards.get("model_visible_body_failure_packet"),
+            "model_blocker_assessment_schema": safe_context_cards.get("model_blocker_assessment_schema"),
             "real_browser_control_summary": real_browser_summary,
             "grounded_evidence_summary": grounded_evidence_summary,
             "finish_available": finish_available,
@@ -421,6 +427,9 @@ class ModelLedProductActionKernelTaskLoop:
                 "recommended_skill": recommended_skill,
                 "remaining_create_file_plan_count": len(create_plans),
                 "browser_product_card_count": failure_card_count,
+                "runtime_failure_fact": failure_context_cards.get("runtime_failure_fact"),
+                "model_visible_body_failure_packet": failure_context_cards.get("model_visible_body_failure_packet"),
+                "model_blocker_assessment_schema": failure_context_cards.get("model_blocker_assessment_schema"),
                 "data_not_authority": True,
                 "can_execute": False,
             }
@@ -1081,13 +1090,19 @@ def _candidate_entities_from_environment(environment: dict[str, Any]) -> list[di
         entities.append(
             {
                 "rank": index,
+                "kind": card.get("kind", "unknown"),
+                "entity_family": card.get("entity_family", "unknown"),
+                "entity_kind": card.get("entity_kind", card.get("kind", "unknown")),
                 "title": card.get("title", "unknown"),
                 "visible_price": card.get("visible_price", "unknown"),
                 "currency_or_unit": card.get("currency_or_unit", "unknown"),
                 "minimum_order": card.get("minimum_order", "unknown"),
                 "supplier_or_store": card.get("supplier_or_store", "unknown"),
                 "relevance_to_objective": card.get("relevance_to_objective", "unknown"),
+                "relevance_reason": card.get("relevance_reason", "unknown"),
                 "evidence_ref_hash": card.get("evidence_ref_hash", ""),
+                "evidence_refs": card.get("evidence_refs", []),
+                "extra_attributes": card.get("extra_attributes", {}),
             }
         )
     return entities
@@ -1161,6 +1176,9 @@ def _browser_context_lane_context(loop_context: dict[str, Any]) -> dict[str, Any
         "browser_environment_state_hash": loop_context.get("browser_environment_state_hash"),
         "browser_backend_execution": loop_context.get("browser_backend_execution"),
         "browser_devtools_context": loop_context.get("browser_devtools_context"),
+        "runtime_failure_fact": loop_context.get("runtime_failure_fact"),
+        "model_visible_body_failure_packet": loop_context.get("model_visible_body_failure_packet"),
+        "model_blocker_assessment_schema": loop_context.get("model_blocker_assessment_schema"),
         "data_not_authority": True,
         "can_execute": False,
     }

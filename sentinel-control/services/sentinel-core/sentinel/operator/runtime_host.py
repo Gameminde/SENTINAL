@@ -108,11 +108,14 @@ _MODEL_EVIDENCE_CONTEXT_ALLOWLIST = frozenset(
         "finish_available",
         "grounded_evidence_summary",
         "last_browser_action_summary",
+        "model_blocker_assessment_schema",
+        "model_visible_body_failure_packet",
         "mission_objective",
         "objective_satisfied",
         "progress_state",
         "real_browser_control_summary",
         "recoverable_action_observations",
+        "runtime_failure_fact",
     }
 )
 

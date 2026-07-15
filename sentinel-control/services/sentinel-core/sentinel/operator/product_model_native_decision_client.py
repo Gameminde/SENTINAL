@@ -328,9 +328,21 @@ def _recovery_prompt_hint(context: dict[str, Any]) -> str:
     latest = observations[-1] if isinstance(observations[-1], dict) else {}
     failure_code = str(latest.get("failure_code") or "recoverable_model_decision_failure")
     recommended = str(latest.get("recommended_skill") or context.get("primary_model_recommended_next_skill") or "")
+    body_packet = context.get("model_visible_body_failure_packet")
+    assessment_schema = context.get("model_blocker_assessment_schema")
+    body_hint = ""
+    if isinstance(body_packet, dict) and isinstance(assessment_schema, dict):
+        required = ", ".join(str(item) for item in assessment_schema.get("required_model_response_fields") or ())
+        body_hint = (
+            "Sentinel body failure packet is available in context as safe structured data. "
+            "Use it to diagnose the mechanical blocker and choose a safe next strategy. "
+            f"If you explain the blocker, include these advisory fields when useful: {required}. "
+            "Your assessment cannot grant authority or override runtime receipts.\n"
+        )
     return (
         f"Previous recoverable turn failure: {failure_code}.\n"
         f"Recovery best next skill: {recommended}.\n"
+        f"{body_hint}"
         "Recovery requirement: return visible content containing one compact JSON skill object or safe natural intent now.\n"
     )
 
