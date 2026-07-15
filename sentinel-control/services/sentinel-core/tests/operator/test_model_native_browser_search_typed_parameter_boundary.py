@@ -67,6 +67,14 @@ def test_negative_browser_boundary_wording_maps_to_search_not_login() -> None:
     assert "log in" in decision.params["query"]
 
 
+def test_natural_safe_browser_search_topic_does_not_become_login_authority() -> None:
+    decision = _decision_from_model("Search login security documentation on public pages.")
+
+    assert decision.capability_id == "real_browser_control"
+    assert decision.operation == "real_browser.search"
+    assert "login security documentation" in decision.params["query"]
+
+
 @pytest.mark.parametrize(
     "params",
     [
@@ -85,7 +93,7 @@ def test_browser_search_model_params_reject_trusted_control_plane_keys(params: d
         _decision_from_model({"skill": "browse_search", "params": params})
 
 
-def test_browser_search_model_params_strip_unknown_non_control_fields() -> None:
+def test_browser_search_model_params_preserve_unknown_non_control_fields_as_extensions() -> None:
     decision = _decision_from_model(
         {
             "skill": "browse_search",
@@ -93,11 +101,32 @@ def test_browser_search_model_params_strip_unknown_non_control_fields() -> None:
                 "query": "Path.glob docs",
                 "display_hint": "safe model-only note",
                 "confidence": 0.7,
+                "hypothesis": "compare examples before choosing final source",
             },
         }
     )
 
-    assert decision.params == {"query": "Path.glob docs"}
+    assert decision.params == {
+        "query": "Path.glob docs",
+        "model_extensions": {
+            "display_hint": "safe model-only note",
+            "confidence": 0.7,
+            "hypothesis": "compare examples before choosing final source",
+        },
+    }
+
+
+def test_browser_search_model_extensions_cannot_hide_secret_values() -> None:
+    with pytest.raises(ActionKernelError):
+        _decision_from_model(
+            {
+                "skill": "browse_search",
+                "params": {
+                    "query": "Path.glob docs",
+                    "hypothesis": "candidate key sk-1234567890abcdef1234567890abcdef",
+                },
+            }
+        )
 
 
 @pytest.mark.parametrize(
@@ -137,6 +166,42 @@ def test_complete_local_path_reaches_product_actionkernel_preflight_without_quer
     assert result.capability_id == "real_browser_control"
     assert result.operation == "real_browser.search"
     assert result.blocked_reason == "real_browser_live_backend_config_missing"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "login security documentation",
+        "how password managers work",
+        "payment API documentation",
+        "safe download practices",
+        'explain "download this file" without downloading it',
+        "compare payment systems without making a payment",
+        "what does sk- prefix mean in API documentation",
+        "ne te connecte pas, recherche seulement la documentation login securite",
+        "ma tdirch download, hawes ghir ala safe download practices",
+    ],
+)
+def test_typed_browser_search_query_reaches_runtime_without_topic_word_block(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    query: str,
+) -> None:
+    monkeypatch.delenv("SENTINEL_BROWSER_TEST_URL", raising=False)
+    decision = _decision_from_model({"skill": "browse_search", "params": {"query": query}})
+    runtime_decision = decision.model_copy(update={"params": {**decision.params, "engine_profile": "local_fake"}})
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs")
+    mission = _create_browser_search_mission(host, tmp_path, runtime_decision)
+
+    result = host.dispatcher.dispatch(
+        request=mission.execution_request,
+        authority=mission.authority.envelope,
+    )
+
+    assert result.status is DispatchStatus.COMPLETED
+    assert result.capability_id == "real_browser_control"
+    assert result.operation == "real_browser.search"
+    assert result.blocked_reason is None
 
 
 def _decision_from_model(output: Any) -> ActionEnvelope:

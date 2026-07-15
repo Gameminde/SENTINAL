@@ -193,7 +193,10 @@ class ModelLedProductActionKernelTaskLoop:
         dispatch_summaries = _dispatch_summaries(self.dispatch_results)
         safe_context_cards = _merged_dispatch_context_cards(self.dispatch_results)
         completion_requirements = _product_completion_requirements(self.dispatch_results, safe_context_cards)
-        browser_cognitive_frame = _browser_cognitive_decision_frame(safe_context_cards)
+        browser_cognitive_frame = _browser_cognitive_decision_frame(
+            safe_context_cards,
+            mission_objective=self.mission_objective,
+        )
         actions = self._available_actions()
         recommended_actions = _product_context_recommended_actions(
             available_actions=actions,
@@ -932,16 +935,21 @@ def _product_completion_requirements(
     }
 
 
-def _browser_cognitive_decision_frame(safe_context_cards: dict[str, Any]) -> dict[str, Any]:
+def _browser_cognitive_decision_frame(
+    safe_context_cards: dict[str, Any],
+    *,
+    mission_objective: str = "",
+) -> dict[str, Any]:
     environment = safe_context_cards.get("browser_environment_state")
     if not isinstance(environment, dict):
+        primary = "browse_search" if _mission_objective_mentions_browser_work(mission_objective) else None
         return {
             "canonical_state_source": "none",
-            "primary_recommended_skill": "browse_search",
+            "primary_recommended_skill": primary,
             "candidate_entities": [],
             "result_regions": {"candidate_count": 0, "relevant_candidate_count": 0},
             "search_controls": {"ranked_count": 0, "search_like_refs": []},
-            "available_safe_browser_skills": ["browse_search"],
+            "available_safe_browser_skills": ["browse_search"] if primary == "browse_search" else [],
             "recommended_recovery_paths": [],
             "data_not_authority": True,
             "can_execute": False,
@@ -980,6 +988,25 @@ def _browser_cognitive_decision_frame(safe_context_cards: dict[str, Any]) -> dic
         "data_not_authority": True,
         "can_execute": False,
     }
+
+
+def _mission_objective_mentions_browser_work(value: str) -> bool:
+    lowered = str(value or "").lower()
+    markers = (
+        "browser",
+        "browse",
+        "catalog",
+        "online",
+        "page",
+        "product",
+        "public web",
+        "search the web",
+        "site",
+        "url",
+        "website",
+        "web page",
+    )
+    return any(marker in lowered for marker in markers)
 
 
 def _product_context_recommended_actions(

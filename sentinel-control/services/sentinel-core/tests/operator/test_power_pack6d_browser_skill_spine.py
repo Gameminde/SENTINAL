@@ -2053,9 +2053,18 @@ def test_login_contact_payment_and_credential_actions_remain_hard_stops(tmp_path
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine())
 
     fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    semantic_search = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "contact supplier policy documentation"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    assert semantic_search.status == "completed"
     blocked = [
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open", params={"url": "https://example.com/login"}),
-        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.search", params={"query": "contact supplier"}),
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.contact_supplier", params={}),
         ActionEnvelope(capability_id="real_browser_control", operation="real_browser.checkout", params={}),
     ]

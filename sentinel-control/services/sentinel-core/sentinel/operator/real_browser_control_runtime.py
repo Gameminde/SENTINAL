@@ -30,6 +30,7 @@ from sentinel.operator.browser_cortex_quality_gate import derive_search_progress
 from sentinel.operator.browser_environment_state import BrowserEnvironmentStateBuilder
 from sentinel.operator.browser_observation_bundle import build_browser_observation_bundle
 from sentinel.operator.browser_search_outcomes import derive_browser_search_outcome
+from sentinel.operator.browser_search_parameter_boundary import reject_typed_browser_search_semantic_text
 from sentinel.operator.browser_semantic_control_classifier import (
     classify_search_controls,
     is_search_like_control,
@@ -812,7 +813,10 @@ class RealBrowserControlRuntime:
         query = str(envelope.params.get("query") or envelope.params.get("text") or "")
         if not query.strip():
             raise RealBrowserControlRuntimeError("real_browser_search_query_required")
-        _reject_browser_skill_boundary_text(query)
+        try:
+            reject_typed_browser_search_semantic_text(query)
+        except ValueError as exc:
+            raise RealBrowserControlRuntimeError("real_browser_search_query_secret_like") from exc
         try:
             before_snapshot = self.engine.observe()
         except RealBrowserControlRuntimeError as exc:

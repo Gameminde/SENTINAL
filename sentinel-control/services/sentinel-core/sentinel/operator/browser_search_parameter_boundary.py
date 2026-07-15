@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from sentinel.operator.safety import reject_operator_control_payload
@@ -64,7 +65,11 @@ _CONTROL_PLANE_PARAM_KEYS = frozenset(
     }
 )
 
-_MODEL_SEARCH_ALLOWED_KEYS = frozenset({"query"})
+_MODEL_SEARCH_ALLOWED_KEYS = frozenset({"model_extensions", "query"})
+_MAX_MODEL_EXTENSION_DEPTH = 4
+_MAX_MODEL_EXTENSION_ITEMS = 32
+_MAX_MODEL_EXTENSION_STRING_LENGTH = 1200
+_MAX_MODEL_EXTENSIONS_BYTES = 4096
 
 
 def normalize_model_browser_search_parameters(
@@ -76,8 +81,8 @@ def normalize_model_browser_search_parameters(
 
     The model may provide search text, but it may not smuggle trusted runtime
     fields, authority fields, backend selectors, or raw provider material
-    through params. Unknown non-control fields are ignored rather than treated
-    as executable instruction.
+    through params. Unknown non-control fields remain available to the model as
+    inert semantic extensions; they are never unpacked into executor arguments.
     """
 
     if params is None:
@@ -95,7 +100,11 @@ def normalize_model_browser_search_parameters(
     else:
         raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_QUERY_NOT_TEXT")
     _reject_secret_like_query(query)
-    return {"query": query}
+    normalized: dict[str, Any] = {"query": query}
+    extensions = _normalize_model_extensions(raw_params)
+    if extensions:
+        normalized["model_extensions"] = extensions
+    return normalized
 
 
 def reject_execution_parameters_for_route(
@@ -108,17 +117,39 @@ def reject_execution_parameters_for_route(
     """Validate persisted execution parameters with route-aware data handling."""
 
     if capability_id == "real_browser_control" and operation == "real_browser.search":
-        query = parameters.get("query")
-        if isinstance(query, str):
-            _reject_secret_like_query(query)
-        elif query is not None:
-            raise ValueError(f"{context}: browser search query must be text")
-        scan_payload = dict(parameters)
-        if "query" in scan_payload:
-            scan_payload["query"] = "<typed_browser_search_query_data>"
+        scan_payload = typed_browser_search_scan_payload(parameters, context=context)
         reject_operator_control_payload(scan_payload, context=context)
         return
     reject_operator_control_payload(parameters, context=context)
+
+
+def typed_browser_search_scan_payload(parameters: dict[str, Any], *, context: str) -> dict[str, Any]:
+    """Return a control-scan-safe view of typed browser search parameters.
+
+    The typed operation is the authority-bearing fact. The query and model
+    extensions are semantic data; they are scanned for actual secret values and
+    control-plane keys, then masked before broader lexical payload scanners run.
+    """
+
+    scan_payload = dict(parameters)
+    query = scan_payload.get("query")
+    if isinstance(query, str):
+        reject_typed_browser_search_semantic_text(query, path="$.params.query")
+        scan_payload["query"] = "<typed_browser_search_query_data>"
+    elif query is not None:
+        raise ValueError(f"{context}: browser search query must be text")
+    if "model_extensions" in scan_payload:
+        _validate_model_extension_value(scan_payload["model_extensions"], path="$.params.model_extensions", depth=0)
+        _validate_model_extensions_size(scan_payload["model_extensions"])
+        scan_payload["model_extensions"] = "<typed_browser_search_model_extensions_data>"
+    return scan_payload
+
+
+def reject_typed_browser_search_semantic_text(value: str, *, path: str = "$.params.query") -> None:
+    """Reject real secret values in search semantic data without topic policing."""
+
+    if scan_secret_like_text(value, path=path):
+        raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_QUERY_SECRET_LIKE")
 
 
 def _reject_control_plane_keys(value: Any, *, path: str) -> None:
@@ -143,8 +174,85 @@ def _reject_control_plane_keys(value: Any, *, path: str) -> None:
 
 
 def _reject_secret_like_query(query: str) -> None:
-    if scan_secret_like_text(query, path="$.params.query"):
-        raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_QUERY_SECRET_LIKE")
+    reject_typed_browser_search_semantic_text(query)
+
+
+def _normalize_model_extensions(raw_params: dict[str, Any]) -> dict[str, Any]:
+    extensions: dict[str, Any] = {}
+    explicit = raw_params.get("model_extensions")
+    if explicit is not None:
+        if not isinstance(explicit, dict):
+            raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_NOT_OBJECT")
+        for key, value in explicit.items():
+            extensions[str(key)] = _normalize_model_extension_value(
+                value,
+                path=f"$.params.model_extensions.{key}",
+                depth=1,
+            )
+    for key, value in raw_params.items():
+        normalized_key = _normalize_key(key)
+        if normalized_key in _MODEL_SEARCH_ALLOWED_KEYS:
+            continue
+        extensions[str(key)] = _normalize_model_extension_value(
+            value,
+            path=f"$.params.{key}",
+            depth=1,
+        )
+    if extensions:
+        _validate_model_extensions_size(extensions)
+    return extensions
+
+
+def _normalize_model_extension_value(value: Any, *, path: str, depth: int) -> Any:
+    _validate_model_extension_value(value, path=path, depth=depth)
+    if isinstance(value, dict):
+        return {
+            str(key): _normalize_model_extension_value(
+                item,
+                path=f"{path}.{key}",
+                depth=depth + 1,
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, list | tuple | set):
+        return [
+            _normalize_model_extension_value(item, path=f"{path}[{index}]", depth=depth + 1)
+            for index, item in enumerate(value)
+        ]
+    return value
+
+
+def _validate_model_extension_value(value: Any, *, path: str, depth: int) -> None:
+    if depth > _MAX_MODEL_EXTENSION_DEPTH:
+        raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_TOO_DEEP")
+    if isinstance(value, dict):
+        if len(value) > _MAX_MODEL_EXTENSION_ITEMS:
+            raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_TOO_MANY_ITEMS")
+        _reject_control_plane_keys(value, path=path)
+        for key, item in value.items():
+            _validate_model_extension_value(item, path=f"{path}.{key}", depth=depth + 1)
+        return
+    if isinstance(value, list | tuple | set):
+        if len(value) > _MAX_MODEL_EXTENSION_ITEMS:
+            raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_TOO_MANY_ITEMS")
+        for index, item in enumerate(value):
+            _validate_model_extension_value(item, path=f"{path}[{index}]", depth=depth + 1)
+        return
+    if isinstance(value, str):
+        if len(value) > _MAX_MODEL_EXTENSION_STRING_LENGTH:
+            raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_STRING_TOO_LONG")
+        if scan_secret_like_text(value, path=path):
+            raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_SECRET_LIKE")
+        return
+    if value is None or isinstance(value, bool | int | float):
+        return
+    raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_NOT_DATA")
+
+
+def _validate_model_extensions_size(value: Any) -> None:
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if len(encoded.encode("utf-8")) > _MAX_MODEL_EXTENSIONS_BYTES:
+        raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_MODEL_EXTENSIONS_TOO_LARGE")
 
 
 def _normalize_key(key: Any) -> str:

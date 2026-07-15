@@ -151,15 +151,16 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
     visible_content_failure = _visible_content_failure(payload)
     if visible_content_failure is not None and not text.strip():
         raise ActionKernelError(visible_content_failure)
-    hard_boundary = _hard_boundary_action(text, payload)
-    if hard_boundary is not None:
-        return hard_boundary
-    if _credential_boundary_requested(text, payload):
-        raise ActionKernelError("MODEL_NATIVE_DECISION_HARD_BOUNDARY_CREDENTIAL_ACCESS")
+    skill = _requested_skill(payload, text)
+    if skill != "browse_search":
+        hard_boundary = _hard_boundary_action(text, payload)
+        if hard_boundary is not None:
+            return hard_boundary
+        if _credential_boundary_requested(text, payload):
+            raise ActionKernelError("MODEL_NATIVE_DECISION_HARD_BOUNDARY_CREDENTIAL_ACCESS")
     browser_mapping = _browser_native_mapping(raw_output, payload=payload, text=text, context=context)
     if browser_mapping is not None:
         return browser_mapping
-    skill = _requested_skill(payload, text)
     if skill is None:
         skill = _recommended_skill(context)
     else:
