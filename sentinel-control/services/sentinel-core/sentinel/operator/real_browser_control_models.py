@@ -132,8 +132,13 @@ class RealBrowserActionReceipt(SentinelModel):
     browser_session_ref: str
     browser_session_handle_ref: str = ""
     browser_session_handle_hash: str = ""
+    child_workspace_handle_hash: str = ""
     mission_workspace_ref: str = ""
     mission_workspace_hash: str = ""
+    root_browser_lease_id_hash: str = ""
+    browser_engine_identity_hash: str = ""
+    backend_context_identity_hash: str = ""
+    page_identity_hash: str = ""
     bounded_url_ref: str
     safe_url_origin_hash: str
     selected_backend_id: str = ""
@@ -180,8 +185,13 @@ class RealBrowserActionReceipt(SentinelModel):
             "browser_session_ref": _safe_browser_ref(self.browser_session_ref),
             "browser_session_handle_ref": _safe_browser_ref(self.browser_session_handle_ref),
             "browser_session_handle_hash": self.browser_session_handle_hash,
+            "child_workspace_handle_hash": self.child_workspace_handle_hash,
             "mission_workspace_ref": _safe_browser_ref(self.mission_workspace_ref),
             "mission_workspace_hash": self.mission_workspace_hash,
+            "root_browser_lease_id_hash": self.root_browser_lease_id_hash,
+            "browser_engine_identity_hash": self.browser_engine_identity_hash,
+            "backend_context_identity_hash": self.backend_context_identity_hash,
+            "page_identity_hash": self.page_identity_hash,
             "bounded_url_ref": _safe_browser_ref(self.bounded_url_ref),
             "safe_url_origin_hash": self.safe_url_origin_hash,
             "selected_backend_id": redact_operator_text(self.selected_backend_id),

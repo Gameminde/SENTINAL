@@ -990,6 +990,87 @@ def test_real_browser_search_material_receipt_when_backend_actuates(tmp_path: Pa
     assert fixture.load_action_receipt(result.receipt_refs[0])["action_kind"] == "real_browser.search"
 
 
+def test_generic_extract_evidence_is_available_without_product_named_skill(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=True))
+    fixture.authority = fixture.authority.model_copy(
+        update={"allowed_actions": [*fixture.authority.allowed_actions, "real_browser.extract_evidence"]}
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_evidence"),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+
+    assert result.status == "completed"
+    assert result.operation == "real_browser.extract_evidence"
+    assert receipt["action_kind"] == "real_browser.extract_evidence"
+    assert receipt["simple_skill"] == "extract"
+    assert result.context_cards["browser_world_model_summary"]["product_or_result_candidate_count"] >= 1
+
+
+def test_search_actuation_trace_proves_write_readback_submit_and_materiality(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
+    fixture.runtime.product_context.update(
+        {
+            "root_browser_runtime_lease": {
+                "lease_hash": "root_lease_hash",
+                "browser_engine_identity_hash": "engine_identity_hash",
+                "backend_context_identity_hash": "backend_context_hash",
+            },
+            "mission_workspace_manifest": {
+                "manifest_id": "mission_workspace_manifest",
+                "manifest_hash": "mission_workspace_hash",
+                "handles": [
+                    {
+                        "kind": "browser_session",
+                        "safe_ref": "mission_browser_handle",
+                        "handle_hash": "child_workspace_handle_hash",
+                    }
+                ],
+            },
+        }
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    materiality = receipt["search_materiality"]
+    trace = materiality["search_actuation_trace"]
+
+    assert trace["candidate_selected"] is True
+    assert trace["ref_resolved"] is True
+    assert trace["element_attached"] is True
+    assert trace["element_visible"] is True
+    assert trace["element_enabled"] is True
+    assert trace["focus_attempted"] is True
+    assert trace["focus_succeeded"] is True
+    assert trace["clear_attempted"] is True
+    assert trace["clear_succeeded"] is True
+    assert trace["write_method"] in {"fill", "type_text"}
+    assert trace["write_attempted"] is True
+    assert trace["write_readback_match"] is True
+    assert trace["submit_mechanisms_observed"]
+    assert trace["submit_method_selected"] in {"enter_key", "search_button"}
+    assert trace["submit_attempted"] is True
+    assert trace["typed_outcome"]["outcome_kind"] in {"MATERIAL_RESULTS", "MATERIAL_RESULTS_UNCERTAIN"}
+    assert receipt["root_browser_lease_id_hash"] == "root_lease_hash"
+    assert receipt["browser_engine_identity_hash"] == "engine_identity_hash"
+    assert receipt["backend_context_identity_hash"] == "backend_context_hash"
+    assert receipt["child_workspace_handle_hash"]
+    assert receipt["page_identity_hash"]
+
+
 def test_search_success_records_material_navigation_or_search_receipt(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
 
@@ -1073,6 +1154,13 @@ def test_locator_timeout_returns_recoverable_observation_not_terminal_block(tmp_
     assert result.failure_class is ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE
     assert result.blocked_reason == "real_browser_search_actuation_failed"
     assert result.recovery_observation
+    trace = result.context_cards["search_actuation_trace"]
+    assert trace["candidate_selected"] is True
+    assert trace["ref_resolved"] is True
+    assert trace["write_attempted"] is True
+    assert trace["write_readback_match"] is False
+    assert trace["safe_failure_code"] == "real_browser_search_write_failed"
+    assert result.context_cards["runtime_failure_fact"]["search_actuation_trace"]["safe_failure_code"] == "real_browser_search_write_failed"
 
 
 def test_search_reopen_failure_returns_recoverable_observation_not_terminal_block(tmp_path: Path) -> None:

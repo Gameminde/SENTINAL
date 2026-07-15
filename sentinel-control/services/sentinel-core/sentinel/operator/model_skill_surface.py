@@ -34,6 +34,8 @@ _ACTION_TO_MODEL_SKILL = {
     "real_browser_control.real_browser.search": "browse_search",
     "real_browser_control.real_browser.inspect_result": "browse_search",
     "real_browser_control.real_browser.open_result": "browse_search",
+    "real_browser_control.real_browser.extract_evidence": "extract",
+    "real_browser_control.real_browser.extract_entities": "extract",
     "real_browser_control.real_browser.extract_product_cards": "extract",
     "real_browser_control.real_browser.verify_extraction": "extract",
     "real_browser_control.real_browser.extract_text": "extract",

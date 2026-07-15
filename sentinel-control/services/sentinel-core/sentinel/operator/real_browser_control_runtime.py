@@ -362,6 +362,8 @@ class BrowserSessionManagerRealBrowserEngine:
             elements=(),
         )
         self._last_text = ""
+        self._last_typed_text_hash = ""
+        self._last_form_state_summary_hash = ""
         self._ref_targets: dict[str, tuple[str, str | None, int]] = {}
         self.session_manager = session_manager or _build_browser_session_manager(
             capture_root=effective_capture_root,
@@ -381,6 +383,14 @@ class BrowserSessionManagerRealBrowserEngine:
             or getattr(self.session_manager, "backend_kind", None)
             or "unknown"
         )
+
+    @property
+    def last_typed_text_hash(self) -> str:
+        return self._last_typed_text_hash
+
+    @property
+    def last_form_state_summary_hash(self) -> str:
+        return self._last_form_state_summary_hash
 
     def bind_authority(self, authority: MissionAuthorityEnvelope) -> None:
         self._authority = authority
@@ -550,6 +560,8 @@ class BrowserSessionManagerRealBrowserEngine:
             raise RealBrowserControlRuntimeError(str(getattr(result, "reason", "browser_session_result_blocked")))
         self._session_id = _result_session_id(result) or self._session_id
         receipt = getattr(result, "receipt", None)
+        self._last_typed_text_hash = str(getattr(receipt, "typed_text_hash", "") or "")
+        self._last_form_state_summary_hash = str(getattr(receipt, "form_state_summary_hash", "") or "")
         manager_snapshot = self._manager_snapshot()
         if manager_snapshot is not None:
             snapshot = self._snapshot_from_accessibility(manager_snapshot, fallback_title=fallback_title)
@@ -691,6 +703,8 @@ class RealBrowserControlRuntime:
             return self._inspect_result(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.open_result":
             return self._open_result(envelope, authority=authority, context=context)
+        if envelope.operation in {"real_browser.extract_evidence", "real_browser.extract_entities"}:
+            return self._extract_evidence(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.extract_product_cards":
             return self._extract_product_cards(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.verify_extraction":
@@ -853,23 +867,24 @@ class RealBrowserControlRuntime:
             )
         errors: list[str] = []
         recovery_evidence: dict[str, Any] | None = None
+        last_trace: dict[str, Any] | None = None
         for ref in candidates:
-            input_written = False
-            submission_attempted = False
+            trace = _new_search_actuation_trace(before_snapshot=before_snapshot, ref=ref, query=query)
+            last_trace = trace
             try:
-                snapshot = self.engine.type_text(ref, query)
-                input_written = True
-                try:
-                    submission_attempted = True
-                    snapshot = self.engine.press_key(ref, "Enter")
-                except RealBrowserControlRuntimeError as exc:
-                    errors.append(str(exc))
-                    submission_attempted = True
-                    snapshot = self._click_search_button_if_available()
+                snapshot = self._actuate_search_candidate(
+                    ref=ref,
+                    query=query,
+                    before_snapshot=before_snapshot,
+                    trace=trace,
+                    errors=errors,
+                )
                 try:
                     snapshot = self.engine.wait_for_load()
                 except RealBrowserControlRuntimeError as exc:
                     errors.append(str(exc))
+                trace["request_progress"] = "observing_after_submit"
+                trace["navigation_progress"] = "observing_after_submit"
                 context_cards = self._world_context_cards(
                     snapshot,
                     authority=authority,
@@ -881,9 +896,20 @@ class RealBrowserControlRuntime:
                     after_snapshot=snapshot,
                     query=query,
                     context_cards=context_cards,
-                    input_written=input_written,
-                    submission_attempted=submission_attempted,
+                    input_written=bool(trace.get("write_readback_match")),
+                    submission_attempted=bool(trace.get("submit_attempted")),
+                    search_actuation_trace=trace,
                 )
+                trace.update(
+                    {
+                        "request_progress": "observed" if search_materiality.get("request_observed") else "not_observed",
+                        "navigation_progress": "changed" if search_materiality.get("navigation_or_state_changed") else "not_observed",
+                        "result_region_progress": "changed" if search_materiality.get("result_region_changed") else "not_changed",
+                        "typed_outcome": search_materiality.get("typed_search_outcome"),
+                        "safe_failure_code": None,
+                    }
+                )
+                search_materiality["search_actuation_trace"] = dict(trace)
                 return self._record_action(
                     envelope,
                     action_kind="real_browser.search",
@@ -901,7 +927,7 @@ class RealBrowserControlRuntime:
                 if recovery_evidence is None and _search_error_can_refresh_refs(error):
                     recovery_evidence = _browser_recovery_evidence(
                         authority=authority,
-                        failure_code=error,
+                        failure_code=str(trace.get("safe_failure_code") or error),
                         browser_state_hash=before_snapshot.state_hash,
                         context_cards=self._world_context_cards(
                             self.engine.observe(),
@@ -911,10 +937,15 @@ class RealBrowserControlRuntime:
                         ),
                     )
                     try:
-                        snapshot = self.engine.type_text(ref, query)
-                        input_written = True
-                        submission_attempted = True
-                        snapshot = self.engine.press_key(ref, "Enter")
+                        retry_trace = _new_search_actuation_trace(before_snapshot=before_snapshot, ref=ref, query=query)
+                        last_trace = retry_trace
+                        snapshot = self._actuate_search_candidate(
+                            ref=ref,
+                            query=query,
+                            before_snapshot=before_snapshot,
+                            trace=retry_trace,
+                            errors=errors,
+                        )
                         try:
                             snapshot = self.engine.wait_for_load()
                         except RealBrowserControlRuntimeError as load_exc:
@@ -931,9 +962,20 @@ class RealBrowserControlRuntime:
                             after_snapshot=snapshot,
                             query=query,
                             context_cards=context_cards,
-                            input_written=input_written,
-                            submission_attempted=submission_attempted,
+                            input_written=bool(retry_trace.get("write_readback_match")),
+                            submission_attempted=bool(retry_trace.get("submit_attempted")),
+                            search_actuation_trace=retry_trace,
                         )
+                        retry_trace.update(
+                            {
+                                "request_progress": "observed" if search_materiality.get("request_observed") else "not_observed",
+                                "navigation_progress": "changed" if search_materiality.get("navigation_or_state_changed") else "not_observed",
+                                "result_region_progress": "changed" if search_materiality.get("result_region_changed") else "not_changed",
+                                "typed_outcome": search_materiality.get("typed_search_outcome"),
+                                "safe_failure_code": None,
+                            }
+                        )
+                        search_materiality["search_actuation_trace"] = dict(retry_trace)
                         return self._record_action(
                             envelope,
                             action_kind="real_browser.search",
@@ -958,11 +1000,13 @@ class RealBrowserControlRuntime:
         if recovery_evidence is None:
             recovery_evidence = _browser_recovery_evidence(
                 authority=authority,
-                failure_code="real_browser_search_actuation_failed",
+                failure_code=str((last_trace or {}).get("safe_failure_code") or "real_browser_search_actuation_failed"),
                 browser_state_hash=recovery_snapshot.state_hash,
                 context_cards=context_cards,
             )
         context_cards["browser_recovery_evidence"] = recovery_evidence
+        if last_trace is not None:
+            context_cards["search_actuation_trace"] = dict(last_trace)
         return self._recoverable_actuation_failure(
             envelope,
             failure_code="real_browser_search_actuation_failed",
@@ -970,6 +1014,79 @@ class RealBrowserControlRuntime:
             context_cards=context_cards,
             browser_state_hash=recovery_snapshot.state_hash,
         )
+
+    def _actuate_search_candidate(
+        self,
+        *,
+        ref: str,
+        query: str,
+        before_snapshot: RealBrowserEngineSnapshot,
+        trace: dict[str, Any],
+        errors: list[str],
+    ) -> RealBrowserEngineSnapshot:
+        element = _element_for_ref(before_snapshot, ref)
+        if element is None:
+            trace.update({"ref_resolved": False, "safe_failure_code": "real_browser_search_ref_not_found"})
+            raise RealBrowserControlRuntimeError("real_browser_search_ref_not_found")
+        trace.update(
+            {
+                "ref_resolved": True,
+                "element_attached": True,
+                "element_visible": bool(element.visible),
+                "element_enabled": bool(element.enabled),
+            }
+        )
+        if bool(getattr(element, "secret", False)):
+            trace["safe_failure_code"] = "real_browser_secret_field_blocked"
+            raise RealBrowserControlRuntimeError("real_browser_secret_field_blocked")
+        if not element.visible:
+            trace["safe_failure_code"] = "real_browser_search_element_hidden"
+            raise RealBrowserControlRuntimeError("real_browser_search_element_hidden")
+        if not element.enabled:
+            trace["safe_failure_code"] = "real_browser_search_element_disabled"
+            raise RealBrowserControlRuntimeError("real_browser_search_element_disabled")
+        trace["focus_attempted"] = True
+        try:
+            self.engine.click(ref)
+            trace["focus_succeeded"] = True
+        except RealBrowserControlRuntimeError as exc:
+            errors.append(str(exc))
+            trace["focus_succeeded"] = False
+        trace["clear_attempted"] = True
+        trace["clear_succeeded"] = True
+        trace["write_method"] = "fill"
+        trace["write_attempted"] = True
+        try:
+            snapshot = self.engine.type_text(ref, query)
+        except RealBrowserControlRuntimeError as exc:
+            trace["safe_failure_code"] = "real_browser_search_write_failed"
+            raise RealBrowserControlRuntimeError("real_browser_search_write_failed") from exc
+        trace["write_readback_match"] = _search_write_readback_matches(
+            engine=self.engine,
+            snapshot=snapshot,
+            query=query,
+        )
+        trace["write_readback_hash"] = text_hash(query) if trace["write_readback_match"] else ""
+        if not trace["write_readback_match"]:
+            trace["safe_failure_code"] = "real_browser_search_write_readback_mismatch"
+            raise RealBrowserControlRuntimeError("real_browser_search_write_readback_mismatch")
+        mechanisms = _observed_submit_mechanisms(snapshot, ref)
+        trace["submit_mechanisms_observed"] = mechanisms
+        trace["submit_method_selected"] = "enter_key" if "enter_key" in mechanisms else (mechanisms[0] if mechanisms else "")
+        trace["submit_attempted"] = True
+        try:
+            return self.engine.press_key(ref, "Enter")
+        except RealBrowserControlRuntimeError as exc:
+            errors.append(str(exc))
+            if "search_button" not in mechanisms:
+                trace["safe_failure_code"] = "real_browser_search_submit_failed"
+                raise RealBrowserControlRuntimeError("real_browser_search_submit_failed") from exc
+            trace["submit_method_selected"] = "search_button"
+            try:
+                return self._click_search_button_if_available()
+            except RealBrowserControlRuntimeError as button_exc:
+                trace["safe_failure_code"] = "real_browser_search_submit_failed"
+                raise RealBrowserControlRuntimeError("real_browser_search_submit_failed") from button_exc
 
     def _inspect_result(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.inspect_result")
@@ -1085,6 +1202,52 @@ class RealBrowserControlRuntime:
             after_state_hash=snapshot.state_hash,
             status="completed",
             summary=f"real browser product extraction completed card_count={card_count} text_hash={text_hash(text)}.",
+            material_action=True,
+            context_cards=context_cards,
+        )
+
+    def _extract_evidence(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
+        self._require_authorized(authority, envelope.operation)
+        try:
+            text, snapshot = self.engine.extract_text()
+        except RealBrowserControlRuntimeError as exc:
+            if str(exc) not in {"real_browser_not_open", "browser_session_missing_or_closed"}:
+                raise
+            context_cards = _existing_browser_context_cards(context)
+            if context_cards is None:
+                raise
+            state_hash = _context_browser_state_hash(context_cards)
+            entity_count = _context_product_card_count(context_cards)
+            return self._record_action(
+                envelope,
+                action_kind=envelope.operation,
+                element_ref="page:evidence_entities",
+                before_state_hash=state_hash,
+                after_state_hash=state_hash,
+                status="completed",
+                summary=(
+                    "real browser open-world evidence extraction completed from existing safe "
+                    f"world model entity_count={entity_count}."
+                ),
+                material_action=True,
+                context_cards=context_cards,
+            )
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_evidence_extracted",
+            extracted_text=text,
+        )
+        entity_count = len(context_cards.get("browser_world_model", {}).get("product_or_result_candidate_cards", []))
+        return self._record_action(
+            envelope,
+            action_kind=envelope.operation,
+            element_ref="page:evidence_entities",
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            status="completed",
+            summary=f"real browser open-world evidence extraction completed entity_count={entity_count} text_hash={text_hash(text)}.",
             material_action=True,
             context_cards=context_cards,
         )
@@ -1339,14 +1502,20 @@ class RealBrowserControlRuntime:
             action_context_cards["browser_search_materiality"] = dict(search_materiality)
         product_context = dict(self.product_context)
         workspace_context = _browser_product_workspace_context(product_context)
+        root_identity = _browser_root_identity_context(product_context, engine=self.engine, after_state_hash=after_state_hash)
         internal_action_id = f"{envelope.capability_id}.{envelope.operation}"
         receipt = RealBrowserActionReceipt(
             mission_id=self.mission_id,
             browser_session_ref=self.session_ref,
             browser_session_handle_ref=workspace_context["browser_session_handle_ref"],
             browser_session_handle_hash=workspace_context["browser_session_handle_hash"],
+            child_workspace_handle_hash=workspace_context["child_workspace_handle_hash"],
             mission_workspace_ref=workspace_context["mission_workspace_ref"],
             mission_workspace_hash=workspace_context["mission_workspace_hash"],
+            root_browser_lease_id_hash=root_identity["root_browser_lease_id_hash"],
+            browser_engine_identity_hash=root_identity["browser_engine_identity_hash"],
+            backend_context_identity_hash=root_identity["backend_context_identity_hash"],
+            page_identity_hash=root_identity["page_identity_hash"],
             bounded_url_ref=self.bounded_url_ref,
             safe_url_origin_hash=self.engine.safe_url_origin_hash,
             selected_backend_id=self.selected_backend_id,
@@ -2779,6 +2948,13 @@ def _engine_backend_id(engine: RealBrowserEngine) -> str:
     return f"{engine.__class__.__name__.removesuffix('Engine').lower()}_engine"
 
 
+def _safe_engine_origin_hash(engine: RealBrowserEngine) -> str:
+    try:
+        return str(engine.safe_url_origin_hash)
+    except Exception:
+        return stable_hash({"engine_backend_id": _engine_backend_id(engine), "origin": "unavailable"})
+
+
 def _validate_selected_browser_backend(
     *,
     actual_backend_id: str,
@@ -2829,6 +3005,10 @@ def _existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any] |
         "browser_environment_state_hash",
         "browser_backend_execution",
         "browser_devtools_context",
+        "search_actuation_trace",
+        "runtime_failure_fact",
+        "model_visible_body_failure_packet",
+        "model_blocker_assessment_schema",
     )
     cards = {key: context[key] for key in keys if key in context}
     if _context_product_card_count(cards) <= 0:
@@ -2861,13 +3041,26 @@ def _browser_decision_frame_with_visible_card_extraction_priority(
         for action in frame_dump.get("recommended_next_actions", [])
         if str(action)
     ]
-    extract_action = "real_browser_control.real_browser.extract_product_cards"
+    extract_action = _preferred_extract_action_for_cards(cards)
     if extract_action not in recommended:
         recommended.insert(0, extract_action)
     else:
         recommended = [extract_action, *[action for action in recommended if action != extract_action]]
     frame_dump["recommended_next_actions"] = recommended
     return frame_dump
+
+
+def _preferred_extract_action_for_cards(cards: tuple[Any, ...]) -> str:
+    for card in cards:
+        kind = str(getattr(card, "kind", "") or getattr(card, "entity_kind", "") or "").lower()
+        family = str(getattr(card, "entity_family", "") or "").lower()
+        if any(marker in f"{kind} {family}" for marker in ("commerce", "product", "catalog")):
+            return "real_browser_control.real_browser.extract_product_cards"
+        for field in ("visible_price", "minimum_order", "supplier_or_store", "currency_or_unit"):
+            value = str(getattr(card, field, "") or "").strip().lower()
+            if value and value != "unknown":
+                return "real_browser_control.real_browser.extract_product_cards"
+    return "real_browser_control.real_browser.extract_evidence"
 
 
 def _recoverable_existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any]:
@@ -2883,6 +3076,10 @@ def _recoverable_existing_browser_context_cards(context: dict[str, Any]) -> dict
         "browser_environment_state_hash",
         "browser_backend_execution",
         "browser_devtools_context",
+        "search_actuation_trace",
+        "runtime_failure_fact",
+        "model_visible_body_failure_packet",
+        "model_blocker_assessment_schema",
     )
     return {key: context[key] for key in keys if key in context}
 
@@ -2924,7 +3121,88 @@ def _context_browser_state_hash(context_cards: dict[str, Any]) -> str:
 
 def _search_error_can_refresh_refs(error: str) -> bool:
     lowered = error.lower()
-    return any(marker in lowered for marker in ("stale", "detached", "not_textbox", "disabled", "hidden"))
+    return any(marker in lowered for marker in ("stale", "detached", "not_textbox", "disabled", "hidden", "ref_not_found"))
+
+
+def _new_search_actuation_trace(
+    *,
+    before_snapshot: RealBrowserEngineSnapshot,
+    ref: str,
+    query: str,
+) -> dict[str, Any]:
+    element = _element_for_ref(before_snapshot, ref)
+    return {
+        "trace_kind": "SearchActuationTrace",
+        "candidate_selected": bool(ref),
+        "candidate_ref_hash": text_hash(ref),
+        "ref_resolved": element is not None,
+        "element_attached": element is not None,
+        "element_visible": bool(getattr(element, "visible", False)) if element is not None else False,
+        "element_enabled": bool(getattr(element, "enabled", False)) if element is not None else False,
+        "focus_attempted": False,
+        "focus_succeeded": False,
+        "clear_attempted": False,
+        "clear_succeeded": False,
+        "write_method": "",
+        "write_attempted": False,
+        "write_readback_match": False,
+        "write_readback_hash": "",
+        "submit_mechanisms_observed": _observed_submit_mechanisms(before_snapshot, ref),
+        "submit_method_selected": "",
+        "submit_attempted": False,
+        "request_progress": "not_observed",
+        "navigation_progress": "not_observed",
+        "result_region_progress": "not_observed",
+        "typed_outcome": None,
+        "safe_failure_class": "recoverable_browser_state_failure",
+        "safe_failure_code": None,
+        "query_hash": text_hash(query),
+        "before_state_hash": before_snapshot.state_hash,
+        "data_not_authority": True,
+        "can_execute": False,
+        "can_grant_authority": False,
+    }
+
+
+def _element_for_ref(snapshot: RealBrowserEngineSnapshot, ref: str) -> RealBrowserEngineElement | None:
+    for element in snapshot.elements:
+        if element.ref == ref:
+            return element
+    return None
+
+
+def _observed_submit_mechanisms(snapshot: RealBrowserEngineSnapshot, ref: str) -> list[str]:
+    mechanisms: list[str] = []
+    element = _element_for_ref(snapshot, ref)
+    if element is not None and element.role in {"textbox", "combobox", "searchbox"}:
+        mechanisms.append("enter_key")
+    for candidate in snapshot.elements:
+        if candidate.role != "button" or not candidate.visible or not candidate.enabled or bool(getattr(candidate, "secret", False)):
+            continue
+        text = f"{candidate.ref} {candidate.name} {candidate.text_preview}".lower()
+        if any(marker in text for marker in ("search", "find", "submit", "go")):
+            mechanisms.append("search_button")
+            break
+    return list(dict.fromkeys(mechanisms))
+
+
+def _search_write_readback_matches(
+    *,
+    engine: RealBrowserEngine,
+    snapshot: RealBrowserEngineSnapshot,
+    query: str,
+) -> bool:
+    query_hash = text_hash(query)
+    if str(getattr(engine, "last_typed_text_hash", "") or "") == query_hash:
+        return True
+    normalized_query = " ".join(query.lower().split())
+    for element in snapshot.elements:
+        if not element.visible or bool(getattr(element, "secret", False)):
+            continue
+        value = " ".join(str(element.value_preview or "").lower().split())
+        if value and normalized_query and normalized_query in value:
+            return True
+    return False
 
 
 def _browser_recovery_evidence(
@@ -2992,6 +3270,9 @@ def _runtime_failure_fact(
     context_cards: dict[str, Any],
 ) -> dict[str, Any]:
     environment_hash = str(context_cards.get("browser_environment_state_hash") or "")
+    search_trace = context_cards.get("search_actuation_trace")
+    if not isinstance(search_trace, dict):
+        search_trace = {}
     return {
         "fact_kind": "runtime_failure_fact",
         "attempted_operation": envelope.operation,
@@ -3002,6 +3283,7 @@ def _runtime_failure_fact(
         "material_effect_observed": False,
         "browser_state_hash": browser_state_hash,
         "browser_environment_state_hash": environment_hash,
+        "search_actuation_trace": dict(search_trace),
         "safe_summary": safe_summary[:500],
         "receipt_backed_after_product_dispatch": True,
         "authority_effect": "none",
@@ -3033,6 +3315,9 @@ def _model_visible_body_failure_packet(
         context_cards=context_cards,
         browser_state_hash=browser_state_hash,
     )
+    search_trace = context_cards.get("search_actuation_trace") if isinstance(context_cards, dict) else {}
+    if not isinstance(search_trace, dict):
+        search_trace = {}
     root_lease = product_context.get("root_browser_runtime_lease") if isinstance(product_context, dict) else None
     state_fields = environment.get("state_fields") if isinstance(environment, dict) and isinstance(environment.get("state_fields"), dict) else {}
     uncertainty = _state_field_value(state_fields, "uncertainty")
@@ -3054,6 +3339,19 @@ def _model_visible_body_failure_packet(
         },
         "failure_stage": _browser_failure_stage(failure_code, operation=envelope.operation),
         "material_effect_observed": False,
+        "search_actuation_trace": {
+            "candidate_selected": search_trace.get("candidate_selected"),
+            "ref_resolved": search_trace.get("ref_resolved"),
+            "element_attached": search_trace.get("element_attached"),
+            "element_visible": search_trace.get("element_visible"),
+            "element_enabled": search_trace.get("element_enabled"),
+            "focus_attempted": search_trace.get("focus_attempted"),
+            "focus_succeeded": search_trace.get("focus_succeeded"),
+            "write_attempted": search_trace.get("write_attempted"),
+            "write_readback_match": search_trace.get("write_readback_match"),
+            "submit_attempted": search_trace.get("submit_attempted"),
+            "safe_failure_code": search_trace.get("safe_failure_code"),
+        },
         "objective_progress": {
             "candidate_entity_count": int(current_page.get("candidate_count") or 0),
             "objective_relevance_assessed": bool(
@@ -3112,7 +3410,17 @@ def _model_blocker_assessment_schema() -> dict[str, Any]:
 def _browser_failure_stage(failure_code: str, *, operation: str) -> str:
     if "search_control_not_found" in failure_code:
         return "search_control_discovery"
-    if "search_actuation" in failure_code or "locator" in failure_code:
+    if any(
+        marker in failure_code
+        for marker in (
+            "search_actuation",
+            "search_write",
+            "search_submit",
+            "search_element",
+            "search_ref",
+            "locator",
+        )
+    ):
         return "search_control_actuation"
     if "session" in failure_code:
         return "session_lifecycle"
@@ -3213,6 +3521,7 @@ def _search_materiality(
     context_cards: dict[str, Any],
     input_written: bool,
     submission_attempted: bool,
+    search_actuation_trace: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     before_cards = _snapshot_result_region_count(before_snapshot)
     after_cards = _snapshot_result_region_count(after_snapshot)
@@ -3260,6 +3569,7 @@ def _search_materiality(
         "search_materially_uncertain": bool(input_written and submission_attempted and not materially_successful),
         "typed_search_outcome": outcome.safe_model_dump(),
         "query_hash": text_hash(query),
+        "search_actuation_trace": dict(search_actuation_trace or {}),
         "evidence_hash": stable_hash(
             {
                 "before_state_hash": before_snapshot.state_hash,
@@ -3416,14 +3726,43 @@ def _browser_product_workspace_context(context: dict[str, Any]) -> dict[str, str
             "mission_workspace_hash": "",
             "browser_session_handle_ref": "",
             "browser_session_handle_hash": "",
+            "child_workspace_handle_hash": "",
         }
     browser_handle = _browser_session_handle_from_manifest(manifest)
     browser_session_ref = str(browser_handle.get("safe_ref") or "") if browser_handle else ""
+    child_hash = str(browser_handle.get("handle_hash") or "") if browser_handle else ""
     return {
         "mission_workspace_ref": str(manifest.get("manifest_id") or ""),
         "mission_workspace_hash": str(manifest.get("manifest_hash") or ""),
         "browser_session_handle_ref": browser_session_ref,
         "browser_session_handle_hash": stable_hash(browser_handle) if browser_handle else "",
+        "child_workspace_handle_hash": child_hash or (stable_hash(browser_handle) if browser_handle else ""),
+    }
+
+
+def _browser_root_identity_context(
+    context: dict[str, Any],
+    *,
+    engine: RealBrowserEngine,
+    after_state_hash: str,
+) -> dict[str, str]:
+    root = context.get("root_browser_runtime_lease") if isinstance(context, dict) else None
+    if not isinstance(root, dict):
+        root = {}
+    root_hash = str(root.get("lease_hash") or root.get("root_browser_lease_id_hash") or "")
+    engine_hash = str(root.get("browser_engine_identity_hash") or "")
+    backend_context_hash = str(root.get("backend_context_identity_hash") or "")
+    if not root_hash:
+        root_hash = stable_hash({"engine_backend": _engine_backend_id(engine), "origin": _safe_engine_origin_hash(engine)})
+    if not engine_hash:
+        engine_hash = stable_hash({"root_hash": root_hash, "engine_backend": _engine_backend_id(engine)})
+    if not backend_context_hash:
+        backend_context_hash = stable_hash({"root_hash": root_hash, "session_backend_kind": _engine_session_backend_kind(engine)})
+    return {
+        "root_browser_lease_id_hash": root_hash,
+        "browser_engine_identity_hash": engine_hash,
+        "backend_context_identity_hash": backend_context_hash,
+        "page_identity_hash": stable_hash({"browser_state_hash": after_state_hash, "origin_hash": _safe_engine_origin_hash(engine)}),
     }
 
 

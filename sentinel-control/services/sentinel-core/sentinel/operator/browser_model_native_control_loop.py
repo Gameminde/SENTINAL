@@ -44,6 +44,8 @@ _MODEL_VISIBLE_BROWSER_ACTIONS = {
     "real_browser_control.real_browser.search",
     "real_browser_control.real_browser.inspect_result",
     "real_browser_control.real_browser.open_result",
+    "real_browser_control.real_browser.extract_evidence",
+    "real_browser_control.real_browser.extract_entities",
     "real_browser_control.real_browser.extract_product_cards",
     "real_browser_control.real_browser.verify_extraction",
     "sentinel_loop.summarize_evidence",
@@ -148,7 +150,7 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
         if _has_browser_extraction(context):
             return _mapped("real_browser_control.real_browser.verify_extraction", intent_kind="finish_requires_verification", diagnostics=diagnostics)
         if _has_product_cards(context):
-            return _mapped("real_browser_control.real_browser.extract_product_cards", intent_kind="finish_requires_extraction", diagnostics=diagnostics)
+            return _mapped(_extract_action_for_context(context), intent_kind="finish_requires_extraction", diagnostics=diagnostics)
         return _recommended_mapping(context, diagnostics=diagnostics, intent_kind="finish_without_proof")
 
     if _has_verified_browser_extraction(context) and not _has_grounded_evidence_summary(context):
@@ -180,7 +182,7 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
                 intent_kind="explicit_new_search_query",
                 diagnostics=diagnostics,
             )
-        return _mapped("real_browser_control.real_browser.extract_product_cards", intent_kind="extract_visible_cards", diagnostics=diagnostics)
+        return _mapped(_extract_action_for_context(context), intent_kind="extract_visible_cards", diagnostics=diagnostics)
 
     if _has_product_cards(context) and _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
         return _mapped("real_browser_control.real_browser.verify_extraction", intent_kind="verify_visible_cards", diagnostics=diagnostics)
@@ -189,7 +191,7 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
         return _mapped("real_browser_control.real_browser.open", intent_kind="open", diagnostics=diagnostics)
 
     if _mentions_extract_or_compare(normalized):
-        return _mapped("real_browser_control.real_browser.extract_product_cards", intent_kind="extract_product_cards", diagnostics=diagnostics)
+        return _mapped(_extract_action_for_context(context), intent_kind="extract_evidence", diagnostics=diagnostics)
 
     if _mentions_open_result(normalized):
         return _mapped(
@@ -349,6 +351,10 @@ def _coerce_to_model_visible_action(action_name: str) -> str:
         return "real_browser_control.real_browser.inspect_result"
     if action_name.endswith(".open_result"):
         return "real_browser_control.real_browser.open_result"
+    if action_name.endswith(".extract_evidence"):
+        return "real_browser_control.real_browser.extract_evidence"
+    if action_name.endswith(".extract_entities"):
+        return "real_browser_control.real_browser.extract_entities"
     if action_name.endswith(".extract_product_cards"):
         return "real_browser_control.real_browser.extract_product_cards"
     if action_name.endswith(".verify_extraction"):
@@ -368,7 +374,7 @@ def _unsupported_explicit_action_reason(action_name: str) -> str | None:
 
 
 def _primary_browser_action_fallback() -> str:
-    return "real_browser_control.real_browser.extract_product_cards"
+    return "real_browser_control.real_browser.extract_evidence"
 
 
 def _safe_diagnostics(
@@ -603,14 +609,53 @@ def _strongest_contextual_browser_action(context: dict[str, Any]) -> str | None:
     if _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
         return "real_browser_control.real_browser.verify_extraction"
     if _has_product_cards(context):
-        return "real_browser_control.real_browser.extract_product_cards"
+        return _extract_action_for_context(context)
     return None
+
+
+def _extract_action_for_context(context: dict[str, Any]) -> str:
+    if _context_has_commerce_evidence(context):
+        return "real_browser_control.real_browser.extract_product_cards"
+    return "real_browser_control.real_browser.extract_evidence"
+
+
+def _context_has_commerce_evidence(context: dict[str, Any]) -> bool:
+    summary = context.get("browser_world_model_summary")
+    if isinstance(summary, dict):
+        kind_counts = summary.get("candidate_entity_kind_counts")
+        if isinstance(kind_counts, dict):
+            for kind, count in kind_counts.items():
+                if any(marker in str(kind).lower() for marker in ("commerce", "product", "catalog")):
+                    try:
+                        if int(count or 0) > 0:
+                            return True
+                    except (TypeError, ValueError):
+                        return True
+        if int(summary.get("product_candidate_count") or 0) > 0:
+            return True
+    model = context.get("browser_world_model")
+    if isinstance(model, dict):
+        cards = model.get("product_or_result_candidate_cards")
+        if isinstance(cards, list):
+            for card in cards:
+                if not isinstance(card, dict):
+                    continue
+                kind = str(card.get("kind") or card.get("entity_kind") or "").lower()
+                family = str(card.get("entity_family") or "").lower()
+                if any(marker in f"{kind} {family}" for marker in ("commerce", "product", "catalog")):
+                    return True
+                commerce_fields = ("visible_price", "currency_or_unit", "minimum_order", "supplier_or_store")
+                if any(str(card.get(field) or "").strip().lower() not in {"", "unknown"} for field in commerce_fields):
+                    return True
+    return False
 
 
 def _safe_fallback_browser_action(context: dict[str, Any]) -> str | None:
     available = tuple(str(action) for action in context.get("available_actions", ()) if isinstance(action, str))
     preferred = (
         "real_browser_control.real_browser.observe",
+        "real_browser_control.real_browser.extract_evidence",
+        "real_browser_control.real_browser.extract_entities",
         "real_browser_control.real_browser.extract_product_cards",
         "real_browser_control.real_browser.verify_extraction",
         "real_browser_control.real_browser.search",

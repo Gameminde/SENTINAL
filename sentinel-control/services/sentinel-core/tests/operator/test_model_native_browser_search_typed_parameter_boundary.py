@@ -10,6 +10,7 @@ from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
 from sentinel.operator.product_model_native_decision_client import ProductModelNativeDecisionClient
+from sentinel.operator.browser_search_parameter_boundary import reject_execution_parameters_for_route
 from sentinel.operator.real_browser_control_runtime import BOUNDED_URL_AUTHORITY_REF
 from sentinel.operator.runtime_host import SentinelRuntimeHost, _real_browser_preflight
 from sentinel.operator.unified_execution_dispatcher import DispatchStatus
@@ -202,6 +203,91 @@ def test_typed_browser_search_query_reaches_runtime_without_topic_word_block(
     assert result.capability_id == "real_browser_control"
     assert result.operation == "real_browser.search"
     assert result.blocked_reason is None
+
+
+def test_typed_loop_context_treats_negative_boundary_objective_as_semantic_data() -> None:
+    parameters = {
+        "loop_context": {
+            "mission_objective": (
+                "Search Python.org documentation for pathlib Path.glob. "
+                "No login, no download, no upload, no contact, no payment, no form submission."
+            ),
+            "browser_decision_frame": {
+                "mission_objective": (
+                    "Find official docs; do not log in, download, upload, contact, pay, or submit forms."
+                ),
+                "candidate_actions": [{"action": "real_browser.extract_evidence"}],
+            },
+            "BrowserEnvironmentState": {
+                "state_fields": {
+                    "page_identity": {"value": {"page_kind": "documentation_search_or_index"}},
+                    "uncertainty": {"value": {"unknowns": ["search materiality"]}},
+                }
+            },
+            "runtime_failure_fact": {
+                "attempted_operation": "real_browser.search",
+                "failure_code": "real_browser_search_write_failed",
+            },
+            "model_visible_body_failure_packet": {
+                "attempted_operation": "real_browser.search",
+                "available_affordances": {"search_like_refs": ["ref_hash_only"]},
+            },
+            "model_blocker_assessment": {
+                "perceived_blocker": "search field did not accept text",
+                "proposed_next_strategy": "extract visible documentation links",
+            },
+            "evidence_summaries": [{"kind": "documentation_result", "evidence_ref": "evidence:hash"}],
+            "unknowns": ["whether submit fired"],
+            "contradictions": [],
+            "model_extensions": {"hypothesis": "inspect docs result if search does not materialize"},
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+    }
+
+    reject_execution_parameters_for_route(
+        parameters,
+        capability_id="real_browser_control",
+        operation="real_browser.extract_evidence",
+        context="mission_execution_request_parameters",
+    )
+
+
+def test_typed_loop_context_blocks_actual_secret_value() -> None:
+    parameters = {
+        "loop_context": {
+            "mission_objective": "Search public docs",
+            "model_extensions": {"bad": "synthetic key sk-1234567890abcdef1234567890abcdef"},
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+    }
+
+    with pytest.raises(ValueError):
+        reject_execution_parameters_for_route(
+            parameters,
+            capability_id="real_browser_control",
+            operation="real_browser.extract_evidence",
+            context="mission_execution_request_parameters",
+        )
+
+
+def test_typed_loop_context_blocks_trusted_key_override() -> None:
+    parameters = {
+        "loop_context": {
+            "mission_objective": "Search public docs",
+            "can_execute": True,
+            "data_not_authority": True,
+        }
+    }
+
+    with pytest.raises(ValueError):
+        reject_execution_parameters_for_route(
+            parameters,
+            capability_id="real_browser_control",
+            operation="real_browser.extract_evidence",
+            context="mission_execution_request_parameters",
+        )
 
 
 def _decision_from_model(output: Any) -> ActionEnvelope:

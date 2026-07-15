@@ -70,6 +70,99 @@ _MAX_MODEL_EXTENSION_DEPTH = 4
 _MAX_MODEL_EXTENSION_ITEMS = 32
 _MAX_MODEL_EXTENSION_STRING_LENGTH = 1200
 _MAX_MODEL_EXTENSIONS_BYTES = 4096
+_MAX_TYPED_LOOP_CONTEXT_BYTES = 131_072
+_MAX_TYPED_LOOP_CONTEXT_DEPTH = 9
+_MAX_TYPED_LOOP_CONTEXT_ITEMS = 256
+_MAX_TYPED_LOOP_CONTEXT_STRING_LENGTH = 4000
+
+_TYPED_LOOP_CONTEXT_OPERATIONS = frozenset(
+    {
+        "real_browser.extract_product_cards",
+        "real_browser.extract_evidence",
+        "real_browser.extract_entities",
+        "real_browser.verify_extraction",
+        "summarize_evidence",
+    }
+)
+
+_LOOP_CONTEXT_ROOT_KEYS = frozenset(
+    {
+        "BrowserEnvironmentState",
+        "actionability_frame",
+        "bounded_observation_summaries",
+        "browser_actionability_registry",
+        "browser_backend_execution",
+        "browser_cognitive_decision_frame",
+        "browser_decision_frame",
+        "browser_devtools_context",
+        "browser_environment_state",
+        "browser_environment_state_hash",
+        "browser_observation_bundle",
+        "browser_recovery_evidence",
+        "browser_search_materiality",
+        "browser_world_model",
+        "browser_world_model_summary",
+        "can_execute",
+        "can_grant_authority",
+        "completion_requirements",
+        "contradictions",
+        "data_not_authority",
+        "evidence_summaries",
+        "grounded_evidence_summary",
+        "model_blocker_assessment",
+        "model_blocker_assessment_schema",
+        "model_extensions",
+        "model_visible_body_failure_packet",
+        "mission_objective",
+        "objective_satisfied",
+        "progress_state",
+        "real_browser_control_summary",
+        "recoverable_action_observations",
+        "runtime_failure_fact",
+        "search_actuation_trace",
+        "unknowns",
+    }
+)
+
+_LOOP_CONTEXT_FORBIDDEN_KEYS = frozenset(
+    {
+        "allowed_actions",
+        "allowed_domains",
+        "allowed_paths",
+        "authority",
+        "authority_envelope",
+        "authority_envelope_ref",
+        "authority_ref",
+        "backend_override",
+        "cookie",
+        "credential",
+        "credential_value",
+        "engine_profile",
+        "fallback",
+        "idempotency_key",
+        "kernel",
+        "mission_id",
+        "model_override",
+        "password",
+        "profile_material",
+        "provider_native",
+        "provider_native_tools",
+        "provider_override",
+        "provider_response",
+        "raw_dom",
+        "raw_prompt",
+        "raw_provider_output",
+        "raw_provider_response",
+        "raw_reasoning",
+        "raw_response",
+        "reasoning",
+        "session_cookie",
+        "session_id",
+        "session_token",
+        "tool_calls",
+        "workspace_ref",
+    }
+)
 
 
 def normalize_model_browser_search_parameters(
@@ -120,6 +213,16 @@ def reject_execution_parameters_for_route(
         scan_payload = typed_browser_search_scan_payload(parameters, context=context)
         reject_operator_control_payload(scan_payload, context=context)
         return
+    if (
+        "loop_context" in parameters
+        and (
+            (capability_id == "real_browser_control" and operation in _TYPED_LOOP_CONTEXT_OPERATIONS)
+            or (capability_id == "sentinel_loop" and operation == "summarize_evidence")
+        )
+    ):
+        scan_payload = typed_loop_context_scan_payload(parameters, context=context)
+        reject_operator_control_payload(scan_payload, context=context)
+        return
     reject_operator_control_payload(parameters, context=context)
 
 
@@ -145,11 +248,103 @@ def typed_browser_search_scan_payload(parameters: dict[str, Any], *, context: st
     return scan_payload
 
 
+def typed_loop_context_scan_payload(parameters: dict[str, Any], *, context: str) -> dict[str, Any]:
+    """Return a control-scan-safe view for model-visible loop context.
+
+    Loop context is evidence and semantic state carried to the next model turn.
+    It is not executor arguments and it cannot grant authority. We therefore
+    scan it for actual secrets and trusted-control override attempts, then mask
+    it before the legacy lexical operator scanner sees topic words such as
+    "login" or "download" inside ordinary mission text.
+    """
+
+    scan_payload = dict(parameters)
+    loop_context = scan_payload.get("loop_context")
+    if loop_context is None:
+        return scan_payload
+    if not isinstance(loop_context, dict):
+        raise ValueError(f"{context}: typed loop_context must be an object")
+    _validate_typed_loop_context(loop_context, path="$.params.loop_context", depth=0, root=True)
+    _validate_typed_loop_context_size(loop_context, context=context)
+    scan_payload["loop_context"] = "<typed_loop_context_semantic_data>"
+    return scan_payload
+
+
 def reject_typed_browser_search_semantic_text(value: str, *, path: str = "$.params.query") -> None:
     """Reject real secret values in search semantic data without topic policing."""
 
     if scan_secret_like_text(value, path=path):
         raise BrowserSearchParameterBoundaryError("BROWSER_SEARCH_QUERY_SECRET_LIKE")
+
+
+def _validate_typed_loop_context(value: Any, *, path: str, depth: int, root: bool = False) -> None:
+    if depth > _MAX_TYPED_LOOP_CONTEXT_DEPTH:
+        raise BrowserSearchParameterBoundaryError("TYPED_LOOP_CONTEXT_TOO_DEEP")
+    if isinstance(value, dict):
+        if len(value) > _MAX_TYPED_LOOP_CONTEXT_ITEMS:
+            raise BrowserSearchParameterBoundaryError("TYPED_LOOP_CONTEXT_TOO_MANY_ITEMS")
+        for key, item in value.items():
+            key_text = str(key)
+            normalized_key = _normalize_key(key)
+            child_path = f"{path}.{key_text}"
+            if root and key_text not in _LOOP_CONTEXT_ROOT_KEYS:
+                raise BrowserSearchParameterBoundaryError(f"TYPED_LOOP_CONTEXT_ROOT_KEY_UNSUPPORTED:{child_path}")
+            _validate_typed_loop_context_key(normalized_key, item, path=child_path)
+            _validate_typed_loop_context(item, path=child_path, depth=depth + 1)
+        return
+    if isinstance(value, list | tuple | set):
+        if len(value) > _MAX_TYPED_LOOP_CONTEXT_ITEMS:
+            raise BrowserSearchParameterBoundaryError("TYPED_LOOP_CONTEXT_TOO_MANY_ITEMS")
+        for index, item in enumerate(value):
+            _validate_typed_loop_context(item, path=f"{path}[{index}]", depth=depth + 1)
+        return
+    if isinstance(value, str):
+        if len(value) > _MAX_TYPED_LOOP_CONTEXT_STRING_LENGTH:
+            raise BrowserSearchParameterBoundaryError("TYPED_LOOP_CONTEXT_STRING_TOO_LONG")
+        if scan_secret_like_text(value, path=path):
+            raise BrowserSearchParameterBoundaryError("TYPED_LOOP_CONTEXT_SECRET_LIKE")
+        return
+    if value is None or isinstance(value, bool | int | float):
+        return
+    raise BrowserSearchParameterBoundaryError("TYPED_LOOP_CONTEXT_NOT_DATA")
+
+
+def _validate_typed_loop_context_key(normalized_key: str, value: Any, *, path: str) -> None:
+    if _is_semantic_decision_frame_key(normalized_key, path=path):
+        return
+    if normalized_key in {"data_not_authority"}:
+        if value is not True:
+            raise BrowserSearchParameterBoundaryError(f"TYPED_LOOP_CONTEXT_DATA_AUTHORITY_VIOLATION:{path}")
+        return
+    if normalized_key in {"can_execute", "can_grant_authority", "can_approve_future_execution"}:
+        if value is not False:
+            raise BrowserSearchParameterBoundaryError(f"TYPED_LOOP_CONTEXT_TRUSTED_BOOL_OVERRIDE:{path}")
+        return
+    if normalized_key in {"authority_effect", "execution_effect"}:
+        if str(value or "none") != "none":
+            raise BrowserSearchParameterBoundaryError(f"TYPED_LOOP_CONTEXT_EFFECT_OVERRIDE:{path}")
+        return
+    if normalized_key in _LOOP_CONTEXT_FORBIDDEN_KEYS:
+        raise BrowserSearchParameterBoundaryError(f"TYPED_LOOP_CONTEXT_CONTROL_PLANE_KEY:{path}")
+
+
+def _is_semantic_decision_frame_key(normalized_key: str, *, path: str) -> bool:
+    if normalized_key not in {"allowed_actions", "available_actions", "forbidden_actions"}:
+        return False
+    semantic_markers = (
+        ".browser_decision_frame.",
+        ".browser_cognitive_decision_frame.",
+        ".browser_actionability_registry.",
+        ".actionability_frame.",
+        ".completion_requirements.",
+    )
+    return any(marker in path for marker in semantic_markers)
+
+
+def _validate_typed_loop_context_size(value: dict[str, Any], *, context: str) -> None:
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if len(encoded.encode("utf-8")) > _MAX_TYPED_LOOP_CONTEXT_BYTES:
+        raise ValueError(f"{context}: typed loop_context too large")
 
 
 def _reject_control_plane_keys(value: Any, *, path: str) -> None:

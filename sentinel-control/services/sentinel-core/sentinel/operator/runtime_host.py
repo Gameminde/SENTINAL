@@ -176,6 +176,8 @@ class ProductTaskBrowserRuntimeLease:
         )
         self.lifecycle_state = "created"
         self.engine: object | None = None
+        self.browser_engine_identity_hash = stable_hash({"lease_hash": self.lease_hash, "identity": "browser_engine"})
+        self.backend_context_identity_hash = stable_hash({"lease_hash": self.lease_hash, "identity": "backend_context"})
         self.open_count = 0
         self.close_count = 0
         self.recovery_attempt_count = 0
@@ -256,6 +258,8 @@ class ProductTaskBrowserRuntimeLease:
             "lifecycle_state": self.lifecycle_state,
             "selected_backend_id": backend_id,
             "actual_backend_id": backend_id,
+            "browser_engine_identity_hash": self.browser_engine_identity_hash,
+            "backend_context_identity_hash": self.backend_context_identity_hash,
             "backend_concurrency_capability": self.backend_concurrency_capability,
             "global_context_lock_acquired": self.live_context_lock_acquired,
             "global_context_lock_acquire_count": self.live_context_lock_acquire_count,
@@ -420,6 +424,16 @@ class SentinelRuntimeHost:
                         ),
                         ProductActionKernelRoute(
                             capability_id="real_browser_control",
+                            operation="real_browser.extract_evidence",
+                            executor=_default_real_browser_executor,
+                            product_dispatchable_skill_ids=("real_browser_control",),
+                            backend_id="browser_skill",
+                            simple_skill_id="extract",
+                            organ_id="browser_l5_l6_backend",
+                            preflight_validator=_real_browser_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="real_browser_control",
                             operation="real_browser.extract_product_cards",
                             executor=_default_real_browser_executor,
                             product_dispatchable_skill_ids=("real_browser_control",),
@@ -523,6 +537,7 @@ class SentinelRuntimeHost:
             "real_browser_control.real_browser.search",
             "real_browser_control.real_browser.inspect_result",
             "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_evidence",
             "real_browser_control.real_browser.extract_product_cards",
             "real_browser_control.real_browser.verify_extraction",
             "worker_fleet.spawn_worker",

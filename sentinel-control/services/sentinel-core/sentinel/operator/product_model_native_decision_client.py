@@ -513,7 +513,11 @@ def _canonical_payload_skill(payload: dict[str, Any]) -> str:
         return "spawn_worker"
     if action == "sentinel_loop.finish":
         return "finish"
-    if action == "real_browser_control.real_browser.extract_product_cards":
+    if action in {
+        "real_browser_control.real_browser.extract_evidence",
+        "real_browser_control.real_browser.extract_entities",
+        "real_browser_control.real_browser.extract_product_cards",
+    }:
         return "extract"
     if action in {
         "real_browser_control.real_browser.search",
@@ -706,7 +710,7 @@ def _skill_to_action(
     if skill == "extract":
         return ActionEnvelope(
             capability_id="real_browser_control",
-            operation="real_browser.extract_product_cards",
+            operation=_extract_operation_for_context(context),
             params=dict(payload.get("params") or {}),
             idempotency_key=_idempotency_key("extract", context, text),
         )
@@ -724,6 +728,46 @@ def _normalize_browser_search_action(envelope: ActionEnvelope, *, fallback_query
         params=params,
         idempotency_key=envelope.idempotency_key,
     )
+
+
+def _extract_operation_for_context(context: dict[str, Any]) -> str:
+    if _context_has_commerce_evidence(context):
+        return "real_browser.extract_product_cards"
+    return "real_browser.extract_evidence"
+
+
+def _context_has_commerce_evidence(context: dict[str, Any]) -> bool:
+    summary = context.get("browser_world_model_summary")
+    if isinstance(summary, dict):
+        kind_counts = summary.get("candidate_entity_kind_counts")
+        if isinstance(kind_counts, dict):
+            for kind, count in kind_counts.items():
+                if any(marker in str(kind).lower() for marker in ("commerce", "product", "catalog")):
+                    try:
+                        if int(count or 0) > 0:
+                            return True
+                    except (TypeError, ValueError):
+                        return True
+        try:
+            if int(summary.get("product_candidate_count") or 0) > 0:
+                return True
+        except (TypeError, ValueError):
+            pass
+    model = context.get("browser_world_model")
+    if isinstance(model, dict):
+        cards = model.get("product_or_result_candidate_cards")
+        if isinstance(cards, list):
+            for card in cards:
+                if not isinstance(card, dict):
+                    continue
+                kind = str(card.get("kind") or card.get("entity_kind") or "").lower()
+                family = str(card.get("entity_family") or "").lower()
+                if any(marker in f"{kind} {family}" for marker in ("commerce", "product", "catalog")):
+                    return True
+                commerce_fields = ("visible_price", "currency_or_unit", "minimum_order", "supplier_or_store")
+                if any(str(card.get(field) or "").strip().lower() not in {"", "unknown"} for field in commerce_fields):
+                    return True
+    return False
 
 
 def _normalize_model_browser_search_params(params: Any, *, fallback_query: str) -> dict[str, Any]:

@@ -198,12 +198,16 @@ def build_browser_actionability_frame(
                 "real_browser.search",
                 "real_browser.inspect_result",
                 "real_browser.open_result",
+                "real_browser.extract_evidence",
+                "real_browser.extract_entities",
                 "real_browser.extract_product_cards",
                 "real_browser.verify_extraction",
                 "real_browser_control.real_browser.observe",
                 "real_browser_control.real_browser.search",
                 "real_browser_control.real_browser.inspect_result",
                 "real_browser_control.real_browser.open_result",
+                "real_browser_control.real_browser.extract_evidence",
+                "real_browser_control.real_browser.extract_entities",
                 "real_browser_control.real_browser.extract_product_cards",
                 "real_browser_control.real_browser.verify_extraction",
             ]
@@ -227,7 +231,12 @@ def build_browser_actionability_frame(
         accepted_aliases=accepted_action_aliases,
         blocked_refs=registry.blocked_refs,
         recovery_actions=registry.recovery_actions,
-        proof_actions=("real_browser_control.real_browser.verify_extraction", "real_browser_control.real_browser.extract_product_cards"),
+        proof_actions=(
+            "real_browser_control.real_browser.verify_extraction",
+            "real_browser_control.real_browser.extract_evidence",
+            "real_browser_control.real_browser.extract_entities",
+            "real_browser_control.real_browser.extract_product_cards",
+        ),
         finish_actions=("sentinel_loop.finish",),
     )
 
@@ -261,10 +270,11 @@ def _browser_recovery_actions(*, product_cards_present: bool) -> tuple[str, ...]
             "real_browser_control.real_browser.observe",
         )
     return (
-        "real_browser_control.real_browser.observe",
-        "real_browser_control.real_browser.search",
-        "real_browser_control.real_browser.extract_product_cards",
-    )
+            "real_browser_control.real_browser.observe",
+            "real_browser_control.real_browser.extract_evidence",
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.extract_product_cards",
+        )
 
 
 def _has_actionable_browser_cards(cards: tuple[Any, ...]) -> bool:

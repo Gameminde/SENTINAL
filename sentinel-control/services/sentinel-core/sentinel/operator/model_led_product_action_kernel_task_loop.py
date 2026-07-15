@@ -471,6 +471,7 @@ class ModelLedProductActionKernelTaskLoop:
             "real_browser_control.real_browser.search",
             "real_browser_control.real_browser.inspect_result",
             "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_evidence",
             "real_browser_control.real_browser.extract_product_cards",
             "real_browser_control.real_browser.verify_extraction",
             "worker_fleet.spawn_worker",
@@ -507,6 +508,8 @@ class ModelLedProductActionKernelTaskLoop:
         if decision.capability_id == "sentinel_loop" and decision.operation == "summarize_evidence":
             parameters["loop_context"] = _completion_lane_context(loop_context)
         if decision.capability_id == "real_browser_control" and decision.operation in {
+            "real_browser.extract_evidence",
+            "real_browser.extract_entities",
             "real_browser.extract_product_cards",
             "real_browser.verify_extraction",
         }:
@@ -579,9 +582,16 @@ class ModelLedProductActionKernelTaskLoop:
     ) -> ActionEnvelope:
         if decision.capability_id != "real_browser_control":
             return decision
-        if decision.operation not in {"real_browser.extract_product_cards", "real_browser.verify_extraction"}:
+        if decision.operation not in {
+            "real_browser.extract_evidence",
+            "real_browser.extract_entities",
+            "real_browser.extract_product_cards",
+            "real_browser.verify_extraction",
+        }:
             return decision
         if str(decision.params.get("engine_profile") or "").strip():
+            return decision
+        if decision.operation in {"real_browser.extract_evidence", "real_browser.extract_entities"}:
             return decision
         if _product_card_count_from_context_cards(_browser_context_lane_context(context)) > 0:
             return decision
@@ -928,7 +938,11 @@ def _product_completion_requirements(
     confirmed_no_results = _has_confirmed_no_results_search(safe_context_cards)
     return {
         "has_real_browser_search_receipt": ("real_browser_control", "real_browser.search") in operations,
-        "has_real_browser_extraction_receipt": ("real_browser_control", "real_browser.extract_product_cards") in operations,
+        "has_real_browser_extraction_receipt": bool(
+            ("real_browser_control", "real_browser.extract_evidence") in operations
+            or ("real_browser_control", "real_browser.extract_entities") in operations
+            or ("real_browser_control", "real_browser.extract_product_cards") in operations
+        ),
         "has_real_browser_verified_extraction_receipt": ("real_browser_control", "real_browser.verify_extraction") in operations,
         "has_confirmed_no_results_search_receipt": confirmed_no_results,
         "has_grounded_evidence_summary": has_grounded_summary,
@@ -1042,8 +1056,9 @@ def _product_context_recommended_actions(
         return ("sentinel_loop.finish",)
     primary_skill = browser_cognitive_frame.get("primary_recommended_skill")
     if primary_skill == "extract":
+        extract_action = _extract_action_for_browser_frame(browser_cognitive_frame)
         preferred = (
-            "real_browser_control.real_browser.extract_product_cards",
+            extract_action,
             "real_browser_control.real_browser.verify_extraction",
         )
     elif primary_skill == "browse_search":
@@ -1108,6 +1123,22 @@ def _candidate_entities_from_environment(environment: dict[str, Any]) -> list[di
     return entities
 
 
+def _extract_action_for_browser_frame(browser_cognitive_frame: dict[str, Any]) -> str:
+    entities = browser_cognitive_frame.get("candidate_entities")
+    if isinstance(entities, list):
+        for entity in entities:
+            if not isinstance(entity, dict):
+                continue
+            kind = str(entity.get("entity_kind") or entity.get("kind") or "").lower()
+            family = str(entity.get("entity_family") or "").lower()
+            if any(marker in f"{kind} {family}" for marker in ("commerce", "product", "catalog")):
+                return "real_browser_control.real_browser.extract_product_cards"
+            commerce_fields = ("visible_price", "currency_or_unit", "minimum_order", "supplier_or_store")
+            if any(str(entity.get(field) or "").strip().lower() not in {"", "unknown"} for field in commerce_fields):
+                return "real_browser_control.real_browser.extract_product_cards"
+    return "real_browser_control.real_browser.extract_evidence"
+
+
 def _safe_int(value: Any) -> int:
     try:
         return int(value or 0)
@@ -1154,6 +1185,8 @@ def _completion_lane_context(loop_context: dict[str, Any]) -> dict[str, Any]:
         "real_browser_control_summary": loop_context.get("real_browser_control_summary"),
         "bounded_observation_summaries": loop_context.get("bounded_observation_summaries"),
         "browser_search_materiality": loop_context.get("browser_search_materiality"),
+        "search_actuation_trace": loop_context.get("search_actuation_trace"),
+        "browser_recovery_evidence": loop_context.get("browser_recovery_evidence"),
         "browser_world_model": loop_context.get("browser_world_model"),
         "browser_world_model_summary": loop_context.get("browser_world_model_summary"),
         "browser_decision_frame": loop_context.get("browser_decision_frame"),
@@ -1176,6 +1209,9 @@ def _browser_context_lane_context(loop_context: dict[str, Any]) -> dict[str, Any
         "browser_environment_state_hash": loop_context.get("browser_environment_state_hash"),
         "browser_backend_execution": loop_context.get("browser_backend_execution"),
         "browser_devtools_context": loop_context.get("browser_devtools_context"),
+        "browser_search_materiality": loop_context.get("browser_search_materiality"),
+        "search_actuation_trace": loop_context.get("search_actuation_trace"),
+        "browser_recovery_evidence": loop_context.get("browser_recovery_evidence"),
         "runtime_failure_fact": loop_context.get("runtime_failure_fact"),
         "model_visible_body_failure_packet": loop_context.get("model_visible_body_failure_packet"),
         "model_blocker_assessment_schema": loop_context.get("model_blocker_assessment_schema"),
