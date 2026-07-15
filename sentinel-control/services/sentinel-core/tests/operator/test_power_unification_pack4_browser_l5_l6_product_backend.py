@@ -134,6 +134,41 @@ def test_extract_routes_through_runtimehost_product_action_kernel(tmp_path: Path
     assert browser_receipt["product_dispatch_owner"] == "product_action_kernel_adapter"
 
 
+def test_generic_extract_evidence_routes_through_runtimehost_product_action_kernel(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_extract_evidence_route",
+        mission_objective="Extract visible open-world evidence through the product spine.",
+        decision_client=ProductActionKernelLoopDecisionClient(
+            [
+                ActionEnvelope(
+                    capability_id="real_browser_control",
+                    operation="real_browser.extract_evidence",
+                    params={"engine_profile": "fake_product_search"},
+                ),
+                ActionEnvelope(
+                    capability_id="sentinel_loop",
+                    operation="finish",
+                    params={"safe_summary": "Browser evidence extraction completed."},
+                ),
+            ]
+        ),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    action_mission_id = result.dispatch_results[0].mission_id
+    browser_receipt = _first_json(host.kernel.store.mission_dir(action_mission_id) / "real_browser_control" / "receipts")
+    assert browser_receipt["action_kind"] == "real_browser.extract_evidence"
+    assert browser_receipt["simple_skill"] == "extract"
+    assert browser_receipt["product_dispatch_owner"] == "product_action_kernel_adapter"
+
+
 def test_browser_l5_l6_registered_as_hidden_backend_not_model_surface(tmp_path: Path) -> None:
     frame = SentinelRuntimeHost(run_root=tmp_path / "runs").product_task_loop_entrypoint_frame()
 
