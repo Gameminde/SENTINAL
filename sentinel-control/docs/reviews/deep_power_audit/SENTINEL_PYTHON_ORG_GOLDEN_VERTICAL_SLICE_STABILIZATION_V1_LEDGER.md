@@ -142,11 +142,12 @@ test-only fake raw path string is asserted absent from persisted evidence
 ## Live Stabilization Budget
 
 ```text
-live_missions_used = 2 / 3
-provider_decision_calls_used = 4 / 30
+initial_live_missions_used = 3 / 3
+post_success_repeat_missions_used = 3 / 3
+provider_decision_calls_used = 24
 max_provider_decisions_per_mission = 10
 max_material_actions_per_mission = 16
-current_tier = T3_REAL_MODEL_PRODUCT_PROVEN_ATTEMPTED_NOT_PASSED
+current_tier = T3_REAL_MODEL_PRODUCT_PROVEN_NON_HOLDOUT_GOLDEN_SLICE
 ```
 
 ## Live Mission 1
@@ -286,14 +287,95 @@ result = passed
 Next action:
 
 ```text
-Run Python.org golden mission 3 through real provider + real Cloak.
+Do not run the frozen holdout yet. The next product work should address the
+remaining real body limitation:
+real_browser_search_write_readback_mismatch.
 ```
 
-The tranche stops when either:
+## Live Mission 3
 
 ```text
-GOLDEN_VERTICAL_SLICE_VALID_SUCCESS
+PYTHON_ORG_GOLDEN_VERTICAL_SLICE_STABILIZATION_V1_MISSION_3_LIVE = GOLDEN_VERTICAL_SLICE_VALID_SUCCESS
+provider_decision_calls = 5
+action_sequence = real_browser.search -> real_browser.extract_evidence -> real_browser.verify_extraction -> summarize_evidence -> finish
+material_receipt_count = 4
+runtime_failure_fact_count = 3
+model_visible_failure_packet_count = 3
+finalgate_count = 3
+cleanup_completed = true
+safe_evidence_snapshot_sha256 = 68B0C9CA1ACA8CECB0CF071D18AC025BC91B93602D4BAB81AFEC7D6D1A7DB5F4
 ```
 
-or the live budget is exhausted with one precise stable blocker, complete body
-facts, and model assessment.
+Mission 3 was the first successful real mind/body golden slice. It completed
+despite recoverable search actuation failure by routing through generic
+evidence extraction, verification, grounded summary, and finish.
+
+## Post-Success Repeat Runs
+
+```text
+repeat_missions = 3
+repeat_success_count = 3
+repeat_success_rate = 1.0
+provider_decision_counts = 5, 5, 5
+provider_decision_count_variance = 0
+material_receipt_counts = 4, 4, 4
+runtime_failure_fact_counts = 3, 3, 3
+model_visible_failure_packet_counts = 3, 3, 3
+cleanup_completed = true, true, true
+```
+
+### Mission 4
+
+```text
+PYTHON_ORG_GOLDEN_VERTICAL_SLICE_STABILIZATION_V1_MISSION_4_LIVE = GOLDEN_VERTICAL_SLICE_VALID_SUCCESS
+provider_decision_calls = 5
+material_receipt_count = 4
+runtime_failure_fact_count = 3
+model_visible_failure_packet_count = 3
+cleanup_completed = true
+safe_evidence_snapshot_sha256 = B72892C922F29623474DBE73C47FDF359B5F7DF7D6688A192E9D1EFDB343A710
+```
+
+### Mission 5
+
+```text
+PYTHON_ORG_GOLDEN_VERTICAL_SLICE_STABILIZATION_V1_MISSION_5_LIVE = GOLDEN_VERTICAL_SLICE_VALID_SUCCESS
+provider_decision_calls = 5
+material_receipt_count = 4
+runtime_failure_fact_count = 3
+model_visible_failure_packet_count = 3
+cleanup_completed = true
+safe_evidence_snapshot_sha256 = 7881760B69B41CE8B5FB40AACE49BCDDBA6D0D6BE1AADE0D6C60735C378C4694
+```
+
+### Mission 6
+
+```text
+PYTHON_ORG_GOLDEN_VERTICAL_SLICE_STABILIZATION_V1_MISSION_6_LIVE = GOLDEN_VERTICAL_SLICE_VALID_SUCCESS
+provider_decision_calls = 5
+material_receipt_count = 4
+runtime_failure_fact_count = 3
+model_visible_failure_packet_count = 3
+cleanup_completed = true
+safe_evidence_snapshot_sha256 = 22426089490C224BE508077F85B46A83DB30AD23AD7C0C5293AE43CC5E7E4E6A
+```
+
+## Remaining Truth
+
+All successful missions still recorded:
+
+```text
+primary_body_limitation = real_browser_search_write_readback_mismatch
+failure_stage = search_control_actuation
+submit_attempted = false
+navigation_progress = not_observed
+request_progress = not_observed
+```
+
+Therefore:
+
+```text
+mind_body_recovery_and_completion = proven_on_non_holdout_golden_slice
+strong_search_actuation = not_yet_proven
+frozen_holdout_generalization = not_yet_run
+```
