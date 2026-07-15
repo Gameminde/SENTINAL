@@ -7,6 +7,7 @@ from pathlib import Path
 
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.operator.live_run_evidence_sink import CrashSafeBoundedLiveRunEvidenceSink
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ProductActionKernelLoopDecisionClient,
     ProductActionKernelTaskLoopReplay,
@@ -227,6 +228,62 @@ def test_env_configured_browser_product_route_uses_cloak_first_engine_factory(tm
 
     assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
     assert calls == [True]
+
+
+def test_browser_action_start_exception_creates_body_failure_fact_and_packet(tmp_path: Path, monkeypatch) -> None:
+    def fake_factory() -> object:
+        raise FileNotFoundError("C:/private/local/private_cloak_binary.exe")
+
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
+    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    sink = CrashSafeBoundedLiveRunEvidenceSink(
+        evidence_root=tmp_path / "evidence",
+        run_id="action_start_exception",
+    )
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_action_start_exception_packet",
+        mission_objective="Find official Python documentation for pathlib Path.glob.",
+        decision_client=_browser_search_finish_client_without_engine_profile(),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=1,
+        max_material_actions=1,
+        evidence_sink=sink,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
+    assert len(result.dispatch_results) == 1
+    dispatch = result.dispatch_results[0]
+    assert dispatch.blocked_reason == "real_browser_action_start_exception"
+    cards = dispatch.safe_context_cards
+    assert isinstance(cards, dict)
+    fact = cards["runtime_failure_fact"]
+    packet = cards["model_visible_body_failure_packet"]
+    assert fact["failure_code"] == "real_browser_action_start_exception"
+    assert fact["failure_stage"] == "binary_provenance_resolution"
+    assert fact["resource_kind"] == "browser_binary"
+    assert fact["exception_class"] == "FileNotFoundError"
+    assert fact["exception_hash"]
+    assert fact["typed_retryability"]["retryable"] is False
+    assert fact["resource_lifecycle_facts"]["exists"] is False
+    assert fact["resource_lifecycle_facts"]["mechanical_recovery_attempted"] is False
+    assert packet["failure_stage"] == "binary_provenance_resolution"
+    assert packet["typed_outcome"]["failure_code"] == "real_browser_action_start_exception"
+    assert packet["runtime_failure_fact"]["authoritative"] is True
+    assert packet["model_blocker_assessment"]["advisory_only"] is True
+
+    snapshot = sink.load_snapshot()
+    event_types = [event["event_type"] for event in snapshot["events"]]
+    assert "browser_action_started" in event_types
+    assert "runtime_failure_fact_created" in event_types
+    assert "model_visible_failure_packet_created" in event_types
+    assert "cleanup_result" in event_types
+    persisted = json.dumps(snapshot, sort_keys=True) + json.dumps(cards, sort_keys=True)
+    assert "private_cloak_binary.exe" not in persisted
+    assert "C:/private/local" not in persisted
 
 
 class _ClosableProductCloakEngine(runtime_host_module._ProductLocalCloakBrowserEngine):

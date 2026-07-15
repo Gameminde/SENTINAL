@@ -848,67 +848,117 @@ def _trusted_runtime_context_with_model_evidence(context: dict[str, Any], envelo
 
 
 def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    failure_stage = "dispatch_preparation"
+    resource_kind = "runtime_context"
     authority = context.get("authority")
     kernel = context.get("kernel")
-    if not isinstance(authority, MissionAuthorityEnvelope) or not isinstance(kernel, MissionKernel):
-        raise RuntimeError("real_browser_runtime_context_missing")
-    mission_id = str(context.get("mission_id") or "")
-    workspace_root = _workspace_path_from_ref(str(context.get("workspace_ref") or ""))
-    manifest = MissionWorkspaceRuntime(kernel).prepare(
-        mission_id=mission_id,
-        workspace_root=workspace_root,
-        allowed_domains=tuple(authority.allowed_domains or ()),
-    )
-    browser_handle = _mission_workspace_browser_session_handle(manifest.safe_model_dump())
-    runtime_context = _trusted_runtime_context_with_model_evidence(context, envelope)
-    runtime_context["mission_workspace_manifest"] = manifest.safe_model_dump()
     scope = context.get("product_task_resource_scope")
-    if isinstance(scope, ProductTaskResourceScope):
-        engine = scope.browser_engine_for(envelope)
-        runtime_context["root_browser_runtime_lease"] = scope.browser_lease_card()
-        result = _execute_real_browser_action(
+    typed_scope = scope if isinstance(scope, ProductTaskResourceScope) else None
+    mission_id = str(context.get("mission_id") or "")
+    runtime_context: dict[str, Any] = dict(context)
+    workspace_root: Path | None = None
+    browser_handle_ref = "mission_workspace:browser_session"
+    try:
+        if not isinstance(authority, MissionAuthorityEnvelope) or not isinstance(kernel, MissionKernel):
+            raise RuntimeError("real_browser_runtime_context_missing")
+        failure_stage = "workspace_acquisition"
+        resource_kind = "workspace_ref"
+        workspace_root = _workspace_path_from_ref(str(context.get("workspace_ref") or ""))
+        failure_stage = "runtime_directory_creation"
+        resource_kind = "mission_workspace_runtime"
+        manifest = MissionWorkspaceRuntime(kernel).prepare(
+            mission_id=mission_id,
+            workspace_root=workspace_root,
+            allowed_domains=tuple(authority.allowed_domains or ()),
+        )
+        failure_stage = "dispatch_preparation"
+        resource_kind = "browser_session_handle"
+        browser_handle = _mission_workspace_browser_session_handle(manifest.safe_model_dump())
+        browser_handle_ref = str(browser_handle.get("safe_ref") or "mission_workspace:browser_session")
+        runtime_context = _trusted_runtime_context_with_model_evidence(context, envelope)
+        runtime_context["mission_workspace_manifest"] = manifest.safe_model_dump()
+        if typed_scope is not None:
+            failure_stage = "binary_provenance_resolution"
+            resource_kind = "browser_binary"
+            engine = typed_scope.browser_engine_for(envelope)
+            runtime_context["root_browser_runtime_lease"] = typed_scope.browser_lease_card()
+            failure_stage = "dispatch_preparation"
+            resource_kind = "browser_runtime_dispatch"
+            result = _execute_real_browser_action(
+                kernel=kernel,
+                mission_id=mission_id,
+                engine=engine,
+                session_ref=browser_handle_ref,
+                envelope=envelope,
+                authority=authority,
+                runtime_context=runtime_context,
+            )
+            if not _is_browser_body_failure(result):
+                return result
+            first_fingerprint = _body_failure_fingerprint(typed_scope, envelope=envelope, result=result)
+            if not typed_scope.recover_browser_engine_once(envelope):
+                return _body_session_unavailable_result(envelope, scope=typed_scope, prior_result=result, fingerprint=first_fingerprint)
+            recovered_context = dict(runtime_context)
+            recovered_context["root_browser_runtime_lease"] = typed_scope.browser_lease_card()
+            failure_stage = "binary_provenance_resolution"
+            resource_kind = "browser_binary"
+            recovered_engine = typed_scope.browser_engine_for(envelope)
+            failure_stage = "dispatch_preparation"
+            resource_kind = "browser_runtime_dispatch"
+            recovered = _execute_real_browser_action(
+                kernel=kernel,
+                mission_id=mission_id,
+                engine=recovered_engine,
+                session_ref=browser_handle_ref,
+                envelope=envelope,
+                authority=authority,
+                runtime_context=recovered_context,
+            )
+            second_fingerprint = _body_failure_fingerprint(typed_scope, envelope=envelope, result=recovered)
+            if _is_browser_body_failure(recovered):
+                return _body_session_unavailable_result(
+                    envelope,
+                    scope=typed_scope,
+                    prior_result=recovered,
+                    fingerprint=second_fingerprint,
+                )
+            return recovered
+        failure_stage = "binary_provenance_resolution"
+        resource_kind = "browser_binary"
+        engine = _product_browser_engine(envelope)
+        failure_stage = "dispatch_preparation"
+        resource_kind = "browser_runtime_dispatch"
+        return _execute_real_browser_action(
             kernel=kernel,
             mission_id=mission_id,
             engine=engine,
-            session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
+            session_ref=browser_handle_ref,
             envelope=envelope,
             authority=authority,
             runtime_context=runtime_context,
         )
-        if not _is_browser_body_failure(result):
-            return result
-        first_fingerprint = _body_failure_fingerprint(scope, envelope=envelope, result=result)
-        if not scope.recover_browser_engine_once(envelope):
-            return _body_session_unavailable_result(envelope, scope=scope, prior_result=result, fingerprint=first_fingerprint)
-        recovered_context = dict(runtime_context)
-        recovered_context["root_browser_runtime_lease"] = scope.browser_lease_card()
-        recovered = _execute_real_browser_action(
-            kernel=kernel,
-            mission_id=mission_id,
-            engine=scope.browser_engine_for(envelope),
-            session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
-            envelope=envelope,
-            authority=authority,
-            runtime_context=recovered_context,
+    except Exception as exc:  # noqa: BLE001
+        if _should_try_action_start_mechanical_recovery(
+            exc,
+            failure_stage=failure_stage,
+            resource_kind=resource_kind,
+            workspace_root=workspace_root,
+            already_attempted=bool(context.get("_browser_action_start_recovery_attempted")),
+        ):
+            recovered_context = dict(context)
+            recovered_context["_browser_action_start_recovery_attempted"] = True
+            if _try_action_start_mechanical_recovery(workspace_root=workspace_root):
+                return _default_real_browser_executor(envelope, recovered_context)
+        return _browser_action_start_exception_result(
+            envelope,
+            exc=exc,
+            failure_stage=failure_stage,
+            resource_kind=resource_kind,
+            scope=typed_scope,
+            runtime_context=runtime_context,
+            session_ref=browser_handle_ref,
+            mechanical_recovery_attempted=bool(context.get("_browser_action_start_recovery_attempted")),
         )
-        second_fingerprint = _body_failure_fingerprint(scope, envelope=envelope, result=recovered)
-        if _is_browser_body_failure(recovered):
-            return _body_session_unavailable_result(
-                envelope,
-                scope=scope,
-                prior_result=recovered,
-                fingerprint=second_fingerprint,
-            )
-        return recovered
-    return _execute_real_browser_action(
-        kernel=kernel,
-        mission_id=mission_id,
-        engine=_product_browser_engine(envelope),
-        session_ref=str(browser_handle.get("safe_ref") or "mission_workspace:browser_session"),
-        envelope=envelope,
-        authority=authority,
-        runtime_context=runtime_context,
-    )
 
 
 def _execute_real_browser_action(
@@ -938,6 +988,303 @@ def _is_browser_body_failure(result: ActionResult) -> bool:
         "real_browser_session_open_failed",
         "real_browser_body_session_open_failed",
     }
+
+
+def _browser_action_start_exception_result(
+    envelope: ActionEnvelope,
+    *,
+    exc: BaseException,
+    failure_stage: str,
+    resource_kind: str,
+    scope: ProductTaskResourceScope | None,
+    runtime_context: dict[str, Any],
+    session_ref: str,
+    mechanical_recovery_attempted: bool = False,
+) -> ActionResult:
+    safe_stage, safe_resource = _classify_browser_action_start_exception(
+        exc,
+        failure_stage=failure_stage,
+        resource_kind=resource_kind,
+    )
+    retryability = _browser_action_start_retryability(
+        exc,
+        failure_stage=safe_stage,
+        resource_kind=safe_resource,
+        mechanical_recovery_attempted=mechanical_recovery_attempted,
+    )
+    lease_card = scope.browser_lease_card() if scope is not None else _browser_action_start_unavailable_lease_card()
+    resource_facts = _browser_action_start_resource_facts(
+        exc,
+        failure_stage=safe_stage,
+        resource_kind=safe_resource,
+        scope=scope,
+        mechanical_recovery_attempted=mechanical_recovery_attempted,
+        retryability=retryability,
+    )
+    exception_hash = text_hash(f"{exc.__class__.__name__}:{str(exc)}")
+    failure_code = "real_browser_action_start_exception"
+    runtime_failure_fact = {
+        "fact_kind": "runtime_failure_fact",
+        "attempted_operation": envelope.operation,
+        "capability_id": envelope.capability_id,
+        "action_hash": envelope.action_hash,
+        "failure_code": failure_code,
+        "failure_stage": safe_stage,
+        "resource_kind": safe_resource,
+        "resource_lifecycle_facts": resource_facts,
+        "typed_retryability": retryability,
+        "material_effect_observed": False,
+        "objective_progress": "none",
+        "session_continuity": {
+            "root_browser_runtime_lease": lease_card,
+            "child_browser_session_ref_hash": stable_hash(session_ref),
+            "root_lease_present": bool(scope is not None and scope.browser_lease is not None),
+        },
+        "exception_class": exc.__class__.__name__,
+        "exception_hash": exception_hash,
+        "receipt_backed_after_product_dispatch": True,
+        "authority_effect": "none",
+        "data_not_authority": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+    runtime_fact_hash = stable_hash(runtime_failure_fact)
+    model_visible_packet = {
+        "packet_kind": "model_visible_body_failure_packet",
+        "attempted_operation": envelope.operation,
+        "typed_outcome": {
+            "failure_code": failure_code,
+            "failure_stage": safe_stage,
+            "failure_class": (
+                ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE.value
+                if retryability["retryable"]
+                else ActionFailureClass.SOURCE_BUG_OR_RUNTIME_INVARIANT.value
+            ),
+            "recoverable": retryability["retryable"],
+            "runtime_fact_hash": runtime_fact_hash,
+        },
+        "failure_stage": safe_stage,
+        "resource_kind": safe_resource,
+        "material_effect_observed": False,
+        "objective_progress": "none",
+        "session_continuity": runtime_failure_fact["session_continuity"],
+        "safe_current_page_state_summary": {
+            "page_kind_guess": "unknown",
+            "browser_environment_state_hash": runtime_context.get("browser_environment_state_hash"),
+            "body_state_available": False,
+        },
+        "available_affordances": {
+            "safe_browser_skills": ("observe", "navigate", "search", "extract_evidence", "verify_evidence", "finish"),
+            "recommended_recovery": tuple(retryability["recommended_recovery"]),
+        },
+        "recovery_attempts_already_executed": 1 if mechanical_recovery_attempted else 0,
+        "retry_material_action_budget_remaining": _safe_nonnegative_int(runtime_context.get("max_material_actions"), default=0),
+        "evidence_refs": [f"runtime_failure_fact:{runtime_fact_hash}"],
+        "contradictions": (),
+        "unknowns": ("browser state unavailable before action dispatch completed",),
+        "runtime_failure_fact": {
+            "authoritative": True,
+            "fact_hash": runtime_fact_hash,
+        },
+        "model_blocker_assessment": _browser_action_start_model_assessment_schema(),
+        "data_not_authority": True,
+        "authority_effect": "none",
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+    cleanup_fact = {
+        "fact_kind": "safe_cleanup_fact",
+        "cleanup_owner": "RuntimeHost.run_product_action_kernel_task_loop",
+        "cleanup_status": "pending_at_failure_fact_creation",
+        "root_browser_runtime_lease": lease_card,
+        "safe_only": True,
+        "data_not_authority": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+    context_cards = {
+        "runtime_failure_fact": runtime_failure_fact,
+        "model_visible_body_failure_packet": model_visible_packet,
+        "model_blocker_assessment_schema": _browser_action_start_model_assessment_schema(),
+        "safe_cleanup_fact": cleanup_fact,
+        "browser_action_start_exception": {
+            "failure_stage": safe_stage,
+            "resource_kind": safe_resource,
+            "exception_class": exc.__class__.__name__,
+            "exception_hash": exception_hash,
+            "raw_exception_text_persisted": False,
+            "raw_path_persisted": False,
+            "data_not_authority": True,
+            "can_execute": False,
+        },
+    }
+    return ActionResult(
+        action_id=envelope.action_id,
+        capability_id=envelope.capability_id,
+        operation=envelope.operation,
+        status="recoverable_failed" if retryability["retryable"] else "blocked",
+        material_action=False,
+        observation_summary=(
+            "Browser action failed during startup before material effect; "
+            f"stage={safe_stage} resource={safe_resource}."
+        ),
+        blocked_reason=failure_code,
+        failure_class=(
+            ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE
+            if retryability["retryable"]
+            else ActionFailureClass.SOURCE_BUG_OR_RUNTIME_INVARIANT
+        ),
+        failure_code=failure_code,
+        recoverable=retryability["retryable"],
+        recommended_next_actions=tuple(retryability["recommended_recovery"]),
+        context_cards=context_cards,
+    )
+
+
+def _classify_browser_action_start_exception(
+    exc: BaseException,
+    *,
+    failure_stage: str,
+    resource_kind: str,
+) -> tuple[str, str]:
+    if isinstance(exc, FileNotFoundError):
+        if failure_stage == "binary_provenance_resolution":
+            return "binary_provenance_resolution", "browser_binary"
+        if failure_stage == "runtime_directory_creation":
+            return "runtime_directory_creation", "mission_workspace_runtime"
+        if failure_stage == "workspace_acquisition":
+            return "workspace_acquisition", "workspace_ref"
+        if failure_stage == "dispatch_preparation":
+            return "dispatch_preparation", "browser_runtime_dispatch"
+    return failure_stage, resource_kind
+
+
+def _browser_action_start_retryability(
+    exc: BaseException,
+    *,
+    failure_stage: str,
+    resource_kind: str,
+    mechanical_recovery_attempted: bool,
+) -> dict[str, Any]:
+    sentinel_owned = _browser_action_start_resource_is_sentinel_owned(failure_stage, resource_kind)
+    retryable = isinstance(exc, FileNotFoundError) and sentinel_owned and not mechanical_recovery_attempted
+    if resource_kind == "browser_binary":
+        retryable = False
+    return {
+        "retryable": retryable,
+        "mechanical_recovery_allowed": retryable,
+        "mechanical_recovery_attempted": mechanical_recovery_attempted,
+        "provider_recall_allowed": False,
+        "requires_operator_or_provisioner": resource_kind == "browser_binary",
+        "recommended_recovery": (
+            ("refresh_browser_body_resource",)
+            if retryable
+            else ("block_with_body_start_failure_packet",)
+        ),
+        "data_not_authority": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+
+
+def _browser_action_start_resource_facts(
+    exc: BaseException,
+    *,
+    failure_stage: str,
+    resource_kind: str,
+    scope: ProductTaskResourceScope | None,
+    mechanical_recovery_attempted: bool,
+    retryability: dict[str, Any],
+) -> dict[str, Any]:
+    missing = isinstance(exc, FileNotFoundError)
+    lease_card = scope.browser_lease_card() if scope is not None else _browser_action_start_unavailable_lease_card()
+    return {
+        "failure_stage": failure_stage,
+        "resource_kind": resource_kind,
+        "exists": False if missing else None,
+        "sentinel_owned": _browser_action_start_resource_is_sentinel_owned(failure_stage, resource_kind),
+        "safely_recreatable": bool(retryability.get("mechanical_recovery_allowed")),
+        "mechanical_recovery_attempted": mechanical_recovery_attempted,
+        "mechanical_recovery_succeeded": False,
+        "root_lease_lifecycle_state": lease_card.get("lifecycle_state"),
+        "root_lease_present": bool(scope is not None and scope.browser_lease is not None),
+        "global_context_lock_acquired": bool(lease_card.get("global_context_lock_acquired", False)),
+        "raw_path_persisted": False,
+        "exception_text_persisted": False,
+        "data_not_authority": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+
+
+def _browser_action_start_resource_is_sentinel_owned(failure_stage: str, resource_kind: str) -> bool:
+    return failure_stage in {"runtime_directory_creation", "profile_material_creation"} or resource_kind in {
+        "mission_workspace_runtime",
+        "profile_material",
+    }
+
+
+def _should_try_action_start_mechanical_recovery(
+    exc: BaseException,
+    *,
+    failure_stage: str,
+    resource_kind: str,
+    workspace_root: Path | None,
+    already_attempted: bool,
+) -> bool:
+    if already_attempted or workspace_root is None or not isinstance(exc, FileNotFoundError):
+        return False
+    if not _browser_action_start_resource_is_sentinel_owned(failure_stage, resource_kind):
+        return False
+    return True
+
+
+def _try_action_start_mechanical_recovery(*, workspace_root: Path | None) -> bool:
+    if workspace_root is None:
+        return False
+    try:
+        workspace_root.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+    return True
+
+
+def _browser_action_start_unavailable_lease_card() -> dict[str, Any]:
+    return {
+        "lifecycle_state": "not_acquired",
+        "selected_backend_id": "unknown",
+        "actual_backend_id": "unknown",
+        "data_not_authority": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+
+
+def _browser_action_start_model_assessment_schema() -> dict[str, Any]:
+    return {
+        "advisory_only": True,
+        "required_model_response_fields": (
+            "perceived_blocker",
+            "concise_failure_interpretation",
+            "proposed_next_strategy",
+            "required_evidence",
+            "missing_capability",
+            "objective_satisfied",
+            "confidence",
+        ),
+        "must_not_override_runtime_failure_fact": True,
+        "can_grant_authority": False,
+        "can_execute": False,
+        "data_not_authority": True,
+    }
+
+
+def _safe_nonnegative_int(value: object, *, default: int = 0) -> int:
+    try:
+        parsed = int(value) if value is not None else default
+    except (TypeError, ValueError):
+        return default
+    return max(parsed, 0)
 
 
 def _body_failure_fingerprint(
