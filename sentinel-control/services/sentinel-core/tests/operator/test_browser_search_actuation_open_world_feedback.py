@@ -5,8 +5,10 @@ from pathlib import Path
 from sentinel.operator import runtime_host as runtime_host_module
 from sentinel.operator.action_kernel import ActionEnvelope, _grounded_evidence_summary
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
+from sentinel.operator.browser_search_parameter_boundary import reject_execution_parameters_for_route
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ProductActionKernelLoopDecisionClient,
+    _browser_context_lane_context,
 )
 from sentinel.operator.real_browser_control_runtime import (
     RealBrowserControlRuntimeError,
@@ -220,3 +222,79 @@ def test_grounded_summary_for_documentation_entities_is_not_product_summary() ->
     assert summary["objective_satisfaction_status"] in {"supported", "partial", "uncertain"}
     assert summary["has_relevant_product_evidence"] is False
     assert summary["unsupported_claims"] == 0
+
+
+def test_extract_evidence_loop_context_is_bounded_after_large_search_failure() -> None:
+    large_world = {
+        "world_model_id": "browser_world_model_large",
+        "stable_refs": [
+            {"ref": f"e{index}", "role": "link", "safe_name": f"Result {index}"}
+            for index in range(320)
+        ],
+        "link_refs": [f"e{index}" for index in range(320)],
+        "search_like_refs": ["e15"],
+        "product_or_result_candidate_cards": [
+            {
+                "kind": "documentation_result",
+                "title": f"Path.glob documentation result {index}",
+                "evidence_refs": [f"e{index}"],
+                "confidence": 0.7,
+            }
+            for index in range(80)
+        ],
+        "recommended_browser_actions": ["real_browser.extract_evidence"],
+    }
+    large_decision_frame = {
+        "frame_id": "browser_decision_frame_large",
+        "allowed_actions": ["real_browser.extract_evidence"],
+        "forbidden_actions": ["payment", "credentials"],
+        "top_refs": [f"e{index}" for index in range(320)],
+        "candidate_actions": [{"action": "inspect", "ref": f"e{index}"} for index in range(80)],
+    }
+    loop_context = {
+        "mission_objective": "Find official Python docs for pathlib Path.glob.",
+        "completion_requirements": {},
+        "browser_world_model": large_world,
+        "browser_world_model_summary": {
+            "product_or_result_candidate_count": 80,
+            "candidate_entity_kind_counts": {"documentation_result": 80},
+        },
+        "browser_decision_frame": large_decision_frame,
+        "browser_actionability_registry": {"canonical_refs": [f"e{index}" for index in range(320)]},
+        "actionability_frame": {"executable_refs": [f"e{index}" for index in range(320)]},
+        "browser_environment_state": {"state_fields": {}},
+        "browser_environment_state_hash": "env_hash",
+        "browser_backend_execution": {},
+        "browser_devtools_context": {},
+        "browser_search_materiality": {},
+        "search_actuation_trace": {"safe_failure_code": "real_browser_search_write_readback_mismatch"},
+        "browser_recovery_evidence": {},
+        "runtime_failure_fact": {
+            "fact_kind": "runtime_failure_fact",
+            "failure_code": "real_browser_search_actuation_failed",
+            "failure_stage": "search_control_actuation",
+            "data_not_authority": True,
+            "can_execute": False,
+        },
+        "model_visible_body_failure_packet": {
+            "packet_kind": "model_visible_body_failure_packet",
+            "attempted_operation": "real_browser.search",
+            "data_not_authority": True,
+            "can_execute": False,
+        },
+        "model_blocker_assessment_schema": {"advisory_only": True, "can_execute": False},
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+    bounded_context = _browser_context_lane_context(loop_context)
+
+    reject_execution_parameters_for_route(
+        {"loop_context": bounded_context},
+        capability_id="real_browser_control",
+        operation="real_browser.extract_evidence",
+        context="test_extract_evidence_loop_context",
+    )
+    assert len(bounded_context["browser_world_model"]["stable_refs"]) <= 40
+    assert len(bounded_context["browser_world_model"]["product_or_result_candidate_cards"]) <= 20
+    assert len(bounded_context["browser_decision_frame"]["top_refs"]) <= 40

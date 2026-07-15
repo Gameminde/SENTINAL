@@ -1350,21 +1350,97 @@ def _browser_context_lane_context(loop_context: dict[str, Any]) -> dict[str, Any
     return {
         "mission_objective": loop_context.get("mission_objective"),
         "completion_requirements": loop_context.get("completion_requirements"),
-        "browser_world_model": loop_context.get("browser_world_model"),
-        "browser_world_model_summary": loop_context.get("browser_world_model_summary"),
-        "browser_decision_frame": loop_context.get("browser_decision_frame"),
-        "browser_actionability_registry": loop_context.get("browser_actionability_registry"),
-        "actionability_frame": loop_context.get("actionability_frame"),
-        "browser_environment_state": loop_context.get("browser_environment_state"),
+        "browser_world_model": _bounded_browser_context_value(loop_context.get("browser_world_model"), path="browser_world_model"),
+        "browser_world_model_summary": _bounded_browser_context_value(
+            loop_context.get("browser_world_model_summary"),
+            path="browser_world_model_summary",
+        ),
+        "browser_decision_frame": _bounded_browser_context_value(
+            loop_context.get("browser_decision_frame"),
+            path="browser_decision_frame",
+        ),
+        "browser_actionability_registry": _bounded_browser_context_value(
+            loop_context.get("browser_actionability_registry"),
+            path="browser_actionability_registry",
+        ),
+        "actionability_frame": _bounded_browser_context_value(loop_context.get("actionability_frame"), path="actionability_frame"),
+        "browser_environment_state": _bounded_browser_context_value(
+            loop_context.get("browser_environment_state"),
+            path="browser_environment_state",
+        ),
         "browser_environment_state_hash": loop_context.get("browser_environment_state_hash"),
-        "browser_backend_execution": loop_context.get("browser_backend_execution"),
-        "browser_devtools_context": loop_context.get("browser_devtools_context"),
-        "browser_search_materiality": loop_context.get("browser_search_materiality"),
-        "search_actuation_trace": loop_context.get("search_actuation_trace"),
-        "browser_recovery_evidence": loop_context.get("browser_recovery_evidence"),
-        "runtime_failure_fact": loop_context.get("runtime_failure_fact"),
-        "model_visible_body_failure_packet": loop_context.get("model_visible_body_failure_packet"),
-        "model_blocker_assessment_schema": loop_context.get("model_blocker_assessment_schema"),
+        "browser_backend_execution": _bounded_browser_context_value(
+            loop_context.get("browser_backend_execution"),
+            path="browser_backend_execution",
+        ),
+        "browser_devtools_context": _bounded_browser_context_value(
+            loop_context.get("browser_devtools_context"),
+            path="browser_devtools_context",
+        ),
+        "browser_search_materiality": _bounded_browser_context_value(
+            loop_context.get("browser_search_materiality"),
+            path="browser_search_materiality",
+        ),
+        "search_actuation_trace": _bounded_browser_context_value(
+            loop_context.get("search_actuation_trace"),
+            path="search_actuation_trace",
+        ),
+        "browser_recovery_evidence": _bounded_browser_context_value(
+            loop_context.get("browser_recovery_evidence"),
+            path="browser_recovery_evidence",
+        ),
+        "runtime_failure_fact": _bounded_browser_context_value(
+            loop_context.get("runtime_failure_fact"),
+            path="runtime_failure_fact",
+        ),
+        "model_visible_body_failure_packet": _bounded_browser_context_value(
+            loop_context.get("model_visible_body_failure_packet"),
+            path="model_visible_body_failure_packet",
+        ),
+        "model_blocker_assessment_schema": _bounded_browser_context_value(
+            loop_context.get("model_blocker_assessment_schema"),
+            path="model_blocker_assessment_schema",
+        ),
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def _bounded_browser_context_value(value: Any, *, path: str, depth: int = 0) -> Any:
+    if depth > 8:
+        return _bounded_context_ref(value)
+    if isinstance(value, dict):
+        return {
+            str(key): _bounded_browser_context_value(child, path=f"{path}.{key}", depth=depth + 1)
+            for key, child in value.items()
+        }
+    if isinstance(value, list | tuple | set):
+        limit = 20 if path.endswith("product_or_result_candidate_cards") else 40
+        items = list(value)
+        item_limit = max(limit - 1, 0) if len(items) > limit else limit
+        bounded = [
+            _bounded_browser_context_value(item, path=f"{path}[{index}]", depth=depth + 1)
+            for index, item in enumerate(items[:item_limit])
+        ]
+        if len(items) > limit:
+            bounded.append(
+                {
+                    "truncated": True,
+                    "original_count": len(items),
+                    "retained_count": item_limit,
+                    "source_path_hash": stable_hash(path),
+                    "data_not_authority": True,
+                    "can_execute": False,
+                }
+            )
+        return bounded
+    return value
+
+
+def _bounded_context_ref(value: Any) -> dict[str, Any]:
+    return {
+        "truncated": True,
+        "value_hash": stable_hash(value),
         "data_not_authority": True,
         "can_execute": False,
     }
