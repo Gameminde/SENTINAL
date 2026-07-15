@@ -43,6 +43,11 @@ T5_SUSTAINED_LONG_HORIZON_PROVEN
    blocker.
 10. Provider calls remain bounded, but real-model validation is mandatory
     before final capability claims.
+11. One real provider decision proves provider reachability and first-action
+    generation only. It does not prove cognitive-system behavior.
+12. One successful real-model mission is not enough for a reliability claim;
+    success rate and variance must be measured through repeated bounded
+    non-holdout missions before broader calibration or holdout use.
 
 ## Cognitive OS Alignment
 
@@ -61,3 +66,8 @@ Holdout proof validates generalization.
 implementation fix until the Python.org golden vertical slice graduates it
 through a real provider plus real Cloak mission.
 
+The Python.org golden slice also follows:
+
+```text
+SENTINEL_REAL_MODEL_EVALUATION_DEPTH_AND_STATISTICAL_PROOF_V1
+```

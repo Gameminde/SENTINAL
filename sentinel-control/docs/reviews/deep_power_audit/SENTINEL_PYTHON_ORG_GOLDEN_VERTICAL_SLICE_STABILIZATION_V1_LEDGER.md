@@ -8,7 +8,10 @@ frozen_holdout = no
 Playwright_fallback = no
 fixture_backend = no
 max_live_missions = 3
-max_total_provider_decision_calls = 12
+max_provider_decisions_per_mission = 10
+max_material_actions_per_mission = 16
+diagnostic_only_provider_calls = forbidden
+patch_while_mission_running = forbidden
 ```
 
 Golden objective:
@@ -27,6 +30,7 @@ This tranche follows:
 
 ```text
 SENTINEL_REAL_WORLD_GRADUATION_AND_PROOF_TIER_DOCTRINE_V1
+SENTINEL_REAL_MODEL_EVALUATION_DEPTH_AND_STATISTICAL_PROOF_V1
 ```
 
 Stage 1 local tests are `T1_LOCAL_DETERMINISTIC_CANDIDATE` only. A browser or
@@ -138,15 +142,83 @@ test-only fake raw path string is asserted absent from persisted evidence
 ## Live Stabilization Budget
 
 ```text
-live_missions_used = 0 / 3
-provider_decision_calls_used = 0 / 12
-current_tier = T1_LOCAL_DETERMINISTIC_CANDIDATE
+live_missions_used = 1 / 3
+provider_decision_calls_used = 2 / 30
+max_provider_decisions_per_mission = 10
+max_material_actions_per_mission = 16
+current_tier = T3_REAL_MODEL_PRODUCT_PROVEN_ATTEMPTED_NOT_PASSED
+```
+
+## Live Mission 1
+
+```text
+PYTHON_ORG_GOLDEN_VERTICAL_SLICE_STABILIZATION_V1_MISSION_1_LIVE = VALID_FAILED_DETERMINISTIC_CONTEXT_TRANSPORT
+provider_decision_calls = 2
+action_sequence = real_browser.search -> real_browser.extract_evidence
+safe_evidence_event_count = 15
+safe_evidence_snapshot_sha256 = 8CD84E8821C23325F4678D890D7555B1B5CD773E97667750E467D35479664E45
+```
+
+Mission 1 proved the Stage 1 observability fix live:
+
+```text
+browser_action_started
+-> runtime_failure_fact_created
+-> model_visible_failure_packet_created
+-> material_receipt_created
+-> next provider decision received
+-> model selected real_browser.extract_evidence
+```
+
+The exposed deterministic blocker was:
+
+```text
+TYPED_LOOP_CONTEXT_TOO_MANY_ITEMS
+```
+
+The browser recovery packet and world model were useful, but the inert browser
+loop context was too large for the mission lifecycle parameter boundary during
+`real_browser.extract_evidence`.
+
+## Stage 2: Browser Extract Loop Context Transport
+
+```text
+FIX_BROWSER_EXTRACT_EVIDENCE_LOOP_CONTEXT_BOUNDED_TRANSPORT_V1 = T1_LOCAL_DETERMINISTIC_CANDIDATE
+implementation_commit = 11407e4 fix: bound browser extract loop context transport
+```
+
+The fix bounds inert browser context lists and deep values before mission
+lifecycle parameter validation. It does not relax authority, expose raw browser
+material, or allow trusted key override. Truncation is represented with safe
+metadata and hashes.
+
+### Local Validation
+
+```text
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_browser_search_actuation_open_world_feedback.py::test_extract_evidence_loop_context_is_bounded_after_large_search_failure -q
+result = passed
+
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_browser_search_actuation_open_world_feedback.py -q
+result = 4 passed
+
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_model_native_browser_search_typed_parameter_boundary.py -q
+result = 37 passed
+
+py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pack4_browser_l5_l6_product_backend.py -q
+result = 27 passed
+
+py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py sentinel-control/services/sentinel-core/tests/operator/test_browser_search_actuation_open_world_feedback.py
+result = passed
+
+git diff --check
+result = passed
 ```
 
 Next action:
 
 ```text
-Run real Python.org golden mission through real provider + real Cloak.
+Run Python.org golden mission 2 through real provider + real Cloak with the
+updated 10-decision / 16-material-action per-mission evaluation budget.
 ```
 
 The tranche stops when either:
@@ -155,6 +227,5 @@ The tranche stops when either:
 GOLDEN_VERTICAL_SLICE_VALID_SUCCESS
 ```
 
-or budget is exhausted with one precise stable blocker, complete body facts, and
-model assessment.
-
+or the live budget is exhausted with one precise stable blocker, complete body
+facts, and model assessment.
