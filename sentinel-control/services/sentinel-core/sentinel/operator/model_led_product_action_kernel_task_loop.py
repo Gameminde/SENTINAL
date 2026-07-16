@@ -8,8 +8,9 @@ from typing import Any
 from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
-from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError, TRUSTED_RUNTIME_CONTEXT_KEYS
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
+from sentinel.operator.browser_proof_index import BrowserProofIndexBuilder, summary_from_index, write_browser_proof_index
 from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
 from sentinel.operator.redaction import sanitize_operator_refs
@@ -49,6 +50,8 @@ class ProductActionKernelTaskLoopFinalCertificate(SentinelModel):
     mission_ids: tuple[str, ...] = Field(default_factory=tuple)
     product_receipt_refs: tuple[str, ...] = Field(default_factory=tuple)
     product_finalgate_refs: tuple[str, ...] = Field(default_factory=tuple)
+    browser_proof_index_ref: str = ""
+    browser_proof_metrics: dict[str, Any] = Field(default_factory=dict)
     certificate_hash: str = ""
     data_not_authority: bool = True
     authority_effect: str = "none"
@@ -78,6 +81,8 @@ class ProductActionKernelTaskLoopFinalCertificate(SentinelModel):
             "mission_ids": sanitize_operator_refs(self.mission_ids),
             "product_receipt_refs": sanitize_operator_refs(self.product_receipt_refs),
             "product_finalgate_refs": sanitize_operator_refs(self.product_finalgate_refs),
+            "browser_proof_index_ref": self.browser_proof_index_ref,
+            "browser_proof_metrics": self.browser_proof_metrics,
             "data_not_authority": self.data_not_authority,
             "authority_effect": self.authority_effect,
             "can_grant_authority": self.can_grant_authority,
@@ -148,6 +153,8 @@ class ModelLedProductActionKernelTaskLoop:
         self.mission_ids: list[str] = []
         self.product_receipt_refs: list[str] = []
         self.product_finalgate_refs: list[str] = []
+        self.final_answer_payload: dict[str, Any] = {}
+        self.latest_browser_proof_index: dict[str, Any] = {}
 
     def run(self) -> ProductActionKernelTaskLoopResult:
         self._record_evidence_transition(
@@ -211,6 +218,7 @@ class ModelLedProductActionKernelTaskLoop:
                     _safe_action_envelope_evidence(decision),
                 )
                 if decision.capability_id == "sentinel_loop" and decision.operation == "finish":
+                    self.final_answer_payload = _safe_final_answer_payload(decision.params)
                     if not self.product_receipt_refs and not self.explicit_noop_proof_ref:
                         return self._block("MODEL_FINISH_BEFORE_PRODUCT_RECEIPT")
                     return self._complete("model_led_product_action_kernel_task_loop_finish")
@@ -257,6 +265,7 @@ class ModelLedProductActionKernelTaskLoop:
         grounded_evidence_summary = _grounded_evidence_summary_card(safe_context_cards)
         real_browser_summary = _real_browser_control_summary(self.dispatch_results)
         bounded_observation_summaries = _bounded_observation_summaries(self.dispatch_results)
+        browser_proof_index_summary = self._browser_proof_index_summary(status="in_progress", final_reason="")
         has_terminal_browser_evidence = bool(
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
             or completion_requirements.get("has_confirmed_no_results_search_receipt")
@@ -323,6 +332,7 @@ class ModelLedProductActionKernelTaskLoop:
             "model_visible_body_failure_packet": safe_context_cards.get("model_visible_body_failure_packet"),
             "model_blocker_assessment_schema": safe_context_cards.get("model_blocker_assessment_schema"),
             "real_browser_control_summary": real_browser_summary,
+            "browser_proof_index_summary": browser_proof_index_summary,
             "grounded_evidence_summary": grounded_evidence_summary,
             "finish_available": finish_available,
             "objective_satisfied": finish_available,
@@ -673,10 +683,12 @@ class ModelLedProductActionKernelTaskLoop:
         )
 
     def _complete(self, reason: str) -> ProductActionKernelTaskLoopResult:
+        browser_proof_index = self._write_browser_proof_index(status="completed", final_reason=reason)
         certificate = self._write_certificate(
             status=ProductActionKernelTaskLoopStatus.COMPLETED,
             accepted=True,
             reason=reason,
+            browser_proof_index=browser_proof_index,
         )
         self._record_evidence_transition(
             "FinalGate_result",
@@ -685,6 +697,8 @@ class ModelLedProductActionKernelTaskLoop:
                 "accepted": True,
                 "reason": reason,
                 "certificate_ref": certificate.certificate_id,
+                "browser_proof_index_ref": _browser_proof_index_ref(self.loop_id),
+                "browser_proof_metrics": browser_proof_index.get("finalgate_metrics", {}),
             },
         )
         self._record_evidence_transition(
@@ -701,10 +715,12 @@ class ModelLedProductActionKernelTaskLoop:
         )
 
     def _block(self, reason: str) -> ProductActionKernelTaskLoopResult:
+        browser_proof_index = self._write_browser_proof_index(status="blocked", final_reason=reason)
         certificate = self._write_certificate(
             status=ProductActionKernelTaskLoopStatus.BLOCKED,
             accepted=False,
             reason=reason,
+            browser_proof_index=browser_proof_index,
         )
         self._record_evidence_transition(
             "FinalGate_result",
@@ -713,6 +729,8 @@ class ModelLedProductActionKernelTaskLoop:
                 "accepted": False,
                 "reason": reason,
                 "certificate_ref": certificate.certificate_id,
+                "browser_proof_index_ref": _browser_proof_index_ref(self.loop_id),
+                "browser_proof_metrics": browser_proof_index.get("finalgate_metrics", {}),
             },
         )
         self._record_evidence_transition(
@@ -758,7 +776,9 @@ class ModelLedProductActionKernelTaskLoop:
         status: ProductActionKernelTaskLoopStatus,
         accepted: bool,
         reason: str,
+        browser_proof_index: dict[str, Any] | None = None,
     ) -> ProductActionKernelTaskLoopFinalCertificate:
+        browser_proof_index = browser_proof_index or {}
         certificate = ProductActionKernelTaskLoopFinalCertificate(
             loop_id=self.loop_id,
             status=status,
@@ -767,6 +787,8 @@ class ModelLedProductActionKernelTaskLoop:
             mission_ids=tuple(self.mission_ids),
             product_receipt_refs=tuple(sanitize_operator_refs(self.product_receipt_refs)),
             product_finalgate_refs=tuple(sanitize_operator_refs(self.product_finalgate_refs)),
+            browser_proof_index_ref=_browser_proof_index_ref(self.loop_id) if browser_proof_index else "",
+            browser_proof_metrics=browser_proof_index.get("finalgate_metrics", {}) if browser_proof_index else {},
         )
         path = (
             self.host.kernel.store.run_root
@@ -776,6 +798,40 @@ class ModelLedProductActionKernelTaskLoop:
         )
         self.host.kernel.store.atomic_write_json(path, certificate.safe_model_dump())
         return certificate
+
+    def _browser_proof_index_summary(self, *, status: str, final_reason: str) -> dict[str, Any]:
+        if not self.dispatch_results:
+            return {
+                "schema_version": "browser_proof_index_summary_v1",
+                "material_browser_receipt_count": 0,
+                "browser_receipt_readable_count": 0,
+                "browser_receipt_missing_count": 0,
+                "public_evidence_count": 0,
+                "public_evidence_ids": [],
+                "answer_claim_counts": {},
+                "data_not_authority": True,
+                "can_execute": False,
+            }
+        index = BrowserProofIndexBuilder(
+            store=self.host.kernel.store,
+            loop_id=self.loop_id,
+            dispatch_results=tuple(self.dispatch_results),
+            final_answer_payload=self.final_answer_payload,
+        ).build(status=status, final_reason=final_reason)
+        return summary_from_index(index)
+
+    def _write_browser_proof_index(self, *, status: str, final_reason: str) -> dict[str, Any]:
+        index = write_browser_proof_index(
+            store=self.host.kernel.store,
+            loop_id=self.loop_id,
+            dispatch_results=tuple(self.dispatch_results),
+            final_answer_payload=self.final_answer_payload,
+            evidence_sink=self.evidence_sink,
+            status=status,
+            final_reason=final_reason,
+        )
+        self.latest_browser_proof_index = index
+        return index
 
     def _record_evidence_transition(self, event_type: str, payload: dict[str, Any]) -> None:
         sink = self.evidence_sink
@@ -836,6 +892,9 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
     receipt_writes_delta: int
     finalgate_writes_delta: int
     artifact_hashes_stable: bool
+    browser_proof_index_writes_delta: int = 0
+    browser_proof_index_hashes_stable: bool = True
+    answer_claim_mutation_delta: int = 0
 
     @classmethod
     def from_host(
@@ -854,8 +913,10 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
     def from_store(cls, store: MissionRunStore, *, mission_ids: tuple[str, ...]) -> "ProductActionKernelTaskLoopReplay":
         before = _artifact_counts(store, mission_ids)
         hashes_before = _artifact_hashes(store, mission_ids)
+        proof_hashes_before = _browser_proof_index_hashes(store)
         after = _artifact_counts(store, mission_ids)
         hashes_after = _artifact_hashes(store, mission_ids)
+        proof_hashes_after = _browser_proof_index_hashes(store)
         return cls(
             mission_ids=tuple(mission_ids),
             reexecuted_actions=False,
@@ -866,6 +927,9 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
             receipt_writes_delta=after["receipts"] - before["receipts"],
             finalgate_writes_delta=after["finalgate"] - before["finalgate"],
             artifact_hashes_stable=hashes_before == hashes_after,
+            browser_proof_index_writes_delta=after["browser_proof_index"] - before["browser_proof_index"],
+            browser_proof_index_hashes_stable=proof_hashes_before == proof_hashes_after,
+            answer_claim_mutation_delta=0,
         )
 
     def safe_model_dump(self) -> dict[str, Any]:
@@ -1058,9 +1122,35 @@ def _safe_context_shape_for_evidence(context: dict[str, Any]) -> dict[str, Any]:
         "has_model_blocker_assessment_schema": isinstance(context.get("model_blocker_assessment_schema"), dict),
         "finish_available": bool(context.get("finish_available")),
         "objective_satisfied": bool(context.get("objective_satisfied")),
+        "browser_proof_index_summary_hash": stable_hash(context.get("browser_proof_index_summary") or {}),
         "data_not_authority": True,
         "can_execute": False,
     }
+
+
+def _safe_final_answer_payload(params: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    safe_summary = str(params.get("safe_summary") or params.get("summary") or "").strip()
+    if safe_summary:
+        payload["safe_summary"] = safe_summary[:1800]
+    claims = params.get("answer_claims")
+    if isinstance(claims, list):
+        payload["answer_claims"] = [item for item in claims if isinstance(item, dict)][:40]
+    public_evidence = params.get("public_evidence")
+    if isinstance(public_evidence, list):
+        payload["public_evidence"] = [item for item in public_evidence if isinstance(item, dict)][:40]
+    model_extensions = params.get("model_extensions")
+    if isinstance(model_extensions, dict):
+        payload["model_extensions"] = {
+            str(key)[:120]: value
+            for key, value in model_extensions.items()
+            if key not in TRUSTED_RUNTIME_CONTEXT_KEYS
+        }
+    return payload
+
+
+def _browser_proof_index_ref(loop_id: str) -> str:
+    return f"mission_artifact:root:_browser_proof_index:{loop_id}"
 
 
 def _dispatch_summaries(results: list[UnifiedDispatchResult]) -> list[dict[str, Any]]:
@@ -1516,6 +1606,7 @@ def _artifact_counts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> di
         "dispatch_closeout": sum(_count_direct_json(root / "dispatch_closeout") for root in roots),
         "receipts": sum(_count_named_json_descendants(root, "receipts") for root in roots),
         "finalgate": sum(_count_named_json_descendants(root, "finalgate") for root in roots),
+        "browser_proof_index": _count_direct_json(store.run_root / "_browser_proof_index"),
     }
 
 
@@ -1528,6 +1619,17 @@ def _artifact_hashes(store: MissionRunStore, mission_ids: tuple[str, ...]) -> tu
         for path in sorted((path for path in _iter_descendant_file_paths(mission_dir) if path.suffix == ".json"), key=str):
             hashes.append(hashlib.sha256(_read_bytes_file(path)).hexdigest())
     return tuple(hashes)
+
+
+def _browser_proof_index_hashes(store: MissionRunStore) -> tuple[str, ...]:
+    root = store.run_root / "_browser_proof_index"
+    if not _path_exists(root):
+        return ()
+    return tuple(
+        hashlib.sha256(_read_bytes_file(path)).hexdigest()
+        for path in sorted(_iter_child_paths(root), key=str)
+        if path.suffix == ".json"
+    )
 
 
 def _count_direct_json(root: Path) -> int:

@@ -109,6 +109,7 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
     receipt_count = len(context.get("recent_product_receipt_refs") or ())
     recovery_hint = _recovery_prompt_hint(context)
     workspace_hint = _workspace_file_prompt_hint(context)
+    proof_hint = _browser_proof_index_prompt_hint(context)
     return (
         "You are the brain. Sentinel is the body/runtime/proof layer.\n"
         f"Mission objective: {objective}\n"
@@ -118,6 +119,7 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         f"Product receipts so far: {receipt_count}\n"
         f"{recovery_hint}"
         f"{workspace_hint}"
+        f"{proof_hint}"
         "Choose exactly one next skill for this turn.\n"
         "Prefer one compact JSON object such as "
         "{\"skill\":\"create_file\",\"params\":{\"target_path\":\"app.py\",\"new_text\":\"...\"}}, "
@@ -148,6 +150,31 @@ def _workspace_file_prompt_hint(context: dict[str, Any]) -> str:
         "If repairing a file, return patch with params target_path, expected_base_hash, old_text, and new_text."
     )
     return "\n".join(lines) + "\n"
+
+
+def _browser_proof_index_prompt_hint(context: dict[str, Any]) -> str:
+    summary = context.get("browser_proof_index_summary")
+    if not isinstance(summary, dict):
+        return ""
+    receipt_count = int(summary.get("material_browser_receipt_count") or 0)
+    evidence_count = int(summary.get("public_evidence_count") or 0)
+    missing_count = int(summary.get("browser_receipt_missing_count") or 0)
+    claim_counts = summary.get("answer_claim_counts") if isinstance(summary.get("answer_claim_counts"), dict) else {}
+    if receipt_count == 0 and evidence_count == 0 and not claim_counts:
+        return ""
+    evidence_ids = [
+        str(item)
+        for item in summary.get("public_evidence_ids", [])
+        if str(item).strip()
+    ][:8]
+    return (
+        "Safe browser proof index summary:\n"
+        f"- readable_material_browser_receipts={receipt_count - missing_count}\n"
+        f"- missing_material_browser_receipts={missing_count}\n"
+        f"- public_evidence_count={evidence_count}\n"
+        f"- public_evidence_ids={evidence_ids}\n"
+        f"- answer_claim_counts={claim_counts}\n"
+    )
 
 
 def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> ActionEnvelope:
@@ -603,6 +630,8 @@ def _completed_sequence_skill_counts(context: dict[str, Any]) -> dict[str, int]:
         }:
             add("browse_search")
         elif action in {
+            "real_browser_control.real_browser.extract_evidence",
+            "real_browser_control.real_browser.extract_entities",
             "real_browser_control.real_browser.extract_product_cards",
             "real_browser_control.real_browser.verify_extraction",
         }:
@@ -697,10 +726,15 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("spawn_worker", context, text),
         )
     if skill == "finish":
+        params = {"safe_summary": _safe_finish_summary(text, context)}
+        if isinstance(payload.get("answer_claims"), list):
+            params["answer_claims"] = [item for item in payload["answer_claims"] if isinstance(item, dict)][:40]
+        if isinstance(payload.get("public_evidence"), list):
+            params["public_evidence"] = [item for item in payload["public_evidence"] if isinstance(item, dict)][:40]
         return ActionEnvelope(
             capability_id="sentinel_loop",
             operation="finish",
-            params={"safe_summary": _safe_finish_summary(text, context)},
+            params=params,
             idempotency_key=_idempotency_key("finish", context, text),
         )
     if skill == "browse_search":
