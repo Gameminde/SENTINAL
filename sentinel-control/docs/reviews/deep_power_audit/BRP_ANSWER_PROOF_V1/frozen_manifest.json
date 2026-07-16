@@ -1,0 +1,113 @@
+{
+  "backend_id": "aliyun_openai_compatible_chat",
+  "browser_backend": "cloak_browser",
+  "calibration_version": "2026-07-16.v1",
+  "holdout_sites_excluded": [
+    "alibaba.com",
+    "wikipedia.org",
+    "github.com",
+    "arxiv.org",
+    "books.toscrape.com"
+  ],
+  "manifest_hash": "c45675f94fe0816276f8033ef1f2ebb69deb7e623be9bde4f0825951b0b959f5",
+  "missions": [
+    {
+      "allowed_domains": [
+        "docs.python.org",
+        "real_browser:bounded_test_url"
+      ],
+      "expected_evidence_properties": [
+        "official docs",
+        "Path.glob behavior",
+        "pattern matching",
+        "claim support"
+      ],
+      "objective": "Find official Python documentation explaining pathlib Path.glob and provide a short useful answer with sourced evidence.",
+      "site": "docs.python.org",
+      "target_url": "https://docs.python.org/3/",
+      "task_id": "docs_python_pathlib_glob"
+    },
+    {
+      "allowed_domains": [
+        "docs.python.org",
+        "real_browser:bounded_test_url"
+      ],
+      "expected_evidence_properties": [
+        "official docs",
+        "date.fromisoformat behavior",
+        "examples or accepted formats"
+      ],
+      "objective": "Find official Python documentation explaining datetime.date.fromisoformat and summarize what inputs it accepts with sourced evidence.",
+      "site": "docs.python.org",
+      "target_url": "https://docs.python.org/3/",
+      "task_id": "docs_python_datetime_fromisoformat"
+    },
+    {
+      "allowed_domains": [
+        "developer.mozilla.org",
+        "real_browser:bounded_test_url"
+      ],
+      "expected_evidence_properties": [
+        "MDN docs",
+        "Array.prototype.at",
+        "negative index behavior"
+      ],
+      "objective": "Find MDN documentation for JavaScript Array.prototype.at() and summarize what it returns, including negative index behavior, with sourced evidence.",
+      "site": "developer.mozilla.org",
+      "target_url": "https://developer.mozilla.org/en-US/",
+      "task_id": "mdn_array_at"
+    },
+    {
+      "allowed_domains": [
+        "developer.mozilla.org",
+        "real_browser:bounded_test_url"
+      ],
+      "expected_evidence_properties": [
+        "MDN docs",
+        "CSS :has()",
+        "selector semantics"
+      ],
+      "objective": "Find MDN documentation for the CSS :has() pseudo-class and explain what it selects with sourced evidence.",
+      "site": "developer.mozilla.org",
+      "target_url": "https://developer.mozilla.org/en-US/",
+      "task_id": "mdn_css_has"
+    },
+    {
+      "allowed_domains": [
+        "pypi.org",
+        "real_browser:bounded_test_url"
+      ],
+      "expected_evidence_properties": [
+        "PyPI project page",
+        "requests package",
+        "visible summary"
+      ],
+      "objective": "Find the PyPI project page for requests and report its visible package summary or project description with sourced evidence.",
+      "site": "pypi.org",
+      "target_url": "https://pypi.org/",
+      "task_id": "pypi_requests_summary"
+    },
+    {
+      "allowed_domains": [
+        "pypi.org",
+        "real_browser:bounded_test_url"
+      ],
+      "expected_evidence_properties": [
+        "PyPI project page",
+        "numpy package",
+        "Requires-Python or summary"
+      ],
+      "objective": "Find the PyPI project page for numpy and report any visible Requires-Python or package summary evidence.",
+      "site": "pypi.org",
+      "target_url": "https://pypi.org/",
+      "task_id": "pypi_numpy_requires_python"
+    }
+  ],
+  "model_id": "deepseek-v4-pro",
+  "provider_id": "aliyun_dashscope",
+  "public_sites_total": 3,
+  "raw_material_policy": "no_raw_provider_reasoning_dom_url_query_selector_cookie_session_profile_binary_path",
+  "tasks_total": 6,
+  "trajectory_policy": "model_free_safe_evidence_grounded_no_exact_sequence_required",
+  "tranche": "BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V1"
+}

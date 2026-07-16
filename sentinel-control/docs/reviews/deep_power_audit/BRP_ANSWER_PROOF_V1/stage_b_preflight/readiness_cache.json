@@ -1,0 +1,22 @@
+{
+  "actual_backend_id": "cloak_browser",
+  "backend_identity_matched": true,
+  "backend_selected": true,
+  "cleanup_operational": true,
+  "context_operational": true,
+  "devtools_operational": true,
+  "diagnostic_hash": "1da2b771a2810b4d4682fcf0b31e7089020f83c2c21c76153bb3aaabeba39535",
+  "failure_code": null,
+  "multi_action_reuse_operational": true,
+  "page_operational": true,
+  "process_operational": true,
+  "profile_material_persisted": false,
+  "provider_call_allowed": true,
+  "readiness_receipt_hash": "d94193199b204e9010435fa766e6c780594eb0b709921f2598f2fe1c096c068c",
+  "ready": true,
+  "receipt_backend_match": true,
+  "reopen_operational": true,
+  "safe_url_origin_hash": "ab069103af9db8016ebccd048001e0fa9aebe1fab282574d2659c7c8241904d1",
+  "selected_backend_id": "cloak_browser",
+  "session_backend_kind": "cloakbrowser"
+}

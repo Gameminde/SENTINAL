@@ -1,0 +1,19 @@
+{
+  "bundled_version": "146.0.7680.177.5",
+  "candidate_count": 1,
+  "candidate_verified": true,
+  "ensure_binary_called": false,
+  "exists": true,
+  "file_sha256": "03f53661a5c47e7b0a661bee2bce8a0d302b7a60834c328df417561fa0636d80",
+  "install_update_download_called": false,
+  "path_hash": "f3fad5133de1a876082e5a7f6be7c61cf083e2a4742c4cf44fcfa6cfe34d3a2e",
+  "path_present": true,
+  "platform": "windows-x64",
+  "playwright_substitution": false,
+  "raw_path_persisted": false,
+  "raw_path_printed": false,
+  "source": "cloakbrowser.binary_info",
+  "stage": "A",
+  "tier": "free",
+  "version": "146.0.7680.177.5"
+}

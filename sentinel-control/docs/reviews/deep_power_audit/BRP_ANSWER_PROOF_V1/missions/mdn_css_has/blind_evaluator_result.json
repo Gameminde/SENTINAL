@@ -1,0 +1,8 @@
+{
+  "evaluator_called": true,
+  "evaluator_model_id": "deepseek-v4-pro",
+  "evaluator_provider_id": "aliyun_dashscope",
+  "evaluator_response_hash": "18b04cd3c1067939891df68304c09e5ff7e833abbc3de6d03524a5318f9bcd90",
+  "raw_output_persisted": false,
+  "task_id": "mdn_css_has"
+}
