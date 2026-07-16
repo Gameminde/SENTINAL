@@ -291,6 +291,62 @@ def test_browser_runtime_exception_reaches_next_model_turn_as_recoverable_fact(
     assert result.dispatch_results[0].safe_context_cards["model_visible_body_failure_packet"]["can_execute"] is False
 
 
+def test_off_scope_skill_selection_recovers_without_granting_authority(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://www.python.org/search/")
+    monkeypatch.setattr(runtime_host_module, "_product_browser_engine", lambda _envelope: _RuntimeDispatchFailingEngine())
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    scope = host.create_product_task_resource_scope(
+        root_session_id="session_pack9_scope",
+        workspace_root=workspace,
+    )
+    decision_client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "fake_pass"},
+                idempotency_key="pack9-off-scope-code-1",
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "Path.glob official docs"},
+                idempotency_key="pack9-off-scope-browser-2",
+            ),
+        ]
+    )
+    loop = ModelLedProductActionKernelTaskLoop(
+        host=host,
+        workspace_root=workspace,
+        session_id="session_pack9_scope",
+        mission_objective="Use Python.org browser search for official pathlib Path.glob documentation.",
+        decision_client=decision_client,
+        allowed_domains=("python.org",),
+        allowed_capabilities=("real_browser_control", "sentinel_loop"),
+        max_model_calls=2,
+        max_material_actions=2,
+        max_recoverable_model_decision_failures=1,
+        max_recoverable_action_failures=0,
+        product_task_resource_scope=scope,
+    )
+
+    result = loop.run()
+
+    assert "browse_search" in decision_client.contexts[0]["model_visible_skills"]
+    assert "run_check" not in decision_client.contexts[0]["model_visible_skills"]
+    assert len(decision_client.contexts) == 2
+    recovery = decision_client.contexts[1]["recoverable_decision_observations"][0]
+    assert recovery["failure_code"] == "MODEL_SELECTED_SKILL_OUTSIDE_MISSION_SCOPE"
+    assert result.capability_sequence == ("real_browser_control:real_browser.search",)
+    assert result.dispatch_results[0].capability_id == "real_browser_control"
+    assert result.dispatch_results[0].blocked_reason == "real_browser_runtime_dispatch_exception"
+    assert result.blocked_reason == "MODEL_CALL_BUDGET_EXHAUSTED"
+
+
 def _workspace(tmp_path: Path) -> Path:
     root = tmp_path / "workspace"
     root.mkdir()

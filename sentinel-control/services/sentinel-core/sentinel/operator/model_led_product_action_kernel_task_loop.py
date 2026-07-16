@@ -121,6 +121,7 @@ class ModelLedProductActionKernelTaskLoop:
         explicit_noop_proof_ref: str | None = None,
         product_task_resource_scope: object | None = None,
         evidence_sink: object | None = None,
+        allowed_capabilities: tuple[str, ...] | None = None,
     ) -> None:
         self.loop_id = new_id("product_action_kernel_task_loop")
         self.host = host
@@ -137,6 +138,7 @@ class ModelLedProductActionKernelTaskLoop:
         self.explicit_noop_proof_ref = explicit_noop_proof_ref
         self.product_task_resource_scope = product_task_resource_scope
         self.evidence_sink = evidence_sink
+        self.allowed_capabilities = tuple(dict.fromkeys(allowed_capabilities or ()))
         self.model_calls_used = 0
         self.material_actions_used = 0
         self.recoverable_decision_observations: list[dict[str, Any]] = []
@@ -197,6 +199,11 @@ class ModelLedProductActionKernelTaskLoop:
                 if decision_from_model:
                     self.model_calls_used += 1
                 decision = self._route_contextless_browser_decision(decision, context)
+                if not self._decision_allowed_by_mission_scope(decision):
+                    reason = "MODEL_SELECTED_SKILL_OUTSIDE_MISSION_SCOPE"
+                    if self._recover_model_decision_failure(reason, context):
+                        continue
+                    return self._block("PRODUCT_SKILL_OUTSIDE_MISSION_SCOPE")
                 sequence_entry = f"{decision.capability_id}:{decision.operation}"
                 self.capability_sequence.append(sequence_entry)
                 self._record_evidence_transition(
@@ -280,6 +287,7 @@ class ModelLedProductActionKernelTaskLoop:
             "_bounded_check_plan": _bounded_check_plan(self.workspace_root),
             "workspace_file_summaries": _workspace_file_summaries(self.workspace_root),
             "model_visible_available_actions": list(actions),
+            "mission_allowed_capabilities": list(self.allowed_capabilities),
             "skill_decision_frame": {
                 "primary_truth": "product_action_kernel_runtimehost",
                 "primary_model_surface": "model_visible_skills",
@@ -343,6 +351,8 @@ class ModelLedProductActionKernelTaskLoop:
             return False
         max_recoveries = self.max_recoverable_model_decision_failures
         if reason == "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED":
+            max_recoveries = max(max_recoveries, 1)
+        if reason == "MODEL_SELECTED_SKILL_OUTSIDE_MISSION_SCOPE":
             max_recoveries = max(max_recoveries, 1)
         if self.product_receipt_refs:
             max_recoveries = max(max_recoveries, 1)
@@ -518,7 +528,22 @@ class ModelLedProductActionKernelTaskLoop:
         ])
         if self.product_receipt_refs:
             actions.append("sentinel_loop.finish")
-        return tuple(actions)
+        return tuple(action for action in actions if self._action_allowed_by_mission_scope(action))
+
+    def _action_allowed_by_mission_scope(self, action_name: str) -> bool:
+        if not self.allowed_capabilities:
+            return True
+        capability_id = action_name.split(".", 1)[0]
+        if capability_id == "sentinel_loop":
+            return True
+        return capability_id in set(self.allowed_capabilities)
+
+    def _decision_allowed_by_mission_scope(self, decision: ActionEnvelope) -> bool:
+        if not self.allowed_capabilities:
+            return True
+        if decision.capability_id == "sentinel_loop":
+            return True
+        return decision.capability_id in set(self.allowed_capabilities)
 
     def _latest_dispatch_blocked_reason(self) -> str | None:
         if not self.dispatch_results:
@@ -903,6 +928,7 @@ def _is_recoverable_model_decision_failure(reason: str) -> bool:
     return reason in {
         "MODEL_NATIVE_DECISION_EMPTY_VISIBLE_CONTENT",
         "MODEL_NATIVE_DECISION_VISIBLE_CONTENT_UNSUPPORTED",
+        "MODEL_SELECTED_SKILL_OUTSIDE_MISSION_SCOPE",
     }
 
 

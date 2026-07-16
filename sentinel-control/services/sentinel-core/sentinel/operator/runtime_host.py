@@ -636,6 +636,7 @@ class SentinelRuntimeHost:
         model_contract_ref: str = "model_contract:product_action_kernel_task_loop_entrypoint",
         explicit_noop_proof_ref: str | None = None,
         evidence_sink: object | None = None,
+        allowed_capabilities: tuple[str, ...] | None = None,
     ) -> object:
         if self._status is not RuntimeHostStatus.STARTED:
             raise RuntimeError("runtime_host_not_started")
@@ -661,6 +662,7 @@ class SentinelRuntimeHost:
                 explicit_noop_proof_ref=explicit_noop_proof_ref,
                 product_task_resource_scope=resource_scope,
                 evidence_sink=evidence_sink,
+                allowed_capabilities=allowed_capabilities,
             )
             return loop.run()
         finally:
