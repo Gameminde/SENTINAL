@@ -1,0 +1,147 @@
+{
+  "aggregate": {
+    "answer_quality_success_count": 0,
+    "attempt_count": 5,
+    "batch_id": "python_org_reliability_v1_1784202364",
+    "browser_receipt_missing_total": 15,
+    "browser_receipt_readable_total": 0,
+    "cleanup_success_count": 5,
+    "corrected_interpretation": "product loop completed repeatedly, but independently auditable browser receipt files and answer quality failed the batch gate",
+    "dispatch_search_materiality_success_count": 5,
+    "quality_gate_pass": false,
+    "replay_no_react_count": 5,
+    "technical_closeout_success_count": 5
+  },
+  "attempt_count": 5,
+  "attempts": [
+    {
+      "answer_quality_pass": false,
+      "attempt_index": 1,
+      "browser_receipt_missing_count": 3,
+      "browser_receipt_path_count": 3,
+      "browser_receipt_readable_count": 0,
+      "cleanup_success": true,
+      "dispatch_search_materiality_success": true,
+      "replay_no_react": true,
+      "run_id": "python_org_reliability_v1_1784202364_mission_1",
+      "status": "completed",
+      "technical_closeout_success": true
+    },
+    {
+      "answer_quality_pass": false,
+      "attempt_index": 2,
+      "browser_receipt_missing_count": 3,
+      "browser_receipt_path_count": 3,
+      "browser_receipt_readable_count": 0,
+      "cleanup_success": true,
+      "dispatch_search_materiality_success": true,
+      "replay_no_react": true,
+      "run_id": "python_org_reliability_v1_1784202364_mission_2",
+      "status": "completed",
+      "technical_closeout_success": true
+    },
+    {
+      "answer_quality_pass": false,
+      "attempt_index": 3,
+      "browser_receipt_missing_count": 3,
+      "browser_receipt_path_count": 3,
+      "browser_receipt_readable_count": 0,
+      "cleanup_success": true,
+      "dispatch_search_materiality_success": true,
+      "replay_no_react": true,
+      "run_id": "python_org_reliability_v1_1784202364_mission_3",
+      "status": "completed",
+      "technical_closeout_success": true
+    },
+    {
+      "answer_quality_pass": false,
+      "attempt_index": 4,
+      "browser_receipt_missing_count": 3,
+      "browser_receipt_path_count": 3,
+      "browser_receipt_readable_count": 0,
+      "cleanup_success": true,
+      "dispatch_search_materiality_success": true,
+      "replay_no_react": true,
+      "run_id": "python_org_reliability_v1_1784202364_mission_4",
+      "status": "completed",
+      "technical_closeout_success": true
+    },
+    {
+      "answer_quality_pass": false,
+      "attempt_index": 5,
+      "browser_receipt_missing_count": 3,
+      "browser_receipt_path_count": 3,
+      "browser_receipt_readable_count": 0,
+      "cleanup_success": true,
+      "dispatch_search_materiality_success": true,
+      "replay_no_react": true,
+      "run_id": "python_org_reliability_v1_1784202364_mission_5",
+      "status": "completed",
+      "technical_closeout_success": true
+    }
+  ],
+  "batch_id": "python_org_reliability_v1_1784202364",
+  "can_execute": false,
+  "can_grant_authority": false,
+  "data_not_authority": true,
+  "failure_classes": [
+    "BROWSER_RECEIPT_FILE_AUDITABILITY_GAP",
+    "ANSWER_QUALITY_NOT_INDEPENDENTLY_AUDITABLE"
+  ],
+  "holdout_used": false,
+  "next_required_fix": "FIX_BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_CAPTURE_V1",
+  "original_aggregate": {
+    "answer_quality_success_count": 0,
+    "answer_quality_success_rate": 0.0,
+    "attempt_count": 5,
+    "batch_id": "python_org_reliability_v1_1784202364",
+    "batch_verdict": "VALID_CALIBRATION_MEASURED_QUALITY_GATE_FAIL",
+    "cleanup_success_count": 5,
+    "cleanup_success_rate": 1.0,
+    "estimated_provider_cost_usd_total": 0.042034,
+    "holdout_used": false,
+    "latency_seconds": [
+      118.856,
+      106.184,
+      110.241,
+      107.913,
+      94.235
+    ],
+    "material_action_counts": [
+      4,
+      4,
+      4,
+      4,
+      4
+    ],
+    "mission_success_rate": 0.0,
+    "provider_decision_calls": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ],
+    "quality_gate_pass": false,
+    "replay_no_react_count": 5,
+    "replay_no_react_rate": 1.0,
+    "runtime_patch_during_batch": false,
+    "search_materiality_success_count": 0,
+    "search_materiality_success_rate": 0.0,
+    "successful_missions": 0,
+    "technical_success_count": 0,
+    "technical_success_rate": 0.0,
+    "unsupported_claim_total": 0,
+    "verdicts": [
+      "VALID_FAILED_TECHNICAL",
+      "VALID_FAILED_TECHNICAL",
+      "VALID_FAILED_TECHNICAL",
+      "VALID_FAILED_TECHNICAL",
+      "VALID_FAILED_TECHNICAL"
+    ]
+  },
+  "runtime_patch_during_batch": false,
+  "schema_version": "python_org_post_final_fix_repeated_reliability/v1",
+  "summary_hash": "e065977a0669192cf10c1c3ed9d2d694c86f37d3e44f5c7c9166ebd87981e3e0",
+  "verdict": "VALID_CALIBRATION_MEASURED_QUALITY_GATE_FAIL"
+}
