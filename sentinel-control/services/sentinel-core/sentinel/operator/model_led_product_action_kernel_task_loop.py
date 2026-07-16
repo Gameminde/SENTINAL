@@ -920,6 +920,7 @@ def _is_recoverable_browser_action_failure(reason: str) -> bool:
         "real_browser_search_session_open_failed",
         "real_browser_open_result_actuation_failed",
         "real_browser_element_ref_unknown",
+        "real_browser_runtime_dispatch_exception",
     }
 
 

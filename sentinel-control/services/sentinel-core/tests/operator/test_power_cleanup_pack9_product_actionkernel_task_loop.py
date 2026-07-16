@@ -6,12 +6,14 @@ from pathlib import Path
 import pytest
 
 from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.operator import runtime_host as runtime_host_module
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ModelLedProductActionKernelTaskLoop,
     ProductActionKernelLoopDecisionClient,
     ProductActionKernelTaskLoopReplay,
     ProductActionKernelTaskLoopStatus,
 )
+from sentinel.operator.real_browser_control_runtime import RealBrowserControlRuntimeError
 from sentinel.operator.runtime_host import SentinelRuntimeHost
 from sentinel.operator.unified_execution_dispatcher import DispatchStatus
 
@@ -233,6 +235,62 @@ def test_model_led_product_loop_rejects_non_product_skill_without_local_shortcut
     assert result.dispatch_results[0].adapter_id is None
 
 
+def test_browser_runtime_exception_reaches_next_model_turn_as_recoverable_fact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://www.python.org/search/")
+    monkeypatch.setattr(runtime_host_module, "_product_browser_engine", lambda _envelope: _RuntimeDispatchFailingEngine())
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    scope = host.create_product_task_resource_scope(
+        root_session_id="session_pack9_browser_runtime_exception",
+        workspace_root=workspace,
+    )
+    decision_client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "Path.glob official docs"},
+                idempotency_key="pack9-browser-runtime-exception-1",
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "Path.glob official docs"},
+                idempotency_key="pack9-browser-runtime-exception-2",
+            ),
+        ]
+    )
+    loop = ModelLedProductActionKernelTaskLoop(
+        host=host,
+        workspace_root=workspace,
+        session_id="session_pack9_browser_runtime_exception",
+        mission_objective="Use Python.org browser search for official pathlib Path.glob documentation.",
+        decision_client=decision_client,
+        allowed_domains=("python.org",),
+        max_model_calls=2,
+        max_material_actions=2,
+        max_recoverable_action_failures=1,
+        product_task_resource_scope=scope,
+    )
+
+    result = loop.run()
+
+    assert len(decision_client.contexts) == 2
+    recovery = decision_client.contexts[1]["recoverable_action_observations"][0]
+    assert recovery["failure_code"] == "real_browser_runtime_dispatch_exception"
+    assert recovery["runtime_failure_fact"]["failure_stage"] == "browser_runtime_observe"
+    assert recovery["model_visible_body_failure_packet"]["failure_stage"] == "browser_runtime_observe"
+    assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
+    assert result.blocked_reason == "real_browser_runtime_dispatch_exception"
+    assert result.dispatch_results[0].blocked_reason == "real_browser_runtime_dispatch_exception"
+    assert result.dispatch_results[0].safe_context_cards["runtime_failure_fact"]["material_effect_observed"] is False
+    assert result.dispatch_results[0].safe_context_cards["runtime_failure_fact"]["session_continuity"]["root_lease_present"] is True
+    assert result.dispatch_results[0].safe_context_cards["model_visible_body_failure_packet"]["can_execute"] is False
+
+
 def _workspace(tmp_path: Path) -> Path:
     root = tmp_path / "workspace"
     root.mkdir()
@@ -254,6 +312,22 @@ def _channel_params(
         "evidence_refs": ["evidence:pack9_product_loop"],
         "idempotency_key": "pack9-send-1",
     }
+
+
+class _RuntimeDispatchFailingEngine:
+    browser_backend_id = "cloak_browser"
+    session_backend_kind = "cloakbrowser"
+    session_manager_backend_kind = "cloakbrowser"
+    safe_url_origin_hash = "python-org-origin-hash"
+
+    def bind_authority(self, authority: object) -> None:
+        self.authority = authority
+
+    def observe(self) -> object:
+        raise RealBrowserControlRuntimeError("browser_session_post_action_snapshot_failed:RuntimeError")
+
+    def close(self) -> None:
+        self.closed = True
 
 
 def _product_receipt(host: SentinelRuntimeHost, mission_id: str, receipt_ref: str) -> dict[str, object]:

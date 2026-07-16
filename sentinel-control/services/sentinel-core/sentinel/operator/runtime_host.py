@@ -44,6 +44,7 @@ from sentinel.operator.real_browser_control_runtime import (
     BOUNDED_URL_AUTHORITY_REF,
     CLOAK_BROWSER_BACKEND_ID,
     RealBrowserControlRuntime,
+    RealBrowserControlRuntimeError,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
     build_cloak_first_real_browser_engine_from_env,
@@ -892,6 +893,7 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
                 envelope=envelope,
                 authority=authority,
                 runtime_context=runtime_context,
+                scope=typed_scope,
             )
             if not _is_browser_body_failure(result):
                 return result
@@ -913,6 +915,7 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
                 envelope=envelope,
                 authority=authority,
                 runtime_context=recovered_context,
+                scope=typed_scope,
             )
             second_fingerprint = _body_failure_fingerprint(typed_scope, envelope=envelope, result=recovered)
             if _is_browser_body_failure(recovered):
@@ -936,6 +939,7 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
             envelope=envelope,
             authority=authority,
             runtime_context=runtime_context,
+            scope=None,
         )
     except Exception as exc:  # noqa: BLE001
         if _should_try_action_start_mechanical_recovery(
@@ -970,6 +974,7 @@ def _execute_real_browser_action(
     envelope: ActionEnvelope,
     authority: MissionAuthorityEnvelope,
     runtime_context: dict[str, Any],
+    scope: ProductTaskResourceScope | None,
 ) -> ActionResult:
     runtime = RealBrowserControlRuntime(
         kernel=kernel,
@@ -979,7 +984,16 @@ def _execute_real_browser_action(
         selected_backend_id=_safe_engine_backend_id(engine),
         product_context=runtime_context,
     )
-    return runtime.execute(envelope, authority=_real_browser_authority(authority), context=runtime_context)
+    try:
+        return runtime.execute(envelope, authority=_real_browser_authority(authority), context=runtime_context)
+    except RealBrowserControlRuntimeError as exc:
+        return _browser_runtime_dispatch_exception_result(
+            envelope,
+            exc=exc,
+            runtime_context=runtime_context,
+            session_ref=session_ref,
+            scope=scope,
+        )
 
 
 def _is_browser_body_failure(result: ActionResult) -> bool:
@@ -1000,13 +1014,15 @@ def _browser_action_start_exception_result(
     runtime_context: dict[str, Any],
     session_ref: str,
     mechanical_recovery_attempted: bool = False,
+    failure_code: str = "real_browser_action_start_exception",
+    retryability_override: dict[str, Any] | None = None,
 ) -> ActionResult:
     safe_stage, safe_resource = _classify_browser_action_start_exception(
         exc,
         failure_stage=failure_stage,
         resource_kind=resource_kind,
     )
-    retryability = _browser_action_start_retryability(
+    retryability = retryability_override or _browser_action_start_retryability(
         exc,
         failure_stage=safe_stage,
         resource_kind=safe_resource,
@@ -1022,7 +1038,6 @@ def _browser_action_start_exception_result(
         retryability=retryability,
     )
     exception_hash = text_hash(f"{exc.__class__.__name__}:{str(exc)}")
-    failure_code = "real_browser_action_start_exception"
     runtime_failure_fact = {
         "fact_kind": "runtime_failure_fact",
         "attempted_operation": envelope.operation,
@@ -1138,6 +1153,85 @@ def _browser_action_start_exception_result(
         recoverable=retryability["retryable"],
         recommended_next_actions=tuple(retryability["recommended_recovery"]),
         context_cards=context_cards,
+    )
+
+
+def _browser_runtime_dispatch_exception_result(
+    envelope: ActionEnvelope,
+    *,
+    exc: RealBrowserControlRuntimeError,
+    runtime_context: dict[str, Any],
+    session_ref: str,
+    scope: ProductTaskResourceScope | None,
+) -> ActionResult:
+    safe_stage = _classify_browser_runtime_dispatch_stage(envelope.operation, str(exc))
+    hard_boundary = _is_browser_runtime_hard_boundary(str(exc))
+    retryability = {
+        "retryable": not hard_boundary,
+        "mechanical_recovery_allowed": False,
+        "mechanical_recovery_attempted": False,
+        "retry_kind": "model_visible_body_recovery" if not hard_boundary else "authority_or_secret_boundary",
+        "recommended_recovery": (
+            ("real_browser_control.real_browser.observe", "real_browser_control.real_browser.extract_evidence")
+            if not hard_boundary
+            else ()
+        ),
+    }
+    return _browser_action_start_exception_result(
+        envelope,
+        exc=exc,
+        failure_stage=safe_stage,
+        resource_kind="browser_runtime_dispatch",
+        scope=scope,
+        runtime_context=runtime_context,
+        session_ref=session_ref,
+        mechanical_recovery_attempted=False,
+        failure_code=(
+            "real_browser_runtime_hard_boundary"
+            if hard_boundary
+            else "real_browser_runtime_dispatch_exception"
+        ),
+        retryability_override=retryability,
+    )
+
+
+def _classify_browser_runtime_dispatch_stage(operation: str, reason: str) -> str:
+    lowered = f"{operation} {reason}".lower()
+    if "authority" in lowered or "not_authorized" in lowered or "unbounded_url" in lowered:
+        return "browser_authority_preflight"
+    if "secret" in lowered or "credential" in lowered or "password" in lowered:
+        return "browser_secret_boundary"
+    if "snapshot" in lowered or "observe" in lowered or "session" in lowered:
+        return "browser_runtime_observe"
+    if "search" in lowered and any(marker in lowered for marker in ("write", "type", "fill", "readback")):
+        return "browser_search_write"
+    if "search" in lowered and any(marker in lowered for marker in ("submit", "press", "navigation", "request")):
+        return "browser_search_submit"
+    if "search" in lowered:
+        return "browser_search_runtime"
+    if "extract" in lowered:
+        return "browser_extract_runtime"
+    if "verify" in lowered:
+        return "browser_verify_runtime"
+    return "browser_runtime_execute"
+
+
+def _is_browser_runtime_hard_boundary(reason: str) -> bool:
+    lowered = reason.lower()
+    return any(
+        marker in lowered
+        for marker in (
+            "secret_field_blocked",
+            "search_query_secret_like",
+            "mission_authority_inactive",
+            "tool_not_authorized",
+            "action_not_authorized",
+            "bounded_url_not_authorized",
+            "target_host_not_authorized",
+            "unbounded_url_blocked",
+            "backend_selection_mismatch",
+            "explicit_compatibility_required",
+        )
     )
 
 
