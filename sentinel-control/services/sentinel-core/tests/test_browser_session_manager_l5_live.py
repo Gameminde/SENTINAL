@@ -107,6 +107,35 @@ class _FallbackSession:
         self.page = page
 
 
+class _KeyboardRecorder:
+    def __init__(self) -> None:
+        self.presses: list[dict[str, Any]] = []
+
+    def press(self, key: str) -> None:
+        self.presses.append({"key": key})
+
+
+class _KeyboardFallbackLocator(_FallbackLocator):
+    def press(self, key: str, *, timeout: int) -> None:
+        self.page.presses.append({"role": self.role, "name": self.name, "exact": self.exact, "nth": self.nth, "key": key, "timeout": timeout})
+        raise TimeoutError("role locator detached after focus")
+
+
+class _KeyboardFallbackRoleQuery(_FallbackRoleQuery):
+    def nth(self, nth: int) -> _KeyboardFallbackLocator:
+        return _KeyboardFallbackLocator(self.page, role=self.role, name=self.name, exact=self.exact, nth=nth)
+
+
+class _KeyboardFallbackPage(_FallbackRolePage):
+    def __init__(self) -> None:
+        super().__init__()
+        self.keyboard = _KeyboardRecorder()
+
+    def get_by_role(self, role: str, *, name: str | None = None, exact: bool | None = None) -> _KeyboardFallbackRoleQuery:
+        self.role_calls.append({"role": role, "name": name, "exact": exact})
+        return _KeyboardFallbackRoleQuery(self, role=role, name=name, exact=exact)
+
+
 def test_live_browser_session_falls_back_from_exact_role_name_to_fuzzy_same_role(tmp_path: Path) -> None:
     from sentinel.agent.organs.browser_session_manager_l5_live import (
         BrowserSessionActionKind,
@@ -183,6 +212,45 @@ def test_live_browser_session_promotes_press_key_for_search_submit(tmp_path: Pat
     assert page.presses == [
         {"role": "textbox", "name": "Search all products", "exact": True, "nth": 0, "key": "Enter", "timeout": 250}
     ]
+
+
+def test_live_browser_session_press_key_uses_page_keyboard_after_locator_detaches(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.PRESS_KEY],
+    )
+    page = _KeyboardFallbackPage()
+    request = BrowserSessionRequest(
+        mission=_envelope(),
+        url=URL,
+        contract=contract,
+        action_kind=BrowserSessionActionKind.PRESS_KEY,
+        target_role="textbox",
+        target_name="Search all products",
+        text="Enter",
+        capture_screenshot=False,
+    )
+
+    manager._execute_step(_FallbackSession(page), request, timeout_ms=250)
+
+    assert page.presses == [
+        {"role": "textbox", "name": "Search all products", "exact": True, "nth": 0, "key": "Enter", "timeout": 250},
+        {"role": "textbox", "name": "Search all products", "exact": False, "nth": 0, "key": "Enter", "timeout": 250},
+    ]
+    assert page.keyboard.presses == [{"key": "Enter"}]
 
 
 def test_live_browser_session_persists_form_state_across_steps(tmp_path: Path) -> None:

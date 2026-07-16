@@ -203,6 +203,72 @@ def test_loaded_authority_record_hash_is_verified(tmp_path: Path) -> None:
         issuer.load_record(record.mission_id, issued.record.envelope_id)
 
 
+def test_authority_record_read_retries_transient_file_visibility(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    record = _mission_record(kernel, allowed_actions=["list_directory"])
+    issuer = MissionAuthorityEnvelopeIssuer(kernel)
+    issued = issuer.issue(record.mission_id, approval_scope=_approval_scope(), policy=_policy())
+    target_name = f"{issued.record.envelope_id}.json"
+    failures = {"remaining": 1}
+    from sentinel.operator import authority_issuer as authority_issuer_module
+
+    original_read_text = authority_issuer_module._read_text_file
+
+    def flaky_read_text(path: Path):  # noqa: ANN001
+        if path.name == target_name and path.parent.name == "envelopes" and failures["remaining"]:
+            failures["remaining"] -= 1
+            raise FileNotFoundError(str(path))
+        return original_read_text(path)
+
+    monkeypatch.setattr(authority_issuer_module, "_read_text_file", flaky_read_text)
+
+    assert issuer.resolve_active(record.mission_id).id == record.mission_id
+    assert failures["remaining"] == 0
+
+
+def test_authority_record_read_waits_through_multiple_transient_visibility_misses(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    record = _mission_record(kernel, allowed_actions=["list_directory"])
+    issuer = MissionAuthorityEnvelopeIssuer(kernel)
+    issued = issuer.issue(record.mission_id, approval_scope=_approval_scope(), policy=_policy())
+    target_name = f"{issued.record.envelope_id}.json"
+    failures = {"remaining": 4}
+    from sentinel.operator import authority_issuer as authority_issuer_module
+
+    original_read_text = authority_issuer_module._read_text_file
+
+    def flaky_read_text(path: Path):  # noqa: ANN001
+        if path.name == target_name and path.parent.name == "envelopes" and failures["remaining"]:
+            failures["remaining"] -= 1
+            raise FileNotFoundError(str(path))
+        return original_read_text(path)
+
+    monkeypatch.setattr(authority_issuer_module, "_read_text_file", flaky_read_text)
+    monkeypatch.setattr("sentinel.operator.authority_issuer.time.sleep", lambda _delay: None)
+
+    assert issuer.resolve_active(record.mission_id).id == record.mission_id
+    assert failures["remaining"] == 0
+
+
+def test_authority_record_read_supports_long_windows_paths(tmp_path: Path) -> None:
+    long_root = tmp_path
+    for index in range(8):
+        long_root = long_root / f"authority_visibility_segment_{index:02d}"
+    kernel = MissionKernel(run_root=long_root / "runs", telemetry_sink=object())
+    record = _mission_record(kernel, allowed_actions=["list_directory"])
+    issuer = MissionAuthorityEnvelopeIssuer(kernel)
+
+    issuer.issue(record.mission_id, approval_scope=_approval_scope(), policy=_policy())
+
+    assert issuer.resolve_active(record.mission_id).id == record.mission_id
+
+
 def test_renewal_rejects_stale_revoked_or_expired_lineage(tmp_path: Path) -> None:
     kernel = MissionKernel(run_root=tmp_path / "runs")
     record = _mission_record(kernel, allowed_actions=["list_directory"])

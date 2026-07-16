@@ -76,6 +76,35 @@ def test_lifecycle_loads_execution_request_on_long_windows_path(tmp_path: Path) 
     assert lifecycle.list_execution_requests(result.record.mission_id) == [result.execution_request]
 
 
+def test_browser_search_query_is_memory_only_and_hash_only_on_disk(tmp_path: Path) -> None:
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    lifecycle = MissionLifecycleService(kernel)
+    query = "pathlib Path.glob documentation"
+
+    result = lifecycle.create_mission(
+        session_id="session_browser_search_query_memory_only",
+        draft=_draft(),
+        authority_summary=_summary(allowed_actions=["real_browser.search"]),
+        approval_scope=_approval_scope(allowed_actions=["real_browser.search"]),
+        policy=_policy(allowed_actions=["real_browser.search"]),
+        capability_id="real_browser_control",
+        operation="real_browser.search",
+        parameters={"query": query},
+        workspace_ref="workspace:unit",
+        model_contract_ref="model_contract:unit",
+    )
+    parameters_path = (
+        kernel.store.mission_dir(result.record.mission_id)
+        / "execution_request_parameters"
+        / f"{result.execution_request.request_id}.json"
+    )
+    persisted = parameters_path.read_text(encoding="utf-8")
+
+    assert query not in persisted
+    loaded = lifecycle.load_execution_parameters(result.record.mission_id, result.execution_request.request_id)
+    assert loaded["query"] == query
+
+
 def test_lifecycle_does_not_enqueue_when_authority_issuance_fails(tmp_path: Path) -> None:
     kernel = MissionKernel(run_root=tmp_path / "runs")
     lifecycle = MissionLifecycleService(kernel)

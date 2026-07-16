@@ -1077,21 +1077,40 @@ class RealBrowserControlRuntime:
         if trace["write_readback_status"] == "mismatched":
             trace["safe_failure_code"] = "real_browser_search_write_readback_mismatch"
             raise RealBrowserControlRuntimeError("real_browser_search_write_readback_mismatch")
+        observed_button_ref = _search_button_ref(snapshot) or _search_button_ref(before_snapshot)
         mechanisms = _observed_submit_mechanisms(snapshot, ref)
+        if observed_button_ref and "search_button" not in mechanisms:
+            mechanisms.append("search_button")
         trace["submit_mechanisms_observed"] = mechanisms
+        trace["submit_button_ref_hash"] = text_hash(observed_button_ref) if observed_button_ref else ""
         trace["submit_method_selected"] = "enter_key" if "enter_key" in mechanisms else (mechanisms[0] if mechanisms else "")
         trace["submit_attempted"] = True
         try:
             return self.engine.press_key(ref, "Enter")
         except RealBrowserControlRuntimeError as exc:
-            errors.append(str(exc))
+            enter_failure_code = _search_submit_failure_code(str(exc))
+            trace["submit_enter_failure_code"] = enter_failure_code
+            errors.append(enter_failure_code)
+            if _submit_failure_may_have_materialized(enter_failure_code):
+                trace["submit_observe_recovery_attempted"] = True
+                try:
+                    recovered = self.engine.observe()
+                except RealBrowserControlRuntimeError as observe_exc:
+                    trace["submit_observe_recovery_succeeded"] = False
+                    trace["submit_observe_recovery_failure_code"] = _search_submit_failure_code(str(observe_exc))
+                else:
+                    trace["submit_observe_recovery_succeeded"] = True
+                    return recovered
             if "search_button" not in mechanisms:
                 trace["safe_failure_code"] = "real_browser_search_submit_failed"
                 raise RealBrowserControlRuntimeError("real_browser_search_submit_failed") from exc
             trace["submit_method_selected"] = "search_button"
             try:
+                if observed_button_ref:
+                    return self.engine.click(observed_button_ref)
                 return self._click_search_button_if_available()
             except RealBrowserControlRuntimeError as button_exc:
+                trace["submit_button_failure_code"] = _search_submit_failure_code(str(button_exc))
                 trace["safe_failure_code"] = "real_browser_search_submit_failed"
                 raise RealBrowserControlRuntimeError("real_browser_search_submit_failed") from button_exc
 
@@ -3176,6 +3195,11 @@ def _new_search_actuation_trace(
         "submit_mechanisms_observed": _observed_submit_mechanisms(before_snapshot, ref),
         "submit_method_selected": "",
         "submit_attempted": False,
+        "submit_enter_failure_code": "",
+        "submit_button_failure_code": "",
+        "submit_observe_recovery_attempted": False,
+        "submit_observe_recovery_succeeded": False,
+        "submit_observe_recovery_failure_code": "",
         "request_progress": "not_observed",
         "navigation_progress": "not_observed",
         "result_region_progress": "not_observed",
@@ -3202,14 +3226,44 @@ def _observed_submit_mechanisms(snapshot: RealBrowserEngineSnapshot, ref: str) -
     element = _element_for_ref(snapshot, ref)
     if element is not None and element.role in {"textbox", "combobox", "searchbox"}:
         mechanisms.append("enter_key")
+    if _search_button_ref(snapshot):
+        mechanisms.append("search_button")
+    return list(dict.fromkeys(mechanisms))
+
+
+def _search_button_ref(snapshot: RealBrowserEngineSnapshot) -> str:
     for candidate in snapshot.elements:
         if candidate.role != "button" or not candidate.visible or not candidate.enabled or bool(getattr(candidate, "secret", False)):
             continue
         text = f"{candidate.ref} {candidate.name} {candidate.text_preview}".lower()
         if any(marker in text for marker in ("search", "find", "submit", "go")):
-            mechanisms.append("search_button")
-            break
-    return list(dict.fromkeys(mechanisms))
+            return candidate.ref
+    return ""
+
+
+def _search_submit_failure_code(reason: str) -> str:
+    lowered = reason.strip().lower()
+    if lowered.startswith("browser_session_post_action_snapshot_failed"):
+        return "browser_session_post_action_snapshot_failed"
+    if lowered.startswith("browser_session_step_failed"):
+        return "browser_session_step_failed"
+    if lowered.startswith("browser_session_interaction_failed:timeouterror"):
+        return "browser_session_interaction_timeout"
+    if lowered.startswith("browser_session_interaction_failed:"):
+        return "browser_session_interaction_failed"
+    if lowered.startswith("browser_session_"):
+        return lowered.split(":", 1)[0]
+    if "timeout" in lowered:
+        return "browser_submit_timeout"
+    if "detached" in lowered or "stale" in lowered:
+        return "browser_submit_stale_or_detached_ref"
+    return "browser_submit_failed"
+
+
+def _submit_failure_may_have_materialized(failure_code: str) -> bool:
+    return failure_code in {
+        "browser_session_post_action_snapshot_failed",
+    }
 
 
 def _search_write_readback_evidence(

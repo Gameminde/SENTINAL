@@ -16,7 +16,7 @@ from sentinel.operator.redaction import sanitize_operator_refs
 from sentinel.operator.real_browser_control_runtime import BOUNDED_URL_AUTHORITY_REF
 from sentinel.operator.runtime_host import SentinelRuntimeHost
 from sentinel.operator.safety import assert_data_not_authority
-from sentinel.operator.store import MissionRunStore
+from sentinel.operator.store import MissionRunStore, _iter_child_paths, _iter_descendant_file_paths, _path_exists, _read_bytes_file
 from sentinel.operator.unified_execution_dispatcher import DispatchStatus, UnifiedDispatchResult
 from sentinel.shared.models import SentinelModel, new_id
 
@@ -1456,11 +1456,11 @@ def _browser_search_query_from_objective(mission_objective: str) -> str:
 
 
 def _artifact_counts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> dict[str, int]:
-    roots = [store.mission_dir(mission_id) for mission_id in mission_ids if store.mission_dir(mission_id).exists()]
+    roots = [store.mission_dir(mission_id) for mission_id in mission_ids if _path_exists(store.mission_dir(mission_id))]
     return {
-        "dispatch_closeout": sum(len(list(root.glob("dispatch_closeout/*.json"))) for root in roots),
-        "receipts": sum(len(list(root.rglob("receipts/*.json"))) for root in roots),
-        "finalgate": sum(len(list(root.rglob("finalgate/*.json"))) for root in roots),
+        "dispatch_closeout": sum(_count_direct_json(root / "dispatch_closeout") for root in roots),
+        "receipts": sum(_count_named_json_descendants(root, "receipts") for root in roots),
+        "finalgate": sum(_count_named_json_descendants(root, "finalgate") for root in roots),
     }
 
 
@@ -1468,11 +1468,19 @@ def _artifact_hashes(store: MissionRunStore, mission_ids: tuple[str, ...]) -> tu
     hashes: list[str] = []
     for mission_id in mission_ids:
         mission_dir = store.mission_dir(mission_id)
-        if not mission_dir.exists():
+        if not _path_exists(mission_dir):
             continue
-        for path in sorted(mission_dir.rglob("*.json")):
-            hashes.append(hashlib.sha256(path.read_bytes()).hexdigest())
+        for path in sorted((path for path in _iter_descendant_file_paths(mission_dir) if path.suffix == ".json"), key=str):
+            hashes.append(hashlib.sha256(_read_bytes_file(path)).hexdigest())
     return tuple(hashes)
+
+
+def _count_direct_json(root: Path) -> int:
+    return sum(1 for path in _iter_child_paths(root) if path.suffix == ".json")
+
+
+def _count_named_json_descendants(root: Path, dirname: str) -> int:
+    return sum(1 for path in _iter_descendant_file_paths(root) if path.suffix == ".json" and path.parent.name == dirname)
 
 
 def _workspace_patch_plans(workspace_root: Path) -> list[dict[str, str]]:

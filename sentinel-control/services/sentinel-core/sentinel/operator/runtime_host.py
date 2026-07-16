@@ -1502,11 +1502,14 @@ def _channel_send_authority(authority: MissionAuthorityEnvelope) -> MissionAutho
 
 
 def _real_browser_authority(authority: MissionAuthorityEnvelope) -> MissionAuthorityEnvelope:
+    allowed_domains = list(dict.fromkeys(authority.allowed_domains))
+    if allowed_domains and BOUNDED_URL_AUTHORITY_REF not in allowed_domains:
+        allowed_domains.append(BOUNDED_URL_AUTHORITY_REF)
     return authority.model_copy(
         update={
             "allowed_actions": list(dict.fromkeys(authority.allowed_actions)),
             "allowed_tools": list(dict.fromkeys(authority.allowed_tools)),
-            "allowed_domains": list(dict.fromkeys(authority.allowed_domains)),
+            "allowed_domains": allowed_domains,
         }
     )
 

@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import Field, model_validator
 
-from sentinel.agent.model_execution.redaction import stable_hash
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.authority_issuer import (
     MissionAuthorityApprovalScope,
     IssuedMissionAuthority,
@@ -179,6 +179,7 @@ class MissionLifecycleService:
         self.kernel = kernel
         self.authority_issuer = authority_issuer or MissionAuthorityEnvelopeIssuer(kernel)
         self.daemon_runtime = daemon_runtime
+        self._execution_parameter_cache: dict[tuple[str, str], dict[str, Any]] = {}
 
     def create_mission(
         self,
@@ -226,6 +227,7 @@ class MissionLifecycleService:
             authority_envelope_ref=authority.record.envelope_id,
             execution_options=normalized_execution_options,
         ).with_hash()
+        self._execution_parameter_cache[(record.mission_id, execution_request.request_id)] = dict(parameters)
         self._persist_execution_request(execution_request)
         self._persist_execution_request_parameters(execution_request, parameters)
         self.kernel.store.append_event(
@@ -286,6 +288,17 @@ class MissionLifecycleService:
 
     def load_execution_parameters(self, mission_id: str, request_id: str) -> dict[str, Any]:
         request = self.load_execution_request(mission_id, request_id)
+        cached = self._execution_parameter_cache.get((mission_id, request_id))
+        if cached is not None:
+            if stable_hash(redact_operator_value(cached)) != request.parameter_hash:
+                raise ValueError("mission execution parameters hash mismatch")
+            reject_execution_parameters_for_route(
+                cached,
+                capability_id=request.capability_id,
+                operation=request.operation,
+                context="mission_execution_request_parameters",
+            )
+            return dict(cached)
         path = self._parameters_path(mission_id, request_id)
         if not _path_exists(path):
             return {}
@@ -293,6 +306,8 @@ class MissionLifecycleService:
         parameters = payload.get("parameters")
         if not isinstance(parameters, dict):
             raise ValueError("mission execution parameters payload invalid")
+        if payload.get("raw_parameters_persisted") is False:
+            raise ValueError("mission_execution_parameters_require_in_memory_material")
         if payload.get("parameter_hash") != request.parameter_hash:
             raise ValueError("mission execution parameters hash mismatch")
         if stable_hash(redact_operator_value(parameters)) != request.parameter_hash:
@@ -407,14 +422,21 @@ class MissionLifecycleService:
         request: MissionExecutionRequest,
         parameters: dict[str, Any],
     ) -> None:
-        safe_parameters = redact_operator_value(parameters)
+        safe_parameters = _safe_persisted_execution_parameters(
+            capability_id=request.capability_id,
+            operation=request.operation,
+            parameters=parameters,
+        )
+        raw_parameters_persisted = safe_parameters == redact_operator_value(parameters)
         self.kernel.store.atomic_write_json(
             self._parameters_path(request.mission_id, request.request_id),
             {
                 "request_id": request.request_id,
                 "mission_id": request.mission_id,
-                "parameter_hash": stable_hash(safe_parameters),
+                "parameter_hash": request.parameter_hash,
+                "persisted_parameter_hash": stable_hash(safe_parameters),
                 "parameters": safe_parameters,
+                "raw_parameters_persisted": raw_parameters_persisted,
                 "data_not_authority": True,
                 "authority_effect": "none",
                 "can_execute": False,
@@ -497,6 +519,28 @@ def _normalize_execution_options(options: dict[str, Any]) -> dict[str, Any]:
             maximum=PROVIDER_DECISION_TIMEOUT_SECONDS_MAX,
         )
     return normalized
+
+
+def _safe_persisted_execution_parameters(
+    *,
+    capability_id: str,
+    operation: str,
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    safe_parameters = redact_operator_value(parameters)
+    if capability_id == "real_browser_control" and operation == "real_browser.search":
+        safe_parameters = dict(safe_parameters)
+        query = parameters.get("query")
+        if isinstance(query, str):
+            safe_parameters["query"] = {
+                "redacted": "browser_search_query_in_memory_only",
+                "sha256": text_hash(query),
+                "char_count": len(query),
+                "data_not_authority": True,
+                "can_execute": False,
+                "can_grant_authority": False,
+            }
+    return safe_parameters
 
 
 def _normalize_positive_execution_limit(value: Any, *, field_name: str) -> int:

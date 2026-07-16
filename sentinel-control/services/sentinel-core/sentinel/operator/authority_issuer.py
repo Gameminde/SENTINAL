@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -13,12 +14,16 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionRecord
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority, reject_operator_control_payload
+from sentinel.operator.store import _iter_child_paths, _path_exists, _read_text_file
 from sentinel.shared.enums import MissionMode, MissionType
 from sentinel.shared.models import SentinelModel, new_id
 
 
 def authority_utc_now() -> datetime:
     return datetime.now(UTC)
+
+
+_AUTHORITY_RECORD_READ_RETRY_DELAYS = (0.01, 0.05, 0.1, 0.2, 0.5)
 
 
 class MissionAuthorityPolicy(SentinelModel):
@@ -381,9 +386,10 @@ class MissionAuthorityEnvelopeIssuer:
 
     def load_record(self, mission_id: str, envelope_ref: str) -> MissionAuthorityEnvelopeRecord:
         path = self._envelope_path(mission_id, envelope_ref)
-        if not path.exists():
-            raise ValueError("mission_authority_envelope_missing_or_cross_mission")
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            payload = _read_authority_json(path)
+        except FileNotFoundError as exc:
+            raise ValueError("mission_authority_envelope_missing_or_cross_mission") from exc
         record = MissionAuthorityEnvelopeRecord.model_validate(payload)
         if record.mission_id != mission_id:
             raise ValueError("mission authority envelope record mission mismatch")
@@ -393,11 +399,11 @@ class MissionAuthorityEnvelopeIssuer:
 
     def list_records(self, mission_id: str) -> list[MissionAuthorityEnvelopeRecord]:
         root = self._envelope_root(mission_id)
-        if not root.exists():
+        if not _path_exists(root):
             return []
         records = [
-            MissionAuthorityEnvelopeRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
-            for path in sorted(root.glob("*.json"))
+            MissionAuthorityEnvelopeRecord.model_validate(_read_authority_json(path))
+            for path in sorted((path for path in _iter_child_paths(root) if path.suffix == ".json"), key=lambda item: item.name)
         ]
         for record in records:
             if record.mission_id != mission_id:
@@ -408,11 +414,11 @@ class MissionAuthorityEnvelopeIssuer:
 
     def list_revocations(self, mission_id: str) -> list[MissionAuthorityRevocationRecord]:
         root = self._revocation_root(mission_id)
-        if not root.exists():
+        if not _path_exists(root):
             return []
         revocations = [
-            MissionAuthorityRevocationRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
-            for path in sorted(root.glob("*.json"))
+            MissionAuthorityRevocationRecord.model_validate(_read_authority_json(path))
+            for path in sorted((path for path in _iter_child_paths(root) if path.suffix == ".json"), key=lambda item: item.name)
         ]
         for revocation in revocations:
             if revocation.mission_id != mission_id:
@@ -485,6 +491,18 @@ def _require_authority_summary(record: MissionRecord) -> MissionAuthoritySummary
     if record.authority_summary is None:
         raise ValueError("mission_authority_summary_required")
     return record.authority_summary
+
+
+def _read_authority_json(path: Path) -> dict[str, Any]:
+    for attempt in range(len(_AUTHORITY_RECORD_READ_RETRY_DELAYS) + 1):
+        try:
+            return json.loads(_read_text_file(path))
+        except FileNotFoundError:
+            if attempt >= len(_AUTHORITY_RECORD_READ_RETRY_DELAYS):
+                raise
+            time.sleep(_AUTHORITY_RECORD_READ_RETRY_DELAYS[attempt])
+
+    raise FileNotFoundError(path)
 
 
 def _assert_summary_within_scope(

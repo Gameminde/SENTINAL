@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from sentinel.operator.action_kernel import ActionEnvelope
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ModelLedProductActionKernelTaskLoop,
@@ -87,6 +89,80 @@ def test_model_led_product_loop_dispatches_code_then_channel_through_runtimehost
     assert replay.product_dispatch_delta == 0
     assert replay.command_executions_delta == 0
     assert replay.channel_transport_sends_delta == 0
+    assert replay.receipt_writes_delta == 0
+    assert replay.finalgate_writes_delta == 0
+    assert replay.artifact_hashes_stable is True
+
+
+def test_product_loop_replay_uses_store_filesystem_helpers_when_pathlib_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    decision_client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                params={"profile_id": "fake_pass", "args": ["."]},
+                idempotency_key="pack9-code-long-path",
+            ),
+            ActionEnvelope(
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Code product dispatch completed."},
+                idempotency_key="pack9-finish-long-path",
+            ),
+        ]
+    )
+    loop = ModelLedProductActionKernelTaskLoop(
+        host=host,
+        workspace_root=workspace,
+        session_id="session_pack9_replay_long_path_helpers",
+        mission_objective="Run bounded code and finish.",
+        decision_client=decision_client,
+        allowed_domains=("example.com",),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    result = loop.run()
+    mission_roots = tuple(str(host.kernel.store.mission_dir(mission_id)) for mission_id in result.mission_ids)
+    original_exists = Path.exists
+    original_glob = Path.glob
+    original_rglob = Path.rglob
+    original_read_bytes = Path.read_bytes
+
+    def _is_mission_path(path: Path) -> bool:
+        rendered = str(path)
+        return any(rendered.startswith(root) for root in mission_roots)
+
+    def _blocked_exists(path: Path) -> bool:
+        if _is_mission_path(path):
+            raise FileNotFoundError("raw pathlib mission path unavailable")
+        return original_exists(path)
+
+    def _blocked_glob(path: Path, pattern: str):
+        if _is_mission_path(path):
+            raise FileNotFoundError("raw pathlib mission path unavailable")
+        return original_glob(path, pattern)
+
+    def _blocked_rglob(path: Path, pattern: str):
+        if _is_mission_path(path):
+            raise FileNotFoundError("raw pathlib mission path unavailable")
+        return original_rglob(path, pattern)
+
+    def _blocked_read_bytes(path: Path) -> bytes:
+        if _is_mission_path(path):
+            raise FileNotFoundError("raw pathlib mission path unavailable")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "exists", _blocked_exists)
+    monkeypatch.setattr(Path, "glob", _blocked_glob)
+    monkeypatch.setattr(Path, "rglob", _blocked_rglob)
+    monkeypatch.setattr(Path, "read_bytes", _blocked_read_bytes)
+
+    replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=result.mission_ids)
+
+    assert replay.reexecuted_actions is False
     assert replay.receipt_writes_delta == 0
     assert replay.finalgate_writes_delta == 0
     assert replay.artifact_hashes_stable is True

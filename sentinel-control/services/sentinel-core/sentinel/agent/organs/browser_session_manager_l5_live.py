@@ -479,13 +479,33 @@ class BrowserSessionManagerL5Live:
             return self._blocked(req, safety, "browser_session_step_limit_reached", action)
         try:
             with session.lock:
-                before = self._snapshot(session.page, req.timeout_ms)
-                before_screenshot = self._write_screenshot(session, "before", req.capture_screenshot, req.timeout_ms)
-                self._execute_step(session, req, req.timeout_ms)
+                try:
+                    before = self._snapshot(session.page, req.timeout_ms)
+                except Exception as exc:
+                    raise RuntimeError(f"browser_session_pre_action_snapshot_failed:{type(exc).__name__}") from exc
+                try:
+                    before_screenshot = self._write_screenshot(session, "before", req.capture_screenshot, req.timeout_ms)
+                except Exception as exc:
+                    raise RuntimeError(f"browser_session_pre_action_screenshot_failed:{type(exc).__name__}") from exc
+                try:
+                    self._execute_step(session, req, req.timeout_ms)
+                except Exception as exc:
+                    if str(exc).startswith("browser_session_"):
+                        raise RuntimeError(str(exc)) from exc
+                    raise RuntimeError(f"browser_session_step_failed:{type(exc).__name__}") from exc
                 session.step_index += 1
-                after = self._snapshot(session.page, req.timeout_ms)
-                after_screenshot = self._write_screenshot(session, "after", req.capture_screenshot, req.timeout_ms)
-                form_state = self._form_state(session.page, req.timeout_ms)
+                try:
+                    after = self._snapshot(session.page, req.timeout_ms)
+                except Exception as exc:
+                    raise RuntimeError(f"browser_session_post_action_snapshot_failed:{type(exc).__name__}") from exc
+                try:
+                    after_screenshot = self._write_screenshot(session, "after", req.capture_screenshot, req.timeout_ms)
+                except Exception as exc:
+                    raise RuntimeError(f"browser_session_post_action_screenshot_failed:{type(exc).__name__}") from exc
+                try:
+                    form_state = self._form_state(session.page, req.timeout_ms)
+                except Exception as exc:
+                    raise RuntimeError(f"browser_session_post_action_form_state_failed:{type(exc).__name__}") from exc
                 receipt = BrowserSessionReceipt(
                     mission_id=req.mission.id,
                     request_id=req.request_id,
@@ -1069,7 +1089,11 @@ class BrowserSessionManagerL5Live:
             page.get_by_text(req.text or "").first.wait_for(state="visible", timeout=timeout_ms)
             return
         if action == BrowserSessionActionKind.PRESS_KEY.value:
-            self._execute_with_locator_fallback(page, req, lambda locator: locator.press(req.text or "", timeout=timeout_ms))
+            try:
+                self._execute_with_locator_fallback(page, req, lambda locator: locator.press(req.text or "", timeout=timeout_ms))
+            except Exception:
+                if not self._press_key_with_page_keyboard_fallback(page, req):
+                    raise
             return
         if action == BrowserSessionActionKind.CLICK.value:
             self._execute_with_locator_fallback(page, req, lambda locator: locator.click(timeout=timeout_ms))
@@ -1096,6 +1120,19 @@ class BrowserSessionManagerL5Live:
         if last_error is not None:
             raise last_error
         raise RuntimeError("browser_session_target_missing")
+
+    @staticmethod
+    def _press_key_with_page_keyboard_fallback(page: Any, req: BrowserSessionRequest) -> bool:
+        key = (req.text or "").strip()
+        role = (req.target_role or "").strip().lower()
+        if key != "Enter" or role not in {"textbox", "searchbox", "combobox"}:
+            return False
+        keyboard = getattr(page, "keyboard", None)
+        press = getattr(keyboard, "press", None)
+        if not callable(press):
+            return False
+        press(key)
+        return True
 
     @staticmethod
     def _locator(page: Any, req: BrowserSessionRequest) -> Any:

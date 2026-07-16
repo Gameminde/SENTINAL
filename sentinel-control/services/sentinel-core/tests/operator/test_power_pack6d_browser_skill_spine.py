@@ -1169,6 +1169,53 @@ def test_search_submit_button_fallback_after_enter_failure(tmp_path: Path) -> No
     assert fixture.engine.button_submit_count == 1
 
 
+def test_search_button_submit_uses_observed_button_ref_after_label_changes(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_ObservedButtonRefOnlySubmitEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    trace = receipt["search_materiality"]["search_actuation_trace"]
+
+    assert result.status == "completed"
+    assert trace["submit_method_selected"] == "search_button"
+    assert trace["submit_attempted"] is True
+    assert fixture.engine.button_submit_count == 1
+
+
+def test_search_enter_post_action_snapshot_failure_observes_before_button_resubmit(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_EnterSubmittedButPostSnapshotFailedEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    trace = receipt["search_materiality"]["search_actuation_trace"]
+
+    assert result.status == "completed"
+    assert trace["submit_method_selected"] == "enter_key"
+    assert trace["submit_enter_failure_code"] == "browser_session_post_action_snapshot_failed"
+    assert trace["submit_observe_recovery_attempted"] is True
+    assert trace["submit_observe_recovery_succeeded"] is True
+    assert fixture.engine.button_submit_count == 0
+    assert receipt["search_materiality"]["search_materially_successful"] is True
+
+
 def test_search_no_results_confirmed_by_submission_and_state_progress(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_ConfirmedNoResultsSearchEngine(results_visible=False))
 
@@ -3239,6 +3286,46 @@ class _SubmitButtonOnlySearchEngine(_HardProductSearchEngine):
             self.button_submit_count += 1
             self.results_visible = True
             self.display_text = _PRODUCT_TEXT
+        return self._snapshot()
+
+
+class _ObservedButtonRefOnlySubmitEngine(_SubmitButtonOnlySearchEngine):
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        button_name = "Search" if not self.search_query else "Run"
+        button_text = "Search" if not self.search_query else "Run"
+        elements = [
+            RealBrowserEngineElement("input:search", "textbox", "Search products", value_preview=self.search_query),
+            RealBrowserEngineElement("button:primary", "button", button_name, text_preview=button_text),
+        ]
+        if self.results_visible:
+            elements.append(
+                RealBrowserEngineElement(
+                    "link:glasses_result",
+                    "link",
+                    "Results for glasses under 5 euro",
+                    text_preview="Results for glasses under 5 euro include bounded catalogue evidence",
+                )
+            )
+        return tuple(elements)
+
+    def click(self, ref: str) -> RealBrowserEngineSnapshot:
+        element = self._require_interactable(ref)
+        self.click_count += 1
+        if element.ref == "button:primary" and self.search_query:
+            self.button_submit_count += 1
+            self.results_visible = True
+            self.display_text = _PRODUCT_TEXT
+        return self._snapshot()
+
+
+class _EnterSubmittedButPostSnapshotFailedEngine(_SubmitButtonOnlySearchEngine):
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        self._require_editable(ref)
+        self.press_count += 1
+        if key == "Enter" and self.search_query:
+            self.results_visible = True
+            self.display_text = _PRODUCT_TEXT
+            raise RealBrowserControlRuntimeError("browser_session_post_action_snapshot_failed:TimeoutError")
         return self._snapshot()
 
 

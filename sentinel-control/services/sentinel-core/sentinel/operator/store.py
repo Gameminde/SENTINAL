@@ -31,10 +31,45 @@ def _filesystem_path(path: Path) -> str:
     return "\\\\?\\" + rendered
 
 
+def _mkdir_path(path: Path) -> None:
+    os.makedirs(_filesystem_path(path), exist_ok=True)
+
+
+def _path_exists(path: Path) -> bool:
+    return os.path.exists(_filesystem_path(path))
+
+
+def _read_text_file(path: Path) -> str:
+    with open(_filesystem_path(path), encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _read_bytes_file(path: Path) -> bytes:
+    with open(_filesystem_path(path), "rb") as handle:
+        return handle.read()
+
+
+def _iter_child_paths(root: Path) -> list[Path]:
+    if not _path_exists(root):
+        return []
+    return [root / name for name in os.listdir(_filesystem_path(root))]
+
+
+def _iter_descendant_file_paths(root: Path) -> list[Path]:
+    if not _path_exists(root):
+        return []
+    paths: list[Path] = []
+    for dirpath, _dirnames, filenames in os.walk(_filesystem_path(root)):
+        current = Path(dirpath)
+        for filename in filenames:
+            paths.append(current / filename)
+    return paths
+
+
 class MissionRunStore:
     def __init__(self, run_root: Path | str, *, telemetry_sink: Any | None = None) -> None:
         self.run_root = Path(run_root).resolve()
-        self.run_root.mkdir(parents=True, exist_ok=True)
+        _mkdir_path(self.run_root)
         if telemetry_sink is None:
             from sentinel.telemetry import TelemetryKernel
 
@@ -53,19 +88,19 @@ class MissionRunStore:
 
     def load_record(self, mission_id: str) -> MissionRecord:
         path = self._mission_dir(mission_id) / "record.json"
-        record = MissionRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        record = MissionRecord.model_validate(json.loads(_read_text_file(path)))
         if not record.verify_hash():
             raise ValueError("mission record hash mismatch")
         return record
 
     def list_records(self) -> list[MissionRecord]:
         records: list[MissionRecord] = []
-        for child in sorted(self.run_root.iterdir(), key=lambda path: path.name):
+        for child in sorted(_iter_child_paths(self.run_root), key=lambda path: path.name):
             if not child.is_dir():
                 continue
             record_path = child / "record.json"
-            if record_path.exists():
-                record = MissionRecord.model_validate(json.loads(record_path.read_text(encoding="utf-8")))
+            if _path_exists(record_path):
+                record = MissionRecord.model_validate(json.loads(_read_text_file(record_path)))
                 if not record.verify_hash():
                     raise ValueError("mission record hash mismatch")
                 records.append(record)
@@ -179,7 +214,7 @@ class MissionRunStore:
             )
             event = event.model_copy(update={"event_hash": _hash_event(event)})
             path = self._mission_dir(mission_id) / "events.jsonl"
-            with path.open("a", encoding="utf-8") as handle:
+            with open(_filesystem_path(path), "a", encoding="utf-8") as handle:
                 handle.write(json.dumps(event.model_dump(mode="json"), sort_keys=True, default=str) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
@@ -193,11 +228,11 @@ class MissionRunStore:
 
     def load_events(self, mission_id: str) -> list[MissionEvent]:
         path = self._mission_dir(mission_id) / "events.jsonl"
-        if not path.exists():
+        if not _path_exists(path):
             return []
         return [
             MissionEvent.model_validate(json.loads(line))
-            for line in path.read_text(encoding="utf-8").splitlines()
+            for line in _read_text_file(path).splitlines()
             if line.strip()
         ]
 
@@ -235,7 +270,7 @@ class MissionRunStore:
         path = path.resolve()
         if self.run_root not in path.parents:
             raise ValueError("write path escapes run root")
-        path.parent.mkdir(parents=True, exist_ok=True)
+        _mkdir_path(path.parent)
         rendered = json.dumps(payload, sort_keys=True, indent=2, default=str)
         with self._lock:
             with NamedTemporaryFile(
@@ -259,7 +294,7 @@ class MissionRunStore:
         if self.run_root not in path.parents and path != self.run_root:
             raise ValueError("mission path escapes run root")
         if create:
-            path.mkdir(parents=True, exist_ok=True)
+            _mkdir_path(path)
         return path
 
 

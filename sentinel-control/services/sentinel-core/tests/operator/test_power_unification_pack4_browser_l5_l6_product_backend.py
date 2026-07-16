@@ -79,6 +79,33 @@ def test_browse_search_routes_through_runtimehost_product_action_kernel(tmp_path
     assert product_receipt["organ_id"] == "browser_l5_l6_backend"
 
 
+def test_browse_search_domain_grant_translates_to_internal_bounded_url_authority(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_browser_domain_only_grant",
+        mission_objective="Run browser search through product spine with a public domain grant.",
+        decision_client=_browser_search_finish_client(),
+        allowed_domains=("bounded.example",),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED, result.blocked_reason
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "sentinel_loop:finish",
+    )
+    browser_receipt = _first_json(
+        host.kernel.store.mission_dir(result.dispatch_results[0].mission_id)
+        / "real_browser_control"
+        / "receipts"
+    )
+    assert browser_receipt["action_kind"] == "real_browser.search"
+
+
 def test_browse_search_product_proof_survives_long_run_root(tmp_path: Path) -> None:
     long_root = tmp_path.parent / "lp" / "browser_product_spine_segment"
     host = SentinelRuntimeHost(run_root=long_root / "runs").start().host
