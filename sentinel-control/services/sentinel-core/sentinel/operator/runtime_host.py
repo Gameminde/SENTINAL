@@ -1412,8 +1412,8 @@ def _body_session_unavailable_result(
         "prior_failure_code": prior_result.failure_code or prior_result.blocked_reason,
         "failure_fingerprint": fingerprint,
         "root_browser_runtime_lease": scope.browser_lease_card(),
-        "provider_recall_allowed": False,
-        "model_recall_allowed": False,
+        "provider_recall_allowed": True,
+        "model_recall_allowed": True,
         "data_not_authority": True,
         "can_execute": False,
     }
@@ -1425,11 +1425,11 @@ def _body_session_unavailable_result(
         material_action=False,
         observation_summary="Browser body remained unavailable after one bounded mechanical recovery.",
         blocked_reason="BODY_SESSION_UNAVAILABLE",
-        failure_class=ActionFailureClass.SOURCE_BUG_OR_RUNTIME_INVARIANT,
+        failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
         failure_code="BODY_SESSION_UNAVAILABLE",
-        recoverable=False,
+        recoverable=True,
         context_cards=context_cards,
-        recommended_next_actions=(),
+        recommended_next_actions=("sentinel_loop.finish",),
     )
 
 

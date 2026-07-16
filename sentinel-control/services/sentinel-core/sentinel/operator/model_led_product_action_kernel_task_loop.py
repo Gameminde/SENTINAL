@@ -454,6 +454,9 @@ class ModelLedProductActionKernelTaskLoop:
         if reason == "code_exec_failed":
             recommended_skill = "patch"
             recovery_action = "repair_workspace_file_then_rerun_semantic_check"
+        elif reason == "BODY_SESSION_UNAVAILABLE":
+            recommended_skill = "finish"
+            recovery_action = "route_to_truthful_terminal_blocker_or_finish_from_body_failure_packet"
         elif create_plans:
             recommended_skill = "create_file"
             recovery_action = "route_to_next_missing_workspace_create_file_plan"
@@ -492,6 +495,8 @@ class ModelLedProductActionKernelTaskLoop:
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
             or completion_requirements.get("has_confirmed_no_results_search_receipt")
         )
+        if self._latest_dispatch_blocked_reason() == "BODY_SESSION_UNAVAILABLE" and self.product_receipt_refs:
+            return ("sentinel_loop.finish",)
         if (
             has_terminal_browser_evidence
             and not completion_requirements.get("has_grounded_evidence_summary")
@@ -948,6 +953,7 @@ def _is_recoverable_browser_action_failure(reason: str) -> bool:
         "real_browser_open_result_actuation_failed",
         "real_browser_element_ref_unknown",
         "real_browser_runtime_dispatch_exception",
+        "BODY_SESSION_UNAVAILABLE",
     }
 
 

@@ -663,7 +663,7 @@ def test_summarize_evidence_uses_product_loop_browser_cards(tmp_path: Path) -> N
     assert summary["cards"]
 
 
-def test_unchanged_browser_body_failure_circuit_breaker_blocks_without_model_recall(
+def test_body_session_unavailable_reaches_next_model_turn_before_terminal_block(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -704,9 +704,9 @@ def test_unchanged_browser_body_failure_circuit_breaker_blocks_without_model_rec
                 params={"query": "glasses under 5 euro"},
             ),
             ActionEnvelope(
-                capability_id="real_browser_control",
-                operation="real_browser.search",
-                params={"query": "sunglasses under 5 euro"},
+                capability_id="sentinel_loop",
+                operation="finish",
+                params={"safe_summary": "Browser body unavailable after bounded recovery; no further browser action attempted."},
             ),
         ]
     )
@@ -722,11 +722,19 @@ def test_unchanged_browser_body_failure_circuit_breaker_blocks_without_model_rec
         max_recoverable_action_failures=1,
     )
 
-    assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
-    assert result.blocked_reason == "BODY_SESSION_UNAVAILABLE"
-    assert result.capability_sequence == ("real_browser_control:real_browser.search",)
-    assert client.call_count == 1
-    assert result.model_call_count == 1
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.blocked_reason is None
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "sentinel_loop:finish",
+    )
+    assert client.call_count == 2
+    assert result.model_call_count == 2
+    recovery = client.contexts[1]["recoverable_action_observations"][0]
+    assert recovery["failure_code"] == "BODY_SESSION_UNAVAILABLE"
+    assert recovery["recommended_skill"] == "finish"
+    assert recovery["model_visible_body_failure_packet"]["failure_stage"] == "session_lifecycle"
+    assert recovery["model_visible_body_failure_packet"]["session_continuity"]["root_lease_present"] is True
     assert len(engines) == 2
     assert sum(engine.close_count for engine in engines) >= 2
 
