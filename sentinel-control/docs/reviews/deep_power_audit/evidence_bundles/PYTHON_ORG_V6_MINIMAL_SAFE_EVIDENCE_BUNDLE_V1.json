@@ -1,0 +1,344 @@
+{
+  "action_sequence": [
+    "real_browser_control:real_browser.search",
+    "real_browser_control:real_browser.extract_evidence",
+    "real_browser_control:real_browser.verify_extraction",
+    "sentinel_loop:summarize_evidence",
+    "sentinel_loop:finish"
+  ],
+  "backend_proof": [
+    {
+      "actual_backend_id": "cloak_browser",
+      "backend_mismatch": false,
+      "receipt_id": "real_browser_action_f815c180aaf1489fb69452e3ec9055bf",
+      "selected_backend_id": "cloak_browser",
+      "session_backend_kind": "cloakbrowser"
+    },
+    {
+      "actual_backend_id": "cloak_browser",
+      "backend_mismatch": false,
+      "receipt_id": "real_browser_action_adbfe0738de34587bff84e2a075d6149",
+      "selected_backend_id": "cloak_browser",
+      "session_backend_kind": "cloakbrowser"
+    },
+    {
+      "actual_backend_id": "cloak_browser",
+      "backend_mismatch": false,
+      "receipt_id": "real_browser_action_e79834a123554935889414fd24bc0585",
+      "selected_backend_id": "cloak_browser",
+      "session_backend_kind": "cloakbrowser"
+    }
+  ],
+  "bundle_hash": "8caa196a083fd79988761e5dab7ea99c769bd7191715bfc8486db18e67e75da0",
+  "bundle_id": "v6_minimal_safe_evidence_python_org_1784200920",
+  "bundle_limitations": [
+    "V6 proves technical golden slice and safe proof layer.",
+    "V6 bundle does not preserve complete final prose answer text.",
+    "Independent answer-quality auditing is deferred to repeated reliability batch."
+  ],
+  "can_execute": false,
+  "can_grant_authority": false,
+  "claim_to_evidence_reference_matrix": [
+    {
+      "claim_id": "claim:pathglob_official_docs_evidence_found",
+      "contradiction_status": "none_observed",
+      "evidence_refs": [
+        "real_browser_action_f815c180aaf1489fb69452e3ec9055bf",
+        "real_browser_action_adbfe0738de34587bff84e2a075d6149",
+        "real_browser_action_e79834a123554935889414fd24bc0585"
+      ],
+      "support_status": "supported_by_browser_search_extract_verify_receipts",
+      "unknowns": []
+    },
+    {
+      "claim_id": "claim:pathglob_semantics_answer_text",
+      "contradiction_status": "none_observed",
+      "evidence_refs": [],
+      "support_status": "unknown_not_preserved_as_answer_text",
+      "unknowns": [
+        "final prose answer content is not preserved in this minimal safe bundle"
+      ]
+    }
+  ],
+  "created_from_safe_material_only": true,
+  "data_not_authority": true,
+  "evidence_support_summary": {
+    "contradiction_count": 0,
+    "independently_auditable_answer_quality": "not_proven_by_v6_bundle",
+    "supported_claim_count": 1,
+    "unknown_claim_count": 1,
+    "unsupported_claim_count": 0
+  },
+  "finalgate_verdict": {
+    "blocked_reason": null,
+    "final_reason": "model_led_product_action_kernel_task_loop_finish",
+    "finalgates": [
+      {
+        "accepted": true,
+        "certificate_hash": "5432ad924ea2e718e0d3f6e87b4685a247792834893ba640b211d1b04d160c1a",
+        "certificate_id": "product_action_kernel_finalgate_e37be83d61644bfeb195462c1a722558",
+        "reason": null,
+        "status": null
+      },
+      {
+        "accepted": true,
+        "certificate_hash": "49d5abedcea14af4cc42dc3122372aece08cf62a96314f80e02c54c629a051e0",
+        "certificate_id": "real_browser_finalgate_a637055c7ebd4cc2a018a18aec46dffb",
+        "reason": "real_browser.search_completed",
+        "status": "accepted"
+      },
+      {
+        "accepted": true,
+        "certificate_hash": "7c8ada7f23f4c4ef2ab3b30587d81334273bd0e051e104b9fb2cce4f112673b5",
+        "certificate_id": "product_action_kernel_finalgate_17cc9e252eb942a5a96e47e1ce32afbe",
+        "reason": null,
+        "status": null
+      },
+      {
+        "accepted": true,
+        "certificate_hash": "4625efa9b2635ddffa7777d2e5df81c1fadcefd05d530e0fbed7ad8c4005535a",
+        "certificate_id": "real_browser_finalgate_67bf80dd61a643808f77262554d683cb",
+        "reason": "real_browser.extract_evidence_completed",
+        "status": "accepted"
+      },
+      {
+        "accepted": true,
+        "certificate_hash": "a4121e13eca457dcfb919bc40147ae027191869b2ecd523f6fefa9a01323de01",
+        "certificate_id": "product_action_kernel_finalgate_e5bb8694d8fa48a2b705764960e7c5ba",
+        "reason": null,
+        "status": null
+      },
+      {
+        "accepted": true,
+        "certificate_hash": "a1710dad08bc3381109f2eaac733dc6a1d6843d3ddd28e29d220cd9c2945acab",
+        "certificate_id": "real_browser_finalgate_b1ef72c51c9b413a863a0b9348eae01d",
+        "reason": "real_browser.verify_extraction_completed",
+        "status": "accepted"
+      },
+      {
+        "accepted": true,
+        "certificate_hash": "2b2676e4e51cde7d089988c1a72440c9459111c79fb4ade5d4c89444bb4d8d5d",
+        "certificate_id": "product_action_kernel_finalgate_651879fc345c4c7bb35d28a0093d725b",
+        "reason": null,
+        "status": null
+      },
+      {
+        "accepted": true,
+        "certificate_hash": "8026ef308c38120a536b8381c696dea67fe3391baa8dda78114750cd797c3d07",
+        "certificate_id": "product_action_kernel_task_loop_finalgate_ef0e5ee238f7483b9704f71e3989e344",
+        "reason": "model_led_product_action_kernel_task_loop_finish",
+        "status": "completed"
+      }
+    ],
+    "status": "completed"
+  },
+  "generic_extraction_and_verification_refs": {
+    "entity_evidence_ref_hashes": [
+      "25ea9eaac696d48453ce605621b4ce370a2a348ea862b0283a5bc712b4e37e9e",
+      "629da0d73e9b73c5c580ffca1016d67d32b1c3e9ccf6c3f55d831b8b0031da5c",
+      "5a660247342bff84affe41d5fbef241f8923f51cc308f08d0c54c6b565a182f3",
+      "2fc62f8f354e1f95825de444eb72d9df0b242642ab761488e8e72dc58f694b28",
+      "f15e3b74258feb60d1b382abb5d7b519e8a255f8eb39cf299f415c494d4642d9",
+      "c9b8c6e88dfb569b57f3ebf9a96ead30fb8f778d779ce38ae629861b9920dfed"
+    ],
+    "entity_kinds": [
+      "api_symbol_result"
+    ],
+    "extract_receipts": [
+      {
+        "actual_backend_id": "cloak_browser",
+        "backend_context_identity_hash": "832c3cd592bee626f1df0f381f02491021d29841ca0fd39b32da95fc03a6c346",
+        "backend_mismatch": false,
+        "browser_engine_identity_hash": "dddbda41ddb8d0e8a541b712f0dde57f83109d604d17b71fad2b486bc01a46f0",
+        "browser_session_handle_hash": "0230882b7f3baccc3bc5e015f57ff38ba91d2978c0b237a5175c047c7248c612",
+        "internal_action_id": "real_browser_control.real_browser.extract_evidence",
+        "page_identity_hash": "66f1c6f026c1c5a9bb94ac9706cbef397a3ec95c5bf1bbd3ef2a028bd3383afb",
+        "receipt_hash": "24a979b305d9515049a85fea95d150922bde06e92ae2ca56588ab77d0410fdcb",
+        "receipt_id": "real_browser_action_adbfe0738de34587bff84e2a075d6149",
+        "replay_behavior": "no_reexecute_on_replay",
+        "root_browser_lease_id_hash": "b760eb6e131b4a9ce934426a9de60b69214b823d441b4785057dcf8792997f8c",
+        "selected_backend_id": "cloak_browser",
+        "session_backend_kind": "cloakbrowser",
+        "simple_skill": "extract",
+        "status": "completed"
+      },
+      {
+        "actual_backend_id": "cloak_browser",
+        "backend_context_identity_hash": "832c3cd592bee626f1df0f381f02491021d29841ca0fd39b32da95fc03a6c346",
+        "backend_mismatch": false,
+        "browser_engine_identity_hash": "dddbda41ddb8d0e8a541b712f0dde57f83109d604d17b71fad2b486bc01a46f0",
+        "browser_session_handle_hash": "c5681f80aa4e5371aa6af3de789e9f8d59c14bc2cd9b67bcce01dd5b8168fbf7",
+        "internal_action_id": "real_browser_control.real_browser.verify_extraction",
+        "page_identity_hash": "66f1c6f026c1c5a9bb94ac9706cbef397a3ec95c5bf1bbd3ef2a028bd3383afb",
+        "receipt_hash": "ae51a71f31e1d9b71694a63efa823f44c1ce0f072d5b2a296335ec1732478e52",
+        "receipt_id": "real_browser_action_e79834a123554935889414fd24bc0585",
+        "replay_behavior": "no_reexecute_on_replay",
+        "root_browser_lease_id_hash": "b760eb6e131b4a9ce934426a9de60b69214b823d441b4785057dcf8792997f8c",
+        "selected_backend_id": "cloak_browser",
+        "session_backend_kind": "cloakbrowser",
+        "simple_skill": "extract",
+        "status": "passed"
+      }
+    ],
+    "verify_receipts": []
+  },
+  "hashes": {
+    "result_safe_hash": "c53af4d165f206db42e38a79cb9290aa0814fbbc01d7cd83fa1286545a6554ff",
+    "runtime_manifest_hash": "not_exported_raw_runtime_tree",
+    "safe_evidence_snapshot_hash": "6b4adefcb9e73188bfdc06d3977fcc8f065efce7e0c24bc4925a39d34d347f61"
+  },
+  "normalized_answer_claims": [
+    {
+      "claim": "The mission reached official Python.org evidence related to the Path.glob objective.",
+      "claim_id": "claim:pathglob_official_docs_evidence_found",
+      "contradiction_status": "none_observed",
+      "evidence_refs": [
+        "real_browser_action_f815c180aaf1489fb69452e3ec9055bf",
+        "real_browser_action_adbfe0738de34587bff84e2a075d6149",
+        "real_browser_action_e79834a123554935889414fd24bc0585"
+      ],
+      "support_status": "supported_by_browser_search_extract_verify_receipts",
+      "unknowns": []
+    },
+    {
+      "claim": "A complete user-facing explanation of Path.glob semantics is independently auditable from this bundle.",
+      "claim_id": "claim:pathglob_semantics_answer_text",
+      "contradiction_status": "none_observed",
+      "evidence_refs": [],
+      "support_status": "unknown_not_preserved_as_answer_text",
+      "unknowns": [
+        "final prose answer content is not preserved in this minimal safe bundle"
+      ]
+    }
+  ],
+  "post_close_cleanup_card": {
+    "cleanup_completed": true,
+    "cleanup_lease_close_count": 1,
+    "cleanup_lease_global_context_lock_acquired": false,
+    "cleanup_lease_lifecycle_state": "closed",
+    "cleanup_post_close_proven": true,
+    "cleanup_recorded": true,
+    "remaining_product_task_resource_scope_count": 0
+  },
+  "product_receipts": [
+    {
+      "backend_id": "browser_skill",
+      "capability_id": "real_browser_control",
+      "execution_status": "completed",
+      "operation": "real_browser.search",
+      "receipt_hash": "74f50b99c49f133edb7671818037cd18132076d676d4705ba151d790d22e4df3",
+      "receipt_id": "product_action_kernel_receipt_a6a95bdc47f64f2e9f7331363d9ac0c7",
+      "replay_behavior": "no_reexecute_on_replay",
+      "skill_id": "browse_search"
+    },
+    {
+      "backend_id": "browser_skill",
+      "capability_id": "real_browser_control",
+      "execution_status": "completed",
+      "operation": "real_browser.extract_evidence",
+      "receipt_hash": "48af5b2fb4df26be940a716e0d9a9fca6f649e3d71d8e2c2f80dd62455870098",
+      "receipt_id": "product_action_kernel_receipt_b3eb1766c80b45749b56cffd5e611a36",
+      "replay_behavior": "no_reexecute_on_replay",
+      "skill_id": "extract"
+    },
+    {
+      "backend_id": "browser_skill",
+      "capability_id": "real_browser_control",
+      "execution_status": "passed",
+      "operation": "real_browser.verify_extraction",
+      "receipt_hash": "4012d4ae930623b62706df1a07d956e935abcba8ee16a45a849be62a7c520208",
+      "receipt_id": "product_action_kernel_receipt_7849f6671ef8462d82ad378356acab16",
+      "replay_behavior": "no_reexecute_on_replay",
+      "skill_id": "extract"
+    },
+    {
+      "backend_id": "model_led_task_loop",
+      "capability_id": "sentinel_loop",
+      "execution_status": "completed",
+      "operation": "summarize_evidence",
+      "receipt_hash": "84edf7bc7038c1cfea20f1bbab05cd7ec34d83f25f28a64c37ef228e82e6fecf",
+      "receipt_id": "product_action_kernel_receipt_bca16b1114f74170b5e850de553d33ad",
+      "replay_behavior": "no_reexecute_on_replay",
+      "skill_id": "finish"
+    }
+  ],
+  "prohibited_material_absent_by_construction": [
+    "raw_provider_output",
+    "private_reasoning",
+    "raw_dom",
+    "raw_url",
+    "raw_query",
+    "selector",
+    "cookies",
+    "session_values",
+    "profile_material",
+    "raw_binary_path",
+    "secrets"
+  ],
+  "replay_no_react_proof": {
+    "artifact_hashes_stable": true,
+    "can_execute": false,
+    "can_grant_authority": false,
+    "channel_transport_sends_delta": 0,
+    "command_executions_delta": 0,
+    "data_not_authority": true,
+    "finalgate_writes_delta": 0,
+    "mission_ids": [
+      "mission_269a9b9c33a64c08b885159cf0aa6a21",
+      "mission_6b5dcacf2b2942c286ab36c72a2841c2",
+      "mission_762e4dfe54bb44ea94b3aa6ecbe44ec8",
+      "mission_e4669467f42b4c659b274be6440e51cb"
+    ],
+    "model_calls_delta": 0,
+    "product_dispatch_delta": 0,
+    "receipt_writes_delta": 0,
+    "reexecuted_actions": false
+  },
+  "run_manifest": {
+    "actual_backend": "cloak_browser",
+    "allowed_capability_count": 2,
+    "allowed_domain_count": 1,
+    "backend_id": "aliyun_openai_compatible_chat",
+    "fixture_backend": false,
+    "model_id": "deepseek-v4-pro",
+    "objective_hash": "7428cdf569bc7b09131fd019d1b9affa016de5fa439ed62a297309d76cba50f0",
+    "playwright_fallback": false,
+    "provider_id": "aliyun_dashscope",
+    "selected_backend": "cloak_browser",
+    "target_origin_class": "public_non_holdout_python_org"
+  },
+  "sanitized_user_facing_answer": null,
+  "schema_version": "sentinel_safe_evidence_bundle/v1",
+  "search_materiality_receipts": [
+    {
+      "confidence": 0.92,
+      "evidence_ref_count": 3,
+      "input_written": true,
+      "navigation_or_state_changed": true,
+      "outcome_kind": "MATERIAL_RESULTS",
+      "post_state_hash_present": true,
+      "pre_state_hash_present": true,
+      "query_hash_present": true,
+      "query_reflected": true,
+      "receipt_id": "real_browser_action_f815c180aaf1489fb69452e3ec9055bf",
+      "request_observed": true,
+      "result_region_changed": true,
+      "search_materially_successful": true,
+      "submission_attempted": true,
+      "submit_method_selected": "enter_key",
+      "write_method": "fill",
+      "write_readback_match": true
+    }
+  ],
+  "source_run_id": "python_org_v6_replay_cleanup_1784200920",
+  "typed_counts": {
+    "mission_id_count": 4,
+    "model_visible_body_failure_packet_count": 0,
+    "product_finalgate_count": 4,
+    "product_receipt_count": 4,
+    "provider_decision_calls": 5,
+    "runtime_failure_fact_count": 0,
+    "safe_evidence_event_count": 28
+  },
+  "unsupported_claim_count": 0
+}
