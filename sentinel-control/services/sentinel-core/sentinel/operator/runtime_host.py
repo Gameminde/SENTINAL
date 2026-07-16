@@ -5,6 +5,7 @@ import threading
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 from pydantic import Field
 
@@ -1599,6 +1600,10 @@ def _channel_send_authority(authority: MissionAuthorityEnvelope) -> MissionAutho
 
 def _real_browser_authority(authority: MissionAuthorityEnvelope) -> MissionAuthorityEnvelope:
     allowed_domains = list(dict.fromkeys(authority.allowed_domains))
+    target_host = _bounded_browser_target_host_from_env()
+    if target_host and _browser_target_host_within_grant(target_host, allowed_domains):
+        allowed_domains.append(target_host)
+        allowed_domains = list(dict.fromkeys(allowed_domains))
     if allowed_domains and BOUNDED_URL_AUTHORITY_REF not in allowed_domains:
         allowed_domains.append(BOUNDED_URL_AUTHORITY_REF)
     return authority.model_copy(
@@ -1608,6 +1613,29 @@ def _real_browser_authority(authority: MissionAuthorityEnvelope) -> MissionAutho
             "allowed_domains": allowed_domains,
         }
     )
+
+
+def _bounded_browser_target_host_from_env() -> str:
+    raw_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
+    if not raw_url:
+        return ""
+    host = (urlparse(raw_url).hostname or "").lower().strip(".")
+    return host
+
+
+def _browser_target_host_within_grant(target_host: str, allowed_domains: list[str]) -> bool:
+    normalized_target = target_host.lower().strip(".")
+    if not normalized_target:
+        return False
+    for domain in allowed_domains:
+        normalized_domain = str(domain).lower().strip(".")
+        if not normalized_domain:
+            continue
+        if normalized_domain == BOUNDED_URL_AUTHORITY_REF:
+            return True
+        if normalized_target == normalized_domain or normalized_target.endswith(f".{normalized_domain}"):
+            return True
+    return False
 
 
 def _mission_workspace_browser_session_handle(manifest: dict[str, Any]) -> dict[str, Any]:

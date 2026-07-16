@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
 from sentinel.operator import runtime_host as runtime_host_module
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ModelLedProductActionKernelTaskLoop,
@@ -347,6 +348,82 @@ def test_off_scope_skill_selection_recovers_without_granting_authority(
     assert result.blocked_reason == "MODEL_CALL_BUDGET_EXHAUSTED"
 
 
+def test_real_browser_authority_adds_bounded_target_subdomain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://www.python.org/search/")
+    authority = MissionAuthorityEnvelope(
+        user_id="operator_user",
+        mission_title="Python docs browser proof",
+        mission_objective="Search the official Python docs.",
+        allowed_tools=["real_browser_control"],
+        allowed_actions=["real_browser.search"],
+        allowed_domains=["python.org"],
+    )
+
+    expanded = runtime_host_module._real_browser_authority(authority)
+
+    assert expanded.allowed_domains == [
+        "python.org",
+        "www.python.org",
+        "real_browser:bounded_test_url",
+    ]
+    assert authority.allowed_domains == ["python.org"]
+
+
+def test_real_browser_authority_does_not_add_ungranted_bounded_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://www.python.org/search/")
+    authority = MissionAuthorityEnvelope(
+        user_id="operator_user",
+        mission_title="Wrong domain browser proof",
+        mission_objective="Search a non-granted domain.",
+        allowed_tools=["real_browser_control"],
+        allowed_actions=["real_browser.search"],
+        allowed_domains=["example.com"],
+    )
+
+    expanded = runtime_host_module._real_browser_authority(authority)
+
+    assert "www.python.org" not in expanded.allowed_domains
+    assert expanded.allowed_domains == ["example.com", "real_browser:bounded_test_url"]
+
+
+def test_provider_empty_visible_content_after_product_receipt_recovers_to_finish(
+    tmp_path: Path,
+) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    decision_client = _ProviderEmptyAfterReceiptDecisionClient()
+    loop = ModelLedProductActionKernelTaskLoop(
+        host=host,
+        workspace_root=workspace,
+        session_id="session_pack9_provider_empty_after_receipt",
+        mission_objective="Search the bounded local browser fixture and finish with receipt proof.",
+        decision_client=decision_client,
+        allowed_domains=("example.com",),
+        allowed_capabilities=("real_browser_control", "sentinel_loop"),
+        max_model_calls=3,
+        max_material_actions=1,
+        max_recoverable_model_decision_failures=1,
+    )
+
+    result = loop.run()
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "sentinel_loop:finish",
+    )
+    assert result.material_action_count == 1
+    assert len(result.product_receipt_refs) == 1
+    assert len(decision_client.contexts) == 3
+    recovery = decision_client.contexts[2]["recoverable_decision_observations"][0]
+    assert recovery["failure_code"] == "PROVIDER_EMPTY_VISIBLE_CONTENT_BEFORE_MATERIAL_ACTION"
+    assert recovery["can_execute"] is False
+
+
 def _workspace(tmp_path: Path) -> Path:
     root = tmp_path / "workspace"
     root.mkdir()
@@ -384,6 +461,31 @@ class _RuntimeDispatchFailingEngine:
 
     def close(self) -> None:
         self.closed = True
+
+
+class _ProviderEmptyAfterReceiptDecisionClient:
+    def __init__(self) -> None:
+        self.contexts: list[dict[str, object]] = []
+        self.call_count = 0
+
+    def complete(self, context: dict[str, object]) -> ActionEnvelope:
+        self.contexts.append(context)
+        self.call_count += 1
+        if self.call_count == 1:
+            return ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"engine_profile": "local_fake", "query": "glasses under 5 euro"},
+                idempotency_key="pack9-provider-empty-search",
+            )
+        if self.call_count == 2:
+            raise ActionKernelError("PROVIDER_EMPTY_VISIBLE_CONTENT_BEFORE_MATERIAL_ACTION")
+        return ActionEnvelope(
+            capability_id="sentinel_loop",
+            operation="finish",
+            params={"safe_summary": "Bounded local browser receipt exists after provider-empty recovery."},
+            idempotency_key="pack9-provider-empty-finish",
+        )
 
 
 def _product_receipt(host: SentinelRuntimeHost, mission_id: str, receipt_ref: str) -> dict[str, object]:
