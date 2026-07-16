@@ -669,13 +669,13 @@ class SentinelRuntimeHost:
         finally:
             cleanup_payload: dict[str, Any] = {
                 "resource_scope_id_hash": stable_hash(resource_scope.scope_id),
-                "browser_lease_card": resource_scope.browser_lease_card(),
                 "cleanup_completed": False,
             }
             try:
                 resource_scope.close()
                 cleanup_payload["cleanup_completed"] = True
             finally:
+                cleanup_payload["browser_lease_card"] = resource_scope.browser_lease_card()
                 self._product_task_resource_scopes.pop(resource_scope.scope_id, None)
                 cleanup_payload["remaining_product_task_resource_scope_count"] = len(self._product_task_resource_scopes)
                 record = getattr(evidence_sink, "record_transition", None) if evidence_sink is not None else None

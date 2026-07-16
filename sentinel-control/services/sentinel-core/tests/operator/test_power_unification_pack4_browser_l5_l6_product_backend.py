@@ -1216,6 +1216,67 @@ def test_browser_replay_hashes_large_artifacts_without_reparsing_json(tmp_path: 
     assert replay.artifact_hashes_stable is True
 
 
+def test_replay_from_host_serializes_for_live_reporting(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_replay_from_host",
+        mission_objective="Search browser product route and render replay proof.",
+        decision_client=_browser_search_finish_client(),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    replay = ProductActionKernelTaskLoopReplay.from_host(host, mission_ids=result.mission_ids)
+    payload = replay.safe_model_dump()
+
+    assert replay.reexecuted_actions is False
+    assert payload["reexecuted_actions"] is False
+    assert payload["receipt_writes_delta"] == 0
+    assert json.loads(json.dumps(payload)) == payload
+
+
+def test_cleanup_result_records_post_close_browser_lease_card(tmp_path: Path, monkeypatch) -> None:
+    engines: list[_ClosableProductCloakEngine] = []
+
+    def fake_factory() -> _ClosableProductCloakEngine:
+        engine = _ClosableProductCloakEngine()
+        engines.append(engine)
+        return engine
+
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
+    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = _workspace(tmp_path)
+    sink = CrashSafeBoundedLiveRunEvidenceSink(evidence_root=tmp_path / "evidence", run_id="post_close_cleanup")
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack4_post_close_cleanup",
+        mission_objective="Search once and finish with post-close cleanup evidence.",
+        decision_client=_browser_search_finish_client_without_engine_profile(),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=3,
+        max_material_actions=1,
+        evidence_sink=sink,
+    )
+
+    snapshot = sink.load_snapshot()
+    cleanup_events = [event for event in snapshot["events"] if event["event_type"] == "cleanup_result"]
+    cleanup_payload = cleanup_events[-1]["payload"]
+    lease_card = cleanup_payload["browser_lease_card"]
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert engines[0].close_count == 1
+    assert cleanup_payload["cleanup_completed"] is True
+    assert lease_card["lifecycle_state"] == "closed"
+    assert lease_card["close_count"] == 1
+    assert lease_card["global_context_lock_acquired"] is False
+
+
 def _browser_search_finish_client() -> ProductActionKernelLoopDecisionClient:
     return ProductActionKernelLoopDecisionClient(
         [

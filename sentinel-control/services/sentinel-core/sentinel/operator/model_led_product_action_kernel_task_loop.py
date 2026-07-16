@@ -838,6 +838,19 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
     artifact_hashes_stable: bool
 
     @classmethod
+    def from_host(
+        cls,
+        host: object,
+        *,
+        mission_ids: tuple[str, ...],
+    ) -> "ProductActionKernelTaskLoopReplay":
+        kernel = getattr(host, "kernel", None)
+        store = getattr(kernel, "store", None)
+        if store is None:
+            raise ValueError("product_action_kernel_task_loop_replay_store_unavailable")
+        return cls.from_store(store, mission_ids=mission_ids)
+
+    @classmethod
     def from_store(cls, store: MissionRunStore, *, mission_ids: tuple[str, ...]) -> "ProductActionKernelTaskLoopReplay":
         before = _artifact_counts(store, mission_ids)
         hashes_before = _artifact_hashes(store, mission_ids)
@@ -854,6 +867,14 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
             finalgate_writes_delta=after["finalgate"] - before["finalgate"],
             artifact_hashes_stable=hashes_before == hashes_after,
         )
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        payload = self.model_dump(mode="json")
+        payload["mission_ids"] = list(self.mission_ids)
+        payload["data_not_authority"] = True
+        payload["can_execute"] = False
+        payload["can_grant_authority"] = False
+        return payload
 
 
 def _authority_for_action(decision: ActionEnvelope) -> tuple[list[str], list[str]]:
