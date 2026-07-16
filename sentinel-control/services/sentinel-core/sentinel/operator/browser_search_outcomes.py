@@ -37,6 +37,7 @@ def derive_browser_search_outcome(
     input_written: bool,
     submission_attempted: bool,
     request_observed: bool,
+    navigation_or_state_changed: bool,
     query_reflected: bool,
     result_region_changed: bool,
     before_result_region_count: int,
@@ -50,11 +51,17 @@ def derive_browser_search_outcome(
     evidence_refs: tuple[str, ...] = (),
 ) -> BrowserSearchOutcome:
     submitted = bool(input_written and submission_attempted and query_reflected)
-    material_signal = bool(request_observed or result_region_changed or after_result_region_count > before_result_region_count)
+    material_signal = bool(
+        request_observed
+        or navigation_or_state_changed
+        or result_region_changed
+        or after_result_region_count > before_result_region_count
+    )
     signals = {
         "input_written": bool(input_written),
         "submission_attempted": bool(submission_attempted),
         "request_observed": bool(request_observed),
+        "navigation_or_state_changed": bool(navigation_or_state_changed),
         "query_reflected": bool(query_reflected),
         "result_region_changed": bool(result_region_changed),
         "before_result_region_count": int(before_result_region_count),
@@ -98,7 +105,7 @@ def derive_browser_search_outcome(
             uncertainty_reason="material result-region evidence is bound to submitted query",
             search_materially_successful=True,
         )
-    if submitted and request_observed and empty_result_evidence and after_result_region_count == 0:
+    if submitted and (request_observed or navigation_or_state_changed) and empty_result_evidence and after_result_region_count == 0:
         return BrowserSearchOutcome(
             outcome_kind=BrowserSearchOutcomeKind.NO_RESULTS_CONFIRMED,
             confidence=0.82,

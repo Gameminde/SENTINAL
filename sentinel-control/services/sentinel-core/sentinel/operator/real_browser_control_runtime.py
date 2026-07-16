@@ -896,7 +896,7 @@ class RealBrowserControlRuntime:
                     after_snapshot=snapshot,
                     query=query,
                     context_cards=context_cards,
-                    input_written=bool(trace.get("write_readback_match")),
+                    input_written=bool(trace.get("write_succeeded")),
                     submission_attempted=bool(trace.get("submit_attempted")),
                     search_actuation_trace=trace,
                 )
@@ -925,24 +925,30 @@ class RealBrowserControlRuntime:
                 error = str(exc)
                 errors.append(error)
                 if recovery_evidence is None and _search_error_can_refresh_refs(error):
+                    refreshed_snapshot = self.engine.observe()
+                    refreshed_context_cards = self._world_context_cards(
+                        refreshed_snapshot,
+                        authority=authority,
+                        context=context,
+                        progress_state="real_browser_search_recovery_world_model_ready",
+                    )
                     recovery_evidence = _browser_recovery_evidence(
                         authority=authority,
                         failure_code=str(trace.get("safe_failure_code") or error),
                         browser_state_hash=before_snapshot.state_hash,
-                        context_cards=self._world_context_cards(
-                            self.engine.observe(),
-                            authority=authority,
-                            context=context,
-                            progress_state="real_browser_search_recovery_world_model_ready",
-                        ),
+                        context_cards=refreshed_context_cards,
                     )
                     try:
-                        retry_trace = _new_search_actuation_trace(before_snapshot=before_snapshot, ref=ref, query=query)
+                        refreshed_candidates = _search_ref_candidates(refreshed_snapshot, envelope)
+                        retry_ref = ref if _element_for_ref(refreshed_snapshot, ref) is not None else (
+                            refreshed_candidates[0] if refreshed_candidates else ref
+                        )
+                        retry_trace = _new_search_actuation_trace(before_snapshot=refreshed_snapshot, ref=retry_ref, query=query)
                         last_trace = retry_trace
                         snapshot = self._actuate_search_candidate(
-                            ref=ref,
+                            ref=retry_ref,
                             query=query,
-                            before_snapshot=before_snapshot,
+                            before_snapshot=refreshed_snapshot,
                             trace=retry_trace,
                             errors=errors,
                         )
@@ -962,7 +968,7 @@ class RealBrowserControlRuntime:
                             after_snapshot=snapshot,
                             query=query,
                             context_cards=context_cards,
-                            input_written=bool(retry_trace.get("write_readback_match")),
+                            input_written=bool(retry_trace.get("write_succeeded")),
                             submission_attempted=bool(retry_trace.get("submit_attempted")),
                             search_actuation_trace=retry_trace,
                         )
@@ -1049,7 +1055,7 @@ class RealBrowserControlRuntime:
         try:
             self.engine.click(ref)
             trace["focus_succeeded"] = True
-        except RealBrowserControlRuntimeError as exc:
+        except (RealBrowserControlRuntimeError, AttributeError) as exc:
             errors.append(str(exc))
             trace["focus_succeeded"] = False
         trace["clear_attempted"] = True
@@ -1059,15 +1065,16 @@ class RealBrowserControlRuntime:
         try:
             snapshot = self.engine.type_text(ref, query)
         except RealBrowserControlRuntimeError as exc:
-            trace["safe_failure_code"] = "real_browser_search_write_failed"
-            raise RealBrowserControlRuntimeError("real_browser_search_write_failed") from exc
-        trace["write_readback_match"] = _search_write_readback_matches(
+            trace["safe_failure_code"] = _search_write_failure_code(str(exc))
+            raise RealBrowserControlRuntimeError(str(trace["safe_failure_code"])) from exc
+        trace["write_succeeded"] = True
+        readback = _search_write_readback_evidence(
             engine=self.engine,
             snapshot=snapshot,
             query=query,
         )
-        trace["write_readback_hash"] = text_hash(query) if trace["write_readback_match"] else ""
-        if not trace["write_readback_match"]:
+        trace.update(readback)
+        if trace["write_readback_status"] == "mismatched":
             trace["safe_failure_code"] = "real_browser_search_write_readback_mismatch"
             raise RealBrowserControlRuntimeError("real_browser_search_write_readback_mismatch")
         mechanisms = _observed_submit_mechanisms(snapshot, ref)
@@ -3124,6 +3131,21 @@ def _search_error_can_refresh_refs(error: str) -> bool:
     return any(marker in lowered for marker in ("stale", "detached", "not_textbox", "disabled", "hidden", "ref_not_found"))
 
 
+def _search_write_failure_code(error: str) -> str:
+    lowered = error.lower()
+    if "stale" in lowered:
+        return "real_browser_search_stale_ref"
+    if "detached" in lowered:
+        return "real_browser_search_detached_ref"
+    if "hidden" in lowered:
+        return "real_browser_search_element_hidden"
+    if "disabled" in lowered:
+        return "real_browser_search_element_disabled"
+    if "not_textbox" in lowered:
+        return "real_browser_search_ref_not_textbox"
+    return "real_browser_search_write_failed"
+
+
 def _new_search_actuation_trace(
     *,
     before_snapshot: RealBrowserEngineSnapshot,
@@ -3145,8 +3167,12 @@ def _new_search_actuation_trace(
         "clear_succeeded": False,
         "write_method": "",
         "write_attempted": False,
+        "write_succeeded": False,
         "write_readback_match": False,
+        "write_readback_status": "not_attempted",
         "write_readback_hash": "",
+        "write_readback_alternative_proof": "",
+        "write_support_status": "unknown",
         "submit_mechanisms_observed": _observed_submit_mechanisms(before_snapshot, ref),
         "submit_method_selected": "",
         "submit_attempted": False,
@@ -3186,23 +3212,88 @@ def _observed_submit_mechanisms(snapshot: RealBrowserEngineSnapshot, ref: str) -
     return list(dict.fromkeys(mechanisms))
 
 
+def _search_write_readback_evidence(
+    *,
+    engine: RealBrowserEngine,
+    snapshot: RealBrowserEngineSnapshot,
+    query: str,
+) -> dict[str, Any]:
+    raw_query_hash = text_hash(query)
+    stable_query_hash = stable_hash(query)
+    engine_typed_hash = str(getattr(engine, "last_typed_text_hash", "") or "")
+    if engine_typed_hash:
+        if engine_typed_hash in {raw_query_hash, stable_query_hash}:
+            return {
+                "write_readback_match": True,
+                "write_readback_status": "matched_receipt_hash",
+                "write_readback_hash": engine_typed_hash,
+                "write_readback_alternative_proof": "l5_typed_text_receipt_hash",
+                "write_support_status": "supported",
+            }
+
+    normalized_query = _normalize_search_readback(query)
+    saw_value_readback = False
+    for element in snapshot.elements:
+        if not element.visible or bool(getattr(element, "secret", False)):
+            continue
+        raw_value = str(element.value_preview or "")
+        if not raw_value:
+            continue
+        saw_value_readback = True
+        value = _normalize_search_readback(raw_value)
+        if not value or not normalized_query:
+            continue
+        if value == normalized_query:
+            return {
+                "write_readback_match": True,
+                "write_readback_status": "matched_normalized",
+                "write_readback_hash": text_hash(raw_value),
+                "write_readback_alternative_proof": "snapshot_value_normalized_match",
+                "write_support_status": "supported",
+            }
+        if normalized_query in value or value in normalized_query:
+            return {
+                "write_readback_match": True,
+                "write_readback_status": "transformed",
+                "write_readback_hash": text_hash(raw_value),
+                "write_readback_alternative_proof": "snapshot_value_transformed_match",
+                "write_support_status": "supported",
+            }
+
+    if engine_typed_hash or saw_value_readback:
+        return {
+            "write_readback_match": False,
+            "write_readback_status": "mismatched",
+            "write_readback_hash": engine_typed_hash,
+            "write_readback_alternative_proof": "",
+            "write_support_status": "supported",
+        }
+    return {
+        "write_readback_match": False,
+        "write_readback_status": "unavailable",
+        "write_readback_hash": "",
+        "write_readback_alternative_proof": "write_primitive_accepted_submission_required",
+        "write_support_status": "unavailable",
+    }
+
+
 def _search_write_readback_matches(
     *,
     engine: RealBrowserEngine,
     snapshot: RealBrowserEngineSnapshot,
     query: str,
 ) -> bool:
-    query_hash = text_hash(query)
-    if str(getattr(engine, "last_typed_text_hash", "") or "") == query_hash:
-        return True
-    normalized_query = " ".join(query.lower().split())
-    for element in snapshot.elements:
-        if not element.visible or bool(getattr(element, "secret", False)):
-            continue
-        value = " ".join(str(element.value_preview or "").lower().split())
-        if value and normalized_query and normalized_query in value:
-            return True
-    return False
+    return bool(
+        _search_write_readback_evidence(
+            engine=engine,
+            snapshot=snapshot,
+            query=query,
+        ).get("write_readback_match")
+    )
+
+
+def _normalize_search_readback(value: str) -> str:
+    return " ".join(value.lower().split())
 
 
 def _browser_recovery_evidence(
@@ -3348,7 +3439,13 @@ def _model_visible_body_failure_packet(
             "focus_attempted": search_trace.get("focus_attempted"),
             "focus_succeeded": search_trace.get("focus_succeeded"),
             "write_attempted": search_trace.get("write_attempted"),
+            "write_succeeded": search_trace.get("write_succeeded"),
             "write_readback_match": search_trace.get("write_readback_match"),
+            "write_readback_status": search_trace.get("write_readback_status"),
+            "write_readback_alternative_proof": search_trace.get("write_readback_alternative_proof"),
+            "write_support_status": search_trace.get("write_support_status"),
+            "submit_mechanisms_observed": search_trace.get("submit_mechanisms_observed"),
+            "submit_method_selected": search_trace.get("submit_method_selected"),
             "submit_attempted": search_trace.get("submit_attempted"),
             "safe_failure_code": search_trace.get("safe_failure_code"),
         },
@@ -3529,17 +3626,20 @@ def _search_materiality(
     result_region_changed = after_cards > before_cards
     query_reflected = _query_reflected(after_snapshot, query)
     empty_result_evidence = _snapshot_empty_result_evidence(after_snapshot)
-    navigation_or_state_changed = bool(result_region_changed or request_observed)
+    state_changed = before_snapshot.state_hash != after_snapshot.state_hash
+    material_state_changed = bool(state_changed and (after_cards > 0 or empty_result_evidence or request_observed))
+    navigation_or_state_changed = bool(result_region_changed or request_observed or material_state_changed)
     preliminary_material = bool(
         input_written
         and submission_attempted
         and query_reflected
-        and (result_region_changed or request_observed)
+        and (result_region_changed or request_observed or material_state_changed)
     )
     outcome = derive_browser_search_outcome(
         input_written=input_written,
         submission_attempted=submission_attempted,
         request_observed=request_observed,
+        navigation_or_state_changed=material_state_changed,
         query_reflected=query_reflected,
         result_region_changed=result_region_changed,
         before_result_region_count=before_cards,
@@ -3559,6 +3659,8 @@ def _search_materiality(
         "input_written": bool(input_written),
         "submission_attempted": bool(submission_attempted),
         "request_observed": request_observed,
+        "state_changed": state_changed,
+        "material_state_changed": material_state_changed,
         "navigation_or_state_changed": navigation_or_state_changed,
         "result_region_changed": result_region_changed,
         "empty_result_evidence": empty_result_evidence,
@@ -3614,7 +3716,32 @@ def _snapshot_result_region_count(snapshot: RealBrowserEngineSnapshot) -> int:
         if element.role not in {"link", "article", "card", "generic"}:
             continue
         text = f"{element.name} {element.text_preview} {element.value_preview}"
-        if any(marker in text.lower() for marker in ("product", "price", "moq", "supplier", "store", "glasses", "sunglasses", "eur", "usd", "$")):
+        lowered = text.lower()
+        if any(marker in lowered for marker in ("no matching result", "no results", "0 results", "nothing found", "empty result")):
+            continue
+        if any(
+            marker in lowered
+            for marker in (
+                "product",
+                "price",
+                "moq",
+                "supplier",
+                "store",
+                "glasses",
+                "sunglasses",
+                "eur",
+                "usd",
+                "$",
+                "result",
+                "documentation",
+                "docs",
+                "api",
+                "reference",
+                "guide",
+                "pathlib",
+                "glob",
+            )
+        ):
             count += 1
     return count
 

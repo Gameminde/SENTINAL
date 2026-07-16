@@ -1071,6 +1071,129 @@ def test_search_actuation_trace_proves_write_readback_submit_and_materiality(tmp
     assert receipt["page_identity_hash"]
 
 
+def test_search_write_readback_accepts_l5_session_stable_hash_receipt(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_SessionStableHashReadbackSearchEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    trace = receipt["search_materiality"]["search_actuation_trace"]
+
+    assert result.status == "completed"
+    assert trace["write_succeeded"] is True
+    assert trace["write_readback_status"] == "matched_receipt_hash"
+    assert trace["write_readback_match"] is True
+    assert trace["submit_attempted"] is True
+    assert receipt["search_materiality"]["input_written"] is True
+
+
+def test_unavailable_search_readback_does_not_block_material_submit(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_UnavailableReadbackMaterialSearchEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    materiality = receipt["search_materiality"]
+    trace = materiality["search_actuation_trace"]
+
+    assert result.status == "completed"
+    assert trace["write_succeeded"] is True
+    assert trace["write_readback_status"] == "unavailable"
+    assert trace["write_readback_match"] is False
+    assert trace["write_readback_alternative_proof"] == "write_primitive_accepted_submission_required"
+    assert trace["submit_attempted"] is True
+    assert materiality["input_written"] is True
+    assert materiality["search_materially_successful"] is True
+    assert materiality["typed_search_outcome"]["outcome_kind"] == "MATERIAL_RESULTS"
+
+
+def test_transformed_search_readback_is_typed_as_supported_write(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_TransformedReadbackSearchEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "Glasses   Under 5 Euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    trace = receipt["search_materiality"]["search_actuation_trace"]
+
+    assert result.status == "completed"
+    assert trace["write_succeeded"] is True
+    assert trace["write_readback_status"] == "matched_normalized"
+    assert trace["write_readback_match"] is True
+    assert trace["submit_attempted"] is True
+
+
+def test_search_submit_button_fallback_after_enter_failure(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_SubmitButtonOnlySearchEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    trace = receipt["search_materiality"]["search_actuation_trace"]
+
+    assert result.status == "completed"
+    assert trace["submit_mechanisms_observed"] == ["enter_key", "search_button"]
+    assert trace["submit_method_selected"] == "search_button"
+    assert trace["submit_attempted"] is True
+    assert fixture.engine.button_submit_count == 1
+
+
+def test_search_no_results_confirmed_by_submission_and_state_progress(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_ConfirmedNoResultsSearchEngine(results_visible=False))
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "rare impossible catalogue query"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    materiality = receipt["search_materiality"]
+
+    assert result.status == "completed"
+    assert materiality["input_written"] is True
+    assert materiality["submission_attempted"] is True
+    assert materiality["navigation_or_state_changed"] is True
+    assert materiality["empty_result_evidence"] is True
+    assert materiality["search_materially_successful"] is True
+    assert materiality["typed_search_outcome"]["outcome_kind"] == "NO_RESULTS_CONFIRMED"
+
+
 def test_search_success_records_material_navigation_or_search_receipt(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
 
@@ -3044,6 +3167,109 @@ class _HardProductSearchEngine(InMemoryRealBrowserEngine):
         self._require_open()
         self.extract_count += 1
         return self.display_text, self._snapshot()
+
+
+class _SessionStableHashReadbackSearchEngine(_HardProductSearchEngine):
+    @property
+    def last_typed_text_hash(self) -> str:
+        if not self.search_query:
+            return ""
+        return real_browser_runtime_module.stable_hash(self.search_query)
+
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        elements = list(super()._elements())
+        return tuple(
+            RealBrowserEngineElement(
+                element.ref,
+                element.role,
+                element.name,
+                visible=element.visible,
+                enabled=element.enabled,
+                text_preview=element.text_preview,
+                value_preview="" if element.ref == "input:search" else element.value_preview,
+                secret=element.secret,
+            )
+            for element in elements
+        )
+
+
+class _UnavailableReadbackMaterialSearchEngine(_HardProductSearchEngine):
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        elements = [
+            RealBrowserEngineElement("input:search", "textbox", "Search products", value_preview=""),
+            RealBrowserEngineElement("button:search", "button", "Search", text_preview="Search"),
+        ]
+        if self.results_visible:
+            elements.append(
+                RealBrowserEngineElement(
+                    "link:glasses_result",
+                    "link",
+                    "Results for glasses under 5 euro",
+                    text_preview="Results for glasses under 5 euro include bounded catalogue evidence",
+                )
+            )
+        return tuple(elements)
+
+
+class _TransformedReadbackSearchEngine(_HardProductSearchEngine):
+    def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
+        self._require_editable(ref)
+        self.type_count += 1
+        self.search_query = " ".join(text.lower().split())
+        self.status_value = self.search_query
+        return self._snapshot()
+
+
+class _SubmitButtonOnlySearchEngine(_HardProductSearchEngine):
+    def __init__(self, *, results_visible: bool = True) -> None:
+        super().__init__(results_visible=results_visible)
+        self.button_submit_count = 0
+
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        self._require_editable(ref)
+        self.press_count += 1
+        if key == "Enter":
+            raise RealBrowserControlRuntimeError("real_browser_enter_submit_unavailable")
+        return self._snapshot()
+
+    def click(self, ref: str) -> RealBrowserEngineSnapshot:
+        element = self._require_interactable(ref)
+        self.click_count += 1
+        if element.ref == "button:search" and self.search_query:
+            self.button_submit_count += 1
+            self.results_visible = True
+            self.display_text = _PRODUCT_TEXT
+        return self._snapshot()
+
+
+class _ConfirmedNoResultsSearchEngine(_HardProductSearchEngine):
+    def __init__(self, *, results_visible: bool = False) -> None:
+        super().__init__(results_visible=results_visible)
+        self.no_results_visible = False
+
+    def press_key(self, ref: str, key: str) -> RealBrowserEngineSnapshot:
+        self._require_editable(ref)
+        self.press_count += 1
+        if key == "Enter" and self.search_query:
+            self.no_results_visible = True
+            self.display_text = f"No results for {self.search_query}."
+        return self._snapshot()
+
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        elements = [
+            RealBrowserEngineElement("input:search", "textbox", "Search products", value_preview=self.search_query),
+            RealBrowserEngineElement("button:search", "button", "Search", text_preview="Search"),
+        ]
+        if self.no_results_visible:
+            elements.append(
+                RealBrowserEngineElement(
+                    "generic:no_results",
+                    "generic",
+                    f"No results for {self.search_query}",
+                    text_preview=f"No results for {self.search_query}",
+                )
+            )
+        return tuple(elements)
 
 
 class _AlternateSearchEngine(_HardProductSearchEngine):
