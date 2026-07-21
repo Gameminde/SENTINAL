@@ -1,5 +1,79 @@
 # Current State Lock
 
+## Browser Proof V2 Local Defect Fix And Truth Update V1 - LOCAL FIX CANDIDATE
+
+Recorded at: 2026-07-22
+
+This section is the canonical current state for the Browser Proof V2 follow-up.
+It supersedes the older deterministic-corpus block below only for the current
+browser proof-infrastructure repair lane. Older sections remain scoped evidence.
+
+```text
+current_phase = SENTINEL_BROWSER_PROOF_V2_LOCAL_DEFECT_FIX_AND_TRUTH_UPDATE_V1
+previous_phase = BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V2
+next_phase = BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V3
+roadmap_doctrine = model is the mind; Sentinel is the governed browser body, evidence and proof runtime
+```
+
+### Local Fix Truth
+
+```text
+SENTINEL_BROWSER_PROOF_V2_LOCAL_DEFECT_FIX_AND_TRUTH_UPDATE_V1
+= VALID_LOCAL_FIX_CANDIDATE
+
+implementation_commit = c551c086c5afde4cd09abe3655cfed69a734f202
+provider call = NO
+live browser run = NO
+push = NO
+```
+
+The V2 measured proof failure remains the last live truth:
+
+```text
+material_receipt_missing_count_total = 4
+technical_completion = 0/6
+useful_answer_completion = 0/6
+```
+
+The local fix addresses the first reproduced proof defect and adjacent answer
+contract defects:
+
+```text
+recoverable real_browser.search failure writes readable browser receipt = LOCAL_REGRESSED
+recoverable browser failure writes safe FinalGate certificate = LOCAL_REGRESSED
+terminal final answer/honest blocker payload generated = LOCAL_REGRESSED
+terminal semantic payload topic policing removed = LOCAL_REGRESSED
+actual secret-like terminal values still blocked = LOCAL_REGRESSED
+BrowserEnvironmentState backend/tabs/structured-data overclaims reduced = LOCAL_REGRESSED
+```
+
+This is not product proof. The next live step must be a new versioned V3 proof
+batch, not a retroactive relabeling of V2.
+
+### Local Validation
+
+```text
+tests/operator/test_model_native_browser_search_typed_parameter_boundary.py = 40 passed
+tests/operator/test_browser_cortex_pack1_environment_state_graph.py = 5 passed
+tests/operator/test_browser_cortex_deterministic_corpus_execution_baseline.py = 5 passed
+tests/operator/test_browser_cortex_integration_pack1_search_entity_quality_upgrade.py = 5 passed
+tests/operator/test_browser_cortex_integration_pack1b_generalization_fluidity.py = 4 passed
+tests/operator/test_browser_receipt_persistence_answer_claim_evidence.py = 13 passed
+tests/operator/test_power_pack6d_browser_skill_spine.py = 106 passed
+tests/operator/test_power_reconnection_decision_context_skill_frames.py = 9 passed
+tests/operator/test_power_pack6_real_browser_bounded_web_control.py = 14 passed
+compileall sentinel = passed
+git diff --check = passed
+```
+
+### Artifacts
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_PROOF_V2_LOCAL_DEFECT_FIX_AND_TRUTH_UPDATE_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V2_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/BRP_ANSWER_PROOF_V2_SAFE_SUMMARY.json
+```
+
 ## Browser Cortex Deterministic Corpus Execution And Baseline V1 - VALID FAILED BASELINE
 
 Recorded at: 2026-07-13
