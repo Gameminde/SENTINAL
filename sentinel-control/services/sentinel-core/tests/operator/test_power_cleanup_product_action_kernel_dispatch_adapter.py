@@ -22,6 +22,7 @@ from sentinel.operator.unified_execution_dispatcher import (
     DispatchStatus,
     UnifiedExecutionAdapterRegistry,
     UnifiedExecutionDispatcher,
+    load_product_action_kernel_artifact,
 )
 
 
@@ -278,10 +279,6 @@ def _skill_registry(capability_id: str, *, product_reachable: bool) -> PowerSkil
 
 
 def _product_receipt_payload(fixture: _ProductActionFixture, receipt_ref: str) -> dict[str, Any]:
-    path = (
-        fixture.kernel.store.mission_dir(fixture.mission_id, create=False)
-        / "product_action_kernel"
-        / "receipts"
-        / f"{receipt_ref}.json"
-    )
-    return path.read_text(encoding="utf-8") and __import__("json").loads(path.read_text(encoding="utf-8"))
+    payload = load_product_action_kernel_artifact(fixture.kernel, fixture.mission_id, "receipts", receipt_ref)
+    assert payload is not None
+    return payload

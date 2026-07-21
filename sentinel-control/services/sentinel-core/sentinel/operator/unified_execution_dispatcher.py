@@ -677,8 +677,11 @@ class ProductActionKernelDispatchAdapter:
             recovery_classification=action_result.failure_class.value if action_result.failure_class else "none",
             replay_behavior="no_reexecute_on_replay",
         ).with_hash()
-        context.kernel.store.atomic_write_json(
-            _product_action_kernel_artifact_path(context.kernel, request.mission_id, "receipts", receipt.receipt_id),
+        _write_product_action_kernel_artifact(
+            context.kernel,
+            request.mission_id,
+            "receipts",
+            receipt.receipt_id,
             receipt.safe_model_dump(),
         )
         return receipt
@@ -702,8 +705,11 @@ class ProductActionKernelDispatchAdapter:
             reason_code="product_action_kernel_receipt_verified",
             receipt_refs=receipt_refs,
         ).with_hash()
-        context.kernel.store.atomic_write_json(
-            _product_action_kernel_artifact_path(context.kernel, request.mission_id, "finalgate", certificate.certificate_id),
+        _write_product_action_kernel_artifact(
+            context.kernel,
+            request.mission_id,
+            "finalgate",
+            certificate.certificate_id,
             certificate.safe_model_dump(),
         )
         return certificate
@@ -1002,10 +1008,15 @@ class UnifiedExecutionDispatcher:
         material_count = 0
         completion_lane_count = 0
         for receipt_ref in result.receipt_refs:
-            path = _product_action_kernel_artifact_path(self.kernel, result.mission_id, "receipts", receipt_ref)
-            if not _json_artifact_exists(path):
+            receipt_payload = load_product_action_kernel_artifact(
+                self.kernel,
+                result.mission_id,
+                "receipts",
+                receipt_ref,
+            )
+            if receipt_payload is None:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
-            receipt = ProductActionKernelReceipt.model_validate(_load_json_artifact(path))
+            receipt = ProductActionKernelReceipt.model_validate(receipt_payload)
             if receipt.mission_id != result.mission_id:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_mission_mismatch")
             if receipt.execution_request_id != result.execution_request_id:
@@ -1040,10 +1051,15 @@ class UnifiedExecutionDispatcher:
         if not result.finalgate_refs:
             return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
         for finalgate_ref in result.finalgate_refs:
-            path = _product_action_kernel_artifact_path(self.kernel, result.mission_id, "finalgate", finalgate_ref)
-            if not _json_artifact_exists(path):
+            certificate_payload = load_product_action_kernel_artifact(
+                self.kernel,
+                result.mission_id,
+                "finalgate",
+                finalgate_ref,
+            )
+            if certificate_payload is None:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_missing")
-            certificate = ProductActionKernelFinalGateCertificate.model_validate(_load_json_artifact(path))
+            certificate = ProductActionKernelFinalGateCertificate.model_validate(certificate_payload)
             if certificate.mission_id != result.mission_id:
                 return DispatchProofVerificationResult(ok=False, failure_code="proof_finalgate_mission_mismatch")
             if certificate.execution_request_id != result.execution_request_id:
@@ -1294,12 +1310,119 @@ def _product_action_kernel_artifact_path(
     collection: str,
     ref: str,
 ) -> Path:
+    short = _product_action_kernel_collection_short(collection)
+    physical_ref = product_action_kernel_physical_ref(collection, ref)
     return (
         kernel.store.mission_dir(mission_id, create=True)
-        / "product_action_kernel"
-        / collection
-        / f"{ref}.json"
+        / "_pak"
+        / short
+        / f"{physical_ref}.json"
     )
+
+
+def product_action_kernel_physical_ref(collection: str, ref: str) -> str:
+    return stable_hash({"collection": collection, "logical_ref": str(ref)})[:40]
+
+
+def product_action_kernel_artifact_location_ref(mission_id: str, collection: str, ref: str) -> str:
+    short = _product_action_kernel_collection_short(collection)
+    return f"mission_artifact:{mission_id}:_pak/{short}:{product_action_kernel_physical_ref(collection, ref)}"
+
+
+def load_product_action_kernel_artifact(
+    kernel: MissionKernel,
+    mission_id: str,
+    collection: str,
+    ref: str,
+) -> dict[str, Any] | None:
+    for path in _product_action_kernel_artifact_read_paths(kernel, mission_id, collection, ref):
+        if _json_artifact_exists(path):
+            return _load_json_artifact(path)
+    return None
+
+
+def _write_product_action_kernel_artifact(
+    kernel: MissionKernel,
+    mission_id: str,
+    collection: str,
+    ref: str,
+    payload: dict[str, Any],
+) -> Path:
+    path = _product_action_kernel_artifact_path(kernel, mission_id, collection, ref)
+    kernel.store.atomic_write_json(path, payload)
+    _write_product_action_kernel_artifact_index(kernel, mission_id, collection, ref, path)
+    return path
+
+
+def _write_product_action_kernel_artifact_index(
+    kernel: MissionKernel,
+    mission_id: str,
+    collection: str,
+    ref: str,
+    path: Path,
+) -> None:
+    short = _product_action_kernel_collection_short(collection)
+    mission_dir = kernel.store.mission_dir(mission_id, create=True)
+    index_path = mission_dir / "_pak" / "index" / f"{short}.json"
+    existing: dict[str, Any] = {}
+    if _json_artifact_exists(index_path):
+        existing = _load_json_artifact(index_path)
+    entries = dict(existing.get("entries") if isinstance(existing.get("entries"), dict) else {})
+    physical_ref = product_action_kernel_physical_ref(collection, ref)
+    relative_path = path.relative_to(mission_dir).as_posix()
+    collision = [
+        key
+        for key, value in entries.items()
+        if isinstance(value, dict)
+        and value.get("physical_ref") == physical_ref
+        and str(value.get("logical_ref") or key) != str(ref)
+    ]
+    if collision:
+        raise ValueError("product_action_kernel_artifact_physical_ref_collision")
+    entries[str(ref)] = {
+        "logical_ref": str(ref),
+        "collection": collection,
+        "physical_ref": physical_ref,
+        "relative_path": relative_path,
+        "location_ref": product_action_kernel_artifact_location_ref(mission_id, collection, ref),
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+    payload = {
+        "schema_version": "product_action_kernel_artifact_index_v1",
+        "mission_id": mission_id,
+        "collection": collection,
+        "collection_short": short,
+        "entries": entries,
+        "index_hash": "",
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+    payload["index_hash"] = stable_hash({**payload, "index_hash": ""})
+    kernel.store.atomic_write_json(index_path, payload)
+
+
+def _product_action_kernel_artifact_read_paths(
+    kernel: MissionKernel,
+    mission_id: str,
+    collection: str,
+    ref: str,
+) -> list[Path]:
+    mission_dir = kernel.store.mission_dir(mission_id, create=True)
+    return [
+        _product_action_kernel_artifact_path(kernel, mission_id, collection, ref),
+        mission_dir / "product_action_kernel" / collection / f"{ref}.json",
+    ]
+
+
+def _product_action_kernel_collection_short(collection: str) -> str:
+    mapping = {
+        "receipts": "r",
+        "finalgate": "fg",
+    }
+    if collection not in mapping:
+        raise ValueError("product_action_kernel_artifact_collection_unknown")
+    return mapping[collection]
 
 
 def _filesystem_path(path: Path) -> str:
@@ -1383,4 +1506,7 @@ __all__ = [
     "UnifiedExecutionAdapterRegistry",
     "UnifiedExecutionDispatchContext",
     "UnifiedExecutionDispatcher",
+    "load_product_action_kernel_artifact",
+    "product_action_kernel_artifact_location_ref",
+    "product_action_kernel_physical_ref",
 ]

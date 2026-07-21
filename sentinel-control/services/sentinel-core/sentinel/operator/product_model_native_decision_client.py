@@ -126,6 +126,10 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         "{\"skill\":\"patch\",\"params\":{\"target_path\":\"app.py\",\"expected_base_hash\":\"...\",\"old_text\":\"...\",\"new_text\":\"...\"}}, "
         "{\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
         "{\"skill\":\"send_message\"}, {\"skill\":\"spawn_worker\"}, or {\"skill\":\"finish\"}.\n"
+        "When finishing an evidence-seeking browser mission, include exactly one terminal payload: "
+        "{\"skill\":\"finish\",\"final_answer\":{\"answer_text\":\"...\",\"answer_claims\":[{\"claim_type\":\"sourced_factual_claim\",\"text\":\"...\",\"evidence_refs\":[\"evidence:...\"]}],\"public_evidence\":[]}} "
+        "or {\"skill\":\"finish\",\"honest_blocker\":{\"reason\":\"...\",\"available_evidence_refs\":[],\"missing_evidence\":[]}}.\n"
+        "Do not let Sentinel write the answer for you: answer_text is your user-facing answer, and factual claims must cite evidence refs.\n"
         "Natural intent is acceptable when the transport preserves visible text, but JSON is most reliable.\n"
         "Do not request login, payment, credentials, provider-native tools, or fallback/AUTO."
     )
@@ -726,15 +730,10 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("spawn_worker", context, text),
         )
     if skill == "finish":
-        params = {"safe_summary": _safe_finish_summary(text, context)}
-        if isinstance(payload.get("answer_claims"), list):
-            params["answer_claims"] = [item for item in payload["answer_claims"] if isinstance(item, dict)][:40]
-        if isinstance(payload.get("public_evidence"), list):
-            params["public_evidence"] = [item for item in payload["public_evidence"] if isinstance(item, dict)][:40]
         return ActionEnvelope(
             capability_id="sentinel_loop",
             operation="finish",
-            params=params,
+            params=_finish_params(payload=payload, text=text, context=context),
             idempotency_key=_idempotency_key("finish", context, text),
         )
     if skill == "browse_search":
@@ -769,6 +768,55 @@ def _normalize_browser_search_action(envelope: ActionEnvelope, *, fallback_query
         params=params,
         idempotency_key=envelope.idempotency_key,
     )
+
+
+def _finish_params(*, payload: dict[str, Any], text: str, context: dict[str, Any]) -> dict[str, Any]:
+    params: dict[str, Any] = {"safe_summary": _safe_finish_summary(text, context)}
+    source = payload.get("params") if isinstance(payload.get("params"), dict) else payload
+    if not isinstance(source, dict):
+        return params
+
+    final_answer = source.get("final_answer")
+    if isinstance(final_answer, str):
+        params["final_answer"] = {"answer_text": _bounded_text(final_answer, 2400)}
+    elif isinstance(final_answer, dict):
+        params["final_answer"] = _bounded_terminal_mapping(final_answer, max_items=24, max_text=2400)
+        nested_claims = final_answer.get("answer_claims")
+        if isinstance(nested_claims, list) and "answer_claims" not in source:
+            params["answer_claims"] = [item for item in nested_claims if isinstance(item, dict)][:40]
+        nested_evidence = final_answer.get("public_evidence")
+        if isinstance(nested_evidence, list) and "public_evidence" not in source:
+            params["public_evidence"] = [item for item in nested_evidence if isinstance(item, dict)][:40]
+    elif isinstance(source.get("answer"), str):
+        params["final_answer"] = {"answer_text": _bounded_text(str(source.get("answer") or ""), 2400)}
+
+    honest_blocker = source.get("honest_blocker")
+    if isinstance(honest_blocker, dict):
+        params["honest_blocker"] = _bounded_terminal_mapping(honest_blocker, max_items=16, max_text=1200)
+    if isinstance(source.get("answer_claims"), list):
+        params["answer_claims"] = [item for item in source["answer_claims"] if isinstance(item, dict)][:40]
+    if isinstance(source.get("public_evidence"), list):
+        params["public_evidence"] = [item for item in source["public_evidence"] if isinstance(item, dict)][:40]
+    return params
+
+
+def _bounded_terminal_mapping(value: dict[str, Any], *, max_items: int, max_text: int) -> dict[str, Any]:
+    bounded: dict[str, Any] = {}
+    for key, item in list(value.items())[:max_items]:
+        safe_key = str(key)[:80]
+        if isinstance(item, str):
+            bounded[safe_key] = _bounded_text(item, max_text)
+        elif isinstance(item, bool | int | float) or item is None:
+            bounded[safe_key] = item
+        elif isinstance(item, list):
+            bounded[safe_key] = [
+                _bounded_text(entry, max_text) if isinstance(entry, str) else entry
+                for entry in item[:20]
+                if isinstance(entry, (str, bool, int, float, dict))
+            ]
+        elif isinstance(item, dict):
+            bounded[safe_key] = _bounded_terminal_mapping(item, max_items=max_items, max_text=max_text)
+    return bounded
 
 
 def _extract_operation_for_context(context: dict[str, Any]) -> str:

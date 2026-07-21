@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -11,7 +12,11 @@ from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.models import utc_now
 from sentinel.operator.redaction import redact_operator_text, sanitize_operator_refs
 from sentinel.operator.store import MissionRunStore, _path_exists, _read_text_file
-from sentinel.operator.unified_execution_dispatcher import UnifiedDispatchResult
+from sentinel.operator.unified_execution_dispatcher import (
+    UnifiedDispatchResult,
+    load_product_action_kernel_artifact,
+    product_action_kernel_artifact_location_ref,
+)
 from sentinel.shared.safety_scanner import SHARED_SECRET_LIKE_PATTERN
 
 
@@ -40,6 +45,7 @@ _FACTUAL_CLAIM_TYPES = {"sourced_factual_claim", "factual_claim"}
 _INFERENCE_TYPES = {"model_inference", "recommendation"}
 _UNCERTAINTY_TYPES = {"uncertainty", "declared_unknown"}
 _CONTRADICTION_TYPES = {"contradiction"}
+_OPERATION_TITLE_PREFIXES = ("real_browser.", "real_browser_control.", "sentinel_loop.")
 
 
 class BrowserProofIndexBuilder:
@@ -82,6 +88,7 @@ class BrowserProofIndexBuilder:
             for browser_receipt in browser_receipts:
                 material_entries.append(self._browser_entry(dispatch, product_receipts, browser_receipt))
                 public_evidence.extend(_evidence_from_browser_receipt(browser_receipt))
+            public_evidence.extend(_evidence_from_dispatch_context(dispatch))
 
         public_evidence.extend(
             sanitize_public_evidence(item)
@@ -89,6 +96,8 @@ class BrowserProofIndexBuilder:
         )
         public_evidence = _dedupe_by_id(public_evidence)
         evidence_ids = {str(item.get("evidence_id") or "") for item in public_evidence if str(item.get("evidence_id") or "")}
+        final_answer = normalize_final_answer_payload(self.final_answer_payload.get("final_answer"))
+        honest_blocker = normalize_honest_blocker_payload(self.final_answer_payload.get("honest_blocker"))
         answer_claims = normalize_answer_claims(
             self.final_answer_payload.get("answer_claims"),
             evidence_ids=evidence_ids,
@@ -109,6 +118,9 @@ class BrowserProofIndexBuilder:
             "public_evidence": public_evidence,
             "public_evidence_count": len(public_evidence),
             "answer_claims": answer_claims,
+            "final_answer": final_answer,
+            "honest_blocker": honest_blocker,
+            "completion_truth": {},
             "finalgate_metrics": _finalgate_metrics(
                 material_entries=material_entries,
                 answer_claims=answer_claims,
@@ -122,6 +134,7 @@ class BrowserProofIndexBuilder:
             "can_grant_authority": False,
             "can_execute": False,
         }
+        index["completion_truth"] = classify_browser_completion_truth(index)
         index["proof_index_hash"] = stable_hash({**index, "proof_index_hash": ""})
         return index
 
@@ -131,8 +144,12 @@ class BrowserProofIndexBuilder:
     def _load_product_receipts(self, dispatch: UnifiedDispatchResult) -> list[dict[str, Any]]:
         receipts: list[dict[str, Any]] = []
         for receipt_ref in dispatch.receipt_refs:
-            path = self.store.mission_dir(dispatch.mission_id) / "product_action_kernel" / "receipts" / f"{receipt_ref}.json"
-            payload = _load_json_or_none(path)
+            payload = load_product_action_kernel_artifact(
+                self.store.kernel if hasattr(self.store, "kernel") else _StoreKernelShim(self.store),
+                dispatch.mission_id,
+                "receipts",
+                str(receipt_ref),
+            )
             receipts.append(
                 {
                     "receipt_ref": str(receipt_ref),
@@ -140,7 +157,11 @@ class BrowserProofIndexBuilder:
                     "dispatch_id": dispatch.dispatch_id,
                     "operation": dispatch.operation,
                     "readable": payload is not None,
-                    "location_ref": _artifact_ref(dispatch.mission_id, "product_action_kernel/receipts", str(receipt_ref)),
+                    "location_ref": product_action_kernel_artifact_location_ref(
+                        dispatch.mission_id,
+                        "receipts",
+                        str(receipt_ref),
+                    ),
                     "receipt_hash": str(payload.get("receipt_hash") or "") if isinstance(payload, dict) else "",
                     "execution_status": str(payload.get("execution_status") or "") if isinstance(payload, dict) else "",
                     "material_action": bool(payload.get("material_action")) if isinstance(payload, dict) else False,
@@ -287,15 +308,34 @@ def sanitize_public_evidence(payload: dict[str, Any]) -> dict[str, Any]:
     evidence_id = str(payload.get("evidence_id") or f"evidence:{stable_hash(payload)}")
     source_url = str(payload.get("source_url") or payload.get("url") or "")
     normalized_url, origin = _normalize_public_url(source_url)
-    source_title = _safe_text(str(payload.get("source_title") or payload.get("title") or ""), limit=220)
+    source_title = _safe_public_text(str(payload.get("source_title") or payload.get("title") or ""), limit=220)
     source_origin = _safe_origin(str(payload.get("source_origin") or origin or ""))
-    excerpt = _safe_text(str(payload.get("excerpt") or payload.get("bounded_excerpt") or ""), limit=_MAX_EXCERPT_CHARS)
+    raw_excerpt = str(payload.get("excerpt") or payload.get("bounded_excerpt") or "")
+    excerpt = _safe_public_text(raw_excerpt, limit=_MAX_EXCERPT_CHARS)
+    redaction_status, redaction_reason = _public_redaction_status(raw_excerpt, excerpt)
+    source_identity_readable = bool(normalized_url and source_title and not _operation_only_title(source_title))
+    evidence_human_readable = bool(
+        source_identity_readable
+        and excerpt.strip()
+        and not _operation_only_excerpt(excerpt)
+        and redaction_status != "fully_redacted"
+    )
+    supports_claim = bool(evidence_human_readable and not str(payload.get("supports_claim") or "").lower() == "false")
+    published_redaction_status = "readable" if evidence_human_readable and redaction_status == "none" else redaction_status
+    if not evidence_human_readable and published_redaction_status == "none":
+        published_redaction_status = "unreadable"
+        redaction_reason = redaction_reason or "source_or_excerpt_not_human_readable"
     evidence = {
         "evidence_id": _safe_ref(evidence_id, prefix="evidence"),
         "normalized_public_url": normalized_url,
         "source_title": source_title or "unknown",
         "source_origin": source_origin or "unknown",
         "bounded_excerpt": excerpt,
+        "evidence_human_readable": evidence_human_readable,
+        "evidence_redaction_status": published_redaction_status,
+        "evidence_redaction_reason": redaction_reason,
+        "source_identity_readable": source_identity_readable,
+        "evidence_supports_claim_candidate": supports_claim,
         "timestamp": str(payload.get("timestamp") or utc_now().isoformat()),
         "digest": stable_hash(
             {
@@ -310,6 +350,118 @@ def sanitize_public_evidence(payload: dict[str, Any]) -> dict[str, Any]:
         "can_execute": False,
     }
     return evidence
+
+
+def normalize_final_answer_payload(value: Any) -> dict[str, Any]:
+    if isinstance(value, str):
+        text = _safe_text(value, limit=1400)
+        return {
+            "answer_text": text,
+            "answer_present": bool(text.strip()),
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+    if not isinstance(value, dict):
+        return {"answer_text": "", "answer_present": False, "data_not_authority": True, "can_execute": False}
+    answer_text = _safe_text(
+        str(value.get("answer_text") or value.get("answer") or value.get("final_answer") or ""),
+        limit=1400,
+    )
+    return {
+        "answer_text": answer_text,
+        "answer_present": bool(answer_text.strip()),
+        "inference_policy": _safe_text(str(value.get("inference_policy") or value.get("inference") or ""), limit=260),
+        "uncertainty": _safe_text(str(value.get("uncertainty") or ""), limit=500),
+        "unknowns": [_safe_text(str(item), limit=240) for item in _list_of_strings(value.get("unknowns"))[:12]],
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def normalize_honest_blocker_payload(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {"reason": "", "blocker_present": False, "data_not_authority": True, "can_execute": False}
+    reason = _safe_text(str(value.get("reason") or value.get("blocker_reason") or ""), limit=700)
+    return {
+        "reason": reason,
+        "blocker_present": bool(reason.strip()),
+        "available_evidence_refs": sanitize_operator_refs(_list_of_strings(value.get("available_evidence_refs"))[:20]),
+        "missing_evidence": [_safe_text(str(item), limit=240) for item in _list_of_strings(value.get("missing_evidence"))[:20]],
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def classify_browser_completion_truth(index: dict[str, Any]) -> dict[str, Any]:
+    entries = _list_payload(index.get("material_browser_receipts"))
+    readable = [entry for entry in entries if entry.get("browser_receipt_readable") is True]
+    action_success = [
+        entry
+        for entry in readable
+        if str(entry.get("actual_backend_id") or "")
+        and str(entry.get("action_status") or "") in {"completed", "passed", "success"}
+    ]
+    public_evidence = _list_payload(index.get("public_evidence"))
+    human_evidence = [item for item in public_evidence if item.get("evidence_human_readable") is True]
+    claims = index.get("answer_claims") if isinstance(index.get("answer_claims"), dict) else {}
+    final_answer = index.get("final_answer") if isinstance(index.get("final_answer"), dict) else {}
+    honest_blocker = index.get("honest_blocker") if isinstance(index.get("honest_blocker"), dict) else {}
+    answer_present = bool(final_answer.get("answer_present"))
+    blocker_present = bool(honest_blocker.get("blocker_present"))
+    supported_claim_count = int(claims.get("factual_supported_count") or 0)
+    unsupported_claim_count = int(claims.get("factual_unsupported_count") or 0)
+    evidence_acquired = bool(human_evidence)
+    mission_satisfied = bool(answer_present and evidence_acquired and supported_claim_count > 0 and unsupported_claim_count == 0)
+    useful_answer = bool(mission_satisfied and not blocker_present)
+    return {
+        "loop_closed": str(index.get("status") or "") == "completed",
+        "browser_body_reached": bool(action_success),
+        "material_browser_action_succeeded": bool(action_success),
+        "evidence_acquired": evidence_acquired,
+        "final_answer_present": answer_present,
+        "honest_blocker_present": blocker_present,
+        "mission_objective_satisfied": mission_satisfied,
+        "useful_answer_completion": useful_answer,
+        "human_readable_public_evidence_count": len(human_evidence),
+        "supported_factual_claim_count": supported_claim_count,
+        "unsupported_factual_claim_count": unsupported_claim_count,
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
+def normalize_blind_evaluator_result(
+    payload: Any,
+    *,
+    evaluator_called: bool,
+    evaluator_provider: str = "",
+    evaluator_model: str = "",
+    evaluator_failure_reason: str = "",
+) -> dict[str, Any]:
+    source = payload if isinstance(payload, dict) else {}
+    result = {
+        "evaluator_called": bool(evaluator_called),
+        "evaluator_provider": _safe_text(evaluator_provider, limit=160),
+        "evaluator_model": _safe_text(evaluator_model, limit=160),
+        "evaluator_verdict": _safe_text(str(source.get("evaluator_verdict") or source.get("verdict") or "UNKNOWN"), limit=120),
+        "answer_present": bool(source.get("answer_present")),
+        "evidence_present": bool(source.get("evidence_present")),
+        "factual_claim_count": _safe_int(source.get("factual_claim_count")),
+        "supported_claim_count": _safe_int(source.get("supported_claim_count")),
+        "unsupported_claim_count": _safe_int(source.get("unsupported_claim_count")),
+        "contradicted_claim_count": _safe_int(source.get("contradicted_claim_count")),
+        "inference_preserved": bool(source.get("inference_preserved")),
+        "uncertainty_preserved": bool(source.get("uncertainty_preserved")),
+        "objective_satisfaction_score": _safe_float(source.get("objective_satisfaction_score")),
+        "objective_satisfaction_class": _safe_text(str(source.get("objective_satisfaction_class") or ""), limit=120),
+        "useful_answer_classification": _safe_text(str(source.get("useful_answer_classification") or ""), limit=120),
+        "evaluator_failure_reason": _safe_text(evaluator_failure_reason or str(source.get("evaluator_failure_reason") or ""), limit=240),
+        "response_hash": stable_hash(payload),
+        "raw_output_persisted": False,
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+    return result
 
 
 def normalize_answer_claims(
@@ -456,6 +608,63 @@ def _evidence_from_browser_receipt(receipt: dict[str, Any]) -> list[dict[str, An
     ]
 
 
+def _evidence_from_dispatch_context(dispatch: UnifiedDispatchResult) -> list[dict[str, Any]]:
+    cards = dispatch.safe_context_cards if isinstance(dispatch.safe_context_cards, dict) else {}
+    evidence: list[dict[str, Any]] = []
+    world = cards.get("browser_world_model")
+    if isinstance(world, dict):
+        for card in _list_payload(world.get("product_or_result_candidate_cards"))[:8]:
+            evidence.extend(_evidence_from_entity_card(card, dispatch=dispatch))
+        snippets = world.get("top_visible_text_snippets")
+        if isinstance(snippets, list):
+            title = str(world.get("title_hash_or_safe_title") or "")
+            for index, snippet in enumerate(snippets[:3]):
+                evidence.append(
+                    sanitize_public_evidence(
+                        {
+                            "evidence_id": f"browser_world_snippet:{stable_hash({'mission': dispatch.mission_id, 'index': index, 'snippet': snippet})}",
+                            "source_title": title,
+                            "source_origin": _origin_from_cards(cards),
+                            "excerpt": str(snippet),
+                            "receipt_ref": dispatch.receipt_refs[0] if dispatch.receipt_refs else "",
+                            "supports_claim": bool(title and str(snippet).strip()),
+                        }
+                    )
+                )
+    environment = cards.get("browser_environment_state")
+    if isinstance(environment, dict):
+        extraction = environment.get("extraction_graph")
+        if isinstance(extraction, dict):
+            for card in _list_payload(extraction.get("cards"))[:8]:
+                evidence.extend(_evidence_from_entity_card(card, dispatch=dispatch))
+    return evidence
+
+
+def _evidence_from_entity_card(card: dict[str, Any], *, dispatch: UnifiedDispatchResult) -> list[dict[str, Any]]:
+    title = str(card.get("title") or "")
+    snippets = []
+    for key in ("short_features", "caveats"):
+        value = card.get(key)
+        if isinstance(value, list | tuple):
+            snippets.extend(str(item) for item in value if str(item).strip())
+    if not snippets and card.get("relevance_reason"):
+        snippets.append(str(card.get("relevance_reason")))
+    evidence_refs = _list_of_strings(card.get("evidence_refs"))
+    evidence_id = evidence_refs[0] if evidence_refs else f"entity:{stable_hash(card)}"
+    return [
+        sanitize_public_evidence(
+            {
+                "evidence_id": evidence_id,
+                "source_title": title,
+                "source_origin": "origin-hash",
+                "excerpt": " ".join(snippets[:3]),
+                "receipt_ref": dispatch.receipt_refs[0] if dispatch.receipt_refs else "",
+                "supports_claim": bool(title and snippets),
+            }
+        )
+    ]
+
+
 def _receipt_evidence_refs(receipt: dict[str, Any]) -> list[str]:
     refs: list[str] = []
     search_materiality = receipt.get("search_materiality")
@@ -584,6 +793,64 @@ def _safe_text(value: str, *, limit: int) -> str:
     return redact_operator_text(rendered)
 
 
+def _safe_public_text(value: str, *, limit: int) -> str:
+    rendered = " ".join(str(value or "").split())[:limit]
+    return _redact_actual_secret_values(rendered)
+
+
+def _redact_actual_secret_values(value: str) -> str:
+    patterns = (
+        r"(?i)\b(access[_-]?token|refresh[_-]?token|session[_-]?token|sessionid|x-api-key|api[_-]?key|authorization|bearer|cookie|password|secret|credential)\s*[:=]\s*[^;\s&]{8,}",
+        r"(?i)\btoken\s*[:=]\s*[^;\s&]{8,}",
+        r"(?i)\bsk-[A-Za-z0-9_\-]{16,}",
+        r"(?i)\bgh[pousr]_[A-Za-z0-9]{20,}",
+    )
+    redacted = value
+    for pattern in patterns:
+        redacted = re.sub(pattern, "[redacted-secret-like-value]", redacted)
+    return redacted
+
+
+def _public_redaction_status(raw_excerpt: str, excerpt: str) -> tuple[str, str]:
+    if not raw_excerpt.strip():
+        return "unreadable", "empty_excerpt"
+    if not excerpt.strip():
+        return "fully_redacted", "redaction_removed_all_semantic_content"
+    if excerpt.strip() == "[redacted-secret-like-value]":
+        return "fully_redacted", "redaction_removed_all_semantic_content"
+    if "[redacted-secret-like-value]" in excerpt:
+        return "partially_redacted", "actual_secret_like_value_redacted"
+    return "none", ""
+
+
+def _operation_only_title(value: str) -> bool:
+    lowered = value.strip().lower()
+    return any(lowered.startswith(prefix) for prefix in _OPERATION_TITLE_PREFIXES)
+
+
+def _operation_only_excerpt(value: str) -> bool:
+    lowered = value.strip().lower()
+    if not lowered:
+        return True
+    return any(prefix in lowered for prefix in _OPERATION_TITLE_PREFIXES) and not any(
+        marker in lowered
+        for marker in ("documentation", "path.glob", "api", "method", "function", "class", "returns", "example")
+    )
+
+
+def _origin_from_cards(cards: dict[str, Any]) -> str:
+    environment = cards.get("browser_environment_state")
+    if isinstance(environment, dict):
+        fields = environment.get("state_fields")
+        if isinstance(fields, dict):
+            identity = fields.get("page_identity")
+            if isinstance(identity, dict):
+                value = identity.get("value")
+                if isinstance(value, dict) and value.get("origin_hash"):
+                    return f"origin-hash:{str(value.get('origin_hash'))[:24]}"
+    return "origin-hash"
+
+
 def _safe_ref(value: str, *, prefix: str) -> str:
     rendered = str(value or "").strip()
     if not rendered:
@@ -604,6 +871,13 @@ def _safe_float(value: Any) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _safe_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _looks_secret(value: str) -> bool:
@@ -654,6 +928,11 @@ def _load_json_or_none(path: Path) -> dict[str, Any] | None:
     except (OSError, json.JSONDecodeError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+class _StoreKernelShim:
+    def __init__(self, store: MissionRunStore) -> None:
+        self.store = store
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:

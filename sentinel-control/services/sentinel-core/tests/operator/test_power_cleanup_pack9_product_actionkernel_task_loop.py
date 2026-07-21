@@ -16,7 +16,7 @@ from sentinel.operator.model_led_product_action_kernel_task_loop import (
 )
 from sentinel.operator.real_browser_control_runtime import RealBrowserControlRuntimeError
 from sentinel.operator.runtime_host import SentinelRuntimeHost
-from sentinel.operator.unified_execution_dispatcher import DispatchStatus
+from sentinel.operator.unified_execution_dispatcher import DispatchStatus, load_product_action_kernel_artifact
 
 
 def test_model_led_product_loop_dispatches_code_then_channel_through_runtimehost(tmp_path: Path) -> None:
@@ -489,5 +489,6 @@ class _ProviderEmptyAfterReceiptDecisionClient:
 
 
 def _product_receipt(host: SentinelRuntimeHost, mission_id: str, receipt_ref: str) -> dict[str, object]:
-    path = host.kernel.store.mission_dir(mission_id) / "product_action_kernel" / "receipts" / f"{receipt_ref}.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    payload = load_product_action_kernel_artifact(host.kernel, mission_id, "receipts", receipt_ref)
+    assert payload is not None
+    return payload

@@ -281,11 +281,11 @@ class MissionArtifactBundleVerifier:
 
 
 def _collect_product_receipts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> list[dict[str, Any]]:
-    return _collect_json_files(store, mission_ids, "product_action_kernel/receipts/*.json")
+    return _collect_product_action_kernel_artifacts(store, mission_ids, collection="receipts", collection_short="r")
 
 
 def _collect_product_finalgate(store: MissionRunStore, mission_ids: tuple[str, ...]) -> list[dict[str, Any]]:
-    return _collect_json_files(store, mission_ids, "product_action_kernel/finalgate/*.json")
+    return _collect_product_action_kernel_artifacts(store, mission_ids, collection="finalgate", collection_short="fg")
 
 
 def _collect_worker_receipts(store: MissionRunStore, mission_ids: tuple[str, ...]) -> list[dict[str, Any]]:
@@ -315,6 +315,56 @@ def _collect_json_files(store: MissionRunStore, mission_ids: tuple[str, ...], pa
         for path in sorted(mission_dir.glob(pattern)):
             payloads.append(_load_json(path))
     return payloads
+
+
+def _collect_product_action_kernel_artifacts(
+    store: MissionRunStore,
+    mission_ids: tuple[str, ...],
+    *,
+    collection: str,
+    collection_short: str,
+) -> list[dict[str, Any]]:
+    payloads: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for mission_id in mission_ids:
+        mission_dir = store.mission_dir(mission_id)
+        if not mission_dir.exists():
+            continue
+        index_path = mission_dir / "_pak" / "index" / f"{collection_short}.json"
+        if index_path.exists():
+            index = _load_json(index_path)
+            entries = index.get("entries") if isinstance(index.get("entries"), dict) else {}
+            for logical_ref, entry in sorted(entries.items()):
+                if not isinstance(entry, dict):
+                    continue
+                relative_path = _safe_relative_artifact_path(str(entry.get("relative_path") or ""))
+                if relative_path is None:
+                    continue
+                artifact_path = mission_dir / relative_path
+                if not _json_path_exists(artifact_path):
+                    continue
+                payload = _load_json(artifact_path)
+                key = str(payload.get("receipt_id") or payload.get("certificate_id") or logical_ref)
+                if key in seen:
+                    continue
+                seen.add(key)
+                payloads.append(payload)
+        for payload in _collect_json_files(store, (mission_id,), f"product_action_kernel/{collection}/*.json"):
+            key = str(payload.get("receipt_id") or payload.get("certificate_id") or stable_hash(payload))
+            if key in seen:
+                continue
+            seen.add(key)
+            payloads.append(payload)
+    return payloads
+
+
+def _safe_relative_artifact_path(value: str) -> Path | None:
+    if not value:
+        return None
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        return None
+    return path
 
 
 def _record_summary(store: MissionRunStore, mission_id: str) -> dict[str, Any]:
@@ -442,6 +492,14 @@ def _contains_forbidden_raw_material(payloads: dict[str, Any]) -> bool:
 def _load_json(path: Path) -> dict[str, Any]:
     with open(_filesystem_path(path), encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def _json_path_exists(path: Path) -> bool:
+    if path.exists():
+        return True
+    if os.name != "nt":
+        return False
+    return os.path.exists(_filesystem_path(path))
 
 
 def _filesystem_path(path: Path) -> str:

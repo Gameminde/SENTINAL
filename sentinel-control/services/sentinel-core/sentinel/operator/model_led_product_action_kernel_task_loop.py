@@ -221,6 +221,11 @@ class ModelLedProductActionKernelTaskLoop:
                     self.final_answer_payload = _safe_final_answer_payload(decision.params)
                     if not self.product_receipt_refs and not self.explicit_noop_proof_ref:
                         return self._block("MODEL_FINISH_BEFORE_PRODUCT_RECEIPT")
+                    incomplete_reason = _final_answer_payload_incomplete_reason(self.final_answer_payload, context)
+                    if incomplete_reason:
+                        if self._recover_final_answer_payload_incomplete(incomplete_reason, context):
+                            continue
+                        return self._block(incomplete_reason)
                     return self._complete("model_led_product_action_kernel_task_loop_finish")
                 if self.material_actions_used >= self.max_material_actions and not _is_completion_lane_decision(decision):
                     return self._block("MATERIAL_ACTION_BUDGET_EXHAUSTED")
@@ -378,6 +383,33 @@ class ModelLedProductActionKernelTaskLoop:
                 "can_execute": False,
             }
         )
+        return True
+
+    def _recover_final_answer_payload_incomplete(self, reason: str, context: dict[str, Any]) -> bool:
+        max_recoveries = max(self.max_recoverable_model_decision_failures, 1)
+        if len(self.recoverable_decision_observations) >= max_recoveries:
+            return False
+        proof_summary = context.get("browser_proof_index_summary")
+        self.recoverable_decision_observations.append(
+            {
+                "failure_code": reason,
+                "turn_index": self.model_calls_used,
+                "recovery_action": "ask_model_for_final_answer_or_honest_blocker",
+                "recommended_skill": "finish",
+                "terminal_contract": {
+                    "required_one_of": ["final_answer", "honest_blocker"],
+                    "final_answer_requires": ["answer_text", "claim candidates for factual claims", "evidence_refs when sourced"],
+                    "honest_blocker_requires": ["reason", "available_evidence_refs", "missing_evidence"],
+                    "do_not_fabricate_claims": True,
+                    "data_not_authority": True,
+                    "can_execute": False,
+                },
+                "browser_proof_index_summary": proof_summary if isinstance(proof_summary, dict) else {},
+                "data_not_authority": True,
+                "can_execute": False,
+            }
+        )
+        self.final_answer_payload = {}
         return True
 
     def _deterministic_recovery_decision(self, reason: str, context: dict[str, Any]) -> ActionEnvelope | None:
@@ -1133,6 +1165,20 @@ def _safe_final_answer_payload(params: dict[str, Any]) -> dict[str, Any]:
     safe_summary = str(params.get("safe_summary") or params.get("summary") or "").strip()
     if safe_summary:
         payload["safe_summary"] = safe_summary[:1800]
+    final_answer = params.get("final_answer")
+    if isinstance(final_answer, str):
+        payload["final_answer"] = {"answer_text": final_answer[:2400]}
+    elif isinstance(final_answer, dict):
+        payload["final_answer"] = _bounded_mapping(final_answer, max_items=24, max_text=2400)
+        nested_claims = final_answer.get("answer_claims")
+        if isinstance(nested_claims, list) and "answer_claims" not in params:
+            payload["answer_claims"] = [item for item in nested_claims if isinstance(item, dict)][:40]
+        nested_evidence = final_answer.get("public_evidence")
+        if isinstance(nested_evidence, list) and "public_evidence" not in params:
+            payload["public_evidence"] = [item for item in nested_evidence if isinstance(item, dict)][:40]
+    honest_blocker = params.get("honest_blocker")
+    if isinstance(honest_blocker, dict):
+        payload["honest_blocker"] = _bounded_mapping(honest_blocker, max_items=16, max_text=1200)
     claims = params.get("answer_claims")
     if isinstance(claims, list):
         payload["answer_claims"] = [item for item in claims if isinstance(item, dict)][:40]
@@ -1147,6 +1193,69 @@ def _safe_final_answer_payload(params: dict[str, Any]) -> dict[str, Any]:
             if key not in TRUSTED_RUNTIME_CONTEXT_KEYS
         }
     return payload
+
+
+def _final_answer_payload_incomplete_reason(payload: dict[str, Any], context: dict[str, Any]) -> str | None:
+    if not _answer_seeking_context(context):
+        return None
+    final_answer = payload.get("final_answer")
+    if isinstance(final_answer, dict) and str(
+        final_answer.get("answer_text") or final_answer.get("answer") or final_answer.get("final_answer") or ""
+    ).strip():
+        return None
+    honest_blocker = payload.get("honest_blocker")
+    if isinstance(honest_blocker, dict) and str(honest_blocker.get("reason") or honest_blocker.get("blocker_reason") or "").strip():
+        return None
+    return "FINAL_ANSWER_PAYLOAD_INCOMPLETE"
+
+
+def _answer_seeking_context(context: dict[str, Any]) -> bool:
+    objective = str(context.get("mission_objective") or "").lower()
+    objective_asks_for_answer = any(
+        marker in objective
+        for marker in (
+            "answer",
+            "explain",
+            "summarize",
+            "provide",
+            "find",
+            "compare",
+            "what ",
+            "which ",
+        )
+    )
+    if not objective_asks_for_answer:
+        return False
+    summary = context.get("browser_proof_index_summary")
+    if not isinstance(summary, dict):
+        return False
+    return any(
+        int(summary.get(key) or 0) > 0
+        for key in (
+            "material_browser_receipt_count",
+            "browser_receipt_readable_count",
+            "public_evidence_count",
+        )
+    )
+
+
+def _bounded_mapping(value: dict[str, Any], *, max_items: int, max_text: int) -> dict[str, Any]:
+    bounded: dict[str, Any] = {}
+    for key, item in list(value.items())[:max_items]:
+        safe_key = str(key)[:80]
+        if isinstance(item, str):
+            bounded[safe_key] = item[:max_text]
+        elif isinstance(item, bool | int | float) or item is None:
+            bounded[safe_key] = item
+        elif isinstance(item, list):
+            bounded[safe_key] = [
+                entry[:max_text] if isinstance(entry, str) else entry
+                for entry in item[:20]
+                if isinstance(entry, (str, bool, int, float, dict))
+            ]
+        elif isinstance(item, dict):
+            bounded[safe_key] = _bounded_mapping(item, max_items=max_items, max_text=max_text)
+    return bounded
 
 
 def _browser_proof_index_ref(loop_id: str) -> str:
