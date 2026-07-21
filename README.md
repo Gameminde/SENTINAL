@@ -21,12 +21,13 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 ## Current Snapshot
 
 ```text
-snapshot_date = 2026-07-12
-canonical_locked_phase = FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1
-active_experimental_lane = MONSTER_RUNTIME_BROWSER_CORTEX_UNIFICATION
-latest_local_hardening = BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING
+snapshot_date = 2026-07-21
+canonical_locked_phase = FIX_WINDOWS_SAFE_ARTIFACT_PATH_AND_END_TO_END_BROWSER_ANSWER_PROOF_TRUTH_V1
+active_experimental_lane = BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE
+latest_local_hardening = compact_product_action_kernel_artifacts + model_led_final_answer_truth
 branch = experimental/real-model-lab-freeze-v1
-next_work = REAL_POWER_ATTEMPT_BROWSER_CORTEX_ALIBABA_V8_AFTER_FIRST_TURN_EXTRACT_ROUTING_FIX
+latest_local_commit = f024283 fix: preserve browser proof answer evidence truth
+next_work = BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V2
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -46,34 +47,39 @@ quarantined as explicit compatibility/test debt, and the Browser Cortex program
 is consolidating existing browser organs into one product spine.
 
 The latest local lock is
-`FIX_BROWSER_MODEL_NATIVE_FIRST_TURN_EXTRACT_ROUTING_V1`.
-Browser Cortex Alibaba V2 through V6 were useful valid failures: V2 exposed
-long-path mission request IO, V3 exposed a high-level search skill that did not
-self-open the selected Cloak/session backend, V4 exposed the product loop
-blocking on a recoverable browser search failure even while safe product/result
-cards were visible, and V5 proved recovery reached `extract_product_cards` but
-then exposed extraction/verification still depending on a live session even when
-safe world-model cards already existed. V6 then proved Cloak-backed
-`real_browser.search` can produce a material receipt, but the following
-extraction mission received empty `safe_context_cards` and blocked with
-`browser_session_missing_or_closed`; the browser world model from completed
-search did not propagate into the next material extraction request.
-The follow-up fix now passes a narrow safe browser context lane from completed
-browser results into `extract_product_cards` and `verify_extraction`. V7 then
-proved model-native intent consumption again, but the model/mapper accepted
-`extract_product_cards` as the first action before any browser world model was
-available, causing `browser_session_missing_or_closed`. The follow-up fix now
-routes first-turn extract/verify intent without browser context into a live
-`real_browser.search` action before extraction.
+`FIX_WINDOWS_SAFE_ARTIFACT_PATH_AND_END_TO_END_BROWSER_ANSWER_PROOF_TRUTH_V1`.
+The Browser Organ has moved past isolated completion proof into proof-quality
+work: real provider + real Cloak Python.org golden missions have proven the
+product spine, search materiality, grounded completion, cleanup, and replay
+no-react in prior T3 runs. The current local hardening fixes the next exposed
+proof gap: ProductActionKernel receipts/finalgates now use compact `_pak`
+physical artifacts with logical-id indexes, BrowserProofIndex and mission
+artifact export read compact-first with legacy compatibility, public evidence
+distinguishes human-readable sources from action metadata, and browser
+answer-seeking missions must finish with either a model-authored
+`final_answer` or an `honest_blocker`.
+
+This is a local proof/transport fix, not a new browser-intelligence claim. The
+next honest gate is one frozen non-holdout V2 proof batch to measure whether
+the live real-provider + real-Cloak path now preserves readable receipts,
+claim-to-evidence cards, structured evaluator verdicts, cleanup, and replay
+without presenting technical loop closure as answer quality.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
 workspace body, bounded channel send, code/workspace skills, worker
 orchestration, signed artifact verifier work, Browser Cortex cutover truth,
 graph-backed browser actuation, and now graph-backed browser memory/recovery.
-The next browser step is the first post-fix real Browser Cortex provider/browser
-attempt under a strict one-run contract. The readiness gate is now green, but
-Alibaba/product research is not yet product-proven under the Browser Cortex lane.
+The next browser step is the exact frozen V2 non-holdout proof batch, not a new
+runtime feature and not frozen-holdout consumption. Browser Organ completion is
+not declared from this local fix; the proof tiers remain explicit:
+
+```text
+T1_LOCAL_DETERMINISTIC_CANDIDATE = current fix proven
+T2_LIVE_BODY_PROVEN = requires live Cloak gate
+T3_REAL_MODEL_PRODUCT_PROVEN = requires real provider + real Cloak V2 batch
+T4_FROZEN_HOLDOUT_GENERALIZATION_PROVEN = locked, not consumed here
+```
 
 The next experimental threshold is deliberately power-focused:
 
@@ -124,6 +130,8 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWE
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_CORTEX_REAL_POWER_READINESS_GATE_V2_CLOAK_SESSION_TIMEOUT_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_CLOAK_SESSION_READINESS_TIMEOUT_AND_PROFILE_CLEANUP_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_WINDOWS_SAFE_ARTIFACT_PATH_AND_END_TO_END_BROWSER_ANSWER_PROOF_TRUTH_V1_REPORT.md
 ```
 
 The current experimental read-only operator reports are:
