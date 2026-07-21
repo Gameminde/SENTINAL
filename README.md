@@ -22,12 +22,13 @@ The GitHub repository is named `SENTINAL`; the product and codebase are
 
 ```text
 snapshot_date = 2026-07-21
-canonical_locked_phase = FIX_WINDOWS_SAFE_ARTIFACT_PATH_AND_END_TO_END_BROWSER_ANSWER_PROOF_TRUTH_V1
+canonical_locked_phase = BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V2
 active_experimental_lane = BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE
 latest_local_hardening = compact_product_action_kernel_artifacts + model_led_final_answer_truth
 branch = experimental/real-model-lab-freeze-v1
-latest_local_commit = f024283 fix: preserve browser proof answer evidence truth
-next_work = BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V2
+latest_pushed_commit = f49431e docs: update browser proof gate snapshot
+latest_live_gate = VALID_PROOF_INFRASTRUCTURE_FAIL_BROWSER_QUALITY_MEASURED
+next_work = fix first reproduced proof-index/receipt ownership defect before Browser Cortex sensor fusion
 doctrine = model thinks, Sentinel executes, receipts always, hard stop only real damage
 ```
 
@@ -60,24 +61,27 @@ answer-seeking missions must finish with either a model-authored
 `final_answer` or an `honest_blocker`.
 
 This is a local proof/transport fix, not a new browser-intelligence claim. The
-next honest gate is one frozen non-holdout V2 proof batch to measure whether
-the live real-provider + real-Cloak path now preserves readable receipts,
-claim-to-evidence cards, structured evaluator verdicts, cleanup, and replay
-without presenting technical loop closure as answer quality.
+frozen non-holdout V2 proof batch has now been measured with real provider +
+real Cloak across 6 missions on 3 public non-holdout sites. It proved safe
+Cloak provenance, Cloak preflight, readable proof indexes, replay no-react
+6/6, and cleanup 6/6. It did not pass the proof infrastructure gate because
+4 material browser receipts were missing on MDN/PyPI missions, and it did not
+pass browser quality because technical/useful completion was 0/6.
 
 The active experimental branch contains the Monster Runtime product-spine
 program: simple model-facing skills, ProductActionKernel dispatch, mission
 workspace body, bounded channel send, code/workspace skills, worker
 orchestration, signed artifact verifier work, Browser Cortex cutover truth,
 graph-backed browser actuation, and now graph-backed browser memory/recovery.
-The next browser step is the exact frozen V2 non-holdout proof batch, not a new
-runtime feature and not frozen-holdout consumption. Browser Organ completion is
-not declared from this local fix; the proof tiers remain explicit:
+The next browser step is not canonical sensor fusion yet. The first reproduced
+proof-index/receipt ownership defect from the V2 batch must be fixed before a
+new frozen V2 proof batch is run. Browser Organ completion is not declared from
+this local fix; the proof tiers remain explicit:
 
 ```text
 T1_LOCAL_DETERMINISTIC_CANDIDATE = current fix proven
 T2_LIVE_BODY_PROVEN = requires live Cloak gate
-T3_REAL_MODEL_PRODUCT_PROVEN = requires real provider + real Cloak V2 batch
+T3_REAL_MODEL_PRODUCT_PROVEN = V2 measured failure for proof infra and browser quality
 T4_FROZEN_HOLDOUT_GENERALIZATION_PROVEN = locked, not consumed here
 ```
 
@@ -132,6 +136,8 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_CLOAK_SESSION_READIN
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_PRODUCT_BROWSER_NATIVE_MAPPER_TO_PRODUCT_SPINE_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V1_REPORT.md
 sentinel-control/docs/reviews/deep_power_audit/SENTINEL_FIX_WINDOWS_SAFE_ARTIFACT_PATH_AND_END_TO_END_BROWSER_ANSWER_PROOF_TRUTH_V1_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_BROWSER_RECEIPT_PERSISTENCE_AND_ANSWER_CLAIM_EVIDENCE_REAL_NON_HOLDOUT_PROOF_V2_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/BRP_ANSWER_PROOF_V2_SAFE_SUMMARY.json
 ```
 
 The current experimental read-only operator reports are:
