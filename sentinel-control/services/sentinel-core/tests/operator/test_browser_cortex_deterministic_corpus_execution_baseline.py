@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
+import subprocess
 from uuid import uuid4
 
 import pytest
 
 from sentinel.operator.browser_cortex_deterministic_runner import (
     BROWSER_CORTEX_DETERMINISTIC_RUNNER_VERSION,
+    BrowserCortexDeterministicDecisionClient,
     BrowserCortexDeterministicCaseResult,
     BrowserCortexDeterministicCorpusRunResult,
     run_browser_cortex_deterministic_baseline,
@@ -37,7 +39,7 @@ def test_deterministic_baseline_executes_all_24_cases_through_product_spine(
 
     assert result.corpus_version == "browser_cortex_quality_corpus_v1"
     assert result.manifest_hash == MANIFEST_HASH
-    assert result.runtime_commit == BASELINE_COMMIT
+    assert result.runtime_commit == _expected_runtime_commit()
     assert result.runner_version == BROWSER_CORTEX_DETERMINISTIC_RUNNER_VERSION
     assert result.executed_case_count == 24
     assert result.not_run_case_count == 0
@@ -71,7 +73,58 @@ def test_manifest_labels_and_fixture_hashes_are_separate_and_stable(
     assert result.fixture_bundle_hash
     assert result.expected_labels_hash != result.fixture_bundle_hash
     assert result.baseline_commit == BASELINE_COMMIT
-    assert result.runtime_commit == BASELINE_COMMIT
+    assert result.runtime_commit == _expected_runtime_commit()
+
+
+def test_deterministic_finish_uses_terminal_answer_or_blocker_contract() -> None:
+    manifest = build_browser_cortex_quality_corpus(baseline_commit=BASELINE_COMMIT)
+    positive_case = next(case for case in manifest.deterministic_cases if case.expected_result_region)
+    positive_client = BrowserCortexDeterministicDecisionClient(positive_case, baseline_commit=BASELINE_COMMIT)
+
+    positive_client.complete({})
+    positive_finish = positive_client.complete(
+        {
+            "completion_requirements": {
+                "has_real_browser_verified_extraction_receipt": True,
+                "has_grounded_evidence_summary": True,
+            },
+            "grounded_evidence_summary": {
+                "summary_text": "Evidence supports the deterministic browser case.",
+                "source": "test",
+            },
+        }
+    )
+
+    assert positive_finish.capability_id == "sentinel_loop"
+    assert positive_finish.operation == "finish"
+    assert "final_answer" in positive_finish.params
+    assert positive_finish.params["final_answer"]["answer_text"]
+    assert "safe_summary" not in positive_finish.params
+
+    negative_case = next(case for case in manifest.deterministic_cases if not case.expected_result_region)
+    negative_client = BrowserCortexDeterministicDecisionClient(negative_case, baseline_commit=BASELINE_COMMIT)
+
+    negative_client.complete({})
+    negative_finish = negative_client.complete(
+        {
+            "completion_requirements": {
+                "has_confirmed_no_results_search_receipt": True,
+                "has_grounded_evidence_summary": True,
+            },
+            "browser_search_materiality": {
+                "typed_search_outcome": {
+                    "outcome_kind": "NO_RESULTS_CONFIRMED",
+                    "evidence_refs": ["evidence:negative-search"],
+                }
+            },
+        }
+    )
+
+    assert negative_finish.capability_id == "sentinel_loop"
+    assert negative_finish.operation == "finish"
+    assert "honest_blocker" in negative_finish.params
+    assert negative_finish.params["honest_blocker"]["reason"]
+    assert "safe_summary" not in negative_finish.params
 
 
 def test_fill_only_false_success_trap_executes_without_material_success(
@@ -132,3 +185,17 @@ def test_missing_case_counts_as_not_run_instead_of_passed() -> None:
     assert result.metrics["executed_case_coverage"] == 0.5
     assert result.case_by_id("det_fill_only_false_success").status == "NOT_RUN"
     assert result.case_by_id("det_fill_only_false_success").pass_fail == "FAIL"
+
+
+def _expected_runtime_commit() -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except Exception:  # noqa: BLE001
+        return "unknown"
+    return completed.stdout.strip() or "unknown"

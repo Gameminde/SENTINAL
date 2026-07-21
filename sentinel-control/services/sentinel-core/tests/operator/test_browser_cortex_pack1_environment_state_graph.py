@@ -34,6 +34,28 @@ def test_environment_state_graph_fuses_world_model_refs_and_product_cards() -> N
     assert "extract" in state.recommended_model_skills
     assert state.raw_material_persisted is False
     assert state.can_execute is False
+    tabs = state.state_fields["tabs_and_frames"]["value"]
+    assert tabs["known_active_page_count"] == 1
+    assert tabs["tab_count"] == "unknown"
+    assert tabs["frame_count"] == "unknown"
+    structured = state.state_fields["structured_data"]["value"]
+    assert structured["available"] is False
+    assert structured["visible_candidate_cards_available"] is True
+    assert structured["structured_data_source"] == "not_observed"
+
+
+def test_environment_state_backend_truth_requires_full_cloak_match() -> None:
+    state = BrowserEnvironmentStateBuilder().build(
+        snapshot=_snapshot(),
+        mission_objective="Research public docs.",
+        origin_hash=stable_hash("https://bounded.example/docs"),
+        selected_backend_id="playwright_real_browser_engine",
+        actual_backend_id="cloak_browser",
+        session_backend_kind="cloakbrowser",
+    )
+
+    assert state.backend_truth.backend_mismatch is True
+    assert state.backend_truth.product_backend_proven is False
 
 
 def test_environment_state_graph_summarizes_network_console_cookie_storage_without_values() -> None:

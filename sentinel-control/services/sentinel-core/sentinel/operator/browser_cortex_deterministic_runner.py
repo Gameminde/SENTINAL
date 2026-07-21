@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import hashlib
 from pathlib import Path
+import subprocess
 from typing import Any
 
 from pydantic import Field, model_validator
@@ -151,7 +152,7 @@ class BrowserCortexDeterministicDecisionClient:
             return ActionEnvelope(
                 capability_id="sentinel_loop",
                 operation="finish",
-                params={"safe_summary": f"Finished confirmed negative search case {self.case.task_id}."},
+                params=_negative_terminal_blocker_params(self.case, context),
                 idempotency_key=f"browser_cortex:{self.case.task_id}:negative_finish",
             )
         if (
@@ -186,7 +187,7 @@ class BrowserCortexDeterministicDecisionClient:
             return ActionEnvelope(
                 capability_id="sentinel_loop",
                 operation="finish",
-                params={"safe_summary": f"Finished deterministic baseline case {self.case.task_id}."},
+                params=_grounded_final_answer_params(self.case, context),
                 idempotency_key=f"browser_cortex:{self.case.task_id}:finish",
             )
         raise ActionKernelError("browser_cortex_deterministic_decision_budget_exhausted")
@@ -223,7 +224,7 @@ def run_browser_cortex_deterministic_baseline(
         corpus_version=manifest.corpus_version,
         manifest_hash=manifest.manifest_hash,
         baseline_commit=baseline_commit,
-        runtime_commit=baseline_commit,
+        runtime_commit=_current_runtime_commit(),
         runner_version=BROWSER_CORTEX_DETERMINISTIC_RUNNER_VERSION,
         expected_labels_hash=expected_labels_hash,
         fixture_bundle_hash=fixture_bundle_hash,
@@ -379,6 +380,98 @@ def _first_receipt(receipts: list[dict[str, Any]], action_kind: str) -> dict[str
         if receipt.get("action_kind") == action_kind:
             return receipt
     return {}
+
+
+def _grounded_final_answer_params(case: BrowserCortexCorpusCase, context: dict[str, Any]) -> dict[str, Any]:
+    summary = context.get("grounded_evidence_summary") if isinstance(context, dict) else {}
+    summary = summary if isinstance(summary, dict) else {}
+    answer_text = str(summary.get("summary_text") or f"Deterministic browser evidence completed for {case.task_id}.")
+    evidence_id = f"evidence:{case.task_id}:grounded-summary"
+    return {
+        "final_answer": {
+            "answer_text": answer_text,
+            "answer_kind": "grounded_browser_deterministic_answer",
+        },
+        "answer_claims": [
+            {
+                "claim_id": f"claim:{case.task_id}:summary",
+                "claim_type": "factual",
+                "text": answer_text,
+                "evidence_refs": [evidence_id],
+                "confidence": 0.82,
+            }
+        ],
+        "public_evidence": [
+            {
+                "evidence_id": evidence_id,
+                "source_title": f"Browser Cortex deterministic evidence {case.task_id}",
+                "source_origin": "https://bounded.example",
+                "excerpt": answer_text,
+                "supports_claim": True,
+            }
+        ],
+    }
+
+
+def _negative_terminal_blocker_params(case: BrowserCortexCorpusCase, context: dict[str, Any]) -> dict[str, Any]:
+    evidence_refs = _search_outcome_evidence_refs(context)
+    if not evidence_refs:
+        evidence_refs = [f"evidence:{case.task_id}:negative-search"]
+    reason = (
+        "The deterministic browser search produced material no-results evidence; "
+        "no result/entity evidence is available to answer positively."
+    )
+    return {
+        "honest_blocker": {
+            "reason": reason,
+            "available_evidence_refs": evidence_refs,
+            "missing_evidence": ["matching result region", "grounded entity card"],
+        },
+        "answer_claims": [
+            {
+                "claim_id": f"claim:{case.task_id}:no-results",
+                "claim_type": "declared_unknown",
+                "text": reason,
+                "evidence_refs": evidence_refs,
+                "confidence": 0.8,
+            }
+        ],
+        "public_evidence": [
+            {
+                "evidence_id": evidence_refs[0],
+                "source_title": f"Browser Cortex deterministic no-results evidence {case.task_id}",
+                "source_origin": "https://bounded.example",
+                "excerpt": reason,
+                "supports_claim": True,
+            }
+        ],
+    }
+
+
+def _search_outcome_evidence_refs(context: dict[str, Any]) -> list[str]:
+    materiality = context.get("browser_search_materiality") if isinstance(context, dict) else {}
+    outcome = materiality.get("typed_search_outcome") if isinstance(materiality, dict) else {}
+    refs = outcome.get("evidence_refs") if isinstance(outcome, dict) else ()
+    if isinstance(refs, str):
+        return [refs]
+    if isinstance(refs, list | tuple):
+        return [str(ref) for ref in refs if str(ref)]
+    return []
+
+
+def _current_runtime_commit() -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except Exception:  # noqa: BLE001
+        return "unknown"
+    commit = completed.stdout.strip()
+    return commit if commit else "unknown"
 
 
 def _semantic_entities(case: BrowserCortexCorpusCase, cards: dict[str, Any]) -> list[dict[str, Any]]:

@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import Field
 
-from sentinel.agent.model_execution.redaction import text_hash
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.action_kernel import ActionEnvelope
 from sentinel.shared.models import SentinelModel
 
@@ -118,7 +118,14 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
                 },
             )
         action_name = _completion_lane_override(action_name, params=params, normalized=normalized, context=context)
-        return _mapped(action_name, params=params, target_ref=target_ref, intent_kind="canonical_action", diagnostics=diagnostics)
+        return _mapped(
+            action_name,
+            params=params,
+            target_ref=target_ref,
+            intent_kind="canonical_action",
+            diagnostics=diagnostics,
+            context=context,
+        )
 
     if _is_empty_provider_visible_content_before_material_action(model_output, visible_text=visible_text, source=source, context=context):
         return _recoverable_empty_provider_content_mapping(diagnostics)
@@ -130,7 +137,10 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
         if _finish_is_available(context):
             return _mapped(
                 "sentinel_loop.finish",
-                params={"safe_summary": "Browser task evidence verified and relevance assessed; model requested finish."},
+                params=_terminal_finish_params(
+                    context,
+                    fallback_summary="Browser task evidence verified and relevance assessed; model requested finish.",
+                ),
                 intent_kind="finish",
                 diagnostics=diagnostics,
             )
@@ -141,7 +151,10 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
         ):
             return _mapped(
                 "sentinel_loop.finish",
-                params={"safe_summary": "Browser task evidence verified; finish with grounded caveats."},
+                params=_terminal_finish_params(
+                    context,
+                    fallback_summary="Browser task evidence verified; finish with grounded caveats.",
+                ),
                 intent_kind="finish_after_grounded_relevance_assessment",
                 diagnostics=diagnostics,
             )
@@ -166,7 +179,10 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
     if _has_verified_browser_extraction(context) and _mentions_completion_without_finish(normalized):
         return _mapped(
             "sentinel_loop.finish",
-            params={"safe_summary": "Browser task evidence verified; model requested completion."},
+            params=_terminal_finish_params(
+                context,
+                fallback_summary="Browser task evidence verified; model requested completion.",
+            ),
             intent_kind="completion_after_verified_extraction",
             diagnostics=diagnostics,
         )
@@ -259,8 +275,12 @@ def _mapped(
     target_ref: str | None = None,
     intent_kind: str,
     diagnostics: dict[str, Any],
+    context: dict[str, Any] | None = None,
 ) -> BrowserModelNativeIntentMapping:
-    envelope = _envelope_from_action_name(canonical_action_name, params=params or {}, target_ref=target_ref)
+    mapped_params = dict(params or {})
+    if canonical_action_name == "sentinel_loop.finish" and context is not None:
+        mapped_params = _terminal_finish_params(context, fallback_summary=str(mapped_params.get("safe_summary") or ""))
+    envelope = _envelope_from_action_name(canonical_action_name, params=mapped_params, target_ref=target_ref)
     return BrowserModelNativeIntentMapping(
         envelope=envelope,
         intent_kind=intent_kind,
@@ -334,6 +354,70 @@ def _envelope_from_action_name(
         target_ref=target_ref,
         params=params,
     )
+
+
+def _terminal_finish_params(context: dict[str, Any], *, fallback_summary: str) -> dict[str, Any]:
+    summary = _grounded_summary_payload(context)
+    summary_text = str(summary.get("summary_text") or fallback_summary or "Browser evidence was summarized with grounded caveats.").strip()
+    evidence_refs = _public_evidence_refs(context)
+    if not evidence_refs:
+        evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
+    if summary.get("negative_result_confirmed") is True:
+        return {
+            "honest_blocker": {
+                "reason": summary_text,
+                "available_evidence_refs": evidence_refs,
+                "missing_evidence": ["objective-satisfying result evidence"],
+            },
+            "answer_claims": [
+                {
+                    "claim_id": f"claim:{stable_hash({'negative': summary_text})}",
+                    "claim_type": "declared_unknown",
+                    "text": summary_text,
+                    "evidence_refs": evidence_refs,
+                    "confidence": 0.74,
+                }
+            ],
+        }
+    claim_type = "factual" if _has_public_evidence_summary(context) else "model_inference"
+    return {
+        "final_answer": {
+            "answer_text": summary_text,
+            "answer_kind": "grounded_browser_answer",
+        },
+        "answer_claims": [
+            {
+                "claim_id": f"claim:{stable_hash({'answer': summary_text})}",
+                "claim_type": claim_type,
+                "text": summary_text,
+                "evidence_refs": evidence_refs if claim_type == "factual" else [],
+                "confidence": 0.72 if claim_type == "factual" else 0.45,
+            }
+        ],
+    }
+
+
+def _grounded_summary_payload(context: dict[str, Any]) -> dict[str, Any]:
+    summary = context.get("grounded_evidence_summary")
+    if isinstance(summary, dict):
+        if summary.get("present") is True:
+            return {key: value for key, value in summary.items() if key != "present"}
+        if summary.get("summary_text"):
+            return summary
+    return {}
+
+
+def _public_evidence_refs(context: dict[str, Any]) -> list[str]:
+    proof_summary = context.get("browser_proof_index_summary")
+    refs = proof_summary.get("public_evidence_ids") if isinstance(proof_summary, dict) else ()
+    if isinstance(refs, list | tuple):
+        return [str(ref) for ref in refs[:8] if str(ref)]
+    return []
+
+
+def _has_public_evidence_summary(context: dict[str, Any]) -> bool:
+    proof_summary = context.get("browser_proof_index_summary")
+    return bool(isinstance(proof_summary, dict) and int(proof_summary.get("public_evidence_count") or 0) > 0)
 
 
 def _coerce_to_model_visible_action(action_name: str) -> str:

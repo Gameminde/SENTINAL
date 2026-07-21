@@ -290,6 +290,48 @@ def test_typed_loop_context_blocks_trusted_key_override() -> None:
         )
 
 
+def test_terminal_answer_semantic_text_does_not_topic_police_ordinary_capabilities() -> None:
+    envelope = ActionEnvelope(
+        capability_id="sentinel_loop",
+        operation="finish",
+        params={
+            "final_answer": {
+                "answer_text": (
+                    "The public documentation discusses login, download, upload, password managers, "
+                    "and payment APIs as topics only; no account, file transfer, credential use, or spend occurred."
+                )
+            },
+            "answer_claims": [
+                {
+                    "claim_type": "model_inference",
+                    "text": "This is a semantic answer, not a structured effect request.",
+                    "evidence_refs": [],
+                }
+            ],
+        },
+    )
+
+    assert envelope.operation == "finish"
+
+
+def test_terminal_answer_semantic_payload_still_blocks_actual_secret_value() -> None:
+    with pytest.raises(ValueError):
+        ActionEnvelope(
+            capability_id="sentinel_loop",
+            operation="finish",
+            params={"final_answer": {"answer_text": "Do not expose sk-1234567890abcdef1234567890abcdef"}},
+        )
+
+
+def test_terminal_answer_semantic_payload_blocks_trusted_control_key_override() -> None:
+    with pytest.raises(ValueError):
+        ActionEnvelope(
+            capability_id="sentinel_loop",
+            operation="finish",
+            params={"final_answer": {"answer_text": "done"}, "authority": {"allowed_actions": ["payment"]}},
+        )
+
+
 def _decision_from_model(output: Any) -> ActionEnvelope:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(output),

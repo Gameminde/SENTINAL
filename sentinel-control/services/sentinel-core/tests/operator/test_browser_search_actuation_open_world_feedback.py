@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from sentinel.operator import runtime_host as runtime_host_module
@@ -155,6 +156,27 @@ def test_recoverable_search_failure_exposes_model_visible_body_failure_packet(
         "objective_satisfied",
         "confidence",
     }
+    receipt_dir = host.kernel.store.mission_dir(result.mission_ids[0]) / "real_browser_control" / "receipts"
+    receipts = [json.loads(path.read_text(encoding="utf-8")) for path in receipt_dir.glob("*.json")]
+    failure_receipts = [receipt for receipt in receipts if receipt.get("action_kind") == "real_browser.search"]
+
+    assert failure_receipts
+    assert failure_receipts[0]["status"] == "recoverable_failed"
+    assert failure_receipts[0]["selected_backend_id"] == "cloak_browser"
+    assert failure_receipts[0]["actual_backend_id"] == "cloak_browser"
+    assert failure_receipts[0]["search_materiality"]["typed_search_outcome"]["outcome_kind"] == "FAILED_RECOVERABLE"
+    proof_index_path = host.kernel.store.run_root / "_browser_proof_index" / f"{result.loop_id}.json"
+    proof_index = json.loads(proof_index_path.read_text(encoding="utf-8"))
+    search_entries = [
+        entry
+        for entry in proof_index["material_browser_receipts"]
+        if entry["operation"] == "real_browser.search"
+    ]
+
+    assert search_entries
+    assert search_entries[0]["browser_receipt_readable"] is True
+    assert search_entries[0]["action_status"] == "recoverable_failed"
+    assert search_entries[0]["backend_mismatch"] is False
 
 
 def test_python_documentation_links_are_open_world_entities_not_product_candidates() -> None:

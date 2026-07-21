@@ -143,7 +143,11 @@ class BrowserEnvironmentStateBuilder:
             session_backend_kind=session_backend_kind,
             backend_mismatch=selected_backend_id != actual_backend_id,
             compatibility_only=actual_backend_id == "playwright_real_browser_engine",
-            product_backend_proven=actual_backend_id == "cloak_browser",
+            product_backend_proven=(
+                selected_backend_id == "cloak_browser"
+                and actual_backend_id == "cloak_browser"
+                and session_backend_kind in {"cloakbrowser", "cloak_browser"}
+            ),
         )
         page_state = BrowserPageStateGraph(
             page_state_hash=snapshot.state_hash,
@@ -317,11 +321,16 @@ def _browser_cognitive_state_fields(
             uncertainty_reason="URL path is not exposed; state hash and origin are used instead",
         ),
         "tabs_and_frames": _state_field(
-            {"tab_count": 1, "frame_count": 1, "active_tab_known": True},
+            {
+                "active_page_known": True,
+                "tab_count": "unknown",
+                "frame_count": "unknown",
+                "known_active_page_count": 1,
+            },
             confidence=0.58,
             evidence_refs=page_evidence,
             source=source,
-            uncertainty_reason="first runtime version exposes active bounded page only",
+            uncertainty_reason="first runtime version exposes one active bounded page; full tab/frame census is not yet fused",
         ),
         "page_lifecycle": _state_field(
             {"lifecycle": _lifecycle_guess(blocker_graph), "dynamic_loading_signals": list(blocker_graph.dynamic_loading_signals)},
@@ -387,11 +396,16 @@ def _browser_cognitive_state_fields(
             uncertainty_reason="console metadata is optional and text is hash-only",
         ),
         "structured_data": _state_field(
-            {"available": bool(extraction_graph.cards), "candidate_card_count": extraction_graph.product_or_result_candidate_count},
-            confidence=0.55 if extraction_graph.cards else 0.2,
+            {
+                "available": False,
+                "candidate_card_count": extraction_graph.product_or_result_candidate_count,
+                "visible_candidate_cards_available": bool(extraction_graph.cards),
+                "structured_data_source": "not_observed",
+            },
+            confidence=0.2,
             evidence_refs=card_evidence,
             source=source,
-            uncertainty_reason="JSON-LD and microdata are not yet separately harvested in this first runtime version",
+            uncertainty_reason="candidate cards are visible-evidence extractions; JSON-LD and microdata are not yet separately harvested",
         ),
         "storage_session_metadata": _state_field(
             {"cookies": list(session_graph.cookies), "storage_keys": list(session_graph.storage_keys)},

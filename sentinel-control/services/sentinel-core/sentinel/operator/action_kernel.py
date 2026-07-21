@@ -10,7 +10,10 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_failure_policy import classify_action_execution_failure
 from sentinel.operator.action_power_contract import ActionAliasNormalizer, ActionFailureClass
 from sentinel.operator.action_power_contract import recoverable_action_observation
-from sentinel.operator.browser_search_parameter_boundary import typed_browser_search_scan_payload
+from sentinel.operator.browser_search_parameter_boundary import (
+    typed_browser_search_scan_payload,
+    typed_terminal_semantic_scan_payload,
+)
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel, new_id
 
@@ -275,6 +278,8 @@ def _reject_forbidden_material(value: Any, *, context: str) -> None:
 
 def _params_for_forbidden_material_scan(capability_id: str, operation: str, params: dict[str, Any]) -> dict[str, Any]:
     if capability_id != "real_browser_control" or operation != "real_browser.search":
+        if capability_id == "sentinel_loop" and operation in {"finish", "summarize_evidence"}:
+            return typed_terminal_semantic_scan_payload(params, context="action_envelope_params")
         return params
     return typed_browser_search_scan_payload(params, context="action_envelope_params")
 

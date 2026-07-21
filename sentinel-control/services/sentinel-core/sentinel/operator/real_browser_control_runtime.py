@@ -1710,11 +1710,44 @@ class RealBrowserControlRuntime:
             recommended_next_actions=recommended,
             refreshed_candidate_refs=executable_refs,
         )
+        resolved_summary = safe_summary or (
+            "Browser ref was not executable in the current bounded page state; "
+            "refreshed candidates are available for the next model turn."
+        )
+        context_cards = dict(context_cards)
+        context_cards["runtime_failure_fact"] = _runtime_failure_fact(
+            envelope=envelope,
+            failure_code=failure_code,
+            safe_summary=resolved_summary,
+            browser_state_hash=browser_state_hash,
+            context_cards=context_cards,
+        )
+        context_cards["model_visible_body_failure_packet"] = _model_visible_body_failure_packet(
+            envelope=envelope,
+            failure_code=failure_code,
+            safe_summary=resolved_summary,
+            browser_state_hash=browser_state_hash,
+            context_cards=context_cards,
+            product_context=self.product_context,
+            child_browser_session_ref=self.session_ref,
+        )
+        context_cards["model_blocker_assessment_schema"] = _model_blocker_assessment_schema()
+        receipt, certificate = self._record_recoverable_failure_artifacts(
+            envelope,
+            action_kind=envelope.operation,
+            element_ref=raw_ref,
+            browser_state_hash=browser_state_hash,
+            failure_code=failure_code,
+            safe_summary=resolved_summary,
+            context_cards=context_cards,
+        )
         return ActionResult(
             action_id=envelope.action_id,
             capability_id=envelope.capability_id,
             operation=envelope.operation,
             status="recoverable_failed",
+            receipt_refs=(receipt.receipt_id,),
+            finalgate_refs=(certificate.certificate_id,),
             material_action=False,
             blocked_reason=failure_code,
             failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
@@ -1869,11 +1902,22 @@ class RealBrowserControlRuntime:
             child_browser_session_ref=self.session_ref,
         )
         context_cards["model_blocker_assessment_schema"] = _model_blocker_assessment_schema()
+        receipt, certificate = self._record_recoverable_failure_artifacts(
+            envelope,
+            action_kind=envelope.operation,
+            element_ref=str(envelope.target_ref or envelope.params.get("ref") or envelope.operation),
+            browser_state_hash=browser_state_hash,
+            failure_code=failure_code,
+            safe_summary=safe_summary,
+            context_cards=context_cards,
+        )
         return ActionResult(
             action_id=envelope.action_id,
             capability_id=envelope.capability_id,
             operation=envelope.operation,
             status="recoverable_failed",
+            receipt_refs=(receipt.receipt_id,),
+            finalgate_refs=(certificate.certificate_id,),
             material_action=False,
             blocked_reason=failure_code,
             failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
@@ -1884,6 +1928,90 @@ class RealBrowserControlRuntime:
             observation_summary=f"recoverable browser actuation miss code={failure_code} state_hash={browser_state_hash}.",
             context_cards=context_cards,
         )
+
+    def _record_recoverable_failure_artifacts(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        action_kind: str,
+        element_ref: str,
+        browser_state_hash: str,
+        failure_code: str,
+        safe_summary: str,
+        context_cards: dict[str, Any],
+    ) -> tuple[RealBrowserActionReceipt, RealBrowserFinalCertificate]:
+        product_context = dict(self.product_context)
+        workspace_context = _browser_product_workspace_context(product_context)
+        root_identity = _browser_root_identity_context(product_context, engine=self.engine, after_state_hash=browser_state_hash)
+        internal_action_id = f"{envelope.capability_id}.{envelope.operation}"
+        search_materiality = _failure_search_materiality(
+            envelope=envelope,
+            failure_code=failure_code,
+            context_cards=context_cards,
+        )
+        receipt = RealBrowserActionReceipt(
+            mission_id=self.mission_id,
+            browser_session_ref=self.session_ref,
+            browser_session_handle_ref=workspace_context["browser_session_handle_ref"],
+            browser_session_handle_hash=workspace_context["browser_session_handle_hash"],
+            child_workspace_handle_hash=workspace_context["child_workspace_handle_hash"],
+            mission_workspace_ref=workspace_context["mission_workspace_ref"],
+            mission_workspace_hash=workspace_context["mission_workspace_hash"],
+            root_browser_lease_id_hash=root_identity["root_browser_lease_id_hash"],
+            browser_engine_identity_hash=root_identity["browser_engine_identity_hash"],
+            backend_context_identity_hash=root_identity["backend_context_identity_hash"],
+            page_identity_hash=root_identity["page_identity_hash"],
+            bounded_url_ref=self.bounded_url_ref,
+            safe_url_origin_hash=self.engine.safe_url_origin_hash,
+            selected_backend_id=self.selected_backend_id,
+            actual_backend_id=self.actual_backend_id,
+            session_backend_kind=_engine_session_backend_kind(self.engine),
+            backend_mismatch=self.selected_backend_id != self.actual_backend_id,
+            simple_skill=model_skill_for_action(internal_action_id) or "",
+            internal_action_id=internal_action_id,
+            product_dispatch_owner=str(product_context.get("adapter_id") or ""),
+            stable_element_ref=element_ref,
+            action_kind=action_kind,
+            status="recoverable_failed",
+            recovery_classification="recoverable",
+            replay_behavior="no_reexecute_on_replay",
+            before_state_hash=browser_state_hash,
+            after_state_hash=browser_state_hash,
+            browser_environment_state_hash=str(context_cards.get("browser_environment_state_hash") or browser_state_hash),
+            search_materiality=search_materiality,
+            bounded_observation_summary_hash=stable_hash(
+                {
+                    "safe_url_origin_hash": self.engine.safe_url_origin_hash,
+                    "browser_state_hash": browser_state_hash,
+                    "action_kind": action_kind,
+                    "failure_code": failure_code,
+                    "safe_summary_hash": text_hash(safe_summary),
+                    "runtime_failure_fact_hash": stable_hash(context_cards.get("runtime_failure_fact") or {}),
+                }
+            ),
+        )
+        certificate = RealBrowserFinalCertificate(
+            mission_id=self.mission_id,
+            status="blocked",
+            accepted=False,
+            reason=f"{action_kind}_recoverable_failed",
+            receipt_refs=(receipt.receipt_id,),
+        )
+        self._write_artifact("receipts", receipt.receipt_id, receipt.safe_model_dump())
+        self._write_artifact("finalgate", certificate.certificate_id, certificate.safe_model_dump())
+        self._append_event(
+            "real_browser_action_recoverable_failed",
+            "Bounded real browser action produced a recoverable failure receipt.",
+            metadata={
+                "action_kind": action_kind,
+                "failure_code": failure_code,
+                "browser_state_hash": browser_state_hash,
+                "result_hash": receipt.result_hash,
+            },
+            receipt_refs=[receipt.receipt_id],
+            finalgate_refs=[certificate.certificate_id],
+        )
+        return receipt, certificate
 
     def _require_authorized(self, authority: MissionAuthorityEnvelope, action_name: str) -> None:
         if authority.revoked_at is not None:
@@ -3263,6 +3391,48 @@ def _search_submit_failure_code(reason: str) -> str:
 def _submit_failure_may_have_materialized(failure_code: str) -> bool:
     return failure_code in {
         "browser_session_post_action_snapshot_failed",
+    }
+
+
+def _failure_search_materiality(
+    *,
+    envelope: ActionEnvelope,
+    failure_code: str,
+    context_cards: dict[str, Any],
+) -> dict[str, Any]:
+    if envelope.operation != "real_browser.search":
+        return {}
+    trace = context_cards.get("search_actuation_trace")
+    trace = dict(trace) if isinstance(trace, dict) else {}
+    input_written = bool(trace.get("write_succeeded"))
+    submission_attempted = bool(trace.get("submit_attempted"))
+    evidence_ref = f"browser_search_failure:{text_hash(failure_code)}"
+    return {
+        "input_written": input_written,
+        "submission_attempted": submission_attempted,
+        "request_observed": False,
+        "navigation_or_state_changed": False,
+        "result_region_changed": False,
+        "query_reflected": False,
+        "search_materially_successful": False,
+        "typed_search_outcome": {
+            "outcome_kind": "FAILED_RECOVERABLE",
+            "search_materially_successful": False,
+            "failure_code": failure_code,
+            "evidence_refs": [evidence_ref],
+            "data_not_authority": True,
+            "can_execute": False,
+        },
+        "search_progress": {
+            "states": ["FAILED"],
+            "current_state": "FAILED",
+            "search_materially_successful": False,
+            "evidence_refs": [evidence_ref],
+            "uncertainty_reason": "recoverable browser search failure before material search progress",
+        },
+        "search_actuation_trace": trace,
+        "data_not_authority": True,
+        "can_execute": False,
     }
 
 

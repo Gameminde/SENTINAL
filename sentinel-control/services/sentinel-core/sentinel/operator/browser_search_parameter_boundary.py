@@ -66,6 +66,17 @@ _CONTROL_PLANE_PARAM_KEYS = frozenset(
 )
 
 _MODEL_SEARCH_ALLOWED_KEYS = frozenset({"model_extensions", "query"})
+_MODEL_TERMINAL_SEMANTIC_KEYS = frozenset(
+    {
+        "answer_claims",
+        "final_answer",
+        "honest_blocker",
+        "model_extensions",
+        "public_evidence",
+        "safe_summary",
+        "summary",
+    }
+)
 _MAX_MODEL_EXTENSION_DEPTH = 4
 _MAX_MODEL_EXTENSION_ITEMS = 32
 _MAX_MODEL_EXTENSION_STRING_LENGTH = 1200
@@ -217,10 +228,14 @@ def reject_execution_parameters_for_route(
         "loop_context" in parameters
         and (
             (capability_id == "real_browser_control" and operation in _TYPED_LOOP_CONTEXT_OPERATIONS)
-            or (capability_id == "sentinel_loop" and operation == "summarize_evidence")
+            or (capability_id == "sentinel_loop" and operation in {"summarize_evidence", "finish"})
         )
     ):
         scan_payload = typed_loop_context_scan_payload(parameters, context=context)
+        reject_operator_control_payload(scan_payload, context=context)
+        return
+    if capability_id == "sentinel_loop" and operation in {"summarize_evidence", "finish"}:
+        scan_payload = typed_terminal_semantic_scan_payload(parameters, context=context)
         reject_operator_control_payload(scan_payload, context=context)
         return
     reject_operator_control_payload(parameters, context=context)
@@ -270,6 +285,25 @@ def typed_loop_context_scan_payload(parameters: dict[str, Any], *, context: str)
     return scan_payload
 
 
+def typed_terminal_semantic_scan_payload(parameters: dict[str, Any], *, context: str) -> dict[str, Any]:
+    """Return a control-scan-safe view for final answer and summary payloads.
+
+    Final answers, honest blockers, claims, and public evidence are semantic
+    mission data. Topic words inside them are not authority requests. This
+    validator rejects trusted/control-plane keys and actual secret values, then
+    masks the semantic payload before legacy lexical scanners run.
+    """
+
+    if not isinstance(parameters, dict):
+        raise ValueError(f"{context}: terminal semantic parameters must be an object")
+    _validate_terminal_semantic_payload(parameters, path="$.params", depth=0)
+    scan_payload = dict(parameters)
+    for key in list(scan_payload):
+        if str(key) in _MODEL_TERMINAL_SEMANTIC_KEYS or str(key) not in _CONTROL_PLANE_PARAM_KEYS:
+            scan_payload[key] = "<typed_terminal_semantic_data>"
+    return scan_payload
+
+
 def reject_typed_browser_search_semantic_text(value: str, *, path: str = "$.params.query") -> None:
     """Reject real secret values in search semantic data without topic policing."""
 
@@ -307,6 +341,37 @@ def _validate_typed_loop_context(value: Any, *, path: str, depth: int, root: boo
     if value is None or isinstance(value, bool | int | float):
         return
     raise BrowserSearchParameterBoundaryError("TYPED_LOOP_CONTEXT_NOT_DATA")
+
+
+def _validate_terminal_semantic_payload(value: Any, *, path: str, depth: int) -> None:
+    if depth > _MAX_TYPED_LOOP_CONTEXT_DEPTH:
+        raise BrowserSearchParameterBoundaryError("TERMINAL_SEMANTIC_PAYLOAD_TOO_DEEP")
+    if isinstance(value, dict):
+        if len(value) > _MAX_TYPED_LOOP_CONTEXT_ITEMS:
+            raise BrowserSearchParameterBoundaryError("TERMINAL_SEMANTIC_PAYLOAD_TOO_MANY_ITEMS")
+        for key, item in value.items():
+            key_text = str(key)
+            normalized_key = _normalize_key(key)
+            child_path = f"{path}.{key_text}"
+            if normalized_key in _CONTROL_PLANE_PARAM_KEYS:
+                raise BrowserSearchParameterBoundaryError(f"TERMINAL_SEMANTIC_CONTROL_PLANE_KEY:{child_path}")
+            _validate_terminal_semantic_payload(item, path=child_path, depth=depth + 1)
+        return
+    if isinstance(value, list | tuple | set):
+        if len(value) > _MAX_TYPED_LOOP_CONTEXT_ITEMS:
+            raise BrowserSearchParameterBoundaryError("TERMINAL_SEMANTIC_PAYLOAD_TOO_MANY_ITEMS")
+        for index, item in enumerate(value):
+            _validate_terminal_semantic_payload(item, path=f"{path}[{index}]", depth=depth + 1)
+        return
+    if isinstance(value, str):
+        if len(value) > _MAX_TYPED_LOOP_CONTEXT_STRING_LENGTH:
+            raise BrowserSearchParameterBoundaryError("TERMINAL_SEMANTIC_STRING_TOO_LONG")
+        if scan_secret_like_text(value, path=path):
+            raise BrowserSearchParameterBoundaryError("TERMINAL_SEMANTIC_SECRET_LIKE")
+        return
+    if value is None or isinstance(value, bool | int | float):
+        return
+    raise BrowserSearchParameterBoundaryError("TERMINAL_SEMANTIC_PAYLOAD_NOT_DATA")
 
 
 def _validate_typed_loop_context_key(normalized_key: str, value: Any, *, path: str) -> None:
