@@ -1006,6 +1006,7 @@ class UnifiedExecutionDispatcher:
         if not result.receipt_refs:
             return DispatchProofVerificationResult(ok=False, failure_code="proof_receipt_missing")
         material_count = 0
+        observation_count = 0
         completion_lane_count = 0
         for receipt_ref in result.receipt_refs:
             receipt_payload = load_product_action_kernel_artifact(
@@ -1028,18 +1029,25 @@ class UnifiedExecutionDispatcher:
             if receipt.execution_status in {"completed", "success", "passed"} and receipt.material_action:
                 material_count += 1
             if (
+                receipt.capability_id == "real_browser_control"
+                and receipt.operation in {"real_browser.open", "real_browser.observe"}
+                and receipt.execution_status in {"completed", "success", "passed"}
+                and not receipt.material_action
+            ):
+                observation_count += 1
+            if (
                 receipt.capability_id == "sentinel_loop"
                 and receipt.operation == "summarize_evidence"
                 and receipt.execution_status in {"completed", "success", "passed"}
                 and not receipt.material_action
             ):
                 completion_lane_count += 1
-        if material_count < 1 and completion_lane_count < 1:
+        if material_count < 1 and observation_count < 1 and completion_lane_count < 1:
             return DispatchProofVerificationResult(ok=False, failure_code="proof_material_observation_missing")
         return DispatchProofVerificationResult(
             ok=True,
             receipt_refs=list(dict.fromkeys(result.receipt_refs)),
-            material_observation_receipt_count=material_count,
+            material_observation_receipt_count=material_count + observation_count,
         )
 
     def _load_and_verify_product_action_kernel_finalgate(

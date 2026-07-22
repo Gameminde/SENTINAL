@@ -14,6 +14,7 @@ from sentinel.operator.browser_completion_policy import (
     browser_summary_supports_terminal_answer,
     browser_summary_supports_terminal_blocker,
 )
+from sentinel.operator.browser_progress_guard import BrowserProgressRepetitionGuard
 from sentinel.operator.browser_proof_index import BrowserProofIndexBuilder, summary_from_index, write_browser_proof_index
 from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
@@ -150,6 +151,8 @@ class ModelLedProductActionKernelTaskLoop:
         self.allowed_capabilities = tuple(dict.fromkeys(allowed_capabilities or ()))
         self.model_calls_used = 0
         self.material_actions_used = 0
+        self.browser_progress_guard = BrowserProgressRepetitionGuard()
+        self.progress_guard_observations: list[dict[str, Any]] = []
         self.recoverable_decision_observations: list[dict[str, Any]] = []
         self.recoverable_action_observations: list[dict[str, Any]] = []
         self.capability_sequence: list[str] = []
@@ -215,6 +218,12 @@ class ModelLedProductActionKernelTaskLoop:
                     if self._recover_model_decision_failure(reason, context):
                         continue
                     return self._block("PRODUCT_SKILL_OUTSIDE_MISSION_SCOPE")
+                progress_guard_decision = self._apply_browser_progress_guard(decision, context)
+                if isinstance(progress_guard_decision, ProductActionKernelTaskLoopResult):
+                    return progress_guard_decision
+                if progress_guard_decision is None:
+                    continue
+                decision = progress_guard_decision
                 sequence_entry = f"{decision.capability_id}:{decision.operation}"
                 self.capability_sequence.append(sequence_entry)
                 self._record_evidence_transition(
@@ -248,6 +257,14 @@ class ModelLedProductActionKernelTaskLoop:
                 self.product_receipt_refs.extend(dispatch_result.receipt_refs)
                 self.product_finalgate_refs.extend(dispatch_result.finalgate_refs)
                 self._record_dispatch_evidence(dispatch_result)
+                if decision.capability_id == "real_browser_control":
+                    self.browser_progress_guard.record_attempt(
+                        decision=decision,
+                        pre_context=context,
+                        post_context=self._compile_context(),
+                        material_progress=_browser_dispatch_material_progress(dispatch_result),
+                        reported_state_or_evidence_delta=_browser_dispatch_state_or_evidence_delta(dispatch_result),
+                    )
                 if dispatch_result.status is not DispatchStatus.COMPLETED:
                     if self._recover_action_failure(dispatch_result, decision, context):
                         continue
@@ -334,6 +351,8 @@ class ModelLedProductActionKernelTaskLoop:
                 "runtime_failure_fact": safe_context_cards.get("runtime_failure_fact"),
                 "model_visible_body_failure_packet": safe_context_cards.get("model_visible_body_failure_packet"),
                 "model_blocker_assessment_schema": safe_context_cards.get("model_blocker_assessment_schema"),
+                "progress_guard_observations": [dict(item) for item in self.progress_guard_observations],
+                "browser_progress_guard": self.browser_progress_guard.safe_model_dump(),
                 "runtime_bridge": "RuntimeHost -> UnifiedExecutionDispatcher -> ProductActionKernelDispatchAdapter",
                 "action_envelope_language": "internal_runtime_only",
             },
@@ -363,6 +382,8 @@ class ModelLedProductActionKernelTaskLoop:
             "objective_satisfied": finish_available,
             "recoverable_decision_observations": [dict(item) for item in self.recoverable_decision_observations],
             "recoverable_action_observations": [dict(item) for item in self.recoverable_action_observations],
+            "progress_guard_observations": [dict(item) for item in self.progress_guard_observations],
+            "browser_progress_guard": self.browser_progress_guard.safe_model_dump(),
             "recoverable_model_decision_failure_count": len(self.recoverable_decision_observations),
             "recoverable_action_failure_count": len(self.recoverable_action_observations),
             "max_recoverable_model_decision_failures": self.max_recoverable_model_decision_failures,
@@ -551,6 +572,42 @@ class ModelLedProductActionKernelTaskLoop:
         )
         return True
 
+    def _apply_browser_progress_guard(
+        self,
+        decision: ActionEnvelope,
+        context: dict[str, Any],
+    ) -> ActionEnvelope | ProductActionKernelTaskLoopResult | None:
+        if decision.capability_id != "real_browser_control":
+            return decision
+        repeat = self.browser_progress_guard.evaluate_repetition(decision=decision, context=context)
+        if repeat is None:
+            return decision
+        observation = self.browser_progress_guard.register_suppression(repeat)
+        self.progress_guard_observations.append(observation)
+        self._record_evidence_transition("browser_progress_repetition_detected", observation)
+        suppression_count = int(observation.get("suppression_count") or 0)
+        if suppression_count <= 1:
+            return None
+        if (
+            suppression_count == 2
+            and "real_browser_control.real_browser.observe" in self._available_actions()
+        ):
+            return ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.observe",
+                params={
+                    "progress_guard_recovery": True,
+                    "repetition_signature_hash": observation.get("repetition_signature_hash"),
+                    **(
+                        {"engine_profile": decision.params.get("engine_profile")}
+                        if str(decision.params.get("engine_profile") or "").strip()
+                        else {}
+                    ),
+                },
+                idempotency_key=_recovery_key(self.loop_id, "browser_progress_guard_observe", self.model_calls_used),
+            )
+        return self._block("BROWSER_REPEATED_ACTION_WITHOUT_PROGRESS")
+
     def _available_actions(self) -> tuple[str, ...]:
         completion_requirements = _product_completion_requirements(
             self.dispatch_results,
@@ -594,6 +651,8 @@ class ModelLedProductActionKernelTaskLoop:
         actions.extend([
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
+            "real_browser_control.real_browser.observe",
+            "real_browser_control.real_browser.open",
             "real_browser_control.real_browser.search",
             "real_browser_control.real_browser.inspect_result",
             "real_browser_control.real_browser.open_result",
@@ -1750,6 +1809,43 @@ def _has_confirmed_no_results_search(safe_context_cards: dict[str, Any]) -> bool
 
 def _is_completion_lane_decision(decision: ActionEnvelope) -> bool:
     return decision.capability_id == "sentinel_loop" and decision.operation in {"summarize_evidence", "finish"}
+
+
+def _browser_dispatch_material_progress(dispatch_result: UnifiedDispatchResult) -> bool:
+    if dispatch_result.capability_id != "real_browser_control":
+        return False
+    if dispatch_result.status is not DispatchStatus.COMPLETED:
+        return False
+    context_cards = dispatch_result.safe_context_cards if isinstance(dispatch_result.safe_context_cards, dict) else {}
+    materiality = context_cards.get("browser_search_materiality")
+    if isinstance(materiality, dict):
+        typed_outcome = materiality.get("typed_search_outcome")
+        if isinstance(typed_outcome, dict) and typed_outcome.get("search_materially_successful") is True:
+            return True
+        if materiality.get("navigation_or_state_changed") is True or materiality.get("result_region_changed") is True:
+            return True
+    if dispatch_result.operation in {
+        "real_browser.extract_evidence",
+        "real_browser.extract_entities",
+        "real_browser.extract_product_cards",
+        "real_browser.verify_extraction",
+    }:
+        return bool(dispatch_result.receipt_refs)
+    return False
+
+
+def _browser_dispatch_state_or_evidence_delta(dispatch_result: UnifiedDispatchResult) -> bool | None:
+    if dispatch_result.capability_id != "real_browser_control":
+        return None
+    context_cards = dispatch_result.safe_context_cards if isinstance(dispatch_result.safe_context_cards, dict) else {}
+    materiality = context_cards.get("browser_search_materiality")
+    if isinstance(materiality, dict):
+        return bool(
+            materiality.get("request_observed") is True
+            or materiality.get("navigation_or_state_changed") is True
+            or materiality.get("result_region_changed") is True
+        )
+    return None
 
 
 def _completion_lane_context(loop_context: dict[str, Any]) -> dict[str, Any]:

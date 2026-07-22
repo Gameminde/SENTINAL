@@ -291,6 +291,8 @@ def build_default_runtime_connection_registry() -> RuntimeConnectionRegistry:
                         owner_symbol="RealBrowserControlRuntime",
                         adapter_id="product_action_kernel_adapter",
                         supported_operations=(
+                            "real_browser.observe",
+                            "real_browser.open",
                             "real_browser.search",
                             "real_browser.inspect_result",
                             "real_browser.open_result",
@@ -303,6 +305,10 @@ def build_default_runtime_connection_registry() -> RuntimeConnectionRegistry:
                         organ_registry_refs=("BrowserSessionManagerL5Live", "CloakBrowser", "BrowserWorldModelBuilder"),
                         authority_requirement="MissionAuthorityEnvelope must grant bounded browser skill actions plus the mission workspace browser_session handle.",
                         authority_actions=(
+                            "real_browser_control.real_browser.observe",
+                            "real_browser.observe",
+                            "real_browser_control.real_browser.open",
+                            "real_browser.open",
                             "real_browser_control.real_browser.search",
                             "real_browser_control.real_browser.inspect_result",
                             "real_browser_control.real_browser.open_result",
