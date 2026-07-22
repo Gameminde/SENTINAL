@@ -88,6 +88,7 @@ class BrowserEnvironmentState(SentinelModel):
     blocker_graph: BrowserBlockerGraph
     visual_graph: BrowserVisualGraph
     state_fields: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    operational_snapshot: dict[str, Any] = Field(default_factory=dict)
     world_model_summary: dict[str, Any]
     recommended_model_skills: tuple[str, ...] = Field(default_factory=tuple)
     raw_material_persisted: bool = False
@@ -130,6 +131,12 @@ class BrowserEnvironmentStateBuilder:
         storage_metadata: list[dict[str, Any]] | tuple[dict[str, Any], ...] = (),
         screenshot_ref: str = "",
         world_model: BrowserWorldModel | None = None,
+        available_actions: tuple[str, ...] = (),
+        session_lease_status: str = "unknown",
+        last_action: dict[str, Any] | None = None,
+        last_state_change: dict[str, Any] | None = None,
+        recoverable_error: dict[str, Any] | None = None,
+        mission_progress: dict[str, Any] | None = None,
     ) -> BrowserEnvironmentState:
         model = world_model or BrowserWorldModelBuilder().build_from_snapshot(
             snapshot,
@@ -200,6 +207,24 @@ class BrowserEnvironmentStateBuilder:
             screenshot_persisted=False,
         )
         recommended_model_skills = _recommended_model_skills(model)
+        operational_snapshot = _browser_operational_snapshot(
+            snapshot=snapshot,
+            mission_objective=mission_objective,
+            origin_hash=origin_hash,
+            page_state=page_state,
+            action_graph=action_graph,
+            extraction_graph=extraction_graph,
+            protocol_graph=protocol_graph,
+            session_graph=session_graph,
+            blocker_graph=blocker_graph,
+            visual_graph=visual_graph,
+            available_actions=available_actions,
+            session_lease_status=session_lease_status,
+            last_action=last_action,
+            last_state_change=last_state_change,
+            recoverable_error=recoverable_error,
+            mission_progress=mission_progress,
+        )
         return BrowserEnvironmentState(
             backend_truth=backend_truth,
             page_state=page_state,
@@ -221,6 +246,7 @@ class BrowserEnvironmentStateBuilder:
                 recommended_model_skills=recommended_model_skills,
                 model=model,
             ),
+            operational_snapshot=operational_snapshot,
             world_model_summary=model.compact_summary(),
             recommended_model_skills=recommended_model_skills,
         )
@@ -248,6 +274,173 @@ def browser_environment_state_contract() -> dict[str, Any]:
         "raw_screenshots_exposed": False,
         "provider_reasoning_exposed": False,
         "action_envelope_language": "internal_runtime_only",
+        "data_not_authority": True,
+        "authority_effect": "none",
+        "can_grant_authority": False,
+        "can_execute": False,
+    }
+
+
+def _browser_operational_snapshot(
+    *,
+    snapshot: "RealBrowserEngineSnapshot",
+    mission_objective: str,
+    origin_hash: str,
+    page_state: BrowserPageStateGraph,
+    action_graph: BrowserActionGraph,
+    extraction_graph: BrowserExtractionGraph,
+    protocol_graph: BrowserProtocolGraph,
+    session_graph: BrowserSessionGraph,
+    blocker_graph: BrowserBlockerGraph,
+    visual_graph: BrowserVisualGraph,
+    available_actions: tuple[str, ...],
+    session_lease_status: str,
+    last_action: dict[str, Any] | None,
+    last_state_change: dict[str, Any] | None,
+    recoverable_error: dict[str, Any] | None,
+    mission_progress: dict[str, Any] | None,
+) -> dict[str, Any]:
+    page_evidence = (
+        f"state:{page_state.page_state_hash}",
+        f"origin:{page_state.origin_hash}",
+        f"visible_text:{page_state.visible_text_summary_hash}",
+    )
+    card_refs = tuple(
+        str(card.get("evidence_ref_hash") or f"card:{stable_hash(card)}")
+        for card in extraction_graph.cards[:12]
+    )
+    evidence_inventory = tuple(dict.fromkeys((*page_evidence, *card_refs)))
+    fields = {
+        "current_url": _state_field(
+            {"url": "unknown", "origin_hash": origin_hash},
+            confidence=0.45 if origin_hash else 0.0,
+            evidence_refs=page_evidence[:2],
+            source="browser_engine_safe_origin_hash",
+            uncertainty_reason="raw URL is not exposed by the current safe engine snapshot",
+        ),
+        "page_title": _state_field(
+            {"safe_title": _safe_text(str(snapshot.page_title or "unknown"), 220)},
+            confidence=0.75 if snapshot.page_title else 0.15,
+            evidence_refs=page_evidence[:1],
+            source="browser_engine_snapshot",
+            uncertainty_reason="title is safe bounded text or unknown",
+        ),
+        "page_type": _state_field(
+            page_state.page_kind_guess or "unknown",
+            confidence=0.72 if page_state.page_kind_guess else 0.1,
+            evidence_refs=page_evidence,
+            source="browser_world_model",
+            uncertainty_reason="page type remains heuristic until corroborated by richer sensors",
+        ),
+        "session_lease_status": _state_field(
+            _safe_lease_status(session_lease_status),
+            confidence=0.8 if session_lease_status and session_lease_status != "unknown" else 0.25,
+            evidence_refs=page_evidence[:1],
+            source="runtime_session_lease",
+            uncertainty_reason="unknown when no root lease state was supplied by runtime context",
+        ),
+        "page_body_available": _state_field(
+            {
+                "page_available": bool(snapshot.state_hash),
+                "body_available": bool(snapshot.elements or snapshot.page_title),
+                "interactive_element_count": len(snapshot.elements),
+            },
+            confidence=0.82 if snapshot.state_hash else 0.2,
+            evidence_refs=page_evidence[:1],
+            source="browser_engine_snapshot",
+            uncertainty_reason="body availability is inferred from safe elements/title, not raw DOM",
+        ),
+        "interactive_candidates": _state_field(
+            {
+                "search_like_ref_count": len(action_graph.search_like_refs),
+                "button_ref_count": len(action_graph.button_refs),
+                "link_ref_count": len(action_graph.link_refs),
+                "form_control_count": len(action_graph.form_controls),
+                "stable_ref_count": page_state.stable_ref_count,
+            },
+            confidence=0.78 if page_state.stable_ref_count else 0.2,
+            evidence_refs=tuple(f"ref:{stable_hash(ref)}" for ref in action_graph.search_like_refs[:8]) or page_evidence[:1],
+            source="accessibility_safe_dom_world_model",
+            uncertainty_reason="candidate details are refs and counts only; selectors are not exposed",
+        ),
+        "public_evidence_inventory": _state_field(
+            {"evidence_refs": list(evidence_inventory), "count": len(evidence_inventory)},
+            confidence=0.78 if evidence_inventory else 0.2,
+            evidence_refs=evidence_inventory or page_evidence[:1],
+            source="browser_receipts_and_world_model",
+            uncertainty_reason="inventory contains refs/hashes, not raw DOM or provider output",
+        ),
+        "mission_progress": _state_field(
+            _mission_progress_value(
+                mission_objective=mission_objective,
+                extraction_graph=extraction_graph,
+                mission_progress=mission_progress,
+            ),
+            confidence=0.55,
+            evidence_refs=evidence_inventory or page_evidence[:1],
+            source="receipts_and_current_browser_state",
+            uncertainty_reason="objective satisfaction is unknown until verified evidence or an honest blocker exists",
+        ),
+        "last_action": _state_field(
+            _safe_action_summary(last_action),
+            confidence=0.7 if last_action else 0.15,
+            evidence_refs=page_evidence[:1],
+            source="product_action_kernel_receipt",
+            uncertainty_reason="unknown until a previous material action receipt is supplied",
+        ),
+        "last_significant_state_change": _state_field(
+            _safe_state_change_summary(last_state_change),
+            confidence=0.7 if last_state_change else 0.15,
+            evidence_refs=page_evidence[:1],
+            source="browser_receipt_state_hash_delta",
+            uncertainty_reason="unknown without before/after state hash delta",
+        ),
+        "recoverable_error": _state_field(
+            _safe_recoverable_error(recoverable_error),
+            confidence=0.82 if recoverable_error else 0.2,
+            evidence_refs=page_evidence[:1],
+            source="runtime_failure_fact",
+            uncertainty_reason="none observed in this snapshot" if not recoverable_error else "bounded failure metadata only",
+        ),
+        "currently_executable_affordances": _state_field(
+            _currently_executable_affordances(
+                available_actions=available_actions,
+                page_available=bool(snapshot.state_hash),
+                body_available=bool(snapshot.elements or snapshot.page_title),
+                action_graph=action_graph,
+                extraction_graph=extraction_graph,
+                recoverable_error=recoverable_error,
+                mission_progress=mission_progress,
+            ),
+            confidence=0.86,
+            evidence_refs=page_evidence,
+            source="authority_available_actions_plus_current_browser_state",
+            uncertainty_reason="an affordance is listed only when current observed state satisfies its known preconditions",
+        ),
+        "provenance_and_freshness": _state_field(
+            {
+                "freshness": "current_snapshot",
+                "state_hash": page_state.page_state_hash,
+                "network_event_count": protocol_graph.network_event_count,
+                "console_event_count": protocol_graph.console_event_count,
+                "cookie_metadata_count": session_graph.cookie_count,
+                "storage_metadata_count": session_graph.storage_key_count,
+                "visual_refs_available": visual_graph.visual_refs_available,
+            },
+            confidence=0.82,
+            evidence_refs=page_evidence,
+            source="browser_environment_state_builder",
+            uncertainty_reason="freshness is categorical and timestamp-free for stable fingerprinting",
+        ),
+    }
+    fingerprint_payload = {
+        "schema_version": "browser_operational_snapshot_v1",
+        "fields": {key: _fingerprintable_state_field(value) for key, value in fields.items()},
+    }
+    return {
+        "schema_version": "browser_operational_snapshot_v1",
+        "fingerprint": stable_hash(fingerprint_payload),
+        "fields": fields,
         "data_not_authority": True,
         "authority_effect": "none",
         "can_grant_authority": False,
@@ -512,6 +705,210 @@ def _recommended_recovery_paths(
     if action_graph.search_like_refs:
         return ["retry_best_ranked_search_control", "try_alternate_submit", "refresh_world_model"]
     return ["observe_again", "scroll_or_wait_for_results", "report_uncertain_page_shape"]
+
+
+def _currently_executable_affordances(
+    *,
+    available_actions: tuple[str, ...],
+    page_available: bool,
+    body_available: bool,
+    action_graph: BrowserActionGraph,
+    extraction_graph: BrowserExtractionGraph,
+    recoverable_error: dict[str, Any] | None,
+    mission_progress: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    allowed = set(str(action) for action in available_actions if str(action))
+    affordances: list[dict[str, Any]] = []
+    if _action_allowed(allowed, "real_browser.observe") and page_available:
+        affordances.append(_affordance("observe", "real_browser.observe", "page available"))
+    if _action_allowed(allowed, "real_browser.search") and body_available and action_graph.search_like_refs:
+        affordances.append(
+            _affordance(
+                "search",
+                "real_browser.search",
+                "search-like control observed",
+                {"search_like_ref_count": len(action_graph.search_like_refs)},
+            )
+        )
+    if _action_allowed(allowed, "real_browser.open_result") and body_available and action_graph.link_refs:
+        affordances.append(_affordance("follow", "real_browser.open_result", "safe link/result refs observed"))
+    if _action_allowed(allowed, "real_browser.inspect_result") and body_available and action_graph.link_refs:
+        affordances.append(_affordance("inspect", "real_browser.inspect_result", "safe link/result refs observed"))
+    if _action_allowed(allowed, "real_browser.extract_evidence") and body_available:
+        affordances.append(
+            _affordance(
+                "extract_evidence",
+                "real_browser.extract_evidence",
+                "page body or visible text is available",
+                {"candidate_count": extraction_graph.product_or_result_candidate_count},
+            )
+        )
+    if _action_allowed(allowed, "real_browser.verify_extraction") and extraction_graph.product_or_result_candidate_count:
+        affordances.append(_affordance("verify", "real_browser.verify_extraction", "candidate evidence exists"))
+    if _action_allowed(allowed, "real_browser.recover_session") and recoverable_error:
+        affordances.append(_affordance("recover_session", "real_browser.recover_session", "recoverable body error present"))
+    if _action_allowed(allowed, "sentinel_loop.finish") and _finish_affordance_ready(
+        mission_progress,
+        recoverable_error,
+    ):
+        affordances.append(_affordance("finish", "sentinel_loop.finish", "verified evidence or honest blocker available"))
+    return affordances
+
+
+def _action_allowed(allowed: set[str], operation: str) -> bool:
+    return operation in allowed or f"real_browser_control.{operation}" in allowed or (
+        operation == "sentinel_loop.finish" and "sentinel_loop.finish" in allowed
+    )
+
+
+def _affordance(skill: str, operation: str, reason: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload = {
+        "skill": skill,
+        "operation": operation,
+        "precondition_status": "satisfied",
+        "reason": reason,
+        "authority_effect": "none",
+        "data_not_authority": True,
+        "dispatch_contract": "ProductActionKernel",
+    }
+    if extra:
+        payload.update(extra)
+    return payload
+
+
+def _finish_affordance_ready(mission_progress: dict[str, Any] | None, recoverable_error: dict[str, Any] | None) -> bool:
+    if not isinstance(mission_progress, dict):
+        return False
+    finish_eligible = _progress_truthy(mission_progress.get("finish_eligible"))
+    objective_satisfied = _progress_truthy(mission_progress.get("objective_satisfied"))
+    verified = _progress_truthy(mission_progress.get("verified_evidence_present"))
+    summary_present = _progress_truthy(mission_progress.get("summary_present"))
+    honest_blocker = _progress_truthy(mission_progress.get("honest_blocker_present"))
+    if honest_blocker:
+        return finish_eligible
+    if recoverable_error:
+        return False
+    return finish_eligible and objective_satisfied and verified and summary_present
+
+
+def _progress_truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "yes", "1", "satisfied", "present", "eligible"}
+    return bool(value)
+
+
+def _mission_progress_value(
+    *,
+    mission_objective: str,
+    extraction_graph: BrowserExtractionGraph,
+    mission_progress: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if isinstance(mission_progress, dict) and mission_progress:
+        return _safe_bounded_mapping(
+            mission_progress,
+            allowed_keys={
+                "objective_satisfied",
+                "verified_evidence_present",
+                "summary_present",
+                "honest_blocker_present",
+                "missing",
+                "finish_eligible",
+            },
+        )
+    missing: list[str] = []
+    if extraction_graph.product_or_result_candidate_count == 0:
+        missing.append("grounded_public_evidence")
+    missing.extend(("verification_receipt", "grounded_summary_or_honest_blocker", "finish_eligibility"))
+    return {
+        "objective_hash": text_hash(mission_objective),
+        "objective_satisfied": "unknown",
+        "candidate_evidence_count": extraction_graph.product_or_result_candidate_count,
+        "missing": list(dict.fromkeys(missing)),
+    }
+
+
+def _safe_action_summary(value: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(value, dict) or not value:
+        return {"operation": "unknown", "status": "unknown"}
+    return _safe_bounded_mapping(
+        value,
+        allowed_keys={"operation", "capability_id", "status", "typed_outcome", "receipt_ref", "receipt_hash"},
+    )
+
+
+def _safe_state_change_summary(value: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(value, dict) or not value:
+        return {"changed": "unknown", "before_state_hash": "", "after_state_hash": ""}
+    return _safe_bounded_mapping(
+        value,
+        allowed_keys={"changed", "before_state_hash", "after_state_hash", "evidence_refs", "reason"},
+    )
+
+
+def _safe_recoverable_error(value: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(value, dict) or not value:
+        return {"present": False}
+    safe = _safe_bounded_mapping(
+        value,
+        allowed_keys={
+            "failure_code",
+            "failure_stage",
+            "resource_kind",
+            "retryable",
+            "material_effect_observed",
+            "evidence_refs",
+            "exception_class_hash",
+        },
+    )
+    safe["present"] = True
+    return safe
+
+
+def _safe_bounded_mapping(value: dict[str, Any], *, allowed_keys: set[str]) -> dict[str, Any]:
+    safe: dict[str, Any] = {}
+    for key in allowed_keys:
+        if key not in value:
+            continue
+        item = value.get(key)
+        if isinstance(item, str):
+            safe[key] = _safe_typed_code(item) if key in {"failure_code", "failure_stage", "resource_kind"} else _safe_text(item, 240)
+        elif isinstance(item, bool | int | float) or item is None:
+            safe[key] = item
+        elif isinstance(item, dict):
+            safe[key] = {
+                _safe_text(str(child_key), 80): _safe_text(str(child_value), 160)
+                for child_key, child_value in item.items()
+            }
+        elif isinstance(item, list | tuple | set):
+            safe[key] = [_safe_text(str(child), 160) for child in list(item)[:20]]
+        else:
+            safe[key] = _safe_text(str(item), 160)
+    return safe
+
+
+def _safe_lease_status(value: str) -> str:
+    rendered = str(value or "unknown").upper()
+    if rendered in {"ACTIVE", "DEGRADED", "RECOVERING", "RECONNECTED", "BLOCKED", "CLOSED"}:
+        return rendered
+    return "unknown"
+
+
+def _safe_typed_code(value: str) -> str:
+    rendered = str(value or "")
+    safe = "".join(char for char in rendered if char.isalnum() or char in {"_", "-", "."})[:120]
+    return safe or f"typed_code_hash:{text_hash(rendered)}"
+
+
+def _fingerprintable_state_field(field: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "value": field.get("value"),
+        "confidence": field.get("confidence"),
+        "evidence_refs": field.get("evidence_refs"),
+        "source": field.get("source"),
+        "uncertainty_reason": field.get("uncertainty_reason"),
+    }
 
 
 def _safe_accessibility_ref(card: Any) -> dict[str, str]:

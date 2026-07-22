@@ -1817,6 +1817,8 @@ class RealBrowserControlRuntime:
             world_model=world_model,
             network_events=observation_bundle.network_events,
             console_messages=observation_bundle.console_events,
+            available_actions=tuple(context.get("available_actions") or _authority_available_actions(authority)),
+            session_lease_status=_root_browser_lease_status(context),
         )
         environment_dump = environment_state.safe_model_dump()
         environment_hash = stable_hash(environment_dump)
@@ -4067,6 +4069,18 @@ def _authority_available_actions(authority: MissionAuthorityEnvelope) -> tuple[s
         else:
             actions.append(action)
     return tuple(dict.fromkeys(actions))
+
+
+def _root_browser_lease_status(context: dict[str, Any]) -> str:
+    root = context.get("root_browser_runtime_lease") if isinstance(context, dict) else None
+    if not isinstance(root, dict):
+        return "unknown"
+    status = str(root.get("lifecycle_state") or root.get("status") or root.get("lease_state") or "").upper()
+    if status in {"ACTIVE", "DEGRADED", "RECOVERING", "RECONNECTED", "BLOCKED", "CLOSED"}:
+        return status
+    if root.get("lease_hash") or root.get("root_browser_lease_id_hash"):
+        return "ACTIVE"
+    return "unknown"
 
 
 def _browser_product_workspace_context(context: dict[str, Any]) -> dict[str, str]:

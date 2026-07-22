@@ -1503,14 +1503,21 @@ def _browser_cognitive_decision_frame(
             "result_regions": {"candidate_count": 0, "relevant_candidate_count": 0},
             "search_controls": {"ranked_count": 0, "search_like_refs": []},
             "available_safe_browser_skills": ["browse_search"] if primary == "browse_search" else [],
+            "operational_snapshot": {},
+            "currently_executable_affordances": [],
             "recommended_recovery_paths": [],
             "data_not_authority": True,
             "can_execute": False,
         }
     state_fields = environment.get("state_fields") if isinstance(environment.get("state_fields"), dict) else {}
+    operational_snapshot = environment.get("operational_snapshot")
+    if not isinstance(operational_snapshot, dict):
+        operational_snapshot = {}
+    operational_fields = operational_snapshot.get("fields") if isinstance(operational_snapshot.get("fields"), dict) else {}
     result_regions = _state_field_value(state_fields, "result_regions")
     search_controls = _state_field_value(state_fields, "search_controls")
     recovery_paths = _state_field_value(state_fields, "recommended_recovery_paths").get("paths", [])
+    currently_executable_affordances = _state_field_any_value(operational_fields, "currently_executable_affordances")
     candidate_entities = _candidate_entities_from_environment(environment)
     candidate_count = _safe_int(result_regions.get("candidate_count"))
     relevant_count = _safe_int(result_regions.get("relevant_candidate_count"))
@@ -1536,6 +1543,14 @@ def _browser_cognitive_decision_frame(
         "uncertainty": _state_field_value(state_fields, "uncertainty"),
         "recommended_recovery_paths": recovery_paths if isinstance(recovery_paths, list) else [],
         "available_safe_browser_skills": skills,
+        "operational_snapshot": {
+            "schema_version": operational_snapshot.get("schema_version"),
+            "fingerprint": operational_snapshot.get("fingerprint"),
+            "fields": operational_fields,
+        },
+        "currently_executable_affordances": (
+            currently_executable_affordances if isinstance(currently_executable_affordances, list) else []
+        ),
         "primary_recommended_skill": primary,
         "evidence_refs": _state_field_evidence_refs(state_fields),
         "data_not_authority": True,
@@ -1631,6 +1646,13 @@ def _state_field_value(state_fields: dict[str, Any], key: str) -> dict[str, Any]
         if isinstance(field_value, dict):
             return field_value
     return {}
+
+
+def _state_field_any_value(state_fields: dict[str, Any], key: str) -> Any:
+    value = state_fields.get(key)
+    if isinstance(value, dict):
+        return value.get("value")
+    return None
 
 
 def _state_field_evidence_refs(state_fields: dict[str, Any]) -> list[str]:
