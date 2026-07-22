@@ -147,6 +147,72 @@ def test_metadata_reply_send_message_uses_granted_telegram_destination() -> None
     assert "live completion" in decision.params["body"].lower()
 
 
+def test_finish_after_grounded_browser_summary_builds_terminal_answer_payload() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient([{"skill": "finish"}]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="finish",
+            recent_product_receipt_refs=["receipt:search", "receipt:extract", "receipt:verify"],
+            browser_proof_index_summary={
+                "public_evidence_count": 2,
+                "public_evidence_ids": ["evidence:python:path-glob", "evidence:python:pathlib"],
+            },
+            grounded_evidence_summary={
+                "present": True,
+                "summary_kind": "grounded_open_world_evidence_summary",
+                "summary_text": "Path.glob returns paths matching a pattern using pathlib semantics.",
+                "negative_result_confirmed": False,
+            },
+        )
+    )
+
+    assert decision.capability_id == "sentinel_loop"
+    assert decision.operation == "finish"
+    assert decision.params["final_answer"]["answer_text"] == (
+        "Path.glob returns paths matching a pattern using pathlib semantics."
+    )
+    assert decision.params["answer_claims"][0]["evidence_refs"] == [
+        "evidence:python:path-glob",
+        "evidence:python:pathlib",
+    ]
+    assert "honest_blocker" not in decision.params
+
+
+def test_finish_after_negative_browser_summary_builds_honest_blocker_payload() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient([{"skill": "finish"}]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="finish",
+            recent_product_receipt_refs=["receipt:search", "receipt:verify"],
+            browser_proof_index_summary={
+                "public_evidence_count": 1,
+                "public_evidence_ids": ["evidence:search:no-results"],
+            },
+            grounded_evidence_summary={
+                "present": True,
+                "summary_kind": "grounded_browser_negative_search_summary",
+                "summary_text": "The search produced material no-results evidence.",
+                "negative_result_confirmed": True,
+            },
+        )
+    )
+
+    assert decision.capability_id == "sentinel_loop"
+    assert decision.operation == "finish"
+    assert decision.params["honest_blocker"]["reason"] == "The search produced material no-results evidence."
+    assert decision.params["honest_blocker"]["available_evidence_refs"] == ["evidence:search:no-results"]
+    assert decision.params["answer_claims"][0]["claim_type"] == "declared_unknown"
+    assert "final_answer" not in decision.params
+
+
 def test_canonicalish_bounded_channel_output_is_remapped_through_granted_telegram_destination() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(
@@ -1972,6 +2038,8 @@ def _context(
     workspace_create_file_plans: list[dict[str, object]] | None = None,
     bounded_check_plan: dict[str, object] | None = None,
     live_channel_destination_grants: list[dict[str, object]] | None = None,
+    browser_proof_index_summary: dict[str, object] | None = None,
+    grounded_evidence_summary: dict[str, object] | None = None,
 ) -> dict[str, Any]:
     action_map = {
         "create_file": "workspace_patch.apply_patch",
@@ -1998,4 +2066,6 @@ def _context(
         "_workspace_create_file_plans": workspace_create_file_plans or [],
         "_bounded_check_plan": bounded_check_plan or {},
         "live_channel_destination_grants": live_channel_destination_grants or [],
+        "browser_proof_index_summary": browser_proof_index_summary or {},
+        "grounded_evidence_summary": grounded_evidence_summary or {},
     }

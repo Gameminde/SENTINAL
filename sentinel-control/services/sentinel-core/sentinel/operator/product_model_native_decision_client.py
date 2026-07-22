@@ -774,7 +774,7 @@ def _finish_params(*, payload: dict[str, Any], text: str, context: dict[str, Any
     params: dict[str, Any] = {"safe_summary": _safe_finish_summary(text, context)}
     source = payload.get("params") if isinstance(payload.get("params"), dict) else payload
     if not isinstance(source, dict):
-        return params
+        return _complete_finish_params_from_context(params, context=context)
 
     final_answer = source.get("final_answer")
     if isinstance(final_answer, str):
@@ -797,7 +797,69 @@ def _finish_params(*, payload: dict[str, Any], text: str, context: dict[str, Any
         params["answer_claims"] = [item for item in source["answer_claims"] if isinstance(item, dict)][:40]
     if isinstance(source.get("public_evidence"), list):
         params["public_evidence"] = [item for item in source["public_evidence"] if isinstance(item, dict)][:40]
+    return _complete_finish_params_from_context(params, context=context)
+
+
+def _complete_finish_params_from_context(params: dict[str, Any], *, context: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(params.get("final_answer"), dict) or isinstance(params.get("honest_blocker"), dict):
+        return params
+    summary = context.get("grounded_evidence_summary")
+    if not isinstance(summary, dict):
+        return params
+    summary_text = str(summary.get("summary_text") or "").strip()
+    if not summary_text:
+        return params
+    evidence_refs = _browser_public_evidence_refs(context)
+    if not evidence_refs:
+        evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
+    if summary.get("negative_result_confirmed") is True:
+        params["honest_blocker"] = {
+            "reason": _bounded_text(summary_text, 1200),
+            "available_evidence_refs": evidence_refs,
+            "missing_evidence": ["objective-satisfying evidence"],
+        }
+        params.setdefault(
+            "answer_claims",
+            [
+                {
+                    "claim_id": f"claim:{stable_hash({'negative': summary_text})}",
+                    "claim_type": "declared_unknown",
+                    "text": _bounded_text(summary_text, 1200),
+                    "evidence_refs": evidence_refs,
+                    "confidence": 0.74,
+                }
+            ],
+        )
+        return params
+    params["final_answer"] = {
+        "answer_text": _bounded_text(summary_text, 2400),
+        "answer_kind": "grounded_browser_answer",
+    }
+    params.setdefault(
+        "answer_claims",
+        [
+            {
+                "claim_id": f"claim:{stable_hash({'answer': summary_text})}",
+                "claim_type": "sourced_factual_claim" if evidence_refs else "model_inference",
+                "text": _bounded_text(summary_text, 1200),
+                "evidence_refs": evidence_refs,
+                "confidence": 0.72,
+            }
+        ],
+    )
     return params
+
+
+def _browser_public_evidence_refs(context: dict[str, Any]) -> list[str]:
+    proof_summary = context.get("browser_proof_index_summary")
+    if not isinstance(proof_summary, dict):
+        return []
+    refs = proof_summary.get("public_evidence_ids")
+    if isinstance(refs, str):
+        return [refs]
+    if isinstance(refs, list | tuple):
+        return [str(ref) for ref in refs[:8] if str(ref)]
+    return []
 
 
 def _bounded_terminal_mapping(value: dict[str, Any], *, max_items: int, max_text: int) -> dict[str, Any]:
