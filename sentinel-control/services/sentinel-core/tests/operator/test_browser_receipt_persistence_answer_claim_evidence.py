@@ -299,6 +299,54 @@ def test_partial_grounded_summary_does_not_auto_complete_final_answer_payload() 
     assert completed == {"safe_summary": "done"}
 
 
+def test_partial_grounded_summary_keeps_browser_skills_available_after_finish_recovery(tmp_path: Path) -> None:
+    client = ProductActionKernelLoopDecisionClient(
+        [
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.search",
+                params={"query": "pathlib glob", "engine_profile": "fake_product_search"},
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.extract_evidence",
+                params={"engine_profile": "fake_product_search"},
+            ),
+            ActionEnvelope(
+                capability_id="real_browser_control",
+                operation="real_browser.verify_extraction",
+                params={"engine_profile": "fake_product_search"},
+            ),
+            ActionEnvelope(capability_id="sentinel_loop", operation="summarize_evidence", params={}),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={}),
+            ActionEnvelope(capability_id="sentinel_loop", operation="finish", params={}),
+        ]
+    )
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=_workspace(tmp_path),
+        session_id="partial-summary-recovery",
+        mission_objective="Find official Python documentation explaining pathlib Path.glob.",
+        decision_client=client,
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=6,
+        max_material_actions=5,
+    )
+    host.shutdown()
+
+    assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
+    recovery_contexts = [
+        context
+        for context in client.contexts
+        if context.get("recoverable_decision_observations")
+    ]
+    assert recovery_contexts
+    recovery_context = recovery_contexts[-1]
+    assert recovery_context["primary_model_recommended_next_skill"] != "finish"
+    assert {"browse_search", "extract"} & set(recovery_context["model_visible_skills"])
+
+
 def test_honest_blocker_can_finish_without_fabricated_factual_claims(tmp_path: Path) -> None:
     client = ProductActionKernelLoopDecisionClient(
         [

@@ -283,10 +283,18 @@ class ModelLedProductActionKernelTaskLoop:
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
             or completion_requirements.get("has_confirmed_no_results_search_receipt")
         )
+        terminal_completion_supported = bool(
+            completion_requirements.get("has_terminal_answer_support")
+            or completion_requirements.get("has_terminal_blocker_support")
+        )
         finish_available = bool(
             has_terminal_browser_evidence
             and completion_requirements.get("has_grounded_evidence_summary")
             and completion_requirements.get("has_objective_relevance_assessment")
+            and (
+                completion_requirements.get("has_terminal_answer_support")
+                or completion_requirements.get("has_terminal_blocker_support")
+            )
         )
         return {
             "loop_id": self.loop_id,
@@ -545,6 +553,10 @@ class ModelLedProductActionKernelTaskLoop:
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
             or completion_requirements.get("has_confirmed_no_results_search_receipt")
         )
+        terminal_completion_supported = bool(
+            completion_requirements.get("has_terminal_answer_support")
+            or completion_requirements.get("has_terminal_blocker_support")
+        )
         if self._latest_dispatch_blocked_reason() == "BODY_SESSION_UNAVAILABLE" and self.product_receipt_refs:
             return ("sentinel_loop.finish",)
         if (
@@ -556,6 +568,7 @@ class ModelLedProductActionKernelTaskLoop:
             has_terminal_browser_evidence
             and completion_requirements.get("has_grounded_evidence_summary")
             and completion_requirements.get("has_objective_relevance_assessment")
+            and terminal_completion_supported
         ):
             return ("sentinel_loop.finish",)
         if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
@@ -1412,6 +1425,8 @@ def _product_completion_requirements(
     summary = _grounded_evidence_summary_card(safe_context_cards)
     product_card_count = _product_card_count_from_context_cards(safe_context_cards)
     has_grounded_summary = bool(summary.get("present") is True)
+    has_terminal_answer_support = browser_summary_supports_terminal_answer(summary)
+    has_terminal_blocker_support = browser_summary_supports_terminal_blocker(summary)
     confirmed_no_results = _has_confirmed_no_results_search(safe_context_cards)
     return {
         "has_real_browser_search_receipt": ("real_browser_control", "real_browser.search") in operations,
@@ -1424,6 +1439,8 @@ def _product_completion_requirements(
         "has_confirmed_no_results_search_receipt": confirmed_no_results,
         "has_grounded_evidence_summary": has_grounded_summary,
         "has_objective_relevance_assessment": bool(summary.get("objective_relevance_assessed") is True),
+        "has_terminal_answer_support": has_terminal_answer_support,
+        "has_terminal_blocker_support": has_terminal_blocker_support,
         "has_relevant_product_evidence": bool(summary.get("has_relevant_product_evidence") is True),
         "under_price_condition_supported_by_visible_evidence": summary.get(
             "under_price_condition_supported_by_visible_evidence",
@@ -1528,9 +1545,31 @@ def _product_context_recommended_actions(
     if (
         has_terminal_browser_evidence
         and completion_requirements.get("has_grounded_evidence_summary")
+        and (
+            completion_requirements.get("has_terminal_answer_support")
+            or completion_requirements.get("has_terminal_blocker_support")
+        )
         and "sentinel_loop.finish" in available_actions
     ):
         return ("sentinel_loop.finish",)
+    if (
+        has_terminal_browser_evidence
+        and completion_requirements.get("has_grounded_evidence_summary")
+        and not (
+            completion_requirements.get("has_terminal_answer_support")
+            or completion_requirements.get("has_terminal_blocker_support")
+        )
+    ):
+        preferred = (
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.extract_evidence",
+            "real_browser_control.real_browser.verify_extraction",
+        )
+        ordered = [action for action in preferred if action in available_actions]
+        if ordered:
+            return tuple(ordered)
     primary_skill = browser_cognitive_frame.get("primary_recommended_skill")
     if primary_skill == "extract":
         extract_action = _extract_action_for_browser_frame(browser_cognitive_frame)
