@@ -225,14 +225,7 @@ def test_answer_claim_candidates_mark_missing_factual_refs_without_punishing_unc
     assert claims["unsupported_claim_count"] == 1
 
 
-def test_finish_without_final_answer_or_honest_blocker_recovers_before_completion(tmp_path: Path) -> None:
-    valid_evidence = {
-        "evidence_id": "evidence:bounded-browser-search",
-        "source_url": "https://bounded.example/docs/pathlib.html",
-        "source_title": "Bounded pathlib docs",
-        "source_origin": "https://bounded.example",
-        "excerpt": "Path.glob(pattern) returns matching paths for a relative pattern.",
-    }
+def test_finish_after_grounded_summary_completes_without_reasking_model(tmp_path: Path) -> None:
     client = ProductActionKernelLoopDecisionClient(
         [
             ActionEnvelope(
@@ -256,23 +249,6 @@ def test_finish_without_final_answer_or_honest_blocker_recovers_before_completio
                 operation="finish",
                 params={"safe_summary": "done"},
             ),
-            ActionEnvelope(
-                capability_id="sentinel_loop",
-                operation="finish",
-                params={
-                    "final_answer": {
-                        "answer_text": "Path.glob(pattern) returns paths matching a relative pattern.",
-                        "answer_claims": [
-                            {
-                                "claim_type": "sourced_factual_claim",
-                                "text": "Path.glob accepts a pattern argument.",
-                                "evidence_refs": ["evidence:bounded-browser-search"],
-                            }
-                        ],
-                        "public_evidence": [valid_evidence],
-                    }
-                },
-            ),
         ]
     )
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
@@ -289,10 +265,9 @@ def test_finish_without_final_answer_or_honest_blocker_recovers_before_completio
     host.shutdown()
 
     assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED, result.blocked_reason
-    assert client.call_count == 6
+    assert client.call_count == 5
     final_context = client.contexts[-1]
-    failures = final_context["recoverable_decision_observations"]
-    assert any(item["failure_code"] == "FINAL_ANSWER_PAYLOAD_INCOMPLETE" for item in failures)
+    assert final_context["recoverable_decision_observations"] == []
     index_path = host.kernel.store.run_root / "_browser_proof_index" / f"{result.loop_id}.json"
     index = json.loads(index_path.read_text(encoding="utf-8"))
     assert index["final_answer"]["answer_text"]

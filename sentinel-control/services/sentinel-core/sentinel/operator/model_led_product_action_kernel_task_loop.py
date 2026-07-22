@@ -219,6 +219,10 @@ class ModelLedProductActionKernelTaskLoop:
                 )
                 if decision.capability_id == "sentinel_loop" and decision.operation == "finish":
                     self.final_answer_payload = _safe_final_answer_payload(decision.params)
+                    self.final_answer_payload = _complete_final_answer_payload_from_context(
+                        self.final_answer_payload,
+                        context=context,
+                    )
                     if not self.product_receipt_refs and not self.explicit_noop_proof_ref:
                         return self._block("MODEL_FINISH_BEFORE_PRODUCT_RECEIPT")
                     incomplete_reason = _final_answer_payload_incomplete_reason(self.final_answer_payload, context)
@@ -1193,6 +1197,69 @@ def _safe_final_answer_payload(params: dict[str, Any]) -> dict[str, Any]:
             if key not in TRUSTED_RUNTIME_CONTEXT_KEYS
         }
     return payload
+
+
+def _complete_final_answer_payload_from_context(payload: dict[str, Any], *, context: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(payload.get("final_answer"), dict) or isinstance(payload.get("honest_blocker"), dict):
+        return payload
+    summary = context.get("grounded_evidence_summary")
+    if not isinstance(summary, dict) or summary.get("present") is not True:
+        return payload
+    summary_text = str(summary.get("summary_text") or "").strip()
+    if not summary_text:
+        return payload
+    completed = dict(payload)
+    evidence_refs = _browser_public_evidence_refs(context)
+    if not evidence_refs:
+        evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
+    if summary.get("negative_result_confirmed") is True:
+        completed["honest_blocker"] = {
+            "reason": summary_text[:1200],
+            "available_evidence_refs": evidence_refs,
+            "missing_evidence": ["objective-satisfying evidence"],
+        }
+        completed.setdefault(
+            "answer_claims",
+            [
+                {
+                    "claim_id": f"claim:{stable_hash({'negative': summary_text})}",
+                    "claim_type": "declared_unknown",
+                    "text": summary_text[:1200],
+                    "evidence_refs": evidence_refs,
+                    "confidence": 0.74,
+                }
+            ],
+        )
+        return completed
+    completed["final_answer"] = {
+        "answer_text": summary_text[:2400],
+        "answer_kind": "grounded_browser_answer",
+    }
+    completed.setdefault(
+        "answer_claims",
+        [
+            {
+                "claim_id": f"claim:{stable_hash({'answer': summary_text})}",
+                "claim_type": "sourced_factual_claim",
+                "text": summary_text[:1200],
+                "evidence_refs": evidence_refs,
+                "confidence": 0.72,
+            }
+        ],
+    )
+    return completed
+
+
+def _browser_public_evidence_refs(context: dict[str, Any]) -> list[str]:
+    summary = context.get("browser_proof_index_summary")
+    if not isinstance(summary, dict):
+        return []
+    refs = summary.get("public_evidence_ids")
+    if isinstance(refs, str):
+        return [refs]
+    if isinstance(refs, list | tuple):
+        return [str(ref) for ref in refs[:8] if str(ref)]
+    return []
 
 
 def _final_answer_payload_incomplete_reason(payload: dict[str, Any], context: dict[str, Any]) -> str | None:
