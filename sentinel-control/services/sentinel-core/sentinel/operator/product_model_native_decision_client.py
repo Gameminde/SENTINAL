@@ -816,7 +816,8 @@ def _complete_finish_params_from_context(params: dict[str, Any], *, context: dic
     evidence_refs = _browser_public_evidence_refs(context)
     if not evidence_refs:
         evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
-    if browser_summary_supports_terminal_blocker(summary):
+    mission_objective = str(context.get("mission_objective") or "")
+    if browser_summary_supports_terminal_blocker(summary, mission_objective=mission_objective):
         params["honest_blocker"] = {
             "reason": _bounded_text(summary_text, 1200),
             "available_evidence_refs": evidence_refs,

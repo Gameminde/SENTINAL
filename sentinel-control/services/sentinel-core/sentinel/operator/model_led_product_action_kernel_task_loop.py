@@ -260,7 +260,11 @@ class ModelLedProductActionKernelTaskLoop:
     def _compile_context(self) -> dict[str, Any]:
         dispatch_summaries = _dispatch_summaries(self.dispatch_results)
         safe_context_cards = _merged_dispatch_context_cards(self.dispatch_results)
-        completion_requirements = _product_completion_requirements(self.dispatch_results, safe_context_cards)
+        completion_requirements = _product_completion_requirements(
+            self.dispatch_results,
+            safe_context_cards,
+            mission_objective=self.mission_objective,
+        )
         browser_cognitive_frame = _browser_cognitive_decision_frame(
             safe_context_cards,
             mission_objective=self.mission_objective,
@@ -548,7 +552,11 @@ class ModelLedProductActionKernelTaskLoop:
         return True
 
     def _available_actions(self) -> tuple[str, ...]:
-        completion_requirements = _product_completion_requirements(self.dispatch_results, _merged_dispatch_context_cards(self.dispatch_results))
+        completion_requirements = _product_completion_requirements(
+            self.dispatch_results,
+            _merged_dispatch_context_cards(self.dispatch_results),
+            mission_objective=self.mission_objective,
+        )
         has_terminal_browser_evidence = bool(
             completion_requirements.get("has_real_browser_verified_extraction_receipt")
             or completion_requirements.get("has_confirmed_no_results_search_receipt")
@@ -1229,7 +1237,8 @@ def _complete_final_answer_payload_from_context(payload: dict[str, Any], *, cont
     evidence_refs = _browser_public_evidence_refs(context)
     if not evidence_refs:
         evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
-    if browser_summary_supports_terminal_blocker(summary):
+    mission_objective = str(context.get("mission_objective") or "")
+    if browser_summary_supports_terminal_blocker(summary, mission_objective=mission_objective):
         completed["honest_blocker"] = {
             "reason": summary_text[:1200],
             "available_evidence_refs": evidence_refs,
@@ -1416,6 +1425,8 @@ def _grounded_evidence_summary_card(safe_context_cards: dict[str, Any]) -> dict[
 def _product_completion_requirements(
     results: list[UnifiedDispatchResult],
     safe_context_cards: dict[str, Any],
+    *,
+    mission_objective: str = "",
 ) -> dict[str, Any]:
     operations = {
         (result.capability_id, result.operation)
@@ -1426,7 +1437,10 @@ def _product_completion_requirements(
     product_card_count = _product_card_count_from_context_cards(safe_context_cards)
     has_grounded_summary = bool(summary.get("present") is True)
     has_terminal_answer_support = browser_summary_supports_terminal_answer(summary)
-    has_terminal_blocker_support = browser_summary_supports_terminal_blocker(summary)
+    has_terminal_blocker_support = browser_summary_supports_terminal_blocker(
+        summary,
+        mission_objective=mission_objective,
+    )
     confirmed_no_results = _has_confirmed_no_results_search(safe_context_cards)
     return {
         "has_real_browser_search_receipt": ("real_browser_control", "real_browser.search") in operations,

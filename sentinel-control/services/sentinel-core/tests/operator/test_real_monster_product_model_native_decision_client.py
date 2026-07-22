@@ -218,6 +218,70 @@ def test_finish_after_partial_browser_summary_does_not_fabricate_terminal_answer
     assert decision.params["safe_summary"]
 
 
+def test_natural_finish_after_partial_browser_summary_reroutes_to_live_browser_recommendation() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient([{"metadata": {"reply": "I have enough evidence, summarize and finish."}}]),
+        request_factory=_request_factory,
+    )
+    context = _context(
+        recommended_skill="browse_search",
+        recent_product_receipt_refs=["receipt:search", "receipt:extract", "receipt:verify", "receipt:summary"],
+        dispatch_summaries=[
+            {"capability_id": "real_browser_control", "operation": "real_browser.search", "status": "completed"},
+            {
+                "capability_id": "real_browser_control",
+                "operation": "real_browser.extract_evidence",
+                "status": "completed",
+            },
+            {
+                "capability_id": "real_browser_control",
+                "operation": "real_browser.verify_extraction",
+                "status": "completed",
+            },
+            {"capability_id": "sentinel_loop", "operation": "summarize_evidence", "status": "completed"},
+        ],
+        browser_proof_index_summary={
+            "public_evidence_count": 2,
+            "public_evidence_ids": ["evidence:generic-nav", "evidence:generic-entity"],
+        },
+        grounded_evidence_summary={
+            "present": True,
+            "summary_kind": "grounded_browser_open_world_evidence_summary",
+            "summary_text": "Open-world browser evidence entities: 6. Objective support: partial.",
+            "objective_satisfaction_status": "partial",
+            "objective_relevance_assessed": True,
+            "negative_result_confirmed": False,
+        },
+    )
+    context.update(
+        {
+            "finish_available": False,
+            "objective_satisfied": False,
+            "completion_requirements": {
+                "has_real_browser_search_receipt": True,
+                "has_real_browser_extraction_receipt": True,
+                "has_real_browser_verified_extraction_receipt": True,
+                "has_grounded_evidence_summary": True,
+                "has_objective_relevance_assessment": True,
+                "has_terminal_answer_support": False,
+                "has_terminal_blocker_support": False,
+            },
+            "real_browser_control_summary": {
+                "latest_action": {
+                    "operation": "real_browser.verify_extraction",
+                    "status": "completed",
+                    "receipt_count": 1,
+                }
+            },
+        }
+    )
+
+    decision = client.complete(context)
+
+    assert decision.capability_id == "real_browser_control"
+    assert decision.operation == "real_browser.search"
+
+
 def test_finish_after_negative_browser_summary_builds_honest_blocker_payload() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient([{"skill": "finish"}]),

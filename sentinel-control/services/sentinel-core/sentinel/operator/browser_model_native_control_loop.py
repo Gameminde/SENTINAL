@@ -153,13 +153,19 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
             and _has_grounded_evidence_summary(context)
             and _has_objective_relevance_assessment(context)
         ):
+            if _terminal_completion_supported(context):
+                return _mapped(
+                    "sentinel_loop.finish",
+                    params=_terminal_finish_params(
+                        context,
+                        fallback_summary="Browser task evidence verified; finish with grounded caveats.",
+                    ),
+                    intent_kind="finish_after_grounded_relevance_assessment",
+                    diagnostics=diagnostics,
+                )
             return _mapped(
-                "sentinel_loop.finish",
-                params=_terminal_finish_params(
-                    context,
-                    fallback_summary="Browser task evidence verified; finish with grounded caveats.",
-                ),
-                intent_kind="finish_after_grounded_relevance_assessment",
+                _partial_summary_recovery_action(context),
+                intent_kind="finish_after_partial_grounded_summary_requires_more_evidence",
                 diagnostics=diagnostics,
             )
         if _has_verified_browser_extraction(context):
@@ -181,6 +187,12 @@ def map_browser_model_native_intent(model_output: Any, *, context: dict[str, Any
         return _mapped("sentinel_loop.summarize_evidence", intent_kind="verified_extraction_needs_summary", diagnostics=diagnostics)
 
     if _has_verified_browser_extraction(context) and _mentions_completion_without_finish(normalized):
+        if not _terminal_completion_supported(context):
+            return _mapped(
+                _partial_summary_recovery_action(context),
+                intent_kind="completion_after_partial_grounded_summary_requires_more_evidence",
+                diagnostics=diagnostics,
+            )
         return _mapped(
             "sentinel_loop.finish",
             params=_terminal_finish_params(
@@ -366,7 +378,10 @@ def _terminal_finish_params(context: dict[str, Any], *, fallback_summary: str) -
     evidence_refs = _public_evidence_refs(context)
     if not evidence_refs:
         evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
-    if browser_summary_supports_terminal_blocker(summary):
+    if browser_summary_supports_terminal_blocker(
+        summary,
+        mission_objective=str(context.get("mission_objective") or ""),
+    ):
         return {
             "honest_blocker": {
                 "reason": summary_text,
@@ -687,14 +702,14 @@ def _primary_recommended_action(context: dict[str, Any]) -> str | None:
 def _strongest_contextual_browser_action(context: dict[str, Any]) -> str | None:
     if _has_verified_browser_extraction(context) and not _has_grounded_evidence_summary(context):
         return "sentinel_loop.summarize_evidence"
-    if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and _has_objective_relevance_assessment(context):
-        return "sentinel_loop.finish"
-    if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context) and not _has_relevant_product_evidence(context):
+    if _has_verified_browser_extraction(context) and _has_grounded_evidence_summary(context):
+        if _has_objective_relevance_assessment(context) and _terminal_completion_supported(context):
+            return "sentinel_loop.finish"
         primary = _primary_recommended_action(context)
-        if primary and primary != "real_browser_control.real_browser.search":
+        if primary and primary not in {"sentinel_loop.finish", "sentinel_loop.summarize_evidence"}:
             return primary
         if _has_real_browser_search_receipt(context):
-            return "real_browser_control.real_browser.extract_product_cards"
+            return _extract_action_for_context(context)
         return "real_browser_control.real_browser.search"
     if _has_browser_extraction(context) and not _has_verified_browser_extraction(context):
         return "real_browser_control.real_browser.verify_extraction"
@@ -774,6 +789,10 @@ def _completion_lane_override(
     if not _has_verified_browser_extraction(context):
         return action_name
     if _has_grounded_evidence_summary(context):
+        if not _terminal_completion_supported(context):
+            if action_name in {"sentinel_loop.finish", "sentinel_loop.summarize_evidence"}:
+                return _partial_summary_recovery_action(context)
+            return action_name
         if action_name in {"sentinel_loop.finish", "sentinel_loop.summarize_evidence"}:
             return "sentinel_loop.finish"
         if _is_browser_navigation_or_search(action_name) and not (
@@ -857,7 +876,29 @@ def _finish_is_available(context: dict[str, Any]) -> bool:
         and _has_verified_browser_extraction(context)
         and _has_grounded_evidence_summary(context)
         and _has_objective_relevance_assessment(context)
+        and _terminal_completion_supported(context)
     )
+
+
+def _terminal_completion_supported(context: dict[str, Any]) -> bool:
+    summary = _grounded_summary_payload(context)
+    return bool(
+        browser_summary_supports_terminal_answer(summary)
+        or browser_summary_supports_terminal_blocker(
+            summary,
+            mission_objective=str(context.get("mission_objective") or ""),
+        )
+    )
+
+
+def _partial_summary_recovery_action(context: dict[str, Any]) -> str:
+    primary = _primary_recommended_action(context)
+    if primary and primary not in {"sentinel_loop.finish", "sentinel_loop.summarize_evidence"}:
+        return primary
+    fallback = _safe_fallback_browser_action(context)
+    if fallback and fallback not in {"sentinel_loop.finish", "sentinel_loop.summarize_evidence"}:
+        return fallback
+    return "real_browser_control.real_browser.search"
 
 
 def _has_verified_browser_extraction(context: dict[str, Any]) -> bool:
