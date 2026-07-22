@@ -12,6 +12,7 @@ from sentinel.operator.browser_proof_index import (
     sanitize_public_evidence,
 )
 from sentinel.operator.browser_proof_integrity import evaluate_browser_proof_integrity_gate
+from sentinel.operator.browser_proof_integrity import evaluate_browser_proof_bundle_gate
 from sentinel.operator.live_run_evidence_sink import CrashSafeBoundedLiveRunEvidenceSink
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ProductActionKernelLoopDecisionClient,
@@ -538,6 +539,111 @@ def test_proof_integrity_gate_rejects_v5_style_completion_truth_contradiction() 
     assert result["passed"] is False
     assert "ledger_mismatch:technical_completion" in result["failure_reasons"]
     assert "ledger_mismatch:useful_answer_completion" in result["failure_reasons"]
+
+
+def test_browser_proof_bundle_gate_global_failed_on_injected_contradiction(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=_workspace(tmp_path),
+        session_id="browser-proof-bundle-gate",
+        mission_objective="Search and finish with a full proof bundle gate.",
+        decision_client=_browser_evidence_finish_client(),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=6,
+        max_material_actions=4,
+    )
+    replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=result.mission_ids).safe_model_dump()
+    host.shutdown()
+    index_path = host.kernel.store.run_root / "_browser_proof_index" / f"{result.loop_id}.json"
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    contradicted_ledger = dict(index["completion_ledger"])
+    contradicted_ledger["useful_answer_completion"] = False
+    evaluator = normalize_blind_evaluator_result(
+        {
+            "evaluator_verdict": "QUALITY_GATE_FAIL",
+            "answer_present": True,
+            "evidence_present": True,
+            "factual_claim_count": 1,
+            "supported_claim_count": 1,
+            "unsupported_claim_count": 0,
+            "answer_useful_complete": False,
+        },
+        evaluator_called=True,
+        evaluator_provider="aliyun_dashscope",
+        evaluator_model="deepseek-v4-pro",
+    )
+
+    bundle = evaluate_browser_proof_bundle_gate(
+        proof_index=index,
+        mission_ledger=contradicted_ledger,
+        evaluator_result=evaluator,
+        replay_payload=replay,
+        safe_bundle_created=True,
+        cleanup_success=True,
+    )
+
+    assert bundle["verdict"] == "FAILED"
+    assert bundle["proof_infrastructure_gate_passed"] is False
+    assert "ledger_mismatch:useful_answer_completion" in bundle["failure_reasons"]
+    assert "evaluator_mismatch:useful_answer_completion" in bundle["failure_reasons"]
+
+
+def test_browser_proof_bundle_gate_fails_unknown_runtime_provenance() -> None:
+    index = {
+        "schema_version": "browser_proof_index_v1",
+        "status": "completed",
+        "browser_receipt_missing_count": 0,
+        "material_browser_receipts": [
+            {
+                "browser_receipt_readable": True,
+                "actual_backend_id": "cloak_browser",
+                "action_status": "completed",
+            }
+        ],
+        "public_evidence": [
+            {
+                "evidence_human_readable": True,
+                "evidence_id": "evidence:official-doc",
+            }
+        ],
+        "answer_claims": {"claims": [], "factual_supported_count": 1, "factual_unsupported_count": 0},
+        "final_answer": {"answer_present": True},
+        "honest_blocker": {},
+        "runtime_provenance": {
+            "git_head": "unknown",
+            "runtime_source_tree_hash": "unknown",
+            "dirty_state_hash": "dirty",
+            "runtime_provenance_hash": "prov",
+        },
+    }
+    index["completion_truth"] = classify_browser_completion_truth(index)
+    index["completion_ledger"] = {
+        **index["completion_truth"],
+        "technical_completion": True,
+        "useful_answer_completion": True,
+    }
+
+    bundle = evaluate_browser_proof_bundle_gate(
+        proof_index=index,
+        mission_ledger=index["completion_ledger"],
+        evaluator_result={},
+        replay_payload={
+            "replay_mode": "artifact_history_reconstruction",
+            "history_reconstructed": True,
+            "effect_reexecution_attempted": False,
+            "reexecuted_actions": False,
+            "model_calls_delta": 0,
+            "receipt_writes_delta": 0,
+            "finalgate_writes_delta": 0,
+            "browser_proof_index_writes_delta": 0,
+            "browser_proof_index_hashes_stable": True,
+        },
+        safe_bundle_created=True,
+        cleanup_success=True,
+    )
+
+    assert bundle["verdict"] == "FAILED"
+    assert "runtime_provenance_missing_or_unsealed" in bundle["failure_reasons"]
 
 
 def test_browser_proof_index_contains_completion_ledger_and_runtime_provenance(tmp_path: Path) -> None:

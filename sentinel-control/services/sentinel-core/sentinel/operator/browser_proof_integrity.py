@@ -138,6 +138,44 @@ def evaluate_browser_proof_integrity_gate(
     }
 
 
+def evaluate_browser_proof_bundle_gate(
+    *,
+    proof_index: dict[str, Any],
+    mission_ledger: dict[str, Any] | None,
+    evaluator_result: dict[str, Any] | None,
+    replay_payload: dict[str, Any] | None,
+    safe_bundle_created: bool,
+    cleanup_success: bool,
+) -> dict[str, Any]:
+    """Evaluate the official browser proof bundle as one global gate.
+
+    This is the integration surface runners should call. It prevents a batch
+    report from calling proof infrastructure "passed" when the underlying
+    proof index, completion ledger, evaluator, replay reconstruction or runtime
+    provenance disagree.
+    """
+
+    gate = evaluate_browser_proof_integrity_gate(
+        proof_index=proof_index,
+        ledger=mission_ledger,
+        evaluator_result=evaluator_result,
+        replay_payload=replay_payload,
+        runtime_provenance=proof_index.get("runtime_provenance") if isinstance(proof_index, dict) else {},
+        safe_bundle_created=safe_bundle_created,
+        cleanup_success=cleanup_success,
+    )
+    return {
+        "schema_version": "browser_proof_bundle_integrity_gate_v1",
+        "verdict": "PASSED" if gate["passed"] else "FAILED",
+        "proof_infrastructure_gate_passed": bool(gate["passed"]),
+        "failure_reasons": list(gate["failure_reasons"]),
+        "integrity_gate": gate,
+        "completion_ledger": gate["canonical_completion_ledger"],
+        "data_not_authority": True,
+        "can_execute": False,
+    }
+
+
 def _evaluator_contradictions(ledger: dict[str, Any], evaluator: dict[str, Any]) -> list[str]:
     if not evaluator:
         return []
@@ -177,12 +215,20 @@ def _replay_reconstruction_no_react(payload: dict[str, Any]) -> bool:
 
 
 def _runtime_provenance_valid(payload: dict[str, Any]) -> bool:
+    git_head = str(payload.get("git_head") or "")
+    tree_hash = str(payload.get("runtime_source_tree_hash") or "")
+    dirty_hash = str(payload.get("dirty_state_hash") or "")
+    provenance_hash = str(payload.get("runtime_provenance_hash") or "")
     return bool(
         payload
-        and str(payload.get("git_head") or "")
-        and str(payload.get("runtime_source_tree_hash") or "")
-        and str(payload.get("dirty_state_hash") or "")
-        and str(payload.get("runtime_provenance_hash") or "")
+        and git_head
+        and git_head != "unknown"
+        and tree_hash
+        and tree_hash != "unknown"
+        and dirty_hash
+        and dirty_hash != "unknown"
+        and provenance_hash
+        and provenance_hash != "unknown"
     )
 
 
@@ -223,5 +269,6 @@ def _safe_int(value: Any) -> int:
 __all__ = [
     "browser_completion_ledger_from_index",
     "build_runtime_provenance",
+    "evaluate_browser_proof_bundle_gate",
     "evaluate_browser_proof_integrity_gate",
 ]

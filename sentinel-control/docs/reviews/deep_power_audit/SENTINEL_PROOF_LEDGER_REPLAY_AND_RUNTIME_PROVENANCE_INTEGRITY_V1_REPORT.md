@@ -59,6 +59,7 @@ It provides:
 browser_completion_ledger_from_index
 build_runtime_provenance
 evaluate_browser_proof_integrity_gate
+evaluate_browser_proof_bundle_gate
 ```
 
 The completion ledger is now only a projection of:
@@ -126,6 +127,28 @@ gate result:
   ledger_mismatch:useful_answer_completion
 ```
 
+The integration bundle gate now also reports:
+
+```text
+verdict = FAILED
+proof_infrastructure_gate_passed = false
+```
+
+for an injected contradiction across:
+
+```text
+run/bundle
+-> BrowserProofIndex
+-> completion ledger
+-> evaluator
+-> replay reconstruction
+-> provenance
+-> final proof gate
+```
+
+Official provenance with `git_head = unknown` or
+`runtime_source_tree_hash = unknown` fails the final proof gate.
+
 ## Runtime Provenance
 
 Each browser proof index now records safe provenance:
@@ -149,7 +172,7 @@ Raw local paths are not persisted.
 
 ```text
 py -3.13 -m pytest tests/operator/test_browser_receipt_persistence_answer_claim_evidence.py -q
-result: 17 passed
+result: 19 passed
 
 py -3.13 -m pytest tests/operator/test_power_cleanup_pack10_product_task_loop_runtimehost_entrypoint.py -q
 result: 12 passed
