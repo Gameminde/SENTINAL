@@ -222,7 +222,11 @@ class BrowserProofIndexBuilder:
     ) -> dict[str, Any]:
         receipt_ref = str(browser_receipt.get("receipt_id") or "")
         search_materiality = _bounded_dict(browser_receipt.get("search_materiality"))
+        typed_observation = _bounded_dict(browser_receipt.get("typed_observation"))
         typed_outcome = _bounded_dict(search_materiality.get("typed_search_outcome")) if search_materiality else {}
+        if not typed_outcome and typed_observation:
+            typed_outcome = dict(typed_observation)
+        evidence_delta = _bounded_dict(browser_receipt.get("evidence_delta"))
         return {
             "dispatch_id": dispatch.dispatch_id,
             "mission_id": dispatch.mission_id,
@@ -236,7 +240,16 @@ class BrowserProofIndexBuilder:
             "action_status": redact_operator_text(str(browser_receipt.get("status") or "")),
             "action_kind": redact_operator_text(str(browser_receipt.get("action_kind") or dispatch.operation)),
             "typed_outcome": typed_outcome,
+            "typed_observation": typed_observation,
+            "failure_code": redact_operator_text(
+                str(browser_receipt.get("failure_code") or typed_observation.get("failure_code") or "")
+            ),
             "search_materiality": search_materiality,
+            "evidence_delta": evidence_delta,
+            "exception_class": redact_operator_text(
+                str(browser_receipt.get("exception_class") or typed_observation.get("exception_class") or "")
+            ),
+            "exception_hash": str(browser_receipt.get("exception_hash") or typed_observation.get("exception_hash") or ""),
             "selected_backend_id": redact_operator_text(str(browser_receipt.get("selected_backend_id") or "")),
             "actual_backend_id": redact_operator_text(str(browser_receipt.get("actual_backend_id") or "")),
             "session_backend_kind": redact_operator_text(str(browser_receipt.get("session_backend_kind") or "")),
@@ -411,7 +424,7 @@ def classify_browser_completion_truth(index: dict[str, Any]) -> dict[str, Any]:
         entry
         for entry in readable
         if str(entry.get("actual_backend_id") or "")
-        and str(entry.get("action_status") or "") in {"completed", "passed", "success"}
+        and str(entry.get("action_status") or "") in {"completed", "passed", "success", "observation_success"}
     ]
     public_evidence = _list_payload(index.get("public_evidence"))
     human_evidence = [item for item in public_evidence if item.get("evidence_human_readable") is True]
@@ -423,15 +436,34 @@ def classify_browser_completion_truth(index: dict[str, Any]) -> dict[str, Any]:
     supported_claim_count = int(claims.get("factual_supported_count") or 0)
     unsupported_claim_count = int(claims.get("factual_unsupported_count") or 0)
     evidence_acquired = bool(human_evidence)
-    mission_satisfied = bool(answer_present and evidence_acquired and supported_claim_count > 0 and unsupported_claim_count == 0)
+    index_status = str(index.get("status") or "")
+    failure_receipt_present = any(
+        str(entry.get("action_status") or "") in {"typed_observation_failure", "recoverable_failed", "blocked", "failed"}
+        for entry in readable
+    )
+    evidenced_terminal_blocker = bool(
+        index_status == "blocked"
+        and str(index.get("final_reason") or "").strip()
+        and readable
+        and int(index.get("browser_receipt_missing_count") or 0) == 0
+        and failure_receipt_present
+    )
+    effective_blocker_present = bool(blocker_present or evidenced_terminal_blocker)
+    mission_satisfied = bool(
+        index_status == "completed"
+        and answer_present
+        and evidence_acquired
+        and supported_claim_count > 0
+        and unsupported_claim_count == 0
+    )
     useful_answer = bool(mission_satisfied and not blocker_present)
     return {
-        "loop_closed": str(index.get("status") or "") == "completed",
+        "loop_closed": index_status == "completed" or effective_blocker_present,
         "browser_body_reached": bool(action_success),
         "material_browser_action_succeeded": bool(action_success),
         "evidence_acquired": evidence_acquired,
         "final_answer_present": answer_present,
-        "honest_blocker_present": blocker_present,
+        "honest_blocker_present": effective_blocker_present,
         "mission_objective_satisfied": mission_satisfied,
         "useful_answer_completion": useful_answer,
         "human_readable_public_evidence_count": len(human_evidence),
@@ -687,6 +719,12 @@ def _receipt_evidence_refs(receipt: dict[str, Any]) -> list[str]:
         outcome = search_materiality.get("typed_search_outcome")
         if isinstance(outcome, dict):
             refs.extend(_list_of_strings(outcome.get("evidence_refs")))
+    typed_observation = receipt.get("typed_observation")
+    if isinstance(typed_observation, dict):
+        refs.extend(_list_of_strings(typed_observation.get("evidence_refs")))
+    evidence_delta = receipt.get("evidence_delta")
+    if isinstance(evidence_delta, dict):
+        refs.extend(_list_of_strings(evidence_delta.get("added_refs")))
     if receipt.get("browser_environment_state_hash"):
         refs.append(f"browser_env_state:{receipt['browser_environment_state_hash']}")
     if receipt.get("receipt_id"):
@@ -703,6 +741,10 @@ def _receipt_excerpt(receipt: dict[str, Any]) -> str:
         outcome = search_materiality.get("typed_search_outcome")
         if isinstance(outcome, dict):
             typed_outcome = str(outcome.get("outcome_kind") or "")
+    if not typed_outcome:
+        typed_observation = receipt.get("typed_observation")
+        if isinstance(typed_observation, dict):
+            typed_outcome = str(typed_observation.get("outcome_kind") or "")
     suffix = f" typed_outcome={typed_outcome}" if typed_outcome else ""
     return f"{action} status={status}{suffix}"
 
@@ -741,13 +783,20 @@ def _safe_receipt_payload(receipt: dict[str, Any]) -> dict[str, Any]:
         "product_dispatch_owner",
         "stable_element_ref",
         "action_kind",
+        "operation",
         "status",
+        "failure_code",
         "recovery_classification",
         "replay_behavior",
+        "page_state_hash",
         "before_state_hash",
         "after_state_hash",
         "browser_environment_state_hash",
         "search_materiality",
+        "typed_observation",
+        "evidence_delta",
+        "exception_class",
+        "exception_hash",
         "bounded_observation_summary_hash",
         "created_at",
         "result_hash",

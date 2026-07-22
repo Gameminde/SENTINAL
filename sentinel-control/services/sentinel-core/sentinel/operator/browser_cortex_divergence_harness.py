@@ -100,6 +100,10 @@ def build_browser_cortex_divergence_trace(
             latest_session = _session_identity(receipt)
             continue
 
+        if event_type == "browser_progress_repetition_detected":
+            _apply_progress_guard_suppression(current_decision, payload)
+            continue
+
     if current_decision is not None:
         decisions.append(current_decision)
 
@@ -112,6 +116,7 @@ def build_browser_cortex_divergence_trace(
         "material_receipt_count": len(receipts),
         "decisions": decisions,
         "first_causal_divergence": _first_causal_divergence(decisions),
+        "completion_truth": proof_index.get("completion_truth") if isinstance(proof_index.get("completion_truth"), dict) else {},
         "artifact_hashes": {
             "safe_evidence_snapshot_hash": stable_hash(safe_evidence_snapshot),
             "proof_index_hash": str(proof_index.get("proof_index_hash") or stable_hash(proof_index)),
@@ -183,7 +188,15 @@ def _apply_receipt_to_decision(
     )
     status = str(event_payload.get("status") or receipt.get("action_status") or "")
     evidence_before = set(current_evidence_refs)
-    evidence_after = evidence_before | set(_evidence_refs(receipt))
+    evidence_delta = receipt.get("evidence_delta") if isinstance(receipt.get("evidence_delta"), dict) else {}
+    if evidence_delta and evidence_delta.get("changed") is False:
+        evidence_after = set(evidence_before)
+    elif evidence_delta and evidence_delta.get("changed") is True:
+        evidence_after = evidence_before | set(
+            sanitize_operator_refs(_list_of_strings(evidence_delta.get("added_refs")))
+        )
+    else:
+        evidence_after = evidence_before | set(_evidence_refs(receipt))
     decision["pre_state_fingerprint"] = before
     decision["post_state_fingerprint"] = after
     decision["evidence_fingerprint_before"] = _evidence_fingerprint(evidence_before)
@@ -200,6 +213,7 @@ def _apply_receipt_to_decision(
         "status": _receipt_status(status),
         "operation": operation,
         "typed_outcome": _safe_typed_outcome(receipt),
+        "evidence_delta": evidence_delta,
         "blocked_reason": str(event_payload.get("blocked_reason") or receipt.get("blocked_reason") or ""),
         "receipt_refs": sanitize_operator_refs(_list_of_strings(event_payload.get("receipt_refs"))),
         "browser_receipt_ref": str(receipt.get("browser_receipt_ref") or ""),
@@ -222,6 +236,39 @@ def _apply_receipt_to_decision(
     decision["finish_eligibility"] = _finish_eligibility_from_receipt(receipt)
     current_evidence_refs.clear()
     current_evidence_refs.update(evidence_after)
+
+
+def _apply_progress_guard_suppression(decision: dict[str, Any], payload: dict[str, Any]) -> None:
+    normalized = decision.get("normalized_decision") if isinstance(decision.get("normalized_decision"), dict) else {}
+    if not normalized:
+        decision["normalized_decision"] = _normalized_decision(payload)
+    decision["product_action"] = _merge_dicts(
+        decision.get("product_action"),
+        {
+            "operation": str(payload.get("operation") or decision["normalized_decision"].get("operation") or ""),
+            "status": "suppressed_repeated_action",
+            "suppression_count": _safe_int(payload.get("suppression_count")),
+            "repetition_signature_hash": str(payload.get("repetition_signature_hash") or ""),
+        },
+    )
+    decision["receipt"] = {
+        "status": "suppressed_repeated_action",
+        "operation": str(payload.get("operation") or decision["normalized_decision"].get("operation") or ""),
+        "typed_outcome": {},
+        "blocked_reason": "",
+        "receipt_refs": [],
+        "browser_receipt_ref": "",
+        "receipt_hash": "",
+    }
+    decision["progress"] = {
+        "made_progress": False,
+        "reason": "suppressed_repeated_action",
+        "repetition_count": _safe_int(payload.get("repetition_count")),
+        "suppression_count": _safe_int(payload.get("suppression_count")),
+        "recommended_control_step": str(payload.get("recommended_control_step") or ""),
+        "state_changed": False,
+        "evidence_changed": False,
+    }
 
 
 def _progress_for_decision(
@@ -265,6 +312,15 @@ def _finalize_missing_progress(decisions: list[dict[str, Any]], seen_signatures:
     for decision in decisions:
         if decision.get("progress", {}).get("reason") != "awaiting_material_receipt":
             continue
+        normalized = decision.get("normalized_decision") if isinstance(decision.get("normalized_decision"), dict) else {}
+        if not normalized:
+            decision["progress"] = {
+                "made_progress": False,
+                "reason": "decision_absent",
+                "state_changed": False,
+                "evidence_changed": False,
+            }
+            continue
         failure = decision.get("runtime_failure_fact") if isinstance(decision.get("runtime_failure_fact"), dict) else {}
         if failure:
             decision["progress"] = {
@@ -288,6 +344,34 @@ def _finalize_missing_progress(decisions: list[dict[str, Any]], seen_signatures:
 
 
 def _first_causal_divergence(decisions: list[dict[str, Any]]) -> dict[str, Any]:
+    for decision in decisions:
+        failure = decision.get("runtime_failure_fact") if isinstance(decision.get("runtime_failure_fact"), dict) else {}
+        receipt = decision.get("receipt") if isinstance(decision.get("receipt"), dict) else {}
+        typed = receipt.get("typed_outcome") if isinstance(receipt.get("typed_outcome"), dict) else {}
+        failure_stage = str(failure.get("failure_stage") or typed.get("failure_stage") or "")
+        failure_code = str(failure.get("failure_code") or typed.get("failure_code") or "")
+        if failure_stage == "browser_runtime_observe" or failure_code.startswith("real_browser_observe_"):
+            return {
+                "decision_index": _safe_int(decision.get("decision_index")),
+                "classification": "BROWSER_OBSERVE_FAILURE_WITHOUT_PROGRESS",
+                "evidence": {
+                    "failure_code": failure_code,
+                    "failure_stage": failure_stage or "browser_runtime_observe",
+                    "material_effect_observed": bool(failure.get("material_effect_observed")),
+                },
+            }
+    for decision in decisions:
+        progress = decision.get("progress") if isinstance(decision.get("progress"), dict) else {}
+        if progress.get("reason") == "suppressed_repeated_action":
+            return {
+                "decision_index": _safe_int(decision.get("decision_index")),
+                "classification": "REPEATED_ACTION_SUPPRESSED_WITHOUT_PROGRESS",
+                "evidence": {
+                    "operation": str(decision.get("normalized_decision", {}).get("operation") or ""),
+                    "suppression_count": _safe_int(progress.get("suppression_count")),
+                    "repetition_count": _safe_int(progress.get("repetition_count")),
+                },
+            }
     for decision in decisions:
         progress = decision.get("progress") if isinstance(decision.get("progress"), dict) else {}
         if progress.get("reason") == "same_action_params_state_and_evidence":
@@ -417,9 +501,26 @@ def _affordances_from_packet(packet: dict[str, Any]) -> dict[str, Any]:
             "source": "no_failure_packet_available",
         }
     available = packet.get("available_affordances") if isinstance(packet.get("available_affordances"), dict) else {}
+    current_page = (
+        packet.get("safe_current_page_state_summary")
+        if isinstance(packet.get("safe_current_page_state_summary"), dict)
+        else {}
+    )
+    recommended = _list_of_strings(available.get("recommended_browser_actions"))
+    recovery = _list_of_strings(available.get("recovery_actions"))
+    if not recommended:
+        recommended = _list_of_strings(available.get("safe_browser_skills"))
+    if not recovery:
+        recovery = _list_of_strings(available.get("recommended_recovery"))
+    if not recovery:
+        recovery = _list_of_strings(available.get("recovery_affordances"))
+    search_refs = _list_of_strings(available.get("search_like_refs"))
+    if not search_refs:
+        search_refs = _list_of_strings(current_page.get("search_like_refs"))
     return {
-        "recommended_browser_actions": sanitize_operator_refs(_list_of_strings(available.get("recommended_browser_actions"))),
-        "recovery_actions": sanitize_operator_refs(_list_of_strings(available.get("recovery_actions"))),
+        "recommended_browser_actions": sanitize_operator_refs(recommended),
+        "recovery_actions": sanitize_operator_refs(recovery),
+        "search_like_refs": sanitize_operator_refs(search_refs),
         "source": "model_visible_body_failure_packet",
     }
 
@@ -437,10 +538,16 @@ def _packet_shape(packet: dict[str, Any]) -> dict[str, Any]:
 def _safe_typed_outcome(receipt: dict[str, Any]) -> dict[str, Any]:
     outcome = receipt.get("typed_outcome")
     if not isinstance(outcome, dict):
+        outcome = receipt.get("typed_observation")
+    if not isinstance(outcome, dict):
         return {}
     allowed = {
         "outcome_kind",
         "failure_code",
+        "failure_stage",
+        "resource_kind",
+        "exception_class",
+        "exception_hash",
         "material_effect_observed",
         "input_written",
         "submission_attempted",
@@ -517,6 +624,8 @@ def _receipt_status(value: str) -> str:
     lowered = str(value or "").lower()
     if lowered in {"recoverable_failed", "blocked", "failed"}:
         return "blocked" if lowered == "blocked" else lowered
+    if lowered in {"observation_success", "typed_observation_failure"}:
+        return lowered
     if lowered == "completed":
         return "completed"
     return lowered or _UNKNOWN
@@ -526,6 +635,8 @@ def _status_matches(*, receipt_status: str, event_status: str) -> bool:
     receipt = _receipt_status(receipt_status)
     event = _receipt_status(event_status)
     if receipt == event:
+        return True
+    if receipt == "typed_observation_failure" and event in {"blocked", "recoverable_failed", "failed"}:
         return True
     return {receipt, event} <= {"blocked", "recoverable_failed", "failed"}
 

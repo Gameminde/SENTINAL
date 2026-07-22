@@ -285,7 +285,7 @@ def test_browser_runtime_exception_reaches_next_model_turn_as_recoverable_fact(
     assert recovery["runtime_failure_fact"]["failure_stage"] == "browser_runtime_observe"
     assert recovery["model_visible_body_failure_packet"]["failure_stage"] == "browser_runtime_observe"
     assert result.status is ProductActionKernelTaskLoopStatus.BLOCKED
-    assert result.blocked_reason == "real_browser_runtime_dispatch_exception"
+    assert result.blocked_reason == "BROWSER_REPEATED_ACTION_WITHOUT_PROGRESS"
     assert result.dispatch_results[0].blocked_reason == "real_browser_runtime_dispatch_exception"
     assert result.dispatch_results[0].safe_context_cards["runtime_failure_fact"]["material_effect_observed"] is False
     assert result.dispatch_results[0].safe_context_cards["runtime_failure_fact"]["session_continuity"]["root_lease_present"] is True

@@ -26,7 +26,7 @@ class BrowserProgressRepetitionGuard:
             "suppression_count": int(self._suppression_counts.get(signature, 0)),
             "capability_id": decision.capability_id,
             "operation": decision.operation,
-            "params_hash": stable_hash(dict(decision.params)),
+            "params_hash": stable_hash(_normalized_progress_params(decision.params)),
             "state_fingerprint": _state_fingerprint(context),
             "evidence_fingerprint": _evidence_fingerprint(context),
             "recommended_control_step": _recommended_control_step(count),
@@ -69,7 +69,7 @@ class BrowserProgressRepetitionGuard:
         record = {
             "capability_id": decision.capability_id,
             "operation": decision.operation,
-            "params_hash": stable_hash(dict(decision.params)),
+            "params_hash": stable_hash(_normalized_progress_params(decision.params)),
             "pre_state_fingerprint": pre_state,
             "post_state_fingerprint": post_state,
             "pre_evidence_fingerprint": pre_evidence,
@@ -126,11 +126,19 @@ def _operation_signature(decision: ActionEnvelope, context: dict[str, Any]) -> s
         {
             "capability_id": decision.capability_id,
             "operation": decision.operation,
-            "params_hash": stable_hash(dict(decision.params)),
+            "params_hash": stable_hash(_normalized_progress_params(decision.params)),
             "state_fingerprint": _state_fingerprint(context),
             "evidence_fingerprint": _evidence_fingerprint(context),
         }
     )
+
+
+def _normalized_progress_params(params: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(key): value
+        for key, value in dict(params).items()
+        if str(key) not in {"progress_guard_recovery", "repetition_signature_hash"}
+    }
 
 
 def _state_fingerprint(context: dict[str, Any]) -> str:
@@ -147,8 +155,6 @@ def _state_fingerprint(context: dict[str, Any]) -> str:
                     "session_lease_status",
                     "page_body_available",
                     "interactive_candidates",
-                    "recoverable_error",
-                    "provenance_and_freshness",
                 )
                 if isinstance(fields.get(key), dict)
             }

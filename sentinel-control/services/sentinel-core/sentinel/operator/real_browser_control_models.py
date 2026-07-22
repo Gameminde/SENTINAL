@@ -81,12 +81,43 @@ class RealBrowserObservationReceipt(SentinelModel):
     receipt_id: str = Field(default_factory=lambda: new_id("real_browser_observation"))
     mission_id: str
     browser_session_ref: str
+    browser_session_handle_ref: str = ""
+    browser_session_handle_hash: str = ""
+    child_workspace_handle_hash: str = ""
+    mission_workspace_ref: str = ""
+    mission_workspace_hash: str = ""
+    root_browser_lease_id_hash: str = ""
+    browser_engine_identity_hash: str = ""
+    backend_context_identity_hash: str = ""
+    page_identity_hash: str = ""
     bounded_url_ref: str
     safe_url_origin_hash: str
+    selected_backend_id: str = ""
+    actual_backend_id: str = ""
+    session_backend_kind: str = ""
+    backend_mismatch: bool = False
+    simple_skill: str = ""
+    internal_action_id: str = ""
+    product_dispatch_owner: str = ""
+    stable_element_ref: str = "page:observation"
+    action_kind: str = "real_browser.observe"
+    operation: str = "real_browser.observe"
+    status: str = "observation_success"
+    failure_code: str = ""
+    recovery_classification: str = "none"
+    replay_behavior: str = "no_reexecute_on_replay"
     page_title: str
     page_state_hash: str
     elements: tuple[RealBrowserElementSnapshot, ...] = Field(default_factory=tuple)
+    before_state_hash: str = ""
+    after_state_hash: str = ""
+    browser_environment_state_hash: str = ""
+    typed_observation: dict[str, object] = Field(default_factory=dict)
+    evidence_delta: dict[str, object] = Field(default_factory=dict)
+    exception_class: str = ""
+    exception_hash: str = ""
     bounded_observation_summary_hash: str
+    result_hash: str = ""
     receipt_hash: str = ""
     created_at: datetime = Field(default_factory=utc_now)
     data_not_authority: bool = True
@@ -97,23 +128,61 @@ class RealBrowserObservationReceipt(SentinelModel):
     @model_validator(mode="after")
     def _receipt_is_data_only(self) -> "RealBrowserObservationReceipt":
         _assert_data_only("real_browser_observation_receipt", self)
+        if not self.before_state_hash:
+            self.before_state_hash = self.page_state_hash
+        if not self.after_state_hash:
+            self.after_state_hash = self.page_state_hash
+        if not self.browser_environment_state_hash:
+            self.browser_environment_state_hash = self.after_state_hash
+        if not self.result_hash:
+            self.result_hash = stable_hash(self.safe_model_dump(include_hash=False, include_result_hash=False))
         if not self.receipt_hash:
-            self.receipt_hash = stable_hash(self.safe_model_dump(include_hash=False))
+            self.receipt_hash = stable_hash(self.safe_model_dump(include_hash=False, include_result_hash=True))
         return self
 
     def verify_hash(self) -> bool:
-        return stable_hash(self.safe_model_dump(include_hash=False)) == self.receipt_hash
+        return stable_hash(self.safe_model_dump(include_hash=False, include_result_hash=True)) == self.receipt_hash
 
-    def safe_model_dump(self, *, include_hash: bool = True) -> dict[str, object]:
+    def safe_model_dump(self, *, include_hash: bool = True, include_result_hash: bool = True) -> dict[str, object]:
         payload: dict[str, object] = {
             "receipt_id": self.receipt_id,
             "mission_id": self.mission_id,
             "browser_session_ref": _safe_browser_ref(self.browser_session_ref),
+            "browser_session_handle_ref": _safe_browser_ref(self.browser_session_handle_ref),
+            "browser_session_handle_hash": self.browser_session_handle_hash,
+            "child_workspace_handle_hash": self.child_workspace_handle_hash,
+            "mission_workspace_ref": _safe_browser_ref(self.mission_workspace_ref),
+            "mission_workspace_hash": self.mission_workspace_hash,
+            "root_browser_lease_id_hash": self.root_browser_lease_id_hash,
+            "browser_engine_identity_hash": self.browser_engine_identity_hash,
+            "backend_context_identity_hash": self.backend_context_identity_hash,
+            "page_identity_hash": self.page_identity_hash,
             "bounded_url_ref": _safe_browser_ref(self.bounded_url_ref),
             "safe_url_origin_hash": self.safe_url_origin_hash,
+            "selected_backend_id": redact_operator_text(self.selected_backend_id),
+            "actual_backend_id": redact_operator_text(self.actual_backend_id),
+            "session_backend_kind": redact_operator_text(self.session_backend_kind),
+            "backend_mismatch": self.backend_mismatch,
+            "simple_skill": redact_operator_text(self.simple_skill),
+            "internal_action_id": redact_operator_text(self.internal_action_id),
+            "product_dispatch_owner": redact_operator_text(self.product_dispatch_owner),
+            "stable_element_ref": _safe_browser_ref(self.stable_element_ref),
+            "action_kind": redact_operator_text(self.action_kind),
+            "operation": redact_operator_text(self.operation),
+            "status": redact_operator_text(self.status),
+            "failure_code": redact_operator_text(self.failure_code),
+            "recovery_classification": redact_operator_text(self.recovery_classification),
+            "replay_behavior": redact_operator_text(self.replay_behavior),
             "page_title": redact_operator_text(self.page_title),
             "page_state_hash": self.page_state_hash,
             "elements": [element.safe_model_dump() for element in self.elements],
+            "before_state_hash": self.before_state_hash,
+            "after_state_hash": self.after_state_hash,
+            "browser_environment_state_hash": self.browser_environment_state_hash,
+            "typed_observation": dict(self.typed_observation),
+            "evidence_delta": dict(self.evidence_delta),
+            "exception_class": redact_operator_text(self.exception_class),
+            "exception_hash": self.exception_hash,
             "bounded_observation_summary_hash": self.bounded_observation_summary_hash,
             "created_at": self.created_at.isoformat(),
             "data_not_authority": self.data_not_authority,
@@ -121,6 +190,8 @@ class RealBrowserObservationReceipt(SentinelModel):
             "can_grant_authority": self.can_grant_authority,
             "can_execute": self.can_execute,
         }
+        if include_result_hash:
+            payload["result_hash"] = self.result_hash
         if include_hash:
             payload["receipt_hash"] = self.receipt_hash
         return payload
@@ -150,13 +221,19 @@ class RealBrowserActionReceipt(SentinelModel):
     product_dispatch_owner: str = ""
     stable_element_ref: str
     action_kind: str
+    operation: str = ""
     status: str
+    failure_code: str = ""
     recovery_classification: str = "none"
     replay_behavior: str = "no_reexecute_on_replay"
     before_state_hash: str
     after_state_hash: str
     browser_environment_state_hash: str = ""
     search_materiality: dict[str, object] = Field(default_factory=dict)
+    typed_observation: dict[str, object] = Field(default_factory=dict)
+    evidence_delta: dict[str, object] = Field(default_factory=dict)
+    exception_class: str = ""
+    exception_hash: str = ""
     bounded_observation_summary_hash: str
     result_hash: str = ""
     receipt_hash: str = ""
@@ -203,13 +280,19 @@ class RealBrowserActionReceipt(SentinelModel):
             "product_dispatch_owner": redact_operator_text(self.product_dispatch_owner),
             "stable_element_ref": _safe_browser_ref(self.stable_element_ref),
             "action_kind": redact_operator_text(self.action_kind),
+            "operation": redact_operator_text(self.operation or self.action_kind),
             "status": redact_operator_text(self.status),
+            "failure_code": redact_operator_text(self.failure_code),
             "recovery_classification": redact_operator_text(self.recovery_classification),
             "replay_behavior": redact_operator_text(self.replay_behavior),
             "before_state_hash": self.before_state_hash,
             "after_state_hash": self.after_state_hash,
             "browser_environment_state_hash": self.browser_environment_state_hash,
             "search_materiality": dict(self.search_materiality),
+            "typed_observation": dict(self.typed_observation),
+            "evidence_delta": dict(self.evidence_delta),
+            "exception_class": redact_operator_text(self.exception_class),
+            "exception_hash": self.exception_hash,
             "bounded_observation_summary_hash": self.bounded_observation_summary_hash,
             "created_at": self.created_at.isoformat(),
             "data_not_authority": self.data_not_authority,

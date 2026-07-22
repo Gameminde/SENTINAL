@@ -586,6 +586,9 @@ def test_browser_proof_bundle_gate_global_failed_on_injected_contradiction(tmp_p
     assert bundle["proof_infrastructure_gate_passed"] is False
     assert "ledger_mismatch:useful_answer_completion" in bundle["failure_reasons"]
     assert "evaluator_mismatch:useful_answer_completion" in bundle["failure_reasons"]
+    assert bundle["integrity_gate"]["subresults"]["completion_ledger_consistency"]["passed"] is False
+    assert bundle["integrity_gate"]["subresults"]["blind_evaluator_consistency"]["passed"] is False
+    assert bundle["integrity_gate"]["subresults"]["replay_reconstruction"]["passed"] is True
 
 
 def test_browser_proof_bundle_gate_fails_unknown_runtime_provenance() -> None:
@@ -644,6 +647,7 @@ def test_browser_proof_bundle_gate_fails_unknown_runtime_provenance() -> None:
 
     assert bundle["verdict"] == "FAILED"
     assert "runtime_provenance_missing_or_unsealed" in bundle["failure_reasons"]
+    assert bundle["integrity_gate"]["subresults"]["runtime_provenance"]["passed"] is False
 
 
 def test_browser_proof_index_contains_completion_ledger_and_runtime_provenance(tmp_path: Path) -> None:

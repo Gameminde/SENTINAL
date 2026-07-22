@@ -779,7 +779,19 @@ class RealBrowserControlRuntime:
 
     def _observe(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.observe")
-        snapshot = self.engine.observe()
+        try:
+            snapshot = self.engine.observe()
+        except Exception as exc:
+            return self._record_observation_failure(
+                envelope,
+                exc=exc,
+                failure_code="real_browser_observe_snapshot_failed",
+                safe_summary=(
+                    "Browser observation failed after product dispatch; no page observation was "
+                    "fabricated, and a typed body-failure packet is available."
+                ),
+                context=context,
+            )
         context_cards = self._world_context_cards(
             snapshot,
             authority=authority,
@@ -792,17 +804,39 @@ class RealBrowserControlRuntime:
             if element.visible and element.enabled and not bool(getattr(element, "secret", False))
         )
         summary_hash = stable_hash({"title_hash": text_hash(snapshot.page_title), "elements": [element.safe_model_dump() for element in elements]})
-        receipt = RealBrowserObservationReceipt(
-            mission_id=self.mission_id,
-            browser_session_ref=self.session_ref,
-            bounded_url_ref=self.bounded_url_ref,
-            safe_url_origin_hash=self.engine.safe_url_origin_hash,
+        receipt = self._record_terminal_observation_receipt(
+            envelope,
+            status="observation_success",
+            failure_code="",
+            element_ref="page:observation",
             page_title=snapshot.page_title,
             page_state_hash=snapshot.state_hash,
             elements=elements,
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            browser_environment_state_hash=str(context_cards.get("browser_environment_state_hash") or snapshot.state_hash),
             bounded_observation_summary_hash=summary_hash,
+            typed_observation={
+                "outcome_kind": "observation_success",
+                "failure_code": "",
+                "element_count": len(elements),
+                "page_state_hash": snapshot.state_hash,
+                "evidence_refs": [
+                    f"browser_state:{snapshot.state_hash}",
+                ],
+                "material_effect_observed": False,
+                "data_not_authority": True,
+                "can_execute": False,
+            },
+            evidence_delta={
+                "changed": False,
+                "before_fingerprint": snapshot.state_hash,
+                "after_fingerprint": snapshot.state_hash,
+                "added_refs": [],
+                "data_not_authority": True,
+                "can_execute": False,
+            },
         )
-        self._write_artifact("receipts", receipt.receipt_id, receipt.safe_model_dump())
         self._append_event(
             "real_browser_observed",
             "Bounded real browser page observed with stable refs.",
@@ -821,6 +855,238 @@ class RealBrowserControlRuntime:
             result_hash=receipt.receipt_hash,
             context_cards=context_cards,
         )
+
+    def _record_observation_failure(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        exc: BaseException,
+        failure_code: str,
+        safe_summary: str,
+        context: dict[str, Any],
+    ) -> ActionResult:
+        browser_state_hash = _observation_failure_state_hash(
+            operation=envelope.operation,
+            engine=self.engine,
+            failure_code=failure_code,
+            exception_class=exc.__class__.__name__,
+        )
+        exception_hash = text_hash(f"{exc.__class__.__name__}:{str(exc)}")
+        context_cards = _recoverable_existing_browser_context_cards(context)
+        context_cards["browser_environment_state_hash"] = str(
+            context_cards.get("browser_environment_state_hash") or browser_state_hash
+        )
+        context_cards["runtime_failure_fact"] = _runtime_failure_fact(
+            envelope=envelope,
+            failure_code=failure_code,
+            safe_summary=safe_summary,
+            browser_state_hash=browser_state_hash,
+            context_cards=context_cards,
+        )
+        context_cards["runtime_failure_fact"].update(
+            {
+                "failure_stage": "browser_runtime_observe",
+                "resource_kind": "browser_observation_snapshot",
+                "exception_class": exc.__class__.__name__,
+                "exception_hash": exception_hash,
+                "raw_exception_text_persisted": False,
+                "typed_retryability": {
+                    "retryable": True,
+                    "mechanical_recovery_allowed": True,
+                    "recommended_recovery": ("observe", "recover_session"),
+                },
+            }
+        )
+        context_cards["model_visible_body_failure_packet"] = _model_visible_body_failure_packet(
+            envelope=envelope,
+            failure_code=failure_code,
+            safe_summary=safe_summary,
+            browser_state_hash=browser_state_hash,
+            context_cards=context_cards,
+            product_context=self.product_context,
+            child_browser_session_ref=self.session_ref,
+        )
+        context_cards["model_visible_body_failure_packet"].update(
+            {
+                "failure_stage": "browser_runtime_observe",
+                "resource_kind": "browser_observation_snapshot",
+            }
+        )
+        context_cards["model_visible_body_failure_packet"]["typed_outcome"] = {
+            **(
+                context_cards["model_visible_body_failure_packet"].get("typed_outcome")
+                if isinstance(context_cards["model_visible_body_failure_packet"].get("typed_outcome"), dict)
+                else {}
+            ),
+            "outcome_kind": "typed_observation_failure",
+            "failure_code": failure_code,
+            "exception_class": exc.__class__.__name__,
+            "exception_hash": exception_hash,
+            "recoverable": True,
+        }
+        context_cards["model_blocker_assessment_schema"] = _model_blocker_assessment_schema()
+        evidence_refs = [f"browser_state:{browser_state_hash}", f"runtime_failure_fact:{stable_hash(context_cards['runtime_failure_fact'])}"]
+        receipt = self._record_terminal_observation_receipt(
+            envelope,
+            status="typed_observation_failure",
+            failure_code=failure_code,
+            element_ref="page:observation",
+            page_title="unknown",
+            page_state_hash=browser_state_hash,
+            elements=(),
+            before_state_hash=browser_state_hash,
+            after_state_hash=browser_state_hash,
+            browser_environment_state_hash=str(context_cards.get("browser_environment_state_hash") or browser_state_hash),
+            bounded_observation_summary_hash=stable_hash(
+                {
+                    "operation": envelope.operation,
+                    "failure_code": failure_code,
+                    "exception_class": exc.__class__.__name__,
+                    "exception_hash": exception_hash,
+                    "browser_state_hash": browser_state_hash,
+                }
+            ),
+            typed_observation={
+                "outcome_kind": "typed_observation_failure",
+                "failure_code": failure_code,
+                "failure_stage": "browser_runtime_observe",
+                "resource_kind": "browser_observation_snapshot",
+                "exception_class": exc.__class__.__name__,
+                "exception_hash": exception_hash,
+                "material_effect_observed": False,
+                "retryable": True,
+                "evidence_refs": evidence_refs,
+                "raw_exception_text_persisted": False,
+                "data_not_authority": True,
+                "can_execute": False,
+            },
+            evidence_delta={
+                "changed": False,
+                "before_fingerprint": browser_state_hash,
+                "after_fingerprint": browser_state_hash,
+                "added_refs": [],
+                "data_not_authority": True,
+                "can_execute": False,
+            },
+            exception_class=exc.__class__.__name__,
+            exception_hash=exception_hash,
+        )
+        certificate = RealBrowserFinalCertificate(
+            mission_id=self.mission_id,
+            status="blocked",
+            accepted=False,
+            reason="real_browser.observe_typed_observation_failure",
+            receipt_refs=(receipt.receipt_id,),
+        )
+        self._write_artifact("finalgate", certificate.certificate_id, certificate.safe_model_dump())
+        self._append_event(
+            "real_browser_observation_failed",
+            "Bounded real browser observe produced a typed failure receipt.",
+            metadata={
+                "action_kind": envelope.operation,
+                "failure_code": failure_code,
+                "browser_state_hash": browser_state_hash,
+                "exception_class": exc.__class__.__name__,
+                "exception_hash": exception_hash,
+            },
+            receipt_refs=[receipt.receipt_id],
+            finalgate_refs=[certificate.certificate_id],
+        )
+        observation = recoverable_action_observation(
+            failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
+            failure_code=failure_code,
+            attempted_action_hash=envelope.action_hash,
+            safe_summary=safe_summary,
+            recommended_next_actions=("observe", "recover_session"),
+            refreshed_candidate_refs=(),
+        )
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id,
+            operation=envelope.operation,
+            status="recoverable_failed",
+            receipt_refs=(receipt.receipt_id,),
+            finalgate_refs=(certificate.certificate_id,),
+            material_action=False,
+            blocked_reason=failure_code,
+            failure_class=ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE,
+            failure_code=failure_code,
+            recoverable=True,
+            recovery_observation=observation.safe_model_dump(),
+            recommended_next_actions=("observe", "recover_session"),
+            observation_summary=(
+                "recoverable browser observe failure "
+                f"code={failure_code} state_hash={browser_state_hash}."
+            ),
+            result_hash=receipt.receipt_hash,
+            context_cards=context_cards,
+        )
+
+    def _record_terminal_observation_receipt(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        status: str,
+        failure_code: str,
+        element_ref: str,
+        page_title: str,
+        page_state_hash: str,
+        elements: tuple[RealBrowserElementSnapshot, ...],
+        before_state_hash: str,
+        after_state_hash: str,
+        browser_environment_state_hash: str,
+        bounded_observation_summary_hash: str,
+        typed_observation: dict[str, object],
+        evidence_delta: dict[str, object],
+        exception_class: str = "",
+        exception_hash: str = "",
+    ) -> RealBrowserObservationReceipt:
+        product_context = dict(self.product_context)
+        workspace_context = _browser_product_workspace_context(product_context)
+        root_identity = _browser_root_identity_context(product_context, engine=self.engine, after_state_hash=after_state_hash)
+        internal_action_id = f"{envelope.capability_id}.{envelope.operation}"
+        receipt = RealBrowserObservationReceipt(
+            mission_id=self.mission_id,
+            browser_session_ref=self.session_ref,
+            browser_session_handle_ref=workspace_context["browser_session_handle_ref"],
+            browser_session_handle_hash=workspace_context["browser_session_handle_hash"],
+            child_workspace_handle_hash=workspace_context["child_workspace_handle_hash"],
+            mission_workspace_ref=workspace_context["mission_workspace_ref"],
+            mission_workspace_hash=workspace_context["mission_workspace_hash"],
+            root_browser_lease_id_hash=root_identity["root_browser_lease_id_hash"],
+            browser_engine_identity_hash=root_identity["browser_engine_identity_hash"],
+            backend_context_identity_hash=root_identity["backend_context_identity_hash"],
+            page_identity_hash=root_identity["page_identity_hash"],
+            bounded_url_ref=self.bounded_url_ref,
+            safe_url_origin_hash=self.engine.safe_url_origin_hash,
+            selected_backend_id=self.selected_backend_id,
+            actual_backend_id=self.actual_backend_id,
+            session_backend_kind=_engine_session_backend_kind(self.engine),
+            backend_mismatch=self.selected_backend_id != self.actual_backend_id,
+            simple_skill=model_skill_for_action(internal_action_id) or "",
+            internal_action_id=internal_action_id,
+            product_dispatch_owner=str(product_context.get("adapter_id") or ""),
+            stable_element_ref=element_ref,
+            action_kind=envelope.operation,
+            operation=envelope.operation,
+            status=status,
+            failure_code=failure_code,
+            recovery_classification="none" if status == "observation_success" else "recoverable",
+            replay_behavior="no_reexecute_on_replay",
+            page_title=page_title,
+            page_state_hash=page_state_hash,
+            elements=elements,
+            before_state_hash=before_state_hash,
+            after_state_hash=after_state_hash,
+            browser_environment_state_hash=browser_environment_state_hash,
+            typed_observation=dict(typed_observation),
+            evidence_delta=dict(evidence_delta),
+            exception_class=exception_class,
+            exception_hash=exception_hash,
+            bounded_observation_summary_hash=bounded_observation_summary_hash,
+        )
+        self._write_artifact("receipts", receipt.receipt_id, receipt.safe_model_dump())
+        return receipt
 
     def _search(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.search")
@@ -3275,6 +3541,25 @@ def _context_browser_state_hash(context_cards: dict[str, Any]) -> str:
     return stable_hash({"browser_context_cards": sorted(context_cards)})
 
 
+def _observation_failure_state_hash(
+    *,
+    operation: str,
+    engine: RealBrowserEngine,
+    failure_code: str,
+    exception_class: str,
+) -> str:
+    return stable_hash(
+        {
+            "operation": operation,
+            "failure_code": failure_code,
+            "exception_class": exception_class,
+            "safe_url_origin_hash": _safe_engine_origin_hash(engine),
+            "selected_backend_id": _engine_backend_id(engine),
+            "session_backend_kind": _engine_session_backend_kind(engine),
+        }
+    )
+
+
 def _search_error_can_refresh_refs(error: str) -> bool:
     lowered = error.lower()
     return any(marker in lowered for marker in ("stale", "detached", "not_textbox", "disabled", "hidden", "ref_not_found"))
@@ -3731,6 +4016,8 @@ def _model_blocker_assessment_schema() -> dict[str, Any]:
 
 
 def _browser_failure_stage(failure_code: str, *, operation: str) -> str:
+    if failure_code.startswith("real_browser_observe_") or operation.endswith(".observe"):
+        return "browser_runtime_observe"
     if "search_control_not_found" in failure_code:
         return "search_control_discovery"
     if any(

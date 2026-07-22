@@ -95,16 +95,39 @@ def evaluate_browser_proof_integrity_gate(
     replay = replay_payload if isinstance(replay_payload, dict) else {}
     provenance = runtime_provenance if isinstance(runtime_provenance, dict) else {}
     failures: list[str] = []
+    subresults: dict[str, dict[str, Any]] = {}
 
     if not proof_index:
         failures.append("proof_index_missing")
+    subresults["proof_index"] = {
+        "passed": bool(proof_index),
+        "failure_code": "" if proof_index else "proof_index_missing",
+    }
     if not safe_bundle_created:
         failures.append("safe_bundle_missing")
+    subresults["safe_bundle"] = {
+        "passed": bool(safe_bundle_created),
+        "failure_code": "" if safe_bundle_created else "safe_bundle_missing",
+    }
     if not cleanup_success:
         failures.append("cleanup_not_proven")
+    subresults["cleanup"] = {
+        "passed": bool(cleanup_success),
+        "failure_code": "" if cleanup_success else "cleanup_not_proven",
+    }
     if canonical_ledger["browser_receipt_missing_count"] != 0:
         failures.append("material_browser_receipt_missing")
+    subresults["material_browser_receipts"] = {
+        "passed": canonical_ledger["browser_receipt_missing_count"] == 0,
+        "missing_count": canonical_ledger["browser_receipt_missing_count"],
+        "failure_code": (
+            ""
+            if canonical_ledger["browser_receipt_missing_count"] == 0
+            else "material_browser_receipt_missing"
+        ),
+    }
 
+    ledger_mismatches: list[str] = []
     for field in (
         "technical_completion",
         "useful_answer_completion",
@@ -116,18 +139,45 @@ def evaluate_browser_proof_integrity_gate(
         "browser_receipt_missing_count",
     ):
         if field in candidate_ledger and candidate_ledger.get(field) != canonical_ledger.get(field):
-            failures.append(f"ledger_mismatch:{field}")
+            failure = f"ledger_mismatch:{field}"
+            failures.append(failure)
+            ledger_mismatches.append(failure)
+    subresults["completion_ledger_consistency"] = {
+        "passed": not ledger_mismatches,
+        "failure_reasons": ledger_mismatches,
+        "canonical_ledger_hash": stable_hash(canonical_ledger),
+        "candidate_ledger_hash": stable_hash(candidate_ledger),
+    }
 
-    failures.extend(_evaluator_contradictions(canonical_ledger, evaluator))
-    if not _replay_reconstruction_no_react(replay):
+    evaluator_failures = _evaluator_contradictions(canonical_ledger, evaluator)
+    failures.extend(evaluator_failures)
+    subresults["blind_evaluator_consistency"] = {
+        "passed": not evaluator_failures,
+        "failure_reasons": evaluator_failures,
+        "evaluator_hash": stable_hash(evaluator),
+    }
+    replay_ok = _replay_reconstruction_no_react(replay)
+    if not replay_ok:
         failures.append("replay_reconstruction_not_proven")
-    if not _runtime_provenance_valid(provenance):
+    subresults["replay_reconstruction"] = {
+        "passed": replay_ok,
+        "failure_code": "" if replay_ok else "replay_reconstruction_not_proven",
+        "replay_hash": stable_hash(replay),
+    }
+    provenance_ok = _runtime_provenance_valid(provenance)
+    if not provenance_ok:
         failures.append("runtime_provenance_missing_or_unsealed")
+    subresults["runtime_provenance"] = {
+        "passed": provenance_ok,
+        "failure_code": "" if provenance_ok else "runtime_provenance_missing_or_unsealed",
+        "runtime_provenance_hash": str(provenance.get("runtime_provenance_hash") or ""),
+    }
 
     return {
         "schema_version": _GATE_SCHEMA_VERSION,
         "passed": not failures,
         "failure_reasons": sorted(dict.fromkeys(failures)),
+        "subresults": subresults,
         "canonical_completion_ledger": canonical_ledger,
         "ledger_hash": stable_hash(candidate_ledger),
         "evaluator_hash": stable_hash(evaluator),

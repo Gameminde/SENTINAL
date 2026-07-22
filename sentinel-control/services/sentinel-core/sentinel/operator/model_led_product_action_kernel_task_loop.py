@@ -587,6 +587,8 @@ class ModelLedProductActionKernelTaskLoop:
         self._record_evidence_transition("browser_progress_repetition_detected", observation)
         suppression_count = int(observation.get("suppression_count") or 0)
         if suppression_count <= 1:
+            if self.model_calls_used >= self.max_model_calls:
+                return self._block("BROWSER_REPEATED_ACTION_WITHOUT_PROGRESS")
             return None
         if (
             suppression_count == 2
@@ -1174,6 +1176,7 @@ def _is_recoverable_action_failure(reason: str) -> bool:
 
 def _is_recoverable_browser_action_failure(reason: str) -> bool:
     return reason in {
+        "real_browser_observe_snapshot_failed",
         "real_browser_search_control_not_found",
         "real_browser_search_actuation_failed",
         "real_browser_search_session_open_failed",
@@ -1838,6 +1841,9 @@ def _browser_dispatch_state_or_evidence_delta(dispatch_result: UnifiedDispatchRe
     if dispatch_result.capability_id != "real_browser_control":
         return None
     context_cards = dispatch_result.safe_context_cards if isinstance(dispatch_result.safe_context_cards, dict) else {}
+    runtime_failure_fact = context_cards.get("runtime_failure_fact")
+    if isinstance(runtime_failure_fact, dict):
+        return False
     materiality = context_cards.get("browser_search_materiality")
     if isinstance(materiality, dict):
         return bool(
