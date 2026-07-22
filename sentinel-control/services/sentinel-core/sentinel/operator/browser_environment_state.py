@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
+from sentinel.operator.browser_affordance_contracts import compile_executable_browser_affordances
 from sentinel.operator.browser_world_model import BrowserWorldModel, BrowserWorldModelBuilder
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel, new_id
@@ -403,10 +404,11 @@ def _browser_operational_snapshot(
             uncertainty_reason="none observed in this snapshot" if not recoverable_error else "bounded failure metadata only",
         ),
         "currently_executable_affordances": _state_field(
-            _currently_executable_affordances(
+            compile_executable_browser_affordances(
                 available_actions=available_actions,
                 page_available=bool(snapshot.state_hash),
                 body_available=bool(snapshot.elements or snapshot.page_title),
+                session_lease_status=session_lease_status,
                 action_graph=action_graph,
                 extraction_graph=extraction_graph,
                 recoverable_error=recoverable_error,
@@ -705,98 +707,6 @@ def _recommended_recovery_paths(
     if action_graph.search_like_refs:
         return ["retry_best_ranked_search_control", "try_alternate_submit", "refresh_world_model"]
     return ["observe_again", "scroll_or_wait_for_results", "report_uncertain_page_shape"]
-
-
-def _currently_executable_affordances(
-    *,
-    available_actions: tuple[str, ...],
-    page_available: bool,
-    body_available: bool,
-    action_graph: BrowserActionGraph,
-    extraction_graph: BrowserExtractionGraph,
-    recoverable_error: dict[str, Any] | None,
-    mission_progress: dict[str, Any] | None,
-) -> list[dict[str, Any]]:
-    allowed = set(str(action) for action in available_actions if str(action))
-    affordances: list[dict[str, Any]] = []
-    if _action_allowed(allowed, "real_browser.observe") and page_available:
-        affordances.append(_affordance("observe", "real_browser.observe", "page available"))
-    if _action_allowed(allowed, "real_browser.search") and body_available and action_graph.search_like_refs:
-        affordances.append(
-            _affordance(
-                "search",
-                "real_browser.search",
-                "search-like control observed",
-                {"search_like_ref_count": len(action_graph.search_like_refs)},
-            )
-        )
-    if _action_allowed(allowed, "real_browser.open_result") and body_available and action_graph.link_refs:
-        affordances.append(_affordance("follow", "real_browser.open_result", "safe link/result refs observed"))
-    if _action_allowed(allowed, "real_browser.inspect_result") and body_available and action_graph.link_refs:
-        affordances.append(_affordance("inspect", "real_browser.inspect_result", "safe link/result refs observed"))
-    if _action_allowed(allowed, "real_browser.extract_evidence") and body_available:
-        affordances.append(
-            _affordance(
-                "extract_evidence",
-                "real_browser.extract_evidence",
-                "page body or visible text is available",
-                {"candidate_count": extraction_graph.product_or_result_candidate_count},
-            )
-        )
-    if _action_allowed(allowed, "real_browser.verify_extraction") and extraction_graph.product_or_result_candidate_count:
-        affordances.append(_affordance("verify", "real_browser.verify_extraction", "candidate evidence exists"))
-    if _action_allowed(allowed, "real_browser.recover_session") and recoverable_error:
-        affordances.append(_affordance("recover_session", "real_browser.recover_session", "recoverable body error present"))
-    if _action_allowed(allowed, "sentinel_loop.finish") and _finish_affordance_ready(
-        mission_progress,
-        recoverable_error,
-    ):
-        affordances.append(_affordance("finish", "sentinel_loop.finish", "verified evidence or honest blocker available"))
-    return affordances
-
-
-def _action_allowed(allowed: set[str], operation: str) -> bool:
-    return operation in allowed or f"real_browser_control.{operation}" in allowed or (
-        operation == "sentinel_loop.finish" and "sentinel_loop.finish" in allowed
-    )
-
-
-def _affordance(skill: str, operation: str, reason: str, extra: dict[str, Any] | None = None) -> dict[str, Any]:
-    payload = {
-        "skill": skill,
-        "operation": operation,
-        "precondition_status": "satisfied",
-        "reason": reason,
-        "authority_effect": "none",
-        "data_not_authority": True,
-        "dispatch_contract": "ProductActionKernel",
-    }
-    if extra:
-        payload.update(extra)
-    return payload
-
-
-def _finish_affordance_ready(mission_progress: dict[str, Any] | None, recoverable_error: dict[str, Any] | None) -> bool:
-    if not isinstance(mission_progress, dict):
-        return False
-    finish_eligible = _progress_truthy(mission_progress.get("finish_eligible"))
-    objective_satisfied = _progress_truthy(mission_progress.get("objective_satisfied"))
-    verified = _progress_truthy(mission_progress.get("verified_evidence_present"))
-    summary_present = _progress_truthy(mission_progress.get("summary_present"))
-    honest_blocker = _progress_truthy(mission_progress.get("honest_blocker_present"))
-    if honest_blocker:
-        return finish_eligible
-    if recoverable_error:
-        return False
-    return finish_eligible and objective_satisfied and verified and summary_present
-
-
-def _progress_truthy(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip().lower() in {"true", "yes", "1", "satisfied", "present", "eligible"}
-    return bool(value)
 
 
 def _mission_progress_value(

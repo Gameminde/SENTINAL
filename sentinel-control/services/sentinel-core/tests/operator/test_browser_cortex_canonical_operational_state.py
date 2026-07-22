@@ -174,6 +174,9 @@ def test_product_context_exposes_operational_snapshot_to_model(tmp_path: Path) -
     assert frame["operational_snapshot"]["schema_version"] == "browser_operational_snapshot_v1"
     assert frame["operational_snapshot"]["fingerprint"]
     assert frame["currently_executable_affordances"]
+    assert frame["currently_executable_affordances"][0]["dispatch_contract"] == "ProductActionKernel"
+    assert frame["currently_executable_affordances"][0]["typed_input_contract"]
+    assert frame["currently_executable_affordances"][0]["normalized_result_contract"]
 
 
 class _CapturingBrowserDecisionClient:
