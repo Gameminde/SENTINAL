@@ -7,6 +7,10 @@ from pydantic import Field
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.operator.browser_completion_policy import (
+    browser_summary_supports_terminal_answer,
+    browser_summary_supports_terminal_blocker,
+)
 from sentinel.shared.models import SentinelModel
 
 
@@ -362,7 +366,7 @@ def _terminal_finish_params(context: dict[str, Any], *, fallback_summary: str) -
     evidence_refs = _public_evidence_refs(context)
     if not evidence_refs:
         evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
-    if summary.get("negative_result_confirmed") is True:
+    if browser_summary_supports_terminal_blocker(summary):
         return {
             "honest_blocker": {
                 "reason": summary_text,
@@ -379,6 +383,8 @@ def _terminal_finish_params(context: dict[str, Any], *, fallback_summary: str) -
                 }
             ],
         }
+    if not browser_summary_supports_terminal_answer(summary):
+        return {"safe_summary": summary_text[:1800]}
     claim_type = "factual" if _has_public_evidence_summary(context) else "model_inference"
     return {
         "final_answer": {

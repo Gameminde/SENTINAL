@@ -16,6 +16,7 @@ from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ProductActionKernelLoopDecisionClient,
     ProductActionKernelTaskLoopReplay,
     ProductActionKernelTaskLoopStatus,
+    _complete_final_answer_payload_from_context,
 )
 from sentinel.operator.runtime_host import SentinelRuntimeHost
 
@@ -225,13 +226,13 @@ def test_answer_claim_candidates_mark_missing_factual_refs_without_punishing_unc
     assert claims["unsupported_claim_count"] == 1
 
 
-def test_finish_after_grounded_summary_completes_without_reasking_model(tmp_path: Path) -> None:
+def test_finish_after_relevant_grounded_summary_completes_without_reasking_model(tmp_path: Path) -> None:
     client = ProductActionKernelLoopDecisionClient(
         [
             ActionEnvelope(
                 capability_id="real_browser_control",
                 operation="real_browser.search",
-                params={"query": "pathlib glob", "engine_profile": "fake_product_search"},
+                params={"query": "glasses under 5 euro", "engine_profile": "fake_product_search"},
             ),
             ActionEnvelope(
                 capability_id="real_browser_control",
@@ -256,7 +257,7 @@ def test_finish_after_grounded_summary_completes_without_reasking_model(tmp_path
     result = host.run_product_action_kernel_task_loop(
         workspace_root=_workspace(tmp_path),
         session_id="finish-contract",
-        mission_objective="Find documentation evidence and provide a useful answer.",
+        mission_objective="Find glasses under 5 EUR and provide a useful answer.",
         decision_client=client,
         allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
         max_model_calls=7,
@@ -272,6 +273,30 @@ def test_finish_after_grounded_summary_completes_without_reasking_model(tmp_path
     index = json.loads(index_path.read_text(encoding="utf-8"))
     assert index["final_answer"]["answer_text"]
     assert index["answer_claims"]["factual_supported_count"] == 1
+
+
+def test_partial_grounded_summary_does_not_auto_complete_final_answer_payload() -> None:
+    context = {
+        "grounded_evidence_summary": {
+            "present": True,
+            "summary_kind": "grounded_browser_open_world_evidence_summary",
+            "summary_text": (
+                "Open-world browser evidence entities: 6. Objective support: partial. "
+                "Entity kinds remain extensible; unknown fields stay unknown."
+            ),
+            "objective_satisfaction_status": "partial",
+            "objective_relevance_assessed": True,
+            "negative_result_confirmed": False,
+        },
+        "browser_proof_index_summary": {
+            "public_evidence_count": 2,
+            "public_evidence_ids": ["evidence:generic-nav", "evidence:generic-entity"],
+        },
+    }
+
+    completed = _complete_final_answer_payload_from_context({"safe_summary": "done"}, context=context)
+
+    assert completed == {"safe_summary": "done"}
 
 
 def test_honest_blocker_can_finish_without_fabricated_factual_claims(tmp_path: Path) -> None:

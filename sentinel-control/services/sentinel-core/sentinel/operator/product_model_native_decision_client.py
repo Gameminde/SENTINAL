@@ -11,6 +11,10 @@ from sentinel.operator.browser_search_parameter_boundary import (
     BrowserSearchParameterBoundaryError,
     normalize_model_browser_search_parameters,
 )
+from sentinel.operator.browser_completion_policy import (
+    browser_summary_supports_terminal_answer,
+    browser_summary_supports_terminal_blocker,
+)
 from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
 from sentinel.operator.live_run_evidence_sink import safe_model_operational_assessment
 
@@ -812,7 +816,7 @@ def _complete_finish_params_from_context(params: dict[str, Any], *, context: dic
     evidence_refs = _browser_public_evidence_refs(context)
     if not evidence_refs:
         evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
-    if summary.get("negative_result_confirmed") is True:
+    if browser_summary_supports_terminal_blocker(summary):
         params["honest_blocker"] = {
             "reason": _bounded_text(summary_text, 1200),
             "available_evidence_refs": evidence_refs,
@@ -830,6 +834,8 @@ def _complete_finish_params_from_context(params: dict[str, Any], *, context: dic
                 }
             ],
         )
+        return params
+    if not browser_summary_supports_terminal_answer(summary):
         return params
     params["final_answer"] = {
         "answer_text": _bounded_text(summary_text, 2400),

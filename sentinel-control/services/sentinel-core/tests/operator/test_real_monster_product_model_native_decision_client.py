@@ -165,6 +165,7 @@ def test_finish_after_grounded_browser_summary_builds_terminal_answer_payload() 
                 "present": True,
                 "summary_kind": "grounded_open_world_evidence_summary",
                 "summary_text": "Path.glob returns paths matching a pattern using pathlib semantics.",
+                "objective_satisfaction_status": "supported",
                 "negative_result_confirmed": False,
             },
         )
@@ -180,6 +181,41 @@ def test_finish_after_grounded_browser_summary_builds_terminal_answer_payload() 
         "evidence:python:pathlib",
     ]
     assert "honest_blocker" not in decision.params
+
+
+def test_finish_after_partial_browser_summary_does_not_fabricate_terminal_answer_payload() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient([{"skill": "finish"}]),
+        request_factory=_request_factory,
+    )
+
+    decision = client.complete(
+        _context(
+            recommended_skill="finish",
+            recent_product_receipt_refs=["receipt:search", "receipt:extract", "receipt:verify"],
+            browser_proof_index_summary={
+                "public_evidence_count": 2,
+                "public_evidence_ids": ["evidence:generic-nav", "evidence:generic-entity"],
+            },
+            grounded_evidence_summary={
+                "present": True,
+                "summary_kind": "grounded_browser_open_world_evidence_summary",
+                "summary_text": (
+                    "Open-world browser evidence entities: 6. Objective support: partial. "
+                    "Entity kinds remain extensible; unknown fields stay unknown."
+                ),
+                "objective_satisfaction_status": "partial",
+                "objective_relevance_assessed": True,
+                "negative_result_confirmed": False,
+            },
+        )
+    )
+
+    assert decision.capability_id == "sentinel_loop"
+    assert decision.operation == "finish"
+    assert "final_answer" not in decision.params
+    assert "honest_blocker" not in decision.params
+    assert decision.params["safe_summary"]
 
 
 def test_finish_after_negative_browser_summary_builds_honest_blocker_payload() -> None:

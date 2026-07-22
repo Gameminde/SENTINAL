@@ -10,6 +10,10 @@ from pydantic import Field, model_validator
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError, TRUSTED_RUNTIME_CONTEXT_KEYS
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
+from sentinel.operator.browser_completion_policy import (
+    browser_summary_supports_terminal_answer,
+    browser_summary_supports_terminal_blocker,
+)
 from sentinel.operator.browser_proof_index import BrowserProofIndexBuilder, summary_from_index, write_browser_proof_index
 from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
@@ -1212,7 +1216,7 @@ def _complete_final_answer_payload_from_context(payload: dict[str, Any], *, cont
     evidence_refs = _browser_public_evidence_refs(context)
     if not evidence_refs:
         evidence_refs = [f"evidence:{stable_hash({'summary': summary_text})}"]
-    if summary.get("negative_result_confirmed") is True:
+    if browser_summary_supports_terminal_blocker(summary):
         completed["honest_blocker"] = {
             "reason": summary_text[:1200],
             "available_evidence_refs": evidence_refs,
@@ -1231,6 +1235,8 @@ def _complete_final_answer_payload_from_context(payload: dict[str, Any], *, cont
             ],
         )
         return completed
+    if not browser_summary_supports_terminal_answer(summary):
+        return payload
     completed["final_answer"] = {
         "answer_text": summary_text[:2400],
         "answer_kind": "grounded_browser_answer",
