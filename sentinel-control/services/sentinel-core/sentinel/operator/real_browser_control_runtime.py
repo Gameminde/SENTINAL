@@ -4075,9 +4075,17 @@ def _root_browser_lease_status(context: dict[str, Any]) -> str:
     root = context.get("root_browser_runtime_lease") if isinstance(context, dict) else None
     if not isinstance(root, dict):
         return "unknown"
-    status = str(root.get("lifecycle_state") or root.get("status") or root.get("lease_state") or "").upper()
+    status = str(
+        root.get("browser_session_state")
+        or root.get("lifecycle_state")
+        or root.get("status")
+        or root.get("lease_state")
+        or ""
+    ).upper()
     if status in {"ACTIVE", "DEGRADED", "RECOVERING", "RECONNECTED", "BLOCKED", "CLOSED"}:
         return status
+    if status == "ACTIVE_AFTER_RECOVERY":
+        return "RECONNECTED"
     if root.get("lease_hash") or root.get("root_browser_lease_id_hash"):
         return "ACTIVE"
     return "unknown"

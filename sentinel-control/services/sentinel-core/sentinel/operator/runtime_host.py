@@ -72,6 +72,15 @@ LOCAL_FIXTURE_BROWSER_SESSION_KIND = "local_fixture"
 
 _LIVE_CLOAK_ENGINE_LOCK = threading.RLock()
 
+
+class BrowserSessionControlState(StrEnum):
+    ACTIVE = "ACTIVE"
+    DEGRADED = "DEGRADED"
+    RECOVERING = "RECOVERING"
+    RECONNECTED = "RECONNECTED"
+    BLOCKED = "BLOCKED"
+    CLOSED = "CLOSED"
+
 _TRUSTED_RUNTIME_CONTEXT_KEYS = frozenset(
     {
         "adapter_id",
@@ -177,6 +186,10 @@ class ProductTaskBrowserRuntimeLease:
             }
         )
         self.lifecycle_state = "created"
+        self.browser_session_state = BrowserSessionControlState.ACTIVE.value
+        self.previous_browser_session_state = ""
+        self.last_state_transition_reason = "lease_created"
+        self.browser_session_state_history: list[str] = [self.browser_session_state]
         self.engine: object | None = None
         self.browser_engine_identity_hash = stable_hash({"lease_hash": self.lease_hash, "identity": "browser_engine"})
         self.backend_context_identity_hash = stable_hash({"lease_hash": self.lease_hash, "identity": "backend_context"})
@@ -193,33 +206,87 @@ class ProductTaskBrowserRuntimeLease:
             try:
                 self.engine = _product_browser_engine(envelope)
                 self.open_count += 1
+                self._transition_browser_session_state(
+                    BrowserSessionControlState.ACTIVE,
+                    reason="engine_acquired",
+                )
                 self.lifecycle_state = "active"
             except Exception:
+                self._transition_browser_session_state(
+                    BrowserSessionControlState.BLOCKED,
+                    reason="engine_acquisition_failed",
+                )
                 self._release_live_context_lock_if_needed()
                 raise
         return self.engine
 
+    def mark_degraded(self, *, failure_code: str, failure_fingerprint: str | None = None) -> bool:
+        if self.browser_session_state in {
+            BrowserSessionControlState.BLOCKED.value,
+            BrowserSessionControlState.CLOSED.value,
+        }:
+            return False
+        self.last_failure_fingerprint = failure_fingerprint or text_hash(failure_code)
+        self._transition_browser_session_state(
+            BrowserSessionControlState.DEGRADED,
+            reason=failure_code or "browser_body_failure",
+        )
+        return True
+
+    def mark_blocked(self, *, reason: str) -> None:
+        if self.browser_session_state == BrowserSessionControlState.CLOSED.value:
+            return
+        self._transition_browser_session_state(
+            BrowserSessionControlState.BLOCKED,
+            reason=reason or "browser_body_blocked",
+        )
+
     def recover_engine_once(self, envelope: ActionEnvelope) -> bool:
         if self.recovery_attempt_count >= 1:
+            self._transition_browser_session_state(
+                BrowserSessionControlState.BLOCKED,
+                reason="bounded_recovery_exhausted",
+            )
             return False
         self.recovery_attempt_count += 1
-        self.close_engine(mark_state="recovering")
+        self._transition_browser_session_state(
+            BrowserSessionControlState.RECOVERING,
+            reason="bounded_recovery_started",
+        )
+        self.close_engine(mark_state="recovering", browser_session_state=BrowserSessionControlState.RECOVERING)
         self._acquire_live_context_lock_if_needed(envelope)
         try:
             self.engine = _product_browser_engine(envelope)
             self.open_count += 1
+            self._transition_browser_session_state(
+                BrowserSessionControlState.RECONNECTED,
+                reason="bounded_recovery_reconnected",
+            )
             self.lifecycle_state = "active_after_recovery"
         except Exception:
+            self._transition_browser_session_state(
+                BrowserSessionControlState.BLOCKED,
+                reason="bounded_recovery_failed",
+            )
             self._release_live_context_lock_if_needed()
             raise
         return True
 
-    def close_engine(self, *, mark_state: str = "closed") -> None:
+    def close_engine(
+        self,
+        *,
+        mark_state: str = "closed",
+        browser_session_state: BrowserSessionControlState = BrowserSessionControlState.CLOSED,
+    ) -> None:
         engine = self.engine
         self.engine = None
         if engine is None:
             self._release_live_context_lock_if_needed()
             self.lifecycle_state = mark_state
+            self._transition_browser_session_state(
+                browser_session_state,
+                reason=f"close_engine:{mark_state}",
+            )
             return
         close = getattr(engine, "close", None)
         close_all = getattr(engine, "close_all", None)
@@ -232,6 +299,10 @@ class ProductTaskBrowserRuntimeLease:
             self._release_live_context_lock_if_needed()
             self.close_count += 1
             self.lifecycle_state = mark_state
+            self._transition_browser_session_state(
+                browser_session_state,
+                reason=f"close_engine:{mark_state}",
+            )
 
     def close(self) -> None:
         self.close_engine(mark_state="closed")
@@ -249,6 +320,17 @@ class ProductTaskBrowserRuntimeLease:
         self.live_context_lock_acquired = False
         _LIVE_CLOAK_ENGINE_LOCK.release()
 
+    def _transition_browser_session_state(self, state: BrowserSessionControlState, *, reason: str) -> None:
+        next_state = state.value
+        if next_state == self.browser_session_state:
+            self.last_state_transition_reason = reason
+            return
+        self.previous_browser_session_state = self.browser_session_state
+        self.browser_session_state = next_state
+        self.browser_session_state_history.append(next_state)
+        self.browser_session_state_history = self.browser_session_state_history[-12:]
+        self.last_state_transition_reason = reason
+
     def safe_model_dump(self) -> dict[str, object]:
         backend_id = _safe_engine_backend_id(self.engine)
         return {
@@ -258,6 +340,10 @@ class ProductTaskBrowserRuntimeLease:
             "root_scope_id_hash": stable_hash(self.root_scope_id),
             "root_session_id_hash": text_hash(self.root_session_id),
             "lifecycle_state": self.lifecycle_state,
+            "browser_session_state": self.browser_session_state,
+            "previous_browser_session_state": self.previous_browser_session_state,
+            "browser_session_state_history": tuple(self.browser_session_state_history),
+            "last_state_transition_reason": self.last_state_transition_reason,
             "selected_backend_id": backend_id,
             "actual_backend_id": backend_id,
             "browser_engine_identity_hash": self.browser_engine_identity_hash,
@@ -268,6 +354,7 @@ class ProductTaskBrowserRuntimeLease:
             "open_count": self.open_count,
             "close_count": self.close_count,
             "recovery_attempt_count": self.recovery_attempt_count,
+            "last_failure_fingerprint": self.last_failure_fingerprint or "",
             "data_not_authority": True,
             "can_grant_authority": False,
             "can_execute": False,
@@ -324,12 +411,28 @@ class ProductTaskResourceScope:
             return False
         return self.browser_lease.recover_engine_once(envelope)
 
+    def mark_browser_degraded(self, *, failure_code: str, failure_fingerprint: str | None = None) -> bool:
+        if self.browser_lease is None or self.closed:
+            return False
+        return self.browser_lease.mark_degraded(
+            failure_code=failure_code,
+            failure_fingerprint=failure_fingerprint,
+        )
+
+    def mark_browser_blocked(self, *, reason: str) -> None:
+        if self.browser_lease is None or self.closed:
+            return
+        self.browser_lease.mark_blocked(reason=reason)
+
     def browser_lease_card(self) -> dict[str, object]:
         if self.browser_lease is None:
             return {
                 "root_scope_id_hash": stable_hash(self.scope_id),
                 "root_session_id_hash": text_hash(self.root_session_id),
                 "lifecycle_state": "not_acquired",
+                "browser_session_state": BrowserSessionControlState.CLOSED.value,
+                "previous_browser_session_state": "",
+                "last_state_transition_reason": "not_acquired",
                 "backend_concurrency_capability": ProductTaskBrowserRuntimeLease.backend_concurrency_capability,
                 "data_not_authority": True,
                 "can_grant_authority": False,
@@ -901,6 +1004,10 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
             if not _is_browser_body_failure(result):
                 return result
             first_fingerprint = _body_failure_fingerprint(typed_scope, envelope=envelope, result=result)
+            typed_scope.mark_browser_degraded(
+                failure_code=result.failure_code or result.blocked_reason or "browser_body_failure",
+                failure_fingerprint=first_fingerprint,
+            )
             if not typed_scope.recover_browser_engine_once(envelope):
                 return _body_session_unavailable_result(envelope, scope=typed_scope, prior_result=result, fingerprint=first_fingerprint)
             recovered_context = dict(runtime_context)
@@ -922,6 +1029,10 @@ def _default_real_browser_executor(envelope: ActionEnvelope, context: dict[str, 
             )
             second_fingerprint = _body_failure_fingerprint(typed_scope, envelope=envelope, result=recovered)
             if _is_browser_body_failure(recovered):
+                typed_scope.mark_browser_degraded(
+                    failure_code=recovered.failure_code or recovered.blocked_reason or "browser_body_failure",
+                    failure_fingerprint=second_fingerprint,
+                )
                 return _body_session_unavailable_result(
                     envelope,
                     scope=typed_scope,
@@ -1406,6 +1517,7 @@ def _body_session_unavailable_result(
     prior_result: ActionResult,
     fingerprint: str,
 ) -> ActionResult:
+    scope.mark_browser_blocked(reason="body_session_unavailable_after_bounded_recovery")
     context_cards = dict(prior_result.context_cards)
     context_cards["body_circuit_breaker"] = {
         "failure_code": "BODY_SESSION_UNAVAILABLE",
