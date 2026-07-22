@@ -11,6 +11,7 @@ from sentinel.operator.browser_proof_index import (
     normalize_answer_claims,
     sanitize_public_evidence,
 )
+from sentinel.operator.browser_proof_integrity import evaluate_browser_proof_integrity_gate
 from sentinel.operator.live_run_evidence_sink import CrashSafeBoundedLiveRunEvidenceSink
 from sentinel.operator.model_led_product_action_kernel_task_loop import (
     ProductActionKernelLoopDecisionClient,
@@ -149,7 +150,7 @@ def test_public_evidence_redacts_actual_secret_values_without_topic_word_redacti
             "source_url": "https://docs.example.test/security/passwords.html",
             "source_title": "Password manager documentation",
             "source_origin": "https://docs.example.test",
-            "excerpt": "This public page explains password managers and shows token=sk-1234567890abcdef1234567890abcdef as an example secret.",
+            "excerpt": "This public page explains password managers and shows token=example-secret-value-1234567890abcdef as an example secret.",
         }
     )
 
@@ -469,6 +470,99 @@ def test_browser_proof_index_replay_hash_is_stable_and_no_react(tmp_path: Path) 
     assert payload["browser_proof_index_writes_delta"] == 0
     assert payload["browser_proof_index_hashes_stable"] is True
     assert payload["answer_claim_mutation_delta"] == 0
+    assert payload["replay_mode"] == "artifact_history_reconstruction"
+    assert payload["history_reconstructed"] is True
+    assert payload["effect_reexecution_attempted"] is False
+    assert payload["artifact_history_hash"]
+
+
+def test_proof_integrity_gate_rejects_v5_style_completion_truth_contradiction() -> None:
+    index = {
+        "schema_version": "browser_proof_index_v1",
+        "status": "completed",
+        "browser_receipt_missing_count": 0,
+        "material_browser_receipt_count": 1,
+        "browser_receipt_readable_count": 1,
+        "public_evidence": [],
+        "answer_claims": {"claims": [], "factual_supported_count": 0, "factual_unsupported_count": 0},
+        "final_answer": {},
+        "honest_blocker": {},
+    }
+    index["completion_truth"] = classify_browser_completion_truth(index)
+    stale_ledger = {
+        "technical_completion": True,
+        "useful_answer_completion": True,
+        "browser_receipt_missing_count": 0,
+        "supported_factual_claim_count": 0,
+        "unsupported_factual_claim_count": 0,
+    }
+    evaluator = normalize_blind_evaluator_result(
+        {
+            "evaluator_verdict": "QUALITY_GATE_FAIL",
+            "answer_present": False,
+            "evidence_present": False,
+            "factual_claim_count": 0,
+            "supported_claim_count": 0,
+            "unsupported_claim_count": 0,
+            "answer_useful_complete": False,
+        },
+        evaluator_called=True,
+        evaluator_provider="aliyun_dashscope",
+        evaluator_model="deepseek-v4-pro",
+    )
+
+    result = evaluate_browser_proof_integrity_gate(
+        proof_index=index,
+        ledger=stale_ledger,
+        evaluator_result=evaluator,
+        replay_payload={
+            "replay_mode": "artifact_history_reconstruction",
+            "history_reconstructed": True,
+            "effect_reexecution_attempted": False,
+            "reexecuted_actions": False,
+            "receipt_writes_delta": 0,
+            "finalgate_writes_delta": 0,
+            "browser_proof_index_writes_delta": 0,
+            "browser_proof_index_hashes_stable": True,
+        },
+        runtime_provenance={
+            "git_head": "abc123",
+            "runtime_source_tree_hash": "tree123",
+            "dirty_state_hash": "dirty123",
+            "runtime_provenance_hash": "prov123",
+        },
+        safe_bundle_created=True,
+        cleanup_success=True,
+    )
+
+    assert result["passed"] is False
+    assert "ledger_mismatch:technical_completion" in result["failure_reasons"]
+    assert "ledger_mismatch:useful_answer_completion" in result["failure_reasons"]
+
+
+def test_browser_proof_index_contains_completion_ledger_and_runtime_provenance(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=_workspace(tmp_path),
+        session_id="browser-proof-index-provenance",
+        mission_objective="Search and finish with provenance in the proof index.",
+        decision_client=_browser_evidence_finish_client(),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=6,
+        max_material_actions=4,
+    )
+    host.shutdown()
+
+    index_path = host.kernel.store.run_root / "_browser_proof_index" / f"{result.loop_id}.json"
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+
+    assert index["completion_ledger"]["source_completion_truth_hash"]
+    assert index["completion_ledger"]["technical_completion"] is True
+    assert index["completion_ledger"]["useful_answer_completion"] is True
+    assert index["runtime_provenance"]["git_head"]
+    assert index["runtime_provenance"]["runtime_source_tree_hash"]
+    assert index["runtime_provenance"]["dirty_state_hash"]
+    assert index["runtime_provenance"]["runtime_provenance_hash"]
 
 
 def test_browser_proof_index_context_summary_is_bounded(tmp_path: Path) -> None:

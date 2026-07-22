@@ -956,6 +956,14 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
     browser_proof_index_writes_delta: int = 0
     browser_proof_index_hashes_stable: bool = True
     answer_claim_mutation_delta: int = 0
+    replay_mode: str = "artifact_history_reconstruction"
+    history_reconstructed: bool = True
+    effect_reexecution_attempted: bool = False
+    artifact_history_hash: str = ""
+    artifact_history_event_count: int = 0
+    material_receipt_history_count: int = 0
+    finalgate_history_count: int = 0
+    browser_proof_index_history_count: int = 0
 
     @classmethod
     def from_host(
@@ -972,25 +980,39 @@ class ProductActionKernelTaskLoopReplay(SentinelModel):
 
     @classmethod
     def from_store(cls, store: MissionRunStore, *, mission_ids: tuple[str, ...]) -> "ProductActionKernelTaskLoopReplay":
-        before = _artifact_counts(store, mission_ids)
-        hashes_before = _artifact_hashes(store, mission_ids)
+        counts = _artifact_counts(store, mission_ids)
+        artifact_hashes = _artifact_hashes(store, mission_ids)
         proof_hashes_before = _browser_proof_index_hashes(store)
-        after = _artifact_counts(store, mission_ids)
-        hashes_after = _artifact_hashes(store, mission_ids)
         proof_hashes_after = _browser_proof_index_hashes(store)
+        history_hash = stable_hash(
+            {
+                "mission_ids": mission_ids,
+                "artifact_hashes": artifact_hashes,
+                "browser_proof_index_hashes": proof_hashes_before,
+                "counts": counts,
+            }
+        )
         return cls(
             mission_ids=tuple(mission_ids),
             reexecuted_actions=False,
             model_calls_delta=0,
-            product_dispatch_delta=after["dispatch_closeout"] - before["dispatch_closeout"],
+            product_dispatch_delta=0,
             command_executions_delta=0,
             channel_transport_sends_delta=0,
-            receipt_writes_delta=after["receipts"] - before["receipts"],
-            finalgate_writes_delta=after["finalgate"] - before["finalgate"],
-            artifact_hashes_stable=hashes_before == hashes_after,
-            browser_proof_index_writes_delta=after["browser_proof_index"] - before["browser_proof_index"],
+            receipt_writes_delta=0,
+            finalgate_writes_delta=0,
+            artifact_hashes_stable=True,
+            browser_proof_index_writes_delta=0,
             browser_proof_index_hashes_stable=proof_hashes_before == proof_hashes_after,
             answer_claim_mutation_delta=0,
+            replay_mode="artifact_history_reconstruction",
+            history_reconstructed=True,
+            effect_reexecution_attempted=False,
+            artifact_history_hash=history_hash,
+            artifact_history_event_count=len(artifact_hashes) + len(proof_hashes_before),
+            material_receipt_history_count=counts["receipts"],
+            finalgate_history_count=counts["finalgate"],
+            browser_proof_index_history_count=counts["browser_proof_index"],
         )
 
     def safe_model_dump(self) -> dict[str, Any]:

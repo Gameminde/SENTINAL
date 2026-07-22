@@ -12,6 +12,7 @@ from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.models import utc_now
 from sentinel.operator.redaction import redact_operator_text, sanitize_operator_refs
 from sentinel.operator.store import MissionRunStore, _path_exists, _read_text_file
+from sentinel.operator.browser_proof_integrity import browser_completion_ledger_from_index, build_runtime_provenance
 from sentinel.operator.unified_execution_dispatcher import (
     UnifiedDispatchResult,
     load_product_action_kernel_artifact,
@@ -121,6 +122,8 @@ class BrowserProofIndexBuilder:
             "final_answer": final_answer,
             "honest_blocker": honest_blocker,
             "completion_truth": {},
+            "completion_ledger": {},
+            "runtime_provenance": {},
             "finalgate_metrics": _finalgate_metrics(
                 material_entries=material_entries,
                 answer_claims=answer_claims,
@@ -135,6 +138,15 @@ class BrowserProofIndexBuilder:
             "can_execute": False,
         }
         index["completion_truth"] = classify_browser_completion_truth(index)
+        index["completion_ledger"] = browser_completion_ledger_from_index(index)
+        index["runtime_provenance"] = build_runtime_provenance(
+            corpus_manifest_hash=str(
+                self.final_answer_payload.get("corpus_manifest_hash")
+                or self.final_answer_payload.get("manifest_hash")
+                or ""
+            ),
+            runtime_corpus_hash=str(self.final_answer_payload.get("runtime_corpus_hash") or ""),
+        )
         index["proof_index_hash"] = stable_hash({**index, "proof_index_hash": ""})
         return index
 
@@ -425,6 +437,9 @@ def classify_browser_completion_truth(index: dict[str, Any]) -> dict[str, Any]:
         "human_readable_public_evidence_count": len(human_evidence),
         "supported_factual_claim_count": supported_claim_count,
         "unsupported_factual_claim_count": unsupported_claim_count,
+        "material_browser_receipt_count": len(entries),
+        "browser_receipt_readable_count": len(readable),
+        "browser_receipt_missing_count": int(index.get("browser_receipt_missing_count") or 0),
         "data_not_authority": True,
         "can_execute": False,
     }
