@@ -24,6 +24,7 @@ cloak = [
 
 [project.scripts]
 sentinel = "sentinel.cli:main"
+sentinel-presence-observer = "sentinel.operator.presence_observer_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -36,4 +37,3 @@ addopts = "-q"
 markers = [
     "slow: long-running benchmark or property test (deselect with -m 'not slow')",
 ]
-
