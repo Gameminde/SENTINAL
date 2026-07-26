@@ -21,16 +21,97 @@ import {
   type PresenceState,
 } from "@/lib/presence-protocol";
 
+const telemetryIncomplete = "TELEMETRY_INCOMPLETE";
 const routeSlots = ["north-west", "west", "south-west", "north-east", "east", "south-east"] as const;
+
+const demoStates = [
+  {
+    key: "idle",
+    label: "idle",
+    state: "SLEEPING",
+    summary: "Silent standby. The route is hidden and no runtime action is available.",
+  },
+  {
+    key: "listening",
+    label: "listening",
+    state: "LISTENING",
+    summary: "Input field is awake. Sentinel is receiving intent without executing.",
+  },
+  {
+    key: "planning",
+    label: "planning",
+    state: "PLANNING",
+    summary: "Candidate routes appear, split, and converge before a decision.",
+  },
+  {
+    key: "acting",
+    label: "acting",
+    state: "ACTING",
+    summary: "A directional impulse crosses the body while a material action is in flight.",
+  },
+  {
+    key: "waiting",
+    label: "waiting",
+    state: "WAITING_AUTHORITY",
+    summary: "Authority is paused. The body holds position without inventing permission.",
+  },
+  {
+    key: "blocked",
+    label: "blocked",
+    state: "BLOCKED",
+    summary: "A causal fracture shows the exact point where execution can no longer proceed.",
+  },
+  {
+    key: "failed",
+    label: "failed",
+    state: "TELEMETRY_INCOMPLETE",
+    summary: "Telemetry is incomplete. The interface exposes the gap instead of filling it.",
+  },
+  {
+    key: "completed",
+    label: "completed",
+    state: "COMPLETED",
+    summary: "Proof fragments assemble into a stable completed state after FinalGate truth.",
+  },
+] as const satisfies readonly {
+  key: string;
+  label: string;
+  state: PresenceState;
+  summary: string;
+}[];
+
+type DemoKey = (typeof demoStates)[number]["key"] | "truth";
 
 function stateLabel(state: PresenceState) {
   return state.replace(/_/g, " ").toLowerCase();
 }
 
-function shortRef(value: string) {
-  if (!value) return "not persisted";
-  if (value.length <= 26) return value;
-  return `${value.slice(0, 13)}…${value.slice(-9)}`;
+function xrayValue(value: unknown) {
+  if (value === undefined || value === null || value === "") return telemetryIncomplete;
+  if (typeof value === "boolean") return value ? "true" : "false";
+  return String(value);
+}
+
+function shortRef(value: string | undefined | null) {
+  const rendered = xrayValue(value);
+  if (rendered === telemetryIncomplete) return rendered;
+  if (rendered.length <= 26) return rendered;
+  return `${rendered.slice(0, 13)}...${rendered.slice(-9)}`;
+}
+
+function formatAffordances(value: string[] | undefined) {
+  if (!value?.length) return telemetryIncomplete;
+  return value.join(", ");
+}
+
+function formatGateResults(value: Record<string, string> | undefined) {
+  const entries = Object.entries(value ?? {});
+  if (!entries.length) return telemetryIncomplete;
+  return entries.map(([key, status]) => `${key}: ${status}`).join(" | ");
+}
+
+function decisionLabel(index: number | undefined) {
+  return typeof index === "number" && index > 0 ? `D${index}` : "START";
 }
 
 export function PresenceShell() {
@@ -42,9 +123,14 @@ export function PresenceShell() {
   const [playing, setPlaying] = useState(false);
   const [routeVisible, setRouteVisible] = useState(false);
   const [xrayVisible, setXrayVisible] = useState(false);
+  const [demoKey, setDemoKey] = useState<DemoKey>("truth");
   const [command, setCommand] = useState("");
   const current = events[eventIndex];
   const selected = events[selectedIndex] ?? current;
+  const demo = demoStates.find((item) => item.key === demoKey);
+  const visualState = demo?.state ?? current.presence_state;
+  const visualSummary = demo?.summary ?? current.safe_summary;
+  const visualLabel = demo?.label ?? stateLabel(current.presence_state);
 
   useEffect(() => {
     if (!playing) return;
@@ -100,6 +186,7 @@ export function PresenceShell() {
     setEventIndex(index);
     setSelectedIndex(index);
     setPlaying(false);
+    setDemoKey("truth");
   }
 
   function submitCommand(event: FormEvent<HTMLFormElement>) {
@@ -127,15 +214,37 @@ export function PresenceShell() {
       setSelectedIndex(payload.events.length - 1);
       setConnection("live");
       setPlaying(false);
+      setDemoKey("truth");
     } catch {
       setConnection("unavailable");
     }
   }
 
   return (
-    <main className="presence-page" data-presence-state={current.presence_state}>
+    <main
+      className="presence-page"
+      data-demo-active={demo ? "true" : "false"}
+      data-presence-state={visualState}
+    >
       <div className="presence-aurora presence-aurora-one" />
       <div className="presence-aurora presence-aurora-two" />
+      <div className="presence-depth-grid" />
+      <div className="presence-nebula-field">
+        <span className="presence-nebula nebula-a" />
+        <span className="presence-nebula nebula-b" />
+        <span className="presence-nebula nebula-c" />
+      </div>
+      <div className="presence-particle-field" aria-hidden="true">
+        {Array.from({ length: 30 }).map((_, index) => (
+          <span className={`presence-particle particle-${(index % 10) + 1}`} key={index} />
+        ))}
+      </div>
+      <div className="presence-filament-field" aria-hidden="true">
+        <span className="presence-filament filament-a" />
+        <span className="presence-filament filament-b" />
+        <span className="presence-filament filament-c" />
+        <span className="presence-filament filament-d" />
+      </div>
       <div className="presence-noise" />
       <div className="presence-vignette" />
 
@@ -184,7 +293,7 @@ export function PresenceShell() {
                 >
                   <span className="route-node-dot" />
                   <span className="route-node-copy">
-                    <small>{item.event_kind} · {item.decision_index ? `D${item.decision_index}` : "START"}</small>
+                    <small>{item.event_kind} / {decisionLabel(item.decision_index)}</small>
                     <strong>{item.safe_summary}</strong>
                   </span>
                 </button>
@@ -194,6 +303,10 @@ export function PresenceShell() {
         ) : null}
 
         <div className="presence-core-wrap">
+          <div className="presence-decision-rays" />
+          <div className="presence-action-vector" />
+          <div className="presence-causal-fracture" />
+          <div className="presence-proof-assembly" />
           <div className="presence-orbit orbit-one" />
           <div className="presence-orbit orbit-two" />
           <div className="presence-core" aria-hidden="true">
@@ -206,14 +319,16 @@ export function PresenceShell() {
         </div>
 
         <div className="presence-voice">
-          <span className="presence-state-label">{stateLabel(current.presence_state)}</span>
-          <p>{current.safe_summary}</p>
+          <span className="presence-state-label">{visualLabel}</span>
+          <p>{visualSummary}</p>
           <span className="presence-truth-line">
-            {current.telemetry_state === "TELEMETRY_INCOMPLETE"
-              ? "Historical telemetry gap · no fact inferred"
-              : current.event_kind === "TERMINAL"
-                ? "FinalGate truth preserved"
-                : `Persisted event ${current.sequence + 1} of ${events.length}`}
+            {demo
+              ? "Deterministic visual demo only / no runtime action"
+              : current.telemetry_state === "TELEMETRY_INCOMPLETE"
+                ? "Historical telemetry gap / no fact inferred"
+                : current.event_kind === "TERMINAL"
+                  ? "FinalGate truth preserved"
+                  : `Persisted event ${current.sequence + 1} of ${events.length}`}
           </span>
         </div>
 
@@ -225,6 +340,29 @@ export function PresenceShell() {
           {routeVisible ? <EyeOff size={16} /> : <Eye size={16} />}
           <span>{routeVisible ? "Hide route" : "Show route"}</span>
         </button>
+      </section>
+
+      <section className="presence-demo-rail" aria-label="Demo states">
+        <button
+          data-active={demoKey === "truth" ? "true" : "false"}
+          onClick={() => setDemoKey("truth")}
+          type="button"
+        >
+          Truth
+        </button>
+        {demoStates.map((item) => (
+          <button
+            data-active={demoKey === item.key ? "true" : "false"}
+            key={item.key}
+            onClick={() => {
+              setDemoKey(item.key);
+              setPlaying(false);
+            }}
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
       </section>
 
       <section className="presence-transport" aria-label="Replay controls">
@@ -243,6 +381,7 @@ export function PresenceShell() {
               setEventIndex(0);
               setSelectedIndex(0);
             }
+            setDemoKey("truth");
             setPlaying((value) => !value);
           }}
           type="button"
@@ -277,7 +416,7 @@ export function PresenceShell() {
         <input
           aria-label="Sentinel command"
           onChange={(event) => setCommand(event.target.value)}
-          placeholder="Replay only · connect a live Sentinel stream to issue a mission"
+          placeholder="Replay only / connect a live Sentinel stream to issue a mission"
           value={command}
         />
         <span className="command-mode">READ ONLY</span>
@@ -292,19 +431,19 @@ export function PresenceShell() {
         >
           <TerminalSquare size={16} />
           <span>X-Ray</span>
-          <kbd>⇧ X</kbd>
+          <kbd>Shift X</kbd>
         </button>
         <button className="presence-kill-button" disabled title="Historical replay cannot affect the runtime" type="button">
           <CircleStop size={16} />
-          <span>Kill unavailable · replay</span>
+          <span>Kill unavailable / replay</span>
         </button>
       </div>
 
       <aside className="presence-xray" data-open={xrayVisible ? "true" : "false"} aria-hidden={!xrayVisible}>
         <div className="xray-head">
           <div>
-            <span>X-RAY · READ ONLY</span>
-            <strong>Decision {selected.decision_index || "—"}</strong>
+            <span>X-RAY / READ ONLY</span>
+            <strong>Decision {selected.decision_index || telemetryIncomplete}</strong>
           </div>
           <button aria-label="Close X-Ray" onClick={() => setXrayVisible(false)} type="button">
             <X size={18} />
@@ -314,20 +453,31 @@ export function PresenceShell() {
           <span>{selected.event_kind}</span>
           <p>{selected.safe_summary}</p>
         </div>
+        <XrayRow label="Provider" value={xrayValue(selected.provider_metadata?.provider_id)} />
+        <XrayRow label="Model" value={xrayValue(selected.provider_metadata?.model_id)} />
+        <XrayRow label="Latency" value={selected.provider_metadata?.latency_ms ? `${selected.provider_metadata.latency_ms}ms` : telemetryIncomplete} />
+        <XrayRow label="Input tokens" value={xrayValue(selected.provider_metadata?.input_tokens)} />
+        <XrayRow label="Output tokens" value={xrayValue(selected.provider_metadata?.output_tokens)} />
         <XrayRow label="Context" value={shortRef(selected.context_pack_hash)} />
-        <XrayRow label="Decision" value={selected.normalized_decision.operation || "none"} />
-        <XrayRow label="Dispatch" value={selected.dispatch_status || "not dispatched"} />
+        <XrayRow label="Affordances" value={formatAffordances(selected.available_affordances)} />
+        <XrayRow label="Decision" value={xrayValue(selected.normalized_decision.operation)} />
+        <XrayRow label="Dispatch" value={xrayValue(selected.dispatch_status)} />
         <XrayRow label="Product receipt" value={shortRef(selected.product_receipt_ref)} />
         <XrayRow
           alert={Boolean(selected.product_receipt_ref && !selected.browser_receipt_ref)}
           label="Browser receipt"
           value={shortRef(selected.browser_receipt_ref)}
         />
+        <XrayRow label="State before" value={shortRef(selected.before_state_fingerprint)} />
+        <XrayRow label="State after" value={shortRef(selected.after_state_fingerprint)} />
+        <XrayRow label="Evidence before" value={shortRef(selected.before_evidence_fingerprint)} />
+        <XrayRow label="Evidence after" value={shortRef(selected.after_evidence_fingerprint)} />
         <XrayRow
           label="Material progress"
-          value={selected.material_progress === null ? "unknown" : selected.material_progress ? "yes" : "no"}
+          value={selected.material_progress === null ? telemetryIncomplete : selected.material_progress ? "yes" : "no"}
         />
-        <XrayRow label="Authority" value={selected.authority_state} />
+        <XrayRow label="Gate results" value={formatGateResults(selected.gate_results)} />
+        <XrayRow label="Authority" value={xrayValue(selected.authority_state)} />
         <XrayRow
           alert={selected.telemetry_state === "TELEMETRY_INCOMPLETE"}
           label="Telemetry"
@@ -347,7 +497,7 @@ export function PresenceShell() {
         ) : null}
         <div className="xray-foot">
           <RotateCcw size={14} />
-          Artifact history reconstruction · zero provider calls
+          Artifact history reconstruction / zero provider calls
         </div>
       </aside>
     </main>
