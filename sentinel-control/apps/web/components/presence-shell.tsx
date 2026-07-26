@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Aperture,
   ChevronLeft,
   ChevronRight,
   CircleStop,
@@ -15,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { LivingObsidianStage } from "@/components/living-obsidian-stage";
 import {
   mdnPresenceReplay,
   type PresenceEventV1,
@@ -29,49 +31,49 @@ const demoStates = [
     key: "idle",
     label: "idle",
     state: "SLEEPING",
-    summary: "Silent standby. The route is hidden and no runtime action is available.",
+    summary: "Present, quiet, and ready.",
   },
   {
     key: "listening",
     label: "listening",
     state: "LISTENING",
-    summary: "Input field is awake. Sentinel is receiving intent without executing.",
+    summary: "I’m gathering the shape of your intent.",
   },
   {
     key: "planning",
     label: "planning",
     state: "PLANNING",
-    summary: "Candidate routes appear, split, and converge before a decision.",
+    summary: "I’m testing several routes. One is beginning to hold.",
   },
   {
     key: "acting",
     label: "acting",
     state: "ACTING",
-    summary: "A directional impulse crosses the body while a material action is in flight.",
+    summary: "The chosen route is moving through the browser organ.",
   },
   {
     key: "waiting",
     label: "waiting",
     state: "WAITING_AUTHORITY",
-    summary: "Authority is paused. The body holds position without inventing permission.",
+    summary: "I’m holding at the authority boundary.",
   },
   {
     key: "blocked",
     label: "blocked",
     state: "BLOCKED",
-    summary: "A causal fracture shows the exact point where execution can no longer proceed.",
+    summary: "The route broke here. I’m preserving the cause.",
   },
   {
     key: "failed",
     label: "failed",
     state: "TELEMETRY_INCOMPLETE",
-    summary: "Telemetry is incomplete. The interface exposes the gap instead of filling it.",
+    summary: "The evidence stream is incomplete. I won’t guess.",
   },
   {
     key: "completed",
     label: "completed",
     state: "COMPLETED",
-    summary: "Proof fragments assemble into a stable completed state after FinalGate truth.",
+    summary: "The proof holds. The mission is complete.",
   },
 ] as const satisfies readonly {
   key: string;
@@ -123,6 +125,7 @@ export function PresenceShell() {
   const [playing, setPlaying] = useState(false);
   const [routeVisible, setRouteVisible] = useState(false);
   const [xrayVisible, setXrayVisible] = useState(false);
+  const [demoVisible, setDemoVisible] = useState(false);
   const [demoKey, setDemoKey] = useState<DemoKey>("truth");
   const [command, setCommand] = useState("");
   const current = events[eventIndex];
@@ -226,25 +229,6 @@ export function PresenceShell() {
       data-demo-active={demo ? "true" : "false"}
       data-presence-state={visualState}
     >
-      <div className="presence-aurora presence-aurora-one" />
-      <div className="presence-aurora presence-aurora-two" />
-      <div className="presence-depth-grid" />
-      <div className="presence-nebula-field">
-        <span className="presence-nebula nebula-a" />
-        <span className="presence-nebula nebula-b" />
-        <span className="presence-nebula nebula-c" />
-      </div>
-      <div className="presence-particle-field" aria-hidden="true">
-        {Array.from({ length: 30 }).map((_, index) => (
-          <span className={`presence-particle particle-${(index % 10) + 1}`} key={index} />
-        ))}
-      </div>
-      <div className="presence-filament-field" aria-hidden="true">
-        <span className="presence-filament filament-a" />
-        <span className="presence-filament filament-b" />
-        <span className="presence-filament filament-c" />
-        <span className="presence-filament filament-d" />
-      </div>
       <div className="presence-noise" />
       <div className="presence-vignette" />
 
@@ -272,12 +256,20 @@ export function PresenceShell() {
           <span className="presence-divider">/</span>
           <span>{connection === "live" ? liveMissionId : mdnPresenceReplay.label}</span>
         </button>
-        <button className="presence-icon-button" aria-label="Settings" type="button">
-          <Settings2 size={17} />
+        <button
+          aria-label="Toggle deterministic visual state lab"
+          className="presence-icon-button"
+          data-active={demoVisible ? "true" : "false"}
+          onClick={() => setDemoVisible((value) => !value)}
+          type="button"
+        >
+          {demoVisible ? <Aperture size={17} /> : <Settings2 size={17} />}
         </button>
       </header>
 
       <section className="presence-scene" aria-label="Sentinel presence">
+        <LivingObsidianStage state={visualState} signal={demo ? demoStates.indexOf(demo) : current.sequence} />
+
         {routeVisible ? (
           <div className="presence-route" aria-label="Mission route">
             {routeEvents.map((item, slot) => {
@@ -302,24 +294,11 @@ export function PresenceShell() {
           </div>
         ) : null}
 
-        <div className="presence-core-wrap">
-          <div className="presence-decision-rays" />
-          <div className="presence-action-vector" />
-          <div className="presence-causal-fracture" />
-          <div className="presence-proof-assembly" />
-          <div className="presence-orbit orbit-one" />
-          <div className="presence-orbit orbit-two" />
-          <div className="presence-core" aria-hidden="true">
-            <div className="presence-core-shell" />
-            <div className="presence-core-vein vein-one" />
-            <div className="presence-core-vein vein-two" />
-            <div className="presence-core-eye" />
-          </div>
-          <div className="presence-floor-glow" />
-        </div>
-
         <div className="presence-voice">
-          <span className="presence-state-label">{visualLabel}</span>
+          <span className="presence-state-label">
+            <i aria-hidden="true" />
+            {visualLabel}
+          </span>
           <p>{visualSummary}</p>
           <span className="presence-truth-line">
             {demo
@@ -342,27 +321,35 @@ export function PresenceShell() {
         </button>
       </section>
 
-      <section className="presence-demo-rail" aria-label="Demo states">
-        <button
-          data-active={demoKey === "truth" ? "true" : "false"}
-          onClick={() => setDemoKey("truth")}
-          type="button"
-        >
-          Truth
-        </button>
-        {demoStates.map((item) => (
+      <section
+        aria-hidden={!demoVisible}
+        aria-label="Deterministic visual states"
+        className="presence-v3-demo-rail"
+        data-open={demoVisible ? "true" : "false"}
+      >
+        <span className="demo-rail-label">State lab / zero runtime action</span>
+        <div>
           <button
-            data-active={demoKey === item.key ? "true" : "false"}
-            key={item.key}
-            onClick={() => {
-              setDemoKey(item.key);
-              setPlaying(false);
-            }}
+            data-active={demoKey === "truth" ? "true" : "false"}
+            onClick={() => setDemoKey("truth")}
             type="button"
           >
-            {item.label}
+            Truth
           </button>
-        ))}
+          {demoStates.map((item) => (
+            <button
+              data-active={demoKey === item.key ? "true" : "false"}
+              key={item.key}
+              onClick={() => {
+                setDemoKey(item.key);
+                setPlaying(false);
+              }}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="presence-transport" aria-label="Replay controls">
