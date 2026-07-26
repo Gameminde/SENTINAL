@@ -107,6 +107,105 @@ class CloakSessionReadinessResult:
 
 
 @dataclass(frozen=True)
+class CloakBinaryProvenanceDecision:
+    provenance: str
+    severity: str
+    hard_block: bool
+    reason: str
+    candidate_count: int
+    file_sha256_match: bool
+    version_match: bool
+    path_hash_match: bool
+
+    def safe_model_dump(self) -> dict[str, Any]:
+        return {
+            "provenance": self.provenance,
+            "severity": self.severity,
+            "hard_block": self.hard_block,
+            "reason": self.reason,
+            "candidate_count": self.candidate_count,
+            "file_sha256_match": self.file_sha256_match,
+            "version_match": self.version_match,
+            "path_hash_match": self.path_hash_match,
+        }
+
+
+def classify_cloak_binary_provenance(
+    *,
+    candidate_count: int,
+    file_sha256_match: bool,
+    version_match: bool,
+    path_hash_match: bool,
+    trust_kernel_integrity_ok: bool = True,
+) -> CloakBinaryProvenanceDecision:
+    if not trust_kernel_integrity_ok:
+        return CloakBinaryProvenanceDecision(
+            provenance="TRUST_KERNEL_INTEGRITY_THREAT",
+            severity="CRITICAL",
+            hard_block=True,
+            reason="trust_kernel_integrity_not_confirmed",
+            candidate_count=candidate_count,
+            file_sha256_match=file_sha256_match,
+            version_match=version_match,
+            path_hash_match=path_hash_match,
+        )
+    if candidate_count != 1:
+        return CloakBinaryProvenanceDecision(
+            provenance="BINARY_NOT_FOUND" if candidate_count <= 0 else "BINARY_AMBIGUOUS",
+            severity="CRITICAL",
+            hard_block=True,
+            reason="candidate_count_not_exactly_one",
+            candidate_count=candidate_count,
+            file_sha256_match=file_sha256_match,
+            version_match=version_match,
+            path_hash_match=path_hash_match,
+        )
+    if not file_sha256_match:
+        return CloakBinaryProvenanceDecision(
+            provenance="FILE_HASH_MISMATCH",
+            severity="CRITICAL",
+            hard_block=True,
+            reason="file_sha256_mismatch",
+            candidate_count=candidate_count,
+            file_sha256_match=file_sha256_match,
+            version_match=version_match,
+            path_hash_match=path_hash_match,
+        )
+    if not version_match:
+        return CloakBinaryProvenanceDecision(
+            provenance="VERSION_MISMATCH",
+            severity="CRITICAL",
+            hard_block=True,
+            reason="version_mismatch",
+            candidate_count=candidate_count,
+            file_sha256_match=file_sha256_match,
+            version_match=version_match,
+            path_hash_match=path_hash_match,
+        )
+    if not path_hash_match:
+        return CloakBinaryProvenanceDecision(
+            provenance="CONTENT_VERIFIED_PATH_DRIFT",
+            severity="WARNING",
+            hard_block=False,
+            reason="path_drift_only",
+            candidate_count=candidate_count,
+            file_sha256_match=file_sha256_match,
+            version_match=version_match,
+            path_hash_match=path_hash_match,
+        )
+    return CloakBinaryProvenanceDecision(
+        provenance="VALIDATED",
+        severity="OK",
+        hard_block=False,
+        reason="content_version_and_path_match",
+        candidate_count=candidate_count,
+        file_sha256_match=file_sha256_match,
+        version_match=version_match,
+        path_hash_match=path_hash_match,
+    )
+
+
+@dataclass(frozen=True)
 class RealBrowserEngineElement:
     ref: str
     role: str
@@ -339,6 +438,7 @@ class BrowserSessionManagerRealBrowserEngine:
         capture_root: str | Path | None = None,
         headless: bool = True,
         timeout_ms: int = 15_000,
+        lifecycle_event_sink: Callable[..., None] | None = None,
     ) -> None:
         self.target_url = target_url
         self.timeout_ms = timeout_ms
@@ -368,6 +468,7 @@ class BrowserSessionManagerRealBrowserEngine:
         self.session_manager = session_manager or _build_browser_session_manager(
             capture_root=effective_capture_root,
             headless=headless,
+            lifecycle_event_sink=lifecycle_event_sink,
         )
 
     @property
@@ -2551,6 +2652,7 @@ def check_cloak_session_readiness_from_env(
     prepare_binary: bool | None = None,
     binary_bootstrap_timeout_ms: int = 120_000,
     require_local_binary_override: bool | None = None,
+    stage_journal_path: str | Path | None = None,
 ) -> CloakSessionReadinessResult:
     target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
     headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
@@ -2570,6 +2672,7 @@ def check_cloak_session_readiness_from_env(
             if require_local_binary_override is not None
             else require_override_value in {"1", "true", "yes", "on"}
         ),
+        stage_journal_path=stage_journal_path or os.environ.get("SENTINEL_CLOAK_READINESS_STAGE_JOURNAL_PATH"),
     )
 
 
@@ -2585,12 +2688,19 @@ def check_cloak_session_readiness(
     prepare_binary: bool = False,
     binary_bootstrap_timeout_ms: int = 120_000,
     require_local_binary_override: bool = False,
+    stage_journal_path: str | Path | None = None,
 ) -> CloakSessionReadinessResult:
     target_url = target_url.strip()
     selection = select_browser_backend()
     selected_backend_id = selection.preferred_backend_id or ""
     safe_origin_hash = _safe_origin_hash(target_url) if target_url else ""
     capture_path = Path(capture_root) if capture_root is not None else None
+    stage_journal = _CloakReadinessStageJournal(stage_journal_path, capture_root=capture_path)
+    stage_journal.record(
+        "configuration",
+        "stage_started",
+        details={"selected_backend_id": selected_backend_id, "safe_url_origin_hash": safe_origin_hash},
+    )
     if not target_url:
         result = _cloak_readiness_result(
             ready=False,
@@ -2603,6 +2713,7 @@ def check_cloak_session_readiness(
             capture_root=capture_path,
         )
         _write_cloak_readiness_cache(cache_path, result)
+        stage_journal.record("configuration", "stage_failed", failure_code=result.failure_code)
         return result
     if selected_backend_id != CLOAK_BROWSER_BACKEND_ID:
         result = _cloak_readiness_result(
@@ -2616,8 +2727,11 @@ def check_cloak_session_readiness(
             capture_root=capture_path,
         )
         _write_cloak_readiness_cache(cache_path, result)
+        stage_journal.record("configuration", "stage_failed", failure_code=result.failure_code)
         return result
+    stage_journal.record("configuration", "stage_returned")
     if session_manager is None:
+        stage_journal.record("binary_resolution", "stage_started")
         binary_ready, binary_failure_code, binary_diagnostic = _cloak_binary_readiness(
             prepare_binary=prepare_binary,
             binary_bootstrap_timeout_ms=binary_bootstrap_timeout_ms,
@@ -2635,13 +2749,17 @@ def check_cloak_session_readiness(
                 capture_root=capture_path,
             )
             _write_cloak_readiness_cache(cache_path, result)
+            stage_journal.record("binary_resolution", "stage_failed", failure_code=result.failure_code)
             return result
+        stage_journal.record("binary_resolution", "stage_returned")
+    stage_journal.record("engine_construction", "stage_started")
     engine = BrowserSessionManagerRealBrowserEngine(
         target_url=target_url,
         session_manager=session_manager,
         capture_root=capture_path,
         headless=headless,
         timeout_ms=timeout_ms,
+        lifecycle_event_sink=stage_journal.record,
     )
     actual_backend_id = _engine_backend_id(engine)
     session_backend_kind = _engine_session_backend_kind(engine)
@@ -2657,7 +2775,13 @@ def check_cloak_session_readiness(
             capture_root=capture_path,
         )
         _write_cloak_readiness_cache(cache_path, result)
+        stage_journal.record("engine_construction", "stage_failed", failure_code=result.failure_code)
         return result
+    stage_journal.record(
+        "engine_construction",
+        "stage_returned",
+        details={"actual_backend_id": actual_backend_id, "session_backend_kind": session_backend_kind},
+    )
     result = _probe_cloak_readiness_with_wall_timeout(
         engine=engine,
         target_url=target_url,
@@ -2666,7 +2790,12 @@ def check_cloak_session_readiness(
         session_backend_kind=session_backend_kind,
         safe_origin_hash=safe_origin_hash,
         capture_path=capture_path,
-        wall_timeout_ms=wall_timeout_ms if wall_timeout_ms is not None else timeout_ms,
+        wall_timeout_ms=(
+            wall_timeout_ms
+            if wall_timeout_ms is not None
+            else _cloak_readiness_sequence_watchdog_ms(timeout_ms)
+        ),
+        stage_journal=stage_journal,
     )
     _write_cloak_readiness_cache(cache_path, result)
     return result
@@ -2832,6 +2961,122 @@ except Exception as exc:
     return True, None, {"binary": "installed_by_bootstrap", **safe_info}
 
 
+class _CloakReadinessStageJournal:
+    def __init__(self, path: str | Path | None, *, capture_root: Path | None) -> None:
+        self.path = Path(path) if path is not None else None
+        self.capture_root = capture_root
+        self.started_at = time.monotonic()
+        self._lock = threading.RLock()
+
+    def record(
+        self,
+        stage: str,
+        event: str,
+        *,
+        failure_code: str | None = None,
+        exception: BaseException | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        if self.path is None:
+            return
+        payload: dict[str, Any] = {
+            "schema_version": "cloak_readiness_stage_v1",
+            "stage": stage,
+            "event": event,
+            "monotonic_offset_ms": int((time.monotonic() - self.started_at) * 1000),
+            "profile_file_count": _profile_file_count(self.capture_root),
+            "process_ref_count": _safe_browser_process_count(),
+            "thread_count": len(threading.enumerate()),
+        }
+        if failure_code:
+            payload["failure_code"] = failure_code
+        if exception is not None:
+            payload["exception_class"] = exception.__class__.__name__
+            payload["exception_hash"] = text_hash(str(exception))
+        if details:
+            payload["details"] = _safe_readiness_stage_details(details)
+        with self._lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload, sort_keys=True) + "\n")
+
+
+def _safe_readiness_stage_details(details: dict[str, Any]) -> dict[str, Any]:
+    safe: dict[str, Any] = {}
+    for key, value in details.items():
+        if key in {"selected_backend_id", "actual_backend_id", "session_backend_kind", "safe_url_origin_hash"}:
+            safe[key] = str(value)
+        elif key.endswith("_hash") or key.endswith("_count") or key.endswith("_ms"):
+            safe[key] = value
+        elif isinstance(value, bool):
+            safe[key] = value
+        else:
+            safe[f"{key}_hash"] = stable_hash(str(value))
+    return safe
+
+
+_SAFE_BROWSER_PROCESS_COUNT_CACHE: tuple[float, int] = (0.0, -1)
+_SAFE_BROWSER_PROCESS_COUNT_TTL_SECONDS = 5.0
+
+
+def _safe_browser_process_count() -> int:
+    global _SAFE_BROWSER_PROCESS_COUNT_CACHE
+    now = time.monotonic()
+    cached_at, cached_value = _SAFE_BROWSER_PROCESS_COUNT_CACHE
+    if now - cached_at < _SAFE_BROWSER_PROCESS_COUNT_TTL_SECONDS:
+        return cached_value
+    count = -1
+    try:
+        if os.name == "nt":
+            completed = subprocess.run(
+                ["tasklist", "/FO", "CSV", "/NH"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=1,
+            )
+            if completed.returncode == 0:
+                count = sum(
+                    1
+                    for line in completed.stdout.splitlines()
+                    if any(marker in line.lower() for marker in ("cloak", "chrome", "chromium"))
+                )
+        else:
+            proc_root = Path("/proc")
+            if proc_root.exists():
+                count = 0
+                for entry in proc_root.iterdir():
+                    if not entry.name.isdigit():
+                        continue
+                    try:
+                        name = (entry / "comm").read_text(encoding="utf-8", errors="ignore").lower()
+                    except OSError:
+                        continue
+                    if any(marker in name for marker in ("cloak", "chrome", "chromium")):
+                        count += 1
+    except Exception:
+        count = -1
+    _SAFE_BROWSER_PROCESS_COUNT_CACHE = (now, count)
+    return count
+
+
+def _run_cloak_readiness_stage(stage_journal: _CloakReadinessStageJournal, stage: str, action: Callable[[], Any]) -> Any:
+    stage_journal.record(stage, "stage_started")
+    try:
+        value = action()
+    except Exception as exc:
+        stage_journal.record(stage, "stage_failed", exception=exc)
+        raise
+    stage_journal.record(stage, "stage_returned")
+    return value
+
+
+def _cloak_readiness_sequence_watchdog_ms(timeout_ms: int) -> int:
+    """Bound the whole readiness sequence without reusing one operation's deadline."""
+    per_operation_timeout_ms = max(int(timeout_ms), 1)
+    return min(max(per_operation_timeout_ms * 4, per_operation_timeout_ms), 60_000)
+
+
 def _last_json_object(output: str) -> dict[str, Any] | None:
     for line in reversed([line.strip() for line in output.splitlines() if line.strip()]):
         if not (line.startswith("{") and line.endswith("}")):
@@ -2855,9 +3100,11 @@ def _probe_cloak_readiness_with_wall_timeout(
     safe_origin_hash: str,
     capture_path: Path | None,
     wall_timeout_ms: int,
+    stage_journal: _CloakReadinessStageJournal,
 ) -> CloakSessionReadinessResult:
+    stage_journal.record("readiness_probe", "stage_started", details={"wall_timeout_ms": wall_timeout_ms})
     if wall_timeout_ms <= 0:
-        return _probe_cloak_readiness(
+        result = _probe_cloak_readiness(
             engine=engine,
             target_url=target_url,
             selected_backend_id=selected_backend_id,
@@ -2865,7 +3112,14 @@ def _probe_cloak_readiness_with_wall_timeout(
             session_backend_kind=session_backend_kind,
             safe_origin_hash=safe_origin_hash,
             capture_path=capture_path,
+            stage_journal=stage_journal,
         )
+        stage_journal.record(
+            "readiness_probe",
+            "stage_returned" if result.ready else "stage_failed",
+            failure_code=result.failure_code,
+        )
+        return result
 
     result_queue: queue.Queue[tuple[str, Any]] = queue.Queue(maxsize=1)
 
@@ -2882,6 +3136,7 @@ def _probe_cloak_readiness_with_wall_timeout(
                         session_backend_kind=session_backend_kind,
                         safe_origin_hash=safe_origin_hash,
                         capture_path=capture_path,
+                        stage_journal=stage_journal,
                     ),
                 )
             )
@@ -2893,6 +3148,8 @@ def _probe_cloak_readiness_with_wall_timeout(
     try:
         kind, value = result_queue.get(timeout=wall_timeout_ms / 1000)
     except queue.Empty:
+        stage_journal.record("readiness_probe", "stage_failed", failure_code="CLOAK_SESSION_READINESS_TIMEOUT")
+        stage_journal.record("timeout_cleanup", "stage_started")
         close_all = getattr(engine.session_manager, "close_all", None)
         if callable(close_all):
             try:
@@ -2901,6 +3158,7 @@ def _probe_cloak_readiness_with_wall_timeout(
                 pass
         thread.join(timeout=0.5)
         _remove_profile_material(capture_path)
+        stage_journal.record("timeout_cleanup", "stage_returned")
         return _cloak_readiness_result(
             ready=False,
             selected_backend_id=selected_backend_id,
@@ -2917,6 +3175,7 @@ def _probe_cloak_readiness_with_wall_timeout(
         )
 
     if kind == "exception":
+        stage_journal.record("readiness_probe", "stage_failed", exception=value)
         return _cloak_readiness_result(
             ready=False,
             selected_backend_id=selected_backend_id,
@@ -2927,6 +3186,11 @@ def _probe_cloak_readiness_with_wall_timeout(
             diagnostic_payload={"exception_class": value.__class__.__name__, "reason_hash": text_hash(str(value))},
             capture_root=capture_path,
         )
+    stage_journal.record(
+        "readiness_probe",
+        "stage_returned" if getattr(value, "ready", False) else "stage_failed",
+        failure_code=getattr(value, "failure_code", None),
+    )
     return value
 
 
@@ -2939,30 +3203,38 @@ def _probe_cloak_readiness(
     session_backend_kind: str,
     safe_origin_hash: str,
     capture_path: Path | None,
+    stage_journal: _CloakReadinessStageJournal,
 ) -> CloakSessionReadinessResult:
     authority = _cloak_readiness_authority(target_url)
     close_attempted = False
     try:
-        engine.bind_authority(authority)
-        first_snapshot = engine.open()
-        first_observe = engine.observe()
-        second_observe = engine.observe()
+        _run_cloak_readiness_stage(stage_journal, "bind_authority", lambda: engine.bind_authority(authority))
+        first_snapshot = _run_cloak_readiness_stage(stage_journal, "open_session", engine.open)
+        first_observe = _run_cloak_readiness_stage(stage_journal, "first_observe", engine.observe)
+        second_observe = _run_cloak_readiness_stage(stage_journal, "second_observe", engine.observe)
         devtools_operational = True
         devtools = getattr(engine.session_manager, "devtools_metadata_for_session", None)
         if callable(devtools):
             try:
+                stage_journal.record("devtools_metadata", "stage_started")
                 devtools_operational = devtools(
                     mission_id=authority.id,
                     session_id=str(getattr(engine, "_session_id", "") or ""),
                     capability="readiness_probe",
                 ) is not None
-            except Exception:
+                stage_journal.record("devtools_metadata", "stage_returned", details={"devtools_operational": devtools_operational})
+            except Exception as exc:
                 devtools_operational = False
+                stage_journal.record("devtools_metadata", "stage_failed", exception=exc)
         close = getattr(engine, "close", None)
         if callable(close):
-            close()
+            _run_cloak_readiness_stage(stage_journal, "close_session", close)
             close_attempted = True
-        reopened_snapshot = engine.open()
+        reopened_snapshot = _run_cloak_readiness_stage(stage_journal, "reopen_session", engine.open)
+        reopened_observe = _run_cloak_readiness_stage(stage_journal, "reopened_observe", engine.observe)
+        if callable(close):
+            _run_cloak_readiness_stage(stage_journal, "reopened_close_session", close)
+            close_attempted = True
         result = _cloak_readiness_result(
             ready=True,
             selected_backend_id=selected_backend_id,
@@ -2978,6 +3250,7 @@ def _probe_cloak_readiness(
                     "first_observe_state_hash": first_observe.state_hash,
                     "second_observe_state_hash": second_observe.state_hash,
                     "reopened_state_hash": reopened_snapshot.state_hash,
+                    "reopened_observe_state_hash": reopened_observe.state_hash,
                     "safe_url_origin_hash": safe_origin_hash,
                 }
             ),
@@ -2987,6 +3260,7 @@ def _probe_cloak_readiness(
                 "first_state_hash": first_snapshot.state_hash,
                 "second_state_hash": second_observe.state_hash,
                 "reopened_state_hash": reopened_snapshot.state_hash,
+                "reopened_observe_state_hash": reopened_observe.state_hash,
             },
             capture_root=capture_path,
             backend_selected=selected_backend_id == CLOAK_BROWSER_BACKEND_ID,
@@ -2997,9 +3271,10 @@ def _probe_cloak_readiness(
             page_operational=True,
             multi_action_reuse_operational=bool(first_observe.state_hash and second_observe.state_hash),
             cleanup_operational=close_attempted or callable(getattr(engine.session_manager, "close_all", None)),
-            reopen_operational=bool(reopened_snapshot.state_hash),
+            reopen_operational=bool(reopened_snapshot.state_hash and reopened_observe.state_hash),
         )
     except Exception as exc:  # noqa: BLE001
+        stage_journal.record("readiness_probe_inner", "stage_failed", exception=exc)
         result = _cloak_readiness_result(
             ready=False,
             selected_backend_id=selected_backend_id,
@@ -3011,6 +3286,7 @@ def _probe_cloak_readiness(
             capture_root=capture_path,
         )
     finally:
+        stage_journal.record("probe_finally_cleanup", "stage_started")
         close_all = getattr(engine.session_manager, "close_all", None)
         if callable(close_all):
             try:
@@ -3018,16 +3294,23 @@ def _probe_cloak_readiness(
             except Exception:
                 pass
         _remove_profile_material(capture_path)
+        stage_journal.record("probe_finally_cleanup", "stage_returned")
     return replace(result, profile_material_persisted=_profile_file_count(capture_path) > 0)
 
 
-def _build_browser_session_manager(*, capture_root: str | Path | None, headless: bool) -> Any:
+def _build_browser_session_manager(
+    *,
+    capture_root: str | Path | None,
+    headless: bool,
+    lifecycle_event_sink: Callable[..., None] | None = None,
+) -> Any:
     from sentinel.agent.organs.browser_session_manager_l5_live import BrowserSessionManagerL5Live
 
     return BrowserSessionManagerL5Live(
         capture_root=Path(capture_root) if capture_root is not None else _default_browser_session_capture_root(),
         engine="cloak",
         headless=headless,
+        lifecycle_event_sink=lifecycle_event_sink,
     )
 
 
@@ -4449,6 +4732,7 @@ def _nth_selector(role: str, index: int) -> str:
 __all__ = [
     "BOUNDED_URL_AUTHORITY_REF",
     "BrowserSessionManagerRealBrowserEngine",
+    "CloakBinaryProvenanceDecision",
     "CloakSessionReadinessResult",
     "CLOAK_BROWSER_BACKEND_ID",
     "InMemoryRealBrowserEngine",
@@ -4462,4 +4746,5 @@ __all__ = [
     "build_playwright_real_browser_engine_from_env",
     "check_cloak_session_readiness",
     "check_cloak_session_readiness_from_env",
+    "classify_cloak_binary_provenance",
 ]

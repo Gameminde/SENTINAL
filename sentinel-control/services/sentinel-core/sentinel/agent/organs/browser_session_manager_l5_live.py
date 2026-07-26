@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import hashlib
+import shutil
 import time
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 from pydantic import Field, model_validator
@@ -371,12 +372,20 @@ class BrowserSessionManagerL5Live:
         viewport_width: int = 1280,
         viewport_height: int = 900,
         session_sanitizer: Any | None = None,
+        lifecycle_event_sink: Callable[..., None] | None = None,
     ) -> None:
         self.capture_root = Path(capture_root).resolve()
         self.capture_root.mkdir(parents=True, exist_ok=True)
         self.viewport_width = viewport_width
         self.viewport_height = viewport_height
-        self.backend = backend or _backend_for_engine(engine, document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
+        self._lifecycle_event_sink = lifecycle_event_sink
+        self.backend = backend or _backend_for_engine(
+            engine,
+            document_fixtures=document_fixtures,
+            headless=headless,
+            accept_downloads=accept_downloads,
+            lifecycle_event_sink=self._emit_lifecycle_event,
+        )
         self._session_sanitizer = session_sanitizer or BrowserSessionSanitizer()
         self._finalgate = BrowserSessionFinalGate()
         self._sessions: dict[str, _LiveBrowserSession] = {}
@@ -388,13 +397,23 @@ class BrowserSessionManagerL5Live:
         if not safety.valid:
             return self._blocked(req, safety, safety.reasons[0], BrowserSessionActionKind.OPEN.value)
         session_id = new_id("bsess")
+        self._emit_lifecycle_event("post_close_state_reset", "stage_returned", details={"live_session_count": self._live_session_count()})
+        self._emit_lifecycle_event("profile_lease_create", "stage_started", details={"session_id_hash": stable_hash(session_id)})
+        profile_dir = self._session_dir(session_id) / "profile"
+        self._emit_lifecycle_event("profile_lease_create", "stage_returned", details={"profile_dir_hash": stable_hash(str(profile_dir))})
         try:
+            self._emit_lifecycle_event("backend_open_context", "stage_started", details={"profile_dir_hash": stable_hash(str(profile_dir))})
             engine_session = self.backend.open_context(
-                profile_dir=self._session_dir(session_id) / "profile",
+                profile_dir=profile_dir,
                 url=req.url,
                 timeout_ms=req.timeout_ms,
                 viewport_width=self.viewport_width,
                 viewport_height=self.viewport_height,
+            )
+            self._emit_lifecycle_event(
+                "backend_open_context",
+                "stage_returned",
+                details={"backend_kind": getattr(engine_session, "backend_kind", "unknown")},
             )
             session = _LiveBrowserSession(
                 session_id=session_id,
@@ -404,8 +423,10 @@ class BrowserSessionManagerL5Live:
                 contract_hash=stable_hash(req.contract.model_dump(mode="json")),
                 contract=req.contract,
             )
+            self._emit_lifecycle_event("session_publication", "stage_started", details={"session_id_hash": stable_hash(session_id)})
             with self._sessions_lock:
                 self._sessions[session.session_id] = session
+            self._emit_lifecycle_event("session_publication", "stage_returned", details={"live_session_count": self._live_session_count()})
             receipt = self._capture_receipt(
                 req,
                 session,
@@ -428,6 +449,9 @@ class BrowserSessionManagerL5Live:
                 execution_effect=receipt.execution_effect,
             )
         except BrowserSessionEngineError as exc:
+            self._emit_lifecycle_event("backend_open_context", "stage_failed", exception=exc)
+            self._remove_profile_material(profile_dir)
+            self._emit_lifecycle_event("profile_lease_release", "stage_returned", details={"profile_material_count": self._profile_material_count(profile_dir)})
             return self._blocked(req, safety, str(exc), BrowserSessionActionKind.OPEN.value)
 
     def observe(self, request: BrowserSessionRequest | dict[str, Any]) -> BrowserSessionResult:
@@ -556,11 +580,21 @@ class BrowserSessionManagerL5Live:
         if session is None:
             return self._blocked(req, safety, "browser_session_missing_or_closed", BrowserSessionActionKind.CLOSE.value)
         try:
+            self._emit_lifecycle_event("old_session_sanitize", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
             self._sanitize_session(session=session, reason="close")
+            self._emit_lifecycle_event("old_session_sanitize", "stage_returned", details={"session_id_hash": stable_hash(session.session_id)})
         finally:
-            session.close()
-            with self._sessions_lock:
-                self._sessions.pop(session.session_id, None)
+            try:
+                self._emit_lifecycle_event("old_session_disposal", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
+                session.close()
+                self._emit_lifecycle_event("old_session_disposal", "stage_returned", details={"session_id_hash": stable_hash(session.session_id)})
+            finally:
+                self._emit_lifecycle_event("profile_lease_release", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
+                self._remove_profile_material(session.profile_dir)
+                self._emit_lifecycle_event("profile_lease_release", "stage_returned", details={"profile_material_count": self._profile_material_count(session.profile_dir)})
+                with self._sessions_lock:
+                    self._sessions.pop(session.session_id, None)
+                self._emit_lifecycle_event("post_close_state_reset", "stage_returned", details={"live_session_count": self._live_session_count()})
         receipt = BrowserSessionReceipt(
             mission_id=req.mission.id,
             request_id=req.request_id,
@@ -1027,10 +1061,20 @@ class BrowserSessionManagerL5Live:
             sessions = [self._sessions.pop(session_id) for session_id in list(self._sessions)]
         for session in sessions:
             try:
+                self._emit_lifecycle_event("old_session_sanitize", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
                 self._sanitize_session(session=session, reason="close_all")
-                session.close()
+                self._emit_lifecycle_event("old_session_sanitize", "stage_returned", details={"session_id_hash": stable_hash(session.session_id)})
+                try:
+                    self._emit_lifecycle_event("old_session_disposal", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
+                    session.close()
+                    self._emit_lifecycle_event("old_session_disposal", "stage_returned", details={"session_id_hash": stable_hash(session.session_id)})
+                finally:
+                    self._emit_lifecycle_event("profile_lease_release", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
+                    self._remove_profile_material(session.profile_dir)
+                    self._emit_lifecycle_event("profile_lease_release", "stage_returned", details={"profile_material_count": self._profile_material_count(session.profile_dir)})
             except Exception:
                 pass
+        self._emit_lifecycle_event("post_close_state_reset", "stage_returned", details={"live_session_count": self._live_session_count()})
 
     def _session(self, req: BrowserSessionRequest) -> _LiveBrowserSession | None:
         if not req.session_id:
@@ -1229,6 +1273,47 @@ class BrowserSessionManagerL5Live:
         path.mkdir(parents=True, exist_ok=True)
         return path
 
+    def _remove_profile_material(self, profile_dir: Path) -> None:
+        try:
+            resolved_profile = Path(profile_dir).resolve()
+            resolved_profile.relative_to(self.capture_root)
+        except Exception:
+            return
+        if resolved_profile.name.lower() != "profile":
+            return
+        shutil.rmtree(resolved_profile, ignore_errors=True)
+
+    def _profile_material_count(self, profile_dir: Path) -> int:
+        try:
+            resolved_profile = Path(profile_dir).resolve()
+            resolved_profile.relative_to(self.capture_root)
+        except Exception:
+            return 0
+        if not resolved_profile.exists():
+            return 0
+        return sum(1 for item in resolved_profile.rglob("*") if item.is_file())
+
+    def _live_session_count(self) -> int:
+        with self._sessions_lock:
+            return len(self._sessions)
+
+    def _emit_lifecycle_event(
+        self,
+        stage: str,
+        event: str,
+        *,
+        details: dict[str, Any] | None = None,
+        exception: BaseException | None = None,
+        failure_code: str | None = None,
+    ) -> None:
+        sink = self._lifecycle_event_sink
+        if sink is None:
+            return
+        try:
+            sink(stage, event, details=details, exception=exception, failure_code=failure_code)
+        except Exception:
+            return
+
     @staticmethod
     def _form_state(page: Any, timeout_ms: int) -> list[dict[str, str]]:
         states: list[dict[str, str]] = []
@@ -1285,10 +1370,22 @@ def render_browser_session_receipt_as_untrusted_context(receipt: BrowserSessionR
     )
 
 
-def _backend_for_engine(engine: str, *, document_fixtures: dict[str, str] | None, headless: bool, accept_downloads: bool = False) -> BrowserSessionBackend:
+def _backend_for_engine(
+    engine: str,
+    *,
+    document_fixtures: dict[str, str] | None,
+    headless: bool,
+    accept_downloads: bool = False,
+    lifecycle_event_sink: Callable[..., None] | None = None,
+) -> BrowserSessionBackend:
     normalized = engine.strip().lower()
     if normalized == "cloak":
-        return CloakBrowserSessionBackend(document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
+        return CloakBrowserSessionBackend(
+            document_fixtures=document_fixtures,
+            headless=headless,
+            accept_downloads=accept_downloads,
+            lifecycle_event_sink=lifecycle_event_sink,
+        )
     if normalized in {"playwright", "playwright_compat"}:
         return PlaywrightSessionBackend(document_fixtures=document_fixtures, headless=headless, accept_downloads=accept_downloads)
     raise ValueError(f"unknown browser session engine: {engine}")

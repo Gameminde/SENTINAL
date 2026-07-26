@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -40,6 +41,7 @@ from sentinel.operator.real_browser_control_runtime import (
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
     check_cloak_session_readiness,
+    classify_cloak_binary_provenance,
 )
 
 
@@ -897,6 +899,152 @@ def test_cloak_readiness_gate_times_out_without_hanging_parent(tmp_path: Path) -
     cache_text = cache_path.read_text(encoding="utf-8")
     assert "bounded.example.test" not in cache_text
     assert "CLOAK_SESSION_READINESS_TIMEOUT" in cache_text
+
+
+def test_cloak_readiness_timeout_writes_parent_visible_stage_journal(tmp_path: Path) -> None:
+    class _HangingCloakSessionManager:
+        backend_kind = "cloakbrowser"
+
+        def __init__(self) -> None:
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def open_session(self, request: Any) -> Any:
+            del request
+            self.started.set()
+            self.release.wait(timeout=5.0)
+            raise RuntimeError("late session completion after readiness timeout")
+
+        def close_all(self) -> None:
+            pass
+
+    manager = _HangingCloakSessionManager()
+    stage_journal_path = tmp_path / "readiness_stages.jsonl"
+    try:
+        readiness = check_cloak_session_readiness(
+            target_url="https://bounded.example.test/catalog",
+            session_manager=manager,
+            capture_root=tmp_path / "capture",
+            timeout_ms=30_000,
+            wall_timeout_ms=100,
+            stage_journal_path=stage_journal_path,
+        )
+    finally:
+        manager.release.set()
+
+    assert manager.started.wait(timeout=0.5)
+    assert readiness.failure_code == "CLOAK_SESSION_READINESS_TIMEOUT"
+    events = [json.loads(line) for line in stage_journal_path.read_text(encoding="utf-8").splitlines()]
+    event_pairs = {(event["stage"], event["event"]) for event in events}
+    assert ("open_session", "stage_started") in event_pairs
+    assert ("readiness_probe", "stage_failed") in event_pairs
+    assert any(event.get("failure_code") == "CLOAK_SESSION_READINESS_TIMEOUT" for event in events)
+    assert all("monotonic_offset_ms" in event for event in events)
+    assert all("profile_file_count" in event for event in events)
+    assert "bounded.example.test" not in stage_journal_path.read_text(encoding="utf-8")
+
+
+def test_cloak_readiness_default_watchdog_does_not_starve_sequential_reopen(tmp_path: Path) -> None:
+    class _SlowHealthyCloakSessionManager(_FakeBrowserSessionManager):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_calls = 0
+
+        def open_session(self, request: Any) -> Any:
+            time.sleep(0.06)
+            return super().open_session(request)
+
+        def observe(self, request: Any) -> Any:
+            time.sleep(0.04)
+            return super().observe(request)
+
+        def close_all(self) -> None:
+            self.close_calls += 1
+
+    manager = _SlowHealthyCloakSessionManager()
+    stage_journal_path = tmp_path / "readiness_stages.jsonl"
+
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+        capture_root=tmp_path / "capture",
+        timeout_ms=100,
+        stage_journal_path=stage_journal_path,
+    )
+
+    assert readiness.ready is True
+    assert readiness.failure_code is None
+    assert readiness.reopen_operational is True
+    assert manager.open_calls == 2
+    assert manager.observe_calls >= 2
+    events = [json.loads(line) for line in stage_journal_path.read_text(encoding="utf-8").splitlines()]
+    event_pairs = [(event["stage"], event["event"]) for event in events]
+    assert ("close_session", "stage_returned") in event_pairs
+    assert ("reopen_session", "stage_returned") in event_pairs
+    assert not any(event.get("failure_code") == "CLOAK_SESSION_READINESS_TIMEOUT" for event in events)
+
+
+def test_cloak_readiness_reopens_observes_and_closes_reopened_session(tmp_path: Path) -> None:
+    class _CloseTrackingCloakSessionManager(_FakeBrowserSessionManager):
+        def __init__(self) -> None:
+            super().__init__()
+            self.close_calls = 0
+
+        def close_all(self) -> None:
+            self.close_calls += 1
+
+    manager = _CloseTrackingCloakSessionManager()
+    stage_journal_path = tmp_path / "readiness_stages.jsonl"
+
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+        capture_root=tmp_path / "capture",
+        stage_journal_path=stage_journal_path,
+    )
+
+    assert readiness.ready is True
+    assert manager.open_calls == 2
+    assert manager.observe_calls >= 3
+    events = [json.loads(line) for line in stage_journal_path.read_text(encoding="utf-8").splitlines()]
+    event_pairs = [(event["stage"], event["event"]) for event in events]
+    assert ("reopen_session", "stage_returned") in event_pairs
+    assert ("reopened_observe", "stage_returned") in event_pairs
+    assert ("reopened_close_session", "stage_returned") in event_pairs
+
+
+def test_cloak_binary_path_drift_is_warning_when_content_and_version_match() -> None:
+    decision = classify_cloak_binary_provenance(
+        candidate_count=1,
+        file_sha256_match=True,
+        version_match=True,
+        path_hash_match=False,
+    )
+
+    assert decision.provenance == "CONTENT_VERIFIED_PATH_DRIFT"
+    assert decision.severity == "WARNING"
+    assert decision.hard_block is False
+    assert decision.reason == "path_drift_only"
+
+
+def test_cloak_binary_provenance_blocks_ambiguous_or_modified_candidates() -> None:
+    ambiguous = classify_cloak_binary_provenance(
+        candidate_count=2,
+        file_sha256_match=True,
+        version_match=True,
+        path_hash_match=False,
+    )
+    modified = classify_cloak_binary_provenance(
+        candidate_count=1,
+        file_sha256_match=False,
+        version_match=True,
+        path_hash_match=True,
+    )
+
+    assert ambiguous.hard_block is True
+    assert ambiguous.provenance == "BINARY_AMBIGUOUS"
+    assert modified.hard_block is True
+    assert modified.provenance == "FILE_HASH_MISMATCH"
 
 
 def test_cloak_readiness_timeout_removes_sensitive_profile_dirs(tmp_path: Path) -> None:

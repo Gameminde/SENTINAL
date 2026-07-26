@@ -136,6 +136,112 @@ class _KeyboardFallbackPage(_FallbackRolePage):
         return _KeyboardFallbackRoleQuery(self, role=role, name=name, exact=exact)
 
 
+class _LifecycleLocator:
+    def __init__(self, text: str = "") -> None:
+        self._text = text
+
+    def inner_text(self, *, timeout: int) -> str:
+        del timeout
+        return self._text
+
+    def count(self) -> int:
+        return 0
+
+    def nth(self, index: int) -> "_LifecycleLocator":
+        del index
+        return self
+
+    def get_attribute(self, name: str, *, timeout: int) -> str | None:
+        del name, timeout
+        return None
+
+    def input_value(self, *, timeout: int) -> str:
+        del timeout
+        return ""
+
+
+class _LifecycleFakeContext:
+    def __init__(self, backend: "_LifecycleFakeBackend") -> None:
+        self.backend = backend
+        self.closed = False
+
+    def new_page(self) -> "_LifecycleFakePage":
+        return _LifecycleFakePage(self)
+
+    def clear_cookies(self) -> None:
+        return None
+
+    def clear_permissions(self) -> None:
+        return None
+
+    def close(self) -> None:
+        self.closed = True
+        self.backend.close_count += 1
+
+
+class _LifecycleFakePage:
+    def __init__(self, context: _LifecycleFakeContext) -> None:
+        self.context = context
+        self.url = URL
+
+    def content(self) -> str:
+        return HTML
+
+    def locator(self, selector: str) -> _LifecycleLocator:
+        if selector == "body":
+            return _LifecycleLocator("Operator Console")
+        return _LifecycleLocator()
+
+
+class _LifecycleFakeBackend:
+    backend_kind = "cloakbrowser"
+
+    def __init__(self, *, fail_on_open_numbers: set[int] | None = None) -> None:
+        self.fail_on_open_numbers = fail_on_open_numbers or set()
+        self.open_count = 0
+        self.close_count = 0
+        self.profile_dir_hashes: list[str] = []
+
+    def open_context(
+        self,
+        *,
+        profile_dir: Path,
+        url: str,
+        timeout_ms: int,
+        viewport_width: int,
+        viewport_height: int,
+    ) -> Any:
+        from sentinel.agent.model_execution.redaction import stable_hash
+        from sentinel.organs.browser.cloak_backend import BrowserEngineSession, BrowserSessionEngineError
+
+        del url, timeout_ms, viewport_width, viewport_height
+        self.open_count += 1
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        (profile_dir / "ephemeral_profile_lock").write_text("profile material", encoding="utf-8")
+        self.profile_dir_hashes.append(stable_hash(str(profile_dir)))
+        if self.open_count in self.fail_on_open_numbers:
+            raise BrowserSessionEngineError("fake_engine_open_failed")
+        context = _LifecycleFakeContext(self)
+        return BrowserEngineSession(
+            backend_kind=self.backend_kind,
+            context=context,
+            page=context.new_page(),
+            profile_dir=profile_dir,
+        )
+
+
+def _profile_material_paths(capture_root: Path) -> list[Path]:
+    if not capture_root.exists():
+        return []
+    paths: list[Path] = []
+    for path in capture_root.rglob("*"):
+        if not path.is_file():
+            continue
+        if "profile" in {part.lower() for part in path.relative_to(capture_root).parts}:
+            paths.append(path)
+    return paths
+
+
 def test_live_browser_session_falls_back_from_exact_role_name_to_fuzzy_same_role(tmp_path: Path) -> None:
     from sentinel.agent.organs.browser_session_manager_l5_live import (
         BrowserSessionActionKind,
@@ -659,6 +765,42 @@ def test_cloakbrowser_backend_is_primary_and_uses_persistent_context(monkeypatch
     assert calls[-1] == {"closed": True}
 
 
+def test_cloakbrowser_backend_closes_partial_context_when_page_creation_fails(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from sentinel.organs.browser.cloak_backend import BrowserSessionEngineError, CloakBrowserSessionBackend
+
+    calls: list[dict[str, object]] = []
+
+    class _BrokenContext:
+        def new_page(self) -> object:
+            raise RuntimeError("page creation failed after process launch")
+
+        def close(self) -> None:
+            calls.append({"closed": True})
+
+    def _launch_persistent_context(user_data_dir: str, **kwargs: object) -> _BrokenContext:
+        del user_data_dir, kwargs
+        return _BrokenContext()
+
+    monkeypatch.setitem(
+        sys.modules,
+        "cloakbrowser",
+        types.SimpleNamespace(launch_persistent_context=_launch_persistent_context),
+    )
+
+    backend = CloakBrowserSessionBackend(headless=True)
+
+    with pytest.raises(BrowserSessionEngineError, match="cloakbrowser_open_failed"):
+        backend.open_context(
+            profile_dir=tmp_path / "profile",
+            url=URL,
+            timeout_ms=5_000,
+            viewport_width=1440,
+            viewport_height=1000,
+        )
+
+    assert calls == [{"closed": True}]
+
+
 def test_default_engine_is_cloak_and_never_silently_falls_back(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from sentinel.agent.organs.browser_session_manager_l5_live import (
         BrowserSessionContract,
@@ -675,6 +817,148 @@ def test_default_engine_is_cloak_and_never_silently_falls_back(monkeypatch: pyte
     assert result.accepted is False
     assert result.receipt.backend_kind == "cloakbrowser"
     assert result.reason.startswith("cloakbrowser_not_installed")
+
+
+def test_live_browser_session_sequential_reopen_cycles_cleanup_profile_material(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    from sentinel.organs.browser.cloak_backend import BrowserSessionEngineError
+
+    backend = _LifecycleFakeBackend()
+    manager = BrowserSessionManagerL5Live(capture_root=tmp_path / "browser", backend=backend)
+    contract = BrowserSessionContract(mission_id=MISSION_ID, allowed_domains=["example.com"])
+
+    for _ in range(3):
+        opened = manager.open_session(
+            BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+        )
+        observed = manager.observe(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+                capture_screenshot=False,
+            )
+        )
+        closed = manager.close_session(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+                capture_screenshot=False,
+            )
+        )
+
+        assert opened.accepted is True
+        assert observed.accepted is True
+        assert closed.accepted is True
+        assert closed.receipt.closed is True
+
+    assert backend.open_count == 3
+    assert backend.close_count == 3
+    assert len(set(backend.profile_dir_hashes)) == 3
+    assert _profile_material_paths(tmp_path / "browser") == []
+    assert manager.open_session(
+        BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+    ).accepted is True
+    manager.close_all()
+    assert _profile_material_paths(tmp_path / "browser") == []
+
+
+def test_live_browser_session_reopen_failure_cleans_profile_and_next_open_is_clean(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    backend = _LifecycleFakeBackend(fail_on_open_numbers={2})
+    manager = BrowserSessionManagerL5Live(capture_root=tmp_path / "browser", backend=backend)
+    contract = BrowserSessionContract(mission_id=MISSION_ID, allowed_domains=["example.com"])
+
+    first = manager.open_session(
+        BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+    )
+    manager.close_session(
+        BrowserSessionRequest(
+            mission=_envelope(),
+            url=URL,
+            contract=contract,
+            session_id=first.session_id,
+            capture_screenshot=False,
+        )
+    )
+    failed_reopen = manager.open_session(
+        BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+    )
+    assert _profile_material_paths(tmp_path / "browser") == []
+    clean_reopen = manager.open_session(
+        BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+    )
+
+    assert first.accepted is True
+    assert failed_reopen.accepted is False
+    assert failed_reopen.reason == "fake_engine_open_failed"
+    assert clean_reopen.accepted is True
+    assert backend.open_count == 3
+    manager.close_session(
+        BrowserSessionRequest(
+            mission=_envelope(),
+            url=URL,
+            contract=contract,
+            session_id=clean_reopen.session_id,
+            capture_screenshot=False,
+        )
+    )
+    manager.close_all()
+    assert _profile_material_paths(tmp_path / "browser") == []
+
+
+def test_live_browser_session_lifecycle_sink_records_safe_open_close_substages(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    events: list[tuple[str, str]] = []
+
+    def _sink(stage: str, event: str, **kwargs: Any) -> None:
+        del kwargs
+        events.append((stage, event))
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        backend=_LifecycleFakeBackend(),
+        lifecycle_event_sink=_sink,
+    )
+    contract = BrowserSessionContract(mission_id=MISSION_ID, allowed_domains=["example.com"])
+
+    opened = manager.open_session(
+        BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+    )
+    manager.close_session(
+        BrowserSessionRequest(
+            mission=_envelope(),
+            url=URL,
+            contract=contract,
+            session_id=opened.session_id,
+            capture_screenshot=False,
+        )
+    )
+
+    assert ("profile_lease_create", "stage_started") in events
+    assert ("backend_open_context", "stage_started") in events
+    assert ("session_publication", "stage_returned") in events
+    assert ("old_session_disposal", "stage_returned") in events
+    assert ("profile_lease_release", "stage_returned") in events
+    assert ("post_close_state_reset", "stage_returned") in events
 
 
 def test_live_browser_session_blocks_non_promoted_dangerous_actions(tmp_path: Path) -> None:

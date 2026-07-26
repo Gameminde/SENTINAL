@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 from urllib.parse import urlparse
 
 
@@ -63,6 +63,7 @@ class CloakBrowserSessionBackend:
         stealth_args: bool = True,
         page_javascript_enabled: bool = True,
         accept_downloads: bool = False,
+        lifecycle_event_sink: Callable[..., None] | None = None,
     ) -> None:
         self.document_fixtures = document_fixtures or {}
         self.headless = headless
@@ -70,6 +71,7 @@ class CloakBrowserSessionBackend:
         self.stealth_args = stealth_args
         self.page_javascript_enabled = page_javascript_enabled
         self.accept_downloads = accept_downloads
+        self._lifecycle_event_sink = lifecycle_event_sink
 
     def open_context(
         self,
@@ -87,8 +89,12 @@ class CloakBrowserSessionBackend:
                 "cloakbrowser_not_installed; install sentinel-core[cloak] or choose the playwright compatibility engine"
             ) from exc
 
+        self._emit_lifecycle_event("profile_material_creation", "stage_started")
         profile_dir.mkdir(parents=True, exist_ok=True)
+        self._emit_lifecycle_event("profile_material_creation", "stage_returned")
+        context: Any | None = None
         try:
+            self._emit_lifecycle_event("new_process_launch", "stage_started")
             context = cloakbrowser.launch_persistent_context(
                 str(profile_dir),
                 headless=self.headless,
@@ -98,13 +104,27 @@ class CloakBrowserSessionBackend:
                 accept_downloads=self.accept_downloads,
                 java_script_enabled=self.page_javascript_enabled,
             )
+            self._emit_lifecycle_event("new_process_launch", "stage_returned")
+            self._emit_lifecycle_event("context_creation", "stage_returned")
             _install_context_fixture_route(context, self.document_fixtures, url)
-            page = context.new_page()
+            self._emit_lifecycle_event("page_creation", "stage_started")
+            try:
+                page = context.new_page()
+            except Exception as exc:
+                self._emit_lifecycle_event("page_creation", "stage_failed", exception=exc)
+                raise
+            self._emit_lifecycle_event("page_creation", "stage_returned")
             network_events: list[dict[str, Any]] = []
             console_messages: list[dict[str, Any]] = []
             _install_metadata_listeners(page, network_events, console_messages)
             _install_fixture_route(page, self.document_fixtures, url)
-            _goto_document(page, url, timeout_ms)
+            self._emit_lifecycle_event("initial_navigation", "stage_started")
+            try:
+                _goto_document(page, url, timeout_ms)
+            except Exception as exc:
+                self._emit_lifecycle_event("initial_navigation", "stage_failed", exception=exc)
+                raise
+            self._emit_lifecycle_event("initial_navigation", "stage_returned")
             return BrowserEngineSession(
                 backend_kind=self.backend_kind,
                 context=context,
@@ -113,10 +133,35 @@ class CloakBrowserSessionBackend:
                 network_events=network_events,
                 console_messages=console_messages,
             )
-        except BrowserSessionEngineError:
-            raise
         except Exception as exc:
+            if context is not None:
+                self._emit_lifecycle_event("partial_context_cleanup", "stage_started")
+                try:
+                    context.close()
+                    self._emit_lifecycle_event("partial_context_cleanup", "stage_returned")
+                except Exception as cleanup_exc:
+                    self._emit_lifecycle_event("partial_context_cleanup", "stage_failed", exception=cleanup_exc)
+            if isinstance(exc, BrowserSessionEngineError):
+                raise
+            self._emit_lifecycle_event("cloak_open_context", "stage_failed", exception=exc)
             raise BrowserSessionEngineError(f"cloakbrowser_open_failed:{type(exc).__name__}") from exc
+
+    def _emit_lifecycle_event(
+        self,
+        stage: str,
+        event: str,
+        *,
+        details: dict[str, Any] | None = None,
+        exception: BaseException | None = None,
+        failure_code: str | None = None,
+    ) -> None:
+        sink = self._lifecycle_event_sink
+        if sink is None:
+            return
+        try:
+            sink(stage, event, details=details, exception=exception, failure_code=failure_code)
+        except Exception:
+            return
 
 
 class PlaywrightSessionBackend:
