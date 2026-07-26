@@ -93,6 +93,49 @@ const base = {
   can_execute: false as const,
 };
 
+export const presenceStreamConnectingEvent: PresenceEventV1 = {
+  schema_version: "presence_event_v1",
+  event_id: "presence_event_live_stream_connecting",
+  mission_id: "presence_live_stream_pending",
+  sequence: 0,
+  source_sequence: 0,
+  decision_index: 0,
+  timestamp: "1970-01-01T00:00:00.000Z",
+  presence_state: "DISCONNECTED",
+  event_kind: "TELEMETRY",
+  safe_summary: "Connecting to the live safe Presence stream.",
+  provider_metadata: {},
+  context_pack_hash: "",
+  available_affordances: [],
+  normalized_decision: {},
+  dispatch_status: "",
+  product_receipt_ref: "",
+  browser_receipt_ref: "",
+  before_state_fingerprint: "",
+  after_state_fingerprint: "",
+  before_evidence_fingerprint: "",
+  after_evidence_fingerprint: "",
+  material_progress: null,
+  authority_state: "not_present_in_safe_projection",
+  blocker: "",
+  gate_results: {},
+  first_causal_divergence_ref: "",
+  telemetry_state: "TELEMETRY_INCOMPLETE",
+  ledger_head: "",
+  event_hash: "presence_hash_live_stream_connecting",
+  data_not_authority: true,
+  can_grant_authority: false,
+  can_execute: false,
+};
+
+export const presenceStreamUnavailableEvent: PresenceEventV1 = {
+  ...presenceStreamConnectingEvent,
+  event_id: "presence_event_live_stream_unavailable",
+  mission_id: "presence_live_stream_unavailable",
+  safe_summary: "Live safe Presence stream is unavailable; no mission state is inferred.",
+  event_hash: "presence_hash_live_stream_unavailable",
+};
+
 function event(
   sequence: number,
   value: Omit<
@@ -127,7 +170,7 @@ function event(
 export const mdnPresenceReplay: PresenceReplayV1 = {
   schema_version: "presence_replay_archive_v1",
   mission_id: "mdn_css_has",
-  label: "MDN · historical failure replay",
+  label: "MDN - historical failure trace",
   replay_mode: "artifact_history_reconstruction",
   events: [
     event(0, {

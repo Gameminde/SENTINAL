@@ -4,6 +4,7 @@ import json
 import os
 import re
 import threading
+from builtins import open as builtin_open
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -97,7 +98,7 @@ class CrashSafeBoundedLiveRunEvidenceSink:
         safe_run_id = _safe_run_id(run_id)
         self.run_id = safe_run_id
         self.run_dir = self.evidence_root / safe_run_id
-        self.run_dir.mkdir(parents=True, exist_ok=True)
+        os.makedirs(_fs_path(self.run_dir), exist_ok=True)
         self.event_log_path = self.run_dir / "safe_evidence_events.jsonl"
         self.snapshot_path = self.run_dir / "safe_evidence_snapshot.json"
         self.max_events = max_events
@@ -153,10 +154,11 @@ class CrashSafeBoundedLiveRunEvidenceSink:
             return event
 
     def load_snapshot(self) -> dict[str, Any]:
-        return json.loads(self.snapshot_path.read_text(encoding="utf-8"))
+        with builtin_open(_fs_path(self.snapshot_path), encoding="utf-8") as handle:
+            return json.load(handle)
 
     def _append_event(self, event: dict[str, Any]) -> None:
-        with self.event_log_path.open("a", encoding="utf-8") as handle:
+        with builtin_open(_fs_path(self.event_log_path), "a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, sort_keys=True, default=str) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
@@ -312,12 +314,12 @@ def _key_contains(key: str, markers: tuple[str, ...]) -> bool:
 
 
 def _atomic_write_json(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    os.makedirs(_fs_path(path.parent), exist_ok=True)
     rendered = json.dumps(payload, sort_keys=True, indent=2, default=str)
     with NamedTemporaryFile(
         mode="w",
         encoding="utf-8",
-        dir=str(path.parent),
+        dir=_fs_path(path.parent),
         prefix=".tmp.",
         suffix=".tmp",
         delete=False,
@@ -326,7 +328,21 @@ def _atomic_write_json(path: Path, payload: Any) -> None:
         handle.write(rendered)
         handle.flush()
         os.fsync(handle.fileno())
-    os.replace(temp_path, path)
+    os.replace(_fs_path(temp_path), _fs_path(path))
+
+
+def _fs_path(path: Path | str) -> str:
+    rendered = str(path)
+    if os.name != "nt":
+        return rendered
+    if rendered.startswith("\\\\?\\"):
+        return rendered
+    absolute = str(Path(rendered).resolve())
+    if absolute.startswith("\\\\?\\"):
+        return absolute
+    if absolute.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + absolute.lstrip("\\")
+    return "\\\\?\\" + absolute
 
 
 __all__ = [

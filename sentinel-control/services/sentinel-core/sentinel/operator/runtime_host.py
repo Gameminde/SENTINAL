@@ -768,14 +768,16 @@ class SentinelRuntimeHost:
             raise RuntimeError("runtime_host_not_started")
         from sentinel.operator.model_led_product_action_kernel_task_loop import ModelLedProductActionKernelTaskLoop
 
+        workspace_path = Path(workspace_root).resolve()
+        workspace_path.mkdir(parents=True, exist_ok=True)
         resource_scope = self.create_product_task_resource_scope(
             root_session_id=session_id,
-            workspace_root=workspace_root,
+            workspace_root=workspace_path,
         )
         try:
             loop = ModelLedProductActionKernelTaskLoop(
                 host=self,
-                workspace_root=workspace_root,
+                workspace_root=workspace_path,
                 session_id=session_id,
                 mission_objective=mission_objective,
                 decision_client=decision_client,

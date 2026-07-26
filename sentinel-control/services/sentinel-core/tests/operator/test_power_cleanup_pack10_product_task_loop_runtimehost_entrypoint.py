@@ -26,6 +26,8 @@ def test_runtimehost_exposes_product_task_loop_entrypoint(tmp_path: Path) -> Non
         "workspace_patch.apply_patch",
         "code_execution_sandbox.code_exec.run_profile",
         "bounded_channel.send_message",
+        "real_browser_control.real_browser.observe",
+        "real_browser_control.real_browser.open",
         "real_browser_control.real_browser.search",
         "real_browser_control.real_browser.inspect_result",
         "real_browser_control.real_browser.open_result",
@@ -218,6 +220,42 @@ def test_browser_live_skill_routes_through_product_entrypoint_after_pack4(tmp_pa
 
     assert "real_browser_control.real_browser.search" in frame["model_visible_available_actions"]
     assert "real_browser_control.real_browser.type_text" not in frame["model_visible_available_actions"]
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    assert result.capability_sequence == (
+        "real_browser_control:real_browser.search",
+        "sentinel_loop:finish",
+    )
+
+
+def test_product_task_loop_creates_runtime_owned_workspace_root_before_browser_dispatch(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    workspace = tmp_path / "runtime_owned_missing_workspace"
+    assert workspace.exists() is False
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=workspace,
+        session_id="session_pack10_browser_missing_workspace",
+        mission_objective="Browser dispatch should prepare its runtime-owned workspace before action start.",
+        decision_client=ProductActionKernelLoopDecisionClient(
+            [
+                ActionEnvelope(
+                    capability_id="real_browser_control",
+                    operation="real_browser.search",
+                    params={"query": "sqlite generated columns", "engine_profile": "fake_product_search"},
+                ),
+                ActionEnvelope(
+                    capability_id="sentinel_loop",
+                    operation="finish",
+                    params={"safe_summary": "Browser dispatch completed after workspace creation."},
+                ),
+            ]
+        ),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=3,
+        max_material_actions=1,
+    )
+
+    assert workspace.exists() is True
     assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
     assert result.capability_sequence == (
         "real_browser_control:real_browser.search",

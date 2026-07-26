@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
   try {
     const source = await readFile(streamPath, "utf8");
     const parsed: SafePresenceEvent[] = [];
+    let latestMissionId = "";
     let invalidLineCount = 0;
     for (const line of source.split(/\r?\n/)) {
       if (!line.trim()) continue;
@@ -54,12 +55,12 @@ export async function GET(request: NextRequest) {
           continue;
         }
         parsed.push(candidate);
+        latestMissionId = candidate.mission_id;
       } catch {
         invalidLineCount += 1;
       }
     }
-    parsed.sort((left, right) => left.sequence - right.sequence);
-    const missionId = requestedMission || parsed[parsed.length - 1]?.mission_id || "";
+    const missionId = requestedMission || latestMissionId || "";
     const deduplicated = new Map<number, SafePresenceEvent>();
     for (const event of parsed) {
       if (event.mission_id !== missionId || event.sequence <= after) continue;
@@ -70,11 +71,12 @@ export async function GET(request: NextRequest) {
         invalidLineCount += 1;
       }
     }
+    const events = [...deduplicated.values()].sort((left, right) => left.sequence - right.sequence);
     return NextResponse.json(
       {
         configured: true,
         mission_id: missionId,
-        events: [...deduplicated.values()],
+        events,
         telemetry_incomplete: invalidLineCount > 0,
         invalid_line_count: invalidLineCount,
       },

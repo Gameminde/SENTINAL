@@ -2,14 +2,10 @@
 
 import {
   Aperture,
-  ChevronLeft,
-  ChevronRight,
   CircleStop,
   Eye,
   EyeOff,
   Mic,
-  Pause,
-  Play,
   RotateCcw,
   Settings2,
   TerminalSquare,
@@ -18,7 +14,8 @@ import {
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { LivingObsidianStage } from "@/components/living-obsidian-stage";
 import {
-  mdnPresenceReplay,
+  presenceStreamConnectingEvent,
+  presenceStreamUnavailableEvent,
   type PresenceEventV1,
   type PresenceState,
 } from "@/lib/presence-protocol";
@@ -116,19 +113,33 @@ function decisionLabel(index: number | undefined) {
   return typeof index === "number" && index > 0 ? `D${index}` : "START";
 }
 
+function runtimePath(event: PresenceEventV1) {
+  const operation = event.normalized_decision.operation;
+  if (!operation) return telemetryIncomplete;
+  const action = event.normalized_decision.capability_id
+    ? `${event.normalized_decision.capability_id}.${operation}`
+    : operation;
+  return `RuntimeHost -> ProductActionKernel -> ${action}`;
+}
+
+function actionCode(event: PresenceEventV1) {
+  const operation = event.normalized_decision.operation;
+  if (!operation) return telemetryIncomplete;
+  return event.normalized_decision.capability_id ? `${event.normalized_decision.capability_id}.${operation}` : operation;
+}
+
 export function PresenceShell() {
-  const [events, setEvents] = useState<PresenceEventV1[]>(mdnPresenceReplay.events);
-  const [connection, setConnection] = useState<"replay" | "connecting" | "live" | "unavailable">("replay");
+  const [events, setEvents] = useState<PresenceEventV1[]>([presenceStreamConnectingEvent]);
+  const [connection, setConnection] = useState<"connecting" | "live" | "unavailable">("connecting");
   const [liveMissionId, setLiveMissionId] = useState("");
-  const [eventIndex, setEventIndex] = useState(0);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const latestIndex = Math.max(0, events.length - 1);
+  const [selectedIndex, setSelectedIndex] = useState(latestIndex);
   const [routeVisible, setRouteVisible] = useState(false);
   const [xrayVisible, setXrayVisible] = useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
   const [demoKey, setDemoKey] = useState<DemoKey>("truth");
   const [command, setCommand] = useState("");
-  const current = events[eventIndex];
+  const current = events[latestIndex];
   const selected = events[selectedIndex] ?? current;
   const demo = demoStates.find((item) => item.key === demoKey);
   const visualState = demo?.state ?? current.presence_state;
@@ -136,17 +147,8 @@ export function PresenceShell() {
   const visualLabel = demo?.label ?? stateLabel(current.presence_state);
 
   useEffect(() => {
-    if (!playing) return;
-    if (eventIndex >= events.length - 1) {
-      setPlaying(false);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      setEventIndex((value) => Math.min(value + 1, events.length - 1));
-      setSelectedIndex((value) => (value === eventIndex ? Math.min(value + 1, events.length - 1) : value));
-    }, 1700);
-    return () => window.clearTimeout(timer);
-  }, [eventIndex, events.length, playing]);
+    setSelectedIndex((value) => Math.min(value, latestIndex));
+  }, [latestIndex]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -161,9 +163,13 @@ export function PresenceShell() {
   }, []);
 
   useEffect(() => {
+    void connectLive();
+  }, []);
+
+  useEffect(() => {
     if (connection !== "live" || !liveMissionId) return;
     const timer = window.setInterval(async () => {
-      const after = events[events.length - 1]?.sequence ?? -1;
+      const after = current?.sequence ?? -1;
       try {
         const response = await fetch(
           `/api/presence/events?mission_id=${encodeURIComponent(liveMissionId)}&after=${after}`,
@@ -172,23 +178,25 @@ export function PresenceShell() {
         if (!response.ok) return;
         const payload = (await response.json()) as { events?: PresenceEventV1[] };
         if (!payload.events?.length) return;
-        setEvents((currentEvents) => mergePresenceEvents(currentEvents, payload.events || []));
+        setEvents((currentEvents) => {
+          const merged = mergePresenceEvents(currentEvents, payload.events || []);
+          setSelectedIndex(merged.length - 1);
+          return merged;
+        });
       } catch {
         // A disconnected observer is expected to leave the mission unaffected.
       }
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [connection, events, liveMissionId]);
+  }, [connection, current?.sequence, liveMissionId]);
 
   const routeEvents = useMemo(() => {
-    const start = Math.max(0, Math.min(eventIndex - 3, events.length - routeSlots.length));
+    const start = Math.max(0, events.length - routeSlots.length);
     return events.slice(start, start + routeSlots.length);
-  }, [eventIndex, events]);
+  }, [events]);
 
   function chooseEvent(index: number) {
-    setEventIndex(index);
     setSelectedIndex(index);
-    setPlaying(false);
     setDemoKey("truth");
   }
 
@@ -208,17 +216,19 @@ export function PresenceShell() {
         events?: PresenceEventV1[];
       } | null;
       if (!response.ok || !payload?.configured || !payload.mission_id || !payload.events?.length) {
+        setEvents([presenceStreamUnavailableEvent]);
+        setSelectedIndex(0);
         setConnection("unavailable");
         return;
       }
       setEvents(payload.events);
       setLiveMissionId(payload.mission_id);
-      setEventIndex(payload.events.length - 1);
       setSelectedIndex(payload.events.length - 1);
       setConnection("live");
-      setPlaying(false);
       setDemoKey("truth");
     } catch {
+      setEvents([presenceStreamUnavailableEvent]);
+      setSelectedIndex(0);
       setConnection("unavailable");
     }
   }
@@ -249,12 +259,10 @@ export function PresenceShell() {
               ? "LIVE SAFE STREAM"
               : connection === "connecting"
                 ? "CONNECTING"
-                : connection === "unavailable"
-                  ? "LIVE UNAVAILABLE"
-                  : "SAFE REPLAY"}
+                : "LIVE UNAVAILABLE"}
           </span>
           <span className="presence-divider">/</span>
-          <span>{connection === "live" ? liveMissionId : mdnPresenceReplay.label}</span>
+          <span>{connection === "live" ? liveMissionId : connection === "connecting" ? "AWAITING LIVE STREAM" : "NO LIVE STREAM"}</span>
         </button>
         <button
           aria-label="Toggle deterministic visual state lab"
@@ -277,7 +285,7 @@ export function PresenceShell() {
               return (
                 <button
                   className={`presence-route-node route-${routeSlots[slot]}`}
-                  data-active={index === eventIndex ? "true" : "false"}
+                  data-active={index === selectedIndex ? "true" : "false"}
                   data-incomplete={item.telemetry_state === "TELEMETRY_INCOMPLETE" ? "true" : "false"}
                   key={item.event_id}
                   onClick={() => chooseEvent(index)}
@@ -304,10 +312,10 @@ export function PresenceShell() {
             {demo
               ? "Deterministic visual demo only / no runtime action"
               : current.telemetry_state === "TELEMETRY_INCOMPLETE"
-                ? "Historical telemetry gap / no fact inferred"
+                ? "Live telemetry incomplete / no mission fact inferred"
                 : current.event_kind === "TERMINAL"
                   ? "FinalGate truth preserved"
-                  : `Persisted event ${current.sequence + 1} of ${events.length}`}
+                  : `Observed event ${current.sequence + 1} of ${events.length}`}
           </span>
         </div>
 
@@ -342,7 +350,6 @@ export function PresenceShell() {
               key={item.key}
               onClick={() => {
                 setDemoKey(item.key);
-                setPlaying(false);
               }}
               type="button"
             >
@@ -352,58 +359,14 @@ export function PresenceShell() {
         </div>
       </section>
 
-      <section className="presence-transport" aria-label="Replay controls">
-        <button
-          className="transport-icon"
-          disabled={eventIndex === 0}
-          onClick={() => chooseEvent(Math.max(0, eventIndex - 1))}
-          type="button"
-        >
-          <ChevronLeft size={17} />
-        </button>
-        <button
-          className="transport-play"
-          onClick={() => {
-            if (eventIndex === events.length - 1) {
-              setEventIndex(0);
-              setSelectedIndex(0);
-            }
-            setDemoKey("truth");
-            setPlaying((value) => !value);
-          }}
-          type="button"
-        >
-          {playing ? <Pause size={16} /> : <Play size={16} />}
-          <span>{playing ? "Pause" : eventIndex === events.length - 1 ? "Replay" : "Play route"}</span>
-        </button>
-        <input
-          aria-label="Replay position"
-          className="presence-scrubber"
-          max={events.length - 1}
-          min={0}
-          onChange={(event) => chooseEvent(Number(event.target.value))}
-          type="range"
-          value={eventIndex}
-        />
-        <span className="transport-count">{String(eventIndex + 1).padStart(2, "0")} / {events.length}</span>
-        <button
-          className="transport-icon"
-          disabled={eventIndex === events.length - 1}
-          onClick={() => chooseEvent(Math.min(events.length - 1, eventIndex + 1))}
-          type="button"
-        >
-          <ChevronRight size={17} />
-        </button>
-      </section>
-
       <form className="presence-command" onSubmit={submitCommand}>
-        <button aria-label="Voice input unavailable in replay" className="command-mic" disabled type="button">
+        <button aria-label="Voice input unavailable in read-only observer" className="command-mic" disabled type="button">
           <Mic size={18} />
         </button>
         <input
           aria-label="Sentinel command"
           onChange={(event) => setCommand(event.target.value)}
-          placeholder="Replay only / connect a live Sentinel stream to issue a mission"
+          placeholder="Read-only observer / mission control remains inside Sentinel runtime"
           value={command}
         />
         <span className="command-mode">READ ONLY</span>
@@ -420,9 +383,9 @@ export function PresenceShell() {
           <span>X-Ray</span>
           <kbd>Shift X</kbd>
         </button>
-        <button className="presence-kill-button" disabled title="Historical replay cannot affect the runtime" type="button">
+        <button className="presence-kill-button" disabled title="Read-only observer cannot affect the runtime" type="button">
           <CircleStop size={16} />
-          <span>Kill unavailable / replay</span>
+          <span>Kill unavailable / read-only</span>
         </button>
       </div>
 
@@ -447,6 +410,8 @@ export function PresenceShell() {
         <XrayRow label="Output tokens" value={xrayValue(selected.provider_metadata?.output_tokens)} />
         <XrayRow label="Context" value={shortRef(selected.context_pack_hash)} />
         <XrayRow label="Affordances" value={formatAffordances(selected.available_affordances)} />
+        <XrayRow label="Runtime path" value={runtimePath(selected)} />
+        <XrayRow label="Action code" value={actionCode(selected)} />
         <XrayRow label="Decision" value={xrayValue(selected.normalized_decision.operation)} />
         <XrayRow label="Dispatch" value={xrayValue(selected.dispatch_status)} />
         <XrayRow label="Product receipt" value={shortRef(selected.product_receipt_ref)} />
@@ -484,7 +449,7 @@ export function PresenceShell() {
         ) : null}
         <div className="xray-foot">
           <RotateCcw size={14} />
-          Artifact history reconstruction / zero provider calls
+          Artifact history reconstruction / read-only observer
         </div>
       </aside>
     </main>

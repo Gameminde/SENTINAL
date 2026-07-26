@@ -186,3 +186,19 @@ def test_sink_rejects_secret_values_but_keeps_safe_topic_words_as_data(tmp_path:
     assert payload["semantic_topic"] == "compare login, download, upload and payment documentation"
     assert payload["actual_secret"]["redacted"] == "secret_value"
     assert payload["session_cookie"]["redacted"] == "session_or_cookie_material"
+
+
+def test_sink_atomic_snapshot_survives_long_windows_run_path(tmp_path: Path) -> None:
+    run_id = "sqlite_official_generated_columns_docs_v1_live_xray_v2_20260726"
+    evidence_root = tmp_path
+    counter = 0
+    while len(str((evidence_root / run_id).resolve())) < 240:
+        evidence_root = evidence_root / f"nested_runtime_segment_{counter:02d}"
+        counter += 1
+
+    sink = CrashSafeBoundedLiveRunEvidenceSink(evidence_root=evidence_root, run_id=run_id)
+    sink.record_transition("run_started", {"mission_id": "SQLITE_OFFICIAL_GENERATED_COLUMNS_DOCS_V1"})
+
+    snapshot = sink.load_snapshot()
+    assert snapshot["event_count"] == 1
+    assert snapshot["events"][0]["event_type"] == "run_started"
