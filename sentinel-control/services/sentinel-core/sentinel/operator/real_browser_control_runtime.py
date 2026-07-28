@@ -439,6 +439,7 @@ class BrowserSessionManagerRealBrowserEngine:
         headless: bool = True,
         timeout_ms: int = 15_000,
         lifecycle_event_sink: Callable[..., None] | None = None,
+        root_session_id: str | None = None,
     ) -> None:
         self.target_url = target_url
         self.timeout_ms = timeout_ms
@@ -453,6 +454,7 @@ class BrowserSessionManagerRealBrowserEngine:
         self.wait_count = 0
         self.scroll_count = 0
         self._authority: MissionAuthorityEnvelope | None = None
+        self._root_session_id = str(root_session_id or "").strip()
         self._session_id: str | None = None
         effective_capture_root = Path(capture_root) if capture_root is not None else _default_browser_session_capture_root()
         self._capture_root = effective_capture_root
@@ -495,6 +497,9 @@ class BrowserSessionManagerRealBrowserEngine:
 
     def bind_authority(self, authority: MissionAuthorityEnvelope) -> None:
         self._authority = authority
+
+    def bind_root_session_id(self, root_session_id: str) -> None:
+        self._root_session_id = str(root_session_id or "").strip()
 
     def open(self) -> RealBrowserEngineSnapshot:
         self.open_count += 1
@@ -627,6 +632,7 @@ class BrowserSessionManagerRealBrowserEngine:
         )
         return self._authority.model_copy(
             update={
+                "id": self._root_session_id or self._authority.id,
                 "allowed_domains": list(dict.fromkeys(self._authority.allowed_domains)),
                 "allowed_actions": list(dict.fromkeys(tuple(self._authority.allowed_actions) + internal_session_actions)),
             }
@@ -728,11 +734,15 @@ class BrowserSessionManagerRealBrowserEngine:
             role = str(getattr(role_ref, "role", "") or "")
             name = str(getattr(role_ref, "name", "") or role)
             nth = int(getattr(role_ref, "nth", None) or 0)
+            visible = getattr(role_ref, "visible", None)
+            enabled = getattr(role_ref, "enabled", None)
             elements.append(
                 RealBrowserEngineElement(
                     str(ref),
                     role,
                     name,
+                    visible=True if visible is None else bool(visible),
+                    enabled=True if enabled is None else bool(enabled),
                     text_preview=name[:160],
                     value_preview="",
                     secret=_looks_secret_ref(role, name),
@@ -1380,9 +1390,10 @@ class RealBrowserControlRuntime:
         context_cards["browser_recovery_evidence"] = recovery_evidence
         if last_trace is not None:
             context_cards["search_actuation_trace"] = dict(last_trace)
+        final_failure_code = str((last_trace or {}).get("safe_failure_code") or "real_browser_search_actuation_failed")
         return self._recoverable_actuation_failure(
             envelope,
-            failure_code="real_browser_search_actuation_failed",
+            failure_code=final_failure_code,
             safe_summary="Search-like controls were found but none accepted robust in-scope search actuation.",
             context_cards=context_cards,
             browser_state_hash=recovery_snapshot.state_hash,
@@ -1423,18 +1434,25 @@ class RealBrowserControlRuntime:
             self.engine.click(ref)
             trace["focus_succeeded"] = True
         except (RealBrowserControlRuntimeError, AttributeError) as exc:
-            errors.append(str(exc))
+            focus_failure_code = _search_focus_failure_code(str(exc))
+            errors.append(focus_failure_code)
             trace["focus_succeeded"] = False
+            trace["focus_failure_code"] = focus_failure_code
         trace["clear_attempted"] = True
-        trace["clear_succeeded"] = True
+        trace["clear_succeeded"] = False
+        trace["clear_failure_code"] = "clear_not_supported_by_engine_contract"
         trace["write_method"] = "fill"
         trace["write_attempted"] = True
         try:
             snapshot = self.engine.type_text(ref, query)
         except RealBrowserControlRuntimeError as exc:
-            trace["safe_failure_code"] = _search_write_failure_code(str(exc))
+            trace["write_failure_code"] = _search_write_failure_code(str(exc))
+            trace["safe_failure_code"] = trace["write_failure_code"]
             raise RealBrowserControlRuntimeError(str(trace["safe_failure_code"])) from exc
+        trace["clear_succeeded"] = True
+        trace["clear_failure_code"] = ""
         trace["write_succeeded"] = True
+        trace["write_failure_code"] = ""
         readback = _search_write_readback_evidence(
             engine=self.engine,
             snapshot=snapshot,
@@ -1610,7 +1628,15 @@ class RealBrowserControlRuntime:
             if context_cards is None:
                 raise
             state_hash = _context_browser_state_hash(context_cards)
-            entity_count = _context_product_card_count(context_cards)
+            entity_count = _context_evidence_candidate_count(context_cards)
+            if entity_count <= 0:
+                return self._recoverable_actuation_failure(
+                    envelope,
+                    failure_code="NO_EVIDENCE_TO_EXTRACT",
+                    safe_summary="No candidate public evidence was available to extract from the current browser world model.",
+                    context_cards=context_cards,
+                    browser_state_hash=state_hash,
+                )
             return self._record_action(
                 envelope,
                 action_kind=envelope.operation,
@@ -1632,7 +1658,16 @@ class RealBrowserControlRuntime:
             progress_state="real_browser_evidence_extracted",
             extracted_text=text,
         )
-        entity_count = len(context_cards.get("browser_world_model", {}).get("product_or_result_candidate_cards", []))
+        card_count = _context_product_card_count(context_cards)
+        entity_count = _context_evidence_candidate_count(context_cards)
+        if entity_count <= 0 or (card_count <= 0 and not text.strip()):
+            return self._recoverable_actuation_failure(
+                envelope,
+                failure_code="NO_EVIDENCE_TO_EXTRACT",
+                safe_summary="The current browser page did not contain extractable public evidence.",
+                context_cards=context_cards,
+                browser_state_hash=snapshot.state_hash,
+            )
         return self._record_action(
             envelope,
             action_kind=envelope.operation,
@@ -1656,7 +1691,15 @@ class RealBrowserControlRuntime:
             if context_cards is None:
                 raise
             state_hash = _context_browser_state_hash(context_cards)
-            card_count = _context_product_card_count(context_cards)
+            card_count = _context_evidence_candidate_count(context_cards)
+            if card_count <= 0:
+                return self._recoverable_actuation_failure(
+                    envelope,
+                    failure_code="NO_EVIDENCE_TO_VERIFY",
+                    safe_summary="No extracted public evidence was available for verification.",
+                    context_cards=context_cards,
+                    browser_state_hash=state_hash,
+                )
             return self._record_action(
                 envelope,
                 action_kind="real_browser.verify_extraction",
@@ -1676,7 +1719,16 @@ class RealBrowserControlRuntime:
             extracted_text=text,
         )
         cards = context_cards.get("browser_world_model", {}).get("product_or_result_candidate_cards", [])
-        status = "passed" if cards else "failed"
+        evidence_count = _context_evidence_candidate_count(context_cards)
+        if evidence_count <= 0 or (len(cards) <= 0 and not text.strip()):
+            return self._recoverable_actuation_failure(
+                envelope,
+                failure_code="NO_EVIDENCE_TO_VERIFY",
+                safe_summary="No extracted public evidence was available for verification.",
+                context_cards=context_cards,
+                browser_state_hash=snapshot.state_hash,
+            )
+        status = "passed"
         return self._record_action(
             envelope,
             action_kind="real_browser.verify_extraction",
@@ -1684,7 +1736,7 @@ class RealBrowserControlRuntime:
             before_state_hash=snapshot.state_hash,
             after_state_hash=snapshot.state_hash,
             status=status,
-            summary=f"real browser product extraction verification {status} card_count={len(cards)}.",
+            summary=f"real browser evidence verification {status} evidence_count={evidence_count} card_count={len(cards)}.",
             material_action=True,
             context_cards=context_cards,
         )
@@ -2145,7 +2197,7 @@ class RealBrowserControlRuntime:
         frame = BrowserDecisionFrameCompiler().compile(
             mission_objective=authority.mission_objective,
             world_model=world_model,
-            available_actions=tuple(context.get("available_actions") or _authority_available_actions(authority)),
+            available_actions=_context_available_browser_actions(context, authority=authority),
             progress_state=progress_state,
             completion_requirements=completion_requirements if isinstance(completion_requirements, dict) else None,
         )
@@ -2184,7 +2236,7 @@ class RealBrowserControlRuntime:
             world_model=world_model,
             network_events=observation_bundle.network_events,
             console_messages=observation_bundle.console_events,
-            available_actions=tuple(context.get("available_actions") or _authority_available_actions(authority)),
+            available_actions=_context_available_browser_actions(context, authority=authority),
             session_lease_status=_root_browser_lease_status(context),
         )
         environment_dump = environment_state.safe_model_dump()
@@ -3716,7 +3768,7 @@ def _existing_browser_context_cards(context: dict[str, Any]) -> dict[str, Any] |
         "model_blocker_assessment_schema",
     )
     cards = {key: context[key] for key in keys if key in context}
-    if _context_product_card_count(cards) <= 0:
+    if _context_evidence_candidate_count(cards) <= 0:
         return None
     backend = cards.setdefault("browser_backend_execution", {})
     if isinstance(backend, dict):
@@ -3808,6 +3860,42 @@ def _context_product_card_count(context_cards: dict[str, Any]) -> int:
     return 0
 
 
+def _context_evidence_candidate_count(context_cards: dict[str, Any]) -> int:
+    card_count = _context_product_card_count(context_cards)
+    if card_count > 0:
+        return card_count
+    model = context_cards.get("browser_world_model")
+    if isinstance(model, dict):
+        snippets = model.get("top_visible_text_snippets")
+        if isinstance(snippets, list):
+            count = sum(1 for item in snippets if str(item or "").strip())
+            if count > 0:
+                return count
+    environment = context_cards.get("browser_environment_state")
+    if isinstance(environment, dict):
+        extraction = environment.get("extraction_graph")
+        if isinstance(extraction, dict):
+            for key in ("cards", "entities", "evidence_refs"):
+                value = extraction.get(key)
+                if isinstance(value, list) and value:
+                    return len(value)
+        operational = environment.get("operational_snapshot")
+        if isinstance(operational, dict):
+            fields = operational.get("fields")
+            if isinstance(fields, dict):
+                inventory = fields.get("public_evidence_inventory")
+                if isinstance(inventory, dict):
+                    value = inventory.get("value")
+                    if isinstance(value, dict):
+                        try:
+                            count = int(value.get("count") or 0)
+                        except (TypeError, ValueError):
+                            count = 0
+                        if count > 0:
+                            return count
+    return 0
+
+
 def _context_browser_state_hash(context_cards: dict[str, Any]) -> str:
     environment_hash = context_cards.get("browser_environment_state_hash")
     if isinstance(environment_hash, str) and environment_hash.strip():
@@ -3848,6 +3936,23 @@ def _search_error_can_refresh_refs(error: str) -> bool:
     return any(marker in lowered for marker in ("stale", "detached", "not_textbox", "disabled", "hidden", "ref_not_found"))
 
 
+def _search_focus_failure_code(error: str) -> str:
+    lowered = error.lower()
+    if "stale" in lowered:
+        return "real_browser_search_stale_ref"
+    if "detached" in lowered:
+        return "real_browser_search_detached_ref"
+    if "hidden" in lowered:
+        return "real_browser_search_element_hidden"
+    if "disabled" in lowered:
+        return "real_browser_search_element_disabled"
+    if "not_button" in lowered:
+        return "real_browser_click_ref_not_button"
+    if "timeout" in lowered:
+        return "real_browser_search_focus_timeout"
+    return "real_browser_search_focus_failed"
+
+
 def _search_write_failure_code(error: str) -> str:
     lowered = error.lower()
     if "stale" in lowered:
@@ -3880,11 +3985,14 @@ def _new_search_actuation_trace(
         "element_enabled": bool(getattr(element, "enabled", False)) if element is not None else False,
         "focus_attempted": False,
         "focus_succeeded": False,
+        "focus_failure_code": "",
         "clear_attempted": False,
         "clear_succeeded": False,
+        "clear_failure_code": "",
         "write_method": "",
         "write_attempted": False,
         "write_succeeded": False,
+        "write_failure_code": "",
         "write_readback_match": False,
         "write_readback_status": "not_attempted",
         "write_readback_hash": "",
@@ -4639,6 +4747,23 @@ def _authority_available_actions(authority: MissionAuthorityEnvelope) -> tuple[s
         else:
             actions.append(action)
     return tuple(dict.fromkeys(actions))
+
+
+def _context_available_browser_actions(context: dict[str, Any], *, authority: MissionAuthorityEnvelope) -> tuple[str, ...]:
+    if isinstance(context, dict):
+        for key in ("runtime_available_actions", "model_visible_available_actions", "available_actions"):
+            values = context.get(key)
+            if not isinstance(values, (list, tuple)):
+                continue
+            actions = [
+                str(action)
+                for action in values
+                if str(action).startswith("real_browser_control.real_browser.")
+                or str(action) in {"sentinel_loop.finish", "sentinel_loop.summarize_evidence"}
+            ]
+            if actions:
+                return tuple(dict.fromkeys(actions))
+    return _authority_available_actions(authority)
 
 
 def _root_browser_lease_status(context: dict[str, Any]) -> str:

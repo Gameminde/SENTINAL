@@ -7,6 +7,7 @@ import pytest
 
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft
 from sentinel.operator.runtime_host import SentinelRuntimeHost
+from sentinel.operator.store import _path_exists
 
 
 def test_runtimehost_exposes_mission_workspace_product_body_frame(tmp_path: Path) -> None:
@@ -129,6 +130,35 @@ def test_prepare_mission_workspace_does_not_register_new_dispatch_or_live_power(
     assert sorted(connection.connection_id for connection in host.connection_registry.connections) == connections_before
     assert manifest["registered_new_dispatch_adapter"] is False
     assert manifest["live_external_power_enabled"] is False
+
+
+def test_prepare_mission_workspace_survives_long_windows_run_path(tmp_path: Path) -> None:
+    long_run_root = tmp_path
+    for index in range(5):
+        long_run_root = long_run_root / f"sentinel_runtime_segment_{index}_{'x' * 36}"
+    host = SentinelRuntimeHost(run_root=long_run_root).start().host
+    workspace = _workspace(tmp_path)
+    mission = _mission(host)
+
+    manifest = host.prepare_mission_workspace(
+        mission_id=mission.mission_id,
+        workspace_root=workspace,
+        allowed_domains=("bounded.example",),
+    )
+
+    assert manifest["mission_id"] == mission.mission_id
+    assert {handle["kind"] for handle in manifest["handles"]} == {
+        "workspace_files",
+        "scratch_memory",
+        "code_sandbox",
+        "browser_session",
+        "channel_destination_grants",
+        "worker_pool",
+        "receipt_ledger",
+        "replay_ledger",
+        "artifact_export",
+    }
+    assert _path_exists(Path(manifest["manifest_path"]))
 
 
 def _workspace(tmp_path: Path) -> Path:

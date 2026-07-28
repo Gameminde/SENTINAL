@@ -8,8 +8,13 @@ MODEL_SKILL_ORDER = (
     "create_file",
     "patch",
     "run_check",
-    "browse_search",
-    "extract",
+    "observe",
+    "navigate",
+    "search",
+    "follow",
+    "inspect",
+    "extract_evidence",
+    "verify",
     "send_message",
     "spawn_worker",
     "remember",
@@ -27,22 +32,60 @@ _ACTION_TO_MODEL_SKILL = {
     "code_execution_sandbox.code_exec.run_profile": "run_check",
     "code_execution_sandbox.code_exec.inspect_result": "run_check",
     "bounded_channel.send_message": "send_message",
-    "browser_control.browser.observe": "browse_search",
-    "browser_control.browser.assert_text": "extract",
-    "real_browser_control.real_browser.open": "browse_search",
-    "real_browser_control.real_browser.observe": "browse_search",
-    "real_browser_control.real_browser.search": "browse_search",
-    "real_browser_control.real_browser.inspect_result": "browse_search",
-    "real_browser_control.real_browser.open_result": "browse_search",
-    "real_browser_control.real_browser.extract_evidence": "extract",
-    "real_browser_control.real_browser.extract_entities": "extract",
-    "real_browser_control.real_browser.extract_product_cards": "extract",
-    "real_browser_control.real_browser.verify_extraction": "extract",
-    "real_browser_control.real_browser.extract_text": "extract",
-    "real_browser_control.real_browser.assert_text": "extract",
+    "browser_control.browser.observe": "observe",
+    "browser_control.browser.assert_text": "extract_evidence",
+    "real_browser_control.real_browser.open": "navigate",
+    "real_browser_control.real_browser.observe": "observe",
+    "real_browser_control.real_browser.search": "search",
+    "real_browser_control.real_browser.inspect_result": "inspect",
+    "real_browser_control.real_browser.open_result": "follow",
+    "real_browser_control.real_browser.extract_evidence": "extract_evidence",
+    "real_browser_control.real_browser.extract_entities": "extract_evidence",
+    "real_browser_control.real_browser.extract_product_cards": "extract_evidence",
+    "real_browser_control.real_browser.verify_extraction": "verify",
+    "real_browser_control.real_browser.extract_text": "extract_evidence",
+    "real_browser_control.real_browser.assert_text": "extract_evidence",
     "worker_fleet.spawn_worker": "spawn_worker",
     "sentinel_loop.summarize_evidence": "finish",
     "sentinel_loop.finish": "finish",
+}
+
+_SKILL_ACTION_PRIORITY = {
+    "observe": (
+        "real_browser_control.real_browser.observe",
+        "browser_control.browser.observe",
+    ),
+    "navigate": (
+        "real_browser_control.real_browser.open",
+    ),
+    "search": (
+        "real_browser_control.real_browser.search",
+    ),
+    "follow": (
+        "real_browser_control.real_browser.open_result",
+    ),
+    "inspect": (
+        "real_browser_control.real_browser.inspect_result",
+    ),
+    "extract_evidence": (
+        "real_browser_control.real_browser.extract_evidence",
+        "real_browser_control.real_browser.extract_entities",
+        "real_browser_control.real_browser.extract_product_cards",
+        "real_browser_control.real_browser.extract_text",
+        "real_browser_control.real_browser.assert_text",
+        "browser_control.browser.assert_text",
+    ),
+    "verify": (
+        "real_browser_control.real_browser.verify_extraction",
+    ),
+    "browse_search": (
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.open_result",
+        "real_browser_control.real_browser.inspect_result",
+        "real_browser_control.real_browser.open",
+        "real_browser_control.real_browser.observe",
+        "browser_control.browser.observe",
+    ),
 }
 
 _HARD_STOP_MARKERS = {
@@ -115,13 +158,25 @@ def model_skill_for_action(action_name: str) -> str | None:
 
 
 def _skill_action_map(actions: list[str]) -> dict[str, str]:
-    mapping: dict[str, str] = {}
+    candidates: dict[str, list[str]] = {}
     for action in actions:
         skill = model_skill_for_action(action)
         if skill is None:
             continue
-        mapping.setdefault(skill, action)
+        candidates.setdefault(skill, []).append(action)
+    mapping: dict[str, str] = {
+        skill: _preferred_action_for_skill(skill, skill_actions)
+        for skill, skill_actions in candidates.items()
+    }
     return {skill: mapping[skill] for skill in MODEL_SKILL_ORDER if skill in mapping}
+
+
+def _preferred_action_for_skill(skill: str, actions: list[str]) -> str:
+    priority = _SKILL_ACTION_PRIORITY.get(skill, ())
+    for preferred in priority:
+        if preferred in actions:
+            return preferred
+    return actions[0]
 
 
 def _recommended_skills(

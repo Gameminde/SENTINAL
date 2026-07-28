@@ -19,6 +19,20 @@ from sentinel.operator.browser_model_native_control_loop import map_browser_mode
 from sentinel.operator.live_run_evidence_sink import safe_model_operational_assessment
 
 
+_BROWSER_MODEL_SKILLS = {
+    "observe",
+    "navigate",
+    "search",
+    "follow",
+    "inspect",
+    "extract_evidence",
+    "verify",
+    "recover_session",
+    "browse_search",
+    "extract",
+}
+
+
 class ProductModelClient(Protocol):
     def complete(self, request: Any) -> Any:
         ...
@@ -129,6 +143,10 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         "{\"skill\":\"create_file\",\"params\":{\"target_path\":\"app.py\",\"new_text\":\"...\"}}, "
         "{\"skill\":\"patch\",\"params\":{\"target_path\":\"app.py\",\"expected_base_hash\":\"...\",\"old_text\":\"...\",\"new_text\":\"...\"}}, "
         "{\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
+        "{\"skill\":\"observe\"}, {\"skill\":\"search\",\"params\":{\"query\":\"...\"}}, "
+        "{\"skill\":\"follow\",\"params\":{\"ref\":\"...\"}}, "
+        "{\"skill\":\"inspect\",\"params\":{\"ref\":\"...\"}}, "
+        "{\"skill\":\"extract_evidence\"}, {\"skill\":\"verify\"}, "
         "{\"skill\":\"send_message\"}, {\"skill\":\"spawn_worker\"}, or {\"skill\":\"finish\"}.\n"
         "When finishing an evidence-seeking browser mission, include exactly one terminal payload: "
         "{\"skill\":\"finish\",\"final_answer\":{\"answer_text\":\"...\",\"answer_claims\":[{\"claim_type\":\"sourced_factual_claim\",\"text\":\"...\",\"evidence_refs\":[\"evidence:...\"]}],\"public_evidence\":[]}} "
@@ -305,7 +323,7 @@ def _context_has_browser_progress(context: dict[str, Any]) -> bool:
 
 def _context_prefers_browser_work(context: dict[str, Any]) -> bool:
     recommended_skill = str(context.get("primary_model_recommended_next_skill") or "")
-    if recommended_skill in {"browse_search", "extract"}:
+    if recommended_skill in _BROWSER_MODEL_SKILLS:
         return True
     for key in ("primary_model_recommended_next_action", "model_visible_recommended_next_action", "recommended_next_action"):
         action = str(context.get(key) or "")
@@ -496,10 +514,14 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
         return "send_message"
     if "verifier" in lowered:
         return "spawn_worker"
+    if any(marker in lowered for marker in ("follow result", "open result", "open link", "follow link")):
+        return "follow"
+    if "inspect" in lowered:
+        return "inspect"
     if any(marker in lowered for marker in ("extract", "product card", "visible card")):
-        return "extract"
-    if any(marker in lowered for marker in ("search", "browse", "inspect")):
-        return "browse_search"
+        return "extract_evidence"
+    if any(marker in lowered for marker in ("search", "browse")):
+        return "search"
     if any(marker in lowered for marker in ("finish", "done", "complete", "enough proof", "summarize")):
         return "finish"
     return None
@@ -530,10 +552,25 @@ def _normalize_skill(value: str) -> str | None:
         "worker": "spawn_worker",
         "finish": "finish",
         "complete": "finish",
-        "browse_search": "browse_search",
-        "search": "browse_search",
-        "extract": "extract",
-        "extract_product_cards": "extract",
+        "observe": "observe",
+        "browse_observe": "observe",
+        "navigate": "navigate",
+        "open": "navigate",
+        "browse_search": "search",
+        "search": "search",
+        "follow": "follow",
+        "open_result": "follow",
+        "open_link": "follow",
+        "inspect": "inspect",
+        "inspect_result": "inspect",
+        "extract": "extract_evidence",
+        "extract_evidence": "extract_evidence",
+        "extract_entities": "extract_evidence",
+        "extract_product_cards": "extract_evidence",
+        "verify": "verify",
+        "verify_extraction": "verify",
+        "recover": "recover_session",
+        "recover_session": "recover_session",
     }
     return aliases.get(lowered)
 
@@ -555,18 +592,24 @@ def _canonical_payload_skill(payload: dict[str, Any]) -> str:
         return "spawn_worker"
     if action == "sentinel_loop.finish":
         return "finish"
+    if action == "real_browser_control.real_browser.observe":
+        return "observe"
+    if action == "real_browser_control.real_browser.open":
+        return "navigate"
+    if action == "real_browser_control.real_browser.search":
+        return "search"
+    if action == "real_browser_control.real_browser.open_result":
+        return "follow"
+    if action == "real_browser_control.real_browser.inspect_result":
+        return "inspect"
     if action in {
         "real_browser_control.real_browser.extract_evidence",
         "real_browser_control.real_browser.extract_entities",
         "real_browser_control.real_browser.extract_product_cards",
     }:
-        return "extract"
-    if action in {
-        "real_browser_control.real_browser.search",
-        "real_browser_control.real_browser.inspect_result",
-        "real_browser_control.real_browser.open_result",
-    }:
-        return "browse_search"
+        return "extract_evidence"
+    if action == "real_browser_control.real_browser.verify_extraction":
+        return "verify"
     return "__canonical__"
 
 
@@ -740,7 +783,21 @@ def _skill_to_action(
             params=_finish_params(payload=payload, text=text, context=context),
             idempotency_key=_idempotency_key("finish", context, text),
         )
-    if skill == "browse_search":
+    if skill == "observe":
+        return ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.observe",
+            params=dict(payload.get("params") or {}),
+            idempotency_key=_idempotency_key("observe", context, text),
+        )
+    if skill == "navigate":
+        return ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.open",
+            params=dict(payload.get("params") or {}),
+            idempotency_key=_idempotency_key("navigate", context, text),
+        )
+    if skill in {"search", "browse_search"}:
         params = _normalize_model_browser_search_params(
             payload.get("params"),
             fallback_query=_bounded_query(text) or "mission objective",
@@ -749,14 +806,42 @@ def _skill_to_action(
             capability_id="real_browser_control",
             operation="real_browser.search",
             params=params,
-            idempotency_key=_idempotency_key("browse_search", context, text),
+            idempotency_key=_idempotency_key("search", context, text),
         )
-    if skill == "extract":
+    if skill == "follow":
+        return ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.open_result",
+            params=dict(payload.get("params") or {}),
+            idempotency_key=_idempotency_key("follow", context, text),
+        )
+    if skill == "inspect":
+        return ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.inspect_result",
+            params=dict(payload.get("params") or {}),
+            idempotency_key=_idempotency_key("inspect", context, text),
+        )
+    if skill in {"extract_evidence", "extract"}:
         return ActionEnvelope(
             capability_id="real_browser_control",
             operation=_extract_operation_for_context(context),
             params=dict(payload.get("params") or {}),
-            idempotency_key=_idempotency_key("extract", context, text),
+            idempotency_key=_idempotency_key("extract_evidence", context, text),
+        )
+    if skill == "verify":
+        return ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.verify_extraction",
+            params=dict(payload.get("params") or {}),
+            idempotency_key=_idempotency_key("verify", context, text),
+        )
+    if skill == "recover_session":
+        return ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.recover_session",
+            params=dict(payload.get("params") or {}),
+            idempotency_key=_idempotency_key("recover_session", context, text),
         )
     raise ActionKernelError("MODEL_NATIVE_DECISION_SKILL_NOT_MAPPED")
 

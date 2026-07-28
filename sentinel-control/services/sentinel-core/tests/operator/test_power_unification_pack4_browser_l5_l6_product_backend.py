@@ -353,6 +353,10 @@ class _ClosableProductCloakEngine(runtime_host_module._ProductLocalCloakBrowserE
     def __init__(self) -> None:
         super().__init__()
         self.close_count = 0
+        self.bound_root_session_ids: list[str] = []
+
+    def bind_root_session_id(self, root_session_id: str) -> None:
+        self.bound_root_session_ids.append(root_session_id)
 
     def close(self) -> None:
         self.close_count += 1
@@ -399,7 +403,7 @@ def test_root_browser_lease_reused_across_child_browser_actions(tmp_path: Path, 
     result = host.run_product_action_kernel_task_loop(
         workspace_root=workspace,
         session_id="session_pack4_root_browser_lease_reuse",
-        mission_objective="Search, extract, verify, summarize, and finish through one root browser body.",
+        mission_objective="Find bounded product cards under 5 EUR, extract visible evidence, verify, summarize, and finish.",
         decision_client=client,
         allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
         max_model_calls=6,
@@ -412,6 +416,7 @@ def test_root_browser_lease_reused_across_child_browser_actions(tmp_path: Path, 
     assert engines[0].press_count >= 1
     assert engines[0].extract_count >= 1
     assert engines[0].close_count == 1
+    assert engines[0].bound_root_session_ids == ["session_pack4_root_browser_lease_reuse"]
 
 
 def test_root_browser_lease_closes_on_material_budget_exhaustion(tmp_path: Path, monkeypatch) -> None:
@@ -607,7 +612,7 @@ def test_product_loop_continues_to_extract_after_recoverable_browser_search_with
         "sentinel_loop:summarize_evidence",
         "sentinel_loop:finish",
     )
-    assert client.contexts[1]["recoverable_action_observations"][0]["failure_code"] == "real_browser_search_actuation_failed"
+    assert client.contexts[1]["recoverable_action_observations"][0]["failure_code"] == "real_browser_search_write_failed"
     assert (
         client.contexts[1]["browser_decision_frame"]["recommended_next_actions"][0]
         == "real_browser_control.real_browser.extract_product_cards"
@@ -1176,7 +1181,7 @@ def test_local_body_stress_reuses_and_reopens_root_browser_lease(tmp_path: Path,
             host.run_product_action_kernel_task_loop(
                 workspace_root=workspace,
                 session_id=f"session_pack4_local_body_stress_{index}",
-                mission_objective="Search, open, extract, verify, summarize, and finish through one body.",
+                mission_objective="Find bounded product cards under 5 EUR, open one result, extract visible evidence, verify, summarize, and finish.",
                 decision_client=client,
                 allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
                 max_model_calls=7,

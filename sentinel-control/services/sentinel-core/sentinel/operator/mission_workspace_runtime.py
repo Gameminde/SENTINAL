@@ -8,6 +8,7 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.store import _mkdir_path
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel
 
@@ -151,7 +152,7 @@ class MissionWorkspaceRuntime:
 
         mission_dir = self._kernel.store.mission_dir(mission_id, create=True)
         workspace_dir = mission_dir / "mission_workspace"
-        workspace_dir.mkdir(parents=True, exist_ok=True)
+        _mkdir_path(workspace_dir)
 
         handles = tuple(
             self._handle_for(
@@ -201,7 +202,7 @@ class MissionWorkspaceRuntime:
     ) -> MissionWorkspaceHandle:
         directory_name = "artifact_exports" if kind is MissionWorkspaceHandleKind.ARTIFACT_EXPORT else kind.value
         handle_dir = workspace_dir / directory_name
-        handle_dir.mkdir(parents=True, exist_ok=True)
+        _mkdir_path(handle_dir)
         relative_path = f"mission_workspace/{directory_name}"
         handle_hash = stable_hash({"mission_id": mission_id, "kind": kind.value, "relative_path": relative_path})
         return MissionWorkspaceHandle(

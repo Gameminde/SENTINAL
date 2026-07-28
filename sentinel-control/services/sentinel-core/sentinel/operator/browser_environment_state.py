@@ -941,13 +941,19 @@ def _hard_boundary_signals(model: BrowserWorldModel) -> tuple[str, ...]:
 
 def _recommended_model_skills(model: BrowserWorldModel) -> tuple[str, ...]:
     skills: list[str] = []
+    if model.stable_refs:
+        skills.append("observe")
     if model.search_like_refs or "real_browser.search" in model.recommended_browser_actions:
-        skills.append("browse_search")
+        skills.append("search")
+    if model.link_refs or "real_browser.open_result" in model.recommended_browser_actions:
+        skills.append("follow")
+    if model.link_refs or model.product_or_result_candidate_cards:
+        skills.append("inspect")
     if model.product_or_result_candidate_cards or "real_browser.extract_product_cards" in model.recommended_browser_actions:
-        skills.append("extract")
+        skills.append("extract_evidence")
     if model.captcha_or_login_signals:
-        skills.append("recover")
-    return tuple(dict.fromkeys(skills or ["browse_search"]))
+        skills.append("recover_session")
+    return tuple(dict.fromkeys(skills or ["observe"]))
 
 
 def _url_host_hint(raw_url: str) -> str:

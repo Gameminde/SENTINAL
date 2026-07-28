@@ -809,6 +809,54 @@ def test_product_native_client_uses_browser_native_mapper_for_verify_intent() ->
     assert client.safe_diagnostics[-1]["mapped_action"] == "real_browser_control.real_browser.verify_extraction"
 
 
+def test_product_native_client_maps_distinct_browser_affordance_skills() -> None:
+    client = ProductModelNativeDecisionClient(
+        model_client=_FakeModelClient(
+            [
+                {"skill": "follow", "params": {"ref": "link:docs"}},
+                {"skill": "inspect", "params": {"ref": "link:docs"}},
+                {"skill": "search", "params": {"query": "generated columns"}},
+                {"skill": "extract_evidence", "params": {"entity_kind": "documentation_page"}},
+                {"skill": "verify", "params": {"evidence_refs": ["evidence:docs"]}},
+            ]
+        ),
+        request_factory=_request_factory,
+    )
+    context = _context(recommended_skill="follow")
+
+    follow = client.complete(context)
+    inspect = client.complete(_context(recommended_skill="inspect"))
+    search = client.complete(_context(recommended_skill="search"))
+    extract = client.complete(_context(recommended_skill="extract_evidence"))
+    verify = client.complete(_context(recommended_skill="verify"))
+
+    assert (follow.capability_id, follow.operation, follow.params["ref"]) == (
+        "real_browser_control",
+        "real_browser.open_result",
+        "link:docs",
+    )
+    assert (inspect.capability_id, inspect.operation, inspect.params["ref"]) == (
+        "real_browser_control",
+        "real_browser.inspect_result",
+        "link:docs",
+    )
+    assert (search.capability_id, search.operation, search.params["query"]) == (
+        "real_browser_control",
+        "real_browser.search",
+        "generated columns",
+    )
+    assert (extract.capability_id, extract.operation, extract.params["entity_kind"]) == (
+        "real_browser_control",
+        "real_browser.extract_evidence",
+        "documentation_page",
+    )
+    assert (verify.capability_id, verify.operation, verify.params["evidence_refs"]) == (
+        "real_browser_control",
+        "real_browser.verify_extraction",
+        ["evidence:docs"],
+    )
+
+
 def test_product_native_client_routes_verified_browser_extraction_to_summary_lane() -> None:
     client = ProductModelNativeDecisionClient(
         model_client=_FakeModelClient(["I have enough evidence, summarize and finish."]),
@@ -2147,6 +2195,13 @@ def _context(
         "send_message": "bounded_channel.send_message",
         "spawn_worker": "worker_fleet.spawn_worker",
         "finish": "sentinel_loop.finish",
+        "observe": "real_browser_control.real_browser.observe",
+        "navigate": "real_browser_control.real_browser.open",
+        "search": "real_browser_control.real_browser.search",
+        "follow": "real_browser_control.real_browser.open_result",
+        "inspect": "real_browser_control.real_browser.inspect_result",
+        "extract_evidence": "real_browser_control.real_browser.extract_evidence",
+        "verify": "real_browser_control.real_browser.verify_extraction",
         "browse_search": "real_browser_control.real_browser.search",
         "extract": "real_browser_control.real_browser.extract_product_cards",
     }

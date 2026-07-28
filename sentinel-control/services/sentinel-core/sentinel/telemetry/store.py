@@ -24,10 +24,32 @@ _TELEMETRY_LOCKS: dict[str, threading.RLock] = {}
 _TELEMETRY_LOCKS_GUARD = threading.Lock()
 
 
+def _filesystem_path(path: Path) -> str:
+    rendered = str(path)
+    if os.name != "nt" or rendered.startswith("\\\\?\\"):
+        return rendered
+    if rendered.startswith("\\\\"):
+        return "\\\\?\\UNC\\" + rendered[2:]
+    return "\\\\?\\" + rendered
+
+
+def _mkdir_path(path: Path) -> None:
+    os.makedirs(_filesystem_path(path), exist_ok=True)
+
+
+def _path_exists(path: Path) -> bool:
+    return os.path.exists(_filesystem_path(path))
+
+
+def _read_text_file(path: Path) -> str:
+    with open(_filesystem_path(path), encoding="utf-8") as handle:
+        return handle.read()
+
+
 class TelemetryStore:
     def __init__(self, root: Path | str, *, enabled: bool = True) -> None:
         self.root = Path(root).resolve()
-        self.root.mkdir(parents=True, exist_ok=True)
+        _mkdir_path(self.root)
         self.enabled = enabled
         self.events_path = self.root / "events.jsonl"
         self.metrics_path = self.root / "metrics.jsonl"
@@ -67,20 +89,20 @@ class TelemetryStore:
         self._degradation_reasons.add(str(reason))
 
     def load_events(self) -> list[TelemetryEventRecord]:
-        if not self.events_path.exists():
+        if not _path_exists(self.events_path):
             return []
         return [
             TelemetryEventRecord.model_validate(json.loads(line))
-            for line in self.events_path.read_text(encoding="utf-8").splitlines()
+            for line in _read_text_file(self.events_path).splitlines()
             if line.strip()
         ]
 
     def load_metrics(self) -> list[TelemetryMetricSample]:
-        if not self.metrics_path.exists():
+        if not _path_exists(self.metrics_path):
             return []
         return [
             TelemetryMetricSample.model_validate(json.loads(line))
-            for line in self.metrics_path.read_text(encoding="utf-8").splitlines()
+            for line in _read_text_file(self.metrics_path).splitlines()
             if line.strip()
         ]
 
@@ -133,7 +155,7 @@ class TelemetryStore:
             reasons.append("event_chain_tampered")
         if not metric_chain_ok:
             reasons.append("metric_chain_tampered")
-        if not self.events_path.exists() and not self.metrics_path.exists():
+        if not _path_exists(self.events_path) and not _path_exists(self.metrics_path):
             reasons.append("telemetry_empty")
         reasons = list(dict.fromkeys(reasons))
         event_counts_by_kind: dict[str, int] = {}
@@ -190,7 +212,8 @@ class TelemetryStore:
     def _append_jsonl(self, path: Path, payload: Any) -> None:
         rendered = json.dumps(payload, sort_keys=True, default=str)
         with self._lock:
-            with path.open("a", encoding="utf-8") as handle:
+            _mkdir_path(path.parent)
+            with open(_filesystem_path(path), "a", encoding="utf-8") as handle:
                 handle.write(rendered)
                 handle.write("\n")
                 handle.flush()

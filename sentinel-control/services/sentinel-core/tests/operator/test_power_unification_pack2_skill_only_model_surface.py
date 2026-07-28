@@ -40,7 +40,12 @@ def test_browser_skill_surface_prefers_search_and_extract_not_raw_primitives() -
             "real_browser_control.real_browser.type_text",
             "real_browser_control.real_browser.click",
             "real_browser_control.real_browser.select_option",
+            "real_browser_control.real_browser.observe",
+            "real_browser_control.real_browser.open",
             "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.extract_evidence",
             "real_browser_control.real_browser.extract_product_cards",
             "real_browser_control.real_browser.verify_extraction",
             "sentinel_loop.finish",
@@ -49,11 +54,29 @@ def test_browser_skill_surface_prefers_search_and_extract_not_raw_primitives() -
 
     surface = context["model_skill_surface"]
 
-    assert "browse_search" in surface["model_visible_skills"]
-    assert "extract" in surface["model_visible_skills"]
+    assert surface["model_visible_skills"] == [
+        "observe",
+        "navigate",
+        "search",
+        "follow",
+        "inspect",
+        "extract_evidence",
+        "verify",
+        "finish",
+    ]
     assert "type_text" not in surface["model_visible_skills"]
     assert "click" not in surface["model_visible_skills"]
-    assert surface["recommended_next_skills"][0] in {"browse_search", "extract"}
+    assert surface["recommended_next_skills"][0] in {
+        "observe",
+        "navigate",
+        "search",
+        "follow",
+        "inspect",
+        "extract_evidence",
+        "verify",
+    }
+    assert surface["runtime_internal_action_map"]["follow"] == "real_browser_control.real_browser.open_result"
+    assert surface["runtime_internal_action_map"]["inspect"] == "real_browser_control.real_browser.inspect_result"
     assert not any(skill.startswith("real_browser") for skill in surface["model_visible_skills"])
 
 
@@ -67,23 +90,32 @@ def test_runtimehost_entrypoint_exposes_simple_skills_as_primary_surface(tmp_pat
     assert frame["model_visible_skills"] == [
         "patch",
         "run_check",
-        "browse_search",
-        "extract",
+        "observe",
+        "navigate",
+        "search",
+        "follow",
+        "inspect",
+        "extract_evidence",
+        "verify",
         "send_message",
         "spawn_worker",
         "finish",
     ]
     assert frame["action_envelope_language"] == "internal_runtime_only"
     assert frame["runtime_internal_action_map"]["send_message"] == "bounded_channel.send_message"
-    assert frame["runtime_internal_action_map"]["browse_search"] == "real_browser_control.real_browser.search"
-    assert frame["runtime_internal_action_map"]["extract"] == "real_browser_control.real_browser.extract_product_cards"
+    assert frame["runtime_internal_action_map"]["search"] == "real_browser_control.real_browser.search"
+    assert frame["runtime_internal_action_map"]["follow"] == "real_browser_control.real_browser.open_result"
+    assert frame["runtime_internal_action_map"]["extract_evidence"] == "real_browser_control.real_browser.extract_evidence"
     assert frame["model_visible_available_actions"] == [
         "workspace_patch.apply_patch",
         "code_execution_sandbox.code_exec.run_profile",
         "bounded_channel.send_message",
+        "real_browser_control.real_browser.observe",
+        "real_browser_control.real_browser.open",
         "real_browser_control.real_browser.search",
         "real_browser_control.real_browser.inspect_result",
         "real_browser_control.real_browser.open_result",
+        "real_browser_control.real_browser.extract_evidence",
         "real_browser_control.real_browser.extract_product_cards",
         "real_browser_control.real_browser.verify_extraction",
         "worker_fleet.spawn_worker",
@@ -124,16 +156,21 @@ def test_product_task_loop_context_keeps_action_envelope_internal(tmp_path: Path
 
     assert first_context["primary_model_surface"] == "model_visible_skills"
     assert first_context["model_visible_skills"] == [
-        "patch",
         "run_check",
-        "browse_search",
-        "extract",
+        "observe",
+        "navigate",
+        "search",
+        "follow",
+        "inspect",
+        "extract_evidence",
+        "verify",
         "send_message",
         "spawn_worker",
     ]
     assert "code_execution_sandbox.code_exec.run_profile" not in first_context["model_visible_skills"]
-    assert first_context["skill_decision_frame"]["model_skill_surface"]["recommended_next_skills"][0] == "patch"
+    assert first_context["skill_decision_frame"]["model_skill_surface"]["recommended_next_skills"][0] == "run_check"
     assert first_context["runtime_internal_action_map"]["run_check"] == "code_execution_sandbox.code_exec.run_profile"
+    assert first_context["runtime_internal_action_map"]["follow"] == "real_browser_control.real_browser.open_result"
 
 
 def test_high_risk_or_unknown_actions_are_not_simple_model_skills() -> None:

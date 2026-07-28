@@ -1191,10 +1191,15 @@ class BrowserSessionManagerL5Live:
         if not req.target_role:
             raise RuntimeError("browser_session_target_missing")
         if not req.target_name:
-            return [BrowserSessionManagerL5Live._role_locator(page, req.target_role, None, nth)]
+            return [
+                BrowserSessionManagerL5Live._role_locator(page, req.target_role, None, nth),
+                *BrowserSessionManagerL5Live._editable_locator_candidates(page, req.target_role, nth),
+            ]
         return [
             BrowserSessionManagerL5Live._role_locator(page, req.target_role, req.target_name, nth),
             BrowserSessionManagerL5Live._role_locator(page, req.target_role, req.target_name, nth, exact=False),
+            BrowserSessionManagerL5Live._role_locator(page, req.target_role, None, nth),
+            *BrowserSessionManagerL5Live._editable_locator_candidates(page, req.target_role, nth),
         ]
 
     @staticmethod
@@ -1202,6 +1207,32 @@ class BrowserSessionManagerL5Live:
         if name:
             return page.get_by_role(role, name=name, exact=exact).nth(nth)
         return page.get_by_role(role).nth(nth)
+
+    @staticmethod
+    def _editable_locator_candidates(page: Any, role: str, nth: int) -> list[Any]:
+        normalized_role = role.strip().lower()
+        if normalized_role not in {"textbox", "searchbox", "combobox"}:
+            return []
+        locator = getattr(page, "locator", None)
+        if not callable(locator):
+            return []
+        selectors = []
+        if normalized_role in {"searchbox", "combobox"}:
+            selectors.append(
+                "input[type=\"search\"], input[role=\"searchbox\"], input[aria-label*=\"search\" i], "
+                "input[name*=\"search\" i], input[id*=\"search\" i], input[placeholder*=\"search\" i], "
+                "textarea[aria-label*=\"search\" i], textarea[name*=\"search\" i], "
+                "textarea[id*=\"search\" i], textarea[placeholder*=\"search\" i], "
+                "[contenteditable=\"true\"][role=\"searchbox\"]"
+            )
+        selectors.append("input:not([type=\"hidden\"]):not([type=\"password\"]), textarea, [contenteditable=\"true\"]")
+        candidates: list[Any] = []
+        for selector in selectors:
+            try:
+                candidates.append(locator(selector).nth(nth))
+            except Exception:
+                continue
+        return candidates
 
     def _capture_receipt(self, req: BrowserSessionRequest, session: _LiveBrowserSession, *, action_kind: str, status: BrowserSessionStatus, safe_summary: str, execution_effect: str) -> BrowserSessionReceipt:
         snapshot = self._snapshot(session.page, req.timeout_ms)
@@ -1235,7 +1266,48 @@ class BrowserSessionManagerL5Live:
     def _snapshot(page: Any, timeout_ms: int) -> BrowserAccessibilitySnapshot:
         html = page.content()
         text = page.locator("body").inner_text(timeout=timeout_ms)
-        return BrowserAccessibilitySnapshotBuilder().build(html=html, text=text)
+        snapshot = BrowserAccessibilitySnapshotBuilder().build(html=html, text=text)
+        return BrowserSessionManagerL5Live._snapshot_with_actionability(page, snapshot, timeout_ms)
+
+    @staticmethod
+    def _snapshot_with_actionability(page: Any, snapshot: BrowserAccessibilitySnapshot, timeout_ms: int) -> BrowserAccessibilitySnapshot:
+        refs: dict[str, Any] = {}
+        for ref, role_ref in snapshot.refs.items():
+            visible, enabled = BrowserSessionManagerL5Live._role_ref_actionability(page, role_ref, timeout_ms)
+            refs[ref] = role_ref.model_copy(update={"visible": visible, "enabled": enabled})
+        return snapshot.model_copy(update={"refs": refs})
+
+    @staticmethod
+    def _role_ref_actionability(page: Any, role_ref: Any, timeout_ms: int) -> tuple[bool | None, bool | None]:
+        role = str(getattr(role_ref, "role", "") or "")
+        if not role:
+            return None, None
+        name = getattr(role_ref, "name", None)
+        nth = int(getattr(role_ref, "nth", None) or 0)
+        locators = []
+        try:
+            locators.append(BrowserSessionManagerL5Live._role_locator(page, role, str(name) if name else None, nth))
+            if name:
+                locators.append(BrowserSessionManagerL5Live._role_locator(page, role, str(name), nth, exact=False))
+        except Exception:
+            return False, False
+        for locator in locators:
+            try:
+                count = locator.count()
+            except Exception:
+                count = 1
+            if count == 0:
+                continue
+            try:
+                visible = bool(locator.is_visible(timeout=min(timeout_ms, 500)))
+            except Exception:
+                visible = None
+            try:
+                enabled = bool(locator.is_enabled(timeout=min(timeout_ms, 500)))
+            except Exception:
+                enabled = None
+            return visible, enabled
+        return False, False
 
     def _write_screenshot(self, session: _LiveBrowserSession, label: str, enabled: bool, timeout_ms: int) -> dict[str, str | None]:
         if not enabled:

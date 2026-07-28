@@ -88,6 +88,11 @@ _MAX_TYPED_LOOP_CONTEXT_STRING_LENGTH = 4000
 
 _TYPED_LOOP_CONTEXT_OPERATIONS = frozenset(
     {
+        "real_browser.open",
+        "real_browser.observe",
+        "real_browser.search",
+        "real_browser.inspect_result",
+        "real_browser.open_result",
         "real_browser.extract_product_cards",
         "real_browser.extract_evidence",
         "real_browser.extract_entities",
@@ -123,12 +128,14 @@ _LOOP_CONTEXT_ROOT_KEYS = frozenset(
         "model_blocker_assessment",
         "model_blocker_assessment_schema",
         "model_extensions",
+        "model_visible_available_actions",
         "model_visible_body_failure_packet",
         "mission_objective",
         "objective_satisfied",
         "progress_state",
         "real_browser_control_summary",
         "recoverable_action_observations",
+        "runtime_available_actions",
         "runtime_failure_fact",
         "search_actuation_trace",
         "unknowns",

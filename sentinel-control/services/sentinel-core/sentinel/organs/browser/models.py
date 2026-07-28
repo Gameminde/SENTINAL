@@ -178,6 +178,8 @@ class BrowserRoleRef(SentinelModel):
     role: str
     name: str | None = None
     nth: int | None = Field(default=None, ge=0)
+    visible: bool | None = None
+    enabled: bool | None = None
 
 
 class BrowserRoleSnapshotStats(SentinelModel):

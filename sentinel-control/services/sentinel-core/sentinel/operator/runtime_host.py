@@ -121,12 +121,14 @@ _MODEL_EVIDENCE_CONTEXT_ALLOWLIST = frozenset(
         "last_browser_action_summary",
         "model_blocker_assessment_schema",
         "model_visible_body_failure_packet",
+        "model_visible_available_actions",
         "mission_objective",
         "objective_satisfied",
         "progress_state",
         "real_browser_control_summary",
         "recoverable_action_observations",
         "runtime_failure_fact",
+        "runtime_available_actions",
     }
 )
 
@@ -205,6 +207,9 @@ class ProductTaskBrowserRuntimeLease:
             self._acquire_live_context_lock_if_needed(envelope)
             try:
                 self.engine = _product_browser_engine(envelope)
+                bind_root_session_id = getattr(self.engine, "bind_root_session_id", None)
+                if callable(bind_root_session_id):
+                    bind_root_session_id(self.root_session_id)
                 self.open_count += 1
                 self._transition_browser_session_state(
                     BrowserSessionControlState.ACTIVE,
@@ -257,6 +262,9 @@ class ProductTaskBrowserRuntimeLease:
         self._acquire_live_context_lock_if_needed(envelope)
         try:
             self.engine = _product_browser_engine(envelope)
+            bind_root_session_id = getattr(self.engine, "bind_root_session_id", None)
+            if callable(bind_root_session_id):
+                bind_root_session_id(self.root_session_id)
             self.open_count += 1
             self._transition_browser_session_state(
                 BrowserSessionControlState.RECONNECTED,

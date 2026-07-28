@@ -36,8 +36,8 @@ def test_search_action_context_includes_browser_environment_state(tmp_path: Path
     assert state["backend_truth"]["product_backend_proven"] is True
     assert "input:search" in state["action_graph"]["search_like_refs"]
     assert state["extraction_graph"]["product_or_result_candidate_count"] >= 1
-    assert "browse_search" in state["recommended_model_skills"]
-    assert "extract" in state["recommended_model_skills"]
+    assert "search" in state["recommended_model_skills"]
+    assert "extract_evidence" in state["recommended_model_skills"]
     assert state["raw_material_persisted"] is False
     assert state["can_execute"] is False
 

@@ -169,7 +169,7 @@ def compile_executable_browser_affordances(
             ("search", _search_reason(allowed, body_available, action_graph)),
             ("follow", _follow_reason(allowed, body_available, action_graph)),
             ("inspect", _inspect_reason(allowed, body_available, action_graph, extraction_graph)),
-            ("extract_evidence", _extract_reason(allowed, body_available)),
+            ("extract_evidence", _extract_reason(allowed, body_available, action_graph, extraction_graph)),
             ("verify", _verify_reason(allowed, extraction_graph)),
             ("recover_session", _recover_session_reason(allowed, recoverable_error)),
             ("finish", _finish_reason(allowed, mission_progress, recoverable_error)),
@@ -252,10 +252,13 @@ def _inspect_reason(allowed: set[str], body_available: bool, action_graph: Any, 
     return "result, link or entity candidate is available for inspection"
 
 
-def _extract_reason(allowed: set[str], body_available: bool) -> str:
+def _extract_reason(allowed: set[str], body_available: bool, action_graph: Any, extraction_graph: Any) -> str:
     if not _action_allowed(allowed, "real_browser.extract_evidence") or not body_available:
         return ""
-    return "page body or safe visible text is available"
+    candidate_count = _candidate_evidence_count(action_graph, extraction_graph)
+    if candidate_count <= 0:
+        return ""
+    return f"candidate evidence exists count={candidate_count}"
 
 
 def _verify_reason(allowed: set[str], extraction_graph: Any) -> str:
@@ -265,6 +268,30 @@ def _verify_reason(allowed: set[str], extraction_graph: Any) -> str:
     if candidate_count <= 0:
         return ""
     return f"candidate evidence exists count={candidate_count}"
+
+
+def _candidate_evidence_count(action_graph: Any, extraction_graph: Any) -> int:
+    direct_keys = (
+        "evidence_candidate_count",
+        "candidate_evidence_count",
+        "product_or_result_candidate_count",
+        "entity_candidate_count",
+        "result_candidate_count",
+    )
+    for key in direct_keys:
+        try:
+            value = int(getattr(extraction_graph, key, 0) or 0)
+        except (TypeError, ValueError):
+            value = 0
+        if value > 0:
+            return value
+    for key in ("cards", "entities", "candidate_entities", "evidence_refs"):
+        value = getattr(extraction_graph, key, None)
+        if isinstance(value, (list, tuple, set)) and value:
+            return len(value)
+    link_refs = tuple(getattr(action_graph, "link_refs", ()) or ())
+    result_refs = tuple(getattr(action_graph, "result_refs", ()) or ())
+    return len(tuple(dict.fromkeys((*link_refs, *result_refs))))
 
 
 def _recover_session_reason(allowed: set[str], recoverable_error: dict[str, Any] | None) -> str:

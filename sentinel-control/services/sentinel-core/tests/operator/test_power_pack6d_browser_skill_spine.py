@@ -15,6 +15,7 @@ from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, Action
 from sentinel.operator.action_power_contract import ActionFailureClass
 from sentinel.operator.actionability_registry import build_default_actionability_registry
 from sentinel.operator.browser_backend_selector import CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE, select_browser_backend
+from sentinel.operator.browser_affordance_contracts import compile_executable_browser_affordances
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
 from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
 from sentinel.operator.browser_world_model import BrowserWorldModelBuilder
@@ -239,6 +240,40 @@ def test_real_browser_search_dispatches_to_selected_backend(tmp_path: Path) -> N
     assert ("fill", "Search products", "glasses under 5 euro") in manager.interact_calls
     assert ("type", "Search products", "glasses under 5 euro") not in manager.interact_calls
     assert ("open_tab", "", "") not in manager.interact_calls
+
+
+def test_cloak_session_engine_uses_root_session_identity_across_child_actions(tmp_path: Path) -> None:
+    manager = _MissionScopedBrowserSessionManager()
+    engine = BrowserSessionManagerRealBrowserEngine(
+        target_url="https://bounded.example.test/catalog",
+        session_manager=manager,
+        root_session_id="root_browser_session_shared_across_child_actions",
+    )
+    fixture = _BrowserSkillFixture(tmp_path, engine=engine)
+
+    child_open_authority = fixture.authority.model_copy(update={"id": "child_browser_open"})
+    child_search_authority = fixture.authority.model_copy(update={"id": "child_browser_search"})
+
+    fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"),
+        authority=child_open_authority,
+        context={},
+    )
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "glasses under 5 euro"},
+        ),
+        authority=child_search_authority,
+        context={},
+    )
+
+    assert result.status == "completed"
+    assert manager.open_mission_ids == ["root_browser_session_shared_across_child_actions"]
+    assert manager.observe_mission_ids
+    assert set(manager.observe_mission_ids) == {"root_browser_session_shared_across_child_actions"}
+    assert set(manager.interact_mission_ids) == {"root_browser_session_shared_across_child_actions"}
 
 
 def test_browser_session_engine_press_key_dispatches_to_l5_backend(tmp_path: Path) -> None:
@@ -1159,6 +1194,100 @@ def test_generic_extract_evidence_is_available_without_product_named_skill(tmp_p
     assert result.context_cards["browser_world_model_summary"]["product_or_result_candidate_count"] >= 1
 
 
+def test_extract_and_verify_on_empty_page_are_recoverable_not_fake_material_proof(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_EmptyEvidenceSearchEngine())
+    fixture.authority = fixture.authority.model_copy(
+        update={"allowed_actions": [*fixture.authority.allowed_actions, "real_browser.extract_evidence"]}
+    )
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    extract_result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.extract_evidence"),
+        authority=fixture.authority,
+        context={},
+    )
+    verify_result = fixture.runtime.execute(
+        ActionEnvelope(capability_id="real_browser_control", operation="real_browser.verify_extraction"),
+        authority=fixture.authority,
+        context={},
+    )
+
+    assert extract_result.status == "recoverable_failed"
+    assert extract_result.failure_code == "NO_EVIDENCE_TO_EXTRACT"
+    assert extract_result.material_action is False
+    assert verify_result.status == "recoverable_failed"
+    assert verify_result.failure_code == "NO_EVIDENCE_TO_VERIFY"
+    assert verify_result.material_action is False
+
+
+def test_empty_evidence_state_does_not_advertise_extract_verify_or_summary() -> None:
+    affordances = compile_executable_browser_affordances(
+        available_actions=(
+            "real_browser_control.real_browser.observe",
+            "real_browser_control.real_browser.search",
+            "real_browser_control.real_browser.extract_evidence",
+            "real_browser_control.real_browser.verify_extraction",
+            "sentinel_loop.summarize_evidence",
+            "sentinel_loop.finish",
+        ),
+        page_available=True,
+        body_available=True,
+        session_lease_status="ACTIVE",
+        action_graph=SimpleNamespace(search_like_refs=("input:search",), link_refs=()),
+        extraction_graph=SimpleNamespace(product_or_result_candidate_count=0, evidence_candidate_count=0, verified_evidence_count=0),
+        recoverable_error=None,
+        mission_progress={
+            "finish_eligible": False,
+            "objective_satisfied": False,
+            "verified_evidence_present": False,
+            "summary_present": False,
+        },
+    )
+    advertised = {item["skill"]: item for item in affordances}
+
+    assert "search" in advertised
+    assert "extract_evidence" not in advertised
+    assert "verify" not in advertised
+    assert "summarize_evidence" not in advertised
+    assert "finish" not in advertised
+
+
+def test_search_write_failure_keeps_precise_transaction_trace(tmp_path: Path) -> None:
+    fixture = _BrowserSkillFixture(tmp_path, engine=_WriteFailureAfterFocusMissSearchEngine())
+
+    fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
+    result = fixture.runtime.execute(
+        ActionEnvelope(
+            capability_id="real_browser_control",
+            operation="real_browser.search",
+            params={"query": "sqlite generated columns"},
+        ),
+        authority=fixture.authority,
+        context={},
+    )
+    receipt = fixture.load_action_receipt(result.receipt_refs[0])
+    trace = receipt["search_materiality"]["search_actuation_trace"]
+
+    assert result.status == "recoverable_failed"
+    assert result.failure_code == "real_browser_search_write_failed"
+    assert trace["candidate_selected"] is True
+    assert trace["ref_resolved"] is True
+    assert trace["element_visible"] is True
+    assert trace["element_enabled"] is True
+    assert trace["focus_attempted"] is True
+    assert trace["focus_succeeded"] is False
+    assert trace["focus_failure_code"] == "real_browser_click_ref_not_button"
+    assert trace["clear_attempted"] is True
+    assert trace["clear_succeeded"] is False
+    assert trace["clear_failure_code"] == "clear_not_supported_by_engine_contract"
+    assert trace["write_attempted"] is True
+    assert trace["write_succeeded"] is False
+    assert trace["write_failure_code"] == "real_browser_search_write_failed"
+    assert trace["safe_failure_code"] == "real_browser_search_write_failed"
+    assert trace["write_readback_status"] == "not_attempted"
+    assert trace["submit_attempted"] is False
+
+
 def test_search_actuation_trace_proves_write_readback_submit_and_materiality(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(tmp_path, engine=_HardProductSearchEngine(results_visible=False))
     fixture.runtime.product_context.update(
@@ -1470,7 +1599,7 @@ def test_locator_timeout_returns_recoverable_observation_not_terminal_block(tmp_
     assert result.status == "recoverable_failed"
     assert result.recoverable is True
     assert result.failure_class is ActionFailureClass.RECOVERABLE_BROWSER_STATE_FAILURE
-    assert result.blocked_reason == "real_browser_search_actuation_failed"
+    assert result.blocked_reason == "real_browser_search_write_failed"
     assert result.recovery_observation
     trace = result.context_cards["search_actuation_trace"]
     assert trace["candidate_selected"] is True
@@ -1532,7 +1661,7 @@ def test_search_recoverable_failure_updates_decision_context(tmp_path: Path) -> 
     )
 
     assert failed.status == "recoverable_failed"
-    assert context["recoverable_observations"][-1]["failure_code"] == "real_browser_search_actuation_failed"
+    assert context["recoverable_observations"][-1]["failure_code"] == "real_browser_search_write_failed"
     assert context["primary_model_recommended_next_action"] == "real_browser_control.real_browser.extract_product_cards"
 
 
@@ -3154,6 +3283,49 @@ class _StrictBrowserSessionManager(_FakeBrowserSessionManager):
         return super().interact(request)
 
 
+class _MissionScopedBrowserSessionManager(_StrictBrowserSessionManager):
+    def __init__(self) -> None:
+        super().__init__()
+        self._opened_mission_id = ""
+        self.open_mission_ids: list[str] = []
+        self.observe_mission_ids: list[str] = []
+        self.interact_mission_ids: list[str] = []
+
+    def open_session(self, request: Any) -> Any:
+        mission = _request_value(request, "mission")
+        self._opened_mission_id = str(getattr(mission, "id", ""))
+        self.open_mission_ids.append(self._opened_mission_id)
+        return super().open_session(request)
+
+    def observe(self, request: Any) -> Any:
+        mission = _request_value(request, "mission")
+        mission_id = str(getattr(mission, "id", ""))
+        self.observe_mission_ids.append(mission_id)
+        if mission_id != self._opened_mission_id:
+            return SimpleNamespace(accepted=False, reason="browser_session_missing_or_closed")
+        return super().observe(request)
+
+    def interact(self, request: Any) -> Any:
+        mission = _request_value(request, "mission")
+        mission_id = str(getattr(mission, "id", ""))
+        self.interact_mission_ids.append(mission_id)
+        if mission_id != self._opened_mission_id:
+            return SimpleNamespace(accepted=False, reason="browser_session_missing_or_closed")
+        return super().interact(request)
+
+    def snapshot_for_session(
+        self,
+        *,
+        mission_id: str,
+        session_id: str,
+        timeout_ms: int = 15_000,
+    ) -> Any | None:
+        del session_id, timeout_ms
+        if mission_id != self._opened_mission_id:
+            return None
+        return None
+
+
 class _AuthorityValidatingBrowserSessionManager(_StrictBrowserSessionManager):
     required_internal_actions = {
         "browser_session_open",
@@ -3505,6 +3677,32 @@ class _ConfirmedNoResultsSearchEngine(_HardProductSearchEngine):
                 )
             )
         return tuple(elements)
+
+
+class _EmptyEvidenceSearchEngine(_HardProductSearchEngine):
+    def __init__(self) -> None:
+        super().__init__(results_visible=False)
+        self.display_text = ""
+
+    def _elements(self) -> tuple[RealBrowserEngineElement, ...]:
+        return (RealBrowserEngineElement("input:search", "textbox", "Search", value_preview=""),)
+
+    def extract_text(self) -> tuple[str, RealBrowserEngineSnapshot]:
+        self._require_open()
+        self.extract_count += 1
+        return "", self._snapshot()
+
+
+class _WriteFailureAfterFocusMissSearchEngine(_HardProductSearchEngine):
+    def click(self, ref: str) -> RealBrowserEngineSnapshot:
+        self.click_count += 1
+        if ref == "input:search":
+            raise RealBrowserControlRuntimeError("real_browser_click_ref_not_button")
+        return super().click(ref)
+
+    def type_text(self, ref: str, text: str) -> RealBrowserEngineSnapshot:
+        del ref, text
+        raise RealBrowserControlRuntimeError("real_browser_search_write_failed")
 
 
 class _AlternateSearchEngine(_HardProductSearchEngine):

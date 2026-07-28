@@ -136,6 +136,101 @@ class _KeyboardFallbackPage(_FallbackRolePage):
         return _KeyboardFallbackRoleQuery(self, role=role, name=name, exact=exact)
 
 
+class _RoleOnlyFallbackLocator(_FallbackLocator):
+    def fill(self, text: str, *, timeout: int) -> None:
+        if self.name is not None:
+            raise TimeoutError("named role locator missed")
+        self.page.fills.append({"role": self.role, "name": self.name, "exact": self.exact, "nth": self.nth, "text": text, "timeout": timeout})
+
+
+class _RoleOnlyFallbackRoleQuery(_FallbackRoleQuery):
+    def nth(self, nth: int) -> _RoleOnlyFallbackLocator:
+        return _RoleOnlyFallbackLocator(self.page, role=self.role, name=self.name, exact=self.exact, nth=nth)
+
+
+class _RoleOnlyFallbackPage(_FallbackRolePage):
+    def get_by_role(self, role: str, *, name: str | None = None, exact: bool | None = None) -> _RoleOnlyFallbackRoleQuery:
+        self.role_calls.append({"role": role, "name": name, "exact": exact})
+        return _RoleOnlyFallbackRoleQuery(self, role=role, name=name, exact=exact)
+
+
+class _EditableFallbackLocator(_FallbackLocator):
+    def fill(self, text: str, *, timeout: int) -> None:
+        self.page.fills.append({"role": self.role, "name": self.name, "exact": self.exact, "nth": self.nth, "text": text, "timeout": timeout})
+
+
+class _EditableFallbackQuery:
+    def __init__(self, page: "_EditableFallbackPage", selector: str) -> None:
+        self.page = page
+        self.selector = selector
+
+    def nth(self, nth: int) -> _EditableFallbackLocator:
+        self.page.locator_nths.append({"selector_len": len(self.selector), "nth": nth})
+        return _EditableFallbackLocator(self.page, role="css_editable", name=None, exact=None, nth=nth)
+
+
+class _EditableRoleFailureLocator(_FallbackLocator):
+    def fill(self, text: str, *, timeout: int) -> None:
+        del text, timeout
+        raise TimeoutError("role locator was not editable")
+
+
+class _EditableRoleFailureQuery(_FallbackRoleQuery):
+    def nth(self, nth: int) -> _EditableRoleFailureLocator:
+        return _EditableRoleFailureLocator(self.page, role=self.role, name=self.name, exact=self.exact, nth=nth)
+
+
+class _EditableFallbackPage(_FallbackRolePage):
+    def __init__(self) -> None:
+        super().__init__()
+        self.locator_calls: list[str] = []
+        self.locator_nths: list[dict[str, Any]] = []
+
+    def get_by_role(self, role: str, *, name: str | None = None, exact: bool | None = None) -> _EditableRoleFailureQuery:
+        self.role_calls.append({"role": role, "name": name, "exact": exact})
+        return _EditableRoleFailureQuery(self, role=role, name=name, exact=exact)
+
+    def locator(self, selector: str) -> _EditableFallbackQuery:
+        self.locator_calls.append(selector)
+        return _EditableFallbackQuery(self, selector)
+
+
+class _BodyTextLocator:
+    def inner_text(self, *, timeout: int) -> str:
+        del timeout
+        return "Search"
+
+
+class _HiddenActionabilityLocator:
+    def count(self) -> int:
+        return 0
+
+    def nth(self, nth: int) -> "_HiddenActionabilityLocator":
+        del nth
+        return self
+
+    def is_visible(self, *, timeout: int) -> bool:
+        del timeout
+        return False
+
+    def is_enabled(self, *, timeout: int) -> bool:
+        del timeout
+        return False
+
+
+class _HiddenSearchActionabilityPage:
+    def content(self) -> str:
+        return '<html><body><input type="search" aria-label="Search documentation" style="display:none" /></body></html>'
+
+    def locator(self, selector: str) -> _BodyTextLocator:
+        del selector
+        return _BodyTextLocator()
+
+    def get_by_role(self, role: str, *, name: str | None = None, exact: bool | None = None) -> _FallbackRoleQuery:
+        del role, name, exact
+        return _HiddenActionabilityLocator()
+
+
 class _LifecycleLocator:
     def __init__(self, text: str = "") -> None:
         self._text = text
@@ -277,10 +372,99 @@ def test_live_browser_session_falls_back_from_exact_role_name_to_fuzzy_same_role
     assert page.role_calls == [
         {"role": "textbox", "name": "Search all products", "exact": True},
         {"role": "textbox", "name": "Search all products", "exact": False},
+        {"role": "textbox", "name": None, "exact": None},
     ]
     assert page.fills == [
         {"role": "textbox", "name": "Search all products", "exact": False, "nth": 0, "text": "glasses under 5 euro", "timeout": 250}
     ]
+
+
+def test_live_browser_session_falls_back_to_role_only_when_accessible_name_drifts(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.FILL],
+    )
+    page = _RoleOnlyFallbackPage()
+    request = BrowserSessionRequest(
+        mission=_envelope(),
+        url=URL,
+        contract=contract,
+        action_kind=BrowserSessionActionKind.FILL,
+        target_role="searchbox",
+        target_name="Search documentation",
+        target_nth=0,
+        text="path glob",
+        capture_screenshot=False,
+    )
+
+    manager._execute_step(_FallbackSession(page), request, timeout_ms=250)
+
+    assert page.role_calls == [
+        {"role": "searchbox", "name": "Search documentation", "exact": True},
+        {"role": "searchbox", "name": "Search documentation", "exact": False},
+        {"role": "searchbox", "name": None, "exact": None},
+    ]
+    assert page.fills == [{"role": "searchbox", "name": None, "exact": None, "nth": 0, "text": "path glob", "timeout": 250}]
+
+
+def test_live_browser_session_falls_back_to_editable_field_when_search_role_is_not_fillable(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        engine="playwright",
+        document_fixtures={URL: HTML},
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.FILL],
+    )
+    page = _EditableFallbackPage()
+    request = BrowserSessionRequest(
+        mission=_envelope(),
+        url=URL,
+        contract=contract,
+        action_kind=BrowserSessionActionKind.FILL,
+        target_role="combobox",
+        target_name="Search documentation",
+        target_nth=0,
+        text="path glob",
+        capture_screenshot=False,
+    )
+
+    manager._execute_step(_FallbackSession(page), request, timeout_ms=250)
+
+    assert page.locator_calls
+    assert page.fills == [{"role": "css_editable", "name": None, "exact": None, "nth": 0, "text": "path glob", "timeout": 250}]
+
+
+def test_live_browser_session_snapshot_marks_static_hidden_search_refs_not_visible() -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import BrowserSessionManagerL5Live
+
+    snapshot = BrowserSessionManagerL5Live._snapshot(_HiddenSearchActionabilityPage(), timeout_ms=250)
+    search_ref = next(ref for ref in snapshot.refs.values() if ref.role == "searchbox")
+
+    assert getattr(search_ref, "visible", None) is False
+    assert getattr(search_ref, "enabled", None) is False
 
 
 def test_live_browser_session_promotes_press_key_for_search_submit(tmp_path: Path) -> None:
@@ -355,6 +539,7 @@ def test_live_browser_session_press_key_uses_page_keyboard_after_locator_detache
     assert page.presses == [
         {"role": "textbox", "name": "Search all products", "exact": True, "nth": 0, "key": "Enter", "timeout": 250},
         {"role": "textbox", "name": "Search all products", "exact": False, "nth": 0, "key": "Enter", "timeout": 250},
+        {"role": "textbox", "name": None, "exact": None, "nth": 0, "key": "Enter", "timeout": 250},
     ]
     assert page.keyboard.presses == [{"key": "Enter"}]
 

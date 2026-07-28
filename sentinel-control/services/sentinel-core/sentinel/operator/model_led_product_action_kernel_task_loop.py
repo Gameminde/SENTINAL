@@ -287,13 +287,17 @@ class ModelLedProductActionKernelTaskLoop:
             mission_objective=self.mission_objective,
         )
         actions = self._available_actions()
+        model_visible_actions = _model_visible_actions_for_browser_state(
+            actions=actions,
+            browser_cognitive_frame=browser_cognitive_frame,
+        )
         recommended_actions = _product_context_recommended_actions(
-            available_actions=actions,
+            available_actions=model_visible_actions,
             completion_requirements=completion_requirements,
             browser_cognitive_frame=browser_cognitive_frame,
         )
         model_skill_surface = compile_model_skill_surface(
-            model_visible_actions=actions,
+            model_visible_actions=model_visible_actions,
             recommended_actions=recommended_actions,
         )
         grounded_evidence_summary = _grounded_evidence_summary_card(safe_context_cards)
@@ -337,7 +341,8 @@ class ModelLedProductActionKernelTaskLoop:
             "_workspace_patch_plans_are_pending": True,
             "_bounded_check_plan": _bounded_check_plan(self.workspace_root),
             "workspace_file_summaries": _workspace_file_summaries(self.workspace_root),
-            "model_visible_available_actions": list(actions),
+            "model_visible_available_actions": list(model_visible_actions),
+            "runtime_available_actions": list(actions),
             "mission_allowed_capabilities": list(self.allowed_capabilities),
             "skill_decision_frame": {
                 "primary_truth": "product_action_kernel_runtimehost",
@@ -345,7 +350,8 @@ class ModelLedProductActionKernelTaskLoop:
                 "primary_model_language": "simple_mission_skills",
                 "model_skill_surface": model_skill_surface,
                 "model_visible_skills": list(model_skill_surface["model_visible_skills"]),
-                "model_visible_actions": list(actions),
+                "model_visible_actions": list(model_visible_actions),
+                "runtime_available_actions": list(actions),
                 "browser_environment_state": safe_context_cards.get("browser_environment_state"),
                 "browser_cognitive_decision_frame": browser_cognitive_frame,
                 "runtime_failure_fact": safe_context_cards.get("runtime_failure_fact"),
@@ -714,14 +720,14 @@ class ModelLedProductActionKernelTaskLoop:
         parameters = dict(decision.params)
         if decision.capability_id == "sentinel_loop" and decision.operation == "summarize_evidence":
             parameters["loop_context"] = _completion_lane_context(loop_context)
-        if decision.capability_id == "real_browser_control" and decision.operation in {
-            "real_browser.extract_evidence",
-            "real_browser.extract_entities",
-            "real_browser.extract_product_cards",
-            "real_browser.verify_extraction",
-        }:
+        if decision.capability_id == "real_browser_control":
             browser_context = _browser_context_lane_context(loop_context)
-            if _product_card_count_from_context_cards(browser_context) > 0:
+            if decision.operation not in {
+                "real_browser.extract_evidence",
+                "real_browser.extract_entities",
+                "real_browser.extract_product_cards",
+                "real_browser.verify_extraction",
+            } or _product_card_count_from_context_cards(browser_context) > 0:
                 parameters["loop_context"] = browser_context
         mission = self.host.lifecycle.create_mission(
             session_id=f"{self.session_id}:{self.model_calls_used}",
@@ -1189,7 +1195,19 @@ def _is_recoverable_browser_action_failure(reason: str) -> bool:
         "real_browser_observe_snapshot_failed",
         "real_browser_search_control_not_found",
         "real_browser_search_actuation_failed",
+        "real_browser_search_detached_ref",
+        "real_browser_search_element_disabled",
+        "real_browser_search_element_hidden",
+        "real_browser_search_focus_failed",
+        "real_browser_search_focus_timeout",
+        "real_browser_search_ref_not_found",
+        "real_browser_search_ref_not_textbox",
         "real_browser_search_session_open_failed",
+        "real_browser_search_stale_ref",
+        "real_browser_search_submit_control_not_found",
+        "real_browser_search_submit_failed",
+        "real_browser_search_write_failed",
+        "real_browser_search_write_readback_mismatch",
         "real_browser_open_result_actuation_failed",
         "real_browser_element_ref_unknown",
         "real_browser_runtime_dispatch_exception",
@@ -1593,13 +1611,31 @@ def _browser_cognitive_decision_frame(
     candidate_entities = _candidate_entities_from_environment(environment)
     candidate_count = _safe_int(result_regions.get("candidate_count"))
     relevant_count = _safe_int(result_regions.get("relevant_candidate_count"))
-    skills = [str(skill) for skill in environment.get("recommended_model_skills", []) if str(skill)]
-    if candidate_count:
-        primary = "extract"
-    elif search_controls.get("ranked_count") or "browse_search" in skills:
-        primary = "browse_search"
+    affordance_skills = _browser_affordance_skills(currently_executable_affordances)
+    skills = _dedupe_strings(
+        [
+            *[str(skill) for skill in environment.get("recommended_model_skills", []) if str(skill)],
+            *affordance_skills,
+        ]
+    )
+    failure_fact = safe_context_cards.get("runtime_failure_fact")
+    failure_code = str(failure_fact.get("failure_code") or "") if isinstance(failure_fact, dict) else ""
+    if failure_code == "real_browser_search_control_not_found" and "follow" in affordance_skills:
+        primary = "follow"
+    elif search_controls.get("ranked_count") and "search" in skills:
+        primary = "search"
+    elif "follow" in affordance_skills and not search_controls.get("ranked_count"):
+        primary = "follow"
+    elif candidate_count and "extract_evidence" in skills:
+        primary = "extract_evidence"
+    elif "inspect" in affordance_skills:
+        primary = "inspect"
+    elif "observe" in affordance_skills:
+        primary = "observe"
+    elif "navigate" in affordance_skills:
+        primary = "navigate"
     else:
-        primary = "browse_search"
+        primary = "search" if _mission_objective_mentions_browser_work(mission_objective) else None
     return {
         "canonical_state_source": "BrowserEnvironmentState",
         "state_hash": safe_context_cards.get("browser_environment_state_hash"),
@@ -1649,6 +1685,70 @@ def _mission_objective_mentions_browser_work(value: str) -> bool:
     return any(marker in lowered for marker in markers)
 
 
+def _model_visible_actions_for_browser_state(
+    *,
+    actions: tuple[str, ...],
+    browser_cognitive_frame: dict[str, Any],
+) -> tuple[str, ...]:
+    if browser_cognitive_frame.get("canonical_state_source") != "BrowserEnvironmentState":
+        return actions
+    affordances = browser_cognitive_frame.get("currently_executable_affordances")
+    if not isinstance(affordances, list):
+        return actions
+    executable_operations = {
+        str(item.get("operation") or "")
+        for item in affordances
+        if isinstance(item, dict) and str(item.get("operation") or "")
+    }
+    executable_actions = {
+        f"real_browser_control.{operation}"
+        for operation in executable_operations
+        if operation.startswith("real_browser.")
+    }
+    if "real_browser_control.real_browser.extract_evidence" in executable_actions:
+        executable_actions.update(
+            {
+                "real_browser_control.real_browser.extract_entities",
+                "real_browser_control.real_browser.extract_product_cards",
+                "real_browser_control.real_browser.extract_text",
+            }
+        )
+    if "finish" in {str(item.get("skill") or "") for item in affordances if isinstance(item, dict)}:
+        executable_actions.add("sentinel_loop.finish")
+    visible: list[str] = []
+    for action in actions:
+        if action.startswith("real_browser_control.real_browser."):
+            if action in executable_actions:
+                visible.append(action)
+            continue
+        if action == "sentinel_loop.finish" and action not in executable_actions:
+            continue
+        visible.append(action)
+    return tuple(visible)
+
+
+def _browser_affordance_skills(affordances: Any) -> list[str]:
+    if not isinstance(affordances, list):
+        return []
+    return _dedupe_strings(
+        str(item.get("skill") or "")
+        for item in affordances
+        if isinstance(item, dict) and str(item.get("skill") or "")
+    )
+
+
+def _dedupe_strings(values: Any) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        deduped.append(text)
+    return deduped
+
+
 def _product_context_recommended_actions(
     *,
     available_actions: tuple[str, ...],
@@ -1694,14 +1794,32 @@ def _product_context_recommended_actions(
         if ordered:
             return tuple(ordered)
     primary_skill = browser_cognitive_frame.get("primary_recommended_skill")
-    if primary_skill == "extract":
+    if primary_skill in {"extract_evidence", "extract"}:
         extract_action = _extract_action_for_browser_frame(browser_cognitive_frame)
         preferred = (
             extract_action,
             "real_browser_control.real_browser.verify_extraction",
         )
-    elif primary_skill == "browse_search":
+    elif primary_skill in {"search", "browse_search"}:
         preferred = ("real_browser_control.real_browser.search",)
+    elif primary_skill == "follow":
+        preferred = (
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.extract_evidence",
+        )
+    elif primary_skill == "inspect":
+        preferred = (
+            "real_browser_control.real_browser.inspect_result",
+            "real_browser_control.real_browser.open_result",
+            "real_browser_control.real_browser.extract_evidence",
+        )
+    elif primary_skill == "verify":
+        preferred = ("real_browser_control.real_browser.verify_extraction",)
+    elif primary_skill == "observe":
+        preferred = ("real_browser_control.real_browser.observe",)
+    elif primary_skill == "navigate":
+        preferred = ("real_browser_control.real_browser.open",)
     else:
         preferred = ()
     ordered = [action for action in preferred if action in available_actions]
@@ -1886,6 +2004,14 @@ def _browser_context_lane_context(loop_context: dict[str, Any]) -> dict[str, Any
     return {
         "mission_objective": loop_context.get("mission_objective"),
         "completion_requirements": loop_context.get("completion_requirements"),
+        "runtime_available_actions": _bounded_browser_context_value(
+            loop_context.get("runtime_available_actions"),
+            path="runtime_available_actions",
+        ),
+        "model_visible_available_actions": _bounded_browser_context_value(
+            loop_context.get("model_visible_available_actions"),
+            path="model_visible_available_actions",
+        ),
         "browser_world_model": _bounded_browser_context_value(loop_context.get("browser_world_model"), path="browser_world_model"),
         "browser_world_model_summary": _bounded_browser_context_value(
             loop_context.get("browser_world_model_summary"),
