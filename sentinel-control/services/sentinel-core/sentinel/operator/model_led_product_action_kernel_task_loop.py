@@ -248,7 +248,7 @@ class ModelLedProductActionKernelTaskLoop:
                     return self._block("MATERIAL_ACTION_BUDGET_EXHAUSTED")
                 if decision.capability_id == "real_browser_control":
                     self._record_evidence_transition(
-                        "browser_action_started",
+                        "browser_action_requested",
                         _safe_action_envelope_evidence(decision),
                     )
                 dispatch_result = self._dispatch_product_action(decision, loop_context=context)
@@ -703,6 +703,11 @@ class ModelLedProductActionKernelTaskLoop:
                 decision=decision,
                 reason=hard_boundary_reason,
             )
+        if decision.capability_id == "real_browser_control":
+            self._record_evidence_transition(
+                "action_dispatch_preparing",
+                _safe_action_envelope_evidence(decision),
+            )
         tools, actions = _authority_for_action(decision)
         if _is_telegram_channel_decision(decision) and "telegram:configured-chat" in set(self.allowed_domains):
             tools.append("channel:telegram")
@@ -769,6 +774,11 @@ class ModelLedProductActionKernelTaskLoop:
             allowed_domains=tuple(_allowed_domains_for_action(decision, self.allowed_domains)),
             channel_destination_refs=tuple(_channel_destination_refs_for_action(decision)),
         )
+        if decision.capability_id == "real_browser_control":
+            self._record_evidence_transition(
+                "browser_action_started",
+                _safe_action_envelope_evidence(decision),
+            )
         pump = self.host.pump_daemon_once(
             mission.record.mission_id,
             product_task_resource_scope=self.product_task_resource_scope,

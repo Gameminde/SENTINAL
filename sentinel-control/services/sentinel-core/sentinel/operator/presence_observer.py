@@ -624,6 +624,8 @@ def _event_kind(event_type: str) -> PresenceEventKind:
         "run_started": PresenceEventKind.MISSION,
         "provider_decision_received": PresenceEventKind.DECISION,
         "action_envelope_accepted": PresenceEventKind.ACTION,
+        "browser_action_requested": PresenceEventKind.ACTION,
+        "action_dispatch_preparing": PresenceEventKind.ACTION,
         "browser_action_started": PresenceEventKind.OBSERVATION,
         "runtime_failure_fact_created": PresenceEventKind.BLOCKER,
         "model_visible_failure_packet_created": PresenceEventKind.TELEMETRY,
@@ -651,6 +653,10 @@ def _presence_state(
         return PresenceState.PLANNING
     if event_type == "action_envelope_accepted":
         return PresenceState.PLANNING
+    if event_type == "browser_action_requested":
+        return PresenceState.PLANNING
+    if event_type == "action_dispatch_preparing":
+        return PresenceState.ACTING
     if event_type == "browser_action_started":
         return PresenceState.OBSERVING
     if event_type == "runtime_failure_fact_created":
@@ -762,6 +768,10 @@ def _safe_summary(
         text = f"Decision {decision_index} was persisted."
     elif event_type == "action_envelope_accepted":
         text = f"Decision {decision_index} selected {operation_label}."
+    elif event_type == "browser_action_requested":
+        text = f"Decision {decision_index} requested {operation_label}."
+    elif event_type == "action_dispatch_preparing":
+        text = f"Sentinel is preparing ProductActionKernel dispatch for {operation_label}."
     elif event_type == "browser_action_started":
         text = f"Sentinel started {operation_label}."
     elif event_type == "runtime_failure_fact_created":
@@ -869,6 +879,10 @@ def _context_pack_hash(*, payload: dict[str, Any], decision: dict[str, Any]) -> 
 def _dispatch_status(*, event_type: str, payload: dict[str, Any], receipt: dict[str, Any]) -> str:
     if event_type == "action_envelope_accepted":
         return "accepted"
+    if event_type == "browser_action_requested":
+        return "requested"
+    if event_type == "action_dispatch_preparing":
+        return "preparing"
     if event_type == "browser_action_started":
         return "started"
     if event_type == "browser_progress_repetition_detected":

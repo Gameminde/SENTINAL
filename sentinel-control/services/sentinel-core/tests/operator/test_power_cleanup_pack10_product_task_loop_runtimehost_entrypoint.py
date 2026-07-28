@@ -263,6 +263,43 @@ def test_product_task_loop_creates_runtime_owned_workspace_root_before_browser_d
     )
 
 
+def test_browser_action_started_is_emitted_only_after_dispatch_preparation(tmp_path: Path) -> None:
+    host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
+    sink = _RecordingEvidenceSink()
+
+    result = host.run_product_action_kernel_task_loop(
+        workspace_root=tmp_path / "workspace_prepared_by_runtime",
+        session_id="session_pack10_browser_dispatch_events",
+        mission_objective="Browser telemetry should separate requested action from real dispatch start.",
+        decision_client=ProductActionKernelLoopDecisionClient(
+            [
+                ActionEnvelope(
+                    capability_id="real_browser_control",
+                    operation="real_browser.search",
+                    params={"query": "sqlite generated columns", "engine_profile": "fake_product_search"},
+                ),
+                ActionEnvelope(
+                    capability_id="sentinel_loop",
+                    operation="finish",
+                    params={"safe_summary": "Browser dispatch telemetry completed."},
+                ),
+            ]
+        ),
+        allowed_domains=("bounded.example", "real_browser:bounded_test_url"),
+        max_model_calls=3,
+        max_material_actions=1,
+        evidence_sink=sink,
+    )
+
+    assert result.status is ProductActionKernelTaskLoopStatus.COMPLETED
+    event_types = [event_type for event_type, _ in sink.transitions]
+    assert "browser_action_requested" in event_types
+    assert "action_dispatch_preparing" in event_types
+    assert "browser_action_started" in event_types
+    assert event_types.index("browser_action_requested") < event_types.index("action_dispatch_preparing")
+    assert event_types.index("action_dispatch_preparing") < event_types.index("browser_action_started")
+
+
 def test_known_non_product_skill_returns_skill_not_product_dispatchable(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
@@ -384,6 +421,14 @@ def _workspace(tmp_path: Path) -> Path:
     root.mkdir()
     (root / "README.md").write_text("# Pack 10\n", encoding="utf-8")
     return root
+
+
+class _RecordingEvidenceSink:
+    def __init__(self) -> None:
+        self.transitions: list[tuple[str, dict[str, object]]] = []
+
+    def record_transition(self, event_type: str, payload: dict[str, object]) -> None:
+        self.transitions.append((event_type, payload))
 
 
 def _channel_params(

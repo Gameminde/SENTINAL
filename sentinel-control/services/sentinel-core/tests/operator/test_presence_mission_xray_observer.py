@@ -157,6 +157,53 @@ def test_new_observe_failure_replay_exposes_typed_terminal_receipt() -> None:
     assert archive.first_causal_divergence["classification"] == "BROWSER_OBSERVE_FAILURE_WITHOUT_PROGRESS"
 
 
+def test_browser_dispatch_preparation_and_runner_exception_are_projected_honestly() -> None:
+    archive = PresenceProjector().project_replay(
+        safe_evidence_snapshot={
+            "run_id": "sqlite_runner_exception",
+            "events": [
+                _source_event(0, "provider_decision_received", {"context_hash": "ctx-1", "provider_decision_count": 1}),
+                _source_event(
+                    1,
+                    "action_envelope_accepted",
+                    {
+                        "capability_id": "real_browser_control",
+                        "operation": "real_browser.search",
+                        "params_hash": "params-search",
+                    },
+                ),
+                _source_event(2, "browser_action_requested", {"operation": "real_browser.search"}),
+                _source_event(3, "action_dispatch_preparing", {"operation": "real_browser.search"}),
+                _source_event(
+                    4,
+                    "terminal_verdict",
+                    {
+                        "verdict": "blocked",
+                        "blocked_reason": "mission_workspace_root_not_found",
+                        "exception_class": "ValueError",
+                        "exception_hash": "safe-exception-hash",
+                    },
+                ),
+            ],
+        },
+        proof_index={"loop_id": "sqlite_runner_exception", "completion_truth": {}, "material_browser_receipts": []},
+        mission_ledger={"task_id": "sqlite_runner_exception", "blocked_reason": "mission_workspace_root_not_found"},
+    )
+
+    requested = next(event for event in archive.events if event.source_sequence == 2)
+    preparing = next(event for event in archive.events if event.source_sequence == 3)
+    terminal = archive.events[-1]
+    assert requested.event_kind is PresenceEventKind.ACTION
+    assert requested.presence_state is PresenceState.PLANNING
+    assert requested.dispatch_status == "requested"
+    assert preparing.event_kind is PresenceEventKind.ACTION
+    assert preparing.presence_state is PresenceState.ACTING
+    assert preparing.dispatch_status == "preparing"
+    assert terminal.event_kind is PresenceEventKind.TERMINAL
+    assert terminal.presence_state is PresenceState.BLOCKED
+    assert terminal.blocker == "mission_workspace_root_not_found"
+
+
 def test_event_buffer_enforces_order_deduplicates_and_resumes_after_sequence() -> None:
     buffer = PresenceEventBuffer()
     first = _presence_event(sequence=0, summary="Mission persisted")
