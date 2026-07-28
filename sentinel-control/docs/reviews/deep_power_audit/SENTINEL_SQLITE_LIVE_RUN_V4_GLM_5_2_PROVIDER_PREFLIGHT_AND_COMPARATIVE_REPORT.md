@@ -10,6 +10,16 @@ browser_actions = 0
 sqlite_rerun_authorized = NO
 ```
 
+Supersession note:
+
+```text
+SUPERSEDED_BY = SENTINEL_SQLITE_LIVE_RUN_V4_GLM_5_2_ACTUAL_RUN_REPORT.md
+reason = SENTINEL_CERT_MODEL_API_KEY was corrected after this preflight report
+```
+
+This report remains useful as the historical provider-auth diagnosis before the
+environment variable was corrected. It is no longer the final V4 run truth.
+
 The SQLite mission was not launched with GLM 5.2 because the required pre-mission
 model response test did not pass.
 
@@ -200,4 +210,3 @@ same product model contract.
 
 Do not compare GLM browser intelligence from this tranche; the model never got
 to the mission loop.
-
