@@ -204,6 +204,35 @@ def test_browser_dispatch_preparation_and_runner_exception_are_projected_honestl
     assert terminal.blocker == "mission_workspace_root_not_found"
 
 
+def test_post_terminal_cleanup_and_telemetry_cannot_reanimate_presence_state() -> None:
+    archive = PresenceProjector().project_replay(
+        safe_evidence_snapshot={
+            "run_id": "terminal_sticky",
+            "events": [
+                _source_event(0, "provider_decision_received", {"context_hash": "ctx-1", "provider_decision_count": 1}),
+                _source_event(
+                    1,
+                    "terminal_verdict",
+                    {"verdict": "blocked", "blocked_reason": "BROWSER_REPEATED_ACTION_WITHOUT_PROGRESS"},
+                ),
+                _source_event(2, "cleanup_result", {"profile_material_persisted": False}),
+                _source_event(3, "telemetry_event", {"operation": "real_browser.observe"}),
+            ],
+        },
+        proof_index={"loop_id": "terminal_sticky", "completion_truth": {}, "material_browser_receipts": []},
+        mission_ledger={"task_id": "terminal_sticky", "blocked_reason": "BROWSER_REPEATED_ACTION_WITHOUT_PROGRESS"},
+    )
+
+    assert [event.presence_state for event in archive.events] == [
+        PresenceState.PLANNING,
+        PresenceState.BLOCKED,
+        PresenceState.BLOCKED,
+        PresenceState.BLOCKED,
+    ]
+    assert archive.events[-1].event_kind is PresenceEventKind.TELEMETRY
+    assert archive.events[-1].safe_summary == "Telemetry event persisted."
+
+
 def test_event_buffer_enforces_order_deduplicates_and_resumes_after_sequence() -> None:
     buffer = PresenceEventBuffer()
     first = _presence_event(sequence=0, summary="Mission persisted")

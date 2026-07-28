@@ -128,18 +128,25 @@ function actionCode(event: PresenceEventV1) {
   return event.normalized_decision.capability_id ? `${event.normalized_decision.capability_id}.${operation}` : operation;
 }
 
+function currentTruthIndex(events: PresenceEventV1[]) {
+  const terminalIndex = events.findLastIndex((event) => event.event_kind === "TERMINAL");
+  return terminalIndex >= 0 ? terminalIndex : Math.max(0, events.length - 1);
+}
+
 export function PresenceShell() {
   const [events, setEvents] = useState<PresenceEventV1[]>([presenceStreamConnectingEvent]);
   const [connection, setConnection] = useState<"connecting" | "live" | "unavailable">("connecting");
   const [liveMissionId, setLiveMissionId] = useState("");
   const latestIndex = Math.max(0, events.length - 1);
+  const truthIndex = currentTruthIndex(events);
   const [selectedIndex, setSelectedIndex] = useState(latestIndex);
   const [routeVisible, setRouteVisible] = useState(false);
   const [xrayVisible, setXrayVisible] = useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
   const [demoKey, setDemoKey] = useState<DemoKey>("truth");
   const [command, setCommand] = useState("");
-  const current = events[latestIndex];
+  const current = events[truthIndex];
+  const streamLatest = events[latestIndex];
   const selected = events[selectedIndex] ?? current;
   const demo = demoStates.find((item) => item.key === demoKey);
   const visualState = demo?.state ?? current.presence_state;
@@ -180,7 +187,7 @@ export function PresenceShell() {
         if (!payload.events?.length) return;
         setEvents((currentEvents) => {
           const merged = mergePresenceEvents(currentEvents, payload.events || []);
-          setSelectedIndex(merged.length - 1);
+          setSelectedIndex(currentTruthIndex(merged));
           return merged;
         });
       } catch {
@@ -188,7 +195,7 @@ export function PresenceShell() {
       }
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [connection, current?.sequence, liveMissionId]);
+  }, [connection, streamLatest?.sequence, liveMissionId]);
 
   const routeEvents = useMemo(() => {
     const start = Math.max(0, events.length - routeSlots.length);
@@ -223,7 +230,7 @@ export function PresenceShell() {
       }
       setEvents(payload.events);
       setLiveMissionId(payload.mission_id);
-      setSelectedIndex(payload.events.length - 1);
+      setSelectedIndex(currentTruthIndex(payload.events));
       setConnection("live");
       setDemoKey("truth");
     } catch {

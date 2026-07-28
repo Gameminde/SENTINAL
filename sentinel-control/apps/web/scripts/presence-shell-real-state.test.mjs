@@ -22,7 +22,9 @@ for (const marker of forbiddenPrimaryReplayMarkers) {
 
 const requiredMarkers = [
   "const latestIndex = Math.max(0, events.length - 1)",
-  "const current = events[latestIndex]",
+  "const truthIndex = currentTruthIndex(events)",
+  "const current = events[truthIndex]",
+  "const streamLatest = events[latestIndex]",
   "presenceStreamConnectingEvent",
   "void connectLive()",
   "Runtime path",

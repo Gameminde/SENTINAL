@@ -75,6 +75,11 @@ def test_aliyun_dashscope_catalog_pins_openai_compatible_deepseek_route(
         "/compatible-mode/v1/chat/completions"
     )
     assert backend.supports_model("deepseek-v4-pro")
+    assert backend.supports_model("glm-5.2")
+    assert backend.reasoning_redaction_policy.request_reasoning_disable_fields == {
+        "enable_thinking": False,
+        "reasoning_effort": "none",
+    }
     assert entry.capability_flags.grants_tool_execution is False
     assert entry.capability_flags.server_side_tools_enabled_by_default is False
 

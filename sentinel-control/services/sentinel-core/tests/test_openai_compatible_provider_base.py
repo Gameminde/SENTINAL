@@ -96,6 +96,30 @@ def test_openai_compatible_request_uses_selected_model_and_disables_tools(
     assert response.error_class is None
 
 
+def test_openai_compatible_request_applies_safe_top_level_reasoning_controls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIT_PROVIDER_KEY", SECRET_VALUE)
+    recorder = RecordingHttpxClient(_payload())
+    monkeypatch.setattr("httpx.Client", recorder)
+    profile = _profile().model_copy(
+        update={
+            "reasoning_redaction_policy": ProviderReasoningRedactionPolicy(
+                raw_reasoning_fields=["reasoning_content"],
+                request_reasoning_disable_fields={"enable_thinking": False, "reasoning_effort": "none"},
+            )
+        }
+    )
+
+    response = _provider(profile=profile).execute(_compatible_request(), timeout=_timeout(), credential=_credential())
+
+    body = recorder.calls[0]["json"]
+    assert body["enable_thinking"] is False
+    assert body["reasoning_effort"] == "none"
+    assert "reasoning" not in body
+    assert response.error_class is None
+
+
 def test_openai_compatible_unsupported_model_rejected_without_network(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

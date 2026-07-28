@@ -109,7 +109,8 @@ def _default_entries() -> list[ProviderCatalogEntry]:
             backend_id="aliyun_openai_compatible_chat",
             endpoint=_aliyun_dashscope_endpoint(),
             env_var="SENTINEL_CERT_MODEL_API_KEY",
-            supported_models=["deepseek-v4-pro"],
+            supported_models=["deepseek-v4-pro", "glm-5.2"],
+            reasoning_disable_fields={"enable_thinking": False, "reasoning_effort": "none"},
             status=ProviderCatalogStatus.DIAGNOSTIC,
             real_status=ProviderRealTestStatusKind.DIAGNOSTIC_ONLY,
             diagnostic_outcomes=["PRODUCT_ROUTE_NOT_YET_RUN"],
@@ -322,6 +323,7 @@ def _entry(
     timeout: ProviderTimeoutProfile | None = None,
     recommendation: ProviderRecommendation | None = None,
     reasoning_fields: list[str] | None = None,
+    reasoning_disable_fields: dict[str, object] | None = None,
     credential_source_type: str = "env",
     required_for_real_call: bool = True,
 ) -> ProviderCatalogEntry:
@@ -340,7 +342,8 @@ def _entry(
         timeout_profile=timeout or ProviderTimeoutProfile(),
         retry_policy=ProviderRetryPolicy(max_attempts=1, retryable_outcomes=[]),
         reasoning_redaction_policy=ProviderReasoningRedactionPolicy(
-            raw_reasoning_fields=reasoning_fields or ProviderReasoningRedactionPolicy().raw_reasoning_fields
+            raw_reasoning_fields=reasoning_fields or ProviderReasoningRedactionPolicy().raw_reasoning_fields,
+            request_reasoning_disable_fields=reasoning_disable_fields or {},
         ),
     )
     return ProviderCatalogEntry(

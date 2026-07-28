@@ -647,6 +647,8 @@ def _presence_state(
     accepting_finalgate_seen: bool,
     terminal_state: PresenceState | None,
 ) -> PresenceState:
+    if terminal_state is not None and event_type != "terminal_verdict":
+        return terminal_state
     if event_type == "run_started":
         return PresenceState.UNDERSTANDING
     if event_type == "provider_decision_received":

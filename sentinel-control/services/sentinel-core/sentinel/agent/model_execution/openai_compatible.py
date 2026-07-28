@@ -127,17 +127,16 @@ class OpenAICompatibleChatProvider(RealModelProvider):
             and self.backend_profile.supports_json_mode
         ):
             body["response_format"] = {"type": "json_object"}
-        reasoning_request = self._reasoning_request()
-        if reasoning_request:
-            body["reasoning"] = reasoning_request
+        body.update(self._reasoning_body_fields())
         return body
 
-    def _reasoning_request(self) -> dict[str, Any] | None:
+    def _reasoning_body_fields(self) -> dict[str, Any]:
         if self._config.reasoning_request is not None:
-            return self._config.reasoning_request
+            return {"reasoning": self._config.reasoning_request}
         configured = self.backend_profile.reasoning_redaction_policy.request_reasoning_disable_fields
-        reasoning = configured.get("reasoning") if isinstance(configured, dict) else None
-        return reasoning if isinstance(reasoning, dict) else None
+        if not isinstance(configured, dict):
+            return {}
+        return dict(configured)
 
     def map_payload(self, request: RealModelRequest, payload: dict[str, Any]) -> ProviderModelResponse:
         try:
