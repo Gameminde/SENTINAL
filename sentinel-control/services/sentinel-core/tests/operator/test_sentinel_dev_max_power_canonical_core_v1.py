@@ -13,11 +13,14 @@ from sentinel.operator.action_kernel import ActionEnvelope
 from sentinel.operator.canonical_core import (
     CanonicalCoreError,
     DecisionOrigin,
+    DecisionProtocol,
     EffectKind,
     RootMissionCancellationToken,
     build_workspace_read_capability_graph,
     run_canonical_dev_mission,
+    run_canonical_product_mission,
 )
+from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.code_execution_sandbox_runtime import CodeExecutionSandboxRuntime
 from sentinel.operator.kernel import MissionKernel
 
@@ -46,6 +49,11 @@ class CancellingModelClient:
         return self._decision
 
 
+class FailingModelClient:
+    def complete(self, request: Any) -> dict[str, Any]:
+        raise CanonicalCoreError("canonical_provider_decision_json_missing")
+
+
 def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     ledger_path = (
         Path(__file__).parents[4]
@@ -62,7 +70,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
     assert ledger["fixed_proven_count"] == 0
-    assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 10, "IMPLEMENTING": 7, "OPEN": 48}
+    assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
     assert [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]] == [
         "SLICE_0A_STAGE0_LEDGER_AND_LOCAL_VERTICAL_SKELETON",
         "SLICE_0B_ROOT_CANCELLATION_SEAM",
@@ -73,11 +81,12 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert by_id["P0-02"]["status"] == "CONFIRMED_CURRENT"
     assert by_id["P0-02"]["chosen_invariant"] == "do_not_expose_unproven_code_exec_as_canonical_power"
     assert by_id["P0-03"]["status"] == "IMPLEMENTING"
-    assert by_id["P0-07"]["status"] == "CONFIRMED_CURRENT"
+    assert by_id["P0-07"]["status"] == "IMPLEMENTING"
     assert by_id["P0-08"]["status"] == "CONFIRMED_CURRENT"
     assert by_id["C-P0-01"]["status"] == "IMPLEMENTING"
     assert by_id["C-P0-06"]["status"] == "IMPLEMENTING"
     assert by_id["P1-25"]["status"] == "IMPLEMENTING"
+    assert ledger["canonical_core_vertical_product_tranche"]["status"] == "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
 
 
 def test_provider_client_required_before_first_cognitive_turn(tmp_path: Path) -> None:
@@ -183,6 +192,118 @@ def test_root_mission_exists_before_first_model_decision_and_state_is_presented(
     )
     assert result.decisions[0].decision_origin is DecisionOrigin.MODEL_SELECTED
     assert result.decisions[0].provider_model == "test-provider/model"
+    assert model.requests[1].canonical_state.recent_observations[0]["entries"] == ("notes/", "src/")
+
+
+def test_product_vertical_slice_persists_mission_record_receipts_proof_and_terminal_state(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "workspace",
+                "operation": "search",
+                "arguments": {"query": "needle"},
+                "expected_state_delta": "matching workspace evidence",
+            },
+            {
+                "capability": "workspace",
+                "operation": "read",
+                "arguments": {"path": "notes/topic.md", "max_chars": 500},
+                "expected_state_delta": "human-readable file evidence",
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "The workspace notes contain the needle."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Find and summarize the needle evidence from the governed workspace.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_canonical_product",
+        max_provider_decisions=6,
+        max_material_actions=6,
+    )
+
+    record = kernel.store.load_record(result.root_mission_id)
+    events = kernel.store.load_events(result.root_mission_id)
+    event_types = [event.event_type for event in events]
+    receipt_dir = kernel.store.mission_dir(result.root_mission_id) / "canonical_receipts"
+    proof_root_path = kernel.store.mission_dir(result.root_mission_id) / "mission_proof_root.json"
+
+    assert result.status == "completed"
+    assert result.root_created_before_first_provider_call is True
+    assert result.mission_record_created_before_provider is True
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 2
+    assert {decision.decision_protocol for decision in result.decisions} == {
+        DecisionProtocol.MODEL_NATIVE_CANONICAL_JSON_V1
+    }
+    assert {decision.decision_origin for decision in result.decisions} == {DecisionOrigin.MODEL_SELECTED}
+    assert [receipt.operation for receipt in result.receipts] == ["search", "read"]
+    assert model.requests[1].canonical_state.recent_observations[0]["match_count"] == 2
+    assert model.requests[1].canonical_state.recent_observations[0]["matches"][0]["path"] == "notes/topic.md"
+    assert "content_excerpt" in model.requests[2].canonical_state.recent_observations[-1]
+    assert all((receipt_dir / f"{receipt.receipt_id}.json").exists() for receipt in result.receipts)
+    assert proof_root_path.exists()
+    assert result.proof_root.integrity_model == "mission_kernel_receipt_timeline_v1"
+    assert result.proof_root.kernel_timeline_verified is True
+    assert result.proof_root.receipt_artifacts_verified is True
+    assert result.proof_root.record_hash_verified is True
+    assert result.proof_root.authentic_external_ledger is False
+    assert result.proof_root.proof_gaps == ("external_append_only_signer_missing",)
+    assert record.status is OperatorMissionStatus.COMPLETED
+    assert record.receipt_refs == [receipt.receipt_id for receipt in result.receipts]
+    assert kernel.store.verify_timeline(result.root_mission_id) is True
+    assert "mission_created" in event_types
+    assert "mission_running" in event_types
+    assert event_types.count("canonical_decision_accepted") == 3
+    assert event_types.count("canonical_effect_receipt_persisted") == 2
+    assert "canonical_cleanup_completed" in event_types
+
+
+def test_product_vertical_slice_provider_failure_terminalizes_record_and_cleanup(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+
+    result = run_canonical_product_mission(
+        objective="Fail after the product mission exists.",
+        workspace_root=workspace,
+        model_client=FailingModelClient(),
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_canonical_product_failure",
+        max_provider_decisions=3,
+        max_material_actions=3,
+    )
+
+    record = kernel.store.load_record(result.root_mission_id)
+    events = kernel.store.load_events(result.root_mission_id)
+    event_types = [event.event_type for event in events]
+
+    assert result.status == "blocked"
+    assert result.final_reason == "MODEL_DECISION_FAILED"
+    assert result.provider_decision_count == 1
+    assert result.material_action_count == 0
+    assert result.cleanup_completed is True
+    assert record.status is OperatorMissionStatus.BLOCKED
+    assert "canonical_model_decision_failed" in event_types
+    assert "canonical_cleanup_completed" in event_types
+    failure_event = next(event for event in events if event.event_type == "canonical_model_decision_failed")
+    assert failure_event.metadata["failure_stage"] == "provider_or_decision_normalization"
+    assert failure_event.metadata["failure_code"] == "canonical_provider_decision_json_missing"
+    assert failure_event.metadata["exception_class"] == "CanonicalCoreError"
+    assert "exception_hash" in failure_event.metadata
 
 
 def test_capability_graph_is_generated_from_executable_routes() -> None:
@@ -428,6 +549,113 @@ def test_public_dev_cli_entrypoint_runs_canonical_core_vertical_slice(
     assert payload["cleanup_completed"] is True
     assert payload["receipts"][0]["capability"] == "workspace"
     assert payload["proof_root"]["integrity_model"] == "non_authentic_placeholder"
+
+
+def test_public_product_cli_entrypoint_uses_kernel_backed_vertical_slice(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    workspace = _workspace(tmp_path)
+    script = tmp_path / "decisions.jsonl"
+    script.write_text(
+        "\n".join(
+            [
+                json.dumps({"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}}),
+                json.dumps({"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "CLI product slice done."}}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    code = cli.main(
+        [
+            "canonical-product-run",
+            "--objective",
+            "Exercise the kernel-backed canonical product slice.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--decision-script",
+            str(script),
+            "--provider-model",
+            "scripted-real-shape/model",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert code == 0
+    assert output.err == ""
+    assert payload["status"] == "completed"
+    assert payload["mission_record_created_before_provider"] is True
+    assert payload["provider_decision_count"] == 2
+    assert payload["material_action_count"] == 1
+    assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
+    assert payload["proof_root"]["receipt_artifacts_verified"] is True
+    assert payload["cleanup_completed"] is True
+
+
+def test_public_product_cli_real_provider_mode_uses_product_native_transport(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    captured_requests: list[Any] = []
+
+    class FakeCatalogModelClient:
+        def __init__(self, **_: Any) -> None:
+            pass
+
+        def complete(self, request: Any) -> dict[str, Any]:
+            captured_requests.append(request)
+            if len(captured_requests) == 1:
+                return {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'}
+            return {
+                "content": (
+                    '{"capability":"sentinel_loop","operation":"finish",'
+                    '"arguments":{"answer":"Real-provider-shaped CLI product slice done."}}'
+                )
+            }
+
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", FakeCatalogModelClient)
+
+    code = cli.main(
+        [
+            "canonical-product-run",
+            "--objective",
+            "Exercise the real-provider-shaped canonical product slice.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--provider-id",
+            "aliyun_dashscope",
+            "--backend-id",
+            "aliyun_openai_compatible_chat",
+            "--model-id",
+            "glm-5.2",
+            "--max-provider-decisions",
+            "4",
+            "--max-material-actions",
+            "4",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert code == 0
+    assert len(captured_requests) == 2
+    assert captured_requests[0].runtime == "product_model_native_decision"
+    assert captured_requests[0].request_metadata["raw_text_transport"] == "product_model_native_intent_v1"
+    assert captured_requests[0].provider_id == "aliyun_dashscope"
+    assert captured_requests[0].backend_id == "aliyun_openai_compatible_chat"
+    assert captured_requests[0].model_id == "glm-5.2"
+    assert payload["status"] == "completed"
+    assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
 
 
 def _workspace(tmp_path: Path) -> Path:

@@ -38,12 +38,21 @@ from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
     BrowserLoginCredentialSessionRequest,
     EphemeralBrowserCredentialProvider,
 )
-from sentinel.agent.model_contract import UserModelContract
+from sentinel.agent.model_contract import (
+    ContextBudgetPolicy,
+    ModelCapabilityProfile,
+    QualityExpectationContract,
+    UserModelContract,
+)
+from sentinel.agent.model_cost import ModelCostProfile
+from sentinel.agent.model_execution.models import RealModelRequest
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope
 from sentinel.operator.canonical_core import (
     CanonicalCoreError,
     CanonicalDecisionRequest,
     run_canonical_dev_mission,
+    run_canonical_product_mission,
 )
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.legacy_classification import InternalAccessClassification
@@ -53,6 +62,7 @@ from sentinel.operator.mission_lifecycle_service import (
 )
 from sentinel.operator.model_client import OperatorCatalogModelClient
 from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
+from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.product_execution_binding import (
     ProductExecutionBindingError,
     build_product_execution_binding,
@@ -195,6 +205,30 @@ def build_parser() -> argparse.ArgumentParser:
     canonical_parser.add_argument("--max-material-actions", type=int, default=120)
     canonical_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
 
+    canonical_product_parser = subparsers.add_parser(
+        "canonical-product-run",
+        help="Run the Sentinel canonical core through a kernel-backed product mission.",
+    )
+    canonical_product_parser.add_argument("--objective", required=True, help="Mission objective presented to the model client.")
+    canonical_product_parser.add_argument("--workspace", required=True, help="Governed workspace root for read-only workspace skills.")
+    canonical_product_parser.add_argument("--run-root", required=True, help="Directory where MissionKernel artifacts are written.")
+    canonical_product_parser.add_argument(
+        "--decision-script",
+        default=None,
+        help="JSONL local decision script for deterministic product-path validation. Omit for real provider mode.",
+    )
+    canonical_product_parser.add_argument(
+        "--provider-model",
+        default=None,
+        help="Legacy provider/model identity label for scripted mode. In real provider mode defaults to provider/model.",
+    )
+    canonical_product_parser.add_argument("--provider-id", default=None, help="Catalog provider id for real provider mode.")
+    canonical_product_parser.add_argument("--backend-id", default=None, help="Catalog backend id for real provider mode.")
+    canonical_product_parser.add_argument("--model-id", default=None, help="Catalog model id for real provider mode.")
+    canonical_product_parser.add_argument("--max-provider-decisions", type=int, default=40)
+    canonical_product_parser.add_argument("--max-material-actions", type=int, default=120)
+    canonical_product_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
+
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
     _add_browser_arguments(observe_parser, action=False)
 
@@ -325,6 +359,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         return 0 if result.status == "completed" else 2
 
+    if args.command == "canonical-product-run":
+        try:
+            result = _run_canonical_product_command(args)
+        except (CanonicalCoreError, OSError, json.JSONDecodeError) as exc:
+            print(f"sentinel canonical-product-run: rejected:{exc.__class__.__name__}", file=sys.stderr)
+            return 2
+
+        if args.json:
+            print(json.dumps(result.model_dump(mode="json"), sort_keys=True, default=str))
+        else:
+            print(
+                "sentinel canonical_product_run "
+                f"root_mission_id={result.root_mission_id} "
+                f"status={result.status} "
+                f"provider_decisions={result.provider_decision_count} "
+                f"material_actions={result.material_action_count}"
+            )
+        return 0 if result.status == "completed" else 2
+
     if args.command in {"browser-observe", "browser-act"}:
         try:
             result, run_dir = _run_browser_command(args)
@@ -436,6 +489,65 @@ def _run_canonical_dev_command(args: argparse.Namespace):
     )
 
 
+def _run_canonical_product_command(args: argparse.Namespace):
+    if args.decision_script:
+        model_client = _JsonlCanonicalDecisionScriptClient(Path(args.decision_script))
+        provider_model = str(args.provider_model or "scripted-local/model")
+    else:
+        provider_id = str(args.provider_id or os.environ.get("SENTINEL_CANONICAL_MODEL_PROVIDER_ID") or "aliyun_dashscope")
+        backend_id = str(
+            args.backend_id
+            or os.environ.get("SENTINEL_CANONICAL_MODEL_BACKEND_ID")
+            or "aliyun_openai_compatible_chat"
+        )
+        model_id = str(args.model_id or args.provider_model or os.environ.get("SENTINEL_CANONICAL_MODEL_ID") or "deepseek-v4-pro")
+        model_client = _RealProviderCanonicalDecisionClient(
+            provider_id=provider_id,
+            backend_id=backend_id,
+            model_id=model_id,
+        )
+        provider_model = f"{provider_id}/{model_id}"
+    kernel = MissionKernel(run_root=Path(args.run_root))
+    return run_canonical_product_mission(
+        objective=str(args.objective),
+        workspace_root=Path(args.workspace),
+        model_client=model_client,
+        provider_model=provider_model,
+        kernel=kernel,
+        session_id="canonical_product_cli",
+        max_provider_decisions=int(args.max_provider_decisions),
+        max_material_actions=int(args.max_material_actions),
+    )
+
+
+class _RealProviderCanonicalDecisionClient:
+    def __init__(self, *, provider_id: str, backend_id: str, model_id: str) -> None:
+        self.provider_id = provider_id
+        self.backend_id = backend_id
+        self.model_id = model_id
+        self._contract = _canonical_user_model_contract(
+            provider_id=provider_id,
+            backend_id=backend_id,
+            model_id=model_id,
+        )
+        self._client = OperatorCatalogModelClient(user_model_contract=self._contract)
+        self.requests: list[RealModelRequest] = []
+
+    def complete(self, request: CanonicalDecisionRequest) -> dict[str, Any]:
+        prompt = _canonical_product_provider_prompt(request)
+        real_request = _canonical_real_model_request(
+            canonical_request=request,
+            prompt=prompt,
+            provider_id=self.provider_id,
+            backend_id=self.backend_id,
+            model_id=self.model_id,
+            user_model_contract_id=self._contract.id,
+        )
+        self.requests.append(real_request)
+        raw = self._client.complete(real_request)
+        return _extract_canonical_json_decision(raw)
+
+
 class _JsonlCanonicalDecisionScriptClient:
     def __init__(self, path: Path) -> None:
         self._path = path
@@ -462,6 +574,155 @@ class _JsonlCanonicalDecisionScriptClient:
         if not decisions:
             raise CanonicalCoreError("canonical_dev_decision_script_empty")
         return decisions
+
+
+def _canonical_user_model_contract(*, provider_id: str, backend_id: str, model_id: str) -> UserModelContract:
+    return UserModelContract(
+        selected_provider_id=provider_id,
+        selected_backend_id=backend_id,
+        selected_model=model_id,
+        cost_profile=ModelCostProfile(
+            model_name=model_id,
+            input_usd_per_1m=0.0,
+            output_usd_per_1m=0.0,
+            context_window_tokens=128_000,
+        ),
+        capability_profile=ModelCapabilityProfile(
+            model_name=model_id,
+            context_window_tokens=128_000,
+            supports_tool_calling=False,
+        ),
+        context_budget_policy=ContextBudgetPolicy(
+            max_decision_frame_tokens=4_000,
+            max_tool_schema_tokens=500,
+            max_evidence_tokens=2_000,
+            reserve_output_tokens=700,
+        ),
+        quality_expectation=QualityExpectationContract(
+            expected_quality="canonical_core_workspace_vertical_slice",
+            minimum_evidence_refs=1,
+            retry_budget=0,
+        ),
+    )
+
+
+def _canonical_real_model_request(
+    *,
+    canonical_request: CanonicalDecisionRequest,
+    prompt: str,
+    provider_id: str,
+    backend_id: str,
+    model_id: str,
+    user_model_contract_id: str,
+) -> RealModelRequest:
+    metadata = {
+        "raw_text_transport": "product_model_native_intent_v1",
+        "canonical_core_product_route": True,
+        "mission_id": canonical_request.root_mission_id,
+        "canonical_state_hash": canonical_request.canonical_state.state_hash,
+        "model_visible_affordances": list(canonical_request.canonical_state.model_visible_affordances),
+        "fallback_auto_enabled": False,
+        "provider_native_tools_enabled": False,
+    }
+    prompt_hash = text_hash(prompt)
+    hash_payload = {
+        "provider_id": provider_id,
+        "backend_id": backend_id,
+        "model_id": model_id,
+        "runtime": "product_model_native_decision",
+        "prompt_hash": prompt_hash,
+        "frame_hash": canonical_request.canonical_state.state_hash,
+        "user_model_contract_id": user_model_contract_id,
+        "request_metadata": metadata,
+    }
+    return RealModelRequest(
+        provider_id=provider_id,
+        model_id=model_id,
+        backend_id=backend_id,
+        backend=backend_id,
+        runtime="product_model_native_decision",
+        prompt_hash=prompt_hash,
+        frame_hash=canonical_request.canonical_state.state_hash,
+        user_model_contract_id=user_model_contract_id,
+        estimated_input_tokens=max(1, (len(prompt) + 3) // 4),
+        estimated_output_tokens=700,
+        prompt_text_in_memory_only=prompt,
+        request_metadata=metadata,
+        timeout_policy_id="canonical_product_default_timeout",
+        retry_policy_id="canonical_product_no_retry",
+        budget_policy_id="canonical_product_bounded_budget",
+        request_hash=stable_hash(hash_payload),
+    )
+
+
+def _canonical_product_provider_prompt(request: CanonicalDecisionRequest) -> str:
+    state = request.canonical_state.safe_model_dump()
+    return (
+        "You are the model brain. Sentinel is the body, state, effects, proof, and laws.\n"
+        "Choose exactly one safe next operation for this read-only workspace mission.\n"
+        "Return exactly one JSON object and no markdown.\n"
+        "Allowed operations:\n"
+        "- {\"capability\":\"workspace\",\"operation\":\"list\",\"arguments\":{\"path\":\".\"}}\n"
+        "- {\"capability\":\"workspace\",\"operation\":\"search\",\"arguments\":{\"query\":\"...\",\"path\":\".\"}}\n"
+        "- {\"capability\":\"workspace\",\"operation\":\"read\",\"arguments\":{\"path\":\"...\",\"max_chars\":1200}}\n"
+        "- {\"capability\":\"sentinel_loop\",\"operation\":\"finish\",\"arguments\":{\"answer\":\"...\"}}\n"
+        "Do not request code execution, network, credentials, browser, shell, provider-native tools, fallback, or authority changes.\n"
+        "Finish only after a prior receipt/evidence ref supports the answer.\n"
+        f"Mission objective: {request.canonical_state.objective}\n"
+        f"Mission objective hash: {text_hash(request.canonical_state.objective)}\n"
+        f"Canonical state: {json.dumps(state, sort_keys=True, default=str)}\n"
+    )
+
+
+def _extract_canonical_json_decision(raw: Any) -> dict[str, Any]:
+    text = ""
+    if isinstance(raw, dict):
+        if raw.get("provider_failure") is True:
+            category = str(raw.get("provider_failure_category") or raw.get("provider_error_class") or "UNKNOWN")
+            raise CanonicalCoreError(f"canonical_provider_failure_{category}")
+        metadata = raw.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("blocked_reason"):
+            raise CanonicalCoreError(f"canonical_provider_blocked_{metadata.get('blocked_reason')}")
+        for key in ("content", "reply", "text", "message"):
+            value = raw.get(key)
+            if isinstance(value, str):
+                text = value
+                break
+        if not text and isinstance(metadata, dict):
+            for key in ("content", "reply", "text", "message"):
+                value = metadata.get(key)
+                if isinstance(value, str):
+                    text = value
+                    break
+        if not text and {"capability", "operation"} <= set(raw):
+            return raw
+    elif isinstance(raw, str):
+        text = raw
+    if not text.strip():
+        raise CanonicalCoreError("canonical_provider_decision_empty")
+    candidate = _first_json_object(text)
+    if candidate is None:
+        raise CanonicalCoreError("canonical_provider_decision_json_missing")
+    return candidate
+
+
+def _first_json_object(text: str) -> dict[str, Any] | None:
+    stripped = text.strip()
+    if stripped.startswith("{") and stripped.endswith("}"):
+        try:
+            loaded = json.loads(stripped)
+            return loaded if isinstance(loaded, dict) else None
+        except json.JSONDecodeError:
+            return None
+    start = stripped.find("{")
+    end = stripped.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        loaded = json.loads(stripped[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    return loaded if isinstance(loaded, dict) else None
 
 
 def _run_cockpit_command(args: argparse.Namespace) -> int:

@@ -10,6 +10,8 @@ from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel, new_id
@@ -38,6 +40,12 @@ class DecisionOrigin(StrEnum):
     POLICY_REQUIRED = "POLICY_REQUIRED"
     DETERMINISTIC_NORMALIZATION = "DETERMINISTIC_NORMALIZATION"
     USER_SELECTED = "USER_SELECTED"
+
+
+class DecisionProtocol(StrEnum):
+    MODEL_NATIVE_CANONICAL_JSON_V1 = "MODEL_NATIVE_CANONICAL_JSON_V1"
+    LEGACY_ACTION_ENVELOPE_ADAPTER_V1 = "LEGACY_ACTION_ENVELOPE_ADAPTER_V1"
+    HOST_NATIVE_DECISION_OBJECT_V1 = "HOST_NATIVE_DECISION_OBJECT_V1"
 
 
 class EffectKind(StrEnum):
@@ -156,6 +164,7 @@ class CanonicalState(SentinelModel):
     model_visible_affordances: tuple[str, ...]
     last_action: str | None = None
     evidence_refs: tuple[str, ...] = Field(default_factory=tuple)
+    recent_observations: tuple[dict[str, Any], ...] = Field(default_factory=tuple)
     proof_gaps: tuple[str, ...] = ("external_append_only_signer_missing",)
     remaining_provider_decisions: int
     remaining_material_actions: int
@@ -177,6 +186,7 @@ class CanonicalState(SentinelModel):
             "model_visible_affordances": list(self.model_visible_affordances),
             "last_action": self.last_action,
             "evidence_refs": list(self.evidence_refs),
+            "recent_observations": [redact_operator_value(item) for item in self.recent_observations],
             "proof_gaps": list(self.proof_gaps),
             "remaining_provider_decisions": self.remaining_provider_decisions,
             "remaining_material_actions": self.remaining_material_actions,
@@ -214,6 +224,7 @@ class CanonicalDecision(SentinelModel):
     decision_id: str = Field(default_factory=lambda: new_id("canonical_decision"))
     root_mission_id: str
     provider_model: str
+    decision_protocol: DecisionProtocol = DecisionProtocol.MODEL_NATIVE_CANONICAL_JSON_V1
     decision_origin: DecisionOrigin
     objective_interpretation: str = ""
     selected_capability: str
@@ -255,6 +266,7 @@ class CanonicalDecision(SentinelModel):
             "decision_id": self.decision_id,
             "root_mission_id": self.root_mission_id,
             "provider_model": redact_operator_text(self.provider_model),
+            "decision_protocol": self.decision_protocol.value,
             "decision_origin": self.decision_origin.value,
             "objective_interpretation_hash": text_hash(self.objective_interpretation),
             "selected_capability": redact_operator_text(self.selected_capability),
@@ -336,6 +348,11 @@ class MissionProofRoot(SentinelModel):
     integrity_model: str = "non_authentic_placeholder"
     authentic_external_ledger: bool = False
     proof_gaps: tuple[str, ...] = ("external_append_only_signer_missing",)
+    record_hash_verified: bool = False
+    kernel_timeline_verified: bool = False
+    receipt_artifact_refs: tuple[str, ...] = Field(default_factory=tuple)
+    receipt_artifacts_verified: bool = False
+    proof_artifact_ref: str = ""
     proof_root_hash: str = ""
 
     @model_validator(mode="after")
@@ -353,6 +370,11 @@ class MissionProofRoot(SentinelModel):
             "integrity_model": self.integrity_model,
             "authentic_external_ledger": self.authentic_external_ledger,
             "proof_gaps": list(self.proof_gaps),
+            "record_hash_verified": self.record_hash_verified,
+            "kernel_timeline_verified": self.kernel_timeline_verified,
+            "receipt_artifact_refs": list(self.receipt_artifact_refs),
+            "receipt_artifacts_verified": self.receipt_artifacts_verified,
+            "proof_artifact_ref": self.proof_artifact_ref,
         }
         if include_hash:
             payload["proof_root_hash"] = self.proof_root_hash
@@ -367,6 +389,7 @@ class CanonicalDevMissionResult(SentinelModel):
     provider_decision_count: int
     material_action_count: int
     root_created_before_first_provider_call: bool
+    mission_record_created_before_provider: bool = False
     decisions: tuple[CanonicalDecision, ...] = Field(default_factory=tuple)
     receipts: tuple[CanonicalEffectReceipt, ...] = Field(default_factory=tuple)
     proof_root: MissionProofRoot
@@ -438,6 +461,33 @@ def run_canonical_dev_mission(
     return runtime.run(model_client=model_client)
 
 
+def run_canonical_product_mission(
+    *,
+    objective: str,
+    workspace_root: Path | str,
+    model_client: CanonicalModelClient | None,
+    provider_model: str,
+    kernel: MissionKernel,
+    session_id: str,
+    max_provider_decisions: int = 40,
+    max_material_actions: int = 120,
+    provider_decisions_reserved_for_finish: int = 6,
+    cancellation_token: RootMissionCancellationToken | None = None,
+) -> CanonicalDevMissionResult:
+    runtime = RootMissionRuntime(
+        objective=objective,
+        workspace_root=workspace_root,
+        provider_model=provider_model,
+        max_provider_decisions=max_provider_decisions,
+        max_material_actions=max_material_actions,
+        provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
+        cancellation_token=cancellation_token,
+        kernel=kernel,
+        session_id=session_id,
+    )
+    return runtime.run(model_client=model_client)
+
+
 class RootMissionRuntime:
     def __init__(
         self,
@@ -450,6 +500,8 @@ class RootMissionRuntime:
         provider_decisions_reserved_for_finish: int = 6,
         capability_graph: ExecutableCapabilityGraph | None = None,
         cancellation_token: RootMissionCancellationToken | None = None,
+        kernel: MissionKernel | None = None,
+        session_id: str = "canonical_core_dev_session",
     ) -> None:
         self.root_mission_id = new_id("root_mission")
         self.objective = objective
@@ -462,14 +514,20 @@ class RootMissionRuntime:
         )
         self.capability_graph = capability_graph or build_workspace_read_capability_graph()
         self.cancellation_token = cancellation_token or RootMissionCancellationToken()
+        self.kernel = kernel
+        self.session_id = session_id
         self.decisions: list[CanonicalDecision] = []
         self.receipts: list[CanonicalEffectReceipt] = []
         self.evidence_refs: list[str] = []
+        self.recent_observations: list[dict[str, Any]] = []
         self.last_action: str | None = None
         self.provider_decision_count = 0
         self.material_action_count = 0
         self.root_created_at = datetime.now(UTC)
+        self.mission_record_created_before_provider = False
         self._closed = False
+        if self.kernel is not None:
+            self._create_and_start_mission_record()
 
     def run(self, *, model_client: CanonicalModelClient | None) -> CanonicalDevMissionResult:
         if model_client is None:
@@ -492,8 +550,14 @@ class RootMissionRuntime:
                     prompt_summary="canonical_dev_mission_next_decision",
                     cancellation_ref=self.cancellation_token.safe_ref,
                 )
-                raw_decision = model_client.complete(request)
                 self.provider_decision_count += 1
+                try:
+                    raw_decision = model_client.complete(request)
+                except Exception as exc:
+                    if self.kernel is None:
+                        raise
+                    self._persist_model_decision_failure(exc)
+                    return self._terminal_result(status="blocked", reason="MODEL_DECISION_FAILED")
                 if self.cancellation_token.cancelled:
                     return self._terminal_result(
                         status="blocked",
@@ -509,7 +573,13 @@ class RootMissionRuntime:
                         blocked_capability=exc.affordance,
                         blocked_reason_detail=exc.reason,
                     )
+                except Exception as exc:
+                    if self.kernel is None:
+                        raise
+                    self._persist_model_decision_failure(exc)
+                    return self._terminal_result(status="blocked", reason="MODEL_DECISION_FAILED")
                 self.decisions.append(decision)
+                self._persist_decision(decision)
                 if decision.capability == "sentinel_loop" and decision.operation == "finish":
                     if not self.receipts:
                         return self._terminal_result(status="blocked", reason="MODEL_FINISH_BEFORE_RECEIPT")
@@ -523,6 +593,7 @@ class RootMissionRuntime:
                 receipt = self._execute(decision, before_state=state)
                 self.receipts.append(receipt)
                 self.evidence_refs.extend(receipt.evidence_refs)
+                self.recent_observations.append(receipt.safe_observation)
                 self.last_action = f"{decision.capability}.{decision.operation}"
                 self.material_action_count += 1
         finally:
@@ -538,12 +609,22 @@ class RootMissionRuntime:
             model_visible_affordances=self.capability_graph.model_visible_affordances(),
             last_action=self.last_action,
             evidence_refs=tuple(dict.fromkeys(self.evidence_refs)),
+            recent_observations=tuple(self.recent_observations[-4:]),
             remaining_provider_decisions=max(0, self.budget.max_provider_decisions - self.provider_decision_count),
             remaining_material_actions=max(0, self.budget.max_material_actions - self.material_action_count),
         )
 
     def close(self) -> None:
+        if self._closed:
+            return
         self._closed = True
+        if self.kernel is not None:
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_cleanup_completed",
+                safe_summary="Canonical root mission cleanup completed.",
+                metadata={"cleanup_completed": True},
+            )
 
     def _normalize_decision(self, raw: Any) -> CanonicalDecision:
         if isinstance(raw, CanonicalDecision):
@@ -556,6 +637,7 @@ class RootMissionRuntime:
             return CanonicalDecision(
                 root_mission_id=self.root_mission_id,
                 provider_model=self.provider_model,
+                decision_protocol=DecisionProtocol.LEGACY_ACTION_ENVELOPE_ADAPTER_V1,
                 decision_origin=DecisionOrigin.MODEL_SELECTED,
                 selected_capability=route.capability,
                 selected_operation=route.operation,
@@ -583,6 +665,7 @@ class RootMissionRuntime:
         return CanonicalDecision(
             root_mission_id=self.root_mission_id,
             provider_model=self.provider_model,
+            decision_protocol=DecisionProtocol.MODEL_NATIVE_CANONICAL_JSON_V1,
             decision_origin=DecisionOrigin.MODEL_SELECTED,
             objective_interpretation=str(raw.get("objective_interpretation") or ""),
             selected_capability=route.capability,
@@ -613,7 +696,7 @@ class RootMissionRuntime:
                 "receipt_index": len(self.receipts),
             }
         )
-        return CanonicalEffectReceipt(
+        receipt = CanonicalEffectReceipt(
             root_mission_id=self.root_mission_id,
             decision_id=decision.decision_id,
             capability=route.capability,
@@ -628,6 +711,8 @@ class RootMissionRuntime:
             before_state_hash=before_state.state_hash,
             after_state_hash=after_state_hash,
         )
+        self._persist_receipt(receipt)
+        return receipt
 
     def _workspace_list(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
         target = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or "."), must_exist=True)
@@ -711,11 +796,7 @@ class RootMissionRuntime:
         blocked_capability: str = "",
         blocked_reason_detail: str = "",
     ) -> CanonicalDevMissionResult:
-        proof = MissionProofRoot(
-            root_mission_id=self.root_mission_id,
-            receipt_refs=tuple(receipt.receipt_id for receipt in self.receipts),
-            decision_refs=tuple(decision.decision_id for decision in self.decisions),
-        )
+        proof = self._build_and_persist_proof_root()
         return CanonicalDevMissionResult(
             root_mission_id=self.root_mission_id,
             status=status,
@@ -724,6 +805,7 @@ class RootMissionRuntime:
             provider_decision_count=self.provider_decision_count,
             material_action_count=self.material_action_count,
             root_created_before_first_provider_call=bool(self.root_created_at),
+            mission_record_created_before_provider=self.mission_record_created_before_provider,
             decisions=tuple(self.decisions),
             receipts=tuple(self.receipts),
             proof_root=proof,
@@ -744,6 +826,7 @@ class RootMissionRuntime:
         blocked_capability: str = "",
         blocked_reason_detail: str = "",
     ) -> CanonicalDevMissionResult:
+        self._persist_terminal_status(status=status, reason=reason)
         self.close()
         return self._result(
             status=status,
@@ -753,6 +836,154 @@ class RootMissionRuntime:
             blocked_capability=blocked_capability,
             blocked_reason_detail=blocked_reason_detail,
         )
+
+    def _create_and_start_mission_record(self) -> None:
+        assert self.kernel is not None
+        draft = MissionDraft(
+            title="Canonical core product workspace mission",
+            objective=self.objective,
+            constraints=["public product route", "read-only workspace authority"],
+            expected_artifacts=["canonical receipts", "mission proof root", "terminal mission state"],
+        )
+        authority = MissionAuthoritySummary(
+            mission_id=self.root_mission_id,
+            allowed_actions=list(self.capability_graph.model_visible_affordances()),
+            forbidden_actions=[
+                "provider_native_tools",
+                "authority_self_grant",
+                "workspace_escape",
+                "raw_secret_exposure",
+            ],
+            summary="Canonical product mission authority: read-only workspace effects and terminal finish only.",
+            user_confirmation_required=False,
+            finalgate_required=True,
+        )
+        self.kernel.create_mission(
+            session_id=self.session_id,
+            draft=draft,
+            authority_summary=authority,
+            mission_id=self.root_mission_id,
+        )
+        self.kernel.enqueue(
+            self.root_mission_id,
+            metadata={"canonical_product_route": True, "provider_decision_count": 0},
+        )
+        self.kernel.update_status(
+            self.root_mission_id,
+            OperatorMissionStatus.RUNNING,
+            "Canonical root mission running before first provider decision.",
+        )
+        self.mission_record_created_before_provider = self.kernel.store.verify_record(self.root_mission_id)
+
+    def _persist_decision(self, decision: CanonicalDecision) -> None:
+        if self.kernel is None:
+            return
+        self.kernel.store.append_event(
+            self.root_mission_id,
+            event_type="canonical_decision_accepted",
+            safe_summary=f"Canonical decision accepted for {decision.capability}.{decision.operation}.",
+            metadata=decision.safe_model_dump(),
+        )
+
+    def _persist_model_decision_failure(self, exc: Exception) -> None:
+        if self.kernel is None:
+            return
+        self.kernel.store.append_event(
+            self.root_mission_id,
+            event_type="canonical_model_decision_failed",
+            safe_summary="Canonical model decision failed before executable dispatch.",
+            metadata={
+                "failure_stage": "provider_or_decision_normalization",
+                "failure_code": _safe_exception_code(exc),
+                "exception_class": exc.__class__.__name__,
+                "exception_hash": stable_hash(
+                    {
+                        "exception_class": exc.__class__.__name__,
+                        "safe_message": redact_operator_text(str(exc)),
+                    }
+                ),
+                "provider_decision_count": self.provider_decision_count,
+                "material_action_count": self.material_action_count,
+            },
+        )
+
+    def _persist_receipt(self, receipt: CanonicalEffectReceipt) -> None:
+        if self.kernel is None:
+            return
+        receipt_dir = self.kernel.store.mission_dir(self.root_mission_id, create=True) / "canonical_receipts"
+        receipt_path = receipt_dir / f"{receipt.receipt_id}.json"
+        self.kernel.store.atomic_write_json(receipt_path, receipt.safe_model_dump())
+        self._attach_receipt_ref(receipt.receipt_id)
+        self.kernel.store.append_event(
+            self.root_mission_id,
+            event_type="canonical_effect_receipt_persisted",
+            safe_summary=f"Canonical effect receipt persisted for {receipt.capability}.{receipt.operation}.",
+            metadata={
+                "receipt_hash": receipt.receipt_hash,
+                "status": receipt.status,
+                "before_state_hash": receipt.before_state_hash,
+                "after_state_hash": receipt.after_state_hash,
+                "effect_kind": receipt.effect_kind.value,
+            },
+            receipt_refs=[receipt.receipt_id],
+        )
+
+    def _attach_receipt_ref(self, receipt_id: str) -> None:
+        if self.kernel is None:
+            return
+        with self.kernel.store.locked():
+            record = self.kernel.store.load_record(self.root_mission_id)
+            refs = list(dict.fromkeys([*record.receipt_refs, receipt_id]))
+            updated = record.model_copy(update={"receipt_refs": refs, "updated_at": datetime.now(UTC)}).with_hash()
+            self.kernel.store._write_record(updated)
+
+    def _persist_terminal_status(self, *, status: str, reason: str) -> None:
+        if self.kernel is None:
+            return
+        target = {
+            "completed": OperatorMissionStatus.COMPLETED,
+            "blocked": OperatorMissionStatus.BLOCKED,
+            "failed": OperatorMissionStatus.FAILED,
+        }.get(status, OperatorMissionStatus.FAILED)
+        self.kernel.update_status(
+            self.root_mission_id,
+            target,
+            f"Canonical root mission terminal state: {redact_operator_text(reason)}.",
+        )
+
+    def _build_and_persist_proof_root(self) -> MissionProofRoot:
+        if self.kernel is None:
+            return MissionProofRoot(
+                root_mission_id=self.root_mission_id,
+                receipt_refs=tuple(receipt.receipt_id for receipt in self.receipts),
+                decision_refs=tuple(decision.decision_id for decision in self.decisions),
+            )
+        receipt_refs = tuple(receipt.receipt_id for receipt in self.receipts)
+        receipt_artifact_refs = tuple(f"canonical_receipts/{receipt_id}.json" for receipt_id in receipt_refs)
+        proof = MissionProofRoot(
+            root_mission_id=self.root_mission_id,
+            receipt_refs=receipt_refs,
+            decision_refs=tuple(decision.decision_id for decision in self.decisions),
+            integrity_model="mission_kernel_receipt_timeline_v1",
+            authentic_external_ledger=False,
+            proof_gaps=("external_append_only_signer_missing",),
+            record_hash_verified=self.kernel.store.verify_record(self.root_mission_id),
+            kernel_timeline_verified=self.kernel.store.verify_timeline(self.root_mission_id),
+            receipt_artifact_refs=receipt_artifact_refs,
+            receipt_artifacts_verified=self._receipt_artifacts_verified(receipt_refs),
+            proof_artifact_ref="mission_proof_root.json",
+        )
+        self.kernel.store.atomic_write_json(
+            self.kernel.store.mission_dir(self.root_mission_id, create=True) / "mission_proof_root.json",
+            proof.safe_model_dump(),
+        )
+        return proof
+
+    def _receipt_artifacts_verified(self, receipt_refs: tuple[str, ...]) -> bool:
+        if self.kernel is None:
+            return False
+        receipt_dir = self.kernel.store.mission_dir(self.root_mission_id) / "canonical_receipts"
+        return all((receipt_dir / f"{receipt_id}.json").exists() for receipt_id in receipt_refs)
 
 
 def _workspace_route(operation: str, *, materiality_verifier: str) -> CanonicalCapabilityRoute:
@@ -801,6 +1032,13 @@ def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int
     return max(minimum, min(maximum, parsed))
 
 
+def _safe_exception_code(exc: Exception) -> str:
+    text = str(exc)
+    if isinstance(exc, CanonicalCoreError) and text and "\n" not in text and len(text) <= 120:
+        return redact_operator_text(text)
+    return exc.__class__.__name__
+
+
 __all__ = [
     "CanonicalBudget",
     "CanonicalCapabilityQuarantined",
@@ -813,6 +1051,7 @@ __all__ = [
     "CanonicalModelClient",
     "CanonicalState",
     "DecisionOrigin",
+    "DecisionProtocol",
     "EffectKind",
     "ExecutableCapabilityGraph",
     "MissionProofRoot",
@@ -821,4 +1060,5 @@ __all__ = [
     "RootMissionCancellationToken",
     "build_workspace_read_capability_graph",
     "run_canonical_dev_mission",
+    "run_canonical_product_mission",
 ]
