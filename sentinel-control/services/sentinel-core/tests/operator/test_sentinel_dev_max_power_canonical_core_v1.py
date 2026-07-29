@@ -75,7 +75,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len(ledger["entries"]) == 65
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
-    assert ledger["current_head"] == "0701297e6f3e5f236f4f51acc1539e62f099be72"
+    assert ledger["current_head"] == "30c2cfad1b0d9d9089c71d6312bf481114f02691"
     assert ledger["fixed_proven_count"] == 0
     assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
     slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]
@@ -96,28 +96,31 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert by_id["C-P0-06"]["status"] == "IMPLEMENTING"
     assert by_id["P1-25"]["status"] == "IMPLEMENTING"
     tranche = ledger["canonical_core_vertical_product_tranche"]
-    assert tranche["status"] == "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
-    assert tranche["checkpoint_head"] == "a4538e3d36b677c8f49952117d1c6b8950a470a8"
-    assert tranche["provider_failure_diagnosis"]["classification"] == "QWEN_AUTHENTICATED_DEEPSEEK_BAD_REQUEST"
-    assert tranche["provider_failure_diagnosis"]["credential_safe_hash_prefixes_tested"] == [
-        "dce21292e72b63f8",
-        "8e5eb7d1f3b1d5ed",
-        "57eb3529df63c0f9",
-    ]
-    assert {item["model_id"] for item in tranche["explicit_provider_retries_after_0701297e"]} == {
+    assert tranche["status"] == "VALID_REAL_MODEL_LOOP_STALLED"
+    assert tranche["checkpoint_head"] == "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+    assert tranche["provider_failure_diagnosis"]["classification"] == "VALID_REAL_MODEL_LOOP_STALLED"
+    forbidden_credential_hash_prefix = "credential_" + "safe_hash"
+    assert not any(key.startswith(forbidden_credential_hash_prefix) for key in tranche["provider_failure_diagnosis"])
+    assert tranche["provider_authenticated"] is True
+    assert tranche["model_native_decisions_accepted"] is True
+    assert tranche["workspace_actions"] == 7
+    assert tranche["model_selected_finish"] is False
+    assert tranche["receipt_integrity_verified"] is False
+    assert "explicit_provider_retries_after_0701297e" not in tranche
+    assert {item["model_id"] for item in tranche["explicit_provider_attempts_after_checkpoint"]} == {
         "qwen-plus",
         "glm-5.2",
         "deepseek-v4-pro",
     }
     qwen_attempt = next(
         item
-        for item in tranche["explicit_provider_retries_after_0701297e"]
+        for item in tranche["explicit_provider_attempts_after_checkpoint"]
         if item["attempt_id"] == "canonical_core_real_provider_v10_qwen_plus_affordance_normalized"
     )
     assert qwen_attempt["model_native_decisions_accepted"] is True
     assert qwen_attempt["workspace_receipts_created"] == 7
     assert qwen_attempt["model_selected_finish"] is False
-    assert "a4538e3d36b677c8f49952117d1c6b8950a470a8" in by_id["P0-01"]["slice_status_history"][-1]["head"]
+    assert "30c2cfad1b0d9d9089c71d6312bf481114f02691" in by_id["P0-01"]["slice_status_history"][-1]["head"]
     required_fields = {
         "target_wave",
         "depends_on",
@@ -139,7 +142,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
         if entry["status"] == "FIXED_PROVEN":
             assert entry["fixed_proven_commit"]
     assert ledger["published_counters_after_commit"] == {
-        "checkpoint_commit": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "checkpoint_commit": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "P0 fixed / 15": "0/15",
         "P1 fixed / 44": "0/44",
         "P2 fixed / 6": "0/6",

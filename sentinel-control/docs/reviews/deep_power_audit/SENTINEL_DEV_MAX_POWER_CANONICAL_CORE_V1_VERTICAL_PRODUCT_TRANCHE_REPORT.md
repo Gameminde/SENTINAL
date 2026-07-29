@@ -4,12 +4,15 @@
 
 ```text
 SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_VERTICAL_PRODUCT_TRANCHE
-= VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
+= VALID_REAL_MODEL_LOOP_STALLED
 
 FIXED_PROVEN_COUNT = 0
 REAL_PROVIDER_REACHED = yes
-REAL_MODEL_DECISION_ACCEPTED = no
-MATERIAL_WORKSPACE_ACTIONS = 0
+PROVIDER_AUTHENTICATED = true
+REAL_MODEL_DECISION_ACCEPTED = yes
+MATERIAL_WORKSPACE_ACTIONS = 7
+MODEL_SELECTED_FINISH = false
+RECEIPT_INTEGRITY_VERIFIED = false
 ```
 
 The tranche improved the canonical core product path locally, then attempted a
@@ -17,11 +20,19 @@ real provider mission. A post-review corrective pass widened terminalization,
 centralized workspace route registration, bounded workspace search, and made
 provider auth diagnostics specific without storing raw secrets.
 
-The live mission still could not complete because the configured provider
-credential is present but not authorized for the selected model/workspace route:
+The latest live `qwen-plus` mission authenticated and executed real workspace
+actions through the canonical product route. It still could not complete because
+the loop repeated zero-result workspace searches, timed out before a
+model-selected finish, and the proof root reported unreadable/failed receipt
+integrity:
 
 ```text
-safe_cause = model_or_workspace_unauthorized_http_403
+classification = VALID_REAL_MODEL_LOOP_STALLED
+provider authenticated = true
+model-native decisions accepted = true
+workspace actions = 7
+model-selected finish = false
+receipt integrity verified = false
 ```
 
 This is not claimed as `FIXED_PROVEN`.
@@ -160,8 +171,8 @@ failure_code = canonical_provider_failure_PROVIDER_AUTH_ERROR
 classification = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
 ```
 
-This attempt used the then-current `SENTINEL_CERT_MODEL_API_KEY` value and
-stopped before any model-native decision.
+This attempt used a process-scoped operator credential and stopped before any
+model-native decision.
 
 ### V4/V5 Corrective Diagnosis
 
@@ -198,10 +209,9 @@ failure_code_each = canonical_provider_failure_PROVIDER_AUTH_ERROR_model_or_work
 raw_secret_persisted = false
 ```
 
-The two tested credential values were distinct by safe hash prefix. Both
-configured models returned `403`, so the current blocker is classified as a
-common provider/model/workspace entitlement block rather than a Sentinel
-normalization, workspace, or receipt dispatch defect.
+The credential attempts are tracked by opaque attempt IDs only. GLM and the
+earlier DeepSeek attempts returned `403`, so those specific model/workspace
+routes remain secondary compatibility or entitlement blockers.
 
 ### V9/V10/V11 Default Workspace Qwen Checks
 
@@ -275,16 +285,18 @@ Typed effect receipt local = PASS
 Kernel proof root local = PASS_WITH_EXTERNAL_SIGNER_GAP
 Terminal state after provider failure = PASS
 Cleanup after provider failure = PASS
-Real provider authenticated = FAIL
-Real model decision accepted = FAIL
-Material workspace effect via real model = NOT_REACHED
+Real provider authenticated = PASS_QWEN_PLUS
+Real model decision accepted = PASS
+Material workspace effect via real model = PASS_7_ACTIONS
+Model-selected finish = FAIL
+Receipt integrity verified = FAIL
 FIXED_PROVEN = NO
 ```
 
 ## Ledger Truth
 
 ```text
-ledger_synced_checkpoint = 0701297e6f3e5f236f4f51acc1539e62f099be72
+ledger_synced_checkpoint = 30c2cfad1b0d9d9089c71d6312bf481114f02691
 fixed_proven_count = 0
 P0 fixed / 15 = 0/15
 P1 fixed / 44 = 0/44
@@ -292,7 +304,7 @@ P2 fixed / 6 = 0/6
 total FIXED_PROVEN / 65 = 0/65
 status_counts = CONFIRMED_CURRENT:9, IMPLEMENTING:8, OPEN:48
 P0-07 = IMPLEMENTING
-canonical_core_vertical_product_tranche = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
+canonical_core_vertical_product_tranche = VALID_REAL_MODEL_LOOP_STALLED
 ```
 
 No P0 is closed.
@@ -308,13 +320,14 @@ P0-07 = MissionKernel receipt timeline proof root exists locally, but external a
 
 ## Next
 
-The immediate blocker is provider credential/authorization, not Browser Organ
-or workspace execution:
+The immediate blocker is no longer provider authentication for every model.
+`qwen-plus` authenticates and executes workspace effects. DeepSeek remains a
+secondary compatibility issue:
 
 ```text
-PROVIDER_AUTH_ERROR
-safe_cause = qwen_plus_authenticated_deepseek_http_400
-classification = QWEN_AUTHENTICATED_DEEPSEEK_BAD_REQUEST
+classification = VALID_REAL_MODEL_LOOP_STALLED
+qwen-plus = authenticated, model-native, 7 workspace actions, no finish
+deepseek-v4-pro = HTTP 400 before model decision
 ```
 
 The immediate next blocker is no longer provider authentication for every

@@ -7,7 +7,7 @@ SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_METHODOLOGY_RECONCILIATION
 = VALID_RECONCILED_LOCAL_TRUTH
 
 FIXED_PROVEN_COUNT = 0
-REAL_PRODUCT_VERTICAL_SLICE = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
+REAL_PRODUCT_VERTICAL_SLICE = VALID_REAL_MODEL_LOOP_STALLED
 ```
 
 This report reconciles the current branch after the first three local commits.
@@ -20,7 +20,7 @@ still not proven.
 
 ```text
 baseline_commit = efdbd558abddbc38cea7e506ff8cb8dfe8ef93fa
-current_head = a4538e3d36b677c8f49952117d1c6b8950a470a8
+current_head = 30c2cfad1b0d9d9089c71d6312bf481114f02691
 branch = sentinel-dev-max-power-canonical-core-v1
 tracked_dirty_state = ledger/test/report updates only
 untracked_state = existing runtime artifact directories intentionally untouched
@@ -35,6 +35,7 @@ untracked_state = existing runtime artifact directories intentionally untouched
 | Slice 0C | `aca1f008` | `SLICE_0C_CODE_SANDBOX_PHYSICAL_BOUNDARY_PROBE_AND_QUARANTINE` | Reproduced that current code execution is not a physical sandbox and quarantined it from canonical core power claims. |
 | Slice 0D | `41d417ef` | `SLICE_0D_METHOD_RECONCILIATION_AND_LEDGER_ALIGNMENT` | Reconciled methodology and kept `FIXED_PROVEN` at 0. |
 | Slice 0E | `a4538e3d` | `SLICE_0E_KERNEL_BACKED_PRODUCT_ROUTE_PROVIDER_AUTH_BLOCKED` | Added the kernel-backed public product route and stopped honestly at provider authentication. |
+| Slice 0F | `30c2cfad` | `SLICE_0F_QWEN_PROVIDER_ROUTE_AND_LOOP_STALL_TRUTH` | Added Qwen route support, accepted compact registered affordance operations, reached real model decisions and 7 workspace actions, then stopped honestly at loop stall/no finish. |
 
 No slice is reclassified as a completed Stage. No finding is `FIXED_PROVEN`.
 
@@ -42,7 +43,7 @@ No slice is reclassified as a completed Stage. No finding is `FIXED_PROVEN`.
 
 | Finding | Current Classification | Probe Result | Notes |
 |---|---|---|---|
-| `P0-01` | `IMPLEMENTING` | `VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR` | Canonical product path reaches the real provider adapter, but provider-side auth rejected the selected model/workspace before a model-native decision. |
+| `P0-01` | `IMPLEMENTING` | `VALID_REAL_MODEL_LOOP_STALLED` | Canonical product path reaches the real Qwen provider, accepts model-native decisions, and executes workspace actions, but no model-selected finish or receipt-integrity proof is reached. |
 | `P0-02` | `CONFIRMED_CURRENT` | `T1_LOCAL_REPRODUCED_UNSAFE` | The current code execution sandbox can read a canary outside the workspace. Canonical core quarantines `code_exec.run_profile`. |
 | `P0-03` | `IMPLEMENTING` | `T1_LOCAL_DETERMINISTIC_CANDIDATE` | Root cancellation token blocks before provider and after model response locally. Provider/process kill is not yet proven. |
 | `P0-04` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Browser `open_result` remains outside this core tranche. Not fixed here. |
@@ -67,12 +68,12 @@ persisting raw provider output or secrets:
 provider = aliyun_dashscope
 backend = aliyun_openai_compatible_chat
 models_checked = qwen-plus, glm-5.2, deepseek-v4-pro
-credentials_checked = Default Workspace CSV key, prior CSV key, older User-env key
+credentials_checked = opaque attempt IDs only
 qwen-plus direct smoke = HTTP 200
 qwen-plus product route = provider_decisions:8, material_actions:7
 deepseek-v4-pro Default Workspace route = HTTP 400 before model decision
 safe_cause = qwen_plus_authenticated_but_product_loop_not_finished
-classification = QWEN_AUTHENTICATED_PRODUCT_ROUTE_PARTIAL
+classification = VALID_REAL_MODEL_LOOP_STALLED
 FIXED_PROVEN = 0
 ```
 

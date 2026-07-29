@@ -8,18 +8,13 @@
     "legacy_bypass_absence_proven": false,
     "material_action_count_latest_real_attempt": 7,
     "mission_record_before_provider": true,
-    "checkpoint_head": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
+    "checkpoint_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
     "provider_decision_count_latest_real_attempt": 8,
-    "provider_failure_code": "qwen_plus_provider_authenticated_but_mission_blocked_before_finish",
+    "provider_failure_code": "qwen_plus_loop_stalled_before_finish",
     "provider_failure_diagnosis": {
-      "classification": "QWEN_AUTHENTICATED_DEEPSEEK_BAD_REQUEST",
+      "classification": "VALID_REAL_MODEL_LOOP_STALLED",
       "credential_present": true,
-      "credential_source": "default_workspace_csv_process_scoped",
-      "credential_safe_hash_prefixes_tested": [
-        "dce21292e72b63f8",
-        "8e5eb7d1f3b1d5ed",
-        "57eb3529df63c0f9"
-      ],
+      "credential_source": "opaque_attempt_inputs_process_scoped",
       "provider_backend_route_constructed": true,
       "workspace_endpoint_override_used": true,
       "models_tested": [
@@ -27,16 +22,26 @@
         "deepseek-v4-pro",
         "glm-5.2"
       ],
-      "safe_cause": "qwen_plus_authenticated_deepseek_http_400",
-      "raw_secret_persisted": false
+      "safe_cause": "qwen_plus_authenticated_loop_stalled_before_finish",
+      "raw_secret_persisted": false,
+      "provider_authenticated": true,
+      "model_native_decisions_accepted": true,
+      "workspace_actions": 7,
+      "model_selected_finish": false,
+      "receipt_integrity_verified": false
     },
     "raw_provider_material_persisted": false,
     "real_provider_attempted": true,
     "real_provider_success": true,
-    "reason_not_fixed_proven": "qwen-plus authenticated and produced model-native decisions; Sentinel accepted compact affordance decisions and executed workspace receipts, but repeated zero-result search ended in provider timeout before model-selected finish and proof root reported receipt_artifacts_verified=false.",
-    "status": "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR",
-    "current_checkpoint_head": "0701297e6f3e5f236f4f51acc1539e62f099be72",
-    "explicit_provider_retries_after_0701297e": [
+    "reason_not_fixed_proven": "qwen-plus authenticated and produced model-native decisions; Sentinel accepted compact affordance decisions and executed 7 workspace actions, but the loop stalled before model-selected finish and proof root reported receipt_integrity_verified=false.",
+    "status": "VALID_REAL_MODEL_LOOP_STALLED",
+    "current_checkpoint_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+    "provider_authenticated": true,
+    "model_native_decisions_accepted": true,
+    "workspace_actions": 7,
+    "model_selected_finish": false,
+    "receipt_integrity_verified": false,
+    "explicit_provider_attempts_after_checkpoint": [
       {
         "attempt_id": "canonical_core_real_provider_v6_glm_new_key",
         "provider_id": "aliyun_dashscope",
@@ -69,7 +74,6 @@
         "backend_id": "aliyun_openai_compatible_chat",
         "model_id": "deepseek-v4-pro",
         "changed_from_v7_attempt": "credential_only_old_user_env_key",
-        "credential_safe_hash_prefix": "57eb3529df63c0f9",
         "provider_decision_count": 1,
         "material_action_count": 0,
         "status": "blocked",
@@ -130,14 +134,14 @@
   },
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
-  "current_head": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+  "current_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
   "entries": [
     {
       "acceptance_probe": "Start a mission from the public CLI and prove provider decision -> ProductModelNativeDecisionClient -> ProductActionKernel -> receipt",
       "change_applied": "Slice 0A added canonical-dev-run and RootMissionRuntime skeleton; 41d417ef reconciled methodology; a4538e3d added the kernel-backed public product route but stopped honestly at provider authentication. qwen-plus provider authenticated and compact affordance normalizer added.",
       "chosen_invariant": "public_product_request_must_route_to_real_model_before_fixed_proven",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "ProductModelNativeDecisionClient has no production source caller and the public cockpit remains bound to read_only_research.inspect_repository",
       "id": "P0-01",
       "integration_or_live_probe": "",
@@ -148,7 +152,7 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "qwen-plus now proves provider auth and model-native decisions through the public product route, but mission did not reach model-selected finish and proof root receipt verification failed; not FIXED_PROVEN.",
+      "remaining_risk": "qwen-plus now proves provider authentication, model-native decisions, and 7 workspace actions through the public product route, but the loop stalled before finish and receipt integrity verified=false; not FIXED_PROVEN.",
       "required_change": "Create one canonical product entrypoint that constructs ProductModelNativeDecisionClient and invokes RuntimeHost.run_product_action_kernel_task_loop; retire the parallel read-only-only product binding for general missions",
       "responsible_files_symbols": [],
       "severity": "P0",
@@ -170,6 +174,12 @@
           "note": "Kernel-backed canonical product route exists and creates MissionRecord before provider; real provider stopped at PROVIDER_AUTH_ERROR before model-native workspace action.",
           "proof_tier": "T2_PRODUCT_ROUTE_REACHED_PROVIDER_AUTH_BLOCKED",
           "status": "IMPLEMENTING"
+        },
+        {
+          "head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+          "status": "IMPLEMENTING",
+          "proof_tier": "T3_REAL_MODEL_LOOP_STALLED",
+          "note": "qwen-plus authenticated and produced model-native workspace decisions/actions, but no model-selected finish and receipt integrity remained false; no finding closed."
         }
       ],
       "source_audit": "initial_exhaustive_audit",
@@ -185,7 +195,8 @@
         "aca1f008",
         "41d417ef",
         "a4538e3d36b677c8f49952117d1c6b8950a470a8",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -194,7 +205,7 @@
       "change_applied": "Slice 0C reproduced outside-workspace read and quarantined code_exec.run_profile from canonical model-visible routes.",
       "chosen_invariant": "do_not_expose_unproven_code_exec_as_canonical_power",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "CodeExecutionSandboxRuntime launches ordinary host subprocesses; network_allowed and writes_allowed are validation metadata, not OS isolation",
       "id": "P0-02",
       "integration_or_live_probe": "",
@@ -227,7 +238,8 @@
       "target_wave": "W2",
       "depends_on": [],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -236,7 +248,7 @@
       "change_applied": "Slice 0B added cooperative root cancellation seam before and after model turn; durable MissionRecord and hard provider cancellation pending.",
       "chosen_invariant": "root_mission_must_be_revocable_before_material_action",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The model-led root loop has a loop_id but no root MissionRecord or cancellation token; only per-action child missions exist",
       "id": "P0-03",
       "integration_or_live_probe": "",
@@ -272,7 +284,8 @@
       ],
       "change_commits": [
         "aca1f008",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -281,7 +294,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "open_result validates existence, visibility and enabled state but not link/result semantics",
       "id": "P0-04",
       "integration_or_live_probe": "",
@@ -308,7 +321,8 @@
       "target_wave": "W4",
       "depends_on": [],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -317,7 +331,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "BrowserSession validates request.url, but every follow-up request reuses the initial target URL and no post-click current page origin check is enforced",
       "id": "P0-05",
       "integration_or_live_probe": "",
@@ -344,7 +358,8 @@
       "target_wave": "W4",
       "depends_on": [],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -353,7 +368,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Negation detection is global substring logic and all browser semantic skills bypass hard-boundary parsing",
       "id": "P0-06",
       "integration_or_live_probe": "",
@@ -380,7 +395,8 @@
       "target_wave": "W4",
       "depends_on": [],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -389,7 +405,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Product receipts, FinalGate certificates and authority records are plain recomputable stable_hash values with no secret key or external anchor",
       "id": "P0-07",
       "integration_or_live_probe": "",
@@ -421,7 +437,8 @@
       ],
       "change_commits": [
         "aca1f008",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -430,7 +447,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "MissionArtifactBundle excludes mission_manifest from the seal and does not verify receipt hashes, authority_decision/execution_status semantics or artifact_hashes against files",
       "id": "P0-08",
       "integration_or_live_probe": "",
@@ -459,7 +476,8 @@
         "P0-07"
       ],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -468,7 +486,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "WorkspacePatch protects a short filename denylist but not Sentinel control-plane or trust-kernel paths when Sentinel itself is the granted workspace",
       "id": "P0-09",
       "integration_or_live_probe": "",
@@ -497,7 +515,8 @@
         "P0-02"
       ],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -506,7 +525,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Product browser open ignores model URL parameters and requires SENTINEL_BROWSER_TEST_URL; navigate only opens/reopens the fixed target",
       "id": "P1-10",
       "integration_or_live_probe": "",
@@ -525,7 +544,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -533,7 +554,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "recover_session is advertised and mapped by ProductModelNativeDecisionClient but has no RuntimeHost route or runtime operation",
       "id": "P1-11",
       "integration_or_live_probe": "",
@@ -552,7 +573,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -560,7 +583,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "BrowserFailureRecoveryEngineV1 only generates browser_recovery_evidence and planned_actions; the product runtime never executes the plan",
       "id": "P1-12",
       "integration_or_live_probe": "",
@@ -579,7 +602,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -587,7 +612,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Repeated browser actions consume model calls, then inject observe, then hard-block",
       "id": "P1-13",
       "integration_or_live_probe": "",
@@ -606,7 +631,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -614,7 +641,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "BODY_SESSION_UNAVAILABLE collapses available actions to finish",
       "id": "P1-14",
       "integration_or_live_probe": "",
@@ -633,7 +660,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -641,7 +670,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Recoverability is a closed literal whitelist and recovery limits are global, not per failure class",
       "id": "P1-15",
       "integration_or_live_probe": "",
@@ -660,7 +689,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -668,7 +699,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "DISABLE_IN_DEV",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Public product-loop defaults are 6 model calls, 3 material actions and zero recoverable decision/action failures",
       "id": "P1-16",
       "integration_or_live_probe": "",
@@ -687,7 +718,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -695,7 +728,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "DISABLE_IN_DEV",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Every mission runs a global health gate over all registered connections",
       "id": "P1-17",
       "integration_or_live_probe": "",
@@ -714,7 +747,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -722,7 +757,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Runtime module health uses importlib.util.find_spec without handling a missing parent package",
       "id": "P1-18",
       "integration_or_live_probe": "",
@@ -741,7 +776,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -749,7 +786,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "A model response containing only {skill: search} uses the rendered word 'search' as the query instead of the mission objective",
       "id": "P1-19",
       "integration_or_live_probe": "",
@@ -768,7 +805,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -776,7 +815,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Browser-work detection and deterministic search fallback contain scenario words such as Alibaba, glasses, under 5 and product research",
       "id": "P1-20",
       "integration_or_live_probe": "",
@@ -795,7 +834,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -803,7 +844,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Explicit playwright_compat passes preflight but _product_browser_engine has no compatibility branch",
       "id": "P1-21",
       "integration_or_live_probe": "",
@@ -822,7 +863,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -830,7 +873,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Backend discovery checks whether Sentinel wrapper modules exist, not whether cloakbrowser/package/binary/session is usable",
       "id": "P1-22",
       "integration_or_live_probe": "",
@@ -849,7 +892,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -857,7 +902,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Cloak engine scroll and wait_for_load only call observe",
       "id": "P1-23",
       "integration_or_live_probe": "",
@@ -876,7 +921,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -884,7 +931,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "SHADOW_MODE_ONLY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Search locator fallback can choose a generic editable field after named-role failure",
       "id": "P1-24",
       "integration_or_live_probe": "",
@@ -903,7 +950,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -911,7 +960,7 @@
       "change_applied": "Canonical core workspace list/read/search use generic paths and search text, not app.py/test_app choreography.",
       "chosen_invariant": "generic_workspace_actions_not_scenario_choreography",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Workspace plans and summaries are hardcoded to app.py, tests/test_app.py, README.md and a number-analyzer scenario; the product loop has no generic read/list/search workspace skill",
       "id": "P1-25",
       "integration_or_live_probe": "",
@@ -943,7 +992,8 @@
       "depends_on": [],
       "change_commits": [
         "aca1f008",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -952,7 +1002,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Objective-agnostic recovery creates hardcoded files, runs fixed checks, sends a founder@example.com proof message, spawns fake roles and finishes generically",
       "id": "P1-26",
       "integration_or_live_probe": "",
@@ -971,7 +1021,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -979,7 +1031,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "WorkerOrchestrationRuntime explicitly makes no provider call and _local_worker_executor returns completed metadata without doing the task",
       "id": "P1-27",
       "integration_or_live_probe": "",
@@ -998,7 +1050,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1006,7 +1060,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Every material action creates a new five-minute, one-action child mission; the root loop has no unified authority, and allowed_systems is local_workspace even for browser/channel actions",
       "id": "P1-28",
       "integration_or_live_probe": "",
@@ -1027,7 +1081,9 @@
       "depends_on": [
         "P0-03"
       ],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1035,7 +1091,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "ProductActionKernelDispatchAdapter checks allowed_tools and allowed_actions; coordinator does not enforce authority and several envelope dimensions depend on organ-specific code",
       "id": "P1-29",
       "integration_or_live_probe": "",
@@ -1056,7 +1112,9 @@
       "depends_on": [
         "P0-03"
       ],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1064,7 +1122,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "RuntimeConnection execution_enabled_by_registry and PowerSkill dispatch_enabled are validator-forced false; Actionability marks most actual product skills product_dispatchable=false while RuntimeHost still dispatches them",
       "id": "P1-30",
       "integration_or_live_probe": "",
@@ -1083,7 +1141,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1091,7 +1151,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "SHADOW_MODE_ONLY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "ProductModelNativeDecisionClient can synthesize final answer/blocker fields from context",
       "id": "P1-31",
       "integration_or_live_probe": "",
@@ -1110,7 +1170,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1118,7 +1180,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "DISABLE_IN_DEV",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Workspace patch content rejects broad substrings such as credential and secret= regardless of effect",
       "id": "P1-32",
       "integration_or_live_probe": "",
@@ -1137,7 +1199,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1145,7 +1209,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Cloak BrowserEngineSession.close returns inside finally and session sanitizer/close paths swallow broad exceptions",
       "id": "P1-33",
       "integration_or_live_probe": "",
@@ -1164,7 +1228,9 @@
       "targeted_tests": [],
       "target_wave": "W2",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1172,7 +1238,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "decision_context._browser_environment_entries calls stable_hash without importing it",
       "id": "P1-34",
       "integration_or_live_probe": "",
@@ -1191,7 +1257,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1199,7 +1267,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "power_bridge contains a Python 3.12-only f-string expression while pyproject declares Python >=3.11",
       "id": "P1-35",
       "integration_or_live_probe": "",
@@ -1218,7 +1286,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1226,7 +1296,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The eight test files changed by the last two commits are not green",
       "id": "P1-36",
       "integration_or_live_probe": "",
@@ -1245,7 +1315,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1253,7 +1325,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Twenty-six tests import Hypothesis but the test extra omits it",
       "id": "P1-37",
       "integration_or_live_probe": "",
@@ -1272,7 +1344,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1280,7 +1354,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The package has 561 Python modules across overlapping operator, agent, organs, mission and missions stacks; 214 are not statically reachable from the two console entry modules",
       "id": "P2-38",
       "integration_or_live_probe": "",
@@ -1299,7 +1373,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1307,7 +1383,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "DISABLE_IN_DEV",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Playwright is referenced by 23 source files and 29 test files with five direct runtime imports",
       "id": "P2-39",
       "integration_or_live_probe": "",
@@ -1329,7 +1405,9 @@
         "P1-21",
         "P1-22"
       ],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1337,7 +1415,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Ruff reports 1,142 findings including 112 blind excepts, five undefined names, ten except-pass sites, a finally-return and Python 3.11 syntax errors",
       "id": "P2-40",
       "integration_or_live_probe": "",
@@ -1356,7 +1434,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1364,7 +1444,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "REMOVE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Static lexical catalog contains 3,176 unique gate/failure-like codes and 6,309 source locations; many are historical or non-executable",
       "id": "P2-41",
       "integration_or_live_probe": "",
@@ -1383,7 +1463,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1391,7 +1473,7 @@
       "change_applied": "Slice 0A introduced first whole-Sentinel root runtime skeleton; organs not migrated.",
       "chosen_invariant": "root_runtime_orchestrates_body_not_model_cognition",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Sentinel has several independent cognitive/task spines and no single product loop owns mission state, cognition, organs, recovery, proof and cleanup.",
       "id": "C-P0-01",
       "integration_or_live_probe": "",
@@ -1425,7 +1507,8 @@
       ],
       "change_commits": [
         "aca1f008",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -1434,7 +1517,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "TELEMETRY_OR_TRUTH_MISMATCH",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The web product creates demo/hypothesis records and writes generated assets; it does not invoke the Python RuntimeHost or ProductActionKernel.",
       "id": "C-P0-02",
       "integration_or_live_probe": "",
@@ -1461,7 +1544,8 @@
       "target_wave": "W4",
       "depends_on": [],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -1470,7 +1554,7 @@
       "change_applied": "Canonical core requires a model client before the first cognitive turn; public brain-native routes still need migration.",
       "chosen_invariant": "no_product_cognitive_turn_without_role_model_client",
       "classification": "COGNITIVE_STATE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The public brain-native path can run without a role model client, while AgentRuntime's so-called LLM-backed decision cycle explicitly never executes a model.",
       "id": "C-P0-03",
       "integration_or_live_probe": "",
@@ -1504,7 +1588,8 @@
       ],
       "change_commits": [
         "aca1f008",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -1513,7 +1598,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "COGNITIVE_STATE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Persistent semantic memory and MissionGlobalWorkspace are implemented but not instantiated by a product source path.",
       "id": "C-P0-04",
       "integration_or_live_probe": "",
@@ -1542,7 +1627,8 @@
         "C-P0-01"
       ],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -1551,7 +1637,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "TELEMETRY_OR_TRUTH_MISMATCH",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Several organs can emit completed status and receipts without performing the advertised material work.",
       "id": "C-P0-05",
       "integration_or_live_probe": "",
@@ -1581,7 +1667,8 @@
         "P0-07"
       ],
       "change_commits": [
-        "aca1f008"
+        "aca1f008",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -1590,7 +1677,7 @@
       "change_applied": "First ExecutableCapabilityGraph exists for workspace read-only routes and code_exec quarantine only.",
       "chosen_invariant": "model_visible_affordances_generated_from_executable_routes",
       "classification": "AFFORDANCE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Capability, actionability, connection, power-skill and organ registries are separate descriptive maps and do not truthfully enumerate executable power.",
       "id": "C-P0-06",
       "integration_or_live_probe": "",
@@ -1624,7 +1711,8 @@
       ],
       "change_commits": [
         "aca1f008",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -1633,7 +1721,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "COGNITIVE_STATE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The general WorldModel is a fixed four-action heuristic table; only the Browser Organ maintains a materially observed environment state.",
       "id": "C-P1-07",
       "integration_or_live_probe": "",
@@ -1652,7 +1740,9 @@
       "targeted_tests": [],
       "target_wave": "W3",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1660,7 +1750,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "UNNECESSARY_BUREAUCRATIC_GATE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Skill Fabric is test-only in product source and evaluate_skill always marks a scanned manifest passed after a dry-run contract check.",
       "id": "C-P1-08",
       "integration_or_live_probe": "",
@@ -1679,7 +1769,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1687,7 +1779,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "ModelRouterRuntime explicitly simulates and binds a route but never executes a model call, and only tests construct it.",
       "id": "C-P1-09",
       "integration_or_live_probe": "",
@@ -1706,7 +1798,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1714,7 +1808,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "AFFORDANCE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "AmplificationHarnessRuntime states that it never executes actions and only tests construct it.",
       "id": "C-P1-10",
       "integration_or_live_probe": "",
@@ -1733,7 +1827,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1741,7 +1837,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "TELEMETRY_OR_TRUTH_MISMATCH",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "MissionDaemonRuntime.start only records a timestamp; RuntimeHost labels the daemon available, while pump_daemon_once bypasses daemon.tick and directly dispatches one request.",
       "id": "C-P1-11",
       "integration_or_live_probe": "",
@@ -1760,7 +1856,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1768,7 +1866,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "DurableMissionWorkflowRuntime is implemented around PowerRuntime plans, but no product source creates a workflow for the ProductActionKernel mission.",
       "id": "C-P1-12",
       "integration_or_live_probe": "",
@@ -1787,7 +1885,9 @@
       "targeted_tests": [],
       "target_wave": "W3",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1795,7 +1895,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "AFFORDANCE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The proactive scheduler is proposal-only and has no product caller.",
       "id": "C-P1-13",
       "integration_or_live_probe": "",
@@ -1814,7 +1914,9 @@
       "targeted_tests": [],
       "target_wave": "W3",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1822,7 +1924,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "PROOF_OR_PROVENANCE_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "ProofIndex is implemented only for browser receipts; there is no mission-wide canonical index spanning code, workspace, workers, channels, memory and terminal claims.",
       "id": "C-P1-14",
       "integration_or_live_probe": "",
@@ -1843,7 +1945,9 @@
       "depends_on": [
         "P0-07"
       ],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1851,7 +1955,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "PROOF_OR_PROVENANCE_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Replay is fragmented by subsystem and the product-loop replay records artifact history with zero reexecution counters rather than reconstructing mission cognition and causal state.",
       "id": "C-P1-15",
       "integration_or_live_probe": "",
@@ -1872,7 +1976,9 @@
       "depends_on": [
         "P0-07"
       ],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1880,7 +1986,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The default tool registry loads a static fixture catalog, and importing it in a clean interpreter fails due to a circular import; importing AgentRuntime first changes the result.",
       "id": "C-P1-16",
       "integration_or_live_probe": "",
@@ -1899,7 +2005,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1907,7 +2015,7 @@
       "change_applied": "CanonicalDecision records DecisionOrigin.MODEL_SELECTED for local decisions.",
       "chosen_invariant": "decision_origin_must_be_persisted_per_action",
       "classification": "PROOF_OR_PROVENANCE_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The runtime does not persist whether an action was model-selected, host-recovery-injected, progress-guard-rerouted, deterministic postprocessing or policy-required.",
       "id": "C-P1-17",
       "integration_or_live_probe": "",
@@ -1939,7 +2047,8 @@
       "depends_on": [],
       "change_commits": [
         "aca1f008",
-        "0701297e6f3e5f236f4f51acc1539e62f099be72"
+        "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
       ],
       "fixed_proven_commit": ""
     },
@@ -1948,7 +2057,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "RECOVERY_POLICY_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "ProductTaskResourceScope owns only a browser lease; workers, subprocesses, channels, desktop and voice resources are not registered under the root task scope.",
       "id": "C-P1-18",
       "integration_or_live_probe": "",
@@ -1967,7 +2076,9 @@
       "targeted_tests": [],
       "target_wave": "W2",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -1975,7 +2086,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "AFFORDANCE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "A real urllib-based external API read/write organ exists but is off the public entrypoint and absent from the organ registry.",
       "id": "C-P1-19",
       "integration_or_live_probe": "",
@@ -1994,7 +2105,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -2002,7 +2115,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "AFFORDANCE_MISSING",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Desktop, voice, channels, external API and trading packages are largely off-entrypoint while the default organ registry is dominated by browser specifications.",
       "id": "C-P1-20",
       "integration_or_live_probe": "",
@@ -2021,7 +2134,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -2029,7 +2144,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "TOOL_CONTRACT_AMBIGUOUS",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The same bounded-channel surface selects a real Telegram transport but fake local completion for other channel names.",
       "id": "C-P1-21",
       "integration_or_live_probe": "",
@@ -2048,7 +2163,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -2056,7 +2173,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The most complete real-model coding/browser harness is a 4,700-line standalone certification program, not the product runtime.",
       "id": "C-P1-22",
       "integration_or_live_probe": "",
@@ -2075,7 +2192,9 @@
       "targeted_tests": [],
       "target_wave": "W4",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -2083,7 +2202,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "Four package initializers contain 2,906 lines of eager exports and contribute to eight import cycles, including one 20-module cognitive/proof cycle.",
       "id": "C-P2-23",
       "integration_or_live_probe": "",
@@ -2102,7 +2221,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     },
     {
@@ -2110,7 +2231,7 @@
       "change_applied": "",
       "chosen_invariant": "",
       "classification": "TOOL_CONTRACT_AMBIGUOUS",
-      "current_head_revalidated": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "The monorepo mixes Sentinel core, a research-only agent lab, a separate Reddit/CueIdea product and a demo web façade.",
       "id": "C-P2-24",
       "integration_or_live_probe": "",
@@ -2129,7 +2250,9 @@
       "targeted_tests": [],
       "target_wave": "W5",
       "depends_on": [],
-      "change_commits": [],
+      "change_commits": [
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+      ],
       "fixed_proven_commit": ""
     }
   ],
@@ -2144,7 +2267,7 @@
     "fixed_proven_count": 0,
     "fixed_proven_definition": "requires real product path, discriminating probe, real mission, persistent proof, and no legacy bypass",
     "reconciled_at_utc": "2026-07-29T11:50:45.338831+00:00",
-    "reconciled_head": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
+    "reconciled_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
     "slice_warning": "The first three commits are preliminary slices, not completed master-directive stages.",
     "slices": [
       {
@@ -2176,6 +2299,12 @@
         "not_stage_complete_reason": "Kernel-backed product route reached the real provider adapter, but authentication failed before model-native decision and workspace effect.",
         "slice_id": "SLICE_0E_KERNEL_BACKED_PRODUCT_ROUTE_PROVIDER_AUTH_BLOCKED",
         "status": "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
+      },
+      {
+        "commit": "30c2cfad",
+        "slice_id": "SLICE_0F_QWEN_PROVIDER_ROUTE_AND_LOOP_STALL_TRUTH",
+        "status": "VALID_REAL_MODEL_LOOP_STALLED",
+        "not_stage_complete_reason": "qwen-plus authenticated and produced model-native workspace actions, but did not reach model-selected finish and receipt integrity verification remained false."
       }
     ]
   },
@@ -2244,7 +2373,7 @@
     "raw_paths_persisted": false
   },
   "updated_at_utc": "2026-07-29T12:25:00Z",
-  "synced_checkpoint_head": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+  "synced_checkpoint_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
   "ledger_schema_version": "canonical_core_finding_execution_ledger_v1",
   "fixed_proven_by_severity": {
     "P0": 0,
@@ -2253,7 +2382,7 @@
   },
   "fixed_proven_total": 0,
   "published_counters_after_commit": {
-    "checkpoint_commit": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+    "checkpoint_commit": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
     "P0 fixed / 15": "0/15",
     "P1 fixed / 44": "0/44",
     "P2 fixed / 6": "0/6",
@@ -2262,8 +2391,8 @@
   "fixed_proven_candidate_queue": [
     {
       "finding_id": "P0-01",
-      "candidate_reason": "public product route now reaches provider and terminalizes, but needs provider entitlement plus real model-selected workspace effect",
-      "blocking_evidence": "COMMON_PROVIDER_MODEL_WORKSPACE_ENTITLEMENT_BLOCK"
+      "candidate_reason": "public product route now reaches qwen-plus, accepts model-native decisions, and executes workspace effects",
+      "blocking_evidence": "VALID_REAL_MODEL_LOOP_STALLED: no model-selected finish and receipt_integrity_verified=false"
     },
     {
       "finding_id": "C-P0-01",
@@ -2273,7 +2402,7 @@
     {
       "finding_id": "C-P0-06",
       "candidate_reason": "executable capability graph now drives model-visible schema and dispatch for workspace routes",
-      "blocking_evidence": "full organ graph and real provider-selected effect not proven"
+      "blocking_evidence": "full organ graph and finished real mission not proven"
     },
     {
       "finding_id": "P0-07",
