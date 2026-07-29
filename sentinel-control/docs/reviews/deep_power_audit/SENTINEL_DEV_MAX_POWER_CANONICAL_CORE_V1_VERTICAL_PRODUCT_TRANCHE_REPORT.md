@@ -13,8 +13,16 @@ MATERIAL_WORKSPACE_ACTIONS = 0
 ```
 
 The tranche improved the canonical core product path locally, then attempted a
-real provider mission. The live mission could not complete because the only
-configured real provider credential was rejected by the provider.
+real provider mission. A post-review corrective pass widened terminalization,
+centralized workspace route registration, bounded workspace search, and made
+provider auth diagnostics specific without storing raw secrets.
+
+The live mission still could not complete because the configured provider
+credential is present but not authorized for the selected model/workspace route:
+
+```text
+safe_cause = model_or_workspace_unauthorized_http_403
+```
 
 This is not claimed as `FIXED_PROVEN`.
 
@@ -46,6 +54,28 @@ The model-facing/current canonical decision path is:
 ```text
 DecisionProtocol.MODEL_NATIVE_CANONICAL_JSON_V1
 DecisionOrigin.MODEL_SELECTED
+```
+
+## Post-Review Corrective Pass
+
+```text
+base_checkpoint = a4538e3d36b677c8f49952117d1c6b8950a470a8
+ledger_checkpoint_truth = synchronized to a4538e3d
+provider_failure_diagnosis = model_or_workspace_unauthorized_http_403
+FIXED_PROVEN_COUNT = 0
+```
+
+Corrections applied:
+
+```text
+model-client-missing fence = persistent terminal MissionRecord
+provider/normalization fence = persistent terminal MissionRecord with safe detail
+dispatch/workspace/receipt/proof/cleanup fence = typed safe failure path
+workspace.search escape probes = symlink/junction outside-root skip
+workspace.search limits = max files + max bytes + safe I/O skip counters
+capability executor registry = callable-backed route table
+model-visible schema = generated from executable capability graph
+authority gate = enforced centrally before each registered effect
 ```
 
 ## Files Changed
@@ -133,6 +163,24 @@ classification = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
 Only `SENTINEL_CERT_MODEL_API_KEY` is configured locally. No other cataloged
 real provider credential is present in the process or user environment.
 
+### V4/V5 Corrective Diagnosis
+
+```text
+provider = aliyun_dashscope/glm-5.2
+mission_record_before_provider = true
+provider_decision_count = 1
+material_actions = 0
+terminal_state = blocked
+cleanup = true
+failure_code = canonical_provider_failure_PROVIDER_AUTH_ERROR_model_or_workspace_unauthorized_http_403
+classification = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
+raw_secret_persisted = false
+```
+
+This distinguishes the current blocker from a missing local key. The credential
+exists in the local environment, the provider/backend route is constructed, and
+the provider rejected access with `403`.
+
 ## Gates
 
 ```text
@@ -169,11 +217,12 @@ or workspace execution:
 
 ```text
 PROVIDER_AUTH_ERROR
+safe_cause = model_or_workspace_unauthorized_http_403
 ```
 
-After a valid provider credential is restored, rerun the same canonical product
-workspace vertical slice once. If it accepts a model decision and completes a
-workspace action, the next required work is:
+After provider-side model/workspace authorization is restored, rerun the same
+canonical product workspace vertical slice once. If it accepts a model decision
+and completes a workspace action, the next required work is:
 
 ```text
 physical provider cancellation

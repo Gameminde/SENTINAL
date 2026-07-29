@@ -657,15 +657,13 @@ def _canonical_real_model_request(
 
 def _canonical_product_provider_prompt(request: CanonicalDecisionRequest) -> str:
     state = request.canonical_state.safe_model_dump()
+    operation_schemas = state.get("model_visible_operation_schemas", [])
     return (
         "You are the model brain. Sentinel is the body, state, effects, proof, and laws.\n"
         "Choose exactly one safe next operation for this read-only workspace mission.\n"
         "Return exactly one JSON object and no markdown.\n"
-        "Allowed operations:\n"
-        "- {\"capability\":\"workspace\",\"operation\":\"list\",\"arguments\":{\"path\":\".\"}}\n"
-        "- {\"capability\":\"workspace\",\"operation\":\"search\",\"arguments\":{\"query\":\"...\",\"path\":\".\"}}\n"
-        "- {\"capability\":\"workspace\",\"operation\":\"read\",\"arguments\":{\"path\":\"...\",\"max_chars\":1200}}\n"
-        "- {\"capability\":\"sentinel_loop\",\"operation\":\"finish\",\"arguments\":{\"answer\":\"...\"}}\n"
+        "Allowed operations are generated from Sentinel's executable capability graph:\n"
+        f"{json.dumps(operation_schemas, sort_keys=True, default=str)}\n"
         "Do not request code execution, network, credentials, browser, shell, provider-native tools, fallback, or authority changes.\n"
         "Finish only after a prior receipt/evidence ref supports the answer.\n"
         f"Mission objective: {request.canonical_state.objective}\n"
@@ -679,7 +677,8 @@ def _extract_canonical_json_decision(raw: Any) -> dict[str, Any]:
     if isinstance(raw, dict):
         if raw.get("provider_failure") is True:
             category = str(raw.get("provider_failure_category") or raw.get("provider_error_class") or "UNKNOWN")
-            raise CanonicalCoreError(f"canonical_provider_failure_{category}")
+            diagnosis = _canonical_provider_failure_diagnosis(raw)
+            raise CanonicalCoreError(f"canonical_provider_failure_{category}_{diagnosis}")
         metadata = raw.get("metadata")
         if isinstance(metadata, dict) and metadata.get("blocked_reason"):
             raise CanonicalCoreError(f"canonical_provider_blocked_{metadata.get('blocked_reason')}")
@@ -704,6 +703,28 @@ def _extract_canonical_json_decision(raw: Any) -> dict[str, Any]:
     if candidate is None:
         raise CanonicalCoreError("canonical_provider_decision_json_missing")
     return candidate
+
+
+def _canonical_provider_failure_diagnosis(payload: dict[str, Any]) -> str:
+    category = str(payload.get("provider_failure_category") or payload.get("provider_error_class") or "UNKNOWN")
+    status = payload.get("http_status") or payload.get("status_code")
+    try:
+        http_status = int(status)
+    except (TypeError, ValueError):
+        http_status = None
+    if category == "PROVIDER_AUTH_ERROR":
+        if http_status == 401:
+            return "credential_rejected_http_401"
+        if http_status == 403:
+            return "model_or_workspace_unauthorized_http_403"
+        if http_status in {400, 404}:
+            return f"endpoint_or_model_http_{http_status}"
+        if http_status is not None:
+            return f"auth_rejected_http_{http_status}"
+        return "auth_rejected_status_unknown"
+    if http_status is not None:
+        return f"http_{http_status}"
+    return "cause_unknown"
 
 
 def _first_json_object(text: str) -> dict[str, Any] | None:

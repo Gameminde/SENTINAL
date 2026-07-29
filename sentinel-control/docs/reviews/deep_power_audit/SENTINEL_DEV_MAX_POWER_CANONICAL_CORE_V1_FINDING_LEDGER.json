@@ -8,8 +8,18 @@
     "legacy_bypass_absence_proven": false,
     "material_action_count_latest_real_attempt": 0,
     "mission_record_before_provider": true,
+    "checkpoint_head": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
     "provider_decision_count_latest_real_attempt": 1,
-    "provider_failure_code": "canonical_provider_failure_PROVIDER_AUTH_ERROR",
+    "provider_failure_code": "canonical_provider_failure_PROVIDER_AUTH_ERROR_model_or_workspace_unauthorized_http_403",
+    "provider_failure_diagnosis": {
+      "classification": "PROVIDER_AUTH_REJECTED",
+      "credential_present": true,
+      "provider_backend_route_constructed": true,
+      "model_id_configured": true,
+      "safe_cause": "model_or_workspace_unauthorized_http_403",
+      "distinguishes_invalid_key_wrong_endpoint_or_model_entitlement": "yes",
+      "raw_secret_persisted": false
+    },
     "raw_provider_material_persisted": false,
     "real_provider_attempted": true,
     "real_provider_success": false,
@@ -18,14 +28,14 @@
   },
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
-  "current_head": "efdbd558abddbc38cea7e506ff8cb8dfe8ef93fa",
+  "current_head": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
   "entries": [
     {
       "acceptance_probe": "Start a mission from the public CLI and prove provider decision -> ProductModelNativeDecisionClient -> ProductActionKernel -> receipt",
-      "change_applied": "Slice 0A added canonical-dev-run and RootMissionRuntime skeleton; real provider product entrypoint still pending.",
+      "change_applied": "Slice 0A added canonical-dev-run and RootMissionRuntime skeleton; 41d417ef reconciled methodology; a4538e3d added the kernel-backed public product route but stopped honestly at provider authentication.",
       "chosen_invariant": "public_product_request_must_route_to_real_model_before_fixed_proven",
       "classification": "REPLACE_WITH_RECOVERY",
-      "current_head_revalidated": "aca1f008",
+      "current_head_revalidated": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
       "finding": "ProductModelNativeDecisionClient has no production source caller and the public cockpit remains bound to read_only_research.inspect_repository",
       "id": "P0-01",
       "integration_or_live_probe": "",
@@ -36,7 +46,7 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "No real provider mission through this core yet; ProductModelNativeDecisionClient not fully public-routed.",
+      "remaining_risk": "Public product route reaches the real provider adapter, but provider authentication failed before model-native decision and workspace effect; ProductModelNativeDecisionClient is not FIXED_PROVEN.",
       "required_change": "Create one canonical product entrypoint that constructs ProductModelNativeDecisionClient and invokes RuntimeHost.run_product_action_kernel_task_loop; retire the parallel read-only-only product binding for general missions",
       "responsible_files_symbols": [],
       "severity": "P0",
@@ -45,6 +55,18 @@
           "head": "aca1f008",
           "note": "Slice 0A added canonical-dev-run and RootMissionRuntime skeleton; real provider product entrypoint still pending.",
           "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "status": "IMPLEMENTING"
+        },
+        {
+          "head": "41d417ef",
+          "note": "Methodology reconciliation reclassified preliminary commits as slices and kept FIXED_PROVEN at 0.",
+          "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "status": "IMPLEMENTING"
+        },
+        {
+          "head": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
+          "note": "Kernel-backed canonical product route exists and creates MissionRecord before provider; real provider stopped at PROVIDER_AUTH_ERROR before model-native workspace action.",
+          "proof_tier": "T2_PRODUCT_ROUTE_REACHED_PROVIDER_AUTH_BLOCKED",
           "status": "IMPLEMENTING"
         }
       ],
@@ -1686,7 +1708,7 @@
     "fixed_proven_count": 0,
     "fixed_proven_definition": "requires real product path, discriminating probe, real mission, persistent proof, and no legacy bypass",
     "reconciled_at_utc": "2026-07-29T11:50:45.338831+00:00",
-    "reconciled_head": "aca1f008",
+    "reconciled_head": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
     "slice_warning": "The first three commits are preliminary slices, not completed master-directive stages.",
     "slices": [
       {
@@ -1706,6 +1728,18 @@
         "not_stage_complete_reason": "Physical sandbox is not fixed; code exec is quarantined from the canonical model surface.",
         "slice_id": "SLICE_0C_CODE_SANDBOX_PHYSICAL_BOUNDARY_PROBE_AND_QUARANTINE",
         "status": "T1_LOCAL_REPRODUCED_UNSAFE_WITH_CANONICAL_QUARANTINE"
+      },
+      {
+        "commit": "41d417ef",
+        "not_stage_complete_reason": "Methodology reconciliation only; it did not prove a real provider product mission.",
+        "slice_id": "SLICE_0D_METHOD_RECONCILIATION_AND_LEDGER_ALIGNMENT",
+        "status": "T1_LOCAL_DETERMINISTIC_CANDIDATE"
+      },
+      {
+        "commit": "a4538e3d36b677c8f49952117d1c6b8950a470a8",
+        "not_stage_complete_reason": "Kernel-backed product route reached the real provider adapter, but authentication failed before model-native decision and workspace effect.",
+        "slice_id": "SLICE_0E_KERNEL_BACKED_PRODUCT_ROUTE_PROVIDER_AUTH_BLOCKED",
+        "status": "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
       }
     ]
   },

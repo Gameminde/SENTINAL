@@ -15,6 +15,7 @@ from sentinel.operator.canonical_core import (
     DecisionOrigin,
     DecisionProtocol,
     EffectKind,
+    RootMissionRuntime,
     RootMissionCancellationToken,
     build_workspace_read_capability_graph,
     run_canonical_dev_mission,
@@ -54,6 +55,11 @@ class FailingModelClient:
         raise CanonicalCoreError("canonical_provider_decision_json_missing")
 
 
+class RaisingDispatchModelClient:
+    def complete(self, request: Any) -> dict[str, Any]:
+        return {"capability": "workspace", "operation": "read", "arguments": {"path": "missing.md"}}
+
+
 def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     ledger_path = (
         Path(__file__).parents[4]
@@ -69,13 +75,16 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len(ledger["entries"]) == 65
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
+    assert ledger["current_head"] == "a4538e3d36b677c8f49952117d1c6b8950a470a8"
     assert ledger["fixed_proven_count"] == 0
     assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
-    assert [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]] == [
+    slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]
+    assert slice_ids[:3] == [
         "SLICE_0A_STAGE0_LEDGER_AND_LOCAL_VERTICAL_SKELETON",
         "SLICE_0B_ROOT_CANCELLATION_SEAM",
         "SLICE_0C_CODE_SANDBOX_PHYSICAL_BOUNDARY_PROBE_AND_QUARANTINE",
     ]
+    assert "SLICE_0E_KERNEL_BACKED_PRODUCT_ROUTE_PROVIDER_AUTH_BLOCKED" in slice_ids
     by_id = {entry["id"]: entry for entry in ledger["entries"]}
     assert by_id["P0-01"]["status"] == "IMPLEMENTING"
     assert by_id["P0-02"]["status"] == "CONFIRMED_CURRENT"
@@ -86,7 +95,11 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert by_id["C-P0-01"]["status"] == "IMPLEMENTING"
     assert by_id["C-P0-06"]["status"] == "IMPLEMENTING"
     assert by_id["P1-25"]["status"] == "IMPLEMENTING"
-    assert ledger["canonical_core_vertical_product_tranche"]["status"] == "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
+    tranche = ledger["canonical_core_vertical_product_tranche"]
+    assert tranche["status"] == "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
+    assert tranche["checkpoint_head"] == "a4538e3d36b677c8f49952117d1c6b8950a470a8"
+    assert tranche["provider_failure_diagnosis"]["classification"] == "PROVIDER_AUTH_REJECTED"
+    assert "a4538e3d36b677c8f49952117d1c6b8950a470a8" in by_id["P0-01"]["slice_status_history"][-1]["head"]
 
 
 def test_provider_client_required_before_first_cognitive_turn(tmp_path: Path) -> None:
@@ -99,6 +112,31 @@ def test_provider_client_required_before_first_cognitive_turn(tmp_path: Path) ->
             model_client=None,
             provider_model="missing-provider",
         )
+
+
+def test_product_missing_model_client_terminalizes_existing_mission_record(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+
+    result = run_canonical_product_mission(
+        objective="The product route must terminalize even without a model client.",
+        workspace_root=workspace,
+        model_client=None,
+        provider_model="missing-provider",
+        kernel=kernel,
+        session_id="session_missing_client",
+    )
+
+    record = kernel.store.load_record(result.root_mission_id)
+    events = kernel.store.load_events(result.root_mission_id)
+
+    assert result.status == "blocked"
+    assert result.final_reason == "MODEL_DECISION_FAILED"
+    assert result.blocked_reason_detail == "canonical_model_client_required"
+    assert result.cleanup_completed is True
+    assert record.status is OperatorMissionStatus.BLOCKED
+    assert any(event.event_type == "canonical_model_decision_failed" for event in events)
+    assert any(event.event_type == "canonical_cleanup_completed" for event in events)
 
 
 def test_root_cancellation_before_provider_call_blocks_without_decision(tmp_path: Path) -> None:
@@ -306,6 +344,75 @@ def test_product_vertical_slice_provider_failure_terminalizes_record_and_cleanup
     assert "exception_hash" in failure_event.metadata
 
 
+def test_product_workspace_dispatch_failure_terminalizes_record_and_cleanup(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+
+    result = run_canonical_product_mission(
+        objective="Try a missing file and prove the root mission does not stay running.",
+        workspace_root=workspace,
+        model_client=RaisingDispatchModelClient(),
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_dispatch_failure",
+    )
+
+    record = kernel.store.load_record(result.root_mission_id)
+    events = kernel.store.load_events(result.root_mission_id)
+    failure_event = next(event for event in events if event.event_type == "canonical_effect_failed")
+
+    assert result.status == "blocked"
+    assert result.final_reason == "EFFECT_DISPATCH_FAILED"
+    assert result.provider_decision_count == 1
+    assert result.material_action_count == 0
+    assert result.receipts == ()
+    assert result.cleanup_completed is True
+    assert record.status is OperatorMissionStatus.BLOCKED
+    assert failure_event.metadata["failure_stage"] == "dispatch_or_workspace_effect"
+    assert failure_event.metadata["failure_code"] == "workspace_path_not_found"
+    assert any(event.event_type == "canonical_cleanup_completed" for event in events)
+
+
+def test_product_receipt_persistence_failure_terminalizes_record_and_cleanup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    original_atomic_write_json = kernel.store.atomic_write_json
+
+    def fail_receipt_write(path: Path, payload: dict[str, Any]) -> None:
+        if path.name.startswith("canonical_effect_receipt_"):
+            raise OSError("synthetic receipt write failure")
+        original_atomic_write_json(path, payload)
+
+    monkeypatch.setattr(kernel.store, "atomic_write_json", fail_receipt_write)
+
+    result = run_canonical_product_mission(
+        objective="Receipt persistence failure must be terminal and safe.",
+        workspace_root=workspace,
+        model_client=ScriptedModelClient(
+            [{"capability": "workspace", "operation": "list", "arguments": {"path": "."}}]
+        ),
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_receipt_failure",
+    )
+
+    record = kernel.store.load_record(result.root_mission_id)
+    events = kernel.store.load_events(result.root_mission_id)
+    failure_event = next(event for event in events if event.event_type == "canonical_effect_failed")
+
+    assert result.status == "blocked"
+    assert result.final_reason == "EFFECT_DISPATCH_FAILED"
+    assert result.material_action_count == 0
+    assert result.receipts == ()
+    assert result.cleanup_completed is True
+    assert record.status is OperatorMissionStatus.BLOCKED
+    assert failure_event.metadata["failure_stage"] == "receipt_persistence"
+    assert failure_event.metadata["failure_code"] == "OSError"
+
+
 def test_capability_graph_is_generated_from_executable_routes() -> None:
     graph = build_workspace_read_capability_graph()
 
@@ -319,7 +426,24 @@ def test_capability_graph_is_generated_from_executable_routes() -> None:
     assert graph.resolve("workspace", "read").materiality_verifier == "workspace_path_observed"
     assert graph.resolve("workspace", "search").proof_contract == "canonical_core_workspace_receipt_v1"
     assert graph.resolve("sentinel_loop", "finish").effect_kind is EffectKind.PROPOSAL
+    assert graph.model_visible_operation_schemas()[0]["affordance"] == "workspace.list"
+    assert "arguments_schema" in graph.model_visible_operation_schemas()[0]
+    assert all(not hasattr(route, "executor") for route in graph.routes)
+    assert {route.executor_id for route in graph.routes} == {
+        "workspace.list",
+        "workspace.read",
+        "workspace.search",
+        "sentinel_loop.finish",
+    }
     assert len({(route.capability, route.operation) for route in graph.routes}) == len(graph.routes)
+
+
+def test_runtime_dispatch_uses_registered_callable_not_hardcoded_if_chain(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    runtime = RootMissionRuntime(objective="Dispatch through registered callables.", workspace_root=workspace, provider_model="test/model")
+    route = runtime.capability_graph.resolve("workspace", "list")
+
+    assert runtime.resolve_executor(route).__name__ == "_workspace_list"
 
 
 def test_product_action_envelope_decision_is_consumed_without_parallel_model_protocol(tmp_path: Path) -> None:
@@ -392,6 +516,88 @@ def test_workspace_read_cannot_escape_root(tmp_path: Path) -> None:
             model_client=model,
             provider_model="test-provider/model",
         )
+
+
+def test_workspace_search_skips_symlink_or_junction_escape(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    outside = tmp_path / "outside_secret.txt"
+    outside.write_text("needle outside workspace must not be searchable\n", encoding="utf-8")
+    link = workspace / "linked_outside.txt"
+    try:
+        link.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable in this environment: {exc.__class__.__name__}")
+    model = ScriptedModelClient(
+        [
+            {"capability": "workspace", "operation": "search", "arguments": {"query": "needle", "path": "."}},
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Done."}},
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Search must not follow a link outside the governed workspace.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+    )
+
+    observation = result.receipts[0].safe_observation
+    assert observation["match_count"] == 2
+    assert observation["skipped_outside_root_count"] == 1
+    assert all(match["path"] != "linked_outside.txt" for match in observation["matches"])
+
+
+def test_workspace_search_applies_file_and_byte_limits(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    (workspace / "big.txt").write_text("needle " * 1000, encoding="utf-8")
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "workspace",
+                "operation": "search",
+                "arguments": {"query": "needle", "path": ".", "max_files": 1, "max_bytes_per_file": 8},
+            },
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Done."}},
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Search with strict resource limits.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+    )
+
+    observation = result.receipts[0].safe_observation
+    assert observation["files_examined_count"] == 1
+    assert observation["skipped_max_files_count"] >= 1
+    assert observation["skipped_too_large_count"] in {0, 1}
+
+
+def test_product_dispatch_enforces_mission_grant_before_real_effect(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+
+    result = run_canonical_product_mission(
+        objective="Workspace read should be blocked without workspace_read authority.",
+        workspace_root=workspace,
+        model_client=ScriptedModelClient(
+            [{"capability": "workspace", "operation": "list", "arguments": {"path": "."}}]
+        ),
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_no_grant",
+        granted_authorities=("none",),
+    )
+
+    record = kernel.store.load_record(result.root_mission_id)
+
+    assert result.status == "blocked"
+    assert result.final_reason == "EFFECT_DISPATCH_FAILED"
+    assert result.blocked_reason_detail == "canonical_authority_required:workspace_read"
+    assert result.material_action_count == 0
+    assert result.receipts == ()
+    assert record.status is OperatorMissionStatus.BLOCKED
 
 
 def test_model_payload_cannot_self_grant_authority(tmp_path: Path) -> None:
@@ -651,11 +857,42 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     assert len(captured_requests) == 2
     assert captured_requests[0].runtime == "product_model_native_decision"
     assert captured_requests[0].request_metadata["raw_text_transport"] == "product_model_native_intent_v1"
+    assert captured_requests[0].request_metadata["model_visible_affordances"] == [
+        "workspace.list",
+        "workspace.read",
+        "workspace.search",
+        "sentinel_loop.finish",
+    ]
+    prompt = captured_requests[0].prompt_text_in_memory_only
+    assert "Allowed operations are generated from Sentinel's executable capability graph" in prompt
+    assert "model_visible_operation_schemas" in prompt
+    assert "workspace.search" in prompt
+    assert "- {\"capability\":\"workspace\"" not in prompt
     assert captured_requests[0].provider_id == "aliyun_dashscope"
     assert captured_requests[0].backend_id == "aliyun_openai_compatible_chat"
     assert captured_requests[0].model_id == "glm-5.2"
     assert payload["status"] == "completed"
     assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
+
+
+def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:
+    with pytest.raises(CanonicalCoreError, match="credential_rejected_http_401"):
+        cli._extract_canonical_json_decision(
+            {
+                "provider_failure": True,
+                "provider_failure_category": "PROVIDER_AUTH_ERROR",
+                "http_status": 401,
+            }
+        )
+
+    with pytest.raises(CanonicalCoreError, match="model_or_workspace_unauthorized_http_403"):
+        cli._extract_canonical_json_decision(
+            {
+                "provider_failure": True,
+                "provider_failure_category": "PROVIDER_AUTH_ERROR",
+                "http_status": 403,
+            }
+        )
 
 
 def _workspace(tmp_path: Path) -> Path:

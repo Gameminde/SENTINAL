@@ -4,7 +4,7 @@ import hashlib
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from pydantic import Field, model_validator
 
@@ -19,6 +19,13 @@ from sentinel.shared.models import SentinelModel, new_id
 
 class CanonicalCoreError(RuntimeError):
     pass
+
+
+class CanonicalEffectDispatchError(CanonicalCoreError):
+    def __init__(self, *, failure_stage: str, cause: Exception) -> None:
+        self.failure_stage = failure_stage
+        self.cause = cause
+        super().__init__(f"canonical_effect_dispatch_failed:{failure_stage}:{_safe_exception_code(cause)}")
 
 
 class CanonicalCapabilityQuarantined(CanonicalCoreError):
@@ -80,10 +87,11 @@ class RootMissionCancellationToken:
 class CanonicalCapabilityRoute(SentinelModel):
     capability: str
     operation: str
-    executor: str
+    executor_id: str
     effect_kind: EffectKind
     backend_mode: str
     required_authority: str
+    arguments_schema: dict[str, Any] = Field(default_factory=dict)
     preconditions: tuple[str, ...] = Field(default_factory=tuple)
     readiness_probe: str
     materiality_verifier: str
@@ -131,6 +139,27 @@ class ExecutableCapabilityGraph(SentinelModel):
     def model_visible_affordances(self) -> tuple[str, ...]:
         return tuple(route.affordance for route in self.routes if route.model_visible)
 
+    def model_visible_operation_schemas(self) -> tuple[dict[str, Any], ...]:
+        schemas: list[dict[str, Any]] = []
+        for route in self.routes:
+            if not route.model_visible:
+                continue
+            schemas.append(
+                {
+                    "affordance": route.affordance,
+                    "capability": route.capability,
+                    "operation": route.operation,
+                    "arguments_schema": route.arguments_schema,
+                    "effect_kind": route.effect_kind.value,
+                    "required_authority": route.required_authority,
+                    "preconditions": list(route.preconditions),
+                    "readiness_probe": route.readiness_probe,
+                    "materiality_verifier": route.materiality_verifier,
+                    "proof_contract": route.proof_contract,
+                }
+            )
+        return tuple(schemas)
+
     def resolve(self, capability: str, operation: str) -> CanonicalCapabilityRoute:
         for route in self.routes:
             if route.capability == capability and route.operation == operation:
@@ -162,6 +191,7 @@ class CanonicalState(SentinelModel):
     provider_decision_count: int
     material_action_count: int
     model_visible_affordances: tuple[str, ...]
+    model_visible_operation_schemas: tuple[dict[str, Any], ...] = Field(default_factory=tuple)
     last_action: str | None = None
     evidence_refs: tuple[str, ...] = Field(default_factory=tuple)
     recent_observations: tuple[dict[str, Any], ...] = Field(default_factory=tuple)
@@ -184,6 +214,7 @@ class CanonicalState(SentinelModel):
             "provider_decision_count": self.provider_decision_count,
             "material_action_count": self.material_action_count,
             "model_visible_affordances": list(self.model_visible_affordances),
+            "model_visible_operation_schemas": list(self.model_visible_operation_schemas),
             "last_action": self.last_action,
             "evidence_refs": list(self.evidence_refs),
             "recent_observations": [redact_operator_value(item) for item in self.recent_observations],
@@ -414,10 +445,18 @@ def build_workspace_read_capability_graph() -> ExecutableCapabilityGraph:
             CanonicalCapabilityRoute(
                 capability="sentinel_loop",
                 operation="finish",
-                executor="sentinel.operator.canonical_core.RootMissionRuntime._finish",
+                executor_id="sentinel_loop.finish",
                 effect_kind=EffectKind.PROPOSAL,
                 backend_mode="host_terminal_decision",
                 required_authority="none",
+                arguments_schema={
+                    "type": "object",
+                    "properties": {
+                        "answer": {"type": "string"},
+                        "safe_summary": {"type": "string"},
+                    },
+                    "additionalProperties": False,
+                },
                 preconditions=("receipt_or_honest_blocker_exists",),
                 readiness_probe="always_available",
                 materiality_verifier="terminal_payload_present",
@@ -448,6 +487,7 @@ def run_canonical_dev_mission(
     max_material_actions: int = 120,
     provider_decisions_reserved_for_finish: int = 6,
     cancellation_token: RootMissionCancellationToken | None = None,
+    granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
 ) -> CanonicalDevMissionResult:
     runtime = RootMissionRuntime(
         objective=objective,
@@ -457,6 +497,7 @@ def run_canonical_dev_mission(
         max_material_actions=max_material_actions,
         provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
         cancellation_token=cancellation_token,
+        granted_authorities=granted_authorities,
     )
     return runtime.run(model_client=model_client)
 
@@ -473,6 +514,7 @@ def run_canonical_product_mission(
     max_material_actions: int = 120,
     provider_decisions_reserved_for_finish: int = 6,
     cancellation_token: RootMissionCancellationToken | None = None,
+    granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
 ) -> CanonicalDevMissionResult:
     runtime = RootMissionRuntime(
         objective=objective,
@@ -484,6 +526,7 @@ def run_canonical_product_mission(
         cancellation_token=cancellation_token,
         kernel=kernel,
         session_id=session_id,
+        granted_authorities=granted_authorities,
     )
     return runtime.run(model_client=model_client)
 
@@ -502,6 +545,7 @@ class RootMissionRuntime:
         cancellation_token: RootMissionCancellationToken | None = None,
         kernel: MissionKernel | None = None,
         session_id: str = "canonical_core_dev_session",
+        granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
     ) -> None:
         self.root_mission_id = new_id("root_mission")
         self.objective = objective
@@ -516,6 +560,7 @@ class RootMissionRuntime:
         self.cancellation_token = cancellation_token or RootMissionCancellationToken()
         self.kernel = kernel
         self.session_id = session_id
+        self.granted_authorities = frozenset(granted_authorities)
         self.decisions: list[CanonicalDecision] = []
         self.receipts: list[CanonicalEffectReceipt] = []
         self.evidence_refs: list[str] = []
@@ -531,6 +576,14 @@ class RootMissionRuntime:
 
     def run(self, *, model_client: CanonicalModelClient | None) -> CanonicalDevMissionResult:
         if model_client is None:
+            if self.kernel is not None:
+                exc = CanonicalCoreError("canonical_model_client_required")
+                self._persist_model_decision_failure(exc)
+                return self._terminal_result(
+                    status="blocked",
+                    reason="MODEL_DECISION_FAILED",
+                    blocked_reason_detail=_safe_exception_code(exc),
+                )
             raise CanonicalCoreError("canonical_model_client_required")
         try:
             while True:
@@ -557,7 +610,11 @@ class RootMissionRuntime:
                     if self.kernel is None:
                         raise
                     self._persist_model_decision_failure(exc)
-                    return self._terminal_result(status="blocked", reason="MODEL_DECISION_FAILED")
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="MODEL_DECISION_FAILED",
+                        blocked_reason_detail=_safe_exception_code(exc),
+                    )
                 if self.cancellation_token.cancelled:
                     return self._terminal_result(
                         status="blocked",
@@ -577,10 +634,36 @@ class RootMissionRuntime:
                     if self.kernel is None:
                         raise
                     self._persist_model_decision_failure(exc)
-                    return self._terminal_result(status="blocked", reason="MODEL_DECISION_FAILED")
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="MODEL_DECISION_FAILED",
+                        blocked_reason_detail=_safe_exception_code(exc),
+                    )
                 self.decisions.append(decision)
-                self._persist_decision(decision)
+                try:
+                    self._persist_decision(decision)
+                except Exception as exc:
+                    if self.kernel is None:
+                        raise
+                    self._persist_effect_failure(exc, failure_stage="decision_persistence")
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="EFFECT_DISPATCH_FAILED",
+                        blocked_reason_detail=_safe_exception_code(exc),
+                    )
                 if decision.capability == "sentinel_loop" and decision.operation == "finish":
+                    route = self.capability_graph.resolve(decision.capability, decision.operation)
+                    try:
+                        self._assert_route_authorized(route)
+                    except Exception as exc:
+                        if self.kernel is None:
+                            raise
+                        self._persist_effect_failure(exc, failure_stage="authority_gate")
+                        return self._terminal_result(
+                            status="blocked",
+                            reason="EFFECT_DISPATCH_FAILED",
+                            blocked_reason_detail=_safe_exception_code(exc),
+                        )
                     if not self.receipts:
                         return self._terminal_result(status="blocked", reason="MODEL_FINISH_BEFORE_RECEIPT")
                     return self._terminal_result(
@@ -590,7 +673,17 @@ class RootMissionRuntime:
                     )
                 if self.material_action_count >= self.budget.max_material_actions:
                     return self._terminal_result(status="blocked", reason="MATERIAL_ACTION_BUDGET_EXHAUSTED")
-                receipt = self._execute(decision, before_state=state)
+                try:
+                    receipt = self._execute(decision, before_state=state)
+                except Exception as exc:
+                    if self.kernel is None:
+                        raise
+                    self._persist_effect_failure(exc)
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="EFFECT_DISPATCH_FAILED",
+                        blocked_reason_detail=_safe_exception_code(exc),
+                    )
                 self.receipts.append(receipt)
                 self.evidence_refs.extend(receipt.evidence_refs)
                 self.recent_observations.append(receipt.safe_observation)
@@ -607,6 +700,7 @@ class RootMissionRuntime:
             provider_decision_count=self.provider_decision_count,
             material_action_count=self.material_action_count,
             model_visible_affordances=self.capability_graph.model_visible_affordances(),
+            model_visible_operation_schemas=self.capability_graph.model_visible_operation_schemas(),
             last_action=self.last_action,
             evidence_refs=tuple(dict.fromkeys(self.evidence_refs)),
             recent_observations=tuple(self.recent_observations[-4:]),
@@ -619,12 +713,27 @@ class RootMissionRuntime:
             return
         self._closed = True
         if self.kernel is not None:
-            self.kernel.store.append_event(
-                self.root_mission_id,
-                event_type="canonical_cleanup_completed",
-                safe_summary="Canonical root mission cleanup completed.",
-                metadata={"cleanup_completed": True},
-            )
+            try:
+                self.kernel.store.append_event(
+                    self.root_mission_id,
+                    event_type="canonical_cleanup_completed",
+                    safe_summary="Canonical root mission cleanup completed.",
+                    metadata={"cleanup_completed": True},
+                )
+            except Exception:
+                return
+
+    def resolve_executor(self, route: CanonicalCapabilityRoute) -> Callable[[dict[str, Any]], tuple[str, dict[str, Any], str]]:
+        executors: dict[str, Callable[[dict[str, Any]], tuple[str, dict[str, Any], str]]] = {
+            "workspace.list": self._workspace_list,
+            "workspace.read": self._workspace_read,
+            "workspace.search": self._workspace_search,
+            "sentinel_loop.finish": self._finish,
+        }
+        executor = executors.get(route.executor_id)
+        if executor is None:
+            raise CanonicalCoreError(f"canonical_executor_missing:{route.affordance}")
+        return executor
 
     def _normalize_decision(self, raw: Any) -> CanonicalDecision:
         if isinstance(raw, CanonicalDecision):
@@ -679,14 +788,12 @@ class RootMissionRuntime:
 
     def _execute(self, decision: CanonicalDecision, *, before_state: CanonicalState) -> CanonicalEffectReceipt:
         route = self.capability_graph.resolve(decision.capability, decision.operation)
-        if route.capability == "workspace" and route.operation == "list":
-            status, observation, summary = self._workspace_list(decision.arguments)
-        elif route.capability == "workspace" and route.operation == "read":
-            status, observation, summary = self._workspace_read(decision.arguments)
-        elif route.capability == "workspace" and route.operation == "search":
-            status, observation, summary = self._workspace_search(decision.arguments)
-        else:
-            raise CanonicalCoreError(f"canonical_executor_missing:{route.affordance}")
+        self._assert_route_authorized(route)
+        executor = self.resolve_executor(route)
+        try:
+            status, observation, summary = executor(decision.arguments)
+        except Exception as exc:
+            raise CanonicalEffectDispatchError(failure_stage="dispatch_or_workspace_effect", cause=exc) from exc
         evidence_ref = f"evidence:{stable_hash(observation)[:24]}"
         after_state_hash = stable_hash(
             {
@@ -711,8 +818,22 @@ class RootMissionRuntime:
             before_state_hash=before_state.state_hash,
             after_state_hash=after_state_hash,
         )
-        self._persist_receipt(receipt)
+        try:
+            self._persist_receipt(receipt)
+        except Exception as exc:
+            raise CanonicalEffectDispatchError(failure_stage="receipt_persistence", cause=exc) from exc
         return receipt
+
+    def _assert_route_authorized(self, route: CanonicalCapabilityRoute) -> None:
+        if route.required_authority == "none":
+            return
+        if route.required_authority in self.granted_authorities:
+            return
+        raise CanonicalCoreError(f"canonical_authority_required:{route.required_authority}")
+
+    def _finish(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
+        answer = redact_operator_text(str(arguments.get("answer") or arguments.get("safe_summary") or ""))
+        return "completed", {"terminal_answer_hash": text_hash(answer)}, "canonical finish proposed."
 
     def _workspace_list(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
         target = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or "."), must_exist=True)
@@ -734,6 +855,13 @@ class RootMissionRuntime:
         if not target.is_file():
             raise CanonicalCoreError("workspace_read_target_not_file")
         max_chars = _bounded_int(arguments.get("max_chars"), default=1200, minimum=1, maximum=4000)
+        max_bytes = _bounded_int(arguments.get("max_bytes"), default=1_000_000, minimum=1, maximum=4_000_000)
+        try:
+            byte_count = target.stat().st_size
+        except OSError as exc:
+            raise CanonicalCoreError("workspace_read_stat_failed") from exc
+        if byte_count > max_bytes:
+            raise CanonicalCoreError("workspace_read_target_too_large")
         data = target.read_bytes()
         try:
             text = data.decode("utf-8")
@@ -762,16 +890,55 @@ class RootMissionRuntime:
             raise CanonicalCoreError("workspace_search_root_not_directory")
         matches: list[dict[str, Any]] = []
         lowered_query = query.lower()
-        for path in sorted((item for item in root.rglob("*") if item.is_file()), key=lambda item: str(item).lower()):
+        max_files = _bounded_int(arguments.get("max_files"), default=1000, minimum=1, maximum=5000)
+        max_bytes_per_file = _bounded_int(
+            arguments.get("max_bytes_per_file"),
+            default=256_000,
+            minimum=1,
+            maximum=1_000_000,
+        )
+        files_examined_count = 0
+        skipped_outside_root_count = 0
+        skipped_max_files_count = 0
+        skipped_too_large_count = 0
+        skipped_io_error_count = 0
+        skipped_binary_count = 0
+        for path in sorted(root.rglob("*"), key=lambda item: str(item).lower()):
             try:
-                text = path.read_text(encoding="utf-8")
+                resolved = path.resolve()
+            except OSError:
+                skipped_io_error_count += 1
+                continue
+            if resolved != self.workspace_root and self.workspace_root not in resolved.parents:
+                skipped_outside_root_count += 1
+                continue
+            try:
+                if not resolved.is_file():
+                    continue
+                byte_count = resolved.stat().st_size
+            except OSError:
+                skipped_io_error_count += 1
+                continue
+            if files_examined_count >= max_files:
+                skipped_max_files_count += 1
+                continue
+            files_examined_count += 1
+            if byte_count > max_bytes_per_file:
+                skipped_too_large_count += 1
+                continue
+            try:
+                text = resolved.read_text(encoding="utf-8")
             except UnicodeDecodeError:
+                skipped_binary_count += 1
+                continue
+            except OSError:
+                skipped_io_error_count += 1
                 continue
             if lowered_query not in text.lower():
                 continue
             matches.append(
                 {
-                    "path": _relative_workspace_path(self.workspace_root, path),
+                    "path": _relative_workspace_path(self.workspace_root, resolved),
                     "content_hash": text_hash(text),
                 }
             )
@@ -782,6 +949,12 @@ class RootMissionRuntime:
                 "query_hash": text_hash(query),
                 "match_count": len(matches),
                 "matches": tuple(matches[:20]),
+                "files_examined_count": files_examined_count,
+                "skipped_outside_root_count": skipped_outside_root_count,
+                "skipped_max_files_count": skipped_max_files_count,
+                "skipped_too_large_count": skipped_too_large_count,
+                "skipped_io_error_count": skipped_io_error_count,
+                "skipped_binary_count": skipped_binary_count,
             },
             f"workspace search observed {len(matches)} matching files.",
         )
@@ -826,7 +999,10 @@ class RootMissionRuntime:
         blocked_capability: str = "",
         blocked_reason_detail: str = "",
     ) -> CanonicalDevMissionResult:
-        self._persist_terminal_status(status=status, reason=reason)
+        try:
+            self._persist_terminal_status(status=status, reason=reason)
+        except Exception:
+            pass
         self.close()
         return self._result(
             status=status,
@@ -907,6 +1083,38 @@ class RootMissionRuntime:
             },
         )
 
+    def _persist_effect_failure(self, exc: Exception, *, failure_stage: str | None = None) -> None:
+        if self.kernel is None:
+            return
+        stage = failure_stage
+        cause: Exception = exc
+        if isinstance(exc, CanonicalEffectDispatchError):
+            stage = exc.failure_stage
+            cause = exc.cause
+        if stage is None:
+            stage = "dispatch_or_workspace_effect"
+        try:
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_effect_failed",
+                safe_summary="Canonical effect failed before a terminal receipt could be persisted.",
+                metadata={
+                    "failure_stage": stage,
+                    "failure_code": _safe_exception_code(cause),
+                    "exception_class": cause.__class__.__name__,
+                    "exception_hash": stable_hash(
+                        {
+                            "exception_class": cause.__class__.__name__,
+                            "safe_message": redact_operator_text(str(cause)),
+                        }
+                    ),
+                    "provider_decision_count": self.provider_decision_count,
+                    "material_action_count": self.material_action_count,
+                },
+            )
+        except Exception:
+            return
+
     def _persist_receipt(self, receipt: CanonicalEffectReceipt) -> None:
         if self.kernel is None:
             return
@@ -973,10 +1181,20 @@ class RootMissionRuntime:
             receipt_artifacts_verified=self._receipt_artifacts_verified(receipt_refs),
             proof_artifact_ref="mission_proof_root.json",
         )
-        self.kernel.store.atomic_write_json(
-            self.kernel.store.mission_dir(self.root_mission_id, create=True) / "mission_proof_root.json",
-            proof.safe_model_dump(),
-        )
+        try:
+            self.kernel.store.atomic_write_json(
+                self.kernel.store.mission_dir(self.root_mission_id, create=True) / "mission_proof_root.json",
+                proof.safe_model_dump(),
+            )
+        except Exception:
+            proof = proof.model_copy(
+                update={
+                    "proof_gaps": tuple(
+                        dict.fromkeys([*proof.proof_gaps, "proof_root_persistence_failed"])
+                    ),
+                    "proof_artifact_ref": "",
+                }
+            )
         return proof
 
     def _receipt_artifacts_verified(self, receipt_refs: tuple[str, ...]) -> bool:
@@ -990,10 +1208,11 @@ def _workspace_route(operation: str, *, materiality_verifier: str) -> CanonicalC
     return CanonicalCapabilityRoute(
         capability="workspace",
         operation=operation,
-        executor=f"sentinel.operator.canonical_core.RootMissionRuntime._workspace_{operation}",
+        executor_id=f"workspace.{operation}",
         effect_kind=EffectKind.REAL,
         backend_mode="workspace_read_only",
         required_authority="workspace_read",
+        arguments_schema=_workspace_arguments_schema(operation),
         preconditions=("path_inside_workspace",),
         readiness_probe="workspace_root_exists",
         materiality_verifier=materiality_verifier,
@@ -1001,6 +1220,44 @@ def _workspace_route(operation: str, *, materiality_verifier: str) -> CanonicalC
         recovery_policy="typed_path_or_decode_failure",
         cleanup_contract="root_resource_scope_close",
     )
+
+
+def _workspace_arguments_schema(operation: str) -> dict[str, Any]:
+    if operation == "list":
+        return {
+            "type": "object",
+            "properties": {"path": {"type": "string", "default": "."}},
+            "additionalProperties": False,
+        }
+    if operation == "read":
+        return {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "max_chars": {"type": "integer", "minimum": 1, "maximum": 4000, "default": 1200},
+                "max_bytes": {"type": "integer", "minimum": 1, "maximum": 4000000, "default": 1000000},
+            },
+            "required": ["path"],
+            "additionalProperties": False,
+        }
+    if operation == "search":
+        return {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "path": {"type": "string", "default": "."},
+                "max_files": {"type": "integer", "minimum": 1, "maximum": 5000, "default": 1000},
+                "max_bytes_per_file": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000000,
+                    "default": 256000,
+                },
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        }
+    return {"type": "object", "additionalProperties": False}
 
 
 def _workspace_ref(path: Path) -> str:
