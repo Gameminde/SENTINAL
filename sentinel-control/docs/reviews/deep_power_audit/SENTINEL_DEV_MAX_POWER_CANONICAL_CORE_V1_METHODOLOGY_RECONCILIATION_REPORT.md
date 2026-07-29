@@ -1,0 +1,113 @@
+# SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_METHODOLOGY_RECONCILIATION_REPORT
+
+## Verdict
+
+```text
+SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_METHODOLOGY_RECONCILIATION
+= VALID_RECONCILED_LOCAL_TRUTH
+
+FIXED_PROVEN_COUNT = 0
+REAL_PRODUCT_VERTICAL_SLICE = NOT_YET_RUN
+```
+
+This report reconciles the current branch after the first three local commits.
+Those commits are useful foundation slices, but they are not completed Stages
+and they do not close P0 findings.
+
+## Current Git Truth
+
+```text
+baseline_commit = efdbd558abddbc38cea7e506ff8cb8dfe8ef93fa
+current_head = aca1f008
+branch = sentinel-dev-max-power-canonical-core-v1
+tracked_dirty_state = ledger/test/report updates only
+untracked_state = existing runtime artifact directory intentionally untouched
+```
+
+## Slice Reclassification
+
+| Slice | Commit | Classification | Truth |
+|---|---:|---|---|
+| Slice 0A | `15161055` | `SLICE_0A_STAGE0_LEDGER_AND_LOCAL_VERTICAL_SKELETON` | Created the 65-finding ledger and first deterministic canonical core skeleton. T1 only. |
+| Slice 0B | `95407825` | `SLICE_0B_ROOT_CANCELLATION_SEAM` | Added cooperative root cancellation before and during model turns. Physical provider cancellation remains future work. |
+| Slice 0C | `aca1f008` | `SLICE_0C_CODE_SANDBOX_PHYSICAL_BOUNDARY_PROBE_AND_QUARANTINE` | Reproduced that current code execution is not a physical sandbox and quarantined it from canonical core power claims. |
+
+No slice is reclassified as a completed Stage. No finding is `FIXED_PROVEN`.
+
+## P0 Probe Replay
+
+| Finding | Current Classification | Probe Result | Notes |
+|---|---|---|---|
+| `P0-01` | `IMPLEMENTING` | `T1_LOCAL_DETERMINISTIC_CANDIDATE` | Canonical dev core requires a model client before the first cognitive turn. Real public product provider path is not yet proven. |
+| `P0-02` | `CONFIRMED_CURRENT` | `T1_LOCAL_REPRODUCED_UNSAFE` | The current code execution sandbox can read a canary outside the workspace. Canonical core quarantines `code_exec.run_profile`. |
+| `P0-03` | `IMPLEMENTING` | `T1_LOCAL_DETERMINISTIC_CANDIDATE` | Root cancellation token blocks before provider and after model response locally. Provider/process kill is not yet proven. |
+| `P0-04` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Browser `open_result` remains outside this core tranche. Not fixed here. |
+| `P0-05` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Browser cross-origin enforcement remains outside this core tranche. Not fixed here. |
+| `P0-06` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Channel/browser semantic coercion remains open. Not fixed here. |
+| `P0-07` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Current proof root still declares `non_authentic_placeholder`. Not fixed here. |
+| `P0-08` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Official bundle tampering remains open. Not fixed here. |
+| `P0-09` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | WorkspacePatch trust-kernel write boundary remains open. Not fixed here. |
+| `C-P0-01` | `IMPLEMENTING` | `T1_LOCAL_DETERMINISTIC_CANDIDATE` | RootMissionRuntime skeleton exists locally. Full Sentinel organ ownership is not yet proven. |
+| `C-P0-02` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Web product demo/live route is outside this core slice. Not fixed here. |
+| `C-P0-03` | `IMPLEMENTING` | `T1_LOCAL_DETERMINISTIC_CANDIDATE` | Canonical core refuses missing model clients. Older brain-native routes still need migration. |
+| `C-P0-04` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Persistent memory/global workspace are not yet product-instantiated. |
+| `C-P0-05` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Fake completed/material behavior in disconnected organs remains open. |
+| `C-P0-06` | `IMPLEMENTING` | `T1_LOCAL_DETERMINISTIC_CANDIDATE` | First executable graph covers workspace read actions and quarantines code exec. Full organ graph is future work. |
+
+## `browse_search` Classification
+
+```text
+browse_search = STALE_EXPECTATION_PENDING_MIGRATION
+```
+
+Evidence:
+
+```text
+test_power_cleanup_pack9_product_actionkernel_task_loop.py::test_off_scope_skill_selection_recovers_without_granting_authority
+= expected old compressed browse_search
+
+current model-visible browser surface
+= observe, navigate, search, follow, inspect, extract_evidence, verify, recover_session, finish
+```
+
+This is not closed as a product regression or success. The correct next step is
+to migrate the stale expectation only after the product path proves the
+separated `search` affordance can satisfy the same authority and recovery
+requirements.
+
+## Validation
+
+```text
+py -3.13 -m pytest tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py::test_stage0_finding_ledger_contains_all_65_findings -q
+= passed
+
+py -3.13 -m pytest <27 targeted P0/support probes> -q
+= 27 passed
+
+py -3.13 -m pytest <same probes plus browse_search legacy expectation> -q
+= 27 passed, 1 failed
+```
+
+The single expected failure is the official `browse_search` classification
+probe.
+
+## Next
+
+Proceed to the single vertical product tranche:
+
+```text
+public product request
+-> durable MissionRecord before provider
+-> real provider
+-> DecisionProtocol + DecisionOrigin
+-> CanonicalState projection
+-> executable capability registration
+-> real workspace route
+-> typed effect
+-> authentic receipt/proof root
+-> terminal mission state
+-> cleanup
+```
+
+No finding may move to `FIXED_PROVEN` until that path is proven by a real
+mission with persistent proof and no legacy bypass.

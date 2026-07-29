@@ -61,7 +61,23 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len(ledger["entries"]) == 65
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
-    assert ledger["status_counts"] == {"OPEN": 65}
+    assert ledger["fixed_proven_count"] == 0
+    assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 10, "IMPLEMENTING": 7, "OPEN": 48}
+    assert [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]] == [
+        "SLICE_0A_STAGE0_LEDGER_AND_LOCAL_VERTICAL_SKELETON",
+        "SLICE_0B_ROOT_CANCELLATION_SEAM",
+        "SLICE_0C_CODE_SANDBOX_PHYSICAL_BOUNDARY_PROBE_AND_QUARANTINE",
+    ]
+    by_id = {entry["id"]: entry for entry in ledger["entries"]}
+    assert by_id["P0-01"]["status"] == "IMPLEMENTING"
+    assert by_id["P0-02"]["status"] == "CONFIRMED_CURRENT"
+    assert by_id["P0-02"]["chosen_invariant"] == "do_not_expose_unproven_code_exec_as_canonical_power"
+    assert by_id["P0-03"]["status"] == "IMPLEMENTING"
+    assert by_id["P0-07"]["status"] == "CONFIRMED_CURRENT"
+    assert by_id["P0-08"]["status"] == "CONFIRMED_CURRENT"
+    assert by_id["C-P0-01"]["status"] == "IMPLEMENTING"
+    assert by_id["C-P0-06"]["status"] == "IMPLEMENTING"
+    assert by_id["P1-25"]["status"] == "IMPLEMENTING"
 
 
 def test_provider_client_required_before_first_cognitive_turn(tmp_path: Path) -> None:
