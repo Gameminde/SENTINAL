@@ -34,6 +34,26 @@ SECOND_HTML = """
   <body><main><h1>Research Evidence</h1><button>Pin evidence</button></main></body>
 </html>
 """
+_PLAYWRIGHT_COMPAT_AVAILABLE: bool | None = None
+_PLAYWRIGHT_COMPAT_SKIP_REASON = "playwright compatibility browser is not launchable in this environment"
+
+
+def _require_playwright_compat_browser() -> None:
+    global _PLAYWRIGHT_COMPAT_AVAILABLE
+    if _PLAYWRIGHT_COMPAT_AVAILABLE is False:
+        pytest.skip(_PLAYWRIGHT_COMPAT_SKIP_REASON)
+    if _PLAYWRIGHT_COMPAT_AVAILABLE is True:
+        return
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            browser.close()
+    except Exception:
+        _PLAYWRIGHT_COMPAT_AVAILABLE = False
+        pytest.skip(_PLAYWRIGHT_COMPAT_SKIP_REASON)
+    _PLAYWRIGHT_COMPAT_AVAILABLE = True
 
 
 def _envelope() -> MissionAuthorityEnvelope:

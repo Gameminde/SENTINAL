@@ -212,7 +212,7 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
     if visible_content_failure is not None and not text.strip():
         raise ActionKernelError(visible_content_failure)
     skill = _requested_skill(payload, text)
-    if skill != "browse_search":
+    if not _skill_carries_inert_browser_semantic_data(skill):
         hard_boundary = _hard_boundary_action(text, payload)
         if hard_boundary is not None:
             return hard_boundary
@@ -529,6 +529,10 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
 
 def _has_worker_intent(lowered_text: str) -> bool:
     return bool(re.search(r"\b(worker|delegate|spawn|verifier|researcher)\b", lowered_text))
+
+
+def _skill_carries_inert_browser_semantic_data(skill: str | None) -> bool:
+    return skill in _BROWSER_MODEL_SKILLS
 
 
 def _normalize_skill(value: str) -> str | None:
