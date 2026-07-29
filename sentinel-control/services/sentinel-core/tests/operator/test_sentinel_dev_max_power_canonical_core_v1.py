@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -356,6 +357,48 @@ def test_product_vertical_slice_persists_mission_record_receipts_proof_and_termi
     assert "canonical_cleanup_completed" in event_types
 
 
+def test_product_mission_persists_known_north_star_precondition_before_provider(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    docs = workspace / "docs"
+    docs.mkdir(parents=True)
+    north_star = docs / "SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md"
+    north_star.write_text("MODEL = brain\nSENTINEL = body\n", encoding="utf-8")
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "workspace",
+                "operation": "read",
+                "arguments": {"path": "docs/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md"},
+            },
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Done."}},
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Find the Cognitive OS North Star document.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_north_star_precondition",
+    )
+
+    precondition_event = next(
+        event for event in kernel.store.load_events(result.root_mission_id)
+        if event.event_type == "canonical_workspace_precondition_verified"
+    )
+    assert precondition_event.metadata == {
+        "precondition": "known_document_present",
+        "relative_path": "docs/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md",
+        "sha256": hashlib.sha256(north_star.read_bytes()).hexdigest(),
+    }
+    assert str(workspace) not in json.dumps(precondition_event.metadata)
+    assert model.requests[0].canonical_state.recent_observations[0]["relative_path"] == (
+        "docs/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md"
+    )
+
+
 def test_product_vertical_slice_provider_failure_terminalizes_record_and_cleanup(
     tmp_path: Path,
 ) -> None:
@@ -641,6 +684,116 @@ def test_workspace_search_applies_file_and_byte_limits(tmp_path: Path) -> None:
     assert observation["files_examined_count"] == 1
     assert observation["skipped_max_files_count"] >= 1
     assert observation["skipped_too_large_count"] in {0, 1}
+
+
+def test_workspace_search_reports_path_content_and_normalized_term_matches(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    docs = workspace / "docs" / "reviews" / "deep_power_audit"
+    docs.mkdir(parents=True)
+    north_star = docs / "SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md"
+    north_star.write_text(
+        "# Sentinel Cognitive Operating System North Star V1\n\n"
+        "MODEL = reasoning, imagination and strategy.\n"
+        "SENTINEL = body, senses, runtime, evidence and laws.\n",
+        encoding="utf-8",
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "workspace",
+                "operation": "search",
+                "arguments": {"query": "Cognitive OS North Star", "path": "."},
+            },
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Found."}},
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Find the North Star document.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+    )
+
+    observation = result.receipts[0].safe_observation
+    assert observation["search_scope"] == {
+        "path": ".",
+        "channels": ("filename_path", "content", "normalized_terms"),
+    }
+    assert observation["files_examined_count"] == 1
+    assert observation["path_match_count"] == 1
+    assert observation["content_match_count"] == 1
+    assert observation["normalized_term_match_count"] == 1
+    assert observation["matches"][0]["path"] == "docs/reviews/deep_power_audit/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md"
+    assert observation["matches"][0]["match_channels"] == ("filename_path", "content", "normalized_terms")
+
+
+def test_progress_state_marks_exact_duplicate_search_without_new_evidence_as_no_progress(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    model = ScriptedModelClient(
+        [
+            {"capability": "workspace", "operation": "search", "arguments": {"query": "missing phrase"}},
+            {"capability": "workspace", "operation": "search", "arguments": {"query": "missing phrase"}},
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "No evidence found."}},
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Search for a missing phrase and avoid blind repetition.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+        max_provider_decisions=4,
+        max_material_actions=4,
+    )
+
+    second_request_state = model.requests[2].canonical_state
+    last_observation = second_request_state.recent_observations[-1]
+    assert last_observation["progress_classification"] == "NO_PROGRESS"
+    assert second_request_state.duplicate_no_progress_count == 1
+    assert second_request_state.observations_without_novelty == 1
+    assert second_request_state.objective_unresolved is True
+    assert second_request_state.finish_available is False
+    assert "workspace.search" in second_request_state.action_signatures_attempted[0]
+    assert second_request_state.paths_explored == ()
+
+
+def test_product_receipt_integrity_rejects_deleted_or_modified_receipt_artifact(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    model = ScriptedModelClient(
+        [
+            {"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}},
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Needle found."}},
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Produce a receipt then verify tampering detection.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_receipt_integrity",
+    )
+    runtime = RootMissionRuntime(
+        objective="Verify receipts.",
+        workspace_root=workspace,
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_receipt_integrity_checker",
+    )
+    runtime.root_mission_id = result.root_mission_id
+
+    assert runtime._receipt_artifacts_verified(tuple(receipt.receipt_id for receipt in result.receipts)) is True
+
+    receipt_path = kernel.store.mission_dir(result.root_mission_id) / "canonical_receipts" / f"{result.receipts[0].receipt_id}.json"
+    original = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt_path.unlink()
+    assert runtime._receipt_artifacts_verified(tuple(receipt.receipt_id for receipt in result.receipts)) is False
+
+    receipt_path.write_text(json.dumps({**original, "status": "tampered"}, indent=2), encoding="utf-8")
+    assert runtime._receipt_artifacts_verified(tuple(receipt.receipt_id for receipt in result.receipts)) is False
 
 
 def test_product_dispatch_enforces_mission_grant_before_real_effect(tmp_path: Path) -> None:

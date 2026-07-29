@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -195,6 +197,12 @@ class CanonicalState(SentinelModel):
     last_action: str | None = None
     evidence_refs: tuple[str, ...] = Field(default_factory=tuple)
     recent_observations: tuple[dict[str, Any], ...] = Field(default_factory=tuple)
+    action_signatures_attempted: tuple[str, ...] = Field(default_factory=tuple)
+    observations_without_novelty: int = 0
+    duplicate_no_progress_count: int = 0
+    paths_explored: tuple[str, ...] = Field(default_factory=tuple)
+    objective_unresolved: bool = True
+    finish_available: bool = False
     proof_gaps: tuple[str, ...] = ("external_append_only_signer_missing",)
     remaining_provider_decisions: int
     remaining_material_actions: int
@@ -218,6 +226,12 @@ class CanonicalState(SentinelModel):
             "last_action": self.last_action,
             "evidence_refs": list(self.evidence_refs),
             "recent_observations": [redact_operator_value(item) for item in self.recent_observations],
+            "action_signatures_attempted": list(self.action_signatures_attempted),
+            "observations_without_novelty": self.observations_without_novelty,
+            "duplicate_no_progress_count": self.duplicate_no_progress_count,
+            "paths_explored": list(self.paths_explored),
+            "objective_unresolved": self.objective_unresolved,
+            "finish_available": self.finish_available,
             "proof_gaps": list(self.proof_gaps),
             "remaining_provider_decisions": self.remaining_provider_decisions,
             "remaining_material_actions": self.remaining_material_actions,
@@ -566,10 +580,16 @@ class RootMissionRuntime:
         self.evidence_refs: list[str] = []
         self.recent_observations: list[dict[str, Any]] = []
         self.last_action: str | None = None
+        self.action_signatures_attempted: list[str] = []
+        self._action_signature_counts: dict[str, int] = {}
+        self.observations_without_novelty = 0
+        self.duplicate_no_progress_count = 0
+        self.paths_explored: list[str] = []
         self.provider_decision_count = 0
         self.material_action_count = 0
         self.root_created_at = datetime.now(UTC)
         self.mission_record_created_before_provider = False
+        self._precondition_blocker = ""
         self._closed = False
         if self.kernel is not None:
             self._create_and_start_mission_record()
@@ -587,6 +607,12 @@ class RootMissionRuntime:
             raise CanonicalCoreError("canonical_model_client_required")
         try:
             while True:
+                if self._precondition_blocker:
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="MISSION_PRECONDITION_FAILED",
+                        blocked_reason_detail=self._precondition_blocker,
+                    )
                 if self.cancellation_token.cancelled:
                     return self._terminal_result(
                         status="blocked",
@@ -704,6 +730,12 @@ class RootMissionRuntime:
             last_action=self.last_action,
             evidence_refs=tuple(dict.fromkeys(self.evidence_refs)),
             recent_observations=tuple(self.recent_observations[-4:]),
+            action_signatures_attempted=tuple(dict.fromkeys(self.action_signatures_attempted)),
+            observations_without_novelty=self.observations_without_novelty,
+            duplicate_no_progress_count=self.duplicate_no_progress_count,
+            paths_explored=tuple(dict.fromkeys(self.paths_explored)),
+            objective_unresolved=not self._finish_available(),
+            finish_available=self._finish_available(),
             remaining_provider_decisions=max(0, self.budget.max_provider_decisions - self.provider_decision_count),
             remaining_material_actions=max(0, self.budget.max_material_actions - self.material_action_count),
         )
@@ -812,11 +844,17 @@ class RootMissionRuntime:
         route = self.capability_graph.resolve(decision.capability, decision.operation)
         self._assert_route_authorized(route)
         executor = self.resolve_executor(route)
+        action_signature = _action_signature(decision)
         try:
             status, observation, summary = executor(decision.arguments)
         except Exception as exc:
             raise CanonicalEffectDispatchError(failure_stage="dispatch_or_workspace_effect", cause=exc) from exc
-        evidence_ref = f"evidence:{stable_hash(observation)[:24]}"
+        observation = self._annotate_progress(
+            decision=decision,
+            observation=observation,
+            action_signature=action_signature,
+        )
+        evidence_ref = f"evidence:{str(observation.get('observation_fingerprint') or stable_hash(observation))[:24]}"
         after_state_hash = stable_hash(
             {
                 "before_state_hash": before_state.state_hash,
@@ -844,6 +882,11 @@ class RootMissionRuntime:
             self._persist_receipt(receipt)
         except Exception as exc:
             raise CanonicalEffectDispatchError(failure_stage="receipt_persistence", cause=exc) from exc
+        self._record_progress(
+            observation=observation,
+            evidence_ref=evidence_ref,
+            action_signature=action_signature,
+        )
         return receipt
 
     def _assert_route_authorized(self, route: CanonicalCapabilityRoute) -> None:
@@ -912,6 +955,7 @@ class RootMissionRuntime:
             raise CanonicalCoreError("workspace_search_root_not_directory")
         matches: list[dict[str, Any]] = []
         lowered_query = query.lower()
+        normalized_query_terms = _normalized_search_terms(query)
         max_files = _bounded_int(arguments.get("max_files"), default=1000, minimum=1, maximum=5000)
         max_bytes_per_file = _bounded_int(
             arguments.get("max_bytes_per_file"),
@@ -956,21 +1000,47 @@ class RootMissionRuntime:
             except OSError:
                 skipped_io_error_count += 1
                 continue
-            if lowered_query not in text.lower():
+            relative_path = _relative_workspace_path(self.workspace_root, resolved)
+            path_channels = _match_channels(query=lowered_query, terms=normalized_query_terms, haystack=relative_path)
+            content_channels = _match_channels(query=lowered_query, terms=normalized_query_terms, haystack=text)
+            match_channels = tuple(
+                dict.fromkeys(
+                    [
+                        *("filename_path" for _ in path_channels),
+                        *("content" for _ in content_channels),
+                        *(["normalized_terms"] if "normalized_terms" in {*path_channels, *content_channels} else []),
+                    ]
+                )
+            )
+            if not match_channels:
                 continue
             matches.append(
                 {
-                    "path": _relative_workspace_path(self.workspace_root, resolved),
+                    "path": relative_path,
                     "content_hash": text_hash(text),
+                    "path_match": bool(path_channels),
+                    "content_match": bool(content_channels),
+                    "normalized_term_match": "normalized_terms" in {*path_channels, *content_channels},
+                    "match_channels": match_channels,
                 }
             )
+        path_match_count = sum(1 for match in matches if match["path_match"])
+        content_match_count = sum(1 for match in matches if match["content_match"])
+        normalized_match_count = sum(1 for match in matches if match["normalized_term_match"])
         return (
             "completed",
             {
                 "root": _relative_workspace_path(self.workspace_root, root),
                 "query_hash": text_hash(query),
+                "search_scope": {
+                    "path": _relative_workspace_path(self.workspace_root, root),
+                    "channels": ("filename_path", "content", "normalized_terms"),
+                },
                 "match_count": len(matches),
                 "matches": tuple(matches[:20]),
+                "path_match_count": path_match_count,
+                "content_match_count": content_match_count,
+                "normalized_term_match_count": normalized_match_count,
                 "files_examined_count": files_examined_count,
                 "skipped_outside_root_count": skipped_outside_root_count,
                 "skipped_max_files_count": skipped_max_files_count,
@@ -980,6 +1050,63 @@ class RootMissionRuntime:
             },
             f"workspace search observed {len(matches)} matching files.",
         )
+
+    def _annotate_progress(
+        self,
+        *,
+        decision: CanonicalDecision,
+        observation: dict[str, Any],
+        action_signature: str,
+    ) -> dict[str, Any]:
+        safe_observation = dict(observation)
+        observed_paths = _observation_paths(safe_observation)
+        new_paths = tuple(path for path in observed_paths if path not in set(self.paths_explored))
+        signature_seen = self._action_signature_counts.get(action_signature, 0)
+        evidence_fingerprint = stable_hash(safe_observation)
+        evidence_seen = f"evidence:{evidence_fingerprint[:24]}" in set(self.evidence_refs)
+        has_match_progress = bool(new_paths)
+        no_progress = signature_seen > 0 and evidence_seen and not has_match_progress
+        if no_progress:
+            classification = "NO_PROGRESS"
+        elif has_match_progress:
+            classification = "MATERIAL_PROGRESS"
+        else:
+            classification = "OBSERVATION_ONLY"
+        safe_observation.update(
+            {
+                "progress_classification": classification,
+                "observation_fingerprint": evidence_fingerprint,
+                "action_signature": action_signature,
+                "action_signature_seen_before": signature_seen,
+                "new_paths": new_paths,
+                "evidence_delta": not evidence_seen,
+                "objective_progress": classification == "MATERIAL_PROGRESS",
+                "decision_origin": decision.decision_origin.value,
+            }
+        )
+        if no_progress:
+            safe_observation["typed_observation"] = "NO_PROGRESS"
+            safe_observation["replan_required"] = True
+        return safe_observation
+
+    def _record_progress(
+        self,
+        *,
+        observation: dict[str, Any],
+        evidence_ref: str,
+        action_signature: str,
+    ) -> None:
+        self.action_signatures_attempted.append(action_signature)
+        self._action_signature_counts[action_signature] = self._action_signature_counts.get(action_signature, 0) + 1
+        for path in _observation_paths(observation):
+            if path not in self.paths_explored:
+                self.paths_explored.append(path)
+        if observation.get("progress_classification") == "NO_PROGRESS":
+            self.observations_without_novelty += 1
+            self.duplicate_no_progress_count += 1
+
+    def _finish_available(self) -> bool:
+        return bool(self.paths_explored)
 
     def _result(
         self,
@@ -1071,7 +1198,56 @@ class RootMissionRuntime:
             OperatorMissionStatus.RUNNING,
             "Canonical root mission running before first provider decision.",
         )
+        self._record_workspace_preconditions()
         self.mission_record_created_before_provider = self.kernel.store.verify_record(self.root_mission_id)
+
+    def _record_workspace_preconditions(self) -> None:
+        if self.kernel is None:
+            return
+        objective_terms = _normalized_search_terms(self.objective)
+        north_star_requested = {"north", "star"}.issubset(set(objective_terms)) or {
+            "cognitive",
+            "os",
+        }.issubset(set(objective_terms))
+        if not north_star_requested:
+            return
+        candidates = [
+            path
+            for path in sorted(self.workspace_root.rglob("*"), key=lambda item: str(item).lower())
+            if path.is_file() and "north_star" in path.name.lower()
+        ]
+        for path in candidates:
+            try:
+                resolved = path.resolve()
+            except OSError:
+                continue
+            if resolved != self.workspace_root and self.workspace_root not in resolved.parents:
+                continue
+            relative = _relative_workspace_path(self.workspace_root, resolved)
+            try:
+                digest = hashlib.sha256(resolved.read_bytes()).hexdigest()
+            except OSError:
+                continue
+            observation = {
+                "precondition": "known_document_present",
+                "relative_path": relative,
+                "sha256": digest,
+            }
+            self.recent_observations.append(observation)
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_workspace_precondition_verified",
+                safe_summary="Canonical workspace precondition verified for a known public document.",
+                metadata=observation,
+            )
+            return
+        self._precondition_blocker = "known_north_star_document_missing"
+        self.kernel.store.append_event(
+            self.root_mission_id,
+            event_type="canonical_workspace_precondition_failed",
+            safe_summary="Canonical workspace precondition failed before provider decision.",
+            metadata={"precondition": "known_document_present", "missing": "north_star_document"},
+        )
 
     def _persist_decision(self, decision: CanonicalDecision) -> None:
         if self.kernel is None:
@@ -1223,7 +1399,45 @@ class RootMissionRuntime:
         if self.kernel is None:
             return False
         receipt_dir = self.kernel.store.mission_dir(self.root_mission_id) / "canonical_receipts"
-        return all((receipt_dir / f"{receipt_id}.json").exists() for receipt_id in receipt_refs)
+        try:
+            record = self.kernel.store.load_record(self.root_mission_id)
+            events = self.kernel.store.load_events(self.root_mission_id)
+        except Exception:
+            return False
+        record_refs = set(record.receipt_refs)
+        timeline_refs = {ref for event in events for ref in event.receipt_refs}
+        known_decision_ids = {decision.decision_id for decision in self.decisions}
+        for receipt_id in receipt_refs:
+            if receipt_id not in record_refs or receipt_id not in timeline_refs:
+                return False
+            receipt_path = receipt_dir / f"{receipt_id}.json"
+            if not receipt_path.exists():
+                return False
+            try:
+                payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+            except Exception:
+                return False
+            if payload.get("receipt_id") != receipt_id:
+                return False
+            if payload.get("root_mission_id") != self.root_mission_id:
+                return False
+            decision_id = str(payload.get("decision_id") or "")
+            if not decision_id:
+                return False
+            if known_decision_ids and decision_id not in known_decision_ids:
+                return False
+            stored_hash = payload.get("receipt_hash")
+            if not stored_hash:
+                return False
+            unsigned = dict(payload)
+            unsigned.pop("receipt_hash", None)
+            if stable_hash(unsigned) != stored_hash:
+                return False
+            try:
+                CanonicalEffectReceipt(**payload)
+            except Exception:
+                return False
+        return True
 
 
 def _workspace_route(operation: str, *, materiality_verifier: str) -> CanonicalCapabilityRoute:
@@ -1280,6 +1494,57 @@ def _workspace_arguments_schema(operation: str) -> dict[str, Any]:
             "additionalProperties": False,
         }
     return {"type": "object", "additionalProperties": False}
+
+
+def _action_signature(decision: CanonicalDecision) -> str:
+    signature_hash = stable_hash(
+        {
+            "capability": decision.capability,
+            "operation": decision.operation,
+            "arguments": redact_operator_value(decision.arguments),
+        }
+    )
+    return f"{decision.capability}.{decision.operation}:{signature_hash[:24]}"
+
+
+def _normalized_search_terms(text: str) -> tuple[str, ...]:
+    normalized = _normalize_search_text(text)
+    terms = [term for term in normalized.split(" ") if term]
+    expanded = list(terms)
+    for left, right in zip(terms, terms[1:], strict=False):
+        if len(left) > 2 and len(right) > 2:
+            expanded.append(f"{left[0]}{right[0]}")
+    return tuple(dict.fromkeys(expanded))
+
+
+def _normalize_search_text(text: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[_\-.\\/]+", " ", text).lower()).strip()
+
+
+def _match_channels(*, query: str, terms: tuple[str, ...], haystack: str) -> tuple[str, ...]:
+    normalized_haystack = _normalize_search_text(haystack)
+    haystack_terms = set(term for term in normalized_haystack.split(" ") if term)
+    haystack_terms.update(_normalized_search_terms(normalized_haystack))
+    channels: list[str] = []
+    if query and query in haystack.lower():
+        channels.append("exact")
+    if terms and all(term in haystack_terms for term in terms):
+        channels.append("normalized_terms")
+    return tuple(channels)
+
+
+def _observation_paths(observation: dict[str, Any]) -> tuple[str, ...]:
+    paths: list[str] = []
+    path = observation.get("path")
+    if isinstance(path, str) and path and path != ".":
+        paths.append(path)
+    for match in observation.get("matches", ()):
+        if not isinstance(match, dict):
+            continue
+        match_path = match.get("path")
+        if isinstance(match_path, str) and match_path and match_path != ".":
+            paths.append(match_path)
+    return tuple(dict.fromkeys(paths))
 
 
 def _workspace_ref(path: Path) -> str:
