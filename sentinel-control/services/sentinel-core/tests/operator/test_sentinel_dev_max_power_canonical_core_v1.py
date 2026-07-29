@@ -12,6 +12,7 @@ from sentinel.operator.canonical_core import (
     CanonicalCoreError,
     DecisionOrigin,
     EffectKind,
+    RootMissionCancellationToken,
     build_workspace_read_capability_graph,
     run_canonical_dev_mission,
 )
@@ -27,6 +28,18 @@ class ScriptedModelClient:
         if not self._decisions:
             raise AssertionError("scripted model decision exhausted")
         return self._decisions.pop(0)
+
+
+class CancellingModelClient:
+    def __init__(self, token: RootMissionCancellationToken, decision: dict[str, Any]) -> None:
+        self._token = token
+        self._decision = decision
+        self.requests: list[Any] = []
+
+    def complete(self, request: Any) -> dict[str, Any]:
+        self.requests.append(request)
+        self._token.cancel("operator_revoked_during_provider_turn")
+        return self._decision
 
 
 def test_stage0_finding_ledger_contains_all_65_findings() -> None:
@@ -57,6 +70,58 @@ def test_provider_client_required_before_first_cognitive_turn(tmp_path: Path) ->
             model_client=None,
             provider_model="missing-provider",
         )
+
+
+def test_root_cancellation_before_provider_call_blocks_without_decision(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    token = RootMissionCancellationToken()
+    token.cancel("operator_revoked_before_provider_turn")
+    model = ScriptedModelClient(
+        [
+            {"capability": "workspace", "operation": "list", "arguments": {"path": "."}},
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="This mission is revoked before the model sees state.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+        cancellation_token=token,
+    )
+
+    assert result.status == "blocked"
+    assert result.final_reason == "ROOT_MISSION_CANCELLED"
+    assert result.cancellation_reason == "operator_revoked_before_provider_turn"
+    assert result.provider_decision_count == 0
+    assert result.material_action_count == 0
+    assert result.cleanup_completed is True
+    assert model.requests == []
+
+
+def test_root_cancellation_during_model_turn_prevents_material_action(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    token = RootMissionCancellationToken()
+    model = CancellingModelClient(
+        token,
+        {"capability": "workspace", "operation": "list", "arguments": {"path": "."}},
+    )
+
+    result = run_canonical_dev_mission(
+        objective="This mission is revoked while the model is selecting an action.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+        cancellation_token=token,
+    )
+
+    assert result.status == "blocked"
+    assert result.final_reason == "ROOT_MISSION_CANCELLED"
+    assert result.cancellation_reason == "operator_revoked_during_provider_turn"
+    assert result.provider_decision_count == 1
+    assert result.material_action_count == 0
+    assert result.receipts == ()
+    assert result.cleanup_completed is True
 
 
 def test_root_mission_exists_before_first_model_decision_and_state_is_presented(tmp_path: Path) -> None:

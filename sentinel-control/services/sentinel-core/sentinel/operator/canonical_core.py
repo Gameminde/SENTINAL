@@ -34,6 +34,29 @@ class EffectKind(StrEnum):
     PROPOSAL = "PROPOSAL"
 
 
+class RootMissionCancellationToken:
+    def __init__(self) -> None:
+        self.token_id = new_id("root_mission_cancel")
+        self._cancelled = False
+        self._reason = ""
+
+    @property
+    def safe_ref(self) -> str:
+        return f"root_cancel:{stable_hash({'token_id': self.token_id})[:24]}"
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancelled
+
+    @property
+    def reason(self) -> str:
+        return self._reason
+
+    def cancel(self, reason: str) -> None:
+        self._cancelled = True
+        self._reason = redact_operator_text(reason) or "operator_revoked"
+
+
 class CanonicalCapabilityRoute(SentinelModel):
     capability: str
     operation: str
@@ -130,6 +153,7 @@ class CanonicalDecisionRequest(SentinelModel):
     provider_model: str
     canonical_state: CanonicalState
     prompt_summary: str
+    cancellation_ref: str
     data_not_authority: bool = True
     authority_effect: str = "none"
     can_grant_authority: bool = False
@@ -309,6 +333,7 @@ class CanonicalDevMissionResult(SentinelModel):
     proof_root: MissionProofRoot
     cleanup_completed: bool
     final_answer: str = ""
+    cancellation_reason: str = ""
 
 
 class CanonicalModelClient(Protocol):
@@ -349,6 +374,7 @@ def run_canonical_dev_mission(
     max_provider_decisions: int = 40,
     max_material_actions: int = 120,
     provider_decisions_reserved_for_finish: int = 6,
+    cancellation_token: RootMissionCancellationToken | None = None,
 ) -> CanonicalDevMissionResult:
     runtime = RootMissionRuntime(
         objective=objective,
@@ -357,6 +383,7 @@ def run_canonical_dev_mission(
         max_provider_decisions=max_provider_decisions,
         max_material_actions=max_material_actions,
         provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
+        cancellation_token=cancellation_token,
     )
     return runtime.run(model_client=model_client)
 
@@ -372,6 +399,7 @@ class RootMissionRuntime:
         max_material_actions: int = 120,
         provider_decisions_reserved_for_finish: int = 6,
         capability_graph: ExecutableCapabilityGraph | None = None,
+        cancellation_token: RootMissionCancellationToken | None = None,
     ) -> None:
         self.root_mission_id = new_id("root_mission")
         self.objective = objective
@@ -383,6 +411,7 @@ class RootMissionRuntime:
             provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
         )
         self.capability_graph = capability_graph or build_workspace_read_capability_graph()
+        self.cancellation_token = cancellation_token or RootMissionCancellationToken()
         self.decisions: list[CanonicalDecision] = []
         self.receipts: list[CanonicalEffectReceipt] = []
         self.evidence_refs: list[str] = []
@@ -397,6 +426,12 @@ class RootMissionRuntime:
             raise CanonicalCoreError("canonical_model_client_required")
         try:
             while True:
+                if self.cancellation_token.cancelled:
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="ROOT_MISSION_CANCELLED",
+                        cancellation_reason=self.cancellation_token.reason,
+                    )
                 if self.provider_decision_count >= self.budget.max_provider_decisions:
                     return self._terminal_result(status="blocked", reason="PROVIDER_DECISION_BUDGET_EXHAUSTED")
                 state = self.compile_state()
@@ -405,9 +440,16 @@ class RootMissionRuntime:
                     provider_model=self.provider_model,
                     canonical_state=state,
                     prompt_summary="canonical_dev_mission_next_decision",
+                    cancellation_ref=self.cancellation_token.safe_ref,
                 )
                 raw_decision = model_client.complete(request)
                 self.provider_decision_count += 1
+                if self.cancellation_token.cancelled:
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="ROOT_MISSION_CANCELLED",
+                        cancellation_reason=self.cancellation_token.reason,
+                    )
                 decision = self._normalize_decision(raw_decision)
                 self.decisions.append(decision)
                 if decision.capability == "sentinel_loop" and decision.operation == "finish":
@@ -601,7 +643,14 @@ class RootMissionRuntime:
             f"workspace search observed {len(matches)} matching files.",
         )
 
-    def _result(self, *, status: str, reason: str, final_answer: str = "") -> CanonicalDevMissionResult:
+    def _result(
+        self,
+        *,
+        status: str,
+        reason: str,
+        final_answer: str = "",
+        cancellation_reason: str = "",
+    ) -> CanonicalDevMissionResult:
         proof = MissionProofRoot(
             root_mission_id=self.root_mission_id,
             receipt_refs=tuple(receipt.receipt_id for receipt in self.receipts),
@@ -620,11 +669,24 @@ class RootMissionRuntime:
             proof_root=proof,
             cleanup_completed=self._closed,
             final_answer=redact_operator_text(final_answer),
+            cancellation_reason=redact_operator_text(cancellation_reason),
         )
 
-    def _terminal_result(self, *, status: str, reason: str, final_answer: str = "") -> CanonicalDevMissionResult:
+    def _terminal_result(
+        self,
+        *,
+        status: str,
+        reason: str,
+        final_answer: str = "",
+        cancellation_reason: str = "",
+    ) -> CanonicalDevMissionResult:
         self.close()
-        return self._result(status=status, reason=reason, final_answer=final_answer)
+        return self._result(
+            status=status,
+            reason=reason,
+            final_answer=final_answer,
+            cancellation_reason=cancellation_reason,
+        )
 
 
 def _workspace_route(operation: str, *, materiality_verifier: str) -> CanonicalCapabilityRoute:
@@ -688,6 +750,7 @@ __all__ = [
     "ExecutableCapabilityGraph",
     "MissionProofRoot",
     "RootMissionRuntime",
+    "RootMissionCancellationToken",
     "build_workspace_read_capability_graph",
     "run_canonical_dev_mission",
 ]
