@@ -796,6 +796,29 @@ def test_product_receipt_integrity_rejects_deleted_or_modified_receipt_artifact(
     assert runtime._receipt_artifacts_verified(tuple(receipt.receipt_id for receipt in result.receipts)) is False
 
 
+def test_product_receipt_integrity_supports_long_run_root_paths(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    deep_run_root = tmp_path / ("very_long_canonical_core_run_root_" * 5) / ("nested_receipts_" * 4)
+    kernel = MissionKernel(run_root=deep_run_root)
+    model = ScriptedModelClient(
+        [
+            {"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}},
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Needle found."}},
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Produce a receipt under a long run root.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_long_receipt_integrity",
+    )
+
+    assert result.proof_root.receipt_artifacts_verified is True
+
+
 def test_product_dispatch_enforces_mission_grant_before_real_effect(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")

@@ -16,6 +16,7 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority
+from sentinel.operator.store import _filesystem_path, _path_exists
 from sentinel.shared.models import SentinelModel, new_id
 
 
@@ -1411,10 +1412,11 @@ class RootMissionRuntime:
             if receipt_id not in record_refs or receipt_id not in timeline_refs:
                 return False
             receipt_path = receipt_dir / f"{receipt_id}.json"
-            if not receipt_path.exists():
+            if not _path_exists(receipt_path):
                 return False
             try:
-                payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+                with open(_filesystem_path(receipt_path), encoding="utf-8") as handle:
+                    payload = json.load(handle)
             except Exception:
                 return False
             if payload.get("receipt_id") != receipt_id:
