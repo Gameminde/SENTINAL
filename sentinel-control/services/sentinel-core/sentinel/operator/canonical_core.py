@@ -19,6 +19,18 @@ class CanonicalCoreError(RuntimeError):
     pass
 
 
+class CanonicalCapabilityQuarantined(CanonicalCoreError):
+    def __init__(self, capability: str, operation: str, reason: str) -> None:
+        self.capability = capability
+        self.operation = operation
+        self.reason = reason
+        super().__init__(f"canonical_capability_quarantined:{self.affordance}:{reason}")
+
+    @property
+    def affordance(self) -> str:
+        return f"{self.capability}.{self.operation}"
+
+
 class DecisionOrigin(StrEnum):
     MODEL_SELECTED = "MODEL_SELECTED"
     HOST_RECOVERY_INJECTED = "HOST_RECOVERY_INJECTED"
@@ -77,8 +89,22 @@ class CanonicalCapabilityRoute(SentinelModel):
         return f"{self.capability}.{self.operation}"
 
 
+class QuarantinedCapability(SentinelModel):
+    capability: str
+    operation: str
+    reason: str
+    proof_tier: str
+    unblock_requirement: str
+    model_visible: bool = False
+
+    @property
+    def affordance(self) -> str:
+        return f"{self.capability}.{self.operation}"
+
+
 class ExecutableCapabilityGraph(SentinelModel):
     routes: tuple[CanonicalCapabilityRoute, ...]
+    quarantined_capabilities: tuple[QuarantinedCapability, ...] = Field(default_factory=tuple)
 
     @model_validator(mode="after")
     def _routes_are_unique(self) -> "ExecutableCapabilityGraph":
@@ -88,6 +114,10 @@ class ExecutableCapabilityGraph(SentinelModel):
             if key in seen:
                 raise ValueError(f"duplicate capability route: {route.affordance}")
             seen.add(key)
+        for route in self.quarantined_capabilities:
+            key = (route.capability, route.operation)
+            if key in seen:
+                raise ValueError(f"capability cannot be both executable and quarantined: {route.affordance}")
         return self
 
     def model_visible_affordances(self) -> tuple[str, ...]:
@@ -97,7 +127,16 @@ class ExecutableCapabilityGraph(SentinelModel):
         for route in self.routes:
             if route.capability == capability and route.operation == operation:
                 return route
+        for route in self.quarantined_capabilities:
+            if route.capability == capability and route.operation == operation:
+                raise CanonicalCapabilityQuarantined(route.capability, route.operation, route.reason)
         raise CanonicalCoreError(f"canonical_capability_route_missing:{capability}.{operation}")
+
+    def quarantined_capability(self, capability: str, operation: str) -> QuarantinedCapability:
+        for route in self.quarantined_capabilities:
+            if route.capability == capability and route.operation == operation:
+                return route
+        raise CanonicalCoreError(f"canonical_capability_quarantine_missing:{capability}.{operation}")
 
 
 class CanonicalBudget(SentinelModel):
@@ -334,6 +373,8 @@ class CanonicalDevMissionResult(SentinelModel):
     cleanup_completed: bool
     final_answer: str = ""
     cancellation_reason: str = ""
+    blocked_capability: str = ""
+    blocked_reason_detail: str = ""
 
 
 class CanonicalModelClient(Protocol):
@@ -360,6 +401,15 @@ def build_workspace_read_capability_graph() -> ExecutableCapabilityGraph:
                 proof_contract="canonical_core_terminal_truth_v1",
                 recovery_policy="block_if_no_prior_receipt",
                 cleanup_contract="root_resource_scope_close",
+            ),
+        ),
+        quarantined_capabilities=(
+            QuarantinedCapability(
+                capability="code_execution_sandbox",
+                operation="code_exec.run_profile",
+                reason="physical_sandbox_not_proven",
+                proof_tier="P0_REPRODUCED_LOCAL",
+                unblock_requirement="real_process_or_container_sandbox_denies_outside_workspace_read_write_network_credentials",
             ),
         )
     )
@@ -450,7 +500,15 @@ class RootMissionRuntime:
                         reason="ROOT_MISSION_CANCELLED",
                         cancellation_reason=self.cancellation_token.reason,
                     )
-                decision = self._normalize_decision(raw_decision)
+                try:
+                    decision = self._normalize_decision(raw_decision)
+                except CanonicalCapabilityQuarantined as exc:
+                    return self._terminal_result(
+                        status="blocked",
+                        reason="CAPABILITY_QUARANTINED",
+                        blocked_capability=exc.affordance,
+                        blocked_reason_detail=exc.reason,
+                    )
                 self.decisions.append(decision)
                 if decision.capability == "sentinel_loop" and decision.operation == "finish":
                     if not self.receipts:
@@ -650,6 +708,8 @@ class RootMissionRuntime:
         reason: str,
         final_answer: str = "",
         cancellation_reason: str = "",
+        blocked_capability: str = "",
+        blocked_reason_detail: str = "",
     ) -> CanonicalDevMissionResult:
         proof = MissionProofRoot(
             root_mission_id=self.root_mission_id,
@@ -670,6 +730,8 @@ class RootMissionRuntime:
             cleanup_completed=self._closed,
             final_answer=redact_operator_text(final_answer),
             cancellation_reason=redact_operator_text(cancellation_reason),
+            blocked_capability=redact_operator_text(blocked_capability),
+            blocked_reason_detail=redact_operator_text(blocked_reason_detail),
         )
 
     def _terminal_result(
@@ -679,6 +741,8 @@ class RootMissionRuntime:
         reason: str,
         final_answer: str = "",
         cancellation_reason: str = "",
+        blocked_capability: str = "",
+        blocked_reason_detail: str = "",
     ) -> CanonicalDevMissionResult:
         self.close()
         return self._result(
@@ -686,6 +750,8 @@ class RootMissionRuntime:
             reason=reason,
             final_answer=final_answer,
             cancellation_reason=cancellation_reason,
+            blocked_capability=blocked_capability,
+            blocked_reason_detail=blocked_reason_detail,
         )
 
 
@@ -737,6 +803,7 @@ def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int
 
 __all__ = [
     "CanonicalBudget",
+    "CanonicalCapabilityQuarantined",
     "CanonicalCapabilityRoute",
     "CanonicalCoreError",
     "CanonicalDecision",
@@ -749,6 +816,7 @@ __all__ = [
     "EffectKind",
     "ExecutableCapabilityGraph",
     "MissionProofRoot",
+    "QuarantinedCapability",
     "RootMissionRuntime",
     "RootMissionCancellationToken",
     "build_workspace_read_capability_graph",

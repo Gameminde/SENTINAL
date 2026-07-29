@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel import cli
 from sentinel.operator.action_kernel import ActionEnvelope
 from sentinel.operator.canonical_core import (
@@ -16,6 +18,8 @@ from sentinel.operator.canonical_core import (
     build_workspace_read_capability_graph,
     run_canonical_dev_mission,
 )
+from sentinel.operator.code_execution_sandbox_runtime import CodeExecutionSandboxRuntime
+from sentinel.operator.kernel import MissionKernel
 
 
 class ScriptedModelClient:
@@ -276,6 +280,75 @@ def test_model_payload_cannot_self_grant_authority(tmp_path: Path) -> None:
         )
 
 
+def test_stage2_probe_confirms_current_code_exec_is_not_physical_sandbox_and_core_quarantines_it(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "outside_canary.txt"
+    outside.write_text("outside canary readable only when the sandbox is not physical\n", encoding="utf-8")
+    workspace = tmp_path / "workspace"
+    (workspace / "tests").mkdir(parents=True)
+    (workspace / "tests" / "test_escape.py").write_text(
+        "from pathlib import Path\n\n"
+        "def test_can_read_outside_workspace():\n"
+        f"    assert Path({str(outside)!r}).read_text(encoding='utf-8').startswith('outside canary')\n",
+        encoding="utf-8",
+    )
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    mission = kernel.create_mission(session_id="session_code_probe", draft=_draft())
+    authority = _authority(mission.mission_id, workspace)
+    runtime = CodeExecutionSandboxRuntime(
+        kernel=kernel,
+        mission_id=mission.mission_id,
+        workspace_root=workspace,
+    )
+
+    result = runtime.execute(
+        ActionEnvelope(
+            capability_id="code_execution_sandbox",
+            operation="code_exec.run_profile",
+            params={"profile_id": "pytest_file", "args": ["tests/test_escape.py"]},
+        ),
+        authority=authority,
+        context={},
+    )
+    graph = build_workspace_read_capability_graph()
+
+    assert result.status == "passed"
+    assert graph.quarantined_capability("code_execution_sandbox", "code_exec.run_profile").reason == (
+        "physical_sandbox_not_proven"
+    )
+    with pytest.raises(CanonicalCoreError, match="canonical_capability_quarantined"):
+        graph.resolve("code_execution_sandbox", "code_exec.run_profile")
+
+
+def test_model_selected_quarantined_code_capability_returns_typed_blocker(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "code_execution_sandbox",
+                "operation": "code_exec.run_profile",
+                "arguments": {"profile_id": "pytest_file", "args": ["tests/test_smoke.py"]},
+            },
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Run code only if the canonical core can prove a physical sandbox.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+    )
+
+    assert result.status == "blocked"
+    assert result.final_reason == "CAPABILITY_QUARANTINED"
+    assert result.blocked_capability == "code_execution_sandbox.code_exec.run_profile"
+    assert result.blocked_reason_detail == "physical_sandbox_not_proven"
+    assert result.material_action_count == 0
+    assert result.receipts == ()
+    assert result.cleanup_completed is True
+
+
 def test_initial_proof_root_is_explicitly_non_authentic_placeholder(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     model = ScriptedModelClient(
@@ -354,3 +427,31 @@ def _workspace(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return workspace
+
+
+def _draft():
+    from sentinel.operator.models import MissionDraft
+
+    return MissionDraft(
+        title="Canonical core code sandbox boundary probe",
+        objective="Probe whether code execution is physically confined.",
+        constraints=["temporary canary only"],
+        expected_artifacts=["typed probe result"],
+    )
+
+
+def _authority(mission_id: str, workspace: Path) -> MissionAuthorityEnvelope:
+    now = datetime.now(UTC)
+    return MissionAuthorityEnvelope(
+        id=mission_id,
+        user_id="user_youcef",
+        mission_title="Canonical core code sandbox boundary probe",
+        mission_objective="Probe whether code execution is physically confined.",
+        allowed_tools=["code_execution_sandbox"],
+        allowed_actions=["code_exec.run_profile"],
+        forbidden_actions=["network", "credential_access", "package_install"],
+        allowed_paths=[str(workspace)],
+        max_actions=2,
+        created_at=now,
+        expires_at=now.replace(year=now.year + 1),
+    )
