@@ -203,6 +203,66 @@ configured models returned `403`, so the current blocker is classified as a
 common provider/model/workspace entitlement block rather than a Sentinel
 normalization, workspace, or receipt dispatch defect.
 
+### V9/V10/V11 Default Workspace Qwen Checks
+
+Official Alibaba Cloud Model Studio documentation says the Singapore
+OpenAI-compatible endpoint uses:
+
+```text
+https://{WorkspaceId}.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1
+```
+
+and the first-call Qwen example uses:
+
+```text
+model = qwen-plus
+```
+
+The operator-provided Default Workspace CSV was tested process-scoped only.
+
+```text
+direct qwen-plus smoke = HTTP 200
+content_matches_expected = true
+raw_secret_persisted = false
+```
+
+The first Sentinel `qwen-plus` product run reached the provider but failed
+normalization because Qwen returned a compact registered affordance shape:
+
+```text
+{"operation": "workspace.search", "arguments": {...}}
+```
+
+The adapter was corrected to accept exact registered affordance operations
+without accepting arbitrary capabilities.
+
+The second Sentinel `qwen-plus` product run reached the real provider and
+executed material workspace receipts:
+
+```text
+provider = aliyun_dashscope/qwen-plus
+provider_decision_count = 8
+material_actions = 7
+model_native_decisions_accepted = true
+workspace_receipts_created = 7
+terminal_state = blocked
+final_reason = MODEL_DECISION_FAILED
+blocked_reason_detail = canonical_provider_blocked_TIMEOUT
+model_selected_finish = false
+receipt_artifacts_verified = false
+cleanup = true
+```
+
+This is meaningful progress, but it is not `FIXED_PROVEN`: the mission repeated
+zero-result workspace searches and timed out before a grounded finish. DeepSeek
+with the same Default Workspace key and endpoint returned:
+
+```text
+failure_code = canonical_provider_failure_PROVIDER_BAD_REQUEST_http_400
+provider_decision_count = 1
+material_actions = 0
+```
+
 ## Gates
 
 ```text
@@ -253,13 +313,24 @@ or workspace execution:
 
 ```text
 PROVIDER_AUTH_ERROR
-safe_cause = model_or_workspace_unauthorized_http_403
-classification = COMMON_PROVIDER_MODEL_WORKSPACE_ENTITLEMENT_BLOCK
+safe_cause = qwen_plus_authenticated_deepseek_http_400
+classification = QWEN_AUTHENTICATED_DEEPSEEK_BAD_REQUEST
 ```
 
-After provider-side model/workspace authorization is restored, rerun the same
-canonical product workspace vertical slice once. If it accepts a model decision
-and completes a workspace action, the next required work is:
+The immediate next blocker is no longer provider authentication for every
+model. `qwen-plus` authenticates and executes the product route. The next
+canonical-core issue is product-loop progress and proof completion:
+
+```text
+repeated zero-result workspace.search
+no model-selected finish
+receipt_artifacts_verified = false
+provider timeout before terminal answer
+```
+
+After this is corrected, rerun the same canonical product workspace vertical
+slice with `qwen-plus`. If it reaches grounded finish with verified receipts,
+the next required work is:
 
 ```text
 physical provider cancellation

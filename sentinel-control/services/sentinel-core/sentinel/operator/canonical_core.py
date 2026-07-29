@@ -765,12 +765,12 @@ class RootMissionRuntime:
         )
         capability = str(raw.get("capability") or raw.get("skill") or "").strip()
         operation = str(raw.get("operation") or "").strip()
-        if not capability or not operation:
+        route = self._resolve_model_decision_route(capability=capability, operation=operation)
+        if route is None:
             raise CanonicalCoreError("canonical_model_decision_capability_operation_required")
         arguments = raw.get("arguments", raw.get("params", {}))
         if not isinstance(arguments, dict):
             raise CanonicalCoreError("canonical_model_decision_arguments_must_be_object")
-        route = self.capability_graph.resolve(capability, operation)
         return CanonicalDecision(
             root_mission_id=self.root_mission_id,
             provider_model=self.provider_model,
@@ -785,6 +785,28 @@ class RootMissionRuntime:
             evidence_needed=tuple(str(item) for item in raw.get("evidence_needed", ()) if str(item).strip()),
             recovery_intent=str(raw.get("recovery_intent") or ""),
         )
+
+    def _resolve_model_decision_route(
+        self,
+        *,
+        capability: str,
+        operation: str,
+    ) -> CanonicalCapabilityRoute | None:
+        if capability and operation:
+            return self.capability_graph.resolve(capability, operation)
+        if not operation:
+            return None
+        affordance_matches = [route for route in self.capability_graph.routes if route.affordance == operation]
+        if len(affordance_matches) == 1:
+            return affordance_matches[0]
+        operation_matches = [
+            route
+            for route in self.capability_graph.routes
+            if route.model_visible and route.operation == operation
+        ]
+        if len(operation_matches) == 1:
+            return operation_matches[0]
+        return None
 
     def _execute(self, decision: CanonicalDecision, *, before_state: CanonicalState) -> CanonicalEffectReceipt:
         route = self.capability_graph.resolve(decision.capability, decision.operation)

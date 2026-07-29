@@ -66,20 +66,21 @@ persisting raw provider output or secrets:
 ```text
 provider = aliyun_dashscope
 backend = aliyun_openai_compatible_chat
-models_checked = glm-5.2, deepseek-v4-pro
-credentials_checked = operator CSV key, older User-env key
-provider_decision_count_each = 1
-material_actions_each = 0
-failure_code_each = canonical_provider_failure_PROVIDER_AUTH_ERROR_model_or_workspace_unauthorized_http_403
-safe_cause = model_or_workspace_unauthorized_http_403
-classification = COMMON_PROVIDER_MODEL_WORKSPACE_ENTITLEMENT_BLOCK
+models_checked = qwen-plus, glm-5.2, deepseek-v4-pro
+credentials_checked = Default Workspace CSV key, prior CSV key, older User-env key
+qwen-plus direct smoke = HTTP 200
+qwen-plus product route = provider_decisions:8, material_actions:7
+deepseek-v4-pro Default Workspace route = HTTP 400 before model decision
+safe_cause = qwen_plus_authenticated_but_product_loop_not_finished
+classification = QWEN_AUTHENTICATED_PRODUCT_ROUTE_PARTIAL
 FIXED_PROVEN = 0
 ```
 
-This distinguishes the current blocker from a missing local key or a single
-model typo. The selected provider/backend/model routes are constructed, but
-provider-side authorization for the tested model/workspace combinations is not
-available.
+This distinguishes the current blocker from missing local credentials. Qwen is
+usable through the Default Workspace endpoint, and Sentinel now accepts Qwen's
+compact registered affordance operation shape. The real mission still does not
+finish: it repeats zero-result workspace searches, times out before a final
+answer, and leaves receipt artifact verification false.
 
 ## `browse_search` Classification
 

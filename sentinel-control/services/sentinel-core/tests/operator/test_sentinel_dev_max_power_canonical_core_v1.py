@@ -98,15 +98,25 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     tranche = ledger["canonical_core_vertical_product_tranche"]
     assert tranche["status"] == "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
     assert tranche["checkpoint_head"] == "a4538e3d36b677c8f49952117d1c6b8950a470a8"
-    assert tranche["provider_failure_diagnosis"]["classification"] == "COMMON_PROVIDER_MODEL_WORKSPACE_ENTITLEMENT_BLOCK"
+    assert tranche["provider_failure_diagnosis"]["classification"] == "QWEN_AUTHENTICATED_DEEPSEEK_BAD_REQUEST"
     assert tranche["provider_failure_diagnosis"]["credential_safe_hash_prefixes_tested"] == [
+        "dce21292e72b63f8",
         "8e5eb7d1f3b1d5ed",
         "57eb3529df63c0f9",
     ]
     assert {item["model_id"] for item in tranche["explicit_provider_retries_after_0701297e"]} == {
+        "qwen-plus",
         "glm-5.2",
         "deepseek-v4-pro",
     }
+    qwen_attempt = next(
+        item
+        for item in tranche["explicit_provider_retries_after_0701297e"]
+        if item["attempt_id"] == "canonical_core_real_provider_v10_qwen_plus_affordance_normalized"
+    )
+    assert qwen_attempt["model_native_decisions_accepted"] is True
+    assert qwen_attempt["workspace_receipts_created"] == 7
+    assert qwen_attempt["model_selected_finish"] is False
     assert "a4538e3d36b677c8f49952117d1c6b8950a470a8" in by_id["P0-01"]["slice_status_history"][-1]["head"]
     required_fields = {
         "target_wave",
@@ -479,6 +489,27 @@ def test_runtime_dispatch_uses_registered_callable_not_hardcoded_if_chain(tmp_pa
     route = runtime.capability_graph.resolve("workspace", "list")
 
     assert runtime.resolve_executor(route).__name__ == "_workspace_list"
+
+
+def test_model_decision_accepts_registered_affordance_operation_without_capability(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    model = ScriptedModelClient(
+        [
+            {"operation": "workspace.search", "arguments": {"query": "needle", "path": "."}},
+            {"operation": "sentinel_loop.finish", "arguments": {"answer": "Done."}},
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Use compact registered affordance operations.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+    )
+
+    assert result.status == "completed"
+    assert [decision.selected_capability for decision in result.decisions] == ["workspace", "sentinel_loop"]
+    assert [decision.selected_operation for decision in result.decisions] == ["search", "finish"]
 
 
 def test_product_action_envelope_decision_is_consumed_without_parallel_model_protocol(tmp_path: Path) -> None:
