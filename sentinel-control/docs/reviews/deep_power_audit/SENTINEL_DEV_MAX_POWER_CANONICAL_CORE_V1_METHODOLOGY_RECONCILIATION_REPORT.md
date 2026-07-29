@@ -6,8 +6,8 @@
 SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_METHODOLOGY_RECONCILIATION
 = VALID_RECONCILED_LOCAL_TRUTH
 
-FIXED_PROVEN_COUNT = 0
-REAL_PRODUCT_VERTICAL_SLICE = VALID_REAL_MODEL_LOOP_STALLED
+FIXED_PROVEN_COUNT = 1
+REAL_PRODUCT_VERTICAL_SLICE = VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE
 ```
 
 This report reconciles the current branch after the first three local commits.
@@ -20,7 +20,7 @@ still not proven.
 
 ```text
 baseline_commit = efdbd558abddbc38cea7e506ff8cb8dfe8ef93fa
-current_head = 30c2cfad1b0d9d9089c71d6312bf481114f02691
+current_head = b721ce62343316bcdbe9c792af8a0967c8ae1680
 branch = sentinel-dev-max-power-canonical-core-v1
 tracked_dirty_state = ledger/test/report updates only
 untracked_state = existing runtime artifact directories intentionally untouched
@@ -36,14 +36,16 @@ untracked_state = existing runtime artifact directories intentionally untouched
 | Slice 0D | `41d417ef` | `SLICE_0D_METHOD_RECONCILIATION_AND_LEDGER_ALIGNMENT` | Reconciled methodology and kept `FIXED_PROVEN` at 0. |
 | Slice 0E | `a4538e3d` | `SLICE_0E_KERNEL_BACKED_PRODUCT_ROUTE_PROVIDER_AUTH_BLOCKED` | Added the kernel-backed public product route and stopped honestly at provider authentication. |
 | Slice 0F | `30c2cfad` | `SLICE_0F_QWEN_PROVIDER_ROUTE_AND_LOOP_STALL_TRUTH` | Added Qwen route support, accepted compact registered affordance operations, reached real model decisions and 7 workspace actions, then stopped honestly at loop stall/no finish. |
+| Slice 0G | `b721ce62` | `SLICE_0G_QWEN_FIXTURE_PRODUCT_MISSION_FIXED_PROVEN_P0_01` | Completed the controlled North Star workspace mission with real Qwen, model-selected finish, receipt integrity, proof root and cleanup. Closes `P0-01` only. |
 
-No slice is reclassified as a completed Stage. No finding is `FIXED_PROVEN`.
+No slice is reclassified as a completed Stage. `P0-01` alone is now
+`FIXED_PROVEN`; all other findings remain under the wave ledger.
 
 ## P0 Probe Replay
 
 | Finding | Current Classification | Probe Result | Notes |
 |---|---|---|---|
-| `P0-01` | `IMPLEMENTING` | `VALID_REAL_MODEL_LOOP_STALLED` | Canonical product path reaches the real Qwen provider, accepts model-native decisions, and executes workspace actions, but no model-selected finish or receipt-integrity proof is reached. |
+| `P0-01` | `FIXED_PROVEN` | `VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE` | Canonical product path reaches real Qwen, accepts model-native decisions, executes a workspace effect, returns observation, receives model-selected finish, persists receipts/proof, verifies receipt integrity, and cleans up. |
 | `P0-02` | `CONFIRMED_CURRENT` | `T1_LOCAL_REPRODUCED_UNSAFE` | The current code execution sandbox can read a canary outside the workspace. Canonical core quarantines `code_exec.run_profile`. |
 | `P0-03` | `IMPLEMENTING` | `T1_LOCAL_DETERMINISTIC_CANDIDATE` | Root cancellation token blocks before provider and after model response locally. Provider/process kill is not yet proven. |
 | `P0-04` | `CONFIRMED_CURRENT` | `T0_STATIC_REVALIDATED` | Browser `open_result` remains outside this core tranche. Not fixed here. |
@@ -62,7 +64,7 @@ No slice is reclassified as a completed Stage. No finding is `FIXED_PROVEN`.
 ## Provider Diagnostic Update
 
 The post-review diagnostic reached the configured real provider route without
-persisting raw provider output or secrets:
+persisting provider payloads or secrets:
 
 ```text
 provider = aliyun_dashscope
@@ -70,18 +72,20 @@ backend = aliyun_openai_compatible_chat
 models_checked = qwen-plus, glm-5.2, deepseek-v4-pro
 credentials_checked = opaque attempt IDs only
 qwen-plus direct smoke = HTTP 200
-qwen-plus product route = provider_decisions:8, material_actions:7
+qwen-plus product route = provider_decisions:2, material_actions:1, mission_status:completed
 deepseek-v4-pro Default Workspace route = HTTP 400 before model decision
-safe_cause = qwen_plus_authenticated_but_product_loop_not_finished
-classification = VALID_REAL_MODEL_LOOP_STALLED
-FIXED_PROVEN = 0
+safe_cause = none
+classification = VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE
+FIXED_PROVEN = 1
 ```
 
-This distinguishes the current blocker from missing local credentials. Qwen is
-usable through the Default Workspace endpoint, and Sentinel now accepts Qwen's
-compact registered affordance operation shape. The real mission still does not
-finish: it repeats zero-result workspace searches, times out before a final
-answer, and leaves receipt artifact verification false.
+This distinguishes the Qwen path from the secondary DeepSeek compatibility
+blocker. Qwen is usable through the Default Workspace endpoint, Sentinel accepts
+Qwen's compact registered affordance operation shape, and the controlled
+workspace vertical slice now reaches model-selected finish with verified receipt
+integrity. This closes `P0-01` only; it does not close broader core ownership,
+full organ graph, external append-only proof, provider cancellation or physical
+sandbox findings.
 
 ## `browse_search` Classification
 

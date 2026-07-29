@@ -4,15 +4,15 @@
 
 ```text
 SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_VERTICAL_PRODUCT_TRANCHE
-= VALID_REAL_MODEL_LOOP_STALLED
+= VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE
 
-FIXED_PROVEN_COUNT = 0
+FIXED_PROVEN_COUNT = 1
 REAL_PROVIDER_REACHED = yes
 PROVIDER_AUTHENTICATED = true
 REAL_MODEL_DECISION_ACCEPTED = yes
-MATERIAL_WORKSPACE_ACTIONS = 7
-MODEL_SELECTED_FINISH = false
-RECEIPT_INTEGRITY_VERIFIED = false
+MATERIAL_WORKSPACE_ACTIONS = 1
+MODEL_SELECTED_FINISH = true
+RECEIPT_INTEGRITY_VERIFIED = true
 ```
 
 The tranche improved the canonical core product path locally, then attempted a
@@ -20,22 +20,20 @@ real provider mission. A post-review corrective pass widened terminalization,
 centralized workspace route registration, bounded workspace search, and made
 provider auth diagnostics specific without storing raw secrets.
 
-The latest live `qwen-plus` mission authenticated and executed real workspace
-actions through the canonical product route. It still could not complete because
-the loop repeated zero-result workspace searches, timed out before a
-model-selected finish, and the proof root reported unreadable/failed receipt
-integrity:
+The latest controlled live `qwen-plus` mission authenticated and completed a
+known-solvable workspace task through the canonical product route:
 
 ```text
-classification = VALID_REAL_MODEL_LOOP_STALLED
+classification = VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE
 provider authenticated = true
 model-native decisions accepted = true
-workspace actions = 7
-model-selected finish = false
-receipt integrity verified = false
+workspace actions = 1
+model-selected finish = true
+receipt integrity verified = true
 ```
 
-This is not claimed as `FIXED_PROVEN`.
+This closes only `P0-01` as `FIXED_PROVEN`. It does not close `C-P0-01`,
+`C-P0-06`, or `P0-07`.
 
 ## Implemented Product Path
 
@@ -273,6 +271,58 @@ provider_decision_count = 1
 material_actions = 0
 ```
 
+### V12/V13 Controlled Qwen Fixture
+
+The controlled workspace fixture verified the known North Star document before
+provider consumption:
+
+```text
+precondition relative path = docs/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md
+precondition sha256 = a2546aff55bee134cc38b2d42287333350b0412c7f827d8001fa3c2e3370bccc
+absolute path persisted = false
+```
+
+V12 proved the real model route and model-selected finish but exposed a real
+receipt verifier defect under long Windows paths:
+
+```text
+provider = aliyun_dashscope/qwen-plus
+provider_decision_count = 2
+material_actions = 1
+mission_status = completed
+receipt_artifacts_verified = false
+root_cause = canonical receipt verification used normal Path.exists/read_text on a MAX_PATH-length artifact path
+```
+
+The defect was fixed with a long-path regression test. V13 then replayed the
+same controlled mission on a new root:
+
+```text
+runtime_head = b721ce62343316bcdbe9c792af8a0967c8ae1680
+provider = aliyun_dashscope/qwen-plus
+provider_decision_count = 2
+material_actions = 1
+model_native_decisions_accepted = true
+model_selected_finish = true
+mission_status = completed
+receipt_artifacts_verified = true
+proof_root_persisted = true
+record_hash_verified = true
+kernel_timeline_verified = true
+cleanup = true
+raw_secret_persisted = false
+raw_provider_material_persisted = false
+```
+
+Final answer:
+
+```text
+MODEL is responsible for brain, reasoning, imagination, semantic judgment,
+strategy, exploration, and invention. SENTINEL is responsible for digital body,
+senses, canonical state, runtime, memory, skills, execution boundaries,
+evidence, receipts, replay, kill, and revocation.
+```
+
 ## Gates
 
 ```text
@@ -287,32 +337,33 @@ Terminal state after provider failure = PASS
 Cleanup after provider failure = PASS
 Real provider authenticated = PASS_QWEN_PLUS
 Real model decision accepted = PASS
-Material workspace effect via real model = PASS_7_ACTIONS
-Model-selected finish = FAIL
-Receipt integrity verified = FAIL
-FIXED_PROVEN = NO
+Material workspace effect via real model = PASS
+Model-selected finish = PASS
+Receipt integrity verified = PASS
+FIXED_PROVEN = P0-01_ONLY
 ```
 
 ## Ledger Truth
 
 ```text
-ledger_synced_checkpoint = 30c2cfad1b0d9d9089c71d6312bf481114f02691
-fixed_proven_count = 0
-P0 fixed / 15 = 0/15
+ledger_synced_checkpoint = b721ce62343316bcdbe9c792af8a0967c8ae1680
+fixed_proven_count = 1
+P0 fixed / 15 = 1/15
 P1 fixed / 44 = 0/44
 P2 fixed / 6 = 0/6
-total FIXED_PROVEN / 65 = 0/65
-status_counts = CONFIRMED_CURRENT:9, IMPLEMENTING:8, OPEN:48
+total FIXED_PROVEN / 65 = 1/65
+status_counts = CONFIRMED_CURRENT:9, FIXED_PROVEN:1, IMPLEMENTING:7, OPEN:48
+P0-01 = FIXED_PROVEN
 P0-07 = IMPLEMENTING
-canonical_core_vertical_product_tranche = VALID_REAL_MODEL_LOOP_STALLED
+canonical_core_vertical_product_tranche = VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE
 ```
 
-No P0 is closed.
+Only `P0-01` is closed.
 
 First candidates waiting for `FIXED_PROVEN` proof:
 
 ```text
-P0-01 = public product route reached provider, but no model-native workspace effect yet
+P0-01 = closed for the canonical public workspace product vertical slice
 C-P0-01 = RootMissionRuntime owns local canonical workspace route, but no real mission completion yet
 C-P0-06 = executable capability graph drives schema/dispatch locally, but full organ graph remains future
 P0-07 = MissionKernel receipt timeline proof root exists locally, but external append-only proof is missing
@@ -325,25 +376,23 @@ The immediate blocker is no longer provider authentication for every model.
 secondary compatibility issue:
 
 ```text
-classification = VALID_REAL_MODEL_LOOP_STALLED
-qwen-plus = authenticated, model-native, 7 workspace actions, no finish
+classification = VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE
+qwen-plus = authenticated, model-native, material workspace action, model-selected finish, receipt integrity verified
 deepseek-v4-pro = HTTP 400 before model decision
 ```
 
-The immediate next blocker is no longer provider authentication for every
-model. `qwen-plus` authenticates and executes the product route. The next
-canonical-core issue is product-loop progress and proof completion:
+The immediate next blockers are no longer the Qwen product loop or receipt
+integrity for this controlled workspace slice. The next canonical-core stages
+remain:
 
 ```text
-repeated zero-result workspace.search
-no model-selected finish
-receipt_artifacts_verified = false
-provider timeout before terminal answer
+physical provider cancellation
+physical sandbox boundary
+external append-only proof authenticity
+full organ graph migration
 ```
 
-After this is corrected, rerun the same canonical product workspace vertical
-slice with `qwen-plus`. If it reaches grounded finish with verified receipts,
-the next required work is:
+After the `P0-01` closure, the next required work is:
 
 ```text
 physical provider cancellation

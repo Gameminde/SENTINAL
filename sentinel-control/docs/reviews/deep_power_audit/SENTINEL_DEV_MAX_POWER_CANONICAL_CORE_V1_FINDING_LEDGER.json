@@ -3,16 +3,16 @@
   "canonical_core_vertical_product_tranche": {
     "canonical_state_recent_observations_local": true,
     "decision_protocol_local": true,
-    "fixed_proven_count": 0,
+    "fixed_proven_count": 1,
     "kernel_backed_receipt_proof_local": true,
     "legacy_bypass_absence_proven": false,
-    "material_action_count_latest_real_attempt": 7,
+    "material_action_count_latest_real_attempt": 1,
     "mission_record_before_provider": true,
-    "checkpoint_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
-    "provider_decision_count_latest_real_attempt": 8,
-    "provider_failure_code": "qwen_plus_loop_stalled_before_finish",
+    "checkpoint_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
+    "provider_decision_count_latest_real_attempt": 2,
+    "provider_failure_code": "none",
     "provider_failure_diagnosis": {
-      "classification": "VALID_REAL_MODEL_LOOP_STALLED",
+      "classification": "VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE",
       "credential_present": true,
       "credential_source": "opaque_attempt_inputs_process_scoped",
       "provider_backend_route_constructed": true,
@@ -22,25 +22,25 @@
         "deepseek-v4-pro",
         "glm-5.2"
       ],
-      "safe_cause": "qwen_plus_authenticated_loop_stalled_before_finish",
+      "safe_cause": "none",
       "raw_secret_persisted": false,
       "provider_authenticated": true,
       "model_native_decisions_accepted": true,
-      "workspace_actions": 7,
-      "model_selected_finish": false,
-      "receipt_integrity_verified": false
+      "workspace_actions": 1,
+      "model_selected_finish": true,
+      "receipt_integrity_verified": true
     },
     "raw_provider_material_persisted": false,
     "real_provider_attempted": true,
     "real_provider_success": true,
-    "reason_not_fixed_proven": "qwen-plus authenticated and produced model-native decisions; Sentinel accepted compact affordance decisions and executed 7 workspace actions, but the loop stalled before model-selected finish and proof root reported receipt_integrity_verified=false.",
-    "status": "VALID_REAL_MODEL_LOOP_STALLED",
-    "current_checkpoint_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+    "reason_not_fixed_proven": "P0-01 is fixed proven by the qwen-plus fixture mission. Broader canonical core, full organ graph, external append-only proof, provider cancellation, and physical sandbox findings remain open.",
+    "status": "VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE",
+    "current_checkpoint_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
     "provider_authenticated": true,
     "model_native_decisions_accepted": true,
-    "workspace_actions": 7,
-    "model_selected_finish": false,
-    "receipt_integrity_verified": false,
+    "workspace_actions": 1,
+    "model_selected_finish": true,
+    "receipt_integrity_verified": true,
     "explicit_provider_attempts_after_checkpoint": [
       {
         "attempt_id": "canonical_core_real_provider_v6_glm_new_key",
@@ -129,12 +129,54 @@
         "material_action_count": 0,
         "cleanup_completed": true,
         "raw_secret_persisted": false
+      },
+      {
+        "attempt_id": "canonical_core_real_provider_v13_qwen_north_star_fixture_receipt_fixed",
+        "runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
+        "provider_id": "aliyun_dashscope",
+        "backend_id": "aliyun_openai_compatible_chat",
+        "model_id": "qwen-plus",
+        "provider_decision_count": 2,
+        "material_action_count": 1,
+        "model_native_decisions_accepted": true,
+        "model_selected_finish": true,
+        "mission_status": "completed",
+        "precondition_relative_path": "docs/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md",
+        "precondition_sha256": "a2546aff55bee134cc38b2d42287333350b0412c7f827d8001fa3c2e3370bccc",
+        "receipt_artifacts_verified": true,
+        "proof_root_persisted": true,
+        "record_hash_verified": true,
+        "kernel_timeline_verified": true,
+        "cleanup_completed": true,
+        "raw_secret_persisted": false,
+        "raw_provider_material_persisted": false
       }
-    ]
+    ],
+    "proof_attempt_latest": {
+      "attempt_id": "canonical_core_real_provider_v13_qwen_north_star_fixture_receipt_fixed",
+      "runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
+      "provider_id": "aliyun_dashscope",
+      "backend_id": "aliyun_openai_compatible_chat",
+      "model_id": "qwen-plus",
+      "provider_decision_count": 2,
+      "material_action_count": 1,
+      "model_native_decisions_accepted": true,
+      "model_selected_finish": true,
+      "mission_status": "completed",
+      "precondition_relative_path": "docs/SENTINEL_COGNITIVE_OPERATING_SYSTEM_NORTH_STAR_V1.md",
+      "precondition_sha256": "a2546aff55bee134cc38b2d42287333350b0412c7f827d8001fa3c2e3370bccc",
+      "receipt_artifacts_verified": true,
+      "proof_root_persisted": true,
+      "record_hash_verified": true,
+      "kernel_timeline_verified": true,
+      "cleanup_completed": true,
+      "raw_secret_persisted": false,
+      "raw_provider_material_persisted": false
+    }
   },
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
-  "current_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+  "current_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
   "entries": [
     {
       "acceptance_probe": "Start a mission from the public CLI and prove provider decision -> ProductModelNativeDecisionClient -> ProductActionKernel -> receipt",
@@ -144,15 +186,17 @@
       "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "finding": "ProductModelNativeDecisionClient has no production source caller and the public cockpit remains bound to read_only_research.inspect_repository",
       "id": "P0-01",
-      "integration_or_live_probe": "",
+      "integration_or_live_probe": "canonical_core_real_provider_v13_qwen_north_star_fixture_receipt_fixed",
       "layer": "product_wiring",
       "primary_evidence": "sentinel/cli.py:510-553; sentinel/operator/product_model_native_decision_client.py:44; source reference scan found no production caller",
       "proof_artifacts": [
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_STAGE0_AND_VERTICAL_SLICE_REPORT.md",
-        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py",
+        "sentinel-control/services/sentinel-core/.canonical_core_real_provider_v13_qwen_north_star_fixture_receipt_fixed/run/<safe mission bundle>",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_VERTICAL_PRODUCT_TRANCHE_REPORT.md"
       ],
-      "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "qwen-plus now proves provider authentication, model-native decisions, and 7 workspace actions through the public product route, but the loop stalled before finish and receipt integrity verified=false; not FIXED_PROVEN.",
+      "proof_tier": "T3_REAL_MODEL_PRODUCT_PROVEN",
+      "remaining_risk": "P0-01 product route is fixed for the canonical workspace vertical slice. Full organ graph, external proof authenticity, provider cancellation, and sandbox remain separate findings.",
       "required_change": "Create one canonical product entrypoint that constructs ProductModelNativeDecisionClient and invokes RuntimeHost.run_product_action_kernel_task_loop; retire the parallel read-only-only product binding for general missions",
       "responsible_files_symbols": [],
       "severity": "P0",
@@ -180,10 +224,16 @@
           "status": "IMPLEMENTING",
           "proof_tier": "T3_REAL_MODEL_LOOP_STALLED",
           "note": "qwen-plus authenticated and produced model-native workspace decisions/actions, but no model-selected finish and receipt integrity remained false; no finding closed."
+        },
+        {
+          "head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
+          "status": "FIXED_PROVEN",
+          "proof_tier": "T3_REAL_MODEL_PRODUCT_PROVEN",
+          "note": "qwen-plus completed the controlled North Star workspace mission through the public canonical product route with model-selected finish, persisted receipt, proof root, verified receipt integrity, and cleanup."
         }
       ],
       "source_audit": "initial_exhaustive_audit",
-      "status": "IMPLEMENTING",
+      "status": "FIXED_PROVEN",
       "superseded_modules": [],
       "targeted_tests": [
         "test_public_dev_cli_entrypoint_runs_canonical_core_vertical_slice",
@@ -196,9 +246,10 @@
         "41d417ef",
         "a4538e3d36b677c8f49952117d1c6b8950a470a8",
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "b721ce62343316bcdbe9c792af8a0967c8ae1680"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "b721ce62343316bcdbe9c792af8a0967c8ae1680"
     },
     {
       "acceptance_probe": "A malicious synthetic pytest cannot read/write an outside canary, connect to loopback/Internet, spawn survivors, or access ambient credentials",
@@ -405,7 +456,7 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "KEEP_AS_HARD_BOUNDARY",
-      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+      "current_head_revalidated": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
       "finding": "Product receipts, FinalGate certificates and authority records are plain recomputable stable_hash values with no secret key or external anchor",
       "id": "P0-07",
       "integration_or_live_probe": "",
@@ -438,7 +489,8 @@
       "change_commits": [
         "aca1f008",
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "b721ce62343316bcdbe9c792af8a0967c8ae1680"
       ],
       "fixed_proven_commit": ""
     },
@@ -1473,7 +1525,7 @@
       "change_applied": "Slice 0A introduced first whole-Sentinel root runtime skeleton; organs not migrated.",
       "chosen_invariant": "root_runtime_orchestrates_body_not_model_cognition",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
-      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+      "current_head_revalidated": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
       "finding": "Sentinel has several independent cognitive/task spines and no single product loop owns mission state, cognition, organs, recovery, proof and cleanup.",
       "id": "C-P0-01",
       "integration_or_live_probe": "",
@@ -1508,7 +1560,8 @@
       "change_commits": [
         "aca1f008",
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "b721ce62343316bcdbe9c792af8a0967c8ae1680"
       ],
       "fixed_proven_commit": ""
     },
@@ -1677,7 +1730,7 @@
       "change_applied": "First ExecutableCapabilityGraph exists for workspace read-only routes and code_exec quarantine only.",
       "chosen_invariant": "model_visible_affordances_generated_from_executable_routes",
       "classification": "AFFORDANCE_MISSING",
-      "current_head_revalidated": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+      "current_head_revalidated": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
       "finding": "Capability, actionability, connection, power-skill and organ registries are separate descriptive maps and do not truthfully enumerate executable power.",
       "id": "C-P0-06",
       "integration_or_live_probe": "",
@@ -1712,7 +1765,8 @@
       "change_commits": [
         "aca1f008",
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "b721ce62343316bcdbe9c792af8a0967c8ae1680"
       ],
       "fixed_proven_commit": ""
     },
@@ -2256,7 +2310,7 @@
       "fixed_proven_commit": ""
     }
   ],
-  "fixed_proven_count": 0,
+  "fixed_proven_count": 1,
   "ledger_id": "SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_FINDING_LEDGER",
   "methodological_reconciliation": {
     "browse_search_classification": {
@@ -2264,10 +2318,10 @@
       "reason": "Current model-visible browser surface uses separated affordances observe/navigate/search/follow/inspect/extract_evidence; tests expecting browse_search should be migrated only after verifying product path requirements.",
       "status": "STALE_EXPECTATION_PENDING_MIGRATION"
     },
-    "fixed_proven_count": 0,
+    "fixed_proven_count": 1,
     "fixed_proven_definition": "requires real product path, discriminating probe, real mission, persistent proof, and no legacy bypass",
     "reconciled_at_utc": "2026-07-29T11:50:45.338831+00:00",
-    "reconciled_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+    "reconciled_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
     "slice_warning": "The first three commits are preliminary slices, not completed master-directive stages.",
     "slices": [
       {
@@ -2305,14 +2359,21 @@
         "slice_id": "SLICE_0F_QWEN_PROVIDER_ROUTE_AND_LOOP_STALL_TRUTH",
         "status": "VALID_REAL_MODEL_LOOP_STALLED",
         "not_stage_complete_reason": "qwen-plus authenticated and produced model-native workspace actions, but did not reach model-selected finish and receipt integrity verification remained false."
+      },
+      {
+        "commit": "b721ce62",
+        "slice_id": "SLICE_0G_QWEN_FIXTURE_PRODUCT_MISSION_FIXED_PROVEN_P0_01",
+        "status": "T3_REAL_MODEL_PRODUCT_PROVEN",
+        "not_stage_complete_reason": "P0-01 only; full core, organ graph, proof externalization, provider cancellation, and sandbox remain open."
       }
     ]
   },
   "proof_tier_counts": {
     "T0_STATIC_INSPECTED": 48,
     "T0_STATIC_REVALIDATED": 8,
-    "T1_LOCAL_DETERMINISTIC_CANDIDATE": 8,
-    "T1_LOCAL_REPRODUCED_UNSAFE": 1
+    "T1_LOCAL_DETERMINISTIC_CANDIDATE": 7,
+    "T1_LOCAL_REPRODUCED_UNSAFE": 1,
+    "T3_REAL_MODEL_PRODUCT_PROVEN": 1
   },
   "severity_counts": {
     "P0": 15,
@@ -2362,7 +2423,8 @@
   ],
   "status_counts": {
     "CONFIRMED_CURRENT": 9,
-    "IMPLEMENTING": 8,
+    "FIXED_PROVEN": 1,
+    "IMPLEMENTING": 7,
     "OPEN": 48
   },
   "tracked_dirty_state": [
@@ -2373,20 +2435,20 @@
     "raw_paths_persisted": false
   },
   "updated_at_utc": "2026-07-29T12:25:00Z",
-  "synced_checkpoint_head": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+  "synced_checkpoint_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
   "ledger_schema_version": "canonical_core_finding_execution_ledger_v1",
   "fixed_proven_by_severity": {
-    "P0": 0,
+    "P0": 1,
     "P1": 0,
     "P2": 0
   },
-  "fixed_proven_total": 0,
+  "fixed_proven_total": 1,
   "published_counters_after_commit": {
-    "checkpoint_commit": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
-    "P0 fixed / 15": "0/15",
+    "checkpoint_commit": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
+    "P0 fixed / 15": "1/15",
     "P1 fixed / 44": "0/44",
     "P2 fixed / 6": "0/6",
-    "total FIXED_PROVEN / 65": "0/65"
+    "total FIXED_PROVEN / 65": "1/65"
   },
   "fixed_proven_candidate_queue": [
     {

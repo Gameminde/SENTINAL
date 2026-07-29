@@ -76,9 +76,9 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len(ledger["entries"]) == 65
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
-    assert ledger["current_head"] == "30c2cfad1b0d9d9089c71d6312bf481114f02691"
-    assert ledger["fixed_proven_count"] == 0
-    assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
+    assert ledger["current_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert ledger["fixed_proven_count"] == 1
+    assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 9, "FIXED_PROVEN": 1, "IMPLEMENTING": 7, "OPEN": 48}
     slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]
     assert slice_ids[:3] == [
         "SLICE_0A_STAGE0_LEDGER_AND_LOCAL_VERTICAL_SKELETON",
@@ -87,7 +87,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     ]
     assert "SLICE_0E_KERNEL_BACKED_PRODUCT_ROUTE_PROVIDER_AUTH_BLOCKED" in slice_ids
     by_id = {entry["id"]: entry for entry in ledger["entries"]}
-    assert by_id["P0-01"]["status"] == "IMPLEMENTING"
+    assert by_id["P0-01"]["status"] == "FIXED_PROVEN"
     assert by_id["P0-02"]["status"] == "CONFIRMED_CURRENT"
     assert by_id["P0-02"]["chosen_invariant"] == "do_not_expose_unproven_code_exec_as_canonical_power"
     assert by_id["P0-03"]["status"] == "IMPLEMENTING"
@@ -97,16 +97,16 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert by_id["C-P0-06"]["status"] == "IMPLEMENTING"
     assert by_id["P1-25"]["status"] == "IMPLEMENTING"
     tranche = ledger["canonical_core_vertical_product_tranche"]
-    assert tranche["status"] == "VALID_REAL_MODEL_LOOP_STALLED"
-    assert tranche["checkpoint_head"] == "30c2cfad1b0d9d9089c71d6312bf481114f02691"
-    assert tranche["provider_failure_diagnosis"]["classification"] == "VALID_REAL_MODEL_LOOP_STALLED"
+    assert tranche["status"] == "VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE"
+    assert tranche["checkpoint_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert tranche["provider_failure_diagnosis"]["classification"] == "VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE"
     forbidden_credential_hash_prefix = "credential_" + "safe_hash"
     assert not any(key.startswith(forbidden_credential_hash_prefix) for key in tranche["provider_failure_diagnosis"])
     assert tranche["provider_authenticated"] is True
     assert tranche["model_native_decisions_accepted"] is True
-    assert tranche["workspace_actions"] == 7
-    assert tranche["model_selected_finish"] is False
-    assert tranche["receipt_integrity_verified"] is False
+    assert tranche["workspace_actions"] == 1
+    assert tranche["model_selected_finish"] is True
+    assert tranche["receipt_integrity_verified"] is True
     assert "explicit_provider_retries_after_0701297e" not in tranche
     assert {item["model_id"] for item in tranche["explicit_provider_attempts_after_checkpoint"]} == {
         "qwen-plus",
@@ -116,12 +116,17 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     qwen_attempt = next(
         item
         for item in tranche["explicit_provider_attempts_after_checkpoint"]
-        if item["attempt_id"] == "canonical_core_real_provider_v10_qwen_plus_affordance_normalized"
+        if item["attempt_id"] == "canonical_core_real_provider_v13_qwen_north_star_fixture_receipt_fixed"
     )
     assert qwen_attempt["model_native_decisions_accepted"] is True
-    assert qwen_attempt["workspace_receipts_created"] == 7
-    assert qwen_attempt["model_selected_finish"] is False
-    assert "30c2cfad1b0d9d9089c71d6312bf481114f02691" in by_id["P0-01"]["slice_status_history"][-1]["head"]
+    assert qwen_attempt["material_action_count"] == 1
+    assert qwen_attempt["model_selected_finish"] is True
+    assert qwen_attempt["receipt_artifacts_verified"] is True
+    assert by_id["P0-01"]["fixed_proven_commit"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert by_id["C-P0-01"]["fixed_proven_commit"] == ""
+    assert by_id["C-P0-06"]["fixed_proven_commit"] == ""
+    assert by_id["P0-07"]["fixed_proven_commit"] == ""
+    assert "b721ce62343316bcdbe9c792af8a0967c8ae1680" in by_id["P0-01"]["slice_status_history"][-1]["head"]
     required_fields = {
         "target_wave",
         "depends_on",
@@ -143,11 +148,11 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
         if entry["status"] == "FIXED_PROVEN":
             assert entry["fixed_proven_commit"]
     assert ledger["published_counters_after_commit"] == {
-        "checkpoint_commit": "30c2cfad1b0d9d9089c71d6312bf481114f02691",
-        "P0 fixed / 15": "0/15",
+        "checkpoint_commit": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
+        "P0 fixed / 15": "1/15",
         "P1 fixed / 44": "0/44",
         "P2 fixed / 6": "0/6",
-        "total FIXED_PROVEN / 65": "0/65",
+        "total FIXED_PROVEN / 65": "1/65",
     }
 
 
