@@ -6,7 +6,7 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 from urllib.parse import urlsplit
 
 from sentinel.agent.organs.browser_operator_agent_l4_l5_live import (
@@ -40,6 +40,11 @@ from sentinel.agent.organs.browser_login_credential_session_broker_l6 import (
 )
 from sentinel.agent.model_contract import UserModelContract
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope
+from sentinel.operator.canonical_core import (
+    CanonicalCoreError,
+    CanonicalDecisionRequest,
+    run_canonical_dev_mission,
+)
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.legacy_classification import InternalAccessClassification
 from sentinel.operator.mission_lifecycle_service import (
@@ -178,6 +183,18 @@ def build_parser() -> argparse.ArgumentParser:
         )
         cockpit_parser.add_argument("--json", action="store_true", help="Print machine-readable turn summaries.")
 
+    canonical_parser = subparsers.add_parser(
+        "canonical-dev-run",
+        help="Run the Sentinel canonical core development vertical slice with a local decision script.",
+    )
+    canonical_parser.add_argument("--objective", required=True, help="Mission objective presented to the model client.")
+    canonical_parser.add_argument("--workspace", required=True, help="Governed workspace root for read-only workspace skills.")
+    canonical_parser.add_argument("--decision-script", required=True, help="JSONL local decision script for deterministic dev proof.")
+    canonical_parser.add_argument("--provider-model", required=True, help="Provider/model identity label for the decision stream.")
+    canonical_parser.add_argument("--max-provider-decisions", type=int, default=40)
+    canonical_parser.add_argument("--max-material-actions", type=int, default=120)
+    canonical_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
+
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
     _add_browser_arguments(observe_parser, action=False)
 
@@ -289,6 +306,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command in {"cockpit", "chat"}:
         return _run_cockpit_command(args)
 
+    if args.command == "canonical-dev-run":
+        try:
+            result = _run_canonical_dev_command(args)
+        except (CanonicalCoreError, OSError, json.JSONDecodeError) as exc:
+            print(f"sentinel canonical-dev-run: rejected:{exc.__class__.__name__}", file=sys.stderr)
+            return 2
+
+        if args.json:
+            print(json.dumps(result.model_dump(mode="json"), sort_keys=True, default=str))
+        else:
+            print(
+                "sentinel canonical_dev_run "
+                f"root_mission_id={result.root_mission_id} "
+                f"status={result.status} "
+                f"provider_decisions={result.provider_decision_count} "
+                f"material_actions={result.material_action_count}"
+            )
+        return 0 if result.status == "completed" else 2
+
     if args.command in {"browser-observe", "browser-act"}:
         try:
             result, run_dir = _run_browser_command(args)
@@ -386,6 +422,46 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser.print_help()
     return 2
+
+
+def _run_canonical_dev_command(args: argparse.Namespace):
+    model_client = _JsonlCanonicalDecisionScriptClient(Path(args.decision_script))
+    return run_canonical_dev_mission(
+        objective=str(args.objective),
+        workspace_root=Path(args.workspace),
+        model_client=model_client,
+        provider_model=str(args.provider_model),
+        max_provider_decisions=int(args.max_provider_decisions),
+        max_material_actions=int(args.max_material_actions),
+    )
+
+
+class _JsonlCanonicalDecisionScriptClient:
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._decisions = self._load(path)
+        self.requests: list[CanonicalDecisionRequest] = []
+
+    def complete(self, request: CanonicalDecisionRequest) -> dict[str, Any]:
+        self.requests.append(request)
+        if not self._decisions:
+            raise CanonicalCoreError("canonical_dev_decision_script_exhausted")
+        return self._decisions.pop(0)
+
+    @staticmethod
+    def _load(path: Path) -> list[dict[str, Any]]:
+        decisions: list[dict[str, Any]] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            payload = json.loads(stripped)
+            if not isinstance(payload, dict):
+                raise CanonicalCoreError("canonical_dev_decision_script_line_must_be_object")
+            decisions.append(payload)
+        if not decisions:
+            raise CanonicalCoreError("canonical_dev_decision_script_empty")
+        return decisions
 
 
 def _run_cockpit_command(args: argparse.Namespace) -> int:

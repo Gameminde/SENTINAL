@@ -1,0 +1,693 @@
+from __future__ import annotations
+
+import hashlib
+from datetime import UTC, datetime
+from enum import StrEnum
+from pathlib import Path
+from typing import Any, Protocol
+
+from pydantic import Field, model_validator
+
+from sentinel.agent.model_execution.redaction import stable_hash, text_hash
+from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.operator.redaction import redact_operator_text, redact_operator_value
+from sentinel.operator.safety import assert_data_not_authority
+from sentinel.shared.models import SentinelModel, new_id
+
+
+class CanonicalCoreError(RuntimeError):
+    pass
+
+
+class DecisionOrigin(StrEnum):
+    MODEL_SELECTED = "MODEL_SELECTED"
+    HOST_RECOVERY_INJECTED = "HOST_RECOVERY_INJECTED"
+    PROGRESS_GUARD_REROUTED = "PROGRESS_GUARD_REROUTED"
+    POLICY_REQUIRED = "POLICY_REQUIRED"
+    DETERMINISTIC_NORMALIZATION = "DETERMINISTIC_NORMALIZATION"
+    USER_SELECTED = "USER_SELECTED"
+
+
+class EffectKind(StrEnum):
+    REAL = "REAL"
+    SIMULATED = "SIMULATED"
+    PROPOSAL = "PROPOSAL"
+
+
+class CanonicalCapabilityRoute(SentinelModel):
+    capability: str
+    operation: str
+    executor: str
+    effect_kind: EffectKind
+    backend_mode: str
+    required_authority: str
+    preconditions: tuple[str, ...] = Field(default_factory=tuple)
+    readiness_probe: str
+    materiality_verifier: str
+    proof_contract: str
+    recovery_policy: str
+    cleanup_contract: str
+    model_visible: bool = True
+
+    @property
+    def affordance(self) -> str:
+        return f"{self.capability}.{self.operation}"
+
+
+class ExecutableCapabilityGraph(SentinelModel):
+    routes: tuple[CanonicalCapabilityRoute, ...]
+
+    @model_validator(mode="after")
+    def _routes_are_unique(self) -> "ExecutableCapabilityGraph":
+        seen: set[tuple[str, str]] = set()
+        for route in self.routes:
+            key = (route.capability, route.operation)
+            if key in seen:
+                raise ValueError(f"duplicate capability route: {route.affordance}")
+            seen.add(key)
+        return self
+
+    def model_visible_affordances(self) -> tuple[str, ...]:
+        return tuple(route.affordance for route in self.routes if route.model_visible)
+
+    def resolve(self, capability: str, operation: str) -> CanonicalCapabilityRoute:
+        for route in self.routes:
+            if route.capability == capability and route.operation == operation:
+                return route
+        raise CanonicalCoreError(f"canonical_capability_route_missing:{capability}.{operation}")
+
+
+class CanonicalBudget(SentinelModel):
+    max_provider_decisions: int = 40
+    max_material_actions: int = 120
+    provider_decisions_reserved_for_finish: int = 6
+    budgets_cumulative: bool = True
+    budget_reset_on_retry: bool = False
+
+
+class CanonicalState(SentinelModel):
+    root_mission_id: str
+    objective: str
+    workspace_ref: str
+    provider_decision_count: int
+    material_action_count: int
+    model_visible_affordances: tuple[str, ...]
+    last_action: str | None = None
+    evidence_refs: tuple[str, ...] = Field(default_factory=tuple)
+    proof_gaps: tuple[str, ...] = ("external_append_only_signer_missing",)
+    remaining_provider_decisions: int
+    remaining_material_actions: int
+    state_hash: str = ""
+
+    @model_validator(mode="after")
+    def _state_is_data_only(self) -> "CanonicalState":
+        if not self.state_hash:
+            self.state_hash = stable_hash(self.safe_model_dump(include_hash=False))
+        return self
+
+    def safe_model_dump(self, *, include_hash: bool = True) -> dict[str, Any]:
+        payload = {
+            "root_mission_id": self.root_mission_id,
+            "objective_hash": text_hash(self.objective),
+            "workspace_ref": self.workspace_ref,
+            "provider_decision_count": self.provider_decision_count,
+            "material_action_count": self.material_action_count,
+            "model_visible_affordances": list(self.model_visible_affordances),
+            "last_action": self.last_action,
+            "evidence_refs": list(self.evidence_refs),
+            "proof_gaps": list(self.proof_gaps),
+            "remaining_provider_decisions": self.remaining_provider_decisions,
+            "remaining_material_actions": self.remaining_material_actions,
+        }
+        if include_hash:
+            payload["state_hash"] = self.state_hash
+        return payload
+
+
+class CanonicalDecisionRequest(SentinelModel):
+    request_id: str = Field(default_factory=lambda: new_id("canonical_decision_request"))
+    root_mission_id: str
+    provider_model: str
+    canonical_state: CanonicalState
+    prompt_summary: str
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _request_is_data_only(self) -> "CanonicalDecisionRequest":
+        assert_data_not_authority(
+            context="canonical_decision_request",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        return self
+
+
+class CanonicalDecision(SentinelModel):
+    decision_id: str = Field(default_factory=lambda: new_id("canonical_decision"))
+    root_mission_id: str
+    provider_model: str
+    decision_origin: DecisionOrigin
+    objective_interpretation: str = ""
+    selected_capability: str
+    selected_operation: str
+    typed_proposed_effect: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    expected_state_delta: str = "unknown"
+    evidence_needed: tuple[str, ...] = Field(default_factory=tuple)
+    recovery_intent: str = ""
+    decision_hash: str = ""
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _decision_is_data_only(self) -> "CanonicalDecision":
+        assert_data_not_authority(
+            context="canonical_decision",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        if not self.decision_hash:
+            self.decision_hash = stable_hash(self.safe_model_dump(include_hash=False))
+        return self
+
+    @property
+    def capability(self) -> str:
+        return self.selected_capability
+
+    @property
+    def operation(self) -> str:
+        return self.selected_operation
+
+    def safe_model_dump(self, *, include_hash: bool = True) -> dict[str, Any]:
+        payload = {
+            "decision_id": self.decision_id,
+            "root_mission_id": self.root_mission_id,
+            "provider_model": redact_operator_text(self.provider_model),
+            "decision_origin": self.decision_origin.value,
+            "objective_interpretation_hash": text_hash(self.objective_interpretation),
+            "selected_capability": redact_operator_text(self.selected_capability),
+            "selected_operation": redact_operator_text(self.selected_operation),
+            "typed_proposed_effect": redact_operator_text(self.typed_proposed_effect),
+            "arguments": redact_operator_value(self.arguments),
+            "expected_state_delta": redact_operator_text(self.expected_state_delta),
+            "evidence_needed": [redact_operator_text(item) for item in self.evidence_needed],
+            "recovery_intent": redact_operator_text(self.recovery_intent),
+        }
+        if include_hash:
+            payload["decision_hash"] = self.decision_hash
+        return payload
+
+
+class CanonicalEffectReceipt(SentinelModel):
+    receipt_id: str = Field(default_factory=lambda: new_id("canonical_effect_receipt"))
+    root_mission_id: str
+    decision_id: str
+    capability: str
+    operation: str
+    effect_kind: EffectKind
+    backend_mode: str
+    status: str
+    material_action: bool
+    safe_summary: str
+    safe_observation: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: tuple[str, ...] = Field(default_factory=tuple)
+    before_state_hash: str
+    after_state_hash: str
+    receipt_hash: str = ""
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _receipt_is_data_only(self) -> "CanonicalEffectReceipt":
+        assert_data_not_authority(
+            context="canonical_effect_receipt",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        if not self.receipt_hash:
+            self.receipt_hash = stable_hash(self.safe_model_dump(include_hash=False))
+        return self
+
+    def safe_model_dump(self, *, include_hash: bool = True) -> dict[str, Any]:
+        payload = {
+            "receipt_id": self.receipt_id,
+            "root_mission_id": self.root_mission_id,
+            "decision_id": self.decision_id,
+            "capability": redact_operator_text(self.capability),
+            "operation": redact_operator_text(self.operation),
+            "effect_kind": self.effect_kind.value,
+            "backend_mode": redact_operator_text(self.backend_mode),
+            "status": redact_operator_text(self.status),
+            "material_action": self.material_action,
+            "safe_summary": redact_operator_text(self.safe_summary),
+            "safe_observation": redact_operator_value(self.safe_observation),
+            "evidence_refs": list(self.evidence_refs),
+            "before_state_hash": self.before_state_hash,
+            "after_state_hash": self.after_state_hash,
+            "created_at": self.created_at.isoformat(),
+        }
+        if include_hash:
+            payload["receipt_hash"] = self.receipt_hash
+        return payload
+
+
+class MissionProofRoot(SentinelModel):
+    proof_root_id: str = Field(default_factory=lambda: new_id("mission_proof_root"))
+    root_mission_id: str
+    receipt_refs: tuple[str, ...]
+    decision_refs: tuple[str, ...]
+    integrity_model: str = "non_authentic_placeholder"
+    authentic_external_ledger: bool = False
+    proof_gaps: tuple[str, ...] = ("external_append_only_signer_missing",)
+    proof_root_hash: str = ""
+
+    @model_validator(mode="after")
+    def _proof_root_hashes(self) -> "MissionProofRoot":
+        if not self.proof_root_hash:
+            self.proof_root_hash = stable_hash(self.safe_model_dump(include_hash=False))
+        return self
+
+    def safe_model_dump(self, *, include_hash: bool = True) -> dict[str, Any]:
+        payload = {
+            "proof_root_id": self.proof_root_id,
+            "root_mission_id": self.root_mission_id,
+            "receipt_refs": list(self.receipt_refs),
+            "decision_refs": list(self.decision_refs),
+            "integrity_model": self.integrity_model,
+            "authentic_external_ledger": self.authentic_external_ledger,
+            "proof_gaps": list(self.proof_gaps),
+        }
+        if include_hash:
+            payload["proof_root_hash"] = self.proof_root_hash
+        return payload
+
+
+class CanonicalDevMissionResult(SentinelModel):
+    root_mission_id: str
+    status: str
+    final_reason: str
+    provider_model: str
+    provider_decision_count: int
+    material_action_count: int
+    root_created_before_first_provider_call: bool
+    decisions: tuple[CanonicalDecision, ...] = Field(default_factory=tuple)
+    receipts: tuple[CanonicalEffectReceipt, ...] = Field(default_factory=tuple)
+    proof_root: MissionProofRoot
+    cleanup_completed: bool
+    final_answer: str = ""
+
+
+class CanonicalModelClient(Protocol):
+    def complete(self, request: CanonicalDecisionRequest) -> Any:
+        ...
+
+
+def build_workspace_read_capability_graph() -> ExecutableCapabilityGraph:
+    return ExecutableCapabilityGraph(
+        routes=(
+            _workspace_route("list", materiality_verifier="workspace_directory_observed"),
+            _workspace_route("read", materiality_verifier="workspace_path_observed"),
+            _workspace_route("search", materiality_verifier="workspace_search_matches_observed"),
+            CanonicalCapabilityRoute(
+                capability="sentinel_loop",
+                operation="finish",
+                executor="sentinel.operator.canonical_core.RootMissionRuntime._finish",
+                effect_kind=EffectKind.PROPOSAL,
+                backend_mode="host_terminal_decision",
+                required_authority="none",
+                preconditions=("receipt_or_honest_blocker_exists",),
+                readiness_probe="always_available",
+                materiality_verifier="terminal_payload_present",
+                proof_contract="canonical_core_terminal_truth_v1",
+                recovery_policy="block_if_no_prior_receipt",
+                cleanup_contract="root_resource_scope_close",
+            ),
+        )
+    )
+
+
+def run_canonical_dev_mission(
+    *,
+    objective: str,
+    workspace_root: Path | str,
+    model_client: CanonicalModelClient | None,
+    provider_model: str,
+    max_provider_decisions: int = 40,
+    max_material_actions: int = 120,
+    provider_decisions_reserved_for_finish: int = 6,
+) -> CanonicalDevMissionResult:
+    runtime = RootMissionRuntime(
+        objective=objective,
+        workspace_root=workspace_root,
+        provider_model=provider_model,
+        max_provider_decisions=max_provider_decisions,
+        max_material_actions=max_material_actions,
+        provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
+    )
+    return runtime.run(model_client=model_client)
+
+
+class RootMissionRuntime:
+    def __init__(
+        self,
+        *,
+        objective: str,
+        workspace_root: Path | str,
+        provider_model: str,
+        max_provider_decisions: int = 40,
+        max_material_actions: int = 120,
+        provider_decisions_reserved_for_finish: int = 6,
+        capability_graph: ExecutableCapabilityGraph | None = None,
+    ) -> None:
+        self.root_mission_id = new_id("root_mission")
+        self.objective = objective
+        self.workspace_root = Path(workspace_root).resolve()
+        self.provider_model = provider_model
+        self.budget = CanonicalBudget(
+            max_provider_decisions=max_provider_decisions,
+            max_material_actions=max_material_actions,
+            provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
+        )
+        self.capability_graph = capability_graph or build_workspace_read_capability_graph()
+        self.decisions: list[CanonicalDecision] = []
+        self.receipts: list[CanonicalEffectReceipt] = []
+        self.evidence_refs: list[str] = []
+        self.last_action: str | None = None
+        self.provider_decision_count = 0
+        self.material_action_count = 0
+        self.root_created_at = datetime.now(UTC)
+        self._closed = False
+
+    def run(self, *, model_client: CanonicalModelClient | None) -> CanonicalDevMissionResult:
+        if model_client is None:
+            raise CanonicalCoreError("canonical_model_client_required")
+        try:
+            while True:
+                if self.provider_decision_count >= self.budget.max_provider_decisions:
+                    return self._terminal_result(status="blocked", reason="PROVIDER_DECISION_BUDGET_EXHAUSTED")
+                state = self.compile_state()
+                request = CanonicalDecisionRequest(
+                    root_mission_id=self.root_mission_id,
+                    provider_model=self.provider_model,
+                    canonical_state=state,
+                    prompt_summary="canonical_dev_mission_next_decision",
+                )
+                raw_decision = model_client.complete(request)
+                self.provider_decision_count += 1
+                decision = self._normalize_decision(raw_decision)
+                self.decisions.append(decision)
+                if decision.capability == "sentinel_loop" and decision.operation == "finish":
+                    if not self.receipts:
+                        return self._terminal_result(status="blocked", reason="MODEL_FINISH_BEFORE_RECEIPT")
+                    return self._terminal_result(
+                        status="completed",
+                        reason="model_selected_finish",
+                        final_answer=str(decision.arguments.get("answer") or decision.arguments.get("safe_summary") or ""),
+                    )
+                if self.material_action_count >= self.budget.max_material_actions:
+                    return self._terminal_result(status="blocked", reason="MATERIAL_ACTION_BUDGET_EXHAUSTED")
+                receipt = self._execute(decision, before_state=state)
+                self.receipts.append(receipt)
+                self.evidence_refs.extend(receipt.evidence_refs)
+                self.last_action = f"{decision.capability}.{decision.operation}"
+                self.material_action_count += 1
+        finally:
+            self.close()
+
+    def compile_state(self) -> CanonicalState:
+        return CanonicalState(
+            root_mission_id=self.root_mission_id,
+            objective=self.objective,
+            workspace_ref=_workspace_ref(self.workspace_root),
+            provider_decision_count=self.provider_decision_count,
+            material_action_count=self.material_action_count,
+            model_visible_affordances=self.capability_graph.model_visible_affordances(),
+            last_action=self.last_action,
+            evidence_refs=tuple(dict.fromkeys(self.evidence_refs)),
+            remaining_provider_decisions=max(0, self.budget.max_provider_decisions - self.provider_decision_count),
+            remaining_material_actions=max(0, self.budget.max_material_actions - self.material_action_count),
+        )
+
+    def close(self) -> None:
+        self._closed = True
+
+    def _normalize_decision(self, raw: Any) -> CanonicalDecision:
+        if isinstance(raw, CanonicalDecision):
+            return raw
+        if isinstance(raw, ActionEnvelope):
+            route = self.capability_graph.resolve(raw.capability_id, raw.operation)
+            arguments = dict(raw.params)
+            if raw.target_ref is not None and "target_ref" not in arguments:
+                arguments["target_ref"] = raw.target_ref
+            return CanonicalDecision(
+                root_mission_id=self.root_mission_id,
+                provider_model=self.provider_model,
+                decision_origin=DecisionOrigin.MODEL_SELECTED,
+                selected_capability=route.capability,
+                selected_operation=route.operation,
+                typed_proposed_effect=route.effect_kind.value,
+                arguments=redact_operator_value(arguments),
+                expected_state_delta="unknown",
+            )
+        if not isinstance(raw, dict):
+            raise CanonicalCoreError("canonical_model_decision_payload_required")
+        assert_data_not_authority(
+            context="canonical_model_decision_payload",
+            authority_effect=str(raw.get("authority_effect", "none")),
+            data_not_authority=raw.get("data_not_authority", True) is True,
+            can_grant_authority=bool(raw.get("can_grant_authority", False)),
+            can_execute=bool(raw.get("can_execute", False)),
+        )
+        capability = str(raw.get("capability") or raw.get("skill") or "").strip()
+        operation = str(raw.get("operation") or "").strip()
+        if not capability or not operation:
+            raise CanonicalCoreError("canonical_model_decision_capability_operation_required")
+        arguments = raw.get("arguments", raw.get("params", {}))
+        if not isinstance(arguments, dict):
+            raise CanonicalCoreError("canonical_model_decision_arguments_must_be_object")
+        route = self.capability_graph.resolve(capability, operation)
+        return CanonicalDecision(
+            root_mission_id=self.root_mission_id,
+            provider_model=self.provider_model,
+            decision_origin=DecisionOrigin.MODEL_SELECTED,
+            objective_interpretation=str(raw.get("objective_interpretation") or ""),
+            selected_capability=route.capability,
+            selected_operation=route.operation,
+            typed_proposed_effect=route.effect_kind.value,
+            arguments=redact_operator_value(arguments),
+            expected_state_delta=str(raw.get("expected_state_delta") or "unknown"),
+            evidence_needed=tuple(str(item) for item in raw.get("evidence_needed", ()) if str(item).strip()),
+            recovery_intent=str(raw.get("recovery_intent") or ""),
+        )
+
+    def _execute(self, decision: CanonicalDecision, *, before_state: CanonicalState) -> CanonicalEffectReceipt:
+        route = self.capability_graph.resolve(decision.capability, decision.operation)
+        if route.capability == "workspace" and route.operation == "list":
+            status, observation, summary = self._workspace_list(decision.arguments)
+        elif route.capability == "workspace" and route.operation == "read":
+            status, observation, summary = self._workspace_read(decision.arguments)
+        elif route.capability == "workspace" and route.operation == "search":
+            status, observation, summary = self._workspace_search(decision.arguments)
+        else:
+            raise CanonicalCoreError(f"canonical_executor_missing:{route.affordance}")
+        evidence_ref = f"evidence:{stable_hash(observation)[:24]}"
+        after_state_hash = stable_hash(
+            {
+                "before_state_hash": before_state.state_hash,
+                "decision_hash": decision.decision_hash,
+                "observation_hash": stable_hash(observation),
+                "receipt_index": len(self.receipts),
+            }
+        )
+        return CanonicalEffectReceipt(
+            root_mission_id=self.root_mission_id,
+            decision_id=decision.decision_id,
+            capability=route.capability,
+            operation=route.operation,
+            effect_kind=route.effect_kind,
+            backend_mode=route.backend_mode,
+            status=status,
+            material_action=True,
+            safe_summary=summary,
+            safe_observation=observation,
+            evidence_refs=(evidence_ref,),
+            before_state_hash=before_state.state_hash,
+            after_state_hash=after_state_hash,
+        )
+
+    def _workspace_list(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
+        target = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or "."), must_exist=True)
+        if not target.is_dir():
+            raise CanonicalCoreError("workspace_list_target_not_directory")
+        entries = tuple(
+            f"{child.name}/" if child.is_dir() else child.name
+            for child in sorted(target.iterdir(), key=lambda item: item.name.lower())
+        )
+        relative = _relative_workspace_path(self.workspace_root, target)
+        return (
+            "completed",
+            {"path": relative, "entries": entries, "entry_count": len(entries)},
+            f"workspace list observed {len(entries)} entries at {relative}.",
+        )
+
+    def _workspace_read(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
+        target = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or ""), must_exist=True)
+        if not target.is_file():
+            raise CanonicalCoreError("workspace_read_target_not_file")
+        max_chars = _bounded_int(arguments.get("max_chars"), default=1200, minimum=1, maximum=4000)
+        data = target.read_bytes()
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise CanonicalCoreError("workspace_read_binary_target_blocked") from exc
+        relative = _relative_workspace_path(self.workspace_root, target)
+        excerpt = redact_operator_text(text[:max_chars])
+        return (
+            "completed",
+            {
+                "path": relative,
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "byte_count": len(data),
+                "content_excerpt": excerpt,
+                "truncated": len(text) > max_chars,
+            },
+            f"workspace file observed at {relative}.",
+        )
+
+    def _workspace_search(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
+        query = str(arguments.get("query") or "").strip()
+        if not query:
+            raise CanonicalCoreError("workspace_search_query_required")
+        root = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or "."), must_exist=True)
+        if not root.is_dir():
+            raise CanonicalCoreError("workspace_search_root_not_directory")
+        matches: list[dict[str, Any]] = []
+        lowered_query = query.lower()
+        for path in sorted((item for item in root.rglob("*") if item.is_file()), key=lambda item: str(item).lower()):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if lowered_query not in text.lower():
+                continue
+            matches.append(
+                {
+                    "path": _relative_workspace_path(self.workspace_root, path),
+                    "content_hash": text_hash(text),
+                }
+            )
+        return (
+            "completed",
+            {
+                "root": _relative_workspace_path(self.workspace_root, root),
+                "query_hash": text_hash(query),
+                "match_count": len(matches),
+                "matches": tuple(matches[:20]),
+            },
+            f"workspace search observed {len(matches)} matching files.",
+        )
+
+    def _result(self, *, status: str, reason: str, final_answer: str = "") -> CanonicalDevMissionResult:
+        proof = MissionProofRoot(
+            root_mission_id=self.root_mission_id,
+            receipt_refs=tuple(receipt.receipt_id for receipt in self.receipts),
+            decision_refs=tuple(decision.decision_id for decision in self.decisions),
+        )
+        return CanonicalDevMissionResult(
+            root_mission_id=self.root_mission_id,
+            status=status,
+            final_reason=reason,
+            provider_model=redact_operator_text(self.provider_model),
+            provider_decision_count=self.provider_decision_count,
+            material_action_count=self.material_action_count,
+            root_created_before_first_provider_call=bool(self.root_created_at),
+            decisions=tuple(self.decisions),
+            receipts=tuple(self.receipts),
+            proof_root=proof,
+            cleanup_completed=self._closed,
+            final_answer=redact_operator_text(final_answer),
+        )
+
+    def _terminal_result(self, *, status: str, reason: str, final_answer: str = "") -> CanonicalDevMissionResult:
+        self.close()
+        return self._result(status=status, reason=reason, final_answer=final_answer)
+
+
+def _workspace_route(operation: str, *, materiality_verifier: str) -> CanonicalCapabilityRoute:
+    return CanonicalCapabilityRoute(
+        capability="workspace",
+        operation=operation,
+        executor=f"sentinel.operator.canonical_core.RootMissionRuntime._workspace_{operation}",
+        effect_kind=EffectKind.REAL,
+        backend_mode="workspace_read_only",
+        required_authority="workspace_read",
+        preconditions=("path_inside_workspace",),
+        readiness_probe="workspace_root_exists",
+        materiality_verifier=materiality_verifier,
+        proof_contract="canonical_core_workspace_receipt_v1",
+        recovery_policy="typed_path_or_decode_failure",
+        cleanup_contract="root_resource_scope_close",
+    )
+
+
+def _workspace_ref(path: Path) -> str:
+    return f"workspace:{stable_hash(str(path))[:24]}"
+
+
+def _resolve_workspace_path(root: Path, requested: str, *, must_exist: bool) -> Path:
+    if not requested:
+        raise CanonicalCoreError("workspace_path_required")
+    path = (root / requested).resolve()
+    if path != root and root not in path.parents:
+        raise CanonicalCoreError("workspace_path_outside_root")
+    if must_exist and not path.exists():
+        raise CanonicalCoreError("workspace_path_not_found")
+    return path
+
+
+def _relative_workspace_path(root: Path, path: Path) -> str:
+    if path == root:
+        return "."
+    return path.relative_to(root).as_posix()
+
+
+def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(minimum, min(maximum, parsed))
+
+
+__all__ = [
+    "CanonicalBudget",
+    "CanonicalCapabilityRoute",
+    "CanonicalCoreError",
+    "CanonicalDecision",
+    "CanonicalDecisionRequest",
+    "CanonicalDevMissionResult",
+    "CanonicalEffectReceipt",
+    "CanonicalModelClient",
+    "CanonicalState",
+    "DecisionOrigin",
+    "EffectKind",
+    "ExecutableCapabilityGraph",
+    "MissionProofRoot",
+    "RootMissionRuntime",
+    "build_workspace_read_capability_graph",
+    "run_canonical_dev_mission",
+]
