@@ -75,7 +75,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len(ledger["entries"]) == 65
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
-    assert ledger["current_head"] == "a4538e3d36b677c8f49952117d1c6b8950a470a8"
+    assert ledger["current_head"] == "0701297e6f3e5f236f4f51acc1539e62f099be72"
     assert ledger["fixed_proven_count"] == 0
     assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
     slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]
@@ -98,8 +98,43 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     tranche = ledger["canonical_core_vertical_product_tranche"]
     assert tranche["status"] == "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
     assert tranche["checkpoint_head"] == "a4538e3d36b677c8f49952117d1c6b8950a470a8"
-    assert tranche["provider_failure_diagnosis"]["classification"] == "PROVIDER_AUTH_REJECTED"
+    assert tranche["provider_failure_diagnosis"]["classification"] == "COMMON_PROVIDER_MODEL_WORKSPACE_ENTITLEMENT_BLOCK"
+    assert tranche["provider_failure_diagnosis"]["credential_safe_hash_prefixes_tested"] == [
+        "8e5eb7d1f3b1d5ed",
+        "57eb3529df63c0f9",
+    ]
+    assert {item["model_id"] for item in tranche["explicit_provider_retries_after_0701297e"]} == {
+        "glm-5.2",
+        "deepseek-v4-pro",
+    }
     assert "a4538e3d36b677c8f49952117d1c6b8950a470a8" in by_id["P0-01"]["slice_status_history"][-1]["head"]
+    required_fields = {
+        "target_wave",
+        "depends_on",
+        "status",
+        "change_commits",
+        "acceptance_probe",
+        "integration_or_live_probe",
+        "proof_artifacts",
+        "fixed_proven_commit",
+        "remaining_risk",
+    }
+    for entry in ledger["entries"]:
+        assert required_fields <= set(entry), entry["id"]
+        assert entry["target_wave"] in {"W1", "W2", "W3", "W4", "W5"}
+        assert isinstance(entry["depends_on"], list)
+        assert isinstance(entry["change_commits"], list)
+        assert isinstance(entry["proof_artifacts"], list)
+        assert isinstance(entry["fixed_proven_commit"], str)
+        if entry["status"] == "FIXED_PROVEN":
+            assert entry["fixed_proven_commit"]
+    assert ledger["published_counters_after_commit"] == {
+        "checkpoint_commit": "0701297e6f3e5f236f4f51acc1539e62f099be72",
+        "P0 fixed / 15": "0/15",
+        "P1 fixed / 44": "0/44",
+        "P2 fixed / 6": "0/6",
+        "total FIXED_PROVEN / 65": "0/65",
+    }
 
 
 def test_provider_client_required_before_first_cognitive_turn(tmp_path: Path) -> None:

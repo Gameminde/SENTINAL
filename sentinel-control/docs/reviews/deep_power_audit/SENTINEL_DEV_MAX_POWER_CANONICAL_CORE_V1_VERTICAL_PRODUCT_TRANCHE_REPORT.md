@@ -160,8 +160,8 @@ failure_code = canonical_provider_failure_PROVIDER_AUTH_ERROR
 classification = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
 ```
 
-Only `SENTINEL_CERT_MODEL_API_KEY` is configured locally. No other cataloged
-real provider credential is present in the process or user environment.
+This attempt used the then-current `SENTINEL_CERT_MODEL_API_KEY` value and
+stopped before any model-native decision.
 
 ### V4/V5 Corrective Diagnosis
 
@@ -180,6 +180,28 @@ raw_secret_persisted = false
 This distinguishes the current blocker from a missing local key. The credential
 exists in the local environment, the provider/backend route is constructed, and
 the provider rejected access with `403`.
+
+### V6/V7/V8 Explicit Credential And Model Checks
+
+```text
+V6 = glm-5.2 with operator-supplied CSV key
+V7 = deepseek-v4-pro with operator-supplied CSV key
+V8 = deepseek-v4-pro with older User-env key
+
+provider = aliyun_dashscope
+backend = aliyun_openai_compatible_chat
+provider_decision_count_each = 1
+material_actions_each = 0
+terminal_state_each = blocked
+cleanup_each = true
+failure_code_each = canonical_provider_failure_PROVIDER_AUTH_ERROR_model_or_workspace_unauthorized_http_403
+raw_secret_persisted = false
+```
+
+The two tested credential values were distinct by safe hash prefix. Both
+configured models returned `403`, so the current blocker is classified as a
+common provider/model/workspace entitlement block rather than a Sentinel
+normalization, workspace, or receipt dispatch defect.
 
 ## Gates
 
@@ -202,13 +224,27 @@ FIXED_PROVEN = NO
 ## Ledger Truth
 
 ```text
+ledger_synced_checkpoint = 0701297e6f3e5f236f4f51acc1539e62f099be72
 fixed_proven_count = 0
+P0 fixed / 15 = 0/15
+P1 fixed / 44 = 0/44
+P2 fixed / 6 = 0/6
+total FIXED_PROVEN / 65 = 0/65
 status_counts = CONFIRMED_CURRENT:9, IMPLEMENTING:8, OPEN:48
 P0-07 = IMPLEMENTING
 canonical_core_vertical_product_tranche = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
 ```
 
 No P0 is closed.
+
+First candidates waiting for `FIXED_PROVEN` proof:
+
+```text
+P0-01 = public product route reached provider, but no model-native workspace effect yet
+C-P0-01 = RootMissionRuntime owns local canonical workspace route, but no real mission completion yet
+C-P0-06 = executable capability graph drives schema/dispatch locally, but full organ graph remains future
+P0-07 = MissionKernel receipt timeline proof root exists locally, but external append-only proof is missing
+```
 
 ## Next
 
@@ -218,6 +254,7 @@ or workspace execution:
 ```text
 PROVIDER_AUTH_ERROR
 safe_cause = model_or_workspace_unauthorized_http_403
+classification = COMMON_PROVIDER_MODEL_WORKSPACE_ENTITLEMENT_BLOCK
 ```
 
 After provider-side model/workspace authorization is restored, rerun the same

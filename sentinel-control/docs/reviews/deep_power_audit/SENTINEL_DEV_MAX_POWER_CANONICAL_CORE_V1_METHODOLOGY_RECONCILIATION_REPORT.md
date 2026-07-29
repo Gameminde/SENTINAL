@@ -64,17 +64,22 @@ The post-review diagnostic reached the configured real provider route without
 persisting raw provider output or secrets:
 
 ```text
-provider = aliyun_dashscope/glm-5.2
-provider_decision_count = 1
-material_actions = 0
-failure_code = canonical_provider_failure_PROVIDER_AUTH_ERROR_model_or_workspace_unauthorized_http_403
+provider = aliyun_dashscope
+backend = aliyun_openai_compatible_chat
+models_checked = glm-5.2, deepseek-v4-pro
+credentials_checked = operator CSV key, older User-env key
+provider_decision_count_each = 1
+material_actions_each = 0
+failure_code_each = canonical_provider_failure_PROVIDER_AUTH_ERROR_model_or_workspace_unauthorized_http_403
 safe_cause = model_or_workspace_unauthorized_http_403
+classification = COMMON_PROVIDER_MODEL_WORKSPACE_ENTITLEMENT_BLOCK
 FIXED_PROVEN = 0
 ```
 
-This distinguishes the current blocker from a missing local key. The selected
-provider/backend/model route is constructed, but provider-side authorization for
-that model/workspace is not available.
+This distinguishes the current blocker from a missing local key or a single
+model typo. The selected provider/backend/model routes are constructed, but
+provider-side authorization for the tested model/workspace combinations is not
+available.
 
 ## `browse_search` Classification
 
