@@ -234,6 +234,31 @@ class ActionKernel:
                 return _recoverable_executor_result(envelope, failure=failure)
             raise ActionKernelError(failure.hard_stop_reason or failure.failure_code) from exc
 
+    def execute_typed(
+        self,
+        *,
+        capability_id: str,
+        operation: str,
+        params: dict[str, Any],
+        authority: MissionAuthorityEnvelope,
+        context: dict[str, Any],
+        idempotency_key: str | None = None,
+        authority_ref: str | None = None,
+        decision_ref: str | None = None,
+        expected_receipt_type: str | None = None,
+    ) -> ActionResult:
+        """Execute a typed capability request while keeping ActionEnvelope internal."""
+        envelope = ActionEnvelope(
+            capability_id=capability_id,
+            operation=operation,
+            params=params,
+            idempotency_key=idempotency_key,
+            authority_ref=authority_ref,
+            decision_ref=decision_ref,
+            expected_receipt_type=expected_receipt_type,
+        )
+        return self.execute(envelope, authority=authority, context=context)
+
 
 def _effective_context_with_loop_context(context: dict[str, Any]) -> dict[str, Any]:
     loop_context = context.get("loop_context")

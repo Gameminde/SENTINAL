@@ -906,9 +906,19 @@ class RootMissionRuntime:
     ) -> ActionResult:
         if route.capability != "workspace":
             raise CanonicalCoreError(f"canonical_product_kernel_capability_missing:{route.affordance}")
-        envelope = self._action_envelope_for_decision(route=route, decision=decision)
-        return self._product_action_kernel.execute(
-            envelope,
+        safe_arguments = redact_operator_value(decision.arguments)
+        idempotency_key = stable_hash(
+            {
+                "root_mission_id": self.root_mission_id,
+                "decision_id": decision.decision_id,
+                "affordance": route.affordance,
+                "arguments": safe_arguments,
+            }
+        )
+        return self._product_action_kernel.execute_typed(
+            capability_id=route.capability,
+            operation=route.operation,
+            params=safe_arguments,
             authority=self._mission_authority_envelope(),
             context={
                 "root_mission_id": self.root_mission_id,
@@ -917,6 +927,10 @@ class RootMissionRuntime:
                 "decision_origin": decision.decision_origin.value,
                 "canonical_public_route": True,
             },
+            idempotency_key=idempotency_key,
+            authority_ref=f"root_authority:{stable_hash(sorted(self.granted_authorities))[:24]}",
+            decision_ref=decision.decision_id,
+            expected_receipt_type=route.proof_contract,
         )
 
     def _execute_workspace_backend(self, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
@@ -936,29 +950,6 @@ class RootMissionRuntime:
             backend_kind = str(observation.get("backend_kind") or "").lower()
         if cards.get("simulated_backend") is True or backend_kind in {"fake", "fixture", "simulated"}:
             raise CanonicalCoreError("canonical_simulated_backend_cannot_create_material_receipt")
-
-    def _action_envelope_for_decision(
-        self,
-        *,
-        route: CanonicalCapabilityRoute,
-        decision: CanonicalDecision,
-    ) -> ActionEnvelope:
-        return ActionEnvelope(
-            capability_id=route.capability,
-            operation=route.operation,
-            params=redact_operator_value(decision.arguments),
-            idempotency_key=stable_hash(
-                {
-                    "root_mission_id": self.root_mission_id,
-                    "decision_id": decision.decision_id,
-                    "affordance": route.affordance,
-                    "arguments": redact_operator_value(decision.arguments),
-                }
-            ),
-            authority_ref=f"root_authority:{stable_hash(sorted(self.granted_authorities))[:24]}",
-            decision_ref=decision.decision_id,
-            expected_receipt_type=route.proof_contract,
-        )
 
     def _mission_authority_envelope(self) -> MissionAuthorityEnvelope:
         return MissionAuthorityEnvelope(

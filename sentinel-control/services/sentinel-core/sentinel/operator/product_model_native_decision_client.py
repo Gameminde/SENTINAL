@@ -5,6 +5,14 @@ import re
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from sentinel.agent.model_contract import (
+    ContextBudgetPolicy,
+    ModelCapabilityProfile,
+    QualityExpectationContract,
+    UserModelContract,
+)
+from sentinel.agent.model_cost import ModelCostProfile
+from sentinel.agent.model_execution.models import RealModelRequest
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError
 from sentinel.operator.browser_search_parameter_boundary import (
@@ -55,15 +63,60 @@ class ProductModelNativeDecisionClient:
         model_client: ProductModelClient,
         request_factory: ProductModelRequestFactory,
         preferred_skill_sequence: tuple[str, ...] = (),
+        canonical_decision_mode: bool = False,
+        canonical_provider_id: str = "",
+        canonical_backend_id: str = "",
+        canonical_model_id: str = "",
     ) -> None:
         self._model_client = model_client
         self._request_factory = request_factory
         self._preferred_skill_sequence = tuple(preferred_skill_sequence)
+        self._canonical_decision_mode = canonical_decision_mode
+        self._canonical_provider_id = canonical_provider_id
+        self._canonical_backend_id = canonical_backend_id
+        self._canonical_model_id = canonical_model_id
         self.call_count = 0
         self.safe_diagnostics: list[dict[str, Any]] = []
         self.latest_safe_model_operational_assessment: dict[str, Any] | None = None
 
-    def complete(self, context: dict[str, Any]) -> ActionEnvelope:
+    @classmethod
+    def for_canonical_decisions(
+        cls,
+        *,
+        model_client: ProductModelClient,
+        provider_id: str,
+        backend_id: str,
+        model_id: str,
+        user_model_contract_id: str = "",
+    ) -> "ProductModelNativeDecisionClient":
+        contract_id = user_model_contract_id or _canonical_user_model_contract(
+            provider_id=provider_id,
+            backend_id=backend_id,
+            model_id=model_id,
+        ).id
+
+        def request_factory(context: dict[str, Any], prompt: str) -> RealModelRequest:
+            return _canonical_real_model_request(
+                canonical_request=context["canonical_request"],
+                prompt=prompt,
+                provider_id=provider_id,
+                backend_id=backend_id,
+                model_id=model_id,
+                user_model_contract_id=contract_id,
+            )
+
+        return cls(
+            model_client=model_client,
+            request_factory=request_factory,
+            canonical_decision_mode=True,
+            canonical_provider_id=provider_id,
+            canonical_backend_id=backend_id,
+            canonical_model_id=model_id,
+        )
+
+    def complete(self, context: Any) -> Any:
+        if self._canonical_decision_mode:
+            return self._complete_canonical(context)
         context = dict(context)
         if self._preferred_skill_sequence:
             context["_preferred_skill_sequence"] = self._preferred_skill_sequence
@@ -97,6 +150,48 @@ class ProductModelNativeDecisionClient:
         )
         return decision
 
+    def _complete_canonical(self, request: Any) -> Any:
+        from sentinel.operator.canonical_core import CanonicalDecision, CanonicalDecisionRequest, DecisionOrigin, DecisionProtocol
+
+        if not isinstance(request, CanonicalDecisionRequest):
+            raise ActionKernelError("CANONICAL_DECISION_REQUEST_REQUIRED")
+        prompt = _compile_canonical_product_prompt(request)
+        real_request = self._request_factory({"canonical_request": request}, prompt)
+        raw_output = self._model_client.complete(real_request)
+        self.call_count += 1
+        payload = extract_canonical_json_decision(raw_output)
+        capability = str(payload.get("capability") or payload.get("selected_capability") or "").strip()
+        operation = str(payload.get("operation") or payload.get("selected_operation") or "").strip()
+        if not capability and "." in operation:
+            capability, operation = operation.split(".", 1)
+        if not capability or not operation:
+            raise ActionKernelError("CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED")
+        route_schema = _canonical_route_schema(request, capability=capability, operation=operation)
+        arguments = payload.get("arguments", payload.get("params", {}))
+        if not isinstance(arguments, dict):
+            raise ActionKernelError("CANONICAL_DECISION_ARGUMENTS_MUST_BE_OBJECT")
+        decision = CanonicalDecision(
+            root_mission_id=request.root_mission_id,
+            provider_model=request.provider_model,
+            decision_protocol=DecisionProtocol.MODEL_NATIVE_CANONICAL_JSON_V1,
+            decision_origin=DecisionOrigin.MODEL_SELECTED,
+            objective_interpretation=str(payload.get("objective_interpretation") or ""),
+            selected_capability=capability,
+            selected_operation=operation,
+            typed_proposed_effect=str(route_schema.get("effect_kind") or payload.get("typed_proposed_effect") or "unknown"),
+            arguments=arguments,
+            expected_state_delta=str(payload.get("expected_state_delta") or "unknown"),
+            evidence_needed=tuple(str(item) for item in payload.get("evidence_needed", ()) if str(item).strip()),
+            recovery_intent=str(payload.get("recovery_intent") or ""),
+        )
+        self._record_diagnostic(
+            context=request.canonical_state.safe_model_dump(),
+            raw_output=payload,
+            failure_code=None,
+            mapped_action=f"{decision.capability}.{decision.operation}",
+        )
+        return decision
+
     def _record_diagnostic(
         self,
         *,
@@ -114,6 +209,167 @@ class ProductModelNativeDecisionClient:
                 "raw_model_material_persisted": False,
             }
         )
+
+
+def _canonical_user_model_contract(*, provider_id: str, backend_id: str, model_id: str) -> UserModelContract:
+    return UserModelContract(
+        selected_provider_id=provider_id,
+        selected_backend_id=backend_id,
+        selected_model=model_id,
+        cost_profile=ModelCostProfile(
+            model_name=model_id,
+            input_usd_per_1m=0.0,
+            output_usd_per_1m=0.0,
+            context_window_tokens=128_000,
+        ),
+        capability_profile=ModelCapabilityProfile(
+            model_name=model_id,
+            context_window_tokens=128_000,
+            supports_tool_calling=False,
+        ),
+        context_budget_policy=ContextBudgetPolicy(
+            max_decision_frame_tokens=4_000,
+            max_tool_schema_tokens=500,
+            max_evidence_tokens=2_000,
+            reserve_output_tokens=700,
+        ),
+        quality_expectation=QualityExpectationContract(
+            expected_quality="canonical_core_workspace_vertical_slice",
+            minimum_evidence_refs=1,
+            retry_budget=0,
+        ),
+    )
+
+
+def _canonical_real_model_request(
+    *,
+    canonical_request: Any,
+    prompt: str,
+    provider_id: str,
+    backend_id: str,
+    model_id: str,
+    user_model_contract_id: str,
+) -> RealModelRequest:
+    metadata = {
+        "raw_text_transport": "product_model_native_intent_v1",
+        "canonical_core_product_route": True,
+        "mission_id": canonical_request.root_mission_id,
+        "canonical_state_hash": canonical_request.canonical_state.state_hash,
+        "model_visible_affordances": list(canonical_request.canonical_state.model_visible_affordances),
+        "fallback_auto_enabled": False,
+        "provider_native_tools_enabled": False,
+    }
+    prompt_hash = text_hash(prompt)
+    hash_payload = {
+        "provider_id": provider_id,
+        "backend_id": backend_id,
+        "model_id": model_id,
+        "runtime": "product_model_native_decision",
+        "prompt_hash": prompt_hash,
+        "frame_hash": canonical_request.canonical_state.state_hash,
+        "user_model_contract_id": user_model_contract_id,
+        "request_metadata": metadata,
+    }
+    return RealModelRequest(
+        provider_id=provider_id,
+        model_id=model_id,
+        backend_id=backend_id,
+        backend=backend_id,
+        runtime="product_model_native_decision",
+        prompt_hash=prompt_hash,
+        frame_hash=canonical_request.canonical_state.state_hash,
+        user_model_contract_id=user_model_contract_id,
+        estimated_input_tokens=max(1, (len(prompt) + 3) // 4),
+        estimated_output_tokens=700,
+        prompt_text_in_memory_only=prompt,
+        request_metadata=metadata,
+        timeout_policy_id="canonical_product_default_timeout",
+        retry_policy_id="canonical_product_no_retry",
+        budget_policy_id="canonical_product_bounded_budget",
+        request_hash=stable_hash(hash_payload),
+    )
+
+
+def _compile_canonical_product_prompt(request: Any) -> str:
+    state = request.canonical_state.safe_model_dump()
+    operation_schemas = state.get("model_visible_operation_schemas", [])
+    return (
+        "You are the model brain. Sentinel is the body, state, effects, proof, and laws.\n"
+        "Choose exactly one safe next operation for this read-only workspace mission.\n"
+        "Return exactly one JSON object and no markdown.\n"
+        "Allowed operations are generated from Sentinel's executable capability graph:\n"
+        f"{json.dumps(operation_schemas, sort_keys=True, default=str)}\n"
+        "Do not request code execution, network, credentials, browser, shell, provider-native tools, fallback, or authority changes.\n"
+        "Finish only after a prior receipt/evidence ref supports the answer.\n"
+        f"Mission objective: {request.canonical_state.objective}\n"
+        f"Mission objective hash: {text_hash(request.canonical_state.objective)}\n"
+        f"Canonical state: {json.dumps(state, sort_keys=True, default=str)}\n"
+    )
+
+
+def extract_canonical_json_decision(raw: Any) -> dict[str, Any]:
+    text = ""
+    if isinstance(raw, dict):
+        if raw.get("provider_failure") is True:
+            category = str(raw.get("provider_failure_category") or raw.get("provider_error_class") or "UNKNOWN")
+            diagnosis = _canonical_provider_failure_diagnosis(raw)
+            raise ActionKernelError(f"canonical_provider_failure_{category}_{diagnosis}")
+        metadata = raw.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("blocked_reason"):
+            raise ActionKernelError(f"canonical_provider_blocked_{metadata.get('blocked_reason')}")
+        for key in ("content", "reply", "text", "message"):
+            value = raw.get(key)
+            if isinstance(value, str):
+                text = value
+                break
+        if not text and isinstance(metadata, dict):
+            for key in ("content", "reply", "text", "message"):
+                value = metadata.get(key)
+                if isinstance(value, str):
+                    text = value
+                    break
+        if not text and {"capability", "operation"} <= set(raw):
+            return raw
+    elif isinstance(raw, str):
+        text = raw
+    if not text.strip():
+        raise ActionKernelError("canonical_provider_decision_empty")
+    candidate = _first_json_object(text)
+    if candidate is None:
+        raise ActionKernelError("canonical_provider_decision_json_missing")
+    return candidate
+
+
+def _canonical_provider_failure_diagnosis(payload: dict[str, Any]) -> str:
+    category = str(payload.get("provider_failure_category") or payload.get("provider_error_class") or "UNKNOWN")
+    status = payload.get("http_status") or payload.get("status_code")
+    try:
+        http_status = int(status)
+    except (TypeError, ValueError):
+        http_status = None
+    if category == "PROVIDER_AUTH_ERROR":
+        if http_status == 401:
+            return "credential_rejected_http_401"
+        if http_status == 403:
+            return "model_or_workspace_unauthorized_http_403"
+        if http_status in {400, 404}:
+            return f"endpoint_or_model_http_{http_status}"
+        if http_status is not None:
+            return f"auth_rejected_http_{http_status}"
+        return "auth_rejected_status_unknown"
+    if http_status is not None:
+        return f"http_{http_status}"
+    return "cause_unknown"
+
+
+def _canonical_route_schema(request: Any, *, capability: str, operation: str) -> dict[str, Any]:
+    for schema in request.canonical_state.model_visible_operation_schemas:
+        if (
+            str(schema.get("capability") or "") == capability
+            and str(schema.get("operation") or "") == operation
+        ):
+            return schema
+    raise ActionKernelError(f"canonical_decision_capability_not_advertised:{capability}.{operation}")
 
 
 def _compile_model_native_prompt(context: dict[str, Any]) -> str:
@@ -1460,4 +1716,9 @@ def _bounded_text(value: str, limit: int) -> str:
     return " ".join(value.split())[:limit]
 
 
-__all__ = ["ProductModelNativeDecisionClient", "ProductModelClient", "ProductModelRequestFactory"]
+__all__ = [
+    "ProductModelNativeDecisionClient",
+    "ProductModelClient",
+    "ProductModelRequestFactory",
+    "extract_canonical_json_decision",
+]

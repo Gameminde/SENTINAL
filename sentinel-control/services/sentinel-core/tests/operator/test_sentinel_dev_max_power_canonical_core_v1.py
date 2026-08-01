@@ -14,7 +14,9 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel import cli
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
 from sentinel.operator.canonical_core import (
+    CanonicalDecision,
     CanonicalCoreError,
+    CanonicalDecisionRequest,
     DecisionOrigin,
     DecisionProtocol,
     EffectKind,
@@ -24,6 +26,7 @@ from sentinel.operator.canonical_core import (
     run_canonical_dev_mission,
     run_canonical_product_mission,
 )
+from sentinel.operator.product_model_native_decision_client import ProductModelNativeDecisionClient
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.code_execution_sandbox_runtime import CodeExecutionSandboxRuntime
 from sentinel.operator.kernel import MissionKernel
@@ -822,6 +825,112 @@ def test_c2_public_product_route_rejects_legacy_action_envelope_decisions(tmp_pa
     assert result.blocked_reason_detail == "legacy_action_envelope_not_allowed_on_public_canonical_route"
 
 
+def test_c3_root_runtime_product_dispatch_uses_typed_kernel_request() -> None:
+    source = inspect.getsource(RootMissionRuntime._execute_product_kernel_action)
+
+    assert ".execute_typed(" in source
+    assert "_action_envelope_for_decision" not in source
+    assert not hasattr(RootMissionRuntime, "_action_envelope_for_decision")
+
+
+def test_c3_workspace_graph_routes_have_single_callable_owner_and_authority() -> None:
+    graph = build_workspace_read_capability_graph()
+    owners = Counter(route.affordance for route in graph.routes)
+    runtime = RootMissionRuntime(
+        objective="Inspect executable workspace registrations.",
+        workspace_root=Path.cwd(),
+        provider_model="test-provider/model",
+    )
+
+    assert owners
+    assert all(count == 1 for count in owners.values())
+    for route in graph.routes:
+        assert route.executor_id
+        assert route.required_authority
+        assert route.proof_contract
+        assert route.capability == "workspace" or route.capability == "sentinel_loop"
+        if route.effect_kind is EffectKind.REAL:
+            assert route.capability in runtime._product_action_kernel._executors
+
+
+def test_c3_migrated_public_surfaces_do_not_use_runtimehost_cognitive_loop(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from sentinel.operator.runtime_host import SentinelRuntimeHost
+
+    def forbidden_loop(*_: Any, **__: Any) -> None:
+        raise AssertionError("migrated canonical workspace route invoked legacy RuntimeHost cognitive loop")
+
+    monkeypatch.setattr(SentinelRuntimeHost, "run_product_action_kernel_task_loop", forbidden_loop)
+    workspace = _workspace(tmp_path)
+    script = tmp_path / "decisions.jsonl"
+    script.write_text(
+        "\n".join(
+            [
+                json.dumps({"capability": "workspace", "operation": "list", "arguments": {"path": "."}}),
+                json.dumps({"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Done."}}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    dev_code = cli.main(
+        [
+            "canonical-dev-run",
+            "--objective",
+            "Confirm dev surface uses the canonical root loop.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(tmp_path / "dev-runs"),
+            "--decision-script",
+            str(script),
+            "--provider-model",
+            "scripted-local/model",
+            "--json",
+        ]
+    )
+    product_script = tmp_path / "product-decisions.jsonl"
+    product_script.write_text(script.read_text(encoding="utf-8"), encoding="utf-8")
+    product_code = cli.main(
+        [
+            "canonical-product-run",
+            "--objective",
+            "Confirm product surface uses the canonical root loop.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(tmp_path / "product-runs"),
+            "--decision-script",
+            str(product_script),
+            "--provider-model",
+            "scripted-local/model",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payloads = [json.loads(line) for line in output.out.splitlines() if line.strip()]
+    assert dev_code == 0
+    assert product_code == 0
+    assert [payload["public_product_spine"]["public_surface"] for payload in payloads] == [
+        "canonical-dev-run",
+        "canonical-product-run",
+    ]
+    assert all(payload["public_product_spine"]["runtimehost_cognition"] is False for payload in payloads)
+
+
+def test_c3_cli_has_single_production_canonical_provider_client() -> None:
+    source = inspect.getsource(cli)
+
+    assert "_RealProviderCanonicalDecisionClient" not in source
+    assert "ProductModelNativeDecisionClient.for_canonical_decisions" in source
+    assert "_canonical_real_model_request(" not in source
+    assert "_canonical_product_provider_prompt(" not in source
+
+
 def test_model_decision_accepts_registered_affordance_operation_without_capability(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     model = ScriptedModelClient(
@@ -1267,6 +1376,8 @@ def test_public_dev_cli_entrypoint_runs_canonical_core_vertical_slice(
             "Exercise the canonical core from the public dev CLI.",
             "--workspace",
             str(workspace),
+            "--run-root",
+            str(tmp_path / "runs"),
             "--decision-script",
             str(script),
             "--provider-model",
@@ -1280,11 +1391,15 @@ def test_public_dev_cli_entrypoint_runs_canonical_core_vertical_slice(
     assert code == 0
     assert output.err == ""
     assert payload["status"] == "completed"
+    assert payload["mission_record_created_before_provider"] is True
     assert payload["provider_decision_count"] == 2
     assert payload["root_created_before_first_provider_call"] is True
     assert payload["cleanup_completed"] is True
-    assert payload["receipts"][0]["capability"] == "workspace"
-    assert payload["proof_root"]["integrity_model"] == "non_authentic_placeholder"
+    assert payload["public_product_spine"]["strategy"] == "RUNTIMEHOST_HOSTS_ROOTMISSIONRUNTIME_CANONICAL_WORKSPACE"
+    assert payload["public_product_spine"]["runtime_entrypoint"] == "RootMissionRuntime.run"
+    assert payload["public_product_spine"]["runtimehost_cognition"] is False
+    assert payload["product_receipt_refs"]
+    assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
 
 
 def test_public_product_cli_entrypoint_uses_kernel_backed_vertical_slice(
@@ -1472,10 +1587,55 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     assert captured_requests[0].backend_id == "aliyun_openai_compatible_chat"
     assert captured_requests[0].model_id == "glm-5.2"
     assert payload["status"] == "completed"
-    assert payload["public_product_spine"]["decision_client"] == "_RealProviderCanonicalDecisionClient"
+    assert payload["public_product_spine"]["decision_client"] == "ProductModelNativeDecisionClient"
     assert payload["public_product_spine"]["runtime_entrypoint"] == "RootMissionRuntime.run"
     assert payload["public_product_spine"]["legacy_action_envelope_adapter"] is False
     assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
+
+
+def test_product_model_native_decision_client_can_emit_canonical_decision(tmp_path: Path) -> None:
+    captured_requests: list[Any] = []
+
+    class FakeModelClient:
+        def complete(self, request: Any) -> dict[str, str]:
+            captured_requests.append(request)
+            return {
+                "content": (
+                    '{"capability":"workspace","operation":"search",'
+                    '"arguments":{"query":"needle"},"expected_state_delta":"matches"}'
+                )
+            }
+
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=FakeModelClient(),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+    )
+    workspace = _workspace(tmp_path)
+    runtime = RootMissionRuntime(
+        objective="Find needle.",
+        workspace_root=workspace,
+        provider_model="aliyun_dashscope/qwen-plus",
+    )
+    request = CanonicalDecisionRequest(
+        root_mission_id=runtime.root_mission_id,
+        provider_model="aliyun_dashscope/qwen-plus",
+        canonical_state=runtime.compile_state(),
+        prompt_summary="test",
+        cancellation_ref=runtime.cancellation_token.safe_ref,
+    )
+
+    decision = client.complete(request)
+
+    assert isinstance(decision, CanonicalDecision)
+    assert len(captured_requests) == 1
+    assert captured_requests[0].runtime == "product_model_native_decision"
+    assert decision.decision_protocol is DecisionProtocol.MODEL_NATIVE_CANONICAL_JSON_V1
+    assert decision.decision_origin is DecisionOrigin.MODEL_SELECTED
+    assert decision.selected_capability == "workspace"
+    assert decision.selected_operation == "search"
+    assert decision.arguments == {"query": "needle"}
 
 
 def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:
