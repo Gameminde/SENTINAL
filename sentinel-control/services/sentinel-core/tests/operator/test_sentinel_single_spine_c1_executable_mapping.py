@@ -172,6 +172,62 @@ def test_c2_qualified_callers_reject_textual_symbol_false_positives(tmp_path: Pa
     ]
 
 
+def test_c2_qualified_callers_resolve_method_calls_on_typed_instances(tmp_path: Path) -> None:
+    probe = _probe_module()
+    source_root = tmp_path / "sentinel-control" / "services" / "sentinel-core" / "sentinel"
+    operator = source_root / "operator"
+    operator.mkdir(parents=True)
+    runtime_host = operator / "runtime_host.py"
+    runtime_host.write_text(
+        "class SentinelRuntimeHost:\n"
+        "    def run_product_action_kernel_task_loop(self):\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+    caller = operator / "public_entrypoint.py"
+    caller.write_text(
+        "from sentinel.operator.runtime_host import SentinelRuntimeHost\n\n"
+        "def run():\n"
+        "    host = SentinelRuntimeHost()\n"
+        "    alias = host\n"
+        "    alias.run_product_action_kernel_task_loop()\n",
+        encoding="utf-8",
+    )
+    false_file = operator / "false_positive.py"
+    false_file.write_text(
+        "class Other:\n"
+        "    def run_product_action_kernel_task_loop(self):\n"
+        "        pass\n\n"
+        "def run(other):\n"
+        "    other.run_product_action_kernel_task_loop()\n",
+        encoding="utf-8",
+    )
+    text_by_path = {
+        path: path.read_text(encoding="utf-8")
+        for path in (runtime_host, caller, false_file)
+    }
+
+    callers = probe.qualified_callers_for_symbol(
+        tmp_path,
+        "run_product_action_kernel_task_loop",
+        runtime_host,
+        text_by_path,
+    )
+
+    assert callers == [
+        {
+            "caller": "sentinel.operator.public_entrypoint::run",
+            "source": "sentinel/operator/public_entrypoint.py:6",
+            "target": (
+                "sentinel.operator.runtime_host.SentinelRuntimeHost."
+                "run_product_action_kernel_task_loop"
+            ),
+            "call_kind": "method_call",
+            "resolution": "QUALIFIED",
+        }
+    ]
+
+
 def test_c2_pre_corrected_baseline_uses_discriminating_metric_semantics() -> None:
     baseline_path = (
         _sentinel_control_root()
@@ -249,3 +305,77 @@ def test_c2_workspace_compression_artifacts_match_current_source() -> None:
     assert "C:\\" not in joined_artifacts
     assert "provider_calls = 0" in report
     assert "browser_runs = 0" in report
+
+
+def test_c2_workspace_compression_gates_are_replayable_not_constant_defaults() -> None:
+    repo_root = _repo_root()
+    probe = _probe_module()
+    baseline = probe.build_c2_workspace_compression_baseline(repo_root)
+    evidence = baseline["c2_gate_evidence"]
+    attestations = baseline["run_attestations"]
+
+    product_gate = evidence["canonical_product_run_bypass"]
+    assert product_gate["source"] == "behavioral_probe"
+    assert product_gate["probe_status"] == "PASSED"
+    assert product_gate["value"] is False
+    assert product_gate["route_trace"]["root_mission_record_count"] == 1
+    assert product_gate["route_trace"]["product_action_kernel_dispatch_count"] == 1
+    assert product_gate["route_trace"]["receipt_linked_to_root"] is True
+    assert product_gate["route_trace"]["observation_visible_to_next_turn"] is True
+
+    fake_gate = evidence["fake_material_success_on_workspace_public_route"]
+    assert fake_gate["source"] == "negative_behavioral_probe"
+    assert fake_gate["probe_status"] == "PASSED"
+    assert fake_gate["value"] == 0
+    assert fake_gate["fake_backend_material_receipt_created"] is False
+
+    assert attestations["provider_calls"] == {
+        "value": 0,
+        "status": "ZERO_RECORDED",
+        "source": "scripted_local_behavioral_probe",
+    }
+    assert attestations["browser_runs"] == {
+        "value": 0,
+        "status": "ZERO_RECORDED",
+        "source": "workspace_only_behavioral_probe",
+    }
+
+
+def test_c2_workspace_owner_metric_is_derived_from_executable_graph() -> None:
+    repo_root = _repo_root()
+    probe = _probe_module()
+    baseline = probe.build_c2_workspace_compression_baseline(repo_root)
+    owner_metric = baseline["metrics"]["workspace_duplicate_owner_per_capability_id"]
+
+    assert owner_metric["source"] == "ExecutableCapabilityGraph.routes"
+    assert owner_metric["count"] == 0
+    assert set(owner_metric["owners_by_capability"]) >= {
+        "workspace.list",
+        "workspace.read",
+        "workspace.search",
+        "sentinel_loop.finish",
+    }
+    for capability_id in ("workspace.list", "workspace.read", "workspace.search"):
+        owner = owner_metric["owners_by_capability"][capability_id][0]
+        assert owner["registration_source"] == "ExecutableCapabilityGraph.routes"
+        assert owner["callable_owner"] == "ProductActionKernel:workspace"
+        assert owner["authority_schema"] == "workspace_read"
+        assert owner["backend"] == "workspace_read_only"
+        assert owner["receipt_contract"] == "canonical_core_workspace_receipt_v1"
+
+
+def test_c2_workspace_metrics_split_unmigrated_surfaces_from_proven_bypasses() -> None:
+    repo_root = _repo_root()
+    probe = _probe_module()
+    baseline = probe.build_c2_workspace_compression_baseline(repo_root)
+    metrics = baseline["metrics"]
+
+    assert "public_entrypoint_bypass" not in metrics
+    assert metrics["proven_public_effect_bypasses"]["count"] == 0
+    assert "public_cli_canonical_product_run" not in metrics["unmigrated_public_surfaces"]["components"]
+    assert "public_cli_cockpit_chat" in metrics["unmigrated_public_surfaces"]["components"]
+    assert metrics["unknown_public_routes"]["count"] >= 0
+    assert "hardcoded_cli_capability_list" not in metrics
+    assert metrics["public_canonical_route_hardcoded_capability_list"]["count"] == 0
+    assert metrics["other_hardcoded_capability_surfaces"]["count"] >= 0
+    assert metrics["authority_allowed_actions_fields"]["count"] >= 1

@@ -238,7 +238,7 @@
   },
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
-  "current_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+  "current_head": "15f37937d036a22008a13fe396fc1c2fedf27c58",
   "entries": [
     {
       "acceptance_probe": "Public product request -> ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel -> receipt; fail if dispatch bypasses through run_canonical_product_mission or RootMissionRuntime direct effect execution.",
@@ -345,7 +345,8 @@
         "4c587859eee9ddda5c356572549153137373f695",
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "fixed_proven_commit": "",
       "historical_acceptance_probe": [
@@ -372,7 +373,8 @@
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "deletion_commits": [
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -629,9 +631,13 @@
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
         "fe28a144445168aa75bc3f9c02e1e4626466e5db",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-        "4c587859eee9ddda5c356572549153137373f695"
+        "4c587859eee9ddda5c356572549153137373f695",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "",
+      "implementation_commits": [
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+      ]
     },
     {
       "acceptance_probe": "Mutate every protected field one at a time; official verifier must reject each mutation with a typed reason",
@@ -1174,7 +1180,6 @@
       "remaining_risk": "Only workspace read/search/list are compressed in the public route; patch/check and sandbox physical isolation remain W2/W5 work.",
       "required_change": "Expose governed list/read/search/diff plus model-authored patch plans; derive checks from repository structure",
       "responsible_files_symbols": [
-        "sentinel/operator/canonical_core.py::RootMissionRuntime._execute_workspace_effect",
         "sentinel/operator/workspace_readonly_runtime.py::WorkspaceReadOnlyRuntime"
       ],
       "severity": "P1",
@@ -1188,7 +1193,9 @@
       ],
       "source_audit": "initial_exhaustive_audit",
       "status": "IMPLEMENTING",
-      "superseded_modules": [],
+      "superseded_modules": [
+        "RootMissionRuntime direct workspace helper symbols removed in C2"
+      ],
       "targeted_tests": [
         "test_workspace_list_read_search_are_generic_not_scenario_choreography",
         "test_c1_executable_mapping_artifacts_match_current_source",
@@ -1205,13 +1212,23 @@
         "4c587859eee9ddda5c356572549153137373f695",
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+      ],
+      "deleted_symbols": [
+        "sentinel/operator/canonical_core.py::RootMissionRuntime._execute",
+        "sentinel/operator/canonical_core.py::RootMissionRuntime._workspace_list",
+        "sentinel/operator/canonical_core.py::RootMissionRuntime._workspace_read",
+        "sentinel/operator/canonical_core.py::RootMissionRuntime._workspace_search",
+        "sentinel/cli.py::_create_public_product_root_record",
+        "sentinel/cli.py::_terminalize_public_product_root_record"
       ]
     },
     {
@@ -1754,13 +1771,15 @@
         "4c587859eee9ddda5c356572549153137373f695",
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "deletion_commits": [
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -1865,13 +1884,15 @@
         "4c587859eee9ddda5c356572549153137373f695",
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ]
     },
     {
@@ -2019,13 +2040,15 @@
         "4c587859eee9ddda5c356572549153137373f695",
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
       "deletion_commits": [
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -2375,9 +2398,13 @@
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-        "4c587859eee9ddda5c356572549153137373f695"
+        "4c587859eee9ddda5c356572549153137373f695",
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "",
+      "implementation_commits": [
+        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+      ]
     },
     {
       "acceptance_probe": "Kill a mission during simultaneous browser, subprocess and worker activity; prove zero survivors and one truthful aggregate cleanup result.",
@@ -2724,7 +2751,7 @@
   },
   "fixed_proven_total": 0,
   "published_counters_after_commit": {
-    "checkpoint_commit": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+    "checkpoint_commit": "15f37937d036a22008a13fe396fc1c2fedf27c58",
     "P0 fixed / 15": "0/15",
     "P1 fixed / 44": "0/44",
     "P2 fixed / 6": "0/6",
@@ -2764,7 +2791,9 @@
       "c5b9016e",
       "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-      "4c587859eee9ddda5c356572549153137373f695"
+      "4c587859eee9ddda5c356572549153137373f695",
+      "7480f31132ec2b20262d7465905f4fb8275139a3",
+      "15f37937d036a22008a13fe396fc1c2fedf27c58"
     ],
     "implementation_commits": [
       "15161055",
@@ -2774,17 +2803,23 @@
       "0701297e6f3e5f236f4f51acc1539e62f099be72",
       "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-      "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
+      "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+      "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+      "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+      "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+      "15f37937d036a22008a13fe396fc1c2fedf27c58"
     ],
-    "deletion_commits": [],
+    "deletion_commits": [
+      "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
+    ],
     "proof_commits": [
       "b721ce62343316bcdbe9c792af8a0967c8ae1680",
       "fe28a144445168aa75bc3f9c02e1e4626466e5db"
     ]
   },
   "implementation_tested_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-  "proof_runtime_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-  "current_worktree_or_commit": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+  "proof_runtime_head": "15f37937d036a22008a13fe396fc1c2fedf27c58",
+  "current_worktree_or_commit": "15f37937d036a22008a13fe396fc1c2fedf27c58",
   "single_spine_compression_campaign": {
     "campaign_id": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
     "scope": "WAVE_C0_C1_ONLY",
@@ -2972,14 +3007,15 @@
   },
   "single_spine_c2_workspace_compression": {
     "wave": "C2_WORKSPACE_SINGLE_SPINE_COMPRESSION",
-    "status": "IMPLEMENTED_LOCAL_CANDIDATE_NOT_FIXED_PROVEN",
+    "status": "WORKSPACE_SINGLE_SPINE_COMPRESSED_LOCAL_WITH_REPLAYABLE_C2S_SEAL",
     "code_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
     "provider_calls": 0,
     "browser_runs": 0,
     "implementation_commits": [
       "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
-      "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+      "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+      "15f37937d036a22008a13fe396fc1c2fedf27c58"
     ],
     "deletion_commits": [
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -2997,8 +3033,8 @@
     "minimum_delta": {
       "canonical_product_run_bypass": false,
       "root_direct_workspace_effect_executor": "absent",
-      "hardcoded_cli_capability_list": "absent",
-      "public_canonical_legacy_action_envelope_usage": "absent",
+      "hardcoded_cli_capability_list": "split_public_vs_other_vs_authority_fields",
+      "public_canonical_legacy_action_envelope_usage": "public_input_absent_internal_actionkernel_adapter_open_for_C3",
       "duplicate_owner_per_workspace_capability_id": 0,
       "fake_material_success_on_workspace_public_route": 0
     },
@@ -3009,6 +3045,16 @@
       "C-P0-06": "IMPLEMENTING",
       "P1-25": "IMPLEMENTING",
       "FIXED_PROVEN": "0/65"
-    }
+    },
+    "c2s_seal_commit": "15f37937d036a22008a13fe396fc1c2fedf27c58",
+    "c2_implementation_tested_head_preserved": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+    "c2_published_documentation_head_preserved": "7480f31132ec2b20262d7465905f4fb8275139a3",
+    "gates_derived_from_code_and_execution": true,
+    "behavioral_probe_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
+    ]
   }
 }

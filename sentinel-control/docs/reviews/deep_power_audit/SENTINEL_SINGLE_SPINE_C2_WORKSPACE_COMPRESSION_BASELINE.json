@@ -1,5 +1,41 @@
 {
   "browser_runs": 0,
+  "c2_gate_evidence": {
+    "canonical_product_run_bypass": {
+      "probe_status": "PASSED",
+      "route_trace": {
+        "cleanup_completed": true,
+        "decision_event_count": 2,
+        "kernel_timeline_verified": true,
+        "observation_visible_to_next_turn": true,
+        "product_action_kernel_dispatch_count": 1,
+        "receipt_artifacts_verified": true,
+        "receipt_linked_to_root": true,
+        "root_mission_record_count": 1,
+        "terminal_state": "completed",
+        "workspace_backend_observed": true
+      },
+      "source": "behavioral_probe",
+      "value": false
+    },
+    "fake_material_success_on_workspace_public_route": {
+      "blocked_reason_detail": "canonical_simulated_backend_cannot_create_material_receipt",
+      "fake_backend_material_receipt_created": false,
+      "probe_status": "PASSED",
+      "source": "negative_behavioral_probe",
+      "terminal_state": "blocked",
+      "value": 0
+    },
+    "public_canonical_legacy_action_envelope_usage_absent": {
+      "c3_internal_adapter_blocker": "RootMissionRuntime._action_envelope_for_decision remains for ProductActionKernel compatibility",
+      "source": "public command path only",
+      "value": true
+    },
+    "root_product_kernel_dispatch_present": {
+      "source": "RootMissionRuntime._execute_product_kernel_action AST/source slice",
+      "value": true
+    }
+  },
   "c2_gates": {
     "browser_runs": 0,
     "canonical_product_run_bypass": false,
@@ -1421,6 +1457,93 @@
   },
   "historical_baseline_artifact": "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
   "metrics": {
+    "authority_allowed_actions_fields": {
+      "components": [
+        "sentinel/agent/action_engine.py",
+        "sentinel/agent/agent_society.py",
+        "sentinel/agent/browser/self_hosted_benchmark.py",
+        "sentinel/agent/browser/v3_measured_supremacy.py",
+        "sentinel/agent/capability_selector.py",
+        "sentinel/agent/context_builder.py",
+        "sentinel/agent/epistemic_action.py",
+        "sentinel/agent/invariants.py",
+        "sentinel/agent/llm/context_pack.py",
+        "sentinel/agent/llm/tool_intent_compiler.py",
+        "sentinel/agent/mission_entropy.py",
+        "sentinel/agent/models.py",
+        "sentinel/agent/organs/browser_download_upload_quarantine_l6.py",
+        "sentinel/agent/organs/browser_form_submit_special_authority_l6.py",
+        "sentinel/agent/organs/browser_js_sandbox_special_authority_l6.py",
+        "sentinel/agent/organs/browser_login_credential_session_broker_l6.py",
+        "sentinel/agent/organs/browser_operator_agent_l4_l5_live.py",
+        "sentinel/agent/organs/browser_session_manager_l5_live.py",
+        "sentinel/agent/organs/browser_trajectory_planner_l5.py",
+        "sentinel/agent/resourcefulness.py",
+        "sentinel/agent/runtime.py",
+        "sentinel/agent/skill_procedure.py",
+        "sentinel/agent/supervisor.py",
+        "sentinel/agent/tool_selector.py",
+        "sentinel/agent/worker_coordinator.py",
+        "sentinel/agent/workspace.py",
+        "sentinel/capabilities/fixtures/static_catalog.py",
+        "sentinel/capabilities/models.py",
+        "sentinel/capabilities/policy.py",
+        "sentinel/cli.py",
+        "sentinel/mission/escalation.py",
+        "sentinel/mission/gate_sequence.py",
+        "sentinel/mission/models.py",
+        "sentinel/mission/scope_checker.py",
+        "sentinel/operator/account_authority.py",
+        "sentinel/operator/authority_issuer.py",
+        "sentinel/operator/browser_action_candidates.py",
+        "sentinel/operator/browser_control_runtime.py",
+        "sentinel/operator/browser_decision_frame.py",
+        "sentinel/operator/browser_search_parameter_boundary.py",
+        "sentinel/operator/canonical_core.py",
+        "sentinel/operator/channel_adapter.py",
+        "sentinel/operator/cockpit.py",
+        "sentinel/operator/code_execution_sandbox_runtime.py",
+        "sentinel/operator/credential_vault.py",
+        "sentinel/operator/decision_context.py",
+        "sentinel/operator/desktop_sidecar.py",
+        "sentinel/operator/deterministic.py",
+        "sentinel/operator/financial_authority.py",
+        "sentinel/operator/live_desktop_backend.py",
+        "sentinel/operator/llm_frame.py",
+        "sentinel/operator/model_led_product_action_kernel_task_loop.py",
+        "sentinel/operator/model_led_task_loop.py",
+        "sentinel/operator/models.py",
+        "sentinel/operator/power_bridge.py",
+        "sentinel/operator/read_only_model_clients.py",
+        "sentinel/operator/read_only_operator_spine.py",
+        "sentinel/operator/real_browser_control_runtime.py",
+        "sentinel/operator/real_model_certification.py",
+        "sentinel/operator/replan_guard.py",
+        "sentinel/operator/runtime_host.py",
+        "sentinel/operator/skill_fabric.py",
+        "sentinel/operator/structured_output.py",
+        "sentinel/operator/unified_execution_dispatcher.py",
+        "sentinel/operator/voice_runtime.py",
+        "sentinel/operator/worker_fleet.py",
+        "sentinel/operator/worker_models.py",
+        "sentinel/operator/worker_orchestration_runtime.py",
+        "sentinel/operator/workflow_models.py",
+        "sentinel/operator/workspace_patch_runtime.py",
+        "sentinel/operator/workspace_readonly_runtime.py",
+        "sentinel/organs/authority.py",
+        "sentinel/organs/browser/contract.py",
+        "sentinel/organs/browser/navigation_l6.py",
+        "sentinel/organs/browser/power_governor.py",
+        "sentinel/organs/channels/contract.py",
+        "sentinel/organs/desktop/contract.py",
+        "sentinel/organs/external_api/contract.py",
+        "sentinel/perf/bench/golden_runners.py",
+        "sentinel/perf/caches/context_cache_key.py",
+        "sentinel/power_lab.py"
+      ],
+      "count": 81,
+      "source": "authority_field_name_not_prompt_list"
+    },
     "canonical_product_run_bypass": {
       "components": [],
       "count": 0
@@ -1433,10 +1556,6 @@
       "count": 2
     },
     "duplicate_capability_backend": {
-      "components": [],
-      "count": 0
-    },
-    "hardcoded_cli_capability_list": {
       "components": [],
       "count": 0
     },
@@ -1456,14 +1575,20 @@
       ],
       "count": 4
     },
-    "public_entrypoint_bypass": {
-      "components": [
-        "public_cli_canonical_dev_run",
-        "public_cli_cockpit_chat",
-        "public_cli_power_lab_run",
-        "public_cli_browser_demos"
-      ],
-      "count": 4
+    "other_hardcoded_capability_surfaces": {
+      "components": [],
+      "count": 0,
+      "source": "AST/module_source_excluding_public_canonical_route"
+    },
+    "proven_public_effect_bypasses": {
+      "components": [],
+      "count": 0,
+      "source": "no_behavioral_bypass_probe_matched"
+    },
+    "public_canonical_route_hardcoded_capability_list": {
+      "components": [],
+      "count": 0,
+      "source": "AST/function_source"
     },
     "unclassified_effect_paths": {
       "components": [
@@ -1485,26 +1610,62 @@
       ],
       "count": 15
     },
+    "unknown_public_routes": {
+      "components": [],
+      "count": 0,
+      "source": "qualified_call_analysis_no_unresolved_public_workspace_route"
+    },
+    "unmigrated_public_surfaces": {
+      "components": [
+        "public_cli_canonical_dev_run",
+        "public_cli_cockpit_chat",
+        "public_cli_power_lab_run",
+        "public_cli_browser_demos"
+      ],
+      "count": 4
+    },
     "workspace_duplicate_owner_per_capability_id": {
       "components": [],
       "count": 0,
       "owners_by_capability": {
-        "workspace.check": [
-          "workspace_patch_runtime"
+        "sentinel_loop.finish": [
+          {
+            "authority_schema": "none",
+            "backend": "host_terminal_decision",
+            "callable_owner": "RootMissionRuntime:terminal_decision",
+            "receipt_contract": "canonical_core_terminal_truth_v1",
+            "registration_source": "ExecutableCapabilityGraph.routes"
+          }
         ],
         "workspace.list": [
-          "workspace_readonly_runtime"
-        ],
-        "workspace.patch": [
-          "workspace_patch_runtime"
+          {
+            "authority_schema": "workspace_read",
+            "backend": "workspace_read_only",
+            "callable_owner": "ProductActionKernel:workspace",
+            "receipt_contract": "canonical_core_workspace_receipt_v1",
+            "registration_source": "ExecutableCapabilityGraph.routes"
+          }
         ],
         "workspace.read": [
-          "workspace_readonly_runtime"
+          {
+            "authority_schema": "workspace_read",
+            "backend": "workspace_read_only",
+            "callable_owner": "ProductActionKernel:workspace",
+            "receipt_contract": "canonical_core_workspace_receipt_v1",
+            "registration_source": "ExecutableCapabilityGraph.routes"
+          }
         ],
         "workspace.search": [
-          "workspace_readonly_runtime"
+          {
+            "authority_schema": "workspace_read",
+            "backend": "workspace_read_only",
+            "callable_owner": "ProductActionKernel:workspace",
+            "receipt_contract": "canonical_core_workspace_receipt_v1",
+            "registration_source": "ExecutableCapabilityGraph.routes"
+          }
         ]
-      }
+      },
+      "source": "ExecutableCapabilityGraph.routes"
     }
   },
   "minimum_delta": {
@@ -1516,5 +1677,17 @@
     "root_direct_workspace_effect_executor": "absent"
   },
   "provider_calls": 0,
+  "run_attestations": {
+    "browser_runs": {
+      "source": "workspace_only_behavioral_probe",
+      "status": "ZERO_RECORDED",
+      "value": 0
+    },
+    "provider_calls": {
+      "source": "scripted_local_behavioral_probe",
+      "status": "ZERO_RECORDED",
+      "value": 0
+    }
+  },
   "wave": "C2_WORKSPACE_COMPRESSION"
 }

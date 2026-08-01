@@ -12,7 +12,7 @@ import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel import cli
-from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
 from sentinel.operator.canonical_core import (
     CanonicalCoreError,
     DecisionOrigin,
@@ -107,9 +107,15 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
     c2_truth = ledger["single_spine_c2_workspace_compression"]
-    assert ledger["current_head"] == c2_truth["code_head"]
-    assert ledger["tested_runtime_head"] == c2_truth["code_head"]
-    assert ledger["attestation_head"] == c2_truth["code_head"]
+    assert c2_truth["code_head"] == "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+    assert c2_truth["c2_implementation_tested_head_preserved"] == c2_truth["code_head"]
+    assert c2_truth["c2_published_documentation_head_preserved"] == (
+        "7480f31132ec2b20262d7465905f4fb8275139a3"
+    )
+    assert ledger["current_head"] == c2_truth["c2s_seal_commit"]
+    assert ledger["current_worktree_or_commit"] == c2_truth["c2s_seal_commit"]
+    assert ledger["proof_runtime_head"] == c2_truth["c2s_seal_commit"]
+    assert ledger["implementation_tested_head"] == c2_truth["code_head"]
     entries = ledger["entries"]
     status_counts = dict(sorted(Counter(entry["status"] for entry in entries).items()))
     proof_tier_counts = dict(sorted(Counter(entry["proof_tier"] for entry in entries).items()))
@@ -119,10 +125,12 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert ledger["proof_tier_counts"] == proof_tier_counts
     assert ledger["fixed_proven_by_severity"] == {"P0": 0, "P1": 0, "P2": 0}
     assert ledger["implementation_tested_head"] == c2_truth["code_head"]
-    assert ledger["proof_runtime_head"] == c2_truth["code_head"]
-    assert ledger["ledger_commit_classes"]["deletion_commits"] == []
+    assert ledger["proof_runtime_head"] == c2_truth["c2s_seal_commit"]
+    assert "b4f4baaceb6deb38f038a81321eb81d3ad21723b" in ledger["ledger_commit_classes"]["deletion_commits"]
     assert "4c587859eee9ddda5c356572549153137373f695" in ledger["ledger_commit_classes"]["ledger_commits"]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in ledger["ledger_commit_classes"]["proof_commits"]
+    assert c2_truth["c2s_seal_commit"] in ledger["ledger_commit_classes"]["implementation_commits"]
+    assert c2_truth["c2s_seal_commit"] in ledger["ledger_commit_classes"]["ledger_commits"]
     slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]
     assert slice_ids[:3] == [
         "SLICE_0A_STAGE0_LEDGER_AND_LOCAL_VERTICAL_SKELETON",
@@ -741,6 +749,57 @@ def test_c2_product_route_blocks_before_backend_when_workspace_authority_missing
     assert result.final_reason == "EFFECT_DISPATCH_FAILED"
     assert result.blocked_reason_detail == "canonical_authority_required:workspace_read"
     assert backend_calls == []
+
+
+def test_c2_product_route_rejects_simulated_material_backend_proof(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    runtime = RootMissionRuntime(
+        objective="A fake backend must not certify material workspace proof.",
+        workspace_root=workspace,
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_c2_fake_backend",
+        allow_legacy_action_envelope=False,
+    )
+
+    def fake_workspace_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id,
+            operation=envelope.operation,
+            status="completed",
+            material_action=True,
+            observation_summary="Simulated workspace material receipt.",
+            context_cards={
+                "simulated_backend": True,
+                "workspace_readonly_observation": {
+                    "backend_kind": "simulated",
+                    "entries": ("fake.md",),
+                },
+            },
+        )
+
+    runtime._product_action_kernel = ActionKernel({"workspace": fake_workspace_executor})
+
+    result = runtime.run(
+        model_client=ScriptedModelClient(
+            [
+                {"capability": "workspace", "operation": "list", "arguments": {"path": "."}},
+                {
+                    "capability": "sentinel_loop",
+                    "operation": "finish",
+                    "arguments": {"answer": "Fake evidence should not allow finish."},
+                },
+            ]
+        )
+    )
+
+    assert result.status == "blocked"
+    assert result.final_reason == "EFFECT_DISPATCH_FAILED"
+    assert result.blocked_reason_detail == "canonical_simulated_backend_cannot_create_material_receipt"
+    assert result.material_action_count == 0
+    assert result.receipts == ()
 
 
 def test_c2_public_product_route_rejects_legacy_action_envelope_decisions(tmp_path: Path) -> None:

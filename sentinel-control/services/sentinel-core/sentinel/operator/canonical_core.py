@@ -854,6 +854,7 @@ class RootMissionRuntime:
             action_result = self._execute_product_kernel_action(route=route, decision=decision)
         except Exception as exc:
             raise CanonicalEffectDispatchError(failure_stage="product_action_kernel_dispatch", cause=exc) from exc
+        self._reject_simulated_material_result(action_result)
         status = action_result.status
         observation = self._observation_from_action_result(action_result)
         summary = action_result.observation_summary
@@ -924,6 +925,17 @@ class RootMissionRuntime:
             authority=self._mission_authority_envelope(),
             context=context,
         )
+
+    def _reject_simulated_material_result(self, action_result: ActionResult) -> None:
+        if not action_result.material_action:
+            return
+        cards = action_result.context_cards
+        observation = cards.get("workspace_readonly_observation")
+        backend_kind = ""
+        if isinstance(observation, dict):
+            backend_kind = str(observation.get("backend_kind") or "").lower()
+        if cards.get("simulated_backend") is True or backend_kind in {"fake", "fixture", "simulated"}:
+            raise CanonicalCoreError("canonical_simulated_backend_cannot_create_material_receipt")
 
     def _action_envelope_for_decision(
         self,
