@@ -2422,7 +2422,7 @@
         "not_stage_complete_reason": "V13 is accepted as the first real-model canonical slice proof, but it used the new RootMissionRuntime path rather than the public ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel acceptance path required for P0-01."
       },
       {
-        "commit": "297357b5150a041a00e0ebc4d9fe7d80dd74f4fc",
+        "commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
         "slice_id": "SLICE_0H_PUBLIC_PRODUCT_SPINE_CONVERGENCE_LOCAL_PROBE",
         "status": "T1_LOCAL_DISCRIMINANT_PRODUCT_SPINE_PROBE",
         "not_stage_complete_reason": "Local scripted probe reaches ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel -> receipt; real-provider graduation is pending before P0-01 can close."
@@ -2506,7 +2506,7 @@
   },
   "fixed_proven_total": 0,
   "published_counters_after_commit": {
-    "checkpoint_commit": "297357b5150a041a00e0ebc4d9fe7d80dd74f4fc",
+    "checkpoint_commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
     "P0 fixed / 15": "0/15",
     "P1 fixed / 44": "0/44",
     "P2 fixed / 6": "0/6",
@@ -2542,7 +2542,7 @@
       "fdfce7f1",
       "c5b9016e",
       "fe28a144445168aa75bc3f9c02e1e4626466e5db",
-      "297357b5150a041a00e0ebc4d9fe7d80dd74f4fc"
+      "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
     ],
     "implementation_commits": [
       "15161055",
@@ -2552,7 +2552,7 @@
       "0701297e6f3e5f236f4f51acc1539e62f099be72",
       "30c2cfad1b0d9d9089c71d6312bf481114f02691",
       "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-      "297357b5150a041a00e0ebc4d9fe7d80dd74f4fc"
+      "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
     ],
     "deletion_commits": [],
     "proof_commits": [
@@ -2562,5 +2562,5 @@
   },
   "implementation_tested_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
   "proof_runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-  "current_worktree_or_commit": "297357b5150a041a00e0ebc4d9fe7d80dd74f4fc"
+  "current_worktree_or_commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
 }

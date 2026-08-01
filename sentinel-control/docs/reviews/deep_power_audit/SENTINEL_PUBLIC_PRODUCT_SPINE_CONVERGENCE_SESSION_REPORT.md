@@ -4,7 +4,7 @@
 
 ```text
 session_status = LOCAL_CONVERGENCE_PROBE_IMPLEMENTED
-checkpoint_commit = 297357b5150a041a00e0ebc4d9fe7d80dd74f4fc
+checkpoint_commit = c08f6c9cf61daea71bef7913285ba4a6e94712c6
 provider_calls = 0
 browser_runs = 0
 push = pending_after_commit
