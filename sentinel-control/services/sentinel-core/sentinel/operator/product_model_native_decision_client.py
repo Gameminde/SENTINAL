@@ -260,7 +260,10 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
         if quality_skill is not None and skill in {"run_check", "send_message", "spawn_worker", "finish"}:
             skill = quality_skill
     if skill == "finish":
-        if not _finish_skill_available(context):
+        sequence_skill = _next_preferred_sequence_skill(context)
+        if sequence_skill is not None and sequence_skill != "finish":
+            skill = sequence_skill
+        elif not _finish_skill_available(context):
             recommended = _recommended_skill(context)
             if recommended != "finish":
                 skill = recommended
@@ -660,11 +663,9 @@ def _canonical_payload_skill(payload: dict[str, Any]) -> str:
 
 
 def _recommended_skill(context: dict[str, Any]) -> str:
-    sequence = context.get("_preferred_skill_sequence")
-    if isinstance(sequence, tuple | list) and sequence:
-        next_skill = _next_sequence_skill(tuple(str(item) for item in sequence), context)
-        if next_skill is not None:
-            return next_skill
+    next_sequence_skill = _next_preferred_sequence_skill(context)
+    if next_sequence_skill is not None:
+        return next_sequence_skill
     skill = str(context.get("primary_model_recommended_next_skill") or "").strip()
     if skill:
         return skill
@@ -672,6 +673,13 @@ def _recommended_skill(context: dict[str, Any]) -> str:
     if isinstance(recommended, list) and recommended:
         return str(recommended[0])
     raise ActionKernelError("MODEL_NATIVE_DECISION_NO_SAFE_SKILL")
+
+
+def _next_preferred_sequence_skill(context: dict[str, Any]) -> str | None:
+    sequence = context.get("_preferred_skill_sequence")
+    if isinstance(sequence, tuple | list) and sequence:
+        return _next_sequence_skill(tuple(str(item) for item in sequence), context)
+    return None
 
 
 def _next_sequence_skill(sequence: tuple[str, ...], context: dict[str, Any]) -> str | None:

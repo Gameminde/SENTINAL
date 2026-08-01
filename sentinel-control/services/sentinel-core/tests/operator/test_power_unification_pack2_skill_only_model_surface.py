@@ -6,6 +6,7 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope
 from sentinel.operator.decision_context import DecisionContextCompiler
 from sentinel.operator.model_led_product_action_kernel_task_loop import ProductActionKernelLoopDecisionClient
+from sentinel.operator.model_skill_surface import compile_model_skill_surface
 from sentinel.operator.runtime_host import SentinelRuntimeHost
 
 
@@ -80,6 +81,24 @@ def test_browser_skill_surface_prefers_search_and_extract_not_raw_primitives() -
     assert not any(skill.startswith("real_browser") for skill in surface["model_visible_skills"])
 
 
+def test_model_skill_surface_preserves_runtime_recommendation_order_over_global_skill_order() -> None:
+    surface = compile_model_skill_surface(
+        model_visible_actions=(
+            "workspace.read",
+            "workspace_patch.apply_patch",
+            "code_execution_sandbox.code_exec.run_profile",
+        ),
+        recommended_actions=(
+            "code_execution_sandbox.code_exec.run_profile",
+            "workspace_patch.apply_patch",
+            "workspace.read",
+        ),
+    )
+
+    assert surface["recommended_next_skills"] == ["run_check", "patch", "read"]
+    assert surface["primary_recommended_skill"] == "run_check"
+
+
 def test_runtimehost_entrypoint_exposes_simple_skills_as_primary_surface(tmp_path: Path) -> None:
     host = SentinelRuntimeHost(run_root=tmp_path / "runs")
 
@@ -88,6 +107,7 @@ def test_runtimehost_entrypoint_exposes_simple_skills_as_primary_surface(tmp_pat
     assert frame["primary_model_surface"] == "model_visible_skills"
     assert frame["primary_model_language"] == "simple_mission_skills"
     assert frame["model_visible_skills"] == [
+        "read",
         "patch",
         "run_check",
         "observe",
@@ -107,6 +127,9 @@ def test_runtimehost_entrypoint_exposes_simple_skills_as_primary_surface(tmp_pat
     assert frame["runtime_internal_action_map"]["follow"] == "real_browser_control.real_browser.open_result"
     assert frame["runtime_internal_action_map"]["extract_evidence"] == "real_browser_control.real_browser.extract_evidence"
     assert frame["model_visible_available_actions"] == [
+        "workspace.list",
+        "workspace.read",
+        "workspace.search",
         "workspace_patch.apply_patch",
         "code_execution_sandbox.code_exec.run_profile",
         "bounded_channel.send_message",
@@ -156,6 +179,7 @@ def test_product_task_loop_context_keeps_action_envelope_internal(tmp_path: Path
 
     assert first_context["primary_model_surface"] == "model_visible_skills"
     assert first_context["model_visible_skills"] == [
+        "read",
         "run_check",
         "observe",
         "navigate",
@@ -168,7 +192,11 @@ def test_product_task_loop_context_keeps_action_envelope_internal(tmp_path: Path
         "spawn_worker",
     ]
     assert "code_execution_sandbox.code_exec.run_profile" not in first_context["model_visible_skills"]
-    assert first_context["skill_decision_frame"]["model_skill_surface"]["recommended_next_skills"][0] == "run_check"
+    assert first_context["skill_decision_frame"]["model_skill_surface"]["recommended_next_skills"][0] in {
+        "read",
+        "run_check",
+    }
+    assert first_context["runtime_internal_action_map"]["read"] == "workspace.read"
     assert first_context["runtime_internal_action_map"]["run_check"] == "code_execution_sandbox.code_exec.run_profile"
     assert first_context["runtime_internal_action_map"]["follow"] == "real_browser_control.real_browser.open_result"
 

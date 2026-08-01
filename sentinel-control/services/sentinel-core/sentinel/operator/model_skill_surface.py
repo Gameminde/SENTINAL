@@ -202,7 +202,7 @@ def _recommended_skills(
         if skill in visible:
             recommended.append(skill)
     if recommended:
-        return _ordered({skill: skill for skill in recommended})
+        return _dedupe(recommended)
     return visible_skills[:1]
 
 

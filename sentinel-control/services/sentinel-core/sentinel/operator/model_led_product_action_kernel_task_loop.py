@@ -295,6 +295,9 @@ class ModelLedProductActionKernelTaskLoop:
             available_actions=model_visible_actions,
             completion_requirements=completion_requirements,
             browser_cognitive_frame=browser_cognitive_frame,
+            workspace_root=self.workspace_root,
+            mission_objective=self.mission_objective,
+            latest_blocked_reason=self._latest_dispatch_blocked_reason(),
         )
         model_skill_surface = compile_model_skill_surface(
             model_visible_actions=model_visible_actions,
@@ -1759,6 +1762,9 @@ def _product_context_recommended_actions(
     available_actions: tuple[str, ...],
     completion_requirements: dict[str, Any],
     browser_cognitive_frame: dict[str, Any],
+    workspace_root: Path | None = None,
+    mission_objective: str = "",
+    latest_blocked_reason: str | None = None,
 ) -> tuple[str, ...]:
     has_terminal_browser_evidence = bool(
         completion_requirements.get("has_real_browser_verified_extraction_receipt")
@@ -1798,6 +1804,29 @@ def _product_context_recommended_actions(
         ordered = [action for action in preferred if action in available_actions]
         if ordered:
             return tuple(ordered)
+    if (
+        latest_blocked_reason == "code_exec_failed"
+        and "workspace_patch.apply_patch" in available_actions
+    ):
+        return ("workspace_patch.apply_patch",)
+    if (
+        workspace_root is not None
+        and _workspace_create_file_plans(workspace_root, mission_objective=mission_objective)
+        and "workspace_patch.create_file" in available_actions
+    ):
+        return ("workspace_patch.create_file",)
+    if (
+        workspace_root is not None
+        and _workspace_patch_plans(workspace_root)
+        and "workspace_patch.apply_patch" in available_actions
+    ):
+        return ("workspace_patch.apply_patch",)
+    if (
+        workspace_root is not None
+        and _bounded_check_plan(workspace_root)
+        and "code_execution_sandbox.code_exec.run_profile" in available_actions
+    ):
+        return ("code_execution_sandbox.code_exec.run_profile",)
     primary_skill = browser_cognitive_frame.get("primary_recommended_skill")
     if primary_skill in {"extract_evidence", "extract"}:
         extract_action = _extract_action_for_browser_frame(browser_cognitive_frame)
