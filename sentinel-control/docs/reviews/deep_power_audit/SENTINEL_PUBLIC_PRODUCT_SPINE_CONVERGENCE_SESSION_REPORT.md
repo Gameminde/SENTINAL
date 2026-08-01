@@ -248,3 +248,19 @@ public product request
 Only after that real convergence proof should `P0-01` be considered for
 `FIXED_PROVEN`. Then continue to physical provider cancellation and physical
 sandbox.
+
+
+## Post-Session Publication Appendix
+
+The verdict block above is preserved as historical session output. Publication happened after that session:
+
+```text
+temporary_bridge_commit_published = c08f6c9cf61daea71bef7913285ba4a6e94712c6
+published_documentation_head = 4c587859eee9ddda5c356572549153137373f695
+branch = sentinel-dev-max-power-canonical-core-v1
+provider_calls = 0
+browser_runs = 0
+FIXED_PROVEN = 0/65
+```
+
+This appendix does not close `P0-01`. The bridge remains a rollback point and local discriminant, not final single-spine architecture.

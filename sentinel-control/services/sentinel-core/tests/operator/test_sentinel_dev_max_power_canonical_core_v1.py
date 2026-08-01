@@ -62,6 +62,34 @@ class RaisingDispatchModelClient:
         return {"capability": "workspace", "operation": "read", "arguments": {"path": "missing.md"}}
 
 
+def _ledger_closure_gate_violations(entry: dict[str, Any]) -> list[str]:
+    status = entry.get("status")
+    violations: list[str] = []
+    if status == "FIXED_PROVEN":
+        for field in (
+            "fixed_proven_commit",
+            "acceptance_probe",
+            "integration_or_live_probe",
+            "proof_artifacts",
+            "responsible_files_symbols",
+        ):
+            if not entry.get(field):
+                violations.append(field)
+    if status == "SUPERSEDED_BY_CANONICAL_REPLACEMENT":
+        for field in (
+            "canonical_replacement_gate",
+            "callers_migrated_proof",
+            "absence_of_bypass_probe",
+            "implementation_commits",
+            "deletion_commits",
+            "proof_commits",
+            "superseded_commit",
+        ):
+            if not entry.get(field):
+                violations.append(field)
+    return violations
+
+
 def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     ledger_path = (
         Path(__file__).parents[4]
@@ -91,6 +119,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert ledger["implementation_tested_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
     assert ledger["proof_runtime_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
     assert ledger["ledger_commit_classes"]["deletion_commits"] == []
+    assert "4c587859eee9ddda5c356572549153137373f695" in ledger["ledger_commit_classes"]["ledger_commits"]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in ledger["ledger_commit_classes"]["proof_commits"]
     slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]
     assert slice_ids[:3] == [
@@ -142,7 +171,42 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert by_id["C-P0-01"]["fixed_proven_commit"] == ""
     assert by_id["C-P0-06"]["fixed_proven_commit"] == ""
     assert by_id["P0-07"]["fixed_proven_commit"] == ""
+    assert by_id["P0-01"]["temporary_bridge_status"] == "ROLLBACK_POINT_NOT_FINAL_ARCHITECTURE"
+    assert by_id["P0-01"]["historical_acceptance_probe"] == [
+        "public request",
+        "ProductModelNativeDecisionClient",
+        "legacy RuntimeHost task loop",
+        "ProductActionKernel",
+        "receipt",
+    ]
+    assert by_id["P0-01"]["canonical_replacement_gate"] == [
+        "public request",
+        "RuntimeHost",
+        "RootMissionRuntime",
+        "canonical model decision client",
+        "ExecutableCapabilityGraph",
+        "AuthorityKernel",
+        "ProductActionKernel effect execution",
+        "unique backend",
+        "receipt/proof",
+        "terminalization",
+        "cleanup",
+    ]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in by_id["P0-01"]["slice_status_history"][-1]["head"]
+    queue_by_id = {item["finding_id"]: item for item in ledger["fixed_proven_candidate_queue"]}
+    assert queue_by_id["P0-01"]["candidate_reason"].startswith("The c08f6c9c bridge proves")
+    assert "several executable cognitive spines still coexist" in queue_by_id["C-P0-01"]["candidate_reason"]
+    assert "Workspace read/list/search tranche is proven" in queue_by_id["C-P0-06"]["candidate_reason"]
+    assert "authenticity is still local/recomputable" in queue_by_id["P0-07"]["candidate_reason"]
+    assert ledger["post_session_publication_truth"] == {
+        "branch": "sentinel-dev-max-power-canonical-core-v1",
+        "temporary_bridge_commit_published": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "documentation_checkpoint_published": "4c587859eee9ddda5c356572549153137373f695",
+        "historical_reports_may_retain_push_pending": True,
+        "appendix_required_when_historical_report_says_push_pending": True,
+    }
+    assert ledger["single_spine_compression_campaign"]["legacy_bridge_final_architecture"] is False
+    assert ledger["single_spine_compression_campaign"]["no_finding_closure_in_c0_c1"] is True
     required_fields = {
         "target_wave",
         "depends_on",
@@ -161,11 +225,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
         assert isinstance(entry["change_commits"], list)
         assert isinstance(entry["proof_artifacts"], list)
         assert isinstance(entry["fixed_proven_commit"], str)
-        if entry["status"] == "FIXED_PROVEN":
-            assert entry["fixed_proven_commit"]
-            assert entry["acceptance_probe"]
-            assert entry["integration_or_live_probe"]
-            assert entry["proof_artifacts"]
+        assert _ledger_closure_gate_violations(entry) == []
     assert ledger["published_counters_after_commit"] == {
         "checkpoint_commit": ledger["current_worktree_or_commit"],
         "P0 fixed / 15": "0/15",
@@ -173,6 +233,48 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
         "P2 fixed / 6": "0/6",
         "total FIXED_PROVEN / 65": "0/65",
     }
+
+
+def test_ledger_validator_rejects_fixed_or_superseded_without_required_proof_fields() -> None:
+    incomplete_fixed = {
+        "status": "FIXED_PROVEN",
+        "fixed_proven_commit": "",
+        "acceptance_probe": "unit only",
+        "integration_or_live_probe": "",
+        "proof_artifacts": [],
+        "responsible_files_symbols": [],
+    }
+    incomplete_superseded = {
+        "status": "SUPERSEDED_BY_CANONICAL_REPLACEMENT",
+        "canonical_replacement_gate": [],
+        "callers_migrated_proof": "",
+        "absence_of_bypass_probe": "",
+        "implementation_commits": [],
+        "deletion_commits": [],
+        "proof_commits": [],
+        "superseded_commit": "",
+    }
+    valid_open = {
+        "status": "IMPLEMENTING",
+        "fixed_proven_commit": "",
+    }
+
+    assert set(_ledger_closure_gate_violations(incomplete_fixed)) == {
+        "fixed_proven_commit",
+        "integration_or_live_probe",
+        "proof_artifacts",
+        "responsible_files_symbols",
+    }
+    assert set(_ledger_closure_gate_violations(incomplete_superseded)) == {
+        "canonical_replacement_gate",
+        "callers_migrated_proof",
+        "absence_of_bypass_probe",
+        "implementation_commits",
+        "deletion_commits",
+        "proof_commits",
+        "superseded_commit",
+    }
+    assert _ledger_closure_gate_violations(valid_open) == []
 
 
 def test_provider_client_required_before_first_cognitive_turn(tmp_path: Path) -> None:

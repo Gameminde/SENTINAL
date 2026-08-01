@@ -199,7 +199,7 @@
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "finding": "ProductModelNativeDecisionClient has no production source caller and the public cockpit remains bound to read_only_research.inspect_repository",
       "id": "P0-01",
-      "integration_or_live_probe": "public_product_cli_entrypoint_reaches_runtimehost_product_action_kernel_spine_local_discriminant; real provider graduation pending",
+      "integration_or_live_probe": "local historical bridge discriminant exists; canonical replacement gate and real-provider public product proof pending",
       "layer": "product_wiring",
       "primary_evidence": "sentinel/cli.py:510-553; sentinel/operator/product_model_native_decision_client.py:44; source reference scan found no production caller",
       "proof_artifacts": [
@@ -209,7 +209,7 @@
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_VERTICAL_PRODUCT_TRANCHE_REPORT.md"
       ],
       "proof_tier": "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_NOT_P0_01_CLOSURE",
-      "remaining_risk": "Multiple spines are not yet fully converged. P0-01 cannot close until a true public product request reaches ProductModelNativeDecisionClient, RuntimeHost.run_product_action_kernel_task_loop, ProductActionKernel dispatch, receipt/proof root, terminalization and cleanup without using run_canonical_product_mission as a parallel effect loop.",
+      "remaining_risk": "Multiple spines are not yet fully converged. P0-01 cannot close until the canonical_replacement_gate is proven from the public product surface and the temporary legacy bridge is either removed or formally demoted with absence-of-bypass proof.",
       "required_change": "Connect the public product surface to RuntimeHost.run_product_action_kernel_task_loop through ProductModelNativeDecisionClient and keep RootMissionRuntime behind the canonical root record/proof role rather than a parallel effect executor.",
       "responsible_files_symbols": [
         "sentinel/cli.py::_run_canonical_product_command",
@@ -278,9 +278,32 @@
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-        "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+        "fe28a144445168aa75bc3f9c02e1e4626466e5db",
+        "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "4c587859eee9ddda5c356572549153137373f695"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "",
+      "historical_acceptance_probe": [
+        "public request",
+        "ProductModelNativeDecisionClient",
+        "legacy RuntimeHost task loop",
+        "ProductActionKernel",
+        "receipt"
+      ],
+      "canonical_replacement_gate": [
+        "public request",
+        "RuntimeHost",
+        "RootMissionRuntime",
+        "canonical model decision client",
+        "ExecutableCapabilityGraph",
+        "AuthorityKernel",
+        "ProductActionKernel effect execution",
+        "unique backend",
+        "receipt/proof",
+        "terminalization",
+        "cleanup"
+      ],
+      "temporary_bridge_status": "ROLLBACK_POINT_NOT_FINAL_ARCHITECTURE"
     },
     {
       "acceptance_probe": "A malicious synthetic pytest cannot read/write an outside canary, connect to loopback/Internet, spawn survivors, or access ambient credentials",
@@ -531,7 +554,9 @@
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-        "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+        "fe28a144445168aa75bc3f9c02e1e4626466e5db",
+        "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "4c587859eee9ddda5c356572549153137373f695"
       ],
       "fixed_proven_commit": ""
     },
@@ -1065,7 +1090,10 @@
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "Only read-only workspace operations are implemented in canonical core.",
       "required_change": "Expose governed list/read/search/diff plus model-authored patch plans; derive checks from repository structure",
-      "responsible_files_symbols": [],
+      "responsible_files_symbols": [
+        "sentinel/operator/canonical_core.py::RootMissionRuntime._execute_workspace_effect",
+        "sentinel/operator/workspace_readonly_runtime.py::WorkspaceReadOnlyRuntime"
+      ],
       "severity": "P1",
       "slice_status_history": [
         {
@@ -1086,7 +1114,9 @@
       "change_commits": [
         "aca1f008",
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "4c587859eee9ddda5c356572549153137373f695"
       ],
       "fixed_proven_commit": ""
     },
@@ -1609,7 +1639,9 @@
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-        "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+        "fe28a144445168aa75bc3f9c02e1e4626466e5db",
+        "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "4c587859eee9ddda5c356572549153137373f695"
       ],
       "fixed_proven_commit": ""
     },
@@ -1667,7 +1699,11 @@
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "Existing public brain-native path outside canonical core may still run without real model client.",
       "required_change": "Require one explicit provider client before the first cognition turn and make absence a typed preflight failure, not a partial brain run.",
-      "responsible_files_symbols": [],
+      "responsible_files_symbols": [
+        "sentinel/cli.py::_RealProviderCanonicalDecisionClient",
+        "sentinel/operator/canonical_core.py::CanonicalModelClient",
+        "sentinel/operator/canonical_core.py::RootMissionRuntime.run"
+      ],
       "severity": "P0",
       "slice_status_history": [
         {
@@ -1690,7 +1726,9 @@
       "change_commits": [
         "aca1f008",
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "4c587859eee9ddda5c356572549153137373f695"
       ],
       "fixed_proven_commit": ""
     },
@@ -1821,7 +1859,9 @@
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-        "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+        "fe28a144445168aa75bc3f9c02e1e4626466e5db",
+        "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "4c587859eee9ddda5c356572549153137373f695"
       ],
       "fixed_proven_commit": ""
     },
@@ -2136,7 +2176,11 @@
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "Host recovery, progress guard and deterministic postprocess origins not yet wired across product routes.",
       "required_change": "Require a DecisionOrigin enum on every decision, transformation, dispatch and terminal claim; preserve the full derivation chain.",
-      "responsible_files_symbols": [],
+      "responsible_files_symbols": [
+        "sentinel/operator/canonical_core.py::DecisionOrigin",
+        "sentinel/operator/canonical_core.py::CanonicalDecision",
+        "sentinel/operator/product_model_native_decision_client.py::ProductModelNativeDecisionClient"
+      ],
       "severity": "P1",
       "slice_status_history": [
         {
@@ -2157,7 +2201,9 @@
       "change_commits": [
         "aca1f008",
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+        "4c587859eee9ddda5c356572549153137373f695"
       ],
       "fixed_proven_commit": ""
     },
@@ -2515,23 +2561,23 @@
   "fixed_proven_candidate_queue": [
     {
       "finding_id": "P0-01",
-      "candidate_reason": "V13 remains a T3 canonical slice proof, but not the public ProductActionKernel wiring proof required for closure.",
-      "blocking_evidence": "true convergence blocker: prove ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel -> receipt from the public product surface, without run_canonical_product_mission parallel execution."
+      "candidate_reason": "The c08f6c9c bridge proves a local public ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel receipt path, but it is temporary and not the final single-spine architecture.",
+      "blocking_evidence": "canonical replacement gate still open: public request -> RuntimeHost -> RootMissionRuntime -> canonical model decision client -> ExecutableCapabilityGraph -> AuthorityKernel -> ProductActionKernel effect execution -> unique backend -> receipt/proof -> terminalization -> cleanup; no legacy bridge as final architecture."
     },
     {
       "finding_id": "C-P0-01",
-      "candidate_reason": "RootMissionRuntime creates durable MissionRecord and owns canonical workspace route locally",
-      "blocking_evidence": "real model product mission not completed"
+      "candidate_reason": "V13 completed a real-model canonical slice, but several executable cognitive spines still coexist.",
+      "blocking_evidence": "single root MissionRecord, decision protocol, capability dispatch, authority, proof root, terminalization and cleanup not yet proven across all public mission surfaces."
     },
     {
       "finding_id": "C-P0-06",
-      "candidate_reason": "executable capability graph now drives model-visible schema and dispatch for workspace routes",
-      "blocking_evidence": "full organ graph and finished real mission not proven"
+      "candidate_reason": "Workspace read/list/search tranche is proven locally and in V13, but only for the workspace subset.",
+      "blocking_evidence": "complete organ capability graph is not yet unified; all organs need exact executable registration, readiness, authority, proof and backend ownership before closure."
     },
     {
       "finding_id": "P0-07",
-      "candidate_reason": "MissionKernel receipt timeline proof root exists locally with explicit external signer gap",
-      "blocking_evidence": "authentic append-only/external proof still missing"
+      "candidate_reason": "Receipt integrity verification is locally useful and V13 receipt artifacts verified, but authenticity is still local/recomputable.",
+      "blocking_evidence": "external append-only or non-recomputable proof authenticity is absent; proof tampering resistance is not FIXED_PROVEN."
     }
   ],
   "tested_runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
@@ -2542,7 +2588,8 @@
       "fdfce7f1",
       "c5b9016e",
       "fe28a144445168aa75bc3f9c02e1e4626466e5db",
-      "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
+      "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+      "4c587859eee9ddda5c356572549153137373f695"
     ],
     "implementation_commits": [
       "15161055",
@@ -2562,5 +2609,52 @@
   },
   "implementation_tested_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
   "proof_runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-  "current_worktree_or_commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
+  "current_worktree_or_commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+  "single_spine_compression_campaign": {
+    "campaign_id": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
+    "scope": "WAVE_C0_C1_ONLY",
+    "provider_calls": 0,
+    "browser_runs": 0,
+    "temporary_bridge_commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+    "published_documentation_head": "4c587859eee9ddda5c356572549153137373f695",
+    "v13_truth": "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN",
+    "p0_01_status": "IMPLEMENTING",
+    "fixed_proven_total": 0,
+    "no_finding_closure_in_c0_c1": true,
+    "legacy_bridge_final_architecture": false
+  },
+  "post_session_publication_truth": {
+    "branch": "sentinel-dev-max-power-canonical-core-v1",
+    "temporary_bridge_commit_published": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+    "documentation_checkpoint_published": "4c587859eee9ddda5c356572549153137373f695",
+    "historical_reports_may_retain_push_pending": true,
+    "appendix_required_when_historical_report_says_push_pending": true
+  },
+  "fixed_or_superseded_validator": {
+    "states_guarded": [
+      "FIXED_PROVEN",
+      "SUPERSEDED_BY_CANONICAL_REPLACEMENT"
+    ],
+    "fixed_proven_required_fields": [
+      "fixed_proven_commit",
+      "acceptance_probe",
+      "integration_or_live_probe",
+      "proof_artifacts",
+      "responsible_files_symbols"
+    ],
+    "superseded_required_fields": [
+      "canonical_replacement_gate",
+      "callers_migrated_proof",
+      "absence_of_bypass_probe",
+      "implementation_commits",
+      "deletion_commits",
+      "proof_commits",
+      "superseded_commit"
+    ],
+    "superseed_requires_no_parallel_bypass": true,
+    "enforced_by": [
+      "test_stage0_finding_ledger_contains_all_65_findings",
+      "test_ledger_validator_rejects_fixed_or_superseded_without_required_proof_fields"
+    ]
+  }
 }
