@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import inspect
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel import cli
-from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel
 from sentinel.operator.canonical_core import (
     CanonicalCoreError,
     DecisionOrigin,
@@ -585,7 +586,7 @@ def test_product_workspace_dispatch_failure_terminalizes_record_and_cleanup(tmp_
     assert result.receipts == ()
     assert result.cleanup_completed is True
     assert record.status is OperatorMissionStatus.BLOCKED
-    assert failure_event.metadata["failure_stage"] == "dispatch_or_workspace_effect"
+    assert failure_event.metadata["failure_stage"] == "product_action_kernel_dispatch"
     assert failure_event.metadata["failure_code"] == "workspace_path_not_found"
     assert any(event.event_type == "canonical_cleanup_completed" for event in events)
 
@@ -660,7 +661,105 @@ def test_runtime_dispatch_uses_registered_callable_not_hardcoded_if_chain(tmp_pa
     runtime = RootMissionRuntime(objective="Dispatch through registered callables.", workspace_root=workspace, provider_model="test/model")
     route = runtime.capability_graph.resolve("workspace", "list")
 
-    assert runtime.resolve_executor(route).__name__ == "_workspace_list"
+    assert route.executor_id == "workspace.list"
+    assert runtime.workspace_capability_owner(route) == "ProductActionKernel:workspace"
+
+
+def test_c2_root_runtime_no_longer_owns_direct_workspace_effect_executor() -> None:
+    source = inspect.getsource(RootMissionRuntime)
+
+    assert "def _execute(" not in source
+    assert "def _workspace_list(" not in source
+    assert "def _workspace_read(" not in source
+    assert "def _workspace_search(" not in source
+
+
+def test_c2_workspace_effect_dispatches_through_product_action_kernel(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    calls: list[tuple[str, str]] = []
+    original_execute = ActionKernel.execute
+
+    def spy_execute(self: ActionKernel, envelope: ActionEnvelope, **kwargs: Any):
+        calls.append((envelope.capability_id, envelope.operation))
+        return original_execute(self, envelope, **kwargs)
+
+    monkeypatch.setattr(ActionKernel, "execute", spy_execute)
+
+    result = run_canonical_product_mission(
+        objective="List the workspace through the canonical product route.",
+        workspace_root=workspace,
+        model_client=ScriptedModelClient(
+            [
+                {"capability": "workspace", "operation": "list", "arguments": {"path": "."}},
+                {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Listed."}},
+            ]
+        ),
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_c2_product_kernel_dispatch",
+    )
+
+    assert result.status == "completed"
+    assert calls == [("workspace", "list")]
+    assert result.receipts[0].safe_observation["product_action_kernel_dispatch"] is True
+    assert result.receipts[0].safe_observation["product_action_result_hash"]
+
+
+def test_c2_product_route_blocks_before_backend_when_workspace_authority_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    backend_calls: list[str] = []
+    original_execute = ActionKernel.execute
+
+    def spy_execute(self: ActionKernel, envelope: ActionEnvelope, **kwargs: Any):
+        backend_calls.append(f"{envelope.capability_id}.{envelope.operation}")
+        return original_execute(self, envelope, **kwargs)
+
+    monkeypatch.setattr(ActionKernel, "execute", spy_execute)
+
+    result = run_canonical_product_mission(
+        objective="Authority denial must happen before workspace backend dispatch.",
+        workspace_root=workspace,
+        model_client=ScriptedModelClient(
+            [{"capability": "workspace", "operation": "list", "arguments": {"path": "."}}]
+        ),
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_c2_authority_denied",
+        granted_authorities=("none",),
+    )
+
+    assert result.status == "blocked"
+    assert result.final_reason == "EFFECT_DISPATCH_FAILED"
+    assert result.blocked_reason_detail == "canonical_authority_required:workspace_read"
+    assert backend_calls == []
+
+
+def test_c2_public_product_route_rejects_legacy_action_envelope_decisions(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+
+    result = run_canonical_product_mission(
+        objective="Public canonical route must not consume legacy ActionEnvelope decisions.",
+        workspace_root=workspace,
+        model_client=ScriptedModelClient(
+            [ActionEnvelope(capability_id="workspace", operation="list", params={"path": "."})]
+        ),
+        provider_model="scripted-real-shape/model",
+        kernel=kernel,
+        session_id="session_c2_legacy_envelope_rejected",
+    )
+
+    assert result.status == "blocked"
+    assert result.final_reason == "MODEL_DECISION_FAILED"
+    assert result.blocked_reason_detail == "legacy_action_envelope_not_allowed_on_public_canonical_route"
 
 
 def test_model_decision_accepts_registered_affordance_operation_without_capability(tmp_path: Path) -> None:
@@ -1169,12 +1268,12 @@ def test_public_product_cli_entrypoint_uses_kernel_backed_vertical_slice(
     assert payload["mission_record_created_before_provider"] is True
     assert payload["provider_decision_count"] == 2
     assert payload["material_action_count"] == 1
-    assert payload["proof_root"]["integrity_model"] == "product_action_kernel_task_loop_finalgate_v1"
+    assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
     assert payload["proof_root"]["receipt_artifacts_verified"] is True
     assert payload["cleanup_completed"] is True
 
 
-def test_public_product_cli_entrypoint_reaches_runtimehost_product_action_kernel_spine(
+def test_public_product_cli_entrypoint_reaches_single_canonical_workspace_spine(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -1183,8 +1282,14 @@ def test_public_product_cli_entrypoint_reaches_runtimehost_product_action_kernel
     script.write_text(
         "\n".join(
             [
-                json.dumps({"skill": "search", "params": {"query": "needle"}}),
-                json.dumps({"skill": "finish", "params": {"safe_summary": "Public product route finished."}}),
+                json.dumps({"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}}),
+                json.dumps(
+                    {
+                        "capability": "sentinel_loop",
+                        "operation": "finish",
+                        "arguments": {"answer": "Public product route finished."},
+                    }
+                ),
             ]
         ),
         encoding="utf-8",
@@ -1220,18 +1325,21 @@ def test_public_product_cli_entrypoint_reaches_runtimehost_product_action_kernel
 
     assert code == 0
     assert payload["status"] == "completed"
-    assert payload["public_product_spine"]["strategy"] == "ROOT_MISSION_RUNTIME_TO_RUNTIMEHOST_PRODUCT_KERNEL_ADAPTER"
-    assert payload["public_product_spine"]["decision_client"] == "ProductModelNativeDecisionClient"
-    assert payload["public_product_spine"]["runtime_entrypoint"] == "RuntimeHost.run_product_action_kernel_task_loop"
+    assert payload["public_product_spine"]["strategy"] == "RUNTIMEHOST_HOSTS_ROOTMISSIONRUNTIME_CANONICAL_WORKSPACE"
+    assert payload["public_product_spine"]["decision_client"] == "_JsonlCanonicalDecisionScriptClient"
+    assert payload["public_product_spine"]["runtime_entrypoint"] == "RootMissionRuntime.run"
+    assert payload["public_product_spine"]["model_decision_protocol"] == "CanonicalDecision"
     assert payload["public_product_spine"]["capability_dispatch"] == "ProductActionKernel"
-    assert payload["public_product_spine"]["legacy_action_envelope_adapter"] is True
+    assert payload["public_product_spine"]["legacy_action_envelope_adapter"] is False
+    assert payload["public_product_spine"]["runtimehost_cognition"] is False
     assert payload["mission_record_created_before_provider"] is True
     assert len(payload["mission_ids"]) == 1
     assert payload["root_mission_id"] == payload["mission_ids"][0]
     assert payload["product_receipt_refs"]
-    assert "mission_dispatch_started" in event_types
-    assert "mission_dispatch_closeout_persisted" in event_types
-    receipt_files = list(run_root.rglob("_pak/r/*.json"))
+    assert "canonical_decision_accepted" in event_types
+    assert "canonical_effect_receipt_persisted" in event_types
+    assert "canonical_cleanup_completed" in event_types
+    receipt_files = list(run_root.rglob("canonical_receipts/*.json"))
     assert len(receipt_files) == len(payload["product_receipt_refs"])
 
 
@@ -1289,18 +1397,25 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     assert len(captured_requests) == 2
     assert captured_requests[0].runtime == "product_model_native_decision"
     assert captured_requests[0].request_metadata["raw_text_transport"] == "product_model_native_intent_v1"
-    assert captured_requests[0].request_metadata["model_visible_affordances"] == ["read", "search"]
+    assert captured_requests[0].request_metadata["model_visible_affordances"] == [
+        "workspace.list",
+        "workspace.read",
+        "workspace.search",
+        "sentinel_loop.finish",
+    ]
     prompt = captured_requests[0].prompt_text_in_memory_only
     assert "Allowed operations are generated from Sentinel's executable capability graph" in prompt
     assert "model_visible_operation_schemas" in prompt
-    assert "runtime_internal_action" in prompt
     assert "workspace.search" in prompt
     assert "- {\"capability\":\"workspace\"" not in prompt
     assert captured_requests[0].provider_id == "aliyun_dashscope"
     assert captured_requests[0].backend_id == "aliyun_openai_compatible_chat"
     assert captured_requests[0].model_id == "glm-5.2"
     assert payload["status"] == "completed"
-    assert payload["proof_root"]["integrity_model"] == "product_action_kernel_task_loop_finalgate_v1"
+    assert payload["public_product_spine"]["decision_client"] == "_RealProviderCanonicalDecisionClient"
+    assert payload["public_product_spine"]["runtime_entrypoint"] == "RootMissionRuntime.run"
+    assert payload["public_product_spine"]["legacy_action_envelope_adapter"] is False
+    assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
 
 
 def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:

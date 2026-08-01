@@ -6,17 +6,19 @@ import re
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from pydantic import Field, model_validator
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
-from sentinel.operator.action_kernel import ActionEnvelope
+from sentinel.mission.models import MissionAuthorityEnvelope
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.operator.store import _filesystem_path, _path_exists
+from sentinel.operator.workspace_readonly_runtime import WorkspaceReadOnlyRuntime
 from sentinel.shared.models import SentinelModel, new_id
 
 
@@ -513,6 +515,7 @@ def run_canonical_dev_mission(
         provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
         cancellation_token=cancellation_token,
         granted_authorities=granted_authorities,
+        allow_legacy_action_envelope=True,
     )
     return runtime.run(model_client=model_client)
 
@@ -542,6 +545,7 @@ def run_canonical_product_mission(
         kernel=kernel,
         session_id=session_id,
         granted_authorities=granted_authorities,
+        allow_legacy_action_envelope=False,
     )
     return runtime.run(model_client=model_client)
 
@@ -561,6 +565,7 @@ class RootMissionRuntime:
         kernel: MissionKernel | None = None,
         session_id: str = "canonical_core_dev_session",
         granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
+        allow_legacy_action_envelope: bool = False,
     ) -> None:
         self.root_mission_id = new_id("root_mission")
         self.objective = objective
@@ -576,6 +581,9 @@ class RootMissionRuntime:
         self.kernel = kernel
         self.session_id = session_id
         self.granted_authorities = frozenset(granted_authorities)
+        self.allow_legacy_action_envelope = allow_legacy_action_envelope
+        self._workspace_backend = WorkspaceReadOnlyRuntime(workspace_root=self.workspace_root)
+        self._product_action_kernel = ActionKernel({"workspace": self._execute_workspace_backend})
         self.decisions: list[CanonicalDecision] = []
         self.receipts: list[CanonicalEffectReceipt] = []
         self.evidence_refs: list[str] = []
@@ -701,7 +709,7 @@ class RootMissionRuntime:
                 if self.material_action_count >= self.budget.max_material_actions:
                     return self._terminal_result(status="blocked", reason="MATERIAL_ACTION_BUDGET_EXHAUSTED")
                 try:
-                    receipt = self._execute(decision, before_state=state)
+                    receipt = self._dispatch_effect(decision, before_state=state)
                 except Exception as exc:
                     if self.kernel is None:
                         raise
@@ -756,22 +764,19 @@ class RootMissionRuntime:
             except Exception:
                 return
 
-    def resolve_executor(self, route: CanonicalCapabilityRoute) -> Callable[[dict[str, Any]], tuple[str, dict[str, Any], str]]:
-        executors: dict[str, Callable[[dict[str, Any]], tuple[str, dict[str, Any], str]]] = {
-            "workspace.list": self._workspace_list,
-            "workspace.read": self._workspace_read,
-            "workspace.search": self._workspace_search,
-            "sentinel_loop.finish": self._finish,
-        }
-        executor = executors.get(route.executor_id)
-        if executor is None:
-            raise CanonicalCoreError(f"canonical_executor_missing:{route.affordance}")
-        return executor
+    def workspace_capability_owner(self, route: CanonicalCapabilityRoute) -> str:
+        if route.capability == "workspace":
+            return "ProductActionKernel:workspace"
+        if route.capability == "sentinel_loop":
+            return "RootMissionRuntime:terminal_decision"
+        return "UNKNOWN"
 
     def _normalize_decision(self, raw: Any) -> CanonicalDecision:
         if isinstance(raw, CanonicalDecision):
             return raw
         if isinstance(raw, ActionEnvelope):
+            if not self.allow_legacy_action_envelope:
+                raise CanonicalCoreError("legacy_action_envelope_not_allowed_on_public_canonical_route")
             route = self.capability_graph.resolve(raw.capability_id, raw.operation)
             arguments = dict(raw.params)
             if raw.target_ref is not None and "target_ref" not in arguments:
@@ -841,15 +846,17 @@ class RootMissionRuntime:
             return operation_matches[0]
         return None
 
-    def _execute(self, decision: CanonicalDecision, *, before_state: CanonicalState) -> CanonicalEffectReceipt:
+    def _dispatch_effect(self, decision: CanonicalDecision, *, before_state: CanonicalState) -> CanonicalEffectReceipt:
         route = self.capability_graph.resolve(decision.capability, decision.operation)
         self._assert_route_authorized(route)
-        executor = self.resolve_executor(route)
         action_signature = _action_signature(decision)
         try:
-            status, observation, summary = executor(decision.arguments)
+            action_result = self._execute_product_kernel_action(route=route, decision=decision)
         except Exception as exc:
-            raise CanonicalEffectDispatchError(failure_stage="dispatch_or_workspace_effect", cause=exc) from exc
+            raise CanonicalEffectDispatchError(failure_stage="product_action_kernel_dispatch", cause=exc) from exc
+        status = action_result.status
+        observation = self._observation_from_action_result(action_result)
+        summary = action_result.observation_summary
         observation = self._annotate_progress(
             decision=decision,
             observation=observation,
@@ -872,10 +879,10 @@ class RootMissionRuntime:
             effect_kind=route.effect_kind,
             backend_mode=route.backend_mode,
             status=status,
-            material_action=True,
+            material_action=action_result.material_action,
             safe_summary=summary,
             safe_observation=observation,
-            evidence_refs=(evidence_ref,),
+            evidence_refs=tuple(dict.fromkeys([evidence_ref, *action_result.evidence_refs])),
             before_state_hash=before_state.state_hash,
             after_state_hash=after_state_hash,
         )
@@ -890,6 +897,92 @@ class RootMissionRuntime:
         )
         return receipt
 
+    def _execute_product_kernel_action(
+        self,
+        *,
+        route: CanonicalCapabilityRoute,
+        decision: CanonicalDecision,
+    ) -> ActionResult:
+        if route.capability != "workspace":
+            raise CanonicalCoreError(f"canonical_product_kernel_capability_missing:{route.affordance}")
+        envelope = self._action_envelope_for_decision(route=route, decision=decision)
+        return self._product_action_kernel.execute(
+            envelope,
+            authority=self._mission_authority_envelope(),
+            context={
+                "root_mission_id": self.root_mission_id,
+                "decision_id": decision.decision_id,
+                "canonical_route": route.model_dump(mode="json"),
+                "decision_origin": decision.decision_origin.value,
+                "canonical_public_route": True,
+            },
+        )
+
+    def _execute_workspace_backend(self, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+        return self._workspace_backend.execute(
+            envelope,
+            authority=self._mission_authority_envelope(),
+            context=context,
+        )
+
+    def _action_envelope_for_decision(
+        self,
+        *,
+        route: CanonicalCapabilityRoute,
+        decision: CanonicalDecision,
+    ) -> ActionEnvelope:
+        return ActionEnvelope(
+            capability_id=route.capability,
+            operation=route.operation,
+            params=redact_operator_value(decision.arguments),
+            idempotency_key=stable_hash(
+                {
+                    "root_mission_id": self.root_mission_id,
+                    "decision_id": decision.decision_id,
+                    "affordance": route.affordance,
+                    "arguments": redact_operator_value(decision.arguments),
+                }
+            ),
+            authority_ref=f"root_authority:{stable_hash(sorted(self.granted_authorities))[:24]}",
+            decision_ref=decision.decision_id,
+            expected_receipt_type=route.proof_contract,
+        )
+
+    def _mission_authority_envelope(self) -> MissionAuthorityEnvelope:
+        return MissionAuthorityEnvelope(
+            user_id="sentinel_canonical_core",
+            mission_title="Canonical product workspace mission",
+            mission_objective=self.objective,
+            allowed_tools=["workspace"],
+            allowed_actions=list(self.capability_graph.model_visible_affordances()),
+            forbidden_actions=[
+                "provider_native_tools",
+                "authority_self_grant",
+                "workspace_escape",
+                "raw_secret_exposure",
+            ],
+            allowed_paths=[str(self.workspace_root)],
+            max_actions=max(1, self.budget.max_material_actions),
+        )
+
+    def _observation_from_action_result(self, action_result: ActionResult) -> dict[str, Any]:
+        observation = action_result.context_cards.get("workspace_readonly_observation")
+        if not isinstance(observation, dict):
+            observation = {
+                "action_result_status": action_result.status,
+                "observation_summary": action_result.observation_summary,
+            }
+        safe_observation = _restore_workspace_observation_types(dict(redact_operator_value(observation)))
+        safe_observation.update(
+            {
+                "product_action_kernel_dispatch": True,
+                "product_action_result_hash": action_result.result_hash,
+                "product_action_receipt_refs": tuple(action_result.receipt_refs),
+                "product_action_evidence_refs": tuple(action_result.evidence_refs),
+            }
+        )
+        return safe_observation
+
     def _assert_route_authorized(self, route: CanonicalCapabilityRoute) -> None:
         if route.required_authority == "none":
             return
@@ -900,157 +993,6 @@ class RootMissionRuntime:
     def _finish(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
         answer = redact_operator_text(str(arguments.get("answer") or arguments.get("safe_summary") or ""))
         return "completed", {"terminal_answer_hash": text_hash(answer)}, "canonical finish proposed."
-
-    def _workspace_list(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
-        target = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or "."), must_exist=True)
-        if not target.is_dir():
-            raise CanonicalCoreError("workspace_list_target_not_directory")
-        entries = tuple(
-            f"{child.name}/" if child.is_dir() else child.name
-            for child in sorted(target.iterdir(), key=lambda item: item.name.lower())
-        )
-        relative = _relative_workspace_path(self.workspace_root, target)
-        return (
-            "completed",
-            {"path": relative, "entries": entries, "entry_count": len(entries)},
-            f"workspace list observed {len(entries)} entries at {relative}.",
-        )
-
-    def _workspace_read(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
-        target = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or ""), must_exist=True)
-        if not target.is_file():
-            raise CanonicalCoreError("workspace_read_target_not_file")
-        max_chars = _bounded_int(arguments.get("max_chars"), default=1200, minimum=1, maximum=4000)
-        max_bytes = _bounded_int(arguments.get("max_bytes"), default=1_000_000, minimum=1, maximum=4_000_000)
-        try:
-            byte_count = target.stat().st_size
-        except OSError as exc:
-            raise CanonicalCoreError("workspace_read_stat_failed") from exc
-        if byte_count > max_bytes:
-            raise CanonicalCoreError("workspace_read_target_too_large")
-        data = target.read_bytes()
-        try:
-            text = data.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise CanonicalCoreError("workspace_read_binary_target_blocked") from exc
-        relative = _relative_workspace_path(self.workspace_root, target)
-        excerpt = redact_operator_text(text[:max_chars])
-        return (
-            "completed",
-            {
-                "path": relative,
-                "sha256": hashlib.sha256(data).hexdigest(),
-                "byte_count": len(data),
-                "content_excerpt": excerpt,
-                "truncated": len(text) > max_chars,
-            },
-            f"workspace file observed at {relative}.",
-        )
-
-    def _workspace_search(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
-        query = str(arguments.get("query") or "").strip()
-        if not query:
-            raise CanonicalCoreError("workspace_search_query_required")
-        root = _resolve_workspace_path(self.workspace_root, str(arguments.get("path") or "."), must_exist=True)
-        if not root.is_dir():
-            raise CanonicalCoreError("workspace_search_root_not_directory")
-        matches: list[dict[str, Any]] = []
-        lowered_query = query.lower()
-        normalized_query_terms = _normalized_search_terms(query)
-        max_files = _bounded_int(arguments.get("max_files"), default=1000, minimum=1, maximum=5000)
-        max_bytes_per_file = _bounded_int(
-            arguments.get("max_bytes_per_file"),
-            default=256_000,
-            minimum=1,
-            maximum=1_000_000,
-        )
-        files_examined_count = 0
-        skipped_outside_root_count = 0
-        skipped_max_files_count = 0
-        skipped_too_large_count = 0
-        skipped_io_error_count = 0
-        skipped_binary_count = 0
-        for path in sorted(root.rglob("*"), key=lambda item: str(item).lower()):
-            try:
-                resolved = path.resolve()
-            except OSError:
-                skipped_io_error_count += 1
-                continue
-            if resolved != self.workspace_root and self.workspace_root not in resolved.parents:
-                skipped_outside_root_count += 1
-                continue
-            try:
-                if not resolved.is_file():
-                    continue
-                byte_count = resolved.stat().st_size
-            except OSError:
-                skipped_io_error_count += 1
-                continue
-            if files_examined_count >= max_files:
-                skipped_max_files_count += 1
-                continue
-            files_examined_count += 1
-            if byte_count > max_bytes_per_file:
-                skipped_too_large_count += 1
-                continue
-            try:
-                text = resolved.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                skipped_binary_count += 1
-                continue
-            except OSError:
-                skipped_io_error_count += 1
-                continue
-            relative_path = _relative_workspace_path(self.workspace_root, resolved)
-            path_channels = _match_channels(query=lowered_query, terms=normalized_query_terms, haystack=relative_path)
-            content_channels = _match_channels(query=lowered_query, terms=normalized_query_terms, haystack=text)
-            match_channels = tuple(
-                dict.fromkeys(
-                    [
-                        *("filename_path" for _ in path_channels),
-                        *("content" for _ in content_channels),
-                        *(["normalized_terms"] if "normalized_terms" in {*path_channels, *content_channels} else []),
-                    ]
-                )
-            )
-            if not match_channels:
-                continue
-            matches.append(
-                {
-                    "path": relative_path,
-                    "content_hash": text_hash(text),
-                    "path_match": bool(path_channels),
-                    "content_match": bool(content_channels),
-                    "normalized_term_match": "normalized_terms" in {*path_channels, *content_channels},
-                    "match_channels": match_channels,
-                }
-            )
-        path_match_count = sum(1 for match in matches if match["path_match"])
-        content_match_count = sum(1 for match in matches if match["content_match"])
-        normalized_match_count = sum(1 for match in matches if match["normalized_term_match"])
-        return (
-            "completed",
-            {
-                "root": _relative_workspace_path(self.workspace_root, root),
-                "query_hash": text_hash(query),
-                "search_scope": {
-                    "path": _relative_workspace_path(self.workspace_root, root),
-                    "channels": ("filename_path", "content", "normalized_terms"),
-                },
-                "match_count": len(matches),
-                "matches": tuple(matches[:20]),
-                "path_match_count": path_match_count,
-                "content_match_count": content_match_count,
-                "normalized_term_match_count": normalized_match_count,
-                "files_examined_count": files_examined_count,
-                "skipped_outside_root_count": skipped_outside_root_count,
-                "skipped_max_files_count": skipped_max_files_count,
-                "skipped_too_large_count": skipped_too_large_count,
-                "skipped_io_error_count": skipped_io_error_count,
-                "skipped_binary_count": skipped_binary_count,
-            },
-            f"workspace search observed {len(matches)} matching files.",
-        )
 
     def _annotate_progress(
         self,
@@ -1063,7 +1005,7 @@ class RootMissionRuntime:
         observed_paths = _observation_paths(safe_observation)
         new_paths = tuple(path for path in observed_paths if path not in set(self.paths_explored))
         signature_seen = self._action_signature_counts.get(action_signature, 0)
-        evidence_fingerprint = stable_hash(safe_observation)
+        evidence_fingerprint = stable_hash(_progress_fingerprint_payload(safe_observation))
         evidence_seen = f"evidence:{evidence_fingerprint[:24]}" in set(self.evidence_refs)
         has_match_progress = bool(new_paths)
         no_progress = signature_seen > 0 and evidence_seen and not has_match_progress
@@ -1523,18 +1465,6 @@ def _normalize_search_text(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[_\-.\\/]+", " ", text).lower()).strip()
 
 
-def _match_channels(*, query: str, terms: tuple[str, ...], haystack: str) -> tuple[str, ...]:
-    normalized_haystack = _normalize_search_text(haystack)
-    haystack_terms = set(term for term in normalized_haystack.split(" ") if term)
-    haystack_terms.update(_normalized_search_terms(normalized_haystack))
-    channels: list[str] = []
-    if query and query in haystack.lower():
-        channels.append("exact")
-    if terms and all(term in haystack_terms for term in terms):
-        channels.append("normalized_terms")
-    return tuple(channels)
-
-
 def _observation_paths(observation: dict[str, Any]) -> tuple[str, ...]:
     paths: list[str] = []
     path = observation.get("path")
@@ -1549,19 +1479,47 @@ def _observation_paths(observation: dict[str, Any]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(paths))
 
 
+def _progress_fingerprint_payload(observation: dict[str, Any]) -> dict[str, Any]:
+    dynamic_keys = {
+        "action_signature",
+        "action_signature_seen_before",
+        "decision_origin",
+        "evidence_delta",
+        "new_paths",
+        "objective_progress",
+        "observation_fingerprint",
+        "product_action_evidence_refs",
+        "product_action_kernel_dispatch",
+        "product_action_receipt_refs",
+        "product_action_result_hash",
+        "progress_classification",
+        "replan_required",
+        "typed_observation",
+    }
+    return {key: value for key, value in observation.items() if key not in dynamic_keys}
+
+
+def _restore_workspace_observation_types(observation: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(observation.get("entries"), list):
+        observation["entries"] = tuple(observation["entries"])
+    if isinstance(observation.get("matches"), list):
+        matches: list[dict[str, Any]] = []
+        for item in observation["matches"]:
+            if not isinstance(item, dict):
+                continue
+            match = dict(item)
+            if isinstance(match.get("match_channels"), list):
+                match["match_channels"] = tuple(match["match_channels"])
+            matches.append(match)
+        observation["matches"] = tuple(matches)
+    search_scope = observation.get("search_scope")
+    if isinstance(search_scope, dict) and isinstance(search_scope.get("channels"), list):
+        observation["search_scope"] = {**search_scope, "channels": tuple(search_scope["channels"])}
+    return observation
+
+
 def _workspace_ref(path: Path) -> str:
     return f"workspace:{stable_hash(str(path))[:24]}"
-
-
-def _resolve_workspace_path(root: Path, requested: str, *, must_exist: bool) -> Path:
-    if not requested:
-        raise CanonicalCoreError("workspace_path_required")
-    path = (root / requested).resolve()
-    if path != root and root not in path.parents:
-        raise CanonicalCoreError("workspace_path_outside_root")
-    if must_exist and not path.exists():
-        raise CanonicalCoreError("workspace_path_not_found")
-    return path
 
 
 def _relative_workspace_path(root: Path, path: Path) -> str:
@@ -1570,16 +1528,11 @@ def _relative_workspace_path(root: Path, path: Path) -> str:
     return path.relative_to(root).as_posix()
 
 
-def _bounded_int(value: Any, *, default: int, minimum: int, maximum: int) -> int:
-    try:
-        parsed = int(value)
-    except (TypeError, ValueError):
-        parsed = default
-    return max(minimum, min(maximum, parsed))
-
-
 def _safe_exception_code(exc: Exception) -> str:
     text = str(exc)
+    if isinstance(exc, (CanonicalCoreError, ActionKernelError)) and text and "\n" not in text and len(text) <= 120:
+        if re.fullmatch(r"[A-Za-z0-9_.:-]+", text):
+            return redact_operator_text(text)
     if isinstance(exc, CanonicalCoreError) and text and "\n" not in text and len(text) <= 120:
         return redact_operator_text(text)
     return exc.__class__.__name__
