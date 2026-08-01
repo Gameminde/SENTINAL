@@ -106,9 +106,10 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len(ledger["entries"]) == 65
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
-    assert ledger["current_head"] == "fe28a144445168aa75bc3f9c02e1e4626466e5db"
-    assert ledger["tested_runtime_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
-    assert ledger["attestation_head"] == "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+    c2_truth = ledger["single_spine_c2_workspace_compression"]
+    assert ledger["current_head"] == c2_truth["code_head"]
+    assert ledger["tested_runtime_head"] == c2_truth["code_head"]
+    assert ledger["attestation_head"] == c2_truth["code_head"]
     entries = ledger["entries"]
     status_counts = dict(sorted(Counter(entry["status"] for entry in entries).items()))
     proof_tier_counts = dict(sorted(Counter(entry["proof_tier"] for entry in entries).items()))
@@ -117,8 +118,8 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert ledger["status_counts"] == status_counts == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
     assert ledger["proof_tier_counts"] == proof_tier_counts
     assert ledger["fixed_proven_by_severity"] == {"P0": 0, "P1": 0, "P2": 0}
-    assert ledger["implementation_tested_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
-    assert ledger["proof_runtime_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert ledger["implementation_tested_head"] == c2_truth["code_head"]
+    assert ledger["proof_runtime_head"] == c2_truth["code_head"]
     assert ledger["ledger_commit_classes"]["deletion_commits"] == []
     assert "4c587859eee9ddda5c356572549153137373f695" in ledger["ledger_commit_classes"]["ledger_commits"]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in ledger["ledger_commit_classes"]["proof_commits"]
@@ -195,7 +196,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     ]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in by_id["P0-01"]["slice_status_history"][-1]["head"]
     queue_by_id = {item["finding_id"]: item for item in ledger["fixed_proven_candidate_queue"]}
-    assert queue_by_id["P0-01"]["candidate_reason"].startswith("The c08f6c9c bridge proves")
+    assert queue_by_id["P0-01"]["candidate_reason"].startswith("C2 compressed the local workspace public route")
     assert "several executable cognitive spines still coexist" in queue_by_id["C-P0-01"]["candidate_reason"]
     assert "Workspace read/list/search tranche is proven" in queue_by_id["C-P0-06"]["candidate_reason"]
     assert "authenticity is still local/recomputable" in queue_by_id["P0-07"]["candidate_reason"]

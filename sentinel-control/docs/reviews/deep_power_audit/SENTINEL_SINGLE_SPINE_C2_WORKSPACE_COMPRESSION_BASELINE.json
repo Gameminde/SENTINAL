@@ -1,0 +1,1520 @@
+{
+  "browser_runs": 0,
+  "c2_gates": {
+    "browser_runs": 0,
+    "canonical_product_run_bypass": false,
+    "duplicate_owner_per_workspace_capability_id": 0,
+    "fake_material_success_on_workspace_public_route": 0,
+    "hardcoded_cli_capability_list_absent": true,
+    "provider_calls": 0,
+    "public_canonical_legacy_action_envelope_usage_absent": true,
+    "root_direct_workspace_effect_executor_absent": true,
+    "root_product_kernel_dispatch_present": true
+  },
+  "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
+  "category_counts": {
+    "authority_boundary": 2,
+    "capability_graph_factory": 1,
+    "capability_registry": 2,
+    "decision_protocol_adapter": 1,
+    "effect_dispatch_owner": 1,
+    "fake_material_success_route": 2,
+    "hardcoded_cli_capability_list": 1,
+    "host_lifecycle": 1,
+    "model_affordance_projection": 1,
+    "model_decision_client": 2,
+    "model_decision_loop": 4,
+    "public_mission_surface": 5,
+    "receipt_proof_owner": 2,
+    "workspace_backend": 2
+  },
+  "component_count": 28,
+  "components": [
+    {
+      "authority_owned": "descriptive MissionAuthoritySummary",
+      "canonical_owner": "RootMissionRuntime public entrypoint",
+      "category": "public_mission_surface",
+      "component": "public_cli_canonical_product_run",
+      "decision": "KEEP",
+      "deletion_gate": "delete bridge pieces only after C2 parity",
+      "effects_owned": "delegates to canonical root runtime",
+      "evidence_present": true,
+      "migration_gate": "route through one root MissionRecord, graph and ProductActionKernel workspace dispatch in C2",
+      "production_callers": [],
+      "proof_owned": "canonical proof root summary",
+      "source": "sentinel/cli.py",
+      "state_owned": "root MissionRecord bootstrap via canonical core helper",
+      "symbol": "_run_canonical_product_command",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "RootMissionRuntime test/dev harness",
+      "category": "public_mission_surface",
+      "component": "public_cli_canonical_dev_run",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/cli.py",
+      "state_owned": "none",
+      "symbol": "_run_canonical_dev_command",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "RootMissionRuntime",
+      "category": "public_mission_surface",
+      "component": "public_cli_cockpit_chat",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/cli.py",
+      "state_owned": "none",
+      "symbol": "_run_cockpit_command",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "RootMissionRuntime",
+      "category": "public_mission_surface",
+      "component": "public_cli_power_lab_run",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/cli.py",
+      "state_owned": "none",
+      "symbol": "run_power_lab_mission",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "Browser organ adapter under ProductActionKernel",
+      "category": "public_mission_surface",
+      "component": "public_cli_browser_demos",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/cli.py",
+      "state_owned": "none",
+      "symbol": "_run_browser_session_demo",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "canonical graph required_authority",
+      "canonical_owner": "RootMissionRuntime",
+      "category": "model_decision_loop",
+      "component": "root_mission_runtime",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "currently executes workspace effects directly",
+      "evidence_present": true,
+      "migration_gate": "remove direct effect execution; dispatch effects through ProductActionKernel",
+      "production_callers": [],
+      "proof_owned": "MissionProofRoot and canonical receipts",
+      "source": "sentinel/operator/canonical_core.py",
+      "state_owned": "MissionRecord, CanonicalState, progress, terminalization, cleanup",
+      "symbol": "RootMissionRuntime",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "RuntimeHost hosting/lifecycle only",
+      "category": "host_lifecycle",
+      "component": "runtime_host_class",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "hosts runtimes but should not own canonical cognition",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.cli::_run_canonical_product_command",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/cli.py:539",
+          "target": "sentinel.operator.runtime_host.SentinelRuntimeHost"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.cli::_run_cockpit_command",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/cli.py:986",
+          "target": "sentinel.operator.runtime_host.SentinelRuntimeHost"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_cortex_deterministic_runner::run_browser_cortex_deterministic_baseline",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_cortex_deterministic_runner.py:212",
+          "target": "sentinel.operator.runtime_host.SentinelRuntimeHost"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_cortex_search_entity_development::run_browser_cortex_search_entity_development_corpus",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_cortex_search_entity_development.py:127",
+          "target": "sentinel.operator.runtime_host.SentinelRuntimeHost"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_cortex_search_entity_development::_run_browser_cortex_search_entity_development_manifest",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_cortex_search_entity_development.py:222",
+          "target": "sentinel.operator.runtime_host.SentinelRuntimeHost"
+        }
+      ],
+      "proof_owned": "none",
+      "source": "sentinel/operator/runtime_host.py",
+      "state_owned": "host and lifecycle scope",
+      "symbol": "SentinelRuntimeHost",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "RuntimeHost hosting/lifecycle only",
+      "category": "model_decision_loop",
+      "component": "runtime_host_product_task_loop_method",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "ProductActionKernel effect dispatch",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/runtime_host.py",
+      "state_owned": "ProductTaskResourceScope and child mission orchestration",
+      "symbol": "run_product_action_kernel_task_loop",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "RootMissionRuntime cognition loop",
+      "category": "model_decision_loop",
+      "component": "model_led_product_action_kernel_task_loop",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::SentinelRuntimeHost.run_product_action_kernel_task_loop",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:820",
+          "target": "sentinel.operator.model_led_product_action_kernel_task_loop.ModelLedProductActionKernelTaskLoop"
+        }
+      ],
+      "proof_owned": "none",
+      "source": "sentinel/operator/model_led_product_action_kernel_task_loop.py",
+      "state_owned": "none",
+      "symbol": "ModelLedProductActionKernelTaskLoop",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "RootMissionRuntime",
+      "category": "model_decision_loop",
+      "component": "legacy_model_led_task_loop",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/model_led_task_loop.py",
+      "state_owned": "none",
+      "symbol": "ModelLedTaskLoop",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "canonical model decision client",
+      "category": "decision_protocol_adapter",
+      "component": "product_model_native_decision_client",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/product_model_native_decision_client.py",
+      "state_owned": "none",
+      "symbol": "ProductModelNativeDecisionClient",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "canonical provider protocol module",
+      "category": "model_decision_client",
+      "component": "canonical_provider_request_builder",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/cli.py",
+      "state_owned": "none",
+      "symbol": "_canonical_real_model_request",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "canonical provider protocol module",
+      "category": "model_decision_client",
+      "component": "cli_private_real_provider_canonical_decision_client",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/cli.py",
+      "state_owned": "none",
+      "symbol": "_RealProviderCanonicalDecisionClient",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "ExecutableCapabilityGraph",
+      "category": "capability_registry",
+      "component": "executable_capability_graph",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/canonical_core.py",
+      "state_owned": "none",
+      "symbol": "ExecutableCapabilityGraph",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "ExecutableCapabilityGraph",
+      "category": "capability_graph_factory",
+      "component": "workspace_read_capability_graph_builder",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/canonical_core.py",
+      "state_owned": "none",
+      "symbol": "build_workspace_read_capability_graph",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "ExecutableCapabilityGraph",
+      "category": "capability_registry",
+      "component": "runtime_connection_registry",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.connection_manifest_registry::ConnectionManifestRegistry.compare_runtime_connections",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/connection_manifest_registry.py:73",
+          "target": "sentinel.operator.runtime_connections.build_default_runtime_connection_registry"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.connection_manifest_registry::ConnectionManifestRegistry.adapter_readiness_report",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/connection_manifest_registry.py:94",
+          "target": "sentinel.operator.runtime_connections.build_default_runtime_connection_registry"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.mission_execution_coordinator::MissionExecutionCoordinator.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/mission_execution_coordinator.py:130",
+          "target": "sentinel.operator.runtime_connections.build_default_runtime_connection_registry"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.power_skill_registry::build_default_power_skill_registry",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/power_skill_registry.py:148",
+          "target": "sentinel.operator.runtime_connections.build_default_runtime_connection_registry"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::SentinelRuntimeHost.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:482",
+          "target": "sentinel.operator.runtime_connections.build_default_runtime_connection_registry"
+        }
+      ],
+      "proof_owned": "none",
+      "source": "sentinel/operator/runtime_connections.py",
+      "state_owned": "none",
+      "symbol": "build_default_runtime_connection_registry",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "MissionAuthorityEnvelope checks",
+      "canonical_owner": "ProductActionKernel",
+      "category": "effect_dispatch_owner",
+      "component": "product_action_kernel",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "ActionEnvelope effect execution",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.canonical_core::RootMissionRuntime.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/canonical_core.py:586",
+          "target": "sentinel.operator.action_kernel.ActionKernel"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::_default_sentinel_loop_executor",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:1643",
+          "target": "sentinel.operator.action_kernel.ActionKernel"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.unified_execution_dispatcher::ProductActionKernelDispatchAdapter.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/unified_execution_dispatcher.py:505",
+          "target": "sentinel.operator.action_kernel.ActionKernel"
+        }
+      ],
+      "proof_owned": "ActionResult receipt refs",
+      "source": "sentinel/operator/action_kernel.py",
+      "state_owned": "none",
+      "symbol": "ActionKernel",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "canonical graph required_authority",
+      "canonical_owner": "ProductActionKernel",
+      "category": "effect_dispatch_owner",
+      "component": "root_runtime_workspace_effect_executor",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "direct workspace list/read/search",
+      "evidence_present": false,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "CanonicalEffectReceipt",
+      "source": "sentinel/operator/canonical_core.py",
+      "state_owned": "CanonicalState observations",
+      "symbol": "_execute",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "AuthorityKernel facade",
+      "category": "authority_boundary",
+      "component": "mission_lifecycle_service",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::SentinelRuntimeHost.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:491",
+          "target": "sentinel.operator.mission_lifecycle_service.MissionLifecycleService"
+        }
+      ],
+      "proof_owned": "none",
+      "source": "sentinel/operator/mission_lifecycle_service.py",
+      "state_owned": "none",
+      "symbol": "MissionLifecycleService",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "AuthorityKernel",
+      "category": "authority_boundary",
+      "component": "assert_data_not_authority",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.account_authority_models::AccountAuthorityDataModel._account_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/account_authority_models.py:28",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.action_failure_policy::ActionExecutionFailureDecision._decision_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/action_failure_policy.py:65",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.action_kernel::ActionResult._result_is_evidence_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/action_kernel.py:148",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.action_kernel::ActionEnvelope._envelope_is_model_decision_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/action_kernel.py:84",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.actionability_registry::ActionabilityRegistryFrame._frame_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/actionability_registry.py:122",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.actionability_registry::PowerSkillDescriptor._descriptor_is_map_not_power",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/actionability_registry.py:40",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.actionability_registry::ActionExposure._exposure_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/actionability_registry.py:72",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.actionability_registry::SkillExposure._skill_exposure_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/actionability_registry.py:97",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.authority_issuer::MissionAuthorityApprovalScope._approval_scope_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/authority_issuer.py:112",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.authority_issuer::MissionAuthorityEnvelopeRecord._record_is_proof_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/authority_issuer.py:156",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.authority_issuer::MissionAuthorityRevocationRecord._revocation_is_proof_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/authority_issuer.py:213",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.authority_issuer::MissionAuthorityPolicy._policy_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/authority_issuer.py:59",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_backend_selector::BrowserBackendCandidate._candidate_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_backend_selector.py:30",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_backend_selector::BrowserBackendSelection._selection_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_backend_selector.py:54",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_control_models::_assert_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_control_models.py:230",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_environment_state::BrowserEnvironmentState._state_is_map_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_environment_state.py:103",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_product_cutover_registry::BrowserProductCutoverPath._path_is_cutover_truth_not_power",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_product_cutover_registry.py:44",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_product_cutover_registry::BrowserProductCutoverFrame._frame_is_cutover_truth_not_power",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_product_cutover_registry.py:95",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.canonical_core::CanonicalDecisionRequest._request_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/canonical_core.py:261",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.canonical_core::CanonicalDecision._decision_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/canonical_core.py:293",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.canonical_core::CanonicalEffectReceipt._receipt_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/canonical_core.py:357",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.canonical_core::RootMissionRuntime._normalize_decision",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/canonical_core.py:797",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.channel_adapter_models::ChannelDataModel._channel_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/channel_adapter_models.py:52",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.code_execution_sandbox_models::CodeExecutionResult._result_is_data_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/code_execution_sandbox_models.py:113",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.code_execution_sandbox_models::CodeExecutionReceipt._receipt_is_data_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/code_execution_sandbox_models.py:173",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.code_execution_sandbox_models::CodeExecutionFinalCertificate._certificate_is_data_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/code_execution_sandbox_models.py:232",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.code_execution_sandbox_models::CodeExecutionProfile._profile_is_data_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/code_execution_sandbox_models.py:33",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.code_execution_sandbox_models::CodeExecutionRequest._request_is_data_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/code_execution_sandbox_models.py:61",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.connection_identity_models::ConnectionIdentityDataModel._identity_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/connection_identity_models.py:64",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.connection_inbound_models::InboundDataModel._inbound_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/connection_inbound_models.py:87",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.connection_live_channel_action_models::LiveChannelActionDataModel._data_model_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/connection_live_channel_action_models.py:44",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.connection_manifest_models::ConnectionManifest._manifest_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/connection_manifest_models.py:123",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.credential_vault_models::CredentialVaultDataModel._credential_vault_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/credential_vault_models.py:32",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DaemonLease._lease_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:131",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DaemonHeartbeatRecord._heartbeat_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:188",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DaemonQueueRecord._queue_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:244",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DaemonQueueCursor._cursor_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:297",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DeadLetterRecord._dead_letter_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:327",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DaemonRecoveryPlan._recovery_plan_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:387",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::OperatorHandoffRequest._handoff_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:412",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::OperatorNotification._notification_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:438",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::MissionDaemonState._state_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:467",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DaemonTickResult._tick_result_is_evidence_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:497",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::ProactiveProposal._proposal_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:570",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::ProactiveSchedulerConfig._config_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:593",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::MissionDaemonConfig._config_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:60",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::SchedulerPolicy._policy_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:615",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::SchedulerDecision._decision_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:638",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.daemon_models::DaemonLeaseOwner._owner_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/daemon_models.py:81",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.desktop_sidecar_models::DesktopDataModel._desktop_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/desktop_sidecar_models.py:93",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.financial_authority_models::FinancialAuthorityDataModel._financial_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/financial_authority_models.py:29",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.harness_models::_assert_harness_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/harness_models.py:816",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.live_desktop_backend_models::DesktopLiveActionContract._contract_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/live_desktop_backend_models.py:547",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.llm_frame::OperatorConversationFrame._frame_is_data",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/llm_frame.py:138",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.mission_artifact_bundle::MissionArtifactBundleExportResult._export_result_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/mission_artifact_bundle.py:38",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.mission_artifact_bundle::MissionArtifactBundleVerifierResult._verifier_result_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/mission_artifact_bundle.py:62",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.mission_execution_coordinator::MissionExecutionDecision._decision_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/mission_execution_coordinator.py:62",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.mission_lifecycle_service::MissionExecutionRequest._request_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/mission_lifecycle_service.py:113",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.mission_workspace_runtime::MissionWorkspaceManifest._manifest_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/mission_workspace_runtime.py:102",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.mission_workspace_runtime::MissionWorkspaceHandle._handle_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/mission_workspace_runtime.py:69",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.model_led_product_action_kernel_task_loop::ProductActionKernelTaskLoopFinalCertificate._certificate_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/model_led_product_action_kernel_task_loop.py:68",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.model_led_task_loop::ModelLedTaskLoopFinalCertificate._certificate_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/model_led_task_loop.py:60",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.model_router_models::RouterDataModel._router_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/model_router_models.py:69",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::OperatorIntent._intent_is_safe_data",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:130",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::MissionDraft._draft_is_not_executable",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:159",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::MissionAuthoritySummary._authority_summary_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:195",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::MissionStartProposal._start_proposal_cannot_execute",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:219",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::OperatorLLMDecisionResult._llm_result_is_advisory",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:254",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::OperatorConversationSession._session_is_state_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:305",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::OperatorTurnResult._turn_result_is_data",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:333",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::MissionRecord._record_is_kernel_state_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:395",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::MissionEvent._event_is_kernel_data",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:515",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.models::OperatorMessage._message_is_data",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/models.py:87",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.power_skill_registry::PowerSkillBackendBinding._binding_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/power_skill_registry.py:48",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.power_skill_registry::PowerSkillBackendFrame._frame_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/power_skill_registry.py:77",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.product_execution_binding::ProductExecutionBinding._binding_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/product_execution_binding.py:34",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyDecision._decision_is_advisory",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:114",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyReportResult._report_result_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:148",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyActionReceipt._receipt_is_evidence_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:194",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyFinalGateCertificate._finalgate_is_evidence_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:252",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyMissionSummaryArtifact._summary_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:310",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyOperatorMemoryCandidateArtifact._memory_candidate_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:371",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyDecisionCheckpoint._checkpoint_is_evidence_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:436",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyFailedAttemptEvidence._failed_attempt_is_evidence_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:496",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.read_only_operator_spine::ReadOnlyEmergencyTerminalRecord._emergency_terminal_is_evidence_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/read_only_operator_spine.py:551",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.real_browser_control_models::_assert_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/real_browser_control_models.py:410",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_connections::RuntimeConnectionProfile._connection_truth_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_connections.py:79",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.scheduler::ProactiveTrigger._trigger_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/scheduler.py:34",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.skill_models::_assert_skill_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/skill_models.py:958",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.unified_execution_dispatcher::DispatcherTerminalCertificate._terminal_certificate_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/unified_execution_dispatcher.py:128",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.unified_execution_dispatcher::ProductActionKernelReceipt._receipt_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/unified_execution_dispatcher.py:201",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.unified_execution_dispatcher::ProductActionKernelFinalGateCertificate._certificate_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/unified_execution_dispatcher.py:269",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.unified_execution_dispatcher::UnifiedDispatchResult._dispatch_result_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/unified_execution_dispatcher.py:73",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.voice_models::VoiceDataModel._voice_data_is_not_authority",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/voice_models.py:29",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.worker_orchestration_runtime::WorkerOrchestrationReceipt._receipt_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/worker_orchestration_runtime.py:91",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workflow_models::ReplanCandidate._candidate_is_proposal_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workflow_models.py:365",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workflow_models::ReplanDecision._decision_is_not_permission",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workflow_models.py:428",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workflow_models::WorkflowRunResult._run_result_is_evidence_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workflow_models.py:522",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workspace_patch_models::WorkspacePatchReceipt._receipt_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workspace_patch_models.py:133",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workspace_patch_models::WorkspacePatchVerificationReceipt._verification_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workspace_patch_models.py:200",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workspace_patch_models::WorkspacePatchFinalCertificate._certificate_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workspace_patch_models.py:259",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workspace_patch_models::WorkspacePatchProposal._proposal_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workspace_patch_models.py:31",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.workspace_patch_models::WorkspacePatchEvidence._evidence_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/workspace_patch_models.py:80",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.telemetry.models::TelemetryEventRecord._event_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/telemetry/models.py:512",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.telemetry.models::TelemetryMetricSample._metric_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/telemetry/models.py:590",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.telemetry.models::TelemetrySnapshot._snapshot_is_data_only",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/telemetry/models.py:666",
+          "target": "sentinel.operator.safety.assert_data_not_authority"
+        }
+      ],
+      "proof_owned": "none",
+      "source": "sentinel/operator/safety.py",
+      "state_owned": "none",
+      "symbol": "assert_data_not_authority",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "MissionProofRoot",
+      "category": "receipt_proof_owner",
+      "component": "mission_kernel_store",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.cockpit::LLMLiveOperatorCockpit.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/cockpit.py:54",
+          "target": "sentinel.operator.kernel.MissionKernel"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.real_model_certification::RealModelAgentCertificationRunner.run_browser_task",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/real_model_certification.py:1587",
+          "target": "sentinel.operator.kernel.MissionKernel"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.real_model_certification::RealModelAgentCertificationRunner.run_coding_task",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/real_model_certification.py:963",
+          "target": "sentinel.operator.kernel.MissionKernel"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::SentinelRuntimeHost.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:481",
+          "target": "sentinel.operator.kernel.MissionKernel"
+        }
+      ],
+      "proof_owned": "receipt refs and timeline verification",
+      "source": "sentinel/operator/kernel.py",
+      "state_owned": "MissionRecord and event timeline",
+      "symbol": "MissionKernel",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "MissionProofRoot",
+      "category": "receipt_proof_owner",
+      "component": "mission_proof_root",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/canonical_core.py",
+      "state_owned": "none",
+      "symbol": "MissionProofRoot",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "MissionAuthorityEnvelope workspace_read",
+      "canonical_owner": "workspace organ/backend adapter",
+      "category": "workspace_backend",
+      "component": "workspace_readonly_runtime",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "read-only workspace list/read/search",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.canonical_core::RootMissionRuntime.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/canonical_core.py:585",
+          "target": "sentinel.operator.workspace_readonly_runtime.WorkspaceReadOnlyRuntime"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::_default_workspace_readonly_executor",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:957",
+          "target": "sentinel.operator.workspace_readonly_runtime.WorkspaceReadOnlyRuntime"
+        }
+      ],
+      "proof_owned": "ActionResult context cards",
+      "source": "sentinel/operator/workspace_readonly_runtime.py",
+      "state_owned": "none",
+      "symbol": "WorkspaceReadOnlyRuntime",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "MissionAuthorityEnvelope path grants",
+      "canonical_owner": "workspace organ/backend adapter",
+      "category": "workspace_backend",
+      "component": "workspace_patch_runtime",
+      "decision": "KEEP",
+      "deletion_gate": "delete only truly duplicated operations after parity",
+      "effects_owned": "workspace mutation/check",
+      "evidence_present": true,
+      "migration_gate": "shared workspace registration owns read and write with separate authority",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::_default_workspace_patch_executor",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:945",
+          "target": "sentinel.operator.workspace_patch_runtime.WorkspacePatchRuntime"
+        }
+      ],
+      "proof_owned": "ActionResult receipt refs",
+      "source": "sentinel/operator/workspace_patch_runtime.py",
+      "state_owned": "none",
+      "symbol": "WorkspacePatchRuntime",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "ExecutableCapabilityGraph",
+      "category": "model_affordance_projection",
+      "component": "product_native_prompt_generated_schema",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/product_model_native_decision_client.py",
+      "state_owned": "none",
+      "symbol": "_model_visible_operation_schemas",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "ExecutableCapabilityGraph",
+      "category": "hardcoded_cli_capability_list",
+      "component": "cli_root_allowed_actions_list",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/cli.py",
+      "state_owned": "none",
+      "symbol": "allowed_actions",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "browser organ test backend",
+      "category": "fake_material_success_route",
+      "component": "product_local_cloak_fixture",
+      "decision": "ARCHIVE_RESEARCH",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/runtime_host.py",
+      "state_owned": "none",
+      "symbol": "_ProductLocalCloakBrowserEngine",
+      "tests_affected": "C2 workspace single-spine probes"
+    },
+    {
+      "authority_owned": "none",
+      "canonical_owner": "channel organ/backend adapter",
+      "category": "fake_material_success_route",
+      "component": "local_channel_transport",
+      "decision": "MIGRATE_DELETE",
+      "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
+      "effects_owned": "none",
+      "evidence_present": true,
+      "migration_gate": "C2 qualified route parity required before deletion",
+      "production_callers": [],
+      "proof_owned": "none",
+      "source": "sentinel/operator/runtime_host.py",
+      "state_owned": "none",
+      "symbol": "_local_channel_transport",
+      "tests_affected": "C2 workspace single-spine probes"
+    }
+  ],
+  "corrected_pre_baseline_artifact": "SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+  "global_finding_counts": {
+    "FIXED_PROVEN": "0/65",
+    "P0_fixed": "0/15",
+    "P1_fixed": "0/44",
+    "P2_fixed": "0/6"
+  },
+  "historical_baseline_artifact": "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
+  "metrics": {
+    "canonical_product_run_bypass": {
+      "components": [],
+      "count": 0
+    },
+    "capability_registry": {
+      "components": [
+        "executable_capability_graph",
+        "runtime_connection_registry"
+      ],
+      "count": 2
+    },
+    "duplicate_capability_backend": {
+      "components": [],
+      "count": 0
+    },
+    "hardcoded_cli_capability_list": {
+      "components": [],
+      "count": 0
+    },
+    "model_decision_client": {
+      "components": [
+        "canonical_provider_request_builder",
+        "cli_private_real_provider_canonical_decision_client"
+      ],
+      "count": 2
+    },
+    "model_decision_loop": {
+      "components": [
+        "root_mission_runtime",
+        "runtime_host_product_task_loop_method",
+        "model_led_product_action_kernel_task_loop",
+        "legacy_model_led_task_loop"
+      ],
+      "count": 4
+    },
+    "public_entrypoint_bypass": {
+      "components": [
+        "public_cli_canonical_dev_run",
+        "public_cli_cockpit_chat",
+        "public_cli_power_lab_run",
+        "public_cli_browser_demos"
+      ],
+      "count": 4
+    },
+    "unclassified_effect_paths": {
+      "components": [
+        "sentinel/agent/model_execution/coordinator.py",
+        "sentinel/agent/organs/channel_draft_send_organ_v1.py",
+        "sentinel/agent/organs/external_api_read_write_organ_v1.py",
+        "sentinel/agent/organs/local_artifact_executor.py",
+        "sentinel/agent/organs/sandbox_shell_code_organ_v1.py",
+        "sentinel/memory/store.py",
+        "sentinel/operator/connection_live_channel_action_models.py",
+        "sentinel/operator/desktop_sidecar_models.py",
+        "sentinel/operator/model_client.py",
+        "sentinel/organs/capability_frontier.py",
+        "sentinel/organs/real_world_gauntlet.py",
+        "sentinel/organs/reality_activation.py",
+        "sentinel/perf/hot_cold/cold_receipt_store.py",
+        "sentinel/perf/hot_cold/receipt_index.py",
+        "sentinel/shared/db.py"
+      ],
+      "count": 15
+    },
+    "workspace_duplicate_owner_per_capability_id": {
+      "components": [],
+      "count": 0,
+      "owners_by_capability": {
+        "workspace.check": [
+          "workspace_patch_runtime"
+        ],
+        "workspace.list": [
+          "workspace_readonly_runtime"
+        ],
+        "workspace.patch": [
+          "workspace_patch_runtime"
+        ],
+        "workspace.read": [
+          "workspace_readonly_runtime"
+        ],
+        "workspace.search": [
+          "workspace_readonly_runtime"
+        ]
+      }
+    }
+  },
+  "minimum_delta": {
+    "canonical_product_run_bypass": false,
+    "duplicate_owner_per_workspace_capability_id": 0,
+    "fake_material_success_on_workspace_public_route": 0,
+    "hardcoded_cli_capability_list": "absent",
+    "public_canonical_legacy_action_envelope_usage": "absent",
+    "root_direct_workspace_effect_executor": "absent"
+  },
+  "provider_calls": 0,
+  "wave": "C2_WORKSPACE_COMPRESSION"
+}

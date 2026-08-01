@@ -238,7 +238,7 @@
   },
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
-  "current_head": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
+  "current_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
   "entries": [
     {
       "acceptance_probe": "Public product request -> ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel -> receipt; fail if dispatch bypasses through run_canonical_product_mission or RootMissionRuntime direct effect execution.",
@@ -248,7 +248,7 @@
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "finding": "ProductModelNativeDecisionClient has no production source caller and the public cockpit remains bound to read_only_research.inspect_repository",
       "id": "P0-01",
-      "integration_or_live_probe": "C1 executable mapping identifies public_cli_canonical_product_run as TEMPORARY_BOUNDARY_ADAPTER and keeps canonical_replacement_gate open.",
+      "integration_or_live_probe": "C2 local public canonical-product-run now hosts RootMissionRuntime behind RuntimeHost lifecycle and routes workspace effects through ProductActionKernel; live canonical replacement proof is still pending before closure.",
       "layer": "product_wiring",
       "primary_evidence": "sentinel/cli.py:510-553; sentinel/operator/product_model_native_decision_client.py:44; source reference scan found no production caller",
       "proof_artifacts": [
@@ -258,10 +258,17 @@
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_VERTICAL_PRODUCT_TRANCHE_REPORT.md",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv",
-        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
       ],
       "proof_tier": "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_NOT_P0_01_CLOSURE",
-      "remaining_risk": "Multiple spines are not yet fully converged. P0-01 cannot close until the canonical_replacement_gate is proven from the public product surface and the temporary legacy bridge is either removed or formally demoted with absence-of-bypass proof.",
+      "remaining_risk": "C2 compresses the workspace public route locally, but P0-01 remains open until a real provider public route proof and absence-of-bypass proof cover the canonical replacement gate.",
       "required_change": "Connect the public product surface to RuntimeHost.run_product_action_kernel_task_loop through ProductModelNativeDecisionClient and keep RootMissionRuntime behind the canonical root record/proof role rather than a parallel effect executor.",
       "responsible_files_symbols": [
         "sentinel/cli.py::_run_canonical_product_command",
@@ -335,7 +342,10 @@
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
         "fe28a144445168aa75bc3f9c02e1e4626466e5db",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-        "4c587859eee9ddda5c356572549153137373f695"
+        "4c587859eee9ddda5c356572549153137373f695",
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
       ],
       "fixed_proven_commit": "",
       "historical_acceptance_probe": [
@@ -358,7 +368,15 @@
         "terminalization",
         "cleanup"
       ],
-      "temporary_bridge_status": "ROLLBACK_POINT_NOT_FINAL_ARCHITECTURE"
+      "temporary_bridge_status": "ROLLBACK_POINT_NOT_FINAL_ARCHITECTURE",
+      "implementation_commits": [
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+      ],
+      "deletion_commits": [
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
+      ]
     },
     {
       "acceptance_probe": "A malicious synthetic pytest cannot read/write an outside canary, connect to loopback/Internet, spawn survivors, or access ambient credentials",
@@ -1136,17 +1154,24 @@
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "finding": "Workspace plans and summaries are hardcoded to app.py, tests/test_app.py, README.md and a number-analyzer scenario; the product loop has no generic read/list/search workspace skill",
       "id": "P1-25",
-      "integration_or_live_probe": "C1 executable mapping classifies workspace_readonly_runtime and workspace_patch_runtime as duplicate workspace backends requiring merge, not deletion yet.",
+      "integration_or_live_probe": "C2 workspace read/search/list route is compressed; legacy recommendation surface was corrected to preserve progress order, but full arbitrary-code repair acceptance remains future.",
       "layer": "coding_power",
       "primary_evidence": "sentinel/operator/model_led_product_action_kernel_task_loop.py:2160-2348",
       "proof_artifacts": [
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv",
-        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "Only read-only workspace operations are implemented in canonical core.",
+      "remaining_risk": "Only workspace read/search/list are compressed in the public route; patch/check and sandbox physical isolation remain W2/W5 work.",
       "required_change": "Expose governed list/read/search/diff plus model-authored patch plans; derive checks from repository structure",
       "responsible_files_symbols": [
         "sentinel/operator/canonical_core.py::RootMissionRuntime._execute_workspace_effect",
@@ -1177,9 +1202,17 @@
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-        "4c587859eee9ddda5c356572549153137373f695"
+        "4c587859eee9ddda5c356572549153137373f695",
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "",
+      "implementation_commits": [
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+      ]
     },
     {
       "acceptance_probe": "After provider friction, the next action must address the actual failed invariant and never add unrelated files/messages",
@@ -1660,17 +1693,25 @@
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "finding": "Sentinel has several independent cognitive/task spines and no single product loop owns mission state, cognition, organs, recovery, proof and cleanup.",
       "id": "C-P0-01",
-      "integration_or_live_probe": "C1 executable mapping baseline counts 2 executable cognitive spines and 5 public entrypoint bypass/migration surfaces.",
+      "integration_or_live_probe": "C2 proves local workspace single-spine compression only; Browser, Channel, PowerLab and other organs remain measured for later waves.",
       "layer": "canonical_runtime",
       "primary_evidence": "sentinel/agent/runtime.py; sentinel/agent/brain/cognition_loop.py; sentinel/operator/model_led_task_loop.py; sentinel/operator/model_led_product_action_kernel_task_loop.py; sentinel/operator/read_only_operator_spine.py",
       "proof_artifacts": [
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_STAGE0_AND_VERTICAL_SLICE_REPORT.md",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv",
-        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "V13 completed on the new canonical slice, but several production spines still exist and are not yet compressed into one root mission/runtime owner.",
+      "remaining_risk": "Non-workspace spines and public surfaces still coexist until W3/W4 migrations prove parity.",
       "required_change": "Create one root MissionRuntime and one model decision protocol; make all organs, memory, proof and recovery adapters of that spine.",
       "responsible_files_symbols": [
         "sentinel/operator/canonical_core.py::RootMissionRuntime",
@@ -1710,9 +1751,20 @@
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
         "fe28a144445168aa75bc3f9c02e1e4626466e5db",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-        "4c587859eee9ddda5c356572549153137373f695"
+        "4c587859eee9ddda5c356572549153137373f695",
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "",
+      "implementation_commits": [
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+      ],
+      "deletion_commits": [
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
+      ]
     },
     {
       "acceptance_probe": "Create a web run and prove a Python root mission, provider decision, material receipt and canonical proof root exist before the UI reports completion.",
@@ -1759,17 +1811,24 @@
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "finding": "The public brain-native path can run without a role model client, while AgentRuntime's so-called LLM-backed decision cycle explicitly never executes a model.",
       "id": "C-P0-03",
-      "integration_or_live_probe": "C1 executable mapping classifies product_model_native_decision_client and real_provider_canonical_decision_client as separate decision-client components pending canonical merge.",
+      "integration_or_live_probe": "C2 keeps canonical provider client and CLI-private provider adapter separate; public route uses CanonicalDecision directly, but provider-client consolidation remains pending.",
       "layer": "model_cognition",
       "primary_evidence": "sentinel/agent/runtime.py:509,2596-2610; sentinel/agent/brain/cognition_loop.py:216-238; PowerLab construction does not inject a role model client",
       "proof_artifacts": [
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv",
-        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "Existing public brain-native path outside canonical core may still run without real model client.",
+      "remaining_risk": "Legacy model clients and model-facing surfaces remain outside the complete canonical core.",
       "required_change": "Require one explicit provider client before the first cognition turn and make absence a typed preflight failure, not a partial brain run.",
       "responsible_files_symbols": [
         "sentinel/cli.py::_RealProviderCanonicalDecisionClient",
@@ -1803,9 +1862,17 @@
         "0701297e6f3e5f236f4f51acc1539e62f099be72",
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-        "4c587859eee9ddda5c356572549153137373f695"
+        "4c587859eee9ddda5c356572549153137373f695",
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "",
+      "implementation_commits": [
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+      ]
     },
     {
       "acceptance_probe": "Interrupt and resume a multi-organ mission; prove the next model turn reconstructs objective, progress, failures, evidence and pending affordances without replaying effects.",
@@ -1894,17 +1961,24 @@
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "finding": "Capability, actionability, connection, power-skill and organ registries are separate descriptive maps and do not truthfully enumerate executable power.",
       "id": "C-P0-06",
-      "integration_or_live_probe": "C1 executable mapping baseline counts 3 capability registries and confirms workspace graph is not the full organ graph.",
+      "integration_or_live_probe": "C2 proves exactly one workspace owner per workspace capability id, with read and write owners treated as separate specialized backends under one logical workspace family.",
       "layer": "capability_discovery",
       "primary_evidence": "sentinel/operator/runtime_connections.py; actionability_registry.py; power_skill_registry.py; sentinel/agent/organs/organ_spec_registry.py",
       "proof_artifacts": [
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv",
-        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "Mission workspace read-only routes are product-routed locally; the complete organ capability graph is not yet generated from one executable registration.",
+      "remaining_risk": "The full executable organ graph is not yet one canonical registry across all organs.",
       "required_change": "Register executable routes once and derive model affordances, health, authority schema, proof contract and documentation from that registration.",
       "responsible_files_symbols": [
         "sentinel/operator/canonical_core.py::ExecutableCapabilityGraph",
@@ -1942,9 +2016,20 @@
         "b721ce62343316bcdbe9c792af8a0967c8ae1680",
         "fe28a144445168aa75bc3f9c02e1e4626466e5db",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
-        "4c587859eee9ddda5c356572549153137373f695"
+        "4c587859eee9ddda5c356572549153137373f695",
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
       ],
-      "fixed_proven_commit": ""
+      "fixed_proven_commit": "",
+      "implementation_commits": [
+        "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+        "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+      ],
+      "deletion_commits": [
+        "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
+      ]
     },
     {
       "acceptance_probe": "Change workspace, worker and browser state between turns and prove the next decision frame reflects each delta without hardcoded action tables.",
@@ -2629,8 +2714,8 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-01T12:14:43Z",
-  "synced_checkpoint_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
+  "updated_at_utc": "2026-08-01T14:43:01Z",
+  "synced_checkpoint_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
   "ledger_schema_version": "canonical_core_finding_execution_ledger_v1",
   "fixed_proven_by_severity": {
     "P0": 0,
@@ -2639,7 +2724,7 @@
   },
   "fixed_proven_total": 0,
   "published_counters_after_commit": {
-    "checkpoint_commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+    "checkpoint_commit": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
     "P0 fixed / 15": "0/15",
     "P1 fixed / 44": "0/44",
     "P2 fixed / 6": "0/6",
@@ -2648,18 +2733,21 @@
   "fixed_proven_candidate_queue": [
     {
       "finding_id": "P0-01",
-      "candidate_reason": "The c08f6c9c bridge proves a local public ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel receipt path, but it is temporary and not the final single-spine architecture.",
-      "blocking_evidence": "canonical replacement gate still open: public request -> RuntimeHost -> RootMissionRuntime -> canonical model decision client -> ExecutableCapabilityGraph -> AuthorityKernel -> ProductActionKernel effect execution -> unique backend -> receipt/proof -> terminalization -> cleanup; no legacy bridge as final architecture."
+      "candidate_reason": "C2 compressed the local workspace public route through RootMissionRuntime and ProductActionKernel, but real-provider canonical replacement proof remains pending; do not close.",
+      "blocking_evidence": "canonical replacement gate still open: public request -> RuntimeHost -> RootMissionRuntime -> canonical model decision client -> ExecutableCapabilityGraph -> AuthorityKernel -> ProductActionKernel effect execution -> unique backend -> receipt/proof -> terminalization -> cleanup; no legacy bridge as final architecture.",
+      "status": "IMPLEMENTING_NOT_FIXED_PROVEN"
     },
     {
       "finding_id": "C-P0-01",
       "candidate_reason": "V13 completed a real-model canonical slice, but several executable cognitive spines still coexist.",
-      "blocking_evidence": "single root MissionRecord, decision protocol, capability dispatch, authority, proof root, terminalization and cleanup not yet proven across all public mission surfaces."
+      "blocking_evidence": "single root MissionRecord, decision protocol, capability dispatch, authority, proof root, terminalization and cleanup not yet proven across all public mission surfaces.",
+      "status": "IMPLEMENTING_NOT_FIXED_PROVEN"
     },
     {
       "finding_id": "C-P0-06",
       "candidate_reason": "Workspace read/list/search tranche is proven locally and in V13, but only for the workspace subset.",
-      "blocking_evidence": "complete organ capability graph is not yet unified; all organs need exact executable registration, readiness, authority, proof and backend ownership before closure."
+      "blocking_evidence": "complete organ capability graph is not yet unified; all organs need exact executable registration, readiness, authority, proof and backend ownership before closure.",
+      "status": "IMPLEMENTING_NOT_FIXED_PROVEN"
     },
     {
       "finding_id": "P0-07",
@@ -2667,8 +2755,8 @@
       "blocking_evidence": "external append-only or non-recomputable proof authenticity is absent; proof tampering resistance is not FIXED_PROVEN."
     }
   ],
-  "tested_runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-  "attestation_head": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
+  "tested_runtime_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+  "attestation_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
   "ledger_commit_classes": {
     "ledger_commits": [
       "41d417ef",
@@ -2694,9 +2782,9 @@
       "fe28a144445168aa75bc3f9c02e1e4626466e5db"
     ]
   },
-  "implementation_tested_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-  "proof_runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-  "current_worktree_or_commit": "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
+  "implementation_tested_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+  "proof_runtime_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+  "current_worktree_or_commit": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
   "single_spine_compression_campaign": {
     "campaign_id": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
     "scope": "WAVE_C0_C1_ONLY",
@@ -2881,5 +2969,46 @@
     ],
     "deletions": 0,
     "fixed_proven_total": 0
+  },
+  "single_spine_c2_workspace_compression": {
+    "wave": "C2_WORKSPACE_SINGLE_SPINE_COMPRESSION",
+    "status": "IMPLEMENTED_LOCAL_CANDIDATE_NOT_FIXED_PROVEN",
+    "code_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+    "provider_calls": 0,
+    "browser_runs": 0,
+    "implementation_commits": [
+      "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
+      "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
+      "fa5f51bf8145f63d24fe83742719d1e0d45349e6"
+    ],
+    "deletion_commits": [
+      "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
+    ],
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
+    ],
+    "minimum_delta": {
+      "canonical_product_run_bypass": false,
+      "root_direct_workspace_effect_executor": "absent",
+      "hardcoded_cli_capability_list": "absent",
+      "public_canonical_legacy_action_envelope_usage": "absent",
+      "duplicate_owner_per_workspace_capability_id": 0,
+      "fake_material_success_on_workspace_public_route": 0
+    },
+    "remaining_open_truth": {
+      "P0-01": "IMPLEMENTING",
+      "C-P0-01": "IMPLEMENTING",
+      "C-P0-03": "IMPLEMENTING",
+      "C-P0-06": "IMPLEMENTING",
+      "P1-25": "IMPLEMENTING",
+      "FIXED_PROVEN": "0/65"
+    }
   }
 }

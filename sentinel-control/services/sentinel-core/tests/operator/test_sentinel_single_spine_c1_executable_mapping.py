@@ -33,15 +33,12 @@ def _probe_module() -> Any:
     return module
 
 
-def test_c1_executable_mapping_artifacts_match_current_source() -> None:
-    repo_root = _repo_root()
+def test_c1_executable_mapping_artifacts_remain_preserved_historical_baseline() -> None:
     docs = _sentinel_control_root() / "docs" / "reviews" / "deep_power_audit"
     baseline_path = docs / "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json"
     manifest_path = docs / "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv"
     report_path = docs / "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
-    probe = _probe_module()
 
-    expected = json.loads(json.dumps(probe.build_baseline(repo_root), sort_keys=True))
     baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
     rows = list(csv.DictReader(manifest_path.open(encoding="utf-8")))
     report = report_path.read_text(encoding="utf-8")
@@ -53,9 +50,9 @@ def test_c1_executable_mapping_artifacts_match_current_source() -> None:
         ]
     )
 
-    assert baseline == expected
     assert len(rows) == baseline["component_count"] == 29
     assert all(component["evidence_present"] for component in baseline["components"])
+    assert baseline["wave"] == "C1_EXECUTABLE_MAPPING"
     assert "C:\\" not in joined_artifacts
     assert "provider_calls = 0" in report
     assert "browser_runs = 0" in report
@@ -217,3 +214,38 @@ def test_c2_pre_manifest_separates_host_class_and_cli_provider_duplicate() -> No
     assert rows["cli_private_real_provider_canonical_decision_client"]["decision"] == "MIGRATE_DELETE"
     assert rows["workspace_readonly_runtime"]["decision"] == "KEEP"
     assert rows["workspace_patch_runtime"]["decision"] == "KEEP"
+
+
+def test_c2_workspace_compression_artifacts_match_current_source() -> None:
+    repo_root = _repo_root()
+    docs = _sentinel_control_root() / "docs" / "reviews" / "deep_power_audit"
+    baseline_path = docs / "SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json"
+    manifest_path = docs / "SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv"
+    report_path = docs / "SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md"
+    probe = _probe_module()
+
+    expected = json.loads(json.dumps(probe.build_c2_workspace_compression_baseline(repo_root), sort_keys=True))
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    rows = list(csv.DictReader(manifest_path.open(encoding="utf-8")))
+    report = report_path.read_text(encoding="utf-8")
+    joined_artifacts = "\n".join(
+        [
+            baseline_path.read_text(encoding="utf-8"),
+            manifest_path.read_text(encoding="utf-8"),
+            report,
+        ]
+    )
+
+    assert baseline == expected
+    assert len(rows) == baseline["component_count"] == 28
+    assert baseline["wave"] == "C2_WORKSPACE_COMPRESSION"
+    assert baseline["c2_gates"]["canonical_product_run_bypass"] is False
+    assert baseline["c2_gates"]["root_direct_workspace_effect_executor_absent"] is True
+    assert baseline["c2_gates"]["hardcoded_cli_capability_list_absent"] is True
+    assert baseline["c2_gates"]["public_canonical_legacy_action_envelope_usage_absent"] is True
+    assert baseline["c2_gates"]["duplicate_owner_per_workspace_capability_id"] == 0
+    assert baseline["c2_gates"]["fake_material_success_on_workspace_public_route"] == 0
+    assert baseline["global_finding_counts"]["FIXED_PROVEN"] == "0/65"
+    assert "C:\\" not in joined_artifacts
+    assert "provider_calls = 0" in report
+    assert "browser_runs = 0" in report

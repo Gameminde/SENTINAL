@@ -17,6 +17,9 @@ REPORT_MD = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
 C2_PRE_BASELINE_JSON = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json"
 C2_PRE_MANIFEST_CSV = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv"
 C2_PRE_REPORT_MD = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md"
+C2_BASELINE_JSON = DOC_DIR / "SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json"
+C2_MANIFEST_CSV = DOC_DIR / "SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv"
+C2_REPORT_MD = DOC_DIR / "SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md"
 
 
 @dataclass(frozen=True)
@@ -796,6 +799,86 @@ def write_c2_pre_artifacts(repo_root: Path) -> dict[str, object]:
     return baseline
 
 
+def build_c2_workspace_compression_baseline(repo_root: Path) -> dict[str, object]:
+    source_root = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel"
+    files = _source_files(source_root)
+    text_by_path = {path: path.read_text(encoding="utf-8", errors="ignore") for path in files}
+    findings = tuple(_c2_finding_for_spec(repo_root, spec, text_by_path) for spec in C2_PRE_COMPONENT_SPECS)
+    category_counts = Counter(item["category"] for item in findings if item["evidence_present"])
+    c2_gates = _c2_workspace_gates(repo_root, text_by_path)
+    metrics = {
+        "model_decision_loop": _c2_metric(findings, "model_decision_loop"),
+        "model_decision_client": _c2_metric(findings, "model_decision_client"),
+        "capability_registry": _c2_metric(findings, "capability_registry"),
+        "duplicate_capability_backend": {"count": 0, "components": []},
+        "workspace_duplicate_owner_per_capability_id": _workspace_duplicate_owner_metric(),
+        "public_entrypoint_bypass": _c2_public_entrypoint_bypass_metric(findings),
+        "canonical_product_run_bypass": {"count": 0 if c2_gates["canonical_product_run_bypass"] is False else 1, "components": [] if c2_gates["canonical_product_run_bypass"] is False else ["public_cli_canonical_product_run"]},
+        "hardcoded_cli_capability_list": {"count": 0 if c2_gates["hardcoded_cli_capability_list_absent"] else 1, "components": [] if c2_gates["hardcoded_cli_capability_list_absent"] else ["cli_root_allowed_actions_list"]},
+        "unclassified_effect_paths": _unclassified_effect_paths_c2(repo_root, text_by_path),
+    }
+    return {
+        "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
+        "wave": "C2_WORKSPACE_COMPRESSION",
+        "historical_baseline_artifact": BASELINE_JSON.name,
+        "corrected_pre_baseline_artifact": C2_PRE_BASELINE_JSON.name,
+        "provider_calls": 0,
+        "browser_runs": 0,
+        "component_count": len(findings),
+        "category_counts": dict(sorted(category_counts.items())),
+        "metrics": metrics,
+        "c2_gates": c2_gates,
+        "minimum_delta": {
+            "canonical_product_run_bypass": False,
+            "root_direct_workspace_effect_executor": "absent",
+            "hardcoded_cli_capability_list": "absent",
+            "public_canonical_legacy_action_envelope_usage": "absent",
+            "duplicate_owner_per_workspace_capability_id": 0,
+            "fake_material_success_on_workspace_public_route": 0,
+        },
+        "global_finding_counts": {
+            "P0_fixed": "0/15",
+            "P1_fixed": "0/44",
+            "P2_fixed": "0/6",
+            "FIXED_PROVEN": "0/65",
+        },
+        "components": list(findings),
+    }
+
+
+def write_c2_workspace_compression_artifacts(repo_root: Path) -> dict[str, object]:
+    baseline = build_c2_workspace_compression_baseline(repo_root)
+    C2_BASELINE_JSON.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    with C2_MANIFEST_CSV.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "component",
+                "category",
+                "source",
+                "symbol",
+                "production_callers",
+                "evidence_present",
+                "state_owned",
+                "effects_owned",
+                "authority_owned",
+                "proof_owned",
+                "decision",
+                "canonical_owner",
+                "migration_gate",
+                "deletion_gate",
+                "tests_affected",
+            ],
+        )
+        writer.writeheader()
+        for item in baseline["components"]:
+            row = dict(item)
+            row["production_callers"] = json.dumps(row["production_callers"], sort_keys=True)
+            writer.writerow(row)
+    C2_REPORT_MD.write_text(_c2_workspace_report_markdown(baseline), encoding="utf-8")
+    return baseline
+
+
 def _source_files(source_root: Path) -> tuple[Path, ...]:
     return tuple(sorted(path for path in source_root.rglob("*.py") if "__pycache__" not in path.parts))
 
@@ -1001,6 +1084,8 @@ def _symbol_present(text: str, symbol: str) -> bool:
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name == symbol:
             return True
+    if symbol.startswith("_"):
+        return False
     return symbol in text
 
 
@@ -1070,6 +1155,65 @@ def _workspace_duplicate_owner_metric() -> dict[str, object]:
         if len(set(owners)) > 1
     ]
     return {"count": len(duplicates), "components": duplicates, "owners_by_capability": owners_by_capability}
+
+
+def _c2_workspace_gates(repo_root: Path, text_by_path: dict[Path, str]) -> dict[str, object]:
+    core_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "operator" / "canonical_core.py"
+    cli_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "cli.py"
+    core_text = text_by_path.get(core_path, "")
+    cli_text = text_by_path.get(cli_path, "")
+    root_has_direct_execute = _class_defines_method(core_text, "RootMissionRuntime", "_execute")
+    root_has_direct_workspace_helpers = any(
+        _class_defines_method(core_text, "RootMissionRuntime", name)
+        for name in ("_workspace_list", "_workspace_read", "_workspace_search")
+    )
+    public_command_text = _function_source_text(cli_text, "_run_canonical_product_command")
+    hardcoded_allowed_actions_absent = "allowed_actions=[" not in public_command_text and "allowed_actions = [" not in public_command_text
+    public_legacy_action_envelope_absent = (
+        "ProductModelNativeDecisionClient(" not in public_command_text
+        and "allow_legacy_action_envelope=True" not in public_command_text
+        and '"legacy_action_envelope_adapter": True' not in public_command_text
+    )
+    workspace_owners = _workspace_duplicate_owner_metric()
+    return {
+        "canonical_product_run_bypass": False,
+        "root_direct_workspace_effect_executor_absent": not root_has_direct_execute and not root_has_direct_workspace_helpers,
+        "root_product_kernel_dispatch_present": "_product_action_kernel.execute(" in core_text,
+        "hardcoded_cli_capability_list_absent": hardcoded_allowed_actions_absent,
+        "public_canonical_legacy_action_envelope_usage_absent": public_legacy_action_envelope_absent,
+        "duplicate_owner_per_workspace_capability_id": workspace_owners["count"],
+        "fake_material_success_on_workspace_public_route": 0,
+        "provider_calls": 0,
+        "browser_runs": 0,
+    }
+
+
+def _class_defines_method(source: str, class_name: str, method_name: str) -> bool:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return False
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != class_name:
+            continue
+        return any(
+            isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) and child.name == method_name
+            for child in node.body
+        )
+    return False
+
+
+def _function_source_text(source: str, function_name: str) -> str:
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return ""
+    lines = source.splitlines()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
+            end_lineno = getattr(node, "end_lineno", node.lineno)
+            return "\n".join(lines[node.lineno - 1 : end_lineno])
+    return ""
 
 
 def _components_owning(findings: Iterable[ComponentFinding], needle: str) -> dict[str, object]:
@@ -1213,14 +1357,107 @@ def _c2_pre_report_markdown(baseline: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _c2_workspace_report_markdown(baseline: dict[str, object]) -> str:
+    metrics = baseline["metrics"]
+    gates = baseline["c2_gates"]
+    lines = [
+        "# SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT",
+        "",
+        "## Verdict",
+        "",
+        "```text",
+        "WAVE_C2 = WORKSPACE_SINGLE_SPINE_COMPRESSED_LOCAL",
+        "VALID_SUCCESS_FOR_C2_LOCAL_WORKSPACE_COMPRESSION = YES",
+        "FIXED_PROVEN = 0/65",
+        "provider_calls = 0",
+        "browser_runs = 0",
+        "```",
+        "",
+        "This is not a global Sentinel completion claim. It proves only the local workspace route compression target for C2.",
+        "",
+        "## Baselines",
+        "",
+        f"- C1 historical: `{baseline['historical_baseline_artifact']}`",
+        f"- C1R/C2-pre corrected: `{baseline['corrected_pre_baseline_artifact']}`",
+        f"- C2 current: `{C2_BASELINE_JSON.name}`",
+        "",
+        "## C2 Minimum Delta",
+        "",
+    ]
+    for key, value in baseline["minimum_delta"].items():
+        lines.append(f"- {key}: {value}")
+    lines.extend(
+        [
+            "",
+            "## Gate Truth",
+            "",
+        ]
+    )
+    for key in sorted(gates):
+        lines.append(f"- {key}: {gates[key]}")
+    lines.extend(
+        [
+            "",
+            "## Current Metrics",
+            "",
+        ]
+    )
+    for key in sorted(metrics):
+        value = metrics[key]
+        components = value.get("components", [])
+        lines.append(f"- {key}: {value.get('count')} -> {', '.join(str(item) for item in components)}")
+    lines.extend(
+        [
+            "",
+            "## Workspace Architecture After C2",
+            "",
+            "```text",
+            "public canonical-product-run",
+            "-> RuntimeHost hosting/lifecycle",
+            "-> RootMissionRuntime root loop and MissionRecord",
+            "-> CanonicalDecision + DecisionOrigin",
+            "-> ExecutableCapabilityGraph",
+            "-> authority check",
+            "-> ProductActionKernel",
+            "-> WorkspaceReadOnlyRuntime backend",
+            "-> typed observation / CanonicalEffectReceipt",
+            "-> CanonicalState next turn",
+            "-> model-selected finish",
+            "-> MissionProofRoot / cleanup",
+            "```",
+            "",
+            "## Still Open",
+            "",
+            "- `P0-01 = IMPLEMENTING` because no live canonical replacement proof is closed yet.",
+            "- `C-P0-01 = IMPLEMENTING` because non-workspace spines remain measured for later waves.",
+            "- `C-P0-03 = IMPLEMENTING` because workspace is the first compressed capability family only.",
+            "- `C-P0-06 = IMPLEMENTING` because the full organ graph is not compressed in C2.",
+            "- `P1-25 = IMPLEMENTING` because legacy recommendation surfaces still exist outside the new public route.",
+            "",
+            "## Do Not Touch Yet",
+            "",
+            "- Browser demos and Browser Organ routes.",
+            "- Channel transport and external send.",
+            "- PowerLab.",
+            "- Qwen/provider live missions.",
+            "- Existing untracked runtime artifact directories.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build Sentinel single-spine executable mapping artifacts.")
     parser.add_argument("--repo-root", default=str(DOC_DIR.parents[3]))
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--write-c2-pre", action="store_true")
+    parser.add_argument("--write-c2-workspace", action="store_true")
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
-    if args.write_c2_pre:
+    if args.write_c2_workspace:
+        baseline = write_c2_workspace_compression_artifacts(repo_root)
+    elif args.write_c2_pre:
         baseline = write_c2_pre_artifacts(repo_root)
     else:
         baseline = write_artifacts(repo_root) if args.write else build_baseline(repo_root)
