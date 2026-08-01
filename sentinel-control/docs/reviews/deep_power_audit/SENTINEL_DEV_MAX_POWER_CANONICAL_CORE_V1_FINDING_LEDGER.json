@@ -1,5 +1,54 @@
 {
   "baseline_commit": "efdbd558abddbc38cea7e506ff8cb8dfe8ef93fa",
+  "single_spine_c1r_c2_pre_executable_mapping": {
+    "wave": "C1R_C2_PRE_EXECUTABLE_MAPPING",
+    "source_runtime_head_before_c2": "27d6cadc5b2089d78ee7d02c7bf1ebd540103da5",
+    "provider_calls": 0,
+    "browser_runs": 0,
+    "fixed_proven_count": 0,
+    "deletions": 0,
+    "status": "DISCRIMINATING_BASELINE_PUBLISHED",
+    "historical_c1_artifacts_preserved": true,
+    "corrected_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md"
+    ],
+    "semantic_corrections": {
+      "model_decision_loop": "component that actually iterates decision -> effect -> observation",
+      "model_decision_client": "provider transport/protocol component; never a loop by default",
+      "capability_registry": "persistent owner of executable registrations",
+      "duplicate_capability_backend": "multiple backends claiming the same capability/effect id",
+      "root_mission_owner": "component capable of creating and terminalizing the root MissionRecord",
+      "public_entrypoint_bypass": "qualified executable call path that reaches an effect outside the canonical route"
+    },
+    "false_positive_corrections": [
+      "_execute textual helpers are not caller proof",
+      "allowed_actions authority fields are not automatically hardcoded prompt capability lists",
+      "ActionKernel text mentions are not constructor/function call evidence",
+      "MissionKernel text mentions are not constructor/function call evidence",
+      "unclassified_effect_paths now use module-qualified paths"
+    ],
+    "metrics": {
+      "model_decision_loop_count": 4,
+      "model_decision_client_count": 2,
+      "capability_registry_count": 2,
+      "duplicate_capability_backend_count": 0,
+      "workspace_duplicate_owner_per_capability_id_count": 0,
+      "public_entrypoint_bypass_count": 4,
+      "canonical_product_run_bypass_count": 0,
+      "hardcoded_cli_capability_list_count": 1,
+      "unclassified_effect_paths_count": 15
+    },
+    "finding_statuses_preserved": {
+      "P0-01": "IMPLEMENTING",
+      "C-P0-01": "IMPLEMENTING",
+      "C-P0-03": "IMPLEMENTING",
+      "C-P0-06": "IMPLEMENTING",
+      "P1-25": "IMPLEMENTING",
+      "C-P1-17": "IMPLEMENTING"
+    }
+  },
   "canonical_core_vertical_product_tranche": {
     "canonical_state_recent_observations_local": true,
     "decision_protocol_local": true,

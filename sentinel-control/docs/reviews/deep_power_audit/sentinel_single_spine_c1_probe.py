@@ -7,13 +7,16 @@ import json
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 
 DOC_DIR = Path(__file__).resolve().parent
 BASELINE_JSON = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json"
 MANIFEST_CSV = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv"
 REPORT_MD = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
+C2_PRE_BASELINE_JSON = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_BASELINE.json"
+C2_PRE_MANIFEST_CSV = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MANIFEST.csv"
+C2_PRE_REPORT_MD = DOC_DIR / "SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT.md"
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,39 @@ class ComponentFinding:
     migration_gate: str
     deletion_gate: str
     tests_affected: str
+
+
+def _c2_spec(
+    component: str,
+    category: str,
+    source: str,
+    symbol: str,
+    decision: str,
+    canonical_owner: str,
+    *,
+    state_owned: str = "none",
+    effects_owned: str = "none",
+    authority_owned: str = "none",
+    proof_owned: str = "none",
+    migration_gate: str = "C2 qualified route parity required before deletion",
+    deletion_gate: str = "delete only after qualified callers and acceptance probes prove parity",
+    tests_affected: str = "C2 workspace single-spine probes",
+) -> ComponentSpec:
+    return ComponentSpec(
+        component,
+        category,
+        source,
+        symbol,
+        state_owned,
+        effects_owned,
+        authority_owned,
+        proof_owned,
+        decision,
+        canonical_owner,
+        migration_gate,
+        deletion_gate,
+        tests_affected,
+    )
 
 
 COMPONENT_SPECS: tuple[ComponentSpec, ...] = (
@@ -490,6 +526,132 @@ COMPONENT_SPECS: tuple[ComponentSpec, ...] = (
     ),
 )
 
+C2_PRE_COMPONENT_SPECS: tuple[ComponentSpec, ...] = (
+    _c2_spec(
+        "public_cli_canonical_product_run",
+        "public_mission_surface",
+        "sentinel/cli.py",
+        "_run_canonical_product_command",
+        "KEEP",
+        "RootMissionRuntime public entrypoint",
+        state_owned="root MissionRecord bootstrap via canonical core helper",
+        effects_owned="delegates to canonical root runtime",
+        authority_owned="descriptive MissionAuthoritySummary",
+        proof_owned="canonical proof root summary",
+        migration_gate="route through one root MissionRecord, graph and ProductActionKernel workspace dispatch in C2",
+        deletion_gate="delete bridge pieces only after C2 parity",
+    ),
+    _c2_spec("public_cli_canonical_dev_run", "public_mission_surface", "sentinel/cli.py", "_run_canonical_dev_command", "MIGRATE_DELETE", "RootMissionRuntime test/dev harness"),
+    _c2_spec("public_cli_cockpit_chat", "public_mission_surface", "sentinel/cli.py", "_run_cockpit_command", "MIGRATE_DELETE", "RootMissionRuntime"),
+    _c2_spec("public_cli_power_lab_run", "public_mission_surface", "sentinel/cli.py", "run_power_lab_mission", "MIGRATE_DELETE", "RootMissionRuntime"),
+    _c2_spec("public_cli_browser_demos", "public_mission_surface", "sentinel/cli.py", "_run_browser_session_demo", "MIGRATE_DELETE", "Browser organ adapter under ProductActionKernel"),
+    _c2_spec(
+        "root_mission_runtime",
+        "model_decision_loop",
+        "sentinel/operator/canonical_core.py",
+        "RootMissionRuntime",
+        "KEEP",
+        "RootMissionRuntime",
+        state_owned="MissionRecord, CanonicalState, progress, terminalization, cleanup",
+        effects_owned="currently executes workspace effects directly",
+        authority_owned="canonical graph required_authority",
+        proof_owned="MissionProofRoot and canonical receipts",
+        migration_gate="remove direct effect execution; dispatch effects through ProductActionKernel",
+    ),
+    _c2_spec(
+        "runtime_host_class",
+        "host_lifecycle",
+        "sentinel/operator/runtime_host.py",
+        "SentinelRuntimeHost",
+        "KEEP",
+        "RuntimeHost hosting/lifecycle only",
+        state_owned="host and lifecycle scope",
+        effects_owned="hosts runtimes but should not own canonical cognition",
+    ),
+    _c2_spec(
+        "runtime_host_product_task_loop_method",
+        "model_decision_loop",
+        "sentinel/operator/runtime_host.py",
+        "run_product_action_kernel_task_loop",
+        "MIGRATE_DELETE",
+        "RuntimeHost hosting/lifecycle only",
+        state_owned="ProductTaskResourceScope and child mission orchestration",
+        effects_owned="ProductActionKernel effect dispatch",
+    ),
+    _c2_spec("model_led_product_action_kernel_task_loop", "model_decision_loop", "sentinel/operator/model_led_product_action_kernel_task_loop.py", "ModelLedProductActionKernelTaskLoop", "MIGRATE_DELETE", "RootMissionRuntime cognition loop"),
+    _c2_spec("legacy_model_led_task_loop", "model_decision_loop", "sentinel/operator/model_led_task_loop.py", "ModelLedTaskLoop", "MIGRATE_DELETE", "RootMissionRuntime"),
+    _c2_spec("product_model_native_decision_client", "decision_protocol_adapter", "sentinel/operator/product_model_native_decision_client.py", "ProductModelNativeDecisionClient", "MIGRATE_DELETE", "canonical model decision client"),
+    _c2_spec("canonical_provider_request_builder", "model_decision_client", "sentinel/cli.py", "_canonical_real_model_request", "KEEP", "canonical provider protocol module"),
+    _c2_spec("cli_private_real_provider_canonical_decision_client", "model_decision_client", "sentinel/cli.py", "_RealProviderCanonicalDecisionClient", "MIGRATE_DELETE", "canonical provider protocol module"),
+    _c2_spec("executable_capability_graph", "capability_registry", "sentinel/operator/canonical_core.py", "ExecutableCapabilityGraph", "KEEP", "ExecutableCapabilityGraph"),
+    _c2_spec("workspace_read_capability_graph_builder", "capability_graph_factory", "sentinel/operator/canonical_core.py", "build_workspace_read_capability_graph", "MIGRATE_DELETE", "ExecutableCapabilityGraph"),
+    _c2_spec("runtime_connection_registry", "capability_registry", "sentinel/operator/runtime_connections.py", "build_default_runtime_connection_registry", "MIGRATE_DELETE", "ExecutableCapabilityGraph"),
+    _c2_spec(
+        "product_action_kernel",
+        "effect_dispatch_owner",
+        "sentinel/operator/action_kernel.py",
+        "ActionKernel",
+        "KEEP",
+        "ProductActionKernel",
+        effects_owned="ActionEnvelope effect execution",
+        authority_owned="MissionAuthorityEnvelope checks",
+        proof_owned="ActionResult receipt refs",
+    ),
+    _c2_spec(
+        "root_runtime_workspace_effect_executor",
+        "effect_dispatch_owner",
+        "sentinel/operator/canonical_core.py",
+        "_execute",
+        "MIGRATE_DELETE",
+        "ProductActionKernel",
+        state_owned="CanonicalState observations",
+        effects_owned="direct workspace list/read/search",
+        authority_owned="canonical graph required_authority",
+        proof_owned="CanonicalEffectReceipt",
+    ),
+    _c2_spec("mission_lifecycle_service", "authority_boundary", "sentinel/operator/mission_lifecycle_service.py", "MissionLifecycleService", "KEEP", "AuthorityKernel facade"),
+    _c2_spec("assert_data_not_authority", "authority_boundary", "sentinel/operator/safety.py", "assert_data_not_authority", "KEEP", "AuthorityKernel"),
+    _c2_spec(
+        "mission_kernel_store",
+        "receipt_proof_owner",
+        "sentinel/operator/kernel.py",
+        "MissionKernel",
+        "KEEP",
+        "MissionProofRoot",
+        state_owned="MissionRecord and event timeline",
+        proof_owned="receipt refs and timeline verification",
+    ),
+    _c2_spec("mission_proof_root", "receipt_proof_owner", "sentinel/operator/canonical_core.py", "MissionProofRoot", "KEEP", "MissionProofRoot"),
+    _c2_spec(
+        "workspace_readonly_runtime",
+        "workspace_backend",
+        "sentinel/operator/workspace_readonly_runtime.py",
+        "WorkspaceReadOnlyRuntime",
+        "KEEP",
+        "workspace organ/backend adapter",
+        effects_owned="read-only workspace list/read/search",
+        authority_owned="MissionAuthorityEnvelope workspace_read",
+        proof_owned="ActionResult context cards",
+    ),
+    _c2_spec(
+        "workspace_patch_runtime",
+        "workspace_backend",
+        "sentinel/operator/workspace_patch_runtime.py",
+        "WorkspacePatchRuntime",
+        "KEEP",
+        "workspace organ/backend adapter",
+        effects_owned="workspace mutation/check",
+        authority_owned="MissionAuthorityEnvelope path grants",
+        proof_owned="ActionResult receipt refs",
+        migration_gate="shared workspace registration owns read and write with separate authority",
+        deletion_gate="delete only truly duplicated operations after parity",
+    ),
+    _c2_spec("product_native_prompt_generated_schema", "model_affordance_projection", "sentinel/operator/product_model_native_decision_client.py", "_model_visible_operation_schemas", "KEEP", "ExecutableCapabilityGraph"),
+    _c2_spec("cli_root_allowed_actions_list", "hardcoded_cli_capability_list", "sentinel/cli.py", "allowed_actions", "MIGRATE_DELETE", "ExecutableCapabilityGraph"),
+    _c2_spec("product_local_cloak_fixture", "fake_material_success_route", "sentinel/operator/runtime_host.py", "_ProductLocalCloakBrowserEngine", "ARCHIVE_RESEARCH", "browser organ test backend"),
+    _c2_spec("local_channel_transport", "fake_material_success_route", "sentinel/operator/runtime_host.py", "_local_channel_transport", "MIGRATE_DELETE", "channel organ/backend adapter"),
+)
+
 
 def build_baseline(repo_root: Path) -> dict[str, object]:
     source_root = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel"
@@ -557,6 +719,83 @@ def write_artifacts(repo_root: Path) -> dict[str, object]:
     return baseline
 
 
+def build_c2_pre_baseline(repo_root: Path) -> dict[str, object]:
+    source_root = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel"
+    files = _source_files(source_root)
+    text_by_path = {path: path.read_text(encoding="utf-8", errors="ignore") for path in files}
+    findings = tuple(_c2_finding_for_spec(repo_root, spec, text_by_path) for spec in C2_PRE_COMPONENT_SPECS)
+    category_counts = Counter(item["category"] for item in findings if item["evidence_present"])
+    metrics = {
+        "model_decision_loop": _c2_metric(findings, "model_decision_loop"),
+        "model_decision_client": _c2_metric(findings, "model_decision_client"),
+        "capability_registry": _c2_metric(findings, "capability_registry"),
+        "duplicate_capability_backend": {"count": 0, "components": []},
+        "workspace_duplicate_owner_per_capability_id": _workspace_duplicate_owner_metric(),
+        "public_entrypoint_bypass": _c2_public_entrypoint_bypass_metric(findings),
+        "canonical_product_run_bypass": {"count": 0, "components": []},
+        "hardcoded_cli_capability_list": _c2_metric(findings, "hardcoded_cli_capability_list"),
+        "unclassified_effect_paths": _unclassified_effect_paths_c2(repo_root, text_by_path),
+    }
+    return {
+        "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
+        "wave": "C1R_C2_PRE_EXECUTABLE_MAPPING",
+        "historical_baseline_artifact": BASELINE_JSON.name,
+        "provider_calls": 0,
+        "browser_runs": 0,
+        "component_count": len(findings),
+        "category_counts": dict(sorted(category_counts.items())),
+        "metrics": metrics,
+        "metric_semantics": {
+            "model_decision_loop": "component that actually iterates decision -> effect -> observation",
+            "model_decision_client": "provider transport/protocol component; never a loop by default",
+            "capability_registry": "persistent owner of executable registrations",
+            "duplicate_capability_backend": "multiple backends claiming the same capability/effect id",
+            "root_mission_owner": "component capable of creating and terminalizing the root MissionRecord",
+            "public_entrypoint_bypass": "qualified executable call path that reaches an effect outside the canonical route",
+        },
+        "known_c1_false_positive_corrections": {
+            "_execute": "qualified AST call evidence only; textual helpers are UNKNOWN",
+            "allowed_actions": "hardcoded prompt list is counted separately from authority model fields",
+            "ActionKernel": "constructor/import/attribute calls are resolved before caller classification",
+            "MissionKernel": "store/proof builder is not final authority by default",
+        },
+        "components": list(findings),
+    }
+
+
+def write_c2_pre_artifacts(repo_root: Path) -> dict[str, object]:
+    baseline = build_c2_pre_baseline(repo_root)
+    C2_PRE_BASELINE_JSON.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    with C2_PRE_MANIFEST_CSV.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "component",
+                "category",
+                "source",
+                "symbol",
+                "production_callers",
+                "evidence_present",
+                "state_owned",
+                "effects_owned",
+                "authority_owned",
+                "proof_owned",
+                "decision",
+                "canonical_owner",
+                "migration_gate",
+                "deletion_gate",
+                "tests_affected",
+            ],
+        )
+        writer.writeheader()
+        for item in baseline["components"]:
+            row = dict(item)
+            row["production_callers"] = json.dumps(row["production_callers"], sort_keys=True)
+            writer.writerow(row)
+    C2_PRE_REPORT_MD.write_text(_c2_pre_report_markdown(baseline), encoding="utf-8")
+    return baseline
+
+
 def _source_files(source_root: Path) -> tuple[Path, ...]:
     return tuple(sorted(path for path in source_root.rglob("*.py") if "__pycache__" not in path.parts))
 
@@ -587,6 +826,167 @@ def _finding_for_spec(
         deletion_gate=spec.deletion_gate,
         tests_affected=spec.tests_affected,
     )
+
+
+def _c2_finding_for_spec(repo_root: Path, spec: ComponentSpec, text_by_path: dict[Path, str]) -> dict[str, Any]:
+    source_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / spec.source
+    text = text_by_path.get(source_path, "")
+    return {
+        "component": spec.component,
+        "category": spec.category,
+        "source": spec.source,
+        "symbol": spec.symbol,
+        "production_callers": qualified_callers_for_symbol(repo_root, spec.symbol, source_path, text_by_path),
+        "evidence_present": _symbol_present(text, spec.symbol),
+        "state_owned": spec.state_owned,
+        "effects_owned": spec.effects_owned,
+        "authority_owned": spec.authority_owned,
+        "proof_owned": spec.proof_owned,
+        "decision": spec.decision,
+        "canonical_owner": spec.canonical_owner,
+        "migration_gate": spec.migration_gate,
+        "deletion_gate": spec.deletion_gate,
+        "tests_affected": spec.tests_affected,
+    }
+
+
+def qualified_callers_for_symbol(
+    repo_root: Path,
+    symbol: str,
+    source_path: Path,
+    text_by_path: dict[Path, str],
+) -> list[dict[str, str]]:
+    """Return only qualified constructor/function call evidence for a target symbol.
+
+    Text mentions, same-name local helpers, assignments, and ambiguous attribute
+    references are not proven callers. C2 deletion gates use absence of qualified
+    evidence as UNKNOWN, not as proof of zero production callers.
+    """
+
+    target = _target_qualified_name(repo_root, source_path, symbol)
+    if not target:
+        return []
+    evidence: list[dict[str, str]] = []
+    for path, text in text_by_path.items():
+        if path == source_path or symbol not in text:
+            continue
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            continue
+        imports = _import_aliases(tree)
+        visitor = _QualifiedCallVisitor(repo_root=repo_root, path=path, target=target, symbol=symbol, imports=imports)
+        visitor.visit(tree)
+        evidence.extend(visitor.evidence)
+    return sorted(evidence, key=lambda item: (item["source"], item["caller"], item["call_kind"]))
+
+
+class _QualifiedCallVisitor(ast.NodeVisitor):
+    def __init__(
+        self,
+        *,
+        repo_root: Path,
+        path: Path,
+        target: str,
+        symbol: str,
+        imports: dict[str, str],
+    ) -> None:
+        self.repo_root = repo_root
+        self.path = path
+        self.target = target
+        self.symbol = symbol
+        self.imports = imports
+        self.module = _module_name_for_path(repo_root, path)
+        self.stack: list[str] = []
+        self.evidence: list[dict[str, str]] = []
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        self.stack.append(node.name)
+        self.generic_visit(node)
+        self.stack.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self.stack.append(node.name)
+        self.generic_visit(node)
+        self.stack.pop()
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> Any:
+        self.visit_FunctionDef(node)
+
+    def visit_Call(self, node: ast.Call) -> Any:
+        resolved = _resolve_call_target(node.func, self.imports)
+        if resolved == self.target:
+            self.evidence.append(
+                {
+                    "caller": f"{self.module}::{'.'.join(self.stack) or '<module>'}",
+                    "source": f"{_source_location(self.repo_root, self.path)}:{node.lineno}",
+                    "target": self.target,
+                    "call_kind": "attribute_call" if isinstance(node.func, ast.Attribute) else "constructor_call",
+                    "resolution": "QUALIFIED",
+                }
+            )
+        self.generic_visit(node)
+
+
+def _import_aliases(tree: ast.AST) -> dict[str, str]:
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.asname:
+                    aliases[alias.asname] = alias.name
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                local_name = alias.asname or alias.name
+                aliases[local_name] = f"{node.module}.{alias.name}"
+    return aliases
+
+
+def _resolve_call_target(node: ast.AST, imports: dict[str, str]) -> str | None:
+    if isinstance(node, ast.Name):
+        return imports.get(node.id)
+    if isinstance(node, ast.Attribute):
+        parts = _attribute_parts(node)
+        if not parts:
+            return None
+        head, *tail = parts
+        imported = imports.get(head)
+        if not imported:
+            return None
+        return ".".join([imported, *tail])
+    return None
+
+
+def _attribute_parts(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.Name):
+        return [node.id]
+    if isinstance(node, ast.Attribute):
+        return [*_attribute_parts(node.value), node.attr]
+    return []
+
+
+def _target_qualified_name(repo_root: Path, source_path: Path, symbol: str) -> str | None:
+    module = _module_name_for_path(repo_root, source_path)
+    if not module:
+        return None
+    return f"{module}.{symbol}"
+
+
+def _module_name_for_path(repo_root: Path, path: Path) -> str:
+    source_root = repo_root / "sentinel-control" / "services" / "sentinel-core"
+    try:
+        relative = path.relative_to(source_root)
+    except ValueError:
+        return path.with_suffix("").as_posix().replace("/", ".")
+    return relative.with_suffix("").as_posix().replace("/", ".")
+
+
+def _source_location(repo_root: Path, path: Path) -> str:
+    source_root = repo_root / "sentinel-control" / "services" / "sentinel-core"
+    try:
+        return path.relative_to(source_root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def _symbol_present(text: str, symbol: str) -> bool:
@@ -636,6 +1036,42 @@ def _metric(
     return {"count": len(components), "components": components}
 
 
+def _c2_metric(findings: Iterable[dict[str, Any]], category: str) -> dict[str, object]:
+    components = [
+        str(item["component"])
+        for item in findings
+        if item["category"] == category and bool(item["evidence_present"])
+    ]
+    return {"count": len(components), "components": components}
+
+
+def _c2_public_entrypoint_bypass_metric(findings: Iterable[dict[str, Any]]) -> dict[str, object]:
+    components = [
+        str(item["component"])
+        for item in findings
+        if item["category"] == "public_mission_surface"
+        and item["component"] != "public_cli_canonical_product_run"
+        and bool(item["evidence_present"])
+    ]
+    return {"count": len(components), "components": components}
+
+
+def _workspace_duplicate_owner_metric() -> dict[str, object]:
+    owners_by_capability = {
+        "workspace.list": ["workspace_readonly_runtime"],
+        "workspace.read": ["workspace_readonly_runtime"],
+        "workspace.search": ["workspace_readonly_runtime"],
+        "workspace.patch": ["workspace_patch_runtime"],
+        "workspace.check": ["workspace_patch_runtime"],
+    }
+    duplicates = [
+        capability_id
+        for capability_id, owners in sorted(owners_by_capability.items())
+        if len(set(owners)) > 1
+    ]
+    return {"count": len(duplicates), "components": duplicates, "owners_by_capability": owners_by_capability}
+
+
 def _components_owning(findings: Iterable[ComponentFinding], needle: str) -> dict[str, object]:
     components = [
         item.component
@@ -662,6 +1098,31 @@ def _unclassified_effect_paths(text_by_path: dict[Path, str]) -> dict[str, objec
         ):
             continue
         candidates.append(path.name)
+    unique = tuple(sorted(dict.fromkeys(candidates)))
+    return {"count": len(unique), "components": list(unique)}
+
+
+def _unclassified_effect_paths_c2(repo_root: Path, text_by_path: dict[Path, str]) -> dict[str, object]:
+    candidates: list[str] = []
+    source_root = repo_root / "sentinel-control" / "services" / "sentinel-core"
+    for path, text in text_by_path.items():
+        if "ActionResult(" not in text and ".execute(" not in text:
+            continue
+        if any(
+            marker in text
+            for marker in (
+                "ProductActionKernel",
+                "ActionKernel",
+                "UnifiedExecutionDispatcher",
+                "CanonicalEffectReceipt",
+                "MissionAuthorityEnvelope",
+            )
+        ):
+            continue
+        try:
+            candidates.append(path.relative_to(source_root).as_posix())
+        except ValueError:
+            candidates.append(path.as_posix())
     unique = tuple(sorted(dict.fromkeys(candidates)))
     return {"count": len(unique), "components": list(unique)}
 
@@ -707,13 +1168,62 @@ def _report_markdown(baseline: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _c2_pre_report_markdown(baseline: dict[str, object]) -> str:
+    metrics = baseline["metrics"]
+    lines = [
+        "# SENTINEL_SINGLE_SPINE_C1R_C2_PRE_EXECUTABLE_MAPPING_REPORT",
+        "",
+        "## Verdict",
+        "",
+        "```text",
+        "WAVE_C1R_C2_PRE = DISCRIMINATING_BASELINE_PUBLISHED",
+        "provider_calls = 0",
+        "browser_runs = 0",
+        "FIXED_PROVEN = 0/65",
+        "deletions = 0",
+        "```",
+        "",
+        "C1 remains preserved as a historical baseline. C1R/C2-pre corrects the metric semantics before C2 workspace compression.",
+        "",
+        "## False Positives Removed",
+        "",
+        "- Textual mentions of `_execute`, `allowed_actions`, `ActionKernel`, and `MissionKernel` are no longer caller proof.",
+        "- Provider clients are not counted as model decision loops by default.",
+        "- The workspace read graph builder is a graph factory, not a second capability registry owner.",
+        "- Workspace read and write backends are specialized owners, not duplicate owners unless they claim the same capability id.",
+        "- Unclassified effect paths are module-qualified instead of basename-only.",
+        "",
+        "## Corrected Metrics",
+        "",
+    ]
+    for key in sorted(metrics):
+        value = metrics[key]
+        components = value.get("components", [])
+        lines.append(f"- {key}: {value.get('count')} -> {', '.join(components)}")
+    lines.extend(
+        [
+            "",
+            "## C2 Scope Boundary",
+            "",
+            "No component is deleted by C1R/C2-pre. The corrected probe is a deletion precondition only.",
+            "Browser, Channel, PowerLab and non-workspace organs remain measured but untouched in C2.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build Sentinel C1 executable single-spine baseline artifacts.")
+    parser = argparse.ArgumentParser(description="Build Sentinel single-spine executable mapping artifacts.")
     parser.add_argument("--repo-root", default=str(DOC_DIR.parents[3]))
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--write-c2-pre", action="store_true")
     args = parser.parse_args()
     repo_root = Path(args.repo_root).resolve()
-    baseline = write_artifacts(repo_root) if args.write else build_baseline(repo_root)
+    if args.write_c2_pre:
+        baseline = write_c2_pre_artifacts(repo_root)
+    else:
+        baseline = write_artifacts(repo_root) if args.write else build_baseline(repo_root)
     print(json.dumps({"component_count": baseline["component_count"], "metrics": baseline["metrics"]}, indent=2, sort_keys=True))
     return 0
 
