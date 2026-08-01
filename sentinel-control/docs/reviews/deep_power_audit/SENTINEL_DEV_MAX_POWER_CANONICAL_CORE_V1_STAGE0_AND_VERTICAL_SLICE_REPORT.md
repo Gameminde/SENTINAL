@@ -126,8 +126,10 @@ C-P0-01 no single root core:
   first root mission skeleton exists, but all organs are not yet migrated.
 
 P0-01 ProductModelNativeDecisionClient not public product route:
-  ActionEnvelope is now accepted by the core, but live ProductModelNativeDecisionClient
-  product entrypoint is not yet proven.
+  V13 proves a T3 real-model canonical slice, but P0-01 remains IMPLEMENTING
+  until the public product surface graduates ProductModelNativeDecisionClient
+  -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel
+  -> receipt without a parallel RootMissionRuntime effect loop.
 
 P0-03 no root MissionRecord/cancellation:
   root mission identity exists locally, but durable MissionRecord cancellation is

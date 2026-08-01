@@ -22,6 +22,9 @@ MODEL_SKILL_ORDER = (
 )
 
 _ACTION_TO_MODEL_SKILL = {
+    "workspace.list": "read",
+    "workspace.read": "read",
+    "workspace.search": "search",
     "read_only_research.list_directory": "read",
     "read_only_research.search_text": "read",
     "read_only_research.read_file_segment": "read",
@@ -51,6 +54,13 @@ _ACTION_TO_MODEL_SKILL = {
 }
 
 _SKILL_ACTION_PRIORITY = {
+    "read": (
+        "workspace.read",
+        "workspace.list",
+        "read_only_research.read_file_segment",
+        "read_only_research.list_directory",
+        "read_only_research.search_text",
+    ),
     "observe": (
         "real_browser_control.real_browser.observe",
         "browser_control.browser.observe",
@@ -60,6 +70,7 @@ _SKILL_ACTION_PRIORITY = {
     ),
     "search": (
         "real_browser_control.real_browser.search",
+        "workspace.search",
     ),
     "follow": (
         "real_browser_control.real_browser.open_result",

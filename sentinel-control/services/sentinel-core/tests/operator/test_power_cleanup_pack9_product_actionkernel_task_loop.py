@@ -337,7 +337,8 @@ def test_off_scope_skill_selection_recovers_without_granting_authority(
 
     result = loop.run()
 
-    assert "browse_search" in decision_client.contexts[0]["model_visible_skills"]
+    assert "search" in decision_client.contexts[0]["model_visible_skills"]
+    assert "browse_search" not in decision_client.contexts[0]["model_visible_skills"]
     assert "run_check" not in decision_client.contexts[0]["model_visible_skills"]
     assert len(decision_client.contexts) == 2
     recovery = decision_client.contexts[1]["recoverable_decision_observations"][0]

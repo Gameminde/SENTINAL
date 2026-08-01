@@ -128,6 +128,7 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
     recovery_hint = _recovery_prompt_hint(context)
     workspace_hint = _workspace_file_prompt_hint(context)
     proof_hint = _browser_proof_index_prompt_hint(context)
+    operation_schemas = _model_visible_operation_schemas(context)
     return (
         "You are the brain. Sentinel is the body/runtime/proof layer.\n"
         f"Mission objective: {objective}\n"
@@ -139,15 +140,9 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         f"{workspace_hint}"
         f"{proof_hint}"
         "Choose exactly one next skill for this turn.\n"
-        "Prefer one compact JSON object such as "
-        "{\"skill\":\"create_file\",\"params\":{\"target_path\":\"app.py\",\"new_text\":\"...\"}}, "
-        "{\"skill\":\"patch\",\"params\":{\"target_path\":\"app.py\",\"expected_base_hash\":\"...\",\"old_text\":\"...\",\"new_text\":\"...\"}}, "
-        "{\"skill\":\"patch\"}, {\"skill\":\"run_check\"}, "
-        "{\"skill\":\"observe\"}, {\"skill\":\"search\",\"params\":{\"query\":\"...\"}}, "
-        "{\"skill\":\"follow\",\"params\":{\"ref\":\"...\"}}, "
-        "{\"skill\":\"inspect\",\"params\":{\"ref\":\"...\"}}, "
-        "{\"skill\":\"extract_evidence\"}, {\"skill\":\"verify\"}, "
-        "{\"skill\":\"send_message\"}, {\"skill\":\"spawn_worker\"}, or {\"skill\":\"finish\"}.\n"
+        "Allowed operations are generated from Sentinel's executable capability graph.\n"
+        f"model_visible_operation_schemas: {json.dumps(operation_schemas, sort_keys=True, default=str)}\n"
+        "Prefer one compact JSON object using a listed skill and params.\n"
         "When finishing an evidence-seeking browser mission, include exactly one terminal payload: "
         "{\"skill\":\"finish\",\"final_answer\":{\"answer_text\":\"...\",\"answer_claims\":[{\"claim_type\":\"sourced_factual_claim\",\"text\":\"...\",\"evidence_refs\":[\"evidence:...\"]}],\"public_evidence\":[]}} "
         "or {\"skill\":\"finish\",\"honest_blocker\":{\"reason\":\"...\",\"available_evidence_refs\":[],\"missing_evidence\":[]}}.\n"
@@ -155,6 +150,43 @@ def _compile_model_native_prompt(context: dict[str, Any]) -> str:
         "Natural intent is acceptable when the transport preserves visible text, but JSON is most reliable.\n"
         "Do not request login, payment, credentials, provider-native tools, or fallback/AUTO."
     )
+
+
+def _model_visible_operation_schemas(context: dict[str, Any]) -> list[dict[str, Any]]:
+    schemas: list[dict[str, Any]] = []
+    for skill in context.get("model_visible_skills") or ():
+        skill_id = str(skill)
+        runtime_action = _runtime_action_for_skill(context, skill_id)
+        schemas.append(
+            {
+                "skill": skill_id,
+                "params_schema": _params_schema_for_skill(skill_id),
+                "runtime_internal_action": runtime_action,
+                "data_not_authority": True,
+                "can_grant_authority": False,
+                "can_execute": False,
+            }
+        )
+    return schemas
+
+
+def _params_schema_for_skill(skill: str) -> dict[str, Any]:
+    if skill == "read":
+        return {"path": "optional safe relative workspace path"}
+    if skill == "search":
+        return {"query": "required inert semantic text"}
+    if skill == "finish":
+        return {"safe_summary": "optional concise answer or honest blocker payload"}
+    if skill == "patch":
+        return {
+            "target_path": "safe relative workspace path",
+            "expected_base_hash": "required hash when modifying existing file",
+        }
+    if skill == "create_file":
+        return {"target_path": "safe relative workspace path", "new_text": "bounded file content"}
+    if skill == "run_check":
+        return {"profile_id": "bounded sandbox profile"}
+    return {"params": "skill-specific bounded semantic parameters"}
 
 
 def _workspace_file_prompt_hint(context: dict[str, Any]) -> str:
@@ -228,9 +260,10 @@ def _map_output_to_action(raw_output: Any, *, context: dict[str, Any]) -> Action
         if quality_skill is not None and skill in {"run_check", "send_message", "spawn_worker", "finish"}:
             skill = quality_skill
     if skill == "finish":
-        recommended = _recommended_skill(context)
-        if recommended != "finish":
-            skill = recommended
+        if not _finish_skill_available(context):
+            recommended = _recommended_skill(context)
+            if recommended != "finish":
+                skill = recommended
     return _skill_to_action(skill, payload=payload, text=text, context=context)
 
 
@@ -475,7 +508,7 @@ def _requested_skill(payload: dict[str, Any], text: str) -> str | None:
         normalized = _normalize_skill(explicit)
         if normalized is not None:
             return normalized
-    if "capability_id" in payload and "operation" in payload:
+    if ("capability_id" in payload or "capability" in payload) and "operation" in payload:
         return _canonical_payload_skill(payload)
     lowered = text.lower()
     if any(
@@ -556,6 +589,11 @@ def _normalize_skill(value: str) -> str | None:
         "worker": "spawn_worker",
         "finish": "finish",
         "complete": "finish",
+        "read": "read",
+        "list": "read",
+        "workspace_list": "read",
+        "workspace_read": "read",
+        "workspace_search": "search",
         "observe": "observe",
         "browse_observe": "observe",
         "navigate": "navigate",
@@ -580,7 +618,7 @@ def _normalize_skill(value: str) -> str | None:
 
 
 def _canonical_payload_skill(payload: dict[str, Any]) -> str:
-    capability_id = str(payload.get("capability_id") or "").strip()
+    capability_id = str(payload.get("capability_id") or payload.get("capability") or "").strip()
     operation = str(payload.get("operation") or "").strip()
     action = f"{capability_id}.{operation}"
     if action == "bounded_channel.send_message":
@@ -592,6 +630,10 @@ def _canonical_payload_skill(payload: dict[str, Any]) -> str:
         if isinstance(params, dict) and _looks_like_create_file_params(params):
             return "create_file"
         return "patch"
+    if action in {"workspace.list", "workspace.read"}:
+        return "read"
+    if action == "workspace.search":
+        return "search"
     if action == "worker_fleet.spawn_worker":
         return "spawn_worker"
     if action == "sentinel_loop.finish":
@@ -723,11 +765,26 @@ def _skill_to_action(
 ) -> ActionEnvelope:
     if skill == "__canonical__":
         return ActionEnvelope(
-            capability_id=str(payload["capability_id"]),
+            capability_id=str(payload.get("capability_id") or payload.get("capability")),
             operation=str(payload["operation"]),
-            params=dict(payload.get("params") or {}),
+            params=dict(payload.get("params") or payload.get("arguments") or {}),
             target_ref=str(payload["target_ref"]) if payload.get("target_ref") is not None else None,
             idempotency_key=str(payload["idempotency_key"]) if payload.get("idempotency_key") else None,
+        )
+    if skill == "read":
+        params = dict(payload.get("params") or payload.get("arguments") or {})
+        action = _runtime_action_for_skill(context, "read")
+        operation = "read" if params.get("path") else "list"
+        if action in {"workspace.list", "workspace.read"}:
+            operation = action.rsplit(".", 1)[-1]
+            if operation == "read" and not params.get("path"):
+                operation = "list"
+        params.setdefault("path", ".")
+        return ActionEnvelope(
+            capability_id="workspace",
+            operation=operation,
+            params=params,
+            idempotency_key=_idempotency_key("read", context, text),
         )
     if skill == "patch":
         params = _workspace_patch_params(payload=payload, context=context)
@@ -802,6 +859,13 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("navigate", context, text),
         )
     if skill in {"search", "browse_search"}:
+        if _runtime_action_for_skill(context, "search") == "workspace.search":
+            return ActionEnvelope(
+                capability_id="workspace",
+                operation="search",
+                params=dict(payload.get("params") or payload.get("arguments") or {}),
+                idempotency_key=_idempotency_key("workspace_search", context, text),
+            )
         params = _normalize_model_browser_search_params(
             payload.get("params"),
             fallback_query=_bounded_query(text) or "mission objective",
@@ -848,6 +912,32 @@ def _skill_to_action(
             idempotency_key=_idempotency_key("recover_session", context, text),
         )
     raise ActionKernelError("MODEL_NATIVE_DECISION_SKILL_NOT_MAPPED")
+
+
+def _runtime_action_for_skill(context: dict[str, Any], skill: str) -> str:
+    mapping = context.get("runtime_internal_action_map")
+    if isinstance(mapping, dict):
+        action = mapping.get(skill)
+        if isinstance(action, str):
+            return action
+    surface = context.get("model_skill_surface")
+    if isinstance(surface, dict):
+        nested = surface.get("runtime_internal_action_map")
+        if isinstance(nested, dict):
+            action = nested.get(skill)
+            if isinstance(action, str):
+                return action
+    return ""
+
+
+def _finish_skill_available(context: dict[str, Any]) -> bool:
+    if context.get("finish_available") is True:
+        return True
+    actions = {str(action) for action in context.get("runtime_available_actions") or ()}
+    if "sentinel_loop.finish" in actions:
+        return True
+    skills = {str(skill) for skill in context.get("model_visible_skills") or ()}
+    return "finish" in skills
 
 
 def _normalize_browser_search_action(envelope: ActionEnvelope, *, fallback_query: str) -> ActionEnvelope:

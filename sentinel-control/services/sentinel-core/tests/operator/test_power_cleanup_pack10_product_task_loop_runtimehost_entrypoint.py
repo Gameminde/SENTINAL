@@ -23,6 +23,9 @@ def test_runtimehost_exposes_product_task_loop_entrypoint(tmp_path: Path) -> Non
     assert frame["enabled"] is True
     assert frame["runtime_bridge"] == "ModelLedProductActionKernelTaskLoop"
     assert frame["model_visible_available_actions"] == [
+        "workspace.list",
+        "workspace.read",
+        "workspace.search",
         "workspace_patch.apply_patch",
         "code_execution_sandbox.code_exec.run_profile",
         "bounded_channel.send_message",

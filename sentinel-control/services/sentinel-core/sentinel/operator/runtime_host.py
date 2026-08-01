@@ -59,6 +59,7 @@ from sentinel.operator.unified_execution_dispatcher import (
     UnifiedExecutionDispatcher,
 )
 from sentinel.operator.workspace_patch_runtime import SENSITIVE_WORKSPACE_PATCH_NAMES, WorkspacePatchRuntime
+from sentinel.operator.workspace_readonly_runtime import WorkspaceReadOnlyRuntime
 from sentinel.operator.worker_orchestration_runtime import (
     WorkerOrchestrationRuntime,
     worker_orchestration_preflight,
@@ -526,6 +527,36 @@ class SentinelRuntimeHost:
                             preflight_validator=_bounded_channel_preflight,
                         ),
                         ProductActionKernelRoute(
+                            capability_id="workspace",
+                            operation="list",
+                            executor=_default_workspace_readonly_executor,
+                            product_dispatchable_skill_ids=("workspace",),
+                            backend_id="workspace_read_only",
+                            simple_skill_id="read",
+                            organ_id="workspace_readonly_backend",
+                            preflight_validator=_workspace_readonly_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="workspace",
+                            operation="read",
+                            executor=_default_workspace_readonly_executor,
+                            product_dispatchable_skill_ids=("workspace",),
+                            backend_id="workspace_read_only",
+                            simple_skill_id="read",
+                            organ_id="workspace_readonly_backend",
+                            preflight_validator=_workspace_readonly_preflight,
+                        ),
+                        ProductActionKernelRoute(
+                            capability_id="workspace",
+                            operation="search",
+                            executor=_default_workspace_readonly_executor,
+                            product_dispatchable_skill_ids=("workspace",),
+                            backend_id="workspace_read_only",
+                            simple_skill_id="search",
+                            organ_id="workspace_readonly_backend",
+                            preflight_validator=_workspace_readonly_preflight,
+                        ),
+                        ProductActionKernelRoute(
                             capability_id="real_browser_control",
                             operation="real_browser.observe",
                             executor=_default_real_browser_executor,
@@ -664,6 +695,9 @@ class SentinelRuntimeHost:
 
     def product_task_loop_entrypoint_frame(self) -> dict[str, Any]:
         model_visible_available_actions = [
+            "workspace.list",
+            "workspace.read",
+            "workspace.search",
             "workspace_patch.apply_patch",
             "code_execution_sandbox.code_exec.run_profile",
             "bounded_channel.send_message",
@@ -911,6 +945,16 @@ def _default_workspace_patch_executor(envelope: ActionEnvelope, context: dict[st
     runtime = WorkspacePatchRuntime(
         kernel=kernel,
         mission_id=str(context.get("mission_id") or ""),
+        workspace_root=_workspace_path_from_ref(str(context.get("workspace_ref") or "")),
+    )
+    return runtime.execute(envelope, authority=authority, context=context)
+
+
+def _default_workspace_readonly_executor(envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+    authority = context.get("authority")
+    if not isinstance(authority, MissionAuthorityEnvelope):
+        raise RuntimeError("workspace_readonly_runtime_context_missing")
+    runtime = WorkspaceReadOnlyRuntime(
         workspace_root=_workspace_path_from_ref(str(context.get("workspace_ref") or "")),
     )
     return runtime.execute(envelope, authority=authority, context=context)
@@ -1708,6 +1752,22 @@ def _workspace_patch_apply_preflight(
         return "workspace_patch_target_not_authorized"
     if any(part in SENSITIVE_WORKSPACE_PATCH_NAMES for part in raw.parts):
         return "workspace_patch_target_not_authorized"
+    return None
+
+
+def _workspace_readonly_preflight(
+    params: dict[str, Any],
+    request: MissionExecutionRequest,
+    _authority: MissionAuthorityEnvelope,
+) -> str | None:
+    if request.operation == "search" and not str(params.get("query") or "").strip():
+        return "workspace_search_query_required"
+    target = str(params.get("path") or ".").strip()
+    if request.operation == "read" and not target:
+        return "workspace_read_path_required"
+    raw = Path(target or ".")
+    if raw.is_absolute() or ".." in raw.parts:
+        return "workspace_readonly_target_not_authorized"
     return None
 
 

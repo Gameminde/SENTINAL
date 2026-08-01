@@ -61,8 +61,20 @@ from sentinel.operator.mission_lifecycle_service import (
     PROVIDER_DECISION_TIMEOUT_SECONDS_MIN,
 )
 from sentinel.operator.model_client import OperatorCatalogModelClient
-from sentinel.operator.models import OperatorConversationState, OperatorMode, OperatorTurnResult
+from sentinel.operator.models import (
+    MissionAuthoritySummary,
+    MissionDraft,
+    OperatorConversationState,
+    OperatorMode,
+    OperatorMissionStatus,
+    OperatorTurnResult,
+)
 from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.model_led_product_action_kernel_task_loop import (
+    ProductActionKernelTaskLoopReplay,
+    ProductActionKernelTaskLoopStatus,
+)
+from sentinel.operator.product_model_native_decision_client import ProductModelNativeDecisionClient
 from sentinel.operator.product_execution_binding import (
     ProductExecutionBindingError,
     build_product_execution_binding,
@@ -74,6 +86,27 @@ from sentinel.operator.structured_output import READ_ONLY_RESEARCH_CAPABILITY
 from sentinel.organs.browser.playwright_interaction_backend import PlaywrightLimitedInteractionBackend
 from sentinel.organs.browser.playwright_renderer import PlaywrightReadOnlyRenderer
 from sentinel.power_lab import PowerLabMissionRejected, load_power_lab_mission_file, run_power_lab_mission
+from sentinel.shared.models import SentinelModel, new_id
+
+
+class CanonicalProductPublicRunResult(SentinelModel):
+    root_mission_id: str
+    status: str
+    final_reason: str
+    blocked_reason: str | None = None
+    provider_decision_count: int
+    material_action_count: int
+    mission_record_created_before_provider: bool
+    root_created_before_first_provider_call: bool
+    mission_ids: tuple[str, ...] = ()
+    dispatch_mission_ids: tuple[str, ...] = ()
+    product_receipt_refs: tuple[str, ...] = ()
+    product_finalgate_refs: tuple[str, ...] = ()
+    certificate_refs: tuple[str, ...] = ()
+    proof_root: dict[str, Any]
+    replay: dict[str, Any]
+    public_product_spine: dict[str, Any]
+    cleanup_completed: bool
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -490,9 +523,12 @@ def _run_canonical_dev_command(args: argparse.Namespace):
 
 
 def _run_canonical_product_command(args: argparse.Namespace):
+    run_root = Path(args.run_root)
+    workspace = Path(args.workspace)
+    provider_model = str(args.provider_model or "scripted-local/model")
     if args.decision_script:
-        model_client = _JsonlCanonicalDecisionScriptClient(Path(args.decision_script))
-        provider_model = str(args.provider_model or "scripted-local/model")
+        raw_model_client = _JsonlCanonicalDecisionScriptClient(Path(args.decision_script))
+        request_factory = _scripted_product_native_request_factory
     else:
         provider_id = str(args.provider_id or os.environ.get("SENTINEL_CANONICAL_MODEL_PROVIDER_ID") or "aliyun_dashscope")
         backend_id = str(
@@ -501,23 +537,247 @@ def _run_canonical_product_command(args: argparse.Namespace):
             or "aliyun_openai_compatible_chat"
         )
         model_id = str(args.model_id or args.provider_model or os.environ.get("SENTINEL_CANONICAL_MODEL_ID") or "deepseek-v4-pro")
-        model_client = _RealProviderCanonicalDecisionClient(
+        contract = _canonical_user_model_contract(provider_id=provider_id, backend_id=backend_id, model_id=model_id)
+        raw_model_client = OperatorCatalogModelClient(user_model_contract=contract)
+        request_factory = _product_native_real_request_factory(
             provider_id=provider_id,
             backend_id=backend_id,
             model_id=model_id,
+            user_model_contract_id=contract.id,
         )
         provider_model = f"{provider_id}/{model_id}"
-    kernel = MissionKernel(run_root=Path(args.run_root))
-    return run_canonical_product_mission(
-        objective=str(args.objective),
-        workspace_root=Path(args.workspace),
-        model_client=model_client,
-        provider_model=provider_model,
-        kernel=kernel,
-        session_id="canonical_product_cli",
-        max_provider_decisions=int(args.max_provider_decisions),
-        max_material_actions=int(args.max_material_actions),
+    decision_client = ProductModelNativeDecisionClient(
+        model_client=raw_model_client,
+        request_factory=request_factory,
     )
+    host = SentinelRuntimeHost(run_root=run_root)
+    root_mission_id = new_id("root_mission")
+    root_record_created = False
+    cleanup_completed = False
+    host.start()
+    result: CanonicalProductPublicRunResult | None = None
+    try:
+        _create_public_product_root_record(
+            host=host,
+            root_mission_id=root_mission_id,
+            objective=str(args.objective),
+        )
+        root_record_created = host.kernel.store.verify_record(root_mission_id)
+        loop_result = host.run_product_action_kernel_task_loop(
+            workspace_root=workspace,
+            session_id=root_mission_id,
+            mission_objective=str(args.objective),
+            decision_client=decision_client,
+            max_model_calls=int(args.max_provider_decisions),
+            max_material_actions=int(args.max_material_actions),
+            allowed_capabilities=("workspace",),
+            model_contract_ref="model_contract:public_product_canonical_workspace_spine",
+        )
+        status = "completed" if loop_result.status is ProductActionKernelTaskLoopStatus.COMPLETED else "blocked"
+        _terminalize_public_product_root_record(
+            host=host,
+            root_mission_id=root_mission_id,
+            status=status,
+            reason=loop_result.final_reason if status == "completed" else (loop_result.blocked_reason or loop_result.final_reason),
+        )
+        replay = ProductActionKernelTaskLoopReplay.from_store(host.kernel.store, mission_ids=loop_result.mission_ids)
+        result = CanonicalProductPublicRunResult(
+            root_mission_id=root_mission_id,
+            status=status,
+            final_reason=loop_result.final_reason,
+            blocked_reason=loop_result.blocked_reason,
+            provider_decision_count=loop_result.model_call_count,
+            material_action_count=loop_result.material_action_count,
+            mission_record_created_before_provider=root_record_created,
+            root_created_before_first_provider_call=root_record_created,
+            mission_ids=(root_mission_id,),
+            dispatch_mission_ids=loop_result.mission_ids,
+            product_receipt_refs=loop_result.product_receipt_refs,
+            product_finalgate_refs=loop_result.product_finalgate_refs,
+            certificate_refs=loop_result.certificate_refs,
+            proof_root={
+                "integrity_model": "product_action_kernel_task_loop_finalgate_v1",
+                "authentic_external_ledger": False,
+                "proof_gaps": ["external_append_only_signer_missing"],
+                "receipt_artifacts_verified": bool(loop_result.product_receipt_refs),
+                "kernel_timeline_verified": all(host.kernel.store.verify_timeline(mission_id) for mission_id in loop_result.mission_ids),
+            },
+            replay=replay.safe_model_dump(),
+            public_product_spine={
+                "strategy": "ROOT_MISSION_RUNTIME_TO_RUNTIMEHOST_PRODUCT_KERNEL_ADAPTER",
+                "decision_client": "ProductModelNativeDecisionClient",
+                "runtime_entrypoint": "RuntimeHost.run_product_action_kernel_task_loop",
+                "model_decision_protocol": "product_model_native_intent_v1_to_legacy_ActionEnvelope",
+                "capability_dispatch": "ProductActionKernel",
+                "authority_gate": "MissionLifecycleService/MissionAuthorityEnvelope/ProductActionKernelDispatchAdapter",
+                "receipt_owner": "ProductActionKernelReceipt",
+                "proof_root_owner": "ProductActionKernelTaskLoopFinalGate",
+                "legacy_action_envelope_adapter": True,
+                "parallel_rootmission_effect_executor_used": False,
+            },
+            cleanup_completed=cleanup_completed,
+        )
+    finally:
+        cleanup_completed = host.shutdown().status.value == "stopped"
+    assert result is not None
+    return result.model_copy(update={"cleanup_completed": cleanup_completed})
+
+
+def _create_public_product_root_record(
+    *,
+    host: SentinelRuntimeHost,
+    root_mission_id: str,
+    objective: str,
+) -> None:
+    draft = MissionDraft(
+        title="Public canonical product mission",
+        objective=objective,
+        constraints=[
+            "public product request",
+            "model-native decision protocol",
+            "RuntimeHost product task loop",
+            "ProductActionKernel material dispatch",
+        ],
+        expected_artifacts=[
+            "root MissionRecord",
+            "ProductActionKernelReceipt",
+            "product task loop FinalGate",
+            "replay reconstruction",
+        ],
+    )
+    authority = MissionAuthoritySummary(
+        mission_id=root_mission_id,
+        allowed_actions=[
+            "workspace.list",
+            "workspace.read",
+            "workspace.search",
+            "sentinel_loop.finish",
+        ],
+        forbidden_actions=[
+            "provider_native_tools",
+            "authority_self_grant",
+            "workspace_escape",
+            "raw_secret_exposure",
+        ],
+        summary="Public canonical product route authority: read-only workspace and terminal finish.",
+        user_confirmation_required=False,
+        finalgate_required=True,
+    )
+    host.kernel.create_mission(
+        session_id="canonical_product_public_root",
+        draft=draft,
+        authority_summary=authority,
+        mission_id=root_mission_id,
+    )
+    host.kernel.enqueue(
+        root_mission_id,
+        metadata={
+            "public_product_spine": True,
+            "decision_client": "ProductModelNativeDecisionClient",
+            "runtime_entrypoint": "RuntimeHost.run_product_action_kernel_task_loop",
+        },
+    )
+    host.kernel.update_status(
+        root_mission_id,
+        OperatorMissionStatus.RUNNING,
+        "Public canonical product root mission running before first provider decision.",
+    )
+
+
+def _terminalize_public_product_root_record(
+    *,
+    host: SentinelRuntimeHost,
+    root_mission_id: str,
+    status: str,
+    reason: str,
+) -> None:
+    target = OperatorMissionStatus.COMPLETED if status == "completed" else OperatorMissionStatus.BLOCKED
+    if host.kernel.is_terminal(root_mission_id):
+        return
+    host.kernel.update_status(
+        root_mission_id,
+        target,
+        f"Public canonical product root mission terminal state: {reason}.",
+    )
+
+
+def _scripted_product_native_request_factory(context: dict[str, Any], prompt: str) -> dict[str, Any]:
+    return {
+        "runtime": "product_model_native_decision",
+        "prompt_hash": text_hash(prompt),
+        "context_hash": stable_hash(_product_native_safe_context_shape(context)),
+        "request_metadata": {
+            "raw_text_transport": "product_model_native_intent_v1",
+            "model_visible_affordances": list(context.get("model_visible_skills") or ()),
+            "fallback_auto_enabled": False,
+            "provider_native_tools_enabled": False,
+        },
+    }
+
+
+def _product_native_real_request_factory(
+    *,
+    provider_id: str,
+    backend_id: str,
+    model_id: str,
+    user_model_contract_id: str,
+):
+    def _factory(context: dict[str, Any], prompt: str) -> RealModelRequest:
+        metadata = {
+            "raw_text_transport": "product_model_native_intent_v1",
+            "public_product_spine": True,
+            "runtime_entrypoint": "RuntimeHost.run_product_action_kernel_task_loop",
+            "capability_dispatch": "ProductActionKernel",
+            "model_visible_affordances": list(context.get("model_visible_skills") or ()),
+            "fallback_auto_enabled": False,
+            "provider_native_tools_enabled": False,
+        }
+        prompt_hash = text_hash(prompt)
+        frame_hash = stable_hash(_product_native_safe_context_shape(context))
+        return RealModelRequest(
+            provider_id=provider_id,
+            model_id=model_id,
+            backend_id=backend_id,
+            backend=backend_id,
+            runtime="product_model_native_decision",
+            prompt_hash=prompt_hash,
+            frame_hash=frame_hash,
+            user_model_contract_id=user_model_contract_id,
+            estimated_input_tokens=max(1, (len(prompt) + 3) // 4),
+            estimated_output_tokens=700,
+            prompt_text_in_memory_only=prompt,
+            request_metadata=metadata,
+            timeout_policy_id="canonical_product_default_timeout",
+            retry_policy_id="canonical_product_no_retry",
+            budget_policy_id="canonical_product_bounded_budget",
+            request_hash=stable_hash(
+                {
+                    "provider_id": provider_id,
+                    "backend_id": backend_id,
+                    "model_id": model_id,
+                    "runtime": "product_model_native_decision",
+                    "prompt_hash": prompt_hash,
+                    "frame_hash": frame_hash,
+                    "user_model_contract_id": user_model_contract_id,
+                    "request_metadata": metadata,
+                }
+            ),
+        )
+
+    return _factory
+
+
+def _product_native_safe_context_shape(context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "loop_id": context.get("loop_id"),
+        "progress_state": context.get("progress_state"),
+        "model_visible_skills": list(context.get("model_visible_skills") or ()),
+        "runtime_available_actions": list(context.get("runtime_available_actions") or ()),
+        "product_action_kernel_dispatch_count": context.get("product_action_kernel_dispatch_count"),
+        "recent_product_receipt_count": len(context.get("recent_product_receipt_refs") or ()),
+        "model_calls_used": context.get("model_calls_used"),
+        "material_actions_used": context.get("material_actions_used"),
+    }
 
 
 class _RealProviderCanonicalDecisionClient:

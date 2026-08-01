@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -76,9 +77,21 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert len(ledger["entries"]) == 65
     assert len({entry["id"] for entry in ledger["entries"]}) == 65
     assert ledger["severity_counts"] == {"P0": 15, "P1": 44, "P2": 6}
-    assert ledger["current_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
-    assert ledger["fixed_proven_count"] == 1
-    assert ledger["status_counts"] == {"CONFIRMED_CURRENT": 9, "FIXED_PROVEN": 1, "IMPLEMENTING": 7, "OPEN": 48}
+    assert ledger["current_head"] == "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+    assert ledger["tested_runtime_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert ledger["attestation_head"] == "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+    entries = ledger["entries"]
+    status_counts = dict(sorted(Counter(entry["status"] for entry in entries).items()))
+    proof_tier_counts = dict(sorted(Counter(entry["proof_tier"] for entry in entries).items()))
+    fixed_entries = [entry for entry in entries if entry["status"] == "FIXED_PROVEN"]
+    assert ledger["fixed_proven_count"] == len(fixed_entries) == 0
+    assert ledger["status_counts"] == status_counts == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
+    assert ledger["proof_tier_counts"] == proof_tier_counts
+    assert ledger["fixed_proven_by_severity"] == {"P0": 0, "P1": 0, "P2": 0}
+    assert ledger["implementation_tested_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert ledger["proof_runtime_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert ledger["ledger_commit_classes"]["deletion_commits"] == []
+    assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in ledger["ledger_commit_classes"]["proof_commits"]
     slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]
     assert slice_ids[:3] == [
         "SLICE_0A_STAGE0_LEDGER_AND_LOCAL_VERTICAL_SKELETON",
@@ -86,8 +99,8 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
         "SLICE_0C_CODE_SANDBOX_PHYSICAL_BOUNDARY_PROBE_AND_QUARANTINE",
     ]
     assert "SLICE_0E_KERNEL_BACKED_PRODUCT_ROUTE_PROVIDER_AUTH_BLOCKED" in slice_ids
-    by_id = {entry["id"]: entry for entry in ledger["entries"]}
-    assert by_id["P0-01"]["status"] == "FIXED_PROVEN"
+    by_id = {entry["id"]: entry for entry in entries}
+    assert by_id["P0-01"]["status"] == "IMPLEMENTING"
     assert by_id["P0-02"]["status"] == "CONFIRMED_CURRENT"
     assert by_id["P0-02"]["chosen_invariant"] == "do_not_expose_unproven_code_exec_as_canonical_power"
     assert by_id["P0-03"]["status"] == "IMPLEMENTING"
@@ -97,9 +110,12 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert by_id["C-P0-06"]["status"] == "IMPLEMENTING"
     assert by_id["P1-25"]["status"] == "IMPLEMENTING"
     tranche = ledger["canonical_core_vertical_product_tranche"]
-    assert tranche["status"] == "VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE"
-    assert tranche["checkpoint_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
-    assert tranche["provider_failure_diagnosis"]["classification"] == "VALID_REAL_MODEL_PRODUCT_COMPLETED_QWEN_FIXTURE"
+    assert tranche["status"] == "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_BUT_P0_01_NOT_CLOSED"
+    assert tranche["checkpoint_head"] == "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+    assert tranche["tested_runtime_head"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert tranche["attestation_head"] == "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+    assert tranche["provider_failure_diagnosis"]["classification"] == "VALID_REAL_MODEL_CANONICAL_SLICE_PROVEN"
+    assert tranche["p0_01_fixed_proven"] is False
     forbidden_credential_hash_prefix = "credential_" + "safe_hash"
     assert not any(key.startswith(forbidden_credential_hash_prefix) for key in tranche["provider_failure_diagnosis"])
     assert tranche["provider_authenticated"] is True
@@ -122,11 +138,11 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert qwen_attempt["material_action_count"] == 1
     assert qwen_attempt["model_selected_finish"] is True
     assert qwen_attempt["receipt_artifacts_verified"] is True
-    assert by_id["P0-01"]["fixed_proven_commit"] == "b721ce62343316bcdbe9c792af8a0967c8ae1680"
+    assert by_id["P0-01"]["fixed_proven_commit"] == ""
     assert by_id["C-P0-01"]["fixed_proven_commit"] == ""
     assert by_id["C-P0-06"]["fixed_proven_commit"] == ""
     assert by_id["P0-07"]["fixed_proven_commit"] == ""
-    assert "b721ce62343316bcdbe9c792af8a0967c8ae1680" in by_id["P0-01"]["slice_status_history"][-1]["head"]
+    assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in by_id["P0-01"]["slice_status_history"][-1]["head"]
     required_fields = {
         "target_wave",
         "depends_on",
@@ -138,7 +154,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
         "fixed_proven_commit",
         "remaining_risk",
     }
-    for entry in ledger["entries"]:
+    for entry in entries:
         assert required_fields <= set(entry), entry["id"]
         assert entry["target_wave"] in {"W1", "W2", "W3", "W4", "W5"}
         assert isinstance(entry["depends_on"], list)
@@ -147,12 +163,15 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
         assert isinstance(entry["fixed_proven_commit"], str)
         if entry["status"] == "FIXED_PROVEN":
             assert entry["fixed_proven_commit"]
+            assert entry["acceptance_probe"]
+            assert entry["integration_or_live_probe"]
+            assert entry["proof_artifacts"]
     assert ledger["published_counters_after_commit"] == {
-        "checkpoint_commit": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-        "P0 fixed / 15": "1/15",
+        "checkpoint_commit": ledger["current_worktree_or_commit"],
+        "P0 fixed / 15": "0/15",
         "P1 fixed / 44": "0/44",
         "P2 fixed / 6": "0/6",
-        "total FIXED_PROVEN / 65": "1/65",
+        "total FIXED_PROVEN / 65": "0/65",
     }
 
 
@@ -1048,9 +1067,70 @@ def test_public_product_cli_entrypoint_uses_kernel_backed_vertical_slice(
     assert payload["mission_record_created_before_provider"] is True
     assert payload["provider_decision_count"] == 2
     assert payload["material_action_count"] == 1
-    assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
+    assert payload["proof_root"]["integrity_model"] == "product_action_kernel_task_loop_finalgate_v1"
     assert payload["proof_root"]["receipt_artifacts_verified"] is True
     assert payload["cleanup_completed"] is True
+
+
+def test_public_product_cli_entrypoint_reaches_runtimehost_product_action_kernel_spine(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    workspace = _workspace(tmp_path)
+    script = tmp_path / "decisions.jsonl"
+    script.write_text(
+        "\n".join(
+            [
+                json.dumps({"skill": "search", "params": {"query": "needle"}}),
+                json.dumps({"skill": "finish", "params": {"safe_summary": "Public product route finished."}}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    run_root = tmp_path / "runs"
+
+    code = cli.main(
+        [
+            "canonical-product-run",
+            "--objective",
+            "Discriminate the public product path from a parallel canonical loop.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(run_root),
+            "--decision-script",
+            str(script),
+            "--provider-model",
+            "scripted-product-model-native/model",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    event_types: list[str] = []
+    for event_path in run_root.rglob("events.jsonl"):
+        for line in event_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            event = json.loads(line)
+            event_types.append(event.get("event_type") or event.get("event_kind"))
+
+    assert code == 0
+    assert payload["status"] == "completed"
+    assert payload["public_product_spine"]["strategy"] == "ROOT_MISSION_RUNTIME_TO_RUNTIMEHOST_PRODUCT_KERNEL_ADAPTER"
+    assert payload["public_product_spine"]["decision_client"] == "ProductModelNativeDecisionClient"
+    assert payload["public_product_spine"]["runtime_entrypoint"] == "RuntimeHost.run_product_action_kernel_task_loop"
+    assert payload["public_product_spine"]["capability_dispatch"] == "ProductActionKernel"
+    assert payload["public_product_spine"]["legacy_action_envelope_adapter"] is True
+    assert payload["mission_record_created_before_provider"] is True
+    assert len(payload["mission_ids"]) == 1
+    assert payload["root_mission_id"] == payload["mission_ids"][0]
+    assert payload["product_receipt_refs"]
+    assert "mission_dispatch_started" in event_types
+    assert "mission_dispatch_closeout_persisted" in event_types
+    receipt_files = list(run_root.rglob("_pak/r/*.json"))
+    assert len(receipt_files) == len(payload["product_receipt_refs"])
 
 
 def test_public_product_cli_real_provider_mode_uses_product_native_transport(
@@ -1107,22 +1187,18 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     assert len(captured_requests) == 2
     assert captured_requests[0].runtime == "product_model_native_decision"
     assert captured_requests[0].request_metadata["raw_text_transport"] == "product_model_native_intent_v1"
-    assert captured_requests[0].request_metadata["model_visible_affordances"] == [
-        "workspace.list",
-        "workspace.read",
-        "workspace.search",
-        "sentinel_loop.finish",
-    ]
+    assert captured_requests[0].request_metadata["model_visible_affordances"] == ["read", "search"]
     prompt = captured_requests[0].prompt_text_in_memory_only
     assert "Allowed operations are generated from Sentinel's executable capability graph" in prompt
     assert "model_visible_operation_schemas" in prompt
+    assert "runtime_internal_action" in prompt
     assert "workspace.search" in prompt
     assert "- {\"capability\":\"workspace\"" not in prompt
     assert captured_requests[0].provider_id == "aliyun_dashscope"
     assert captured_requests[0].backend_id == "aliyun_openai_compatible_chat"
     assert captured_requests[0].model_id == "glm-5.2"
     assert payload["status"] == "completed"
-    assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
+    assert payload["proof_root"]["integrity_model"] == "product_action_kernel_task_loop_finalgate_v1"
 
 
 def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:

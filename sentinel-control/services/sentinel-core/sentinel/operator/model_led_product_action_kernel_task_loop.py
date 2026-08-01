@@ -647,6 +647,11 @@ class ModelLedProductActionKernelTaskLoop:
         if self.material_actions_used >= self.max_material_actions and self.product_receipt_refs:
             return ("sentinel_loop.finish",)
         actions = []
+        actions.extend([
+            "workspace.list",
+            "workspace.read",
+            "workspace.search",
+        ])
         if _workspace_create_file_plans(self.workspace_root, mission_objective=self.mission_objective):
             actions.append("workspace_patch.create_file")
         if _workspace_patch_plans(self.workspace_root):
