@@ -346,7 +346,7 @@ def test_partial_grounded_summary_keeps_browser_skills_available_after_finish_re
     assert recovery_contexts
     recovery_context = recovery_contexts[-1]
     assert recovery_context["primary_model_recommended_next_skill"] != "finish"
-    assert {"browse_search", "extract"} & set(recovery_context["model_visible_skills"])
+    assert {"search", "extract_evidence"} & set(recovery_context["model_visible_skills"])
 
 
 def test_honest_blocker_can_finish_without_fabricated_factual_claims(tmp_path: Path) -> None:
