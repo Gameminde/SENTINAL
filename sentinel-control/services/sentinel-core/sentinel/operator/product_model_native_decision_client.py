@@ -293,13 +293,21 @@ def _canonical_real_model_request(
 def _compile_canonical_product_prompt(request: Any) -> str:
     state = request.canonical_state.safe_model_dump()
     operation_schemas = state.get("model_visible_operation_schemas", [])
+    affordances = tuple(str(item) for item in state.get("model_visible_affordances", ()) if str(item))
+    browser_readonly_available = any(item.startswith("real_browser_control.real_browser.") for item in affordances)
+    capability_boundary = (
+        "Do not request code execution, network outside the registered read-only browser route, credentials, "
+        "shell, provider-native tools, fallback, authority changes, or mutating browser effects.\n"
+        if browser_readonly_available
+        else "Do not request code execution, network, credentials, browser, shell, provider-native tools, fallback, or authority changes.\n"
+    )
     return (
         "You are the model brain. Sentinel is the body, state, effects, proof, and laws.\n"
         "Choose exactly one safe next operation for this read-only workspace mission.\n"
         "Return exactly one JSON object and no markdown.\n"
         "Allowed operations are generated from Sentinel's executable capability graph:\n"
         f"{json.dumps(operation_schemas, sort_keys=True, default=str)}\n"
-        "Do not request code execution, network, credentials, browser, shell, provider-native tools, fallback, or authority changes.\n"
+        f"{capability_boundary}"
         "Finish only after a prior receipt/evidence ref supports the answer.\n"
         f"Mission objective: {request.canonical_state.objective}\n"
         f"Mission objective hash: {text_hash(request.canonical_state.objective)}\n"

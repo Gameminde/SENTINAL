@@ -13,6 +13,12 @@ from pydantic import Field, model_validator
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
+from sentinel.operator.canonical_browser_readonly_adapter import (
+    MUTATING_BROWSER_OPERATIONS,
+    READ_ONLY_BROWSER_OPERATIONS,
+    CanonicalBrowserReadOnlyAdapter,
+    FakeBrowserReadOnlyBackend,
+)
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
@@ -209,6 +215,7 @@ class CanonicalState(SentinelModel):
     proof_gaps: tuple[str, ...] = ("external_append_only_signer_missing",)
     remaining_provider_decisions: int
     remaining_material_actions: int
+    browser_environment_state: dict[str, Any] = Field(default_factory=dict)
     state_hash: str = ""
 
     @model_validator(mode="after")
@@ -238,6 +245,7 @@ class CanonicalState(SentinelModel):
             "proof_gaps": list(self.proof_gaps),
             "remaining_provider_decisions": self.remaining_provider_decisions,
             "remaining_material_actions": self.remaining_material_actions,
+            "browser_environment_state": redact_operator_value(self.browser_environment_state),
         }
         if include_hash:
             payload["state_hash"] = self.state_hash
@@ -494,6 +502,100 @@ def build_workspace_read_capability_graph() -> ExecutableCapabilityGraph:
     )
 
 
+def build_workspace_browser_readonly_capability_graph() -> ExecutableCapabilityGraph:
+    workspace_graph = build_workspace_read_capability_graph()
+    finish_route = tuple(route for route in workspace_graph.routes if route.capability == "sentinel_loop")
+    workspace_routes = tuple(route for route in workspace_graph.routes if route.capability != "sentinel_loop")
+    browser_routes = (
+        _browser_readonly_route("real_browser.observe", arguments_schema={"type": "object", "additionalProperties": False}),
+        _browser_readonly_route(
+            "real_browser.open",
+            arguments_schema={
+                "type": "object",
+                "properties": {"target_origin": {"type": "string"}},
+                "additionalProperties": False,
+            },
+            materiality_verifier="bounded_origin_state_observed",
+        ),
+        _browser_readonly_route(
+            "real_browser.search",
+            arguments_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "ref": {"type": "string"},
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+            materiality_verifier="typed_search_outcome_observed",
+        ),
+        _browser_readonly_route(
+            "real_browser.open_result",
+            arguments_schema={
+                "type": "object",
+                "properties": {"ref": {"type": "string"}},
+                "required": ["ref"],
+                "additionalProperties": False,
+            },
+            materiality_verifier="typed_link_follow_delta_observed",
+        ),
+        _browser_readonly_route(
+            "real_browser.inspect_result",
+            arguments_schema={
+                "type": "object",
+                "properties": {"ref": {"type": "string"}},
+                "additionalProperties": False,
+            },
+            materiality_verifier="typed_inspection_observed",
+        ),
+        _browser_readonly_route(
+            "real_browser.extract_evidence",
+            arguments_schema={
+                "type": "object",
+                "properties": {
+                    "entity_kind": {"type": "string"},
+                    "scope": {"type": "string", "default": "current_page"},
+                },
+                "additionalProperties": False,
+            },
+            materiality_verifier="public_evidence_delta_observed",
+        ),
+        _browser_readonly_route(
+            "real_browser.verify_extraction",
+            arguments_schema={
+                "type": "object",
+                "properties": {"evidence_refs": {"type": "array", "items": {"type": "string"}}},
+                "additionalProperties": False,
+            },
+            materiality_verifier="verification_state_observed",
+        ),
+        _browser_readonly_route(
+            "real_browser.recover_session",
+            arguments_schema={
+                "type": "object",
+                "properties": {"failure_ref": {"type": "string"}},
+                "additionalProperties": False,
+            },
+            materiality_verifier="lease_state_transition_observed",
+        ),
+    )
+    quarantined = (
+        *workspace_graph.quarantined_capabilities,
+        *(
+            QuarantinedCapability(
+                capability="real_browser_control",
+                operation=operation,
+                reason="browser_mutating_or_special_effect_not_ready_in_c4_read_only_cutover",
+                proof_tier="NOT_RUN_PHYSICAL_BROWSER",
+                unblock_requirement="explicit capability authority, sandbox/interlock, live body proof and proof-root parity",
+            )
+            for operation in sorted(MUTATING_BROWSER_OPERATIONS)
+        ),
+    )
+    return ExecutableCapabilityGraph(routes=(*workspace_routes, *browser_routes, *finish_route), quarantined_capabilities=quarantined)
+
+
 def run_canonical_dev_mission(
     *,
     objective: str,
@@ -505,6 +607,8 @@ def run_canonical_dev_mission(
     provider_decisions_reserved_for_finish: int = 6,
     cancellation_token: RootMissionCancellationToken | None = None,
     granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
+    capability_graph: ExecutableCapabilityGraph | None = None,
+    browser_readonly_backend: FakeBrowserReadOnlyBackend | None = None,
 ) -> CanonicalDevMissionResult:
     runtime = RootMissionRuntime(
         objective=objective,
@@ -515,6 +619,8 @@ def run_canonical_dev_mission(
         provider_decisions_reserved_for_finish=provider_decisions_reserved_for_finish,
         cancellation_token=cancellation_token,
         granted_authorities=granted_authorities,
+        capability_graph=capability_graph,
+        browser_readonly_backend=browser_readonly_backend,
         allow_legacy_action_envelope=True,
     )
     return runtime.run(model_client=model_client)
@@ -533,6 +639,8 @@ def run_canonical_product_mission(
     provider_decisions_reserved_for_finish: int = 6,
     cancellation_token: RootMissionCancellationToken | None = None,
     granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
+    capability_graph: ExecutableCapabilityGraph | None = None,
+    browser_readonly_backend: FakeBrowserReadOnlyBackend | None = None,
 ) -> CanonicalDevMissionResult:
     runtime = RootMissionRuntime(
         objective=objective,
@@ -545,6 +653,8 @@ def run_canonical_product_mission(
         kernel=kernel,
         session_id=session_id,
         granted_authorities=granted_authorities,
+        capability_graph=capability_graph,
+        browser_readonly_backend=browser_readonly_backend,
         allow_legacy_action_envelope=False,
     )
     return runtime.run(model_client=model_client)
@@ -565,6 +675,7 @@ class RootMissionRuntime:
         kernel: MissionKernel | None = None,
         session_id: str = "canonical_core_dev_session",
         granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
+        browser_readonly_backend: FakeBrowserReadOnlyBackend | None = None,
         allow_legacy_action_envelope: bool = False,
     ) -> None:
         self.root_mission_id = new_id("root_mission")
@@ -583,7 +694,15 @@ class RootMissionRuntime:
         self.granted_authorities = frozenset(granted_authorities)
         self.allow_legacy_action_envelope = allow_legacy_action_envelope
         self._workspace_backend = WorkspaceReadOnlyRuntime(workspace_root=self.workspace_root)
-        self._product_action_kernel = ActionKernel({"workspace": self._execute_workspace_backend})
+        self._browser_readonly_adapter = (
+            CanonicalBrowserReadOnlyAdapter(browser_readonly_backend)
+            if browser_readonly_backend is not None
+            else None
+        )
+        executors = {"workspace": self._execute_workspace_backend}
+        if self._browser_readonly_adapter is not None:
+            executors["real_browser_control"] = self._browser_readonly_adapter.execute
+        self._product_action_kernel = ActionKernel(executors)
         self.decisions: list[CanonicalDecision] = []
         self.receipts: list[CanonicalEffectReceipt] = []
         self.evidence_refs: list[str] = []
@@ -600,6 +719,9 @@ class RootMissionRuntime:
         self.mission_record_created_before_provider = False
         self._precondition_blocker = ""
         self._closed = False
+        self._cleanup_completed = False
+        self._cleanup_failures: list[str] = []
+        self._browser_environment_state: dict[str, Any] = {}
         if self.kernel is not None:
             self._create_and_start_mission_record()
 
@@ -747,19 +869,42 @@ class RootMissionRuntime:
             finish_available=self._finish_available(),
             remaining_provider_decisions=max(0, self.budget.max_provider_decisions - self.provider_decision_count),
             remaining_material_actions=max(0, self.budget.max_material_actions - self.material_action_count),
+            browser_environment_state=self._browser_environment_state,
         )
 
     def close(self) -> None:
         if self._closed:
             return
         self._closed = True
+        cleanup_metadata: dict[str, Any] = {"cleanup_completed": True}
+        if self._browser_readonly_adapter is not None:
+            try:
+                cleanup_metadata["browser_readonly_cleanup"] = self._browser_readonly_adapter.backend.cleanup()
+                cleanup_metadata["cleanup_completed"] = bool(
+                    cleanup_metadata["browser_readonly_cleanup"].get("cleanup_completed")
+                )
+                if not cleanup_metadata["cleanup_completed"]:
+                    self._cleanup_failures.append("browser_readonly_survivor_detected")
+            except Exception as exc:  # noqa: BLE001
+                cleanup_metadata["cleanup_completed"] = False
+                cleanup_metadata["browser_readonly_cleanup_failed"] = _safe_exception_code(exc)
+                self._cleanup_failures.append(_safe_exception_code(exc))
+        self._cleanup_completed = not self._cleanup_failures and bool(cleanup_metadata.get("cleanup_completed"))
         if self.kernel is not None:
             try:
                 self.kernel.store.append_event(
                     self.root_mission_id,
-                    event_type="canonical_cleanup_completed",
-                    safe_summary="Canonical root mission cleanup completed.",
-                    metadata={"cleanup_completed": True},
+                    event_type=(
+                        "canonical_browser_readonly_cleanup_completed"
+                        if self._browser_readonly_adapter is not None and self._cleanup_completed
+                        else "canonical_cleanup_completed"
+                    ),
+                    safe_summary=(
+                        "Canonical browser read-only cleanup completed."
+                        if self._browser_readonly_adapter is not None and self._cleanup_completed
+                        else "Canonical root mission cleanup completed."
+                    ),
+                    metadata=cleanup_metadata,
                 )
             except Exception:
                 return
@@ -767,6 +912,8 @@ class RootMissionRuntime:
     def workspace_capability_owner(self, route: CanonicalCapabilityRoute) -> str:
         if route.capability == "workspace":
             return "ProductActionKernel:workspace"
+        if route.capability == "real_browser_control":
+            return "ProductActionKernel:real_browser_control"
         if route.capability == "sentinel_loop":
             return "RootMissionRuntime:terminal_decision"
         return "UNKNOWN"
@@ -904,8 +1051,10 @@ class RootMissionRuntime:
         route: CanonicalCapabilityRoute,
         decision: CanonicalDecision,
     ) -> ActionResult:
-        if route.capability != "workspace":
+        if route.capability not in {"workspace", "real_browser_control"}:
             raise CanonicalCoreError(f"canonical_product_kernel_capability_missing:{route.affordance}")
+        if route.capability == "real_browser_control" and self._browser_readonly_adapter is None:
+            raise CanonicalCoreError("canonical_browser_readonly_backend_missing")
         safe_arguments = redact_operator_value(decision.arguments)
         idempotency_key = stable_hash(
             {
@@ -926,6 +1075,11 @@ class RootMissionRuntime:
                 "canonical_route": route.model_dump(mode="json"),
                 "decision_origin": decision.decision_origin.value,
                 "canonical_public_route": True,
+                "root_cancellation_token": self.cancellation_token,
+                "mission_objective": self.objective,
+                "available_actions": self.capability_graph.model_visible_affordances(),
+                "remaining_provider_decisions": max(0, self.budget.max_provider_decisions - self.provider_decision_count),
+                "remaining_material_actions": max(0, self.budget.max_material_actions - self.material_action_count),
             },
             idempotency_key=idempotency_key,
             authority_ref=f"root_authority:{stable_hash(sorted(self.granted_authorities))[:24]}",
@@ -944,7 +1098,7 @@ class RootMissionRuntime:
         if not action_result.material_action:
             return
         cards = action_result.context_cards
-        observation = cards.get("workspace_readonly_observation")
+        observation = cards.get("workspace_readonly_observation") or cards.get("browser_readonly_observation")
         backend_kind = ""
         if isinstance(observation, dict):
             backend_kind = str(observation.get("backend_kind") or "").lower()
@@ -952,11 +1106,16 @@ class RootMissionRuntime:
             raise CanonicalCoreError("canonical_simulated_backend_cannot_create_material_receipt")
 
     def _mission_authority_envelope(self) -> MissionAuthorityEnvelope:
+        allowed_tools = [
+            capability
+            for capability in dict.fromkeys(route.capability for route in self.capability_graph.routes)
+            if capability != "sentinel_loop"
+        ]
         return MissionAuthorityEnvelope(
             user_id="sentinel_canonical_core",
-            mission_title="Canonical product workspace mission",
+            mission_title="Canonical product mission",
             mission_objective=self.objective,
-            allowed_tools=["workspace"],
+            allowed_tools=allowed_tools,
             allowed_actions=list(self.capability_graph.model_visible_affordances()),
             forbidden_actions=[
                 "provider_native_tools",
@@ -969,13 +1128,18 @@ class RootMissionRuntime:
         )
 
     def _observation_from_action_result(self, action_result: ActionResult) -> dict[str, Any]:
+        browser_environment_state = action_result.context_cards.get("browser_environment_state")
+        if isinstance(browser_environment_state, dict):
+            self._browser_environment_state = dict(redact_operator_value(browser_environment_state))
         observation = action_result.context_cards.get("workspace_readonly_observation")
+        if not isinstance(observation, dict):
+            observation = action_result.context_cards.get("browser_readonly_observation")
         if not isinstance(observation, dict):
             observation = {
                 "action_result_status": action_result.status,
                 "observation_summary": action_result.observation_summary,
             }
-        safe_observation = _restore_workspace_observation_types(dict(redact_operator_value(observation)))
+        safe_observation = _restore_observation_types(dict(redact_operator_value(observation)))
         safe_observation.update(
             {
                 "product_action_kernel_dispatch": True,
@@ -1077,7 +1241,7 @@ class RootMissionRuntime:
             decisions=tuple(self.decisions),
             receipts=tuple(self.receipts),
             proof_root=proof,
-            cleanup_completed=self._closed,
+            cleanup_completed=self._cleanup_completed,
             final_answer=redact_operator_text(final_answer),
             cancellation_reason=redact_operator_text(cancellation_reason),
             blocked_capability=redact_operator_text(blocked_capability),
@@ -1405,6 +1569,31 @@ def _workspace_route(operation: str, *, materiality_verifier: str) -> CanonicalC
     )
 
 
+def _browser_readonly_route(
+    operation: str,
+    *,
+    arguments_schema: dict[str, Any],
+    materiality_verifier: str = "browser_state_observed",
+) -> CanonicalCapabilityRoute:
+    if operation not in READ_ONLY_BROWSER_OPERATIONS:
+        raise CanonicalCoreError(f"browser_readonly_route_not_allowed:{operation}")
+    return CanonicalCapabilityRoute(
+        capability="real_browser_control",
+        operation=operation,
+        executor_id=f"real_browser_control.{operation}",
+        effect_kind=EffectKind.REAL,
+        backend_mode="fake_in_memory_browser_read_only",
+        required_authority="browser_read",
+        arguments_schema=arguments_schema,
+        preconditions=("browser_readonly_authority", "bounded_origin_or_safe_ref"),
+        readiness_probe="fake_browser_readonly_session_ready",
+        materiality_verifier=materiality_verifier,
+        proof_contract="canonical_core_browser_readonly_receipt_v1",
+        recovery_policy="typed_browser_readonly_recover_or_block",
+        cleanup_contract="root_browser_fake_lease_close",
+    )
+
+
 def _workspace_arguments_schema(operation: str) -> dict[str, Any]:
     if operation == "list":
         return {
@@ -1473,6 +1662,12 @@ def _observation_paths(observation: dict[str, Any]) -> tuple[str, ...]:
     path = observation.get("path")
     if isinstance(path, str) and path and path != ".":
         paths.append(path)
+    page_identity_hash = observation.get("page_identity_hash")
+    if isinstance(page_identity_hash, str) and page_identity_hash:
+        paths.append(f"browser_page:{page_identity_hash[:24]}")
+    for evidence_ref in observation.get("browser_evidence_refs", ()):
+        if isinstance(evidence_ref, str) and evidence_ref:
+            paths.append(evidence_ref)
     for match in observation.get("matches", ()):
         if not isinstance(match, dict):
             continue
@@ -1502,7 +1697,7 @@ def _progress_fingerprint_payload(observation: dict[str, Any]) -> dict[str, Any]
     return {key: value for key, value in observation.items() if key not in dynamic_keys}
 
 
-def _restore_workspace_observation_types(observation: dict[str, Any]) -> dict[str, Any]:
+def _restore_observation_types(observation: dict[str, Any]) -> dict[str, Any]:
     if isinstance(observation.get("entries"), list):
         observation["entries"] = tuple(observation["entries"])
     if isinstance(observation.get("matches"), list):
@@ -1518,6 +1713,8 @@ def _restore_workspace_observation_types(observation: dict[str, Any]) -> dict[st
     search_scope = observation.get("search_scope")
     if isinstance(search_scope, dict) and isinstance(search_scope.get("channels"), list):
         observation["search_scope"] = {**search_scope, "channels": tuple(search_scope["channels"])}
+    if isinstance(observation.get("browser_evidence_refs"), list):
+        observation["browser_evidence_refs"] = tuple(observation["browser_evidence_refs"])
     return observation
 
 
@@ -1532,6 +1729,8 @@ def _relative_workspace_path(root: Path, path: Path) -> str:
 
 
 def _safe_exception_code(exc: Exception) -> str:
+    if isinstance(exc, CanonicalEffectDispatchError):
+        return _safe_exception_code(exc.cause)
     text = str(exc)
     if isinstance(exc, (CanonicalCoreError, ActionKernelError)) and text and "\n" not in text and len(text) <= 120:
         if re.fullmatch(r"[A-Za-z0-9_.:-]+", text):
@@ -1560,6 +1759,7 @@ __all__ = [
     "QuarantinedCapability",
     "RootMissionRuntime",
     "RootMissionCancellationToken",
+    "build_workspace_browser_readonly_capability_graph",
     "build_workspace_read_capability_graph",
     "run_canonical_dev_mission",
     "run_canonical_product_mission",

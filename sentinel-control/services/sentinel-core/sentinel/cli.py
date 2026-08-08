@@ -43,8 +43,10 @@ from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope
 from sentinel.operator.canonical_core import (
     CanonicalCoreError,
     CanonicalDecisionRequest,
+    build_workspace_browser_readonly_capability_graph,
     run_canonical_product_mission,
 )
+from sentinel.operator.canonical_browser_readonly_adapter import FakeBrowserReadOnlyBackend
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.legacy_classification import InternalAccessClassification
 from sentinel.operator.mission_lifecycle_service import (
@@ -226,6 +228,11 @@ def build_parser() -> argparse.ArgumentParser:
     canonical_parser.add_argument("--provider-model", required=True, help="Provider/model identity label for the decision stream.")
     canonical_parser.add_argument("--max-provider-decisions", type=int, default=40)
     canonical_parser.add_argument("--max-material-actions", type=int, default=120)
+    canonical_parser.add_argument(
+        "--enable-browser-readonly-fake",
+        action="store_true",
+        help="Enable the local fake/in-memory read-only Browser Organ route for C4 probes only.",
+    )
     canonical_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
 
     canonical_product_parser = subparsers.add_parser(
@@ -250,6 +257,11 @@ def build_parser() -> argparse.ArgumentParser:
     canonical_product_parser.add_argument("--model-id", default=None, help="Catalog model id for real provider mode.")
     canonical_product_parser.add_argument("--max-provider-decisions", type=int, default=40)
     canonical_product_parser.add_argument("--max-material-actions", type=int, default=120)
+    canonical_product_parser.add_argument(
+        "--enable-browser-readonly-fake",
+        action="store_true",
+        help="Enable the local fake/in-memory read-only Browser Organ route for C4 probes only.",
+    )
     canonical_product_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
 
     observe_parser = subparsers.add_parser("browser-observe", help="Perform a live governed public browser observation.")
@@ -534,6 +546,25 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
         decision_client_label = "ProductModelNativeDecisionClient"
         provider_model = f"{provider_id}/{model_id}"
     host = SentinelRuntimeHost(run_root=run_root)
+    capability_graph = None
+    browser_readonly_backend = None
+    granted_authorities = ("workspace_read", "none")
+    if bool(getattr(args, "enable_browser_readonly_fake", False)):
+        capability_graph = build_workspace_browser_readonly_capability_graph()
+        browser_readonly_backend = FakeBrowserReadOnlyBackend(
+            allowed_origins=("sqlite.org", "python.org", "developer.mozilla.org"),
+            page_title="Canonical fake read-only browser",
+            evidence_cards=(
+                {
+                    "evidence_id": "canonical_fake_browser_public_doc",
+                    "kind": "documentation_page",
+                    "title": "Canonical fake read-only browser evidence",
+                    "summary": "Local fake evidence for C4 single-spine browser cutover.",
+                    "confidence": 0.9,
+                },
+            ),
+        )
+        granted_authorities = ("workspace_read", "browser_read", "none")
     cleanup_completed = False
     host.start()
     mission_result = None
@@ -547,6 +578,9 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
             session_id="canonical_product_public_root",
             max_provider_decisions=int(args.max_provider_decisions),
             max_material_actions=int(args.max_material_actions),
+            capability_graph=capability_graph,
+            browser_readonly_backend=browser_readonly_backend,
+            granted_authorities=granted_authorities,
         )
     finally:
         cleanup_completed = host.shutdown().status.value == "stopped"
@@ -576,6 +610,7 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
         public_product_spine={
             "strategy": "RUNTIMEHOST_HOSTS_ROOTMISSIONRUNTIME_CANONICAL_WORKSPACE",
             "public_surface": public_surface,
+            "browser_readonly_fake_enabled": bool(getattr(args, "enable_browser_readonly_fake", False)),
             "decision_client": decision_client_label,
             "runtime_entrypoint": "RootMissionRuntime.run",
             "model_decision_protocol": "CanonicalDecision",
