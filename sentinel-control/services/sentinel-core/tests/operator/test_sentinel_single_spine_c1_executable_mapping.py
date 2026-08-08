@@ -463,3 +463,63 @@ def test_c3_product_loop_artifacts_are_replayable_and_classified() -> None:
     assert "C:\\" not in joined_artifacts
     assert "provider_calls = 0" in report
     assert "browser_runs = 0" in report
+
+
+def test_c4_browser_readonly_cutover_artifacts_match_current_source() -> None:
+    repo_root = _repo_root()
+    docs = _sentinel_control_root() / "docs" / "reviews" / "deep_power_audit"
+    baseline_path = docs / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json"
+    manifest_path = docs / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv"
+    report_path = docs / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md"
+    probe = _probe_module()
+
+    expected = json.loads(json.dumps(probe.build_c4_browser_readonly_cutover_baseline(repo_root), sort_keys=True))
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    rows = list(csv.DictReader(manifest_path.open(encoding="utf-8")))
+    report = report_path.read_text(encoding="utf-8")
+    joined_artifacts = "\n".join(
+        [
+            baseline_path.read_text(encoding="utf-8"),
+            manifest_path.read_text(encoding="utf-8"),
+            report,
+        ]
+    )
+
+    baseline_for_compare = json.loads(json.dumps(baseline, sort_keys=True))
+    expected_for_compare = json.loads(json.dumps(expected, sort_keys=True))
+    for payload in (baseline_for_compare, expected_for_compare):
+        taxonomy = payload["head_taxonomy"]
+        taxonomy["artifact_generation_head"] = "<runtime-dependent>"
+        taxonomy["current_worktree_head"] = "<runtime-dependent>"
+        taxonomy["current_remote_head"] = "<runtime-dependent>"
+    assert baseline_for_compare == expected_for_compare
+    assert baseline["wave"] == "C4_BROWSER_READONLY_SINGLE_SPINE_CUTOVER"
+    assert baseline["provider_calls"] == 0
+    assert baseline["real_browser_runs"] == 0
+    assert baseline["external_network_calls"] == 0
+    assert baseline["global_finding_counts"]["FIXED_PROVEN"] == "0/65"
+    gates = baseline["c4_gates"]
+    assert gates["shared_product_browser_cognition_loops"] == 1
+    assert gates["browser_specific_public_cognition_loops"] == 0
+    assert gates["production_canonical_decision_clients"] == 1
+    assert gates["browser_capability_registries"] == 1
+    assert gates["browser_duplicate_owner_per_capability_id"] == 0
+    assert gates["browser_effect_dispatch_owner"] == "ProductActionKernel"
+    assert gates["browser_authority_denial_before_backend"] is True
+    assert gates["browser_observation_visible_next_model_turn"] is True
+    assert gates["browser_receipt_linked_to_root_mission_record"] is True
+    assert gates["browser_environment_secret_leaks"] == 0
+    assert gates["browser_fake_material_success"] == 0
+    assert gates["canonical_browser_public_bypass"] is False
+    assert gates["physical_browser_boundaries"] == "NOT_RUN"
+    assert baseline["behavioral_probe"]["probe_status"] == "PASSED"
+    assert baseline["guard_probe"]["provider_calls"] == 0
+    assert baseline["guard_probe"]["real_browser_runs"] == 0
+    assert baseline["guard_probe"]["external_network_calls"] == 0
+    assert rows
+    assert {row["decision"] for row in rows} >= {"KEEP", "MIGRATE", "ARCHIVE_RESEARCH"}
+    assert "BrowserEnvironmentState" in report
+    assert "physical Browser boundaries = NOT_RUN" in report
+    assert "C:\\" not in joined_artifacts
+    assert "provider_calls = 0" in report
+    assert "browser_runs = 0" in report

@@ -238,7 +238,7 @@
   },
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
-  "current_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+  "current_head": "d1408193883f8307753cefbb0622fa8695170ab9",
   "entries": [
     {
       "acceptance_probe": "Public product request -> ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel -> receipt; fail if dispatch bypasses through run_canonical_product_mission or RootMissionRuntime direct effect execution.",
@@ -480,7 +480,11 @@
       "integration_or_live_probe": "",
       "layer": "browser_effects",
       "primary_evidence": "sentinel/operator/real_browser_control_runtime.py:1536-1569,2032-2085; controlled fake-engine probe",
-      "proof_artifacts": [],
+      "proof_artifacts": [
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md"
+      ],
       "proof_tier": "T0_STATIC_REVALIDATED",
       "remaining_risk": "Finding remains open.",
       "required_change": "Use typed effects and target roles: FOLLOW_LINK/OPEN_RESULT may only activate a link/result candidate; buttons require a separately classified effect and authority",
@@ -492,6 +496,12 @@
           "note": "P0 revalidated; not closed.",
           "proof_tier": "T0_STATIC_REVALIDATED",
           "status": "CONFIRMED_CURRENT"
+        },
+        {
+          "head": "d1408193883f8307753cefbb0622fa8695170ab9",
+          "status": "CONFIRMED_CURRENT",
+          "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "note": "C4 fake read-only open_result blocks non-link refs in the canonical route, but the physical Browser Organ path remains unproven and this finding is not closed."
         }
       ],
       "source_audit": "initial_exhaustive_audit",
@@ -502,7 +512,8 @@
       "depends_on": [],
       "change_commits": [
         "aca1f008",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "fixed_proven_commit": ""
     },
@@ -1174,7 +1185,11 @@
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
-        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "Only workspace read/search/list are compressed in the public route; patch/check and sandbox physical isolation remain W2/W5 work.",
@@ -1189,6 +1204,12 @@
           "note": "Canonical core workspace list/read/search use generic paths and search text, not app.py/test_app choreography.",
           "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
           "status": "IMPLEMENTING"
+        },
+        {
+          "head": "d1408193883f8307753cefbb0622fa8695170ab9",
+          "status": "IMPLEMENTING",
+          "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "note": "C4 routes read-only Browser Organ affordances through the canonical RootMissionRuntime -> ProductActionKernel spine with fake/in-memory backend only; no real browser/provider proof and no finding closure."
         }
       ],
       "source_audit": "initial_exhaustive_audit",
@@ -1213,14 +1234,16 @@
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "deleted_symbols": [
         "sentinel/operator/canonical_core.py::RootMissionRuntime._execute",
@@ -1725,7 +1748,11 @@
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
-        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "Non-workspace spines and public surfaces still coexist until W3/W4 migrations prove parity.",
@@ -1744,6 +1771,12 @@
           "note": "Slice 0A introduced first whole-Sentinel root runtime skeleton; organs not migrated.",
           "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
           "status": "IMPLEMENTING"
+        },
+        {
+          "head": "d1408193883f8307753cefbb0622fa8695170ab9",
+          "status": "IMPLEMENTING",
+          "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "note": "C4 routes read-only Browser Organ affordances through the canonical RootMissionRuntime -> ProductActionKernel spine with fake/in-memory backend only; no real browser/provider proof and no finding closure."
         }
       ],
       "source_audit": "whole_system_complementary_audit",
@@ -1772,14 +1805,16 @@
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "deletion_commits": [
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -1844,7 +1879,11 @@
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
-        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "Legacy model clients and model-facing surfaces remain outside the complete canonical core.",
@@ -1861,6 +1900,12 @@
           "note": "Canonical core requires a model client before the first cognitive turn; public brain-native routes still need migration.",
           "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
           "status": "IMPLEMENTING"
+        },
+        {
+          "head": "d1408193883f8307753cefbb0622fa8695170ab9",
+          "status": "IMPLEMENTING",
+          "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "note": "C4 routes read-only Browser Organ affordances through the canonical RootMissionRuntime -> ProductActionKernel spine with fake/in-memory backend only; no real browser/provider proof and no finding closure."
         }
       ],
       "source_audit": "whole_system_complementary_audit",
@@ -1885,14 +1930,16 @@
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ]
     },
     {
@@ -1996,7 +2043,11 @@
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_MANIFEST.csv",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C2_WORKSPACE_COMPRESSION_REPORT.md",
-        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "The full executable organ graph is not yet one canonical registry across all organs.",
@@ -2013,6 +2064,12 @@
           "note": "First ExecutableCapabilityGraph exists for workspace read-only routes and code_exec quarantine only.",
           "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
           "status": "IMPLEMENTING"
+        },
+        {
+          "head": "d1408193883f8307753cefbb0622fa8695170ab9",
+          "status": "IMPLEMENTING",
+          "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "note": "C4 routes read-only Browser Organ affordances through the canonical RootMissionRuntime -> ProductActionKernel spine with fake/in-memory backend only; no real browser/provider proof and no finding closure."
         }
       ],
       "source_audit": "whole_system_complementary_audit",
@@ -2041,14 +2098,16 @@
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "deletion_commits": [
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -2363,7 +2422,12 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_BASELINE.json",
         "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MANIFEST.csv",
-        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md"
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C1_EXECUTABLE_MAPPING_REPORT.md",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+        "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py",
+        "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
       "remaining_risk": "Host recovery, progress guard and deterministic postprocess origins not yet wired across product routes.",
@@ -2380,6 +2444,12 @@
           "note": "CanonicalDecision records DecisionOrigin.MODEL_SELECTED for local decisions.",
           "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
           "status": "IMPLEMENTING"
+        },
+        {
+          "head": "d1408193883f8307753cefbb0622fa8695170ab9",
+          "status": "IMPLEMENTING",
+          "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+          "note": "C4 routes read-only Browser Organ affordances through the canonical RootMissionRuntime -> ProductActionKernel spine with fake/in-memory backend only; no real browser/provider proof and no finding closure."
         }
       ],
       "source_audit": "whole_system_complementary_audit",
@@ -2399,11 +2469,13 @@
         "30c2cfad1b0d9d9089c71d6312bf481114f02691",
         "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
         "4c587859eee9ddda5c356572549153137373f695",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ],
       "fixed_proven_commit": "",
       "implementation_commits": [
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "d1408193883f8307753cefbb0622fa8695170ab9"
       ]
     },
     {
@@ -2741,8 +2813,8 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-01T14:43:01Z",
-  "synced_checkpoint_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+  "updated_at_utc": "2026-08-08T14:15:45Z",
+  "synced_checkpoint_head": "d1408193883f8307753cefbb0622fa8695170ab9",
   "ledger_schema_version": "canonical_core_finding_execution_ledger_v1",
   "fixed_proven_by_severity": {
     "P0": 0,
@@ -2751,7 +2823,7 @@
   },
   "fixed_proven_total": 0,
   "published_counters_after_commit": {
-    "checkpoint_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+    "checkpoint_commit": "d1408193883f8307753cefbb0622fa8695170ab9",
     "P0 fixed / 15": "0/15",
     "P1 fixed / 44": "0/44",
     "P2 fixed / 6": "0/6",
@@ -2782,8 +2854,8 @@
       "blocking_evidence": "external append-only or non-recomputable proof authenticity is absent; proof tampering resistance is not FIXED_PROVEN."
     }
   ],
-  "tested_runtime_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
-  "attestation_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+  "tested_runtime_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+  "attestation_head": "d1408193883f8307753cefbb0622fa8695170ab9",
   "ledger_commit_classes": {
     "ledger_commits": [
       "41d417ef",
@@ -2795,7 +2867,8 @@
       "7480f31132ec2b20262d7465905f4fb8275139a3",
       "15f37937d036a22008a13fe396fc1c2fedf27c58",
       "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
-      "88ee94f1768c962246b54c918b27dd4374a29a5e"
+      "88ee94f1768c962246b54c918b27dd4374a29a5e",
+      "d1408193883f8307753cefbb0622fa8695170ab9"
     ],
     "implementation_commits": [
       "15161055",
@@ -2811,7 +2884,8 @@
       "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
       "15f37937d036a22008a13fe396fc1c2fedf27c58",
       "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
-      "88ee94f1768c962246b54c918b27dd4374a29a5e"
+      "88ee94f1768c962246b54c918b27dd4374a29a5e",
+      "d1408193883f8307753cefbb0622fa8695170ab9"
     ],
     "deletion_commits": [
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -2821,9 +2895,9 @@
       "fe28a144445168aa75bc3f9c02e1e4626466e5db"
     ]
   },
-  "implementation_tested_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
-  "proof_runtime_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
-  "current_worktree_or_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+  "implementation_tested_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+  "proof_runtime_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+  "current_worktree_or_commit": "d1408193883f8307753cefbb0622fa8695170ab9",
   "single_spine_compression_campaign": {
     "campaign_id": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
     "scope": "WAVE_C0_C1_ONLY",
@@ -3120,5 +3194,58 @@
       "FIXED_PROVEN": "0/65"
     },
     "not_fixed_proven_reason": "C3 proves local single-spine compression for migrated workspace surfaces only. It has no real provider graduation after compression and intentionally does not close findings."
+  },
+  "single_spine_c4_browser_readonly_cutover": {
+    "wave": "C4_BROWSER_READONLY_SINGLE_SPINE_CUTOVER",
+    "status": "BROWSER_READONLY_SINGLE_SPINE_CUTOVER_LOCAL_FAKE",
+    "implementation_head_before_report": "d1408193883f8307753cefbb0622fa8695170ab9",
+    "provider_calls": 0,
+    "browser_runs": 0,
+    "real_browser_runs": 0,
+    "external_network_calls": 0,
+    "fixed_proven_count": 0,
+    "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+    "implementation_commits": [
+      "d1408193883f8307753cefbb0622fa8695170ab9"
+    ],
+    "deletion_commits": [],
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
+    ],
+    "gates": {
+      "shared_product_browser_cognition_loops": 1,
+      "browser_specific_public_cognition_loops": 0,
+      "production_canonical_decision_clients": 1,
+      "browser_capability_registries": 1,
+      "browser_duplicate_owner_per_capability_id": 0,
+      "browser_effect_dispatch_owner": "ProductActionKernel",
+      "browser_authority_denial_before_backend": true,
+      "browser_observation_visible_next_model_turn": true,
+      "browser_receipt_linked_to_root_mission_record": true,
+      "browser_fake_material_success": 0,
+      "canonical_browser_public_bypass": false,
+      "physical_browser_boundaries": "NOT_RUN"
+    },
+    "remaining_open_truth": {
+      "FIXED_PROVEN": "0/65",
+      "C-P0-01": "IMPLEMENTING",
+      "C-P0-03": "IMPLEMENTING",
+      "C-P0-06": "IMPLEMENTING",
+      "P1-25": "IMPLEMENTING",
+      "C-P1-17": "IMPLEMENTING",
+      "P0-07": "IMPLEMENTING",
+      "P0-04": "CONFIRMED_CURRENT_PHYSICAL_BROWSER_NOT_REPAIRED_BY_FAKE_C4_ROUTE"
+    },
+    "local_fake_boundary": {
+      "provider_calls": 0,
+      "real_browser_runs": 0,
+      "external_network_calls": 0,
+      "physical_browser_lifecycle": "NOT_RUN",
+      "real_cloak_parity": "NOT_RUN"
+    }
   }
 }

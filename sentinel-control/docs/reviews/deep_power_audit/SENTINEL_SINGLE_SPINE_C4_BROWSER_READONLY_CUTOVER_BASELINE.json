@@ -1,0 +1,665 @@
+{
+  "authority_probe": {
+    "backend_call_count": 0,
+    "denial_before_backend": true,
+    "external_network_calls": 0,
+    "probe_status": "PASSED",
+    "provider_calls": 0,
+    "real_browser_runs": 0
+  },
+  "behavioral_probe": {
+    "browser_environment_state_sections": [
+      "affordance_graph",
+      "authority_effect",
+      "browser",
+      "can_execute",
+      "can_grant_authority",
+      "data_not_authority",
+      "demand_load_handles",
+      "evaluation",
+      "execution_signals",
+      "focus",
+      "limits",
+      "memory",
+      "page",
+      "schema_version",
+      "source_contract",
+      "task"
+    ],
+    "browser_observation_visible_next_turn": true,
+    "browser_receipt_linked_to_root": true,
+    "browser_specific_public_cognition_loops": 0,
+    "external_network_calls": 0,
+    "probe_status": "PASSED",
+    "provider_calls": 0,
+    "real_browser_runs": 0,
+    "receipt_operations": [
+      "real_browser.observe",
+      "real_browser.extract_evidence"
+    ],
+    "root_mission_record_count": 1,
+    "shared_cognition_loop": "RootMissionRuntime",
+    "status": "completed",
+    "surface_results": {
+      "canonical-dev-run": {
+        "browser_readonly_fake_enabled": true,
+        "exit_code": 0,
+        "legacy_action_envelope_adapter": false,
+        "proof_root_linked": true,
+        "receipt_count": 2,
+        "root_mission_id_count": 1,
+        "runtimehost_cognition": false,
+        "status": "completed"
+      },
+      "canonical-product-run": {
+        "browser_readonly_fake_enabled": true,
+        "exit_code": 0,
+        "legacy_action_envelope_adapter": false,
+        "proof_root_linked": true,
+        "receipt_count": 2,
+        "root_mission_id_count": 1,
+        "runtimehost_cognition": false,
+        "status": "completed"
+      }
+    }
+  },
+  "browser_registrations": {
+    "duplicate_owner_per_capability_id": 0,
+    "owners_by_capability": {
+      "real_browser_control.real_browser.extract_evidence": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "public_evidence_delta_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ],
+      "real_browser_control.real_browser.inspect_result": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "typed_inspection_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ],
+      "real_browser_control.real_browser.observe": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "browser_state_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ],
+      "real_browser_control.real_browser.open": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "bounded_origin_state_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ],
+      "real_browser_control.real_browser.open_result": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "typed_link_follow_delta_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ],
+      "real_browser_control.real_browser.recover_session": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "lease_state_transition_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ],
+      "real_browser_control.real_browser.search": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "typed_search_outcome_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ],
+      "real_browser_control.real_browser.verify_extraction": [
+        {
+          "authority_schema": "browser_read",
+          "backend": "fake_in_memory_browser_read_only",
+          "callable_owner": "ProductActionKernel:real_browser_control",
+          "materiality": "verification_state_observed",
+          "readiness": "fake_browser_readonly_session_ready",
+          "receipt_contract": "canonical_core_browser_readonly_receipt_v1",
+          "registration_source": "ExecutableCapabilityGraph.routes"
+        }
+      ]
+    },
+    "probe_status": "PASSED",
+    "quarantined_mutating_capabilities": [
+      "real_browser_control.real_browser.click",
+      "real_browser_control.real_browser.download",
+      "real_browser_control.real_browser.execute_script",
+      "real_browser_control.real_browser.login",
+      "real_browser_control.real_browser.payment",
+      "real_browser_control.real_browser.select_option",
+      "real_browser_control.real_browser.submit_form",
+      "real_browser_control.real_browser.type_text",
+      "real_browser_control.real_browser.upload"
+    ],
+    "registry_owner": "ExecutableCapabilityGraph",
+    "route_count": 8
+  },
+  "browser_runs": 0,
+  "c4_gates": {
+    "browser_authority_denial_before_backend": true,
+    "browser_capability_registries": 1,
+    "browser_duplicate_owner_per_capability_id": 0,
+    "browser_effect_dispatch_owner": "ProductActionKernel",
+    "browser_environment_secret_leaks": 0,
+    "browser_fake_material_success": 0,
+    "browser_hardcoded_capability_lists_on_migrated_surface": 0,
+    "browser_legacy_action_envelope_usage": 0,
+    "browser_negative_completion_as_search_success": 0,
+    "browser_observation_visible_next_model_turn": true,
+    "browser_parallel_finalgates_on_public_route": 0,
+    "browser_parallel_proof_roots_on_public_route": 0,
+    "browser_receipt_linked_to_root_mission_record": true,
+    "browser_repetition_without_information_delta_success": 0,
+    "browser_root_mission_records_per_public_run": 1,
+    "browser_specific_public_cognition_loops": 0,
+    "cancellation_cleanup_proven_fake": true,
+    "canonical_browser_public_bypass": false,
+    "external_network_calls": 0,
+    "physical_browser_boundaries": "NOT_RUN",
+    "production_canonical_decision_clients": 1,
+    "real_browser_runs": 0,
+    "real_provider_calls": 0,
+    "runtimehost_browser_cognitive_methods": 0,
+    "shared_product_browser_cognition_loops": 1
+  },
+  "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
+  "cancellation_cleanup_probe": {
+    "cleanup_completed": true,
+    "cleanup_count": 1,
+    "external_network_calls": 0,
+    "lease_released": true,
+    "model_turns": 1,
+    "probe_status": "PASSED",
+    "provider_calls": 0,
+    "real_browser_runs": 0
+  },
+  "components": [
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "CanonicalState.browser_environment_state",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_environment_state",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "kept under canonical C4 route or as hidden state contract",
+      "module_qualname": "sentinel.operator.browser_environment_state::BrowserEnvironmentState",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "canonical compact BrowserEnvironmentState"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "BrowserEnvironmentState sensor input",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_observation_bundle",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "kept under canonical C4 route or as hidden state contract",
+      "module_qualname": "sentinel.operator.browser_observation_bundle::BrowserObservationBundle",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "ExecutableCapabilityGraph projection",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_affordance_contracts",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "kept under canonical C4 route or as hidden state contract",
+      "module_qualname": "sentinel.operator.browser_affordance_contracts::compile_executable_browser_affordances",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.browser_environment_state::_browser_operational_snapshot",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/browser_environment_state.py:407",
+          "target": "sentinel.operator.browser_affordance_contracts.compile_executable_browser_affordances"
+        }
+      ],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "physical_backend_selector_not_consumed_by_c4_fake_route",
+      "canonical_owner": "future physical backend provisioner",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_backend_selector",
+      "decision": "MIGRATE",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "connect under ExecutableCapabilityGraph/ProductActionKernel without new loop",
+      "module_qualname": "sentinel.operator.browser_backend_selector::select_browser_backend",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.power_skill_registry::build_default_power_skill_registry",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/power_skill_registry.py:149",
+          "target": "sentinel.operator.browser_backend_selector.select_browser_backend"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.real_browser_control_runtime::build_cloak_first_real_browser_engine_from_env",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/real_browser_control_runtime.py:2685",
+          "target": "sentinel.operator.browser_backend_selector.select_browser_backend"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.real_browser_control_runtime::check_cloak_session_readiness",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/real_browser_control_runtime.py:2746",
+          "target": "sentinel.operator.browser_backend_selector.select_browser_backend"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.real_browser_control_runtime::RealBrowserControlRuntime.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/real_browser_control_runtime.py:781",
+          "target": "sentinel.operator.browser_backend_selector.select_browser_backend"
+        }
+      ],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "legacy browser runtime",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_control_runtime",
+      "decision": "ARCHIVE_RESEARCH",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "legacy/physical browser effects outside C4 public route",
+      "entrypoints": [],
+      "migration_gate": "retain as acceptance probe/research until parity removes public route",
+      "module_qualname": "sentinel.operator.browser_control_runtime::BrowserControlRuntime",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "legacy or physical browser runtime state"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "physical_browser_backend_not_run_in_c4",
+      "canonical_owner": "Browser organ backend adapter after physical proof",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "real_browser_control_runtime",
+      "decision": "MIGRATE",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "legacy/physical browser effects outside C4 public route",
+      "entrypoints": [],
+      "migration_gate": "connect under ExecutableCapabilityGraph/ProductActionKernel without new loop",
+      "module_qualname": "sentinel.operator.real_browser_control_runtime::RealBrowserControlRuntime",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.runtime_host::_execute_real_browser_action",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/runtime_host.py:1169",
+          "target": "sentinel.operator.real_browser_control_runtime.RealBrowserControlRuntime"
+        }
+      ],
+      "proof_owned": "none",
+      "state_owned": "legacy or physical browser runtime state"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "model context mapper research",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_model_native_control_loop",
+      "decision": "ARCHIVE_RESEARCH",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "retain as acceptance probe/research until parity removes public route",
+      "module_qualname": "sentinel.operator.browser_model_native_control_loop::map_browser_model_native_intent",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.model_led_task_loop::ModelLedTaskLoop._coerce_model_decision",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/model_led_task_loop.py:264",
+          "target": "sentinel.operator.browser_model_native_control_loop.map_browser_model_native_intent"
+        },
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.product_model_native_decision_client::_browser_native_mapping",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/product_model_native_decision_client.py:546",
+          "target": "sentinel.operator.browser_model_native_control_loop.map_browser_model_native_intent"
+        }
+      ],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "deterministic acceptance probe",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_cortex_deterministic_runner",
+      "decision": "ARCHIVE_RESEARCH",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "retain as acceptance probe/research until parity removes public route",
+      "module_qualname": "sentinel.operator.browser_cortex_deterministic_runner::run_browser_cortex_deterministic_corpus",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "quality corpus tool",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_cortex_search_entity_development",
+      "decision": "ARCHIVE_RESEARCH",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "retain as acceptance probe/research until parity removes public route",
+      "module_qualname": "sentinel.operator.browser_cortex_search_entity_development::run_search_entity_development_corpus",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "ExecutableCapabilityGraph ownership truth",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_product_cutover_registry",
+      "decision": "MIGRATE",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "connect under ExecutableCapabilityGraph/ProductActionKernel without new loop",
+      "module_qualname": "sentinel.operator.browser_product_cutover_registry::BrowserProductCutoverRegistry",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "CanonicalState progress guard",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_progress_guard",
+      "decision": "MIGRATE",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "connect under ExecutableCapabilityGraph/ProductActionKernel without new loop",
+      "module_qualname": "sentinel.operator.browser_progress_guard::BrowserProgressGuard",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "MissionProofRoot proof index consumer",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "browser_proof_index",
+      "decision": "MIGRATE",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "connect under ExecutableCapabilityGraph/ProductActionKernel without new loop",
+      "module_qualname": "sentinel.operator.browser_proof_index::BrowserProofIndexBuilder",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.model_led_product_action_kernel_task_loop::ModelLedProductActionKernelTaskLoop._browser_proof_index_summary",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/model_led_product_action_kernel_task_loop.py:961",
+          "target": "sentinel.operator.browser_proof_index.BrowserProofIndexBuilder"
+        }
+      ],
+      "proof_owned": "browser proof index consumer, not root proof owner",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "future wave classification required",
+      "capability_ids": [],
+      "component": "read_only_operator_spine",
+      "decision": "UNKNOWN",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [
+        "UNKNOWN"
+      ],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "resolve dynamic callers before deletion or migration",
+      "module_qualname": "sentinel.operator.read_only_operator_spine::ReadOnlyOperatorSpine",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "future wave classification required",
+      "capability_ids": [],
+      "component": "interactive_exploration_read_only",
+      "decision": "UNKNOWN",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [
+        "UNKNOWN"
+      ],
+      "effects_owned": "none",
+      "entrypoints": [],
+      "migration_gate": "resolve dynamic callers before deletion or migration",
+      "module_qualname": "sentinel.operator.interactive_exploration_read_only::InteractiveExplorationReadOnly",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "metadata_or_research",
+      "canonical_owner": "acceptance probe only",
+      "capability_ids": [
+        "real_browser_control"
+      ],
+      "component": "cli_browser_demos",
+      "decision": "ARCHIVE_RESEARCH",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "legacy/physical browser effects outside C4 public route",
+      "entrypoints": [
+        "sentinel.cli"
+      ],
+      "migration_gate": "retain as acceptance probe/research until parity removes public route",
+      "module_qualname": "sentinel.cli::_run_browser_session_demo",
+      "production_callers": [],
+      "proof_owned": "none",
+      "state_owned": "none or evidence metadata"
+    },
+    {
+      "authority_owned": "none; canonical route authority stays in RootMissionRuntime",
+      "backend_reality": "fake_in_memory_only_c4",
+      "canonical_owner": "ProductActionKernel browser adapter",
+      "capability_ids": [
+        "real_browser_control.real_browser.observe",
+        "real_browser_control.real_browser.extract_evidence"
+      ],
+      "component": "canonical_browser_readonly_adapter",
+      "decision": "KEEP",
+      "deletion_gate": "delete only after qualified callers and parity prove no useful production route",
+      "dynamic_factory_callers": [],
+      "effects_owned": "read-only fake browser observations via ProductActionKernel",
+      "entrypoints": [],
+      "migration_gate": "kept under canonical C4 route or as hidden state contract",
+      "module_qualname": "sentinel.operator.canonical_browser_readonly_adapter::CanonicalBrowserReadOnlyAdapter",
+      "production_callers": [
+        {
+          "call_kind": "constructor_call",
+          "caller": "sentinel.operator.canonical_core::RootMissionRuntime.__init__",
+          "resolution": "QUALIFIED",
+          "source": "sentinel/operator/canonical_core.py:698",
+          "target": "sentinel.operator.canonical_browser_readonly_adapter.CanonicalBrowserReadOnlyAdapter"
+        }
+      ],
+      "proof_owned": "terminal browser receipt data consumed by canonical receipts",
+      "state_owned": "fake lease/session state only for local C4 probes"
+    }
+  ],
+  "current_phase": "C4_BROWSER_READONLY_SINGLE_SPINE_CUTOVER",
+  "external_network_calls": 0,
+  "fake_material_probe": {
+    "external_network_calls": 0,
+    "fake_material_success": 0,
+    "probe_status": "PASSED",
+    "provider_calls": 0,
+    "real_browser_runs": 0
+  },
+  "finding_statuses_preserved": {
+    "C-P0-01": "IMPLEMENTING",
+    "C-P0-03": "IMPLEMENTING",
+    "C-P0-06": "IMPLEMENTING",
+    "C-P1-17": "IMPLEMENTING",
+    "P0-01": "IMPLEMENTING",
+    "P0-07": "IMPLEMENTING",
+    "P1-25": "IMPLEMENTING"
+  },
+  "global_finding_counts": {
+    "FIXED_PROVEN": "0/65",
+    "P0_fixed": "0/15",
+    "P1_fixed": "0/44",
+    "P2_fixed": "0/6"
+  },
+  "guard_probe": {
+    "external_network_calls": 0,
+    "guard": "fake_in_memory_backend_only",
+    "provider_calls": 0,
+    "real_browser_runs": 0
+  },
+  "head_taxonomy": {
+    "artifact_generation_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
+    "current_remote_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+    "current_worktree_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
+    "documentation_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
+    "implementation_tested_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
+    "proof_attestation_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1"
+  },
+  "legacy_browser_components_kept_as_research": [
+    "browser_control_runtime",
+    "browser_model_native_control_loop",
+    "browser_cortex_deterministic_runner",
+    "browser_cortex_search_entity_development",
+    "cli_browser_demos"
+  ],
+  "physical_browser_boundaries": {
+    "live_canonical_browser_mission": "NOT_RUN",
+    "physical_browser_process_kill": "NOT_RUN",
+    "physical_sandbox": "NOT_RUN",
+    "real_browser_origin_redirect_enforcement": "NOT_RUN"
+  },
+  "proven_browser_effect_bypasses": [],
+  "provider_calls": 0,
+  "real_browser_runs": 0,
+  "unknown_browser_routes": [
+    "read_only_operator_spine",
+    "interactive_exploration_read_only"
+  ],
+  "unmigrated_browser_surfaces": [
+    "browser_backend_selector",
+    "real_browser_control_runtime",
+    "browser_product_cutover_registry",
+    "browser_progress_guard",
+    "browser_proof_index",
+    "read_only_operator_spine",
+    "interactive_exploration_read_only"
+  ],
+  "wave": "C4_BROWSER_READONLY_SINGLE_SPINE_CUTOVER"
+}
