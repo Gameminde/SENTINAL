@@ -115,10 +115,11 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert c2_truth["c2_published_documentation_head_preserved"] == (
         "7480f31132ec2b20262d7465905f4fb8275139a3"
     )
-    assert ledger["current_head"] == c2_truth["c2s_seal_commit"]
-    assert ledger["current_worktree_or_commit"] == c2_truth["c2s_seal_commit"]
-    assert ledger["proof_runtime_head"] == c2_truth["c2s_seal_commit"]
-    assert ledger["implementation_tested_head"] == c2_truth["code_head"]
+    c3_truth = ledger["single_spine_c3_product_loop_decision_client_compression"]
+    assert ledger["current_head"] == c3_truth["implementation_head_before_report"]
+    assert ledger["current_worktree_or_commit"] == c3_truth["implementation_head_before_report"]
+    assert ledger["proof_runtime_head"] == c3_truth["implementation_head_before_report"]
+    assert ledger["implementation_tested_head"] == c3_truth["implementation_head_before_report"]
     entries = ledger["entries"]
     status_counts = dict(sorted(Counter(entry["status"] for entry in entries).items()))
     proof_tier_counts = dict(sorted(Counter(entry["proof_tier"] for entry in entries).items()))
@@ -127,8 +128,13 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert ledger["status_counts"] == status_counts == {"CONFIRMED_CURRENT": 9, "IMPLEMENTING": 8, "OPEN": 48}
     assert ledger["proof_tier_counts"] == proof_tier_counts
     assert ledger["fixed_proven_by_severity"] == {"P0": 0, "P1": 0, "P2": 0}
-    assert ledger["implementation_tested_head"] == c2_truth["code_head"]
-    assert ledger["proof_runtime_head"] == c2_truth["c2s_seal_commit"]
+    assert c3_truth["implementation_head_before_report"] in ledger["ledger_commit_classes"]["implementation_commits"]
+    assert c3_truth["implementation_head_before_report"] in ledger["ledger_commit_classes"]["ledger_commits"]
+    assert c3_truth["provider_calls"] == 0
+    assert c3_truth["browser_runs"] == 0
+    assert c3_truth["remaining_open_truth"]["FIXED_PROVEN"] == "0/65"
+    assert c3_truth["remaining_open_truth"]["C-P1-17"] == "IMPLEMENTING"
+    assert c3_truth["remaining_open_truth"]["P0-07"] == "IMPLEMENTING"
     assert "b4f4baaceb6deb38f038a81321eb81d3ad21723b" in ledger["ledger_commit_classes"]["deletion_commits"]
     assert "4c587859eee9ddda5c356572549153137373f695" in ledger["ledger_commit_classes"]["ledger_commits"]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in ledger["ledger_commit_classes"]["proof_commits"]

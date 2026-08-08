@@ -238,7 +238,7 @@
   },
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
-  "current_head": "15f37937d036a22008a13fe396fc1c2fedf27c58",
+  "current_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
   "entries": [
     {
       "acceptance_probe": "Public product request -> ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel -> receipt; fail if dispatch bypasses through run_canonical_product_mission or RootMissionRuntime direct effect execution.",
@@ -306,9 +306,9 @@
         },
         {
           "head": "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-          "status": "FIXED_PROVEN",
+          "status": "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_NOT_FINDING_CLOSED",
           "proof_tier": "T3_REAL_MODEL_PRODUCT_PROVEN",
-          "note": "qwen-plus completed the controlled North Star workspace mission through the public canonical product route with model-selected finish, persisted receipt, proof root, verified receipt integrity, and cleanup."
+          "note": "qwen-plus completed the controlled North Star workspace mission, preserved as V13 T3 evidence; not a FIXED_PROVEN finding closure after methodology correction."
         },
         {
           "head": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
@@ -2751,7 +2751,7 @@
   },
   "fixed_proven_total": 0,
   "published_counters_after_commit": {
-    "checkpoint_commit": "15f37937d036a22008a13fe396fc1c2fedf27c58",
+    "checkpoint_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
     "P0 fixed / 15": "0/15",
     "P1 fixed / 44": "0/44",
     "P2 fixed / 6": "0/6",
@@ -2782,8 +2782,8 @@
       "blocking_evidence": "external append-only or non-recomputable proof authenticity is absent; proof tampering resistance is not FIXED_PROVEN."
     }
   ],
-  "tested_runtime_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-  "attestation_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
+  "tested_runtime_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+  "attestation_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
   "ledger_commit_classes": {
     "ledger_commits": [
       "41d417ef",
@@ -2793,7 +2793,9 @@
       "c08f6c9cf61daea71bef7913285ba4a6e94712c6",
       "4c587859eee9ddda5c356572549153137373f695",
       "7480f31132ec2b20262d7465905f4fb8275139a3",
-      "15f37937d036a22008a13fe396fc1c2fedf27c58"
+      "15f37937d036a22008a13fe396fc1c2fedf27c58",
+      "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
+      "88ee94f1768c962246b54c918b27dd4374a29a5e"
     ],
     "implementation_commits": [
       "15161055",
@@ -2807,7 +2809,9 @@
       "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
       "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-      "15f37937d036a22008a13fe396fc1c2fedf27c58"
+      "15f37937d036a22008a13fe396fc1c2fedf27c58",
+      "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
+      "88ee94f1768c962246b54c918b27dd4374a29a5e"
     ],
     "deletion_commits": [
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -2817,9 +2821,9 @@
       "fe28a144445168aa75bc3f9c02e1e4626466e5db"
     ]
   },
-  "implementation_tested_head": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-  "proof_runtime_head": "15f37937d036a22008a13fe396fc1c2fedf27c58",
-  "current_worktree_or_commit": "15f37937d036a22008a13fe396fc1c2fedf27c58",
+  "implementation_tested_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+  "proof_runtime_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+  "current_worktree_or_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
   "single_spine_compression_campaign": {
     "campaign_id": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
     "scope": "WAVE_C0_C1_ONLY",
@@ -3015,7 +3019,8 @@
       "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
       "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-      "15f37937d036a22008a13fe396fc1c2fedf27c58"
+      "15f37937d036a22008a13fe396fc1c2fedf27c58",
+      "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92"
     ],
     "deletion_commits": [
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -3034,7 +3039,7 @@
       "canonical_product_run_bypass": false,
       "root_direct_workspace_effect_executor": "absent",
       "hardcoded_cli_capability_list": "split_public_vs_other_vs_authority_fields",
-      "public_canonical_legacy_action_envelope_usage": "public_input_absent_internal_actionkernel_adapter_open_for_C3",
+      "public_canonical_legacy_action_envelope_usage": "CLEARED_IN_C3_BY_TYPED_PRODUCT_KERNEL_DISPATCH",
       "duplicate_owner_per_workspace_capability_id": 0,
       "fake_material_success_on_workspace_public_route": 0
     },
@@ -3044,9 +3049,11 @@
       "C-P0-03": "IMPLEMENTING",
       "C-P0-06": "IMPLEMENTING",
       "P1-25": "IMPLEMENTING",
-      "FIXED_PROVEN": "0/65"
+      "FIXED_PROVEN": "0/65",
+      "C-P1-17": "IMPLEMENTING",
+      "P0-07": "IMPLEMENTING"
     },
-    "c2s_seal_commit": "15f37937d036a22008a13fe396fc1c2fedf27c58",
+    "c2s_seal_commit": "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
     "c2_implementation_tested_head_preserved": "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
     "c2_published_documentation_head_preserved": "7480f31132ec2b20262d7465905f4fb8275139a3",
     "gates_derived_from_code_and_execution": true,
@@ -3056,5 +3063,62 @@
       "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py",
       "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
     ]
+  },
+  "single_spine_c3_product_loop_decision_client_compression": {
+    "wave": "C3_PRODUCT_LOOP_AND_DECISION_CLIENT_COMPRESSION",
+    "status": "PRODUCT_LOOP_AND_DECISION_CLIENT_COMPRESSED_LOCAL",
+    "implementation_head_before_report": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+    "provider_calls": 0,
+    "browser_runs": 0,
+    "implementation_commits": [
+      "88ee94f1768c962246b54c918b27dd4374a29a5e"
+    ],
+    "deletion_commits": [
+      "88ee94f1768c962246b54c918b27dd4374a29a5e"
+    ],
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_COMPRESSION_BASELINE.json",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_COMPRESSION_MANIFEST.csv",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_COMPRESSION_REPORT.md",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py"
+    ],
+    "gates": {
+      "product_workspace_cognition_loops": 1,
+      "production_canonical_decision_clients": 1,
+      "runtimehost_cognitive_methods_on_migrated_routes": 0,
+      "legacy_action_envelope_usage_in_product_core": 0,
+      "canonical_product_run_bypass": false,
+      "canonical_dev_run_bypass": false,
+      "direct_rootmissionruntime_workspace_executor": 0,
+      "product_action_kernel_effect_dispatch_owner": 1,
+      "workspace_duplicate_owner_per_capability_id": 0,
+      "hardcoded_capability_list_on_migrated_surfaces": 0,
+      "fake_material_success_on_migrated_surfaces": 0,
+      "root_mission_record_per_public_run": 1,
+      "proof_root_linked_to_root_mission_record": true
+    },
+    "components_migrated": [
+      "canonical-dev-run",
+      "_RealProviderCanonicalDecisionClient",
+      "_canonical_real_model_request",
+      "_canonical_product_provider_prompt",
+      "RootMissionRuntime._action_envelope_for_decision"
+    ],
+    "components_kept_for_future_waves": [
+      "SentinelRuntimeHost.run_product_action_kernel_task_loop for non-migrated routes",
+      "ModelLedProductActionKernelTaskLoop for non-migrated routes",
+      "Browser/Channel/PowerLab surfaces"
+    ],
+    "remaining_open_truth": {
+      "P0-01": "IMPLEMENTING",
+      "C-P0-01": "IMPLEMENTING",
+      "C-P0-03": "IMPLEMENTING",
+      "C-P0-06": "IMPLEMENTING",
+      "P1-25": "IMPLEMENTING",
+      "C-P1-17": "IMPLEMENTING",
+      "P0-07": "IMPLEMENTING",
+      "FIXED_PROVEN": "0/65"
+    },
+    "not_fixed_proven_reason": "C3 proves local single-spine compression for migrated workspace surfaces only. It has no real provider graduation after compression and intentionally does not close findings."
   }
 }

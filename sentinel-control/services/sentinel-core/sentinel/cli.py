@@ -60,8 +60,9 @@ from sentinel.operator.models import (
 from sentinel.operator.product_model_native_decision_client import (
     ProductModelNativeDecisionClient,
     _canonical_user_model_contract,
-    extract_canonical_json_decision as _extract_canonical_json_decision,
+    extract_canonical_json_decision,
 )
+from sentinel.operator.action_kernel import ActionKernelError
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.product_execution_binding import (
     ProductExecutionBindingError,
@@ -616,6 +617,13 @@ class _JsonlCanonicalDecisionScriptClient:
         if not decisions:
             raise CanonicalCoreError("canonical_dev_decision_script_empty")
         return decisions
+
+
+def _extract_canonical_json_decision(raw: Any) -> dict[str, Any]:
+    try:
+        return extract_canonical_json_decision(raw)
+    except ActionKernelError as exc:
+        raise CanonicalCoreError(str(exc)) from exc
 
 
 def _run_cockpit_command(args: argparse.Namespace) -> int:

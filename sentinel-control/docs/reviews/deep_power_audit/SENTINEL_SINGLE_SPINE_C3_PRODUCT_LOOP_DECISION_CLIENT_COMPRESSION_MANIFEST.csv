@@ -1,0 +1,17 @@
+gate,value,source,status
+product_workspace_cognition_loops,1,derived,PASS
+production_canonical_decision_clients,1,derived,PASS
+runtimehost_cognitive_methods_on_migrated_routes,0,derived,PASS
+legacy_action_envelope_usage_in_product_core,0,derived,PASS
+canonical_product_run_bypass,false,derived,PASS
+canonical_dev_run_bypass,false,derived,PASS
+direct_rootmissionruntime_workspace_executor,0,derived,PASS
+product_action_kernel_effect_dispatch_owner,1,derived,PASS
+workspace_duplicate_owner_per_capability_id,0,derived,PASS
+hardcoded_capability_list_on_migrated_surfaces,0,derived,PASS
+fake_material_success_on_migrated_surfaces,0,derived,PASS
+root_mission_record_per_public_run,1,derived,PASS
+proof_root_linked_to_root_mission_record,true,derived,PASS
+provider_request_builder_owner,"""ProductModelNativeDecisionClient""",derived,RECORDED
+remaining_non_migrated_runtimehost_loop,"""KNOWN_NON_C3_ROUTE""",derived,RECORDED
+remaining_non_migrated_model_led_product_loop,"""KNOWN_NON_C3_ROUTE""",derived,RECORDED

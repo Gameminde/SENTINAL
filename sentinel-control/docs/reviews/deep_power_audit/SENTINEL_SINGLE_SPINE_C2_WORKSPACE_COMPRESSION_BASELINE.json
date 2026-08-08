@@ -27,7 +27,7 @@
       "value": 0
     },
     "public_canonical_legacy_action_envelope_usage_absent": {
-      "c3_internal_adapter_blocker": "RootMissionRuntime._action_envelope_for_decision remains for ProductActionKernel compatibility",
+      "c3_internal_adapter_blocker": "CLEARED_IN_C3_BY_TYPED_PRODUCT_KERNEL_DISPATCH",
       "source": "public command path only",
       "value": true
     },
@@ -58,7 +58,6 @@
     "hardcoded_cli_capability_list": 1,
     "host_lifecycle": 1,
     "model_affordance_projection": 1,
-    "model_decision_client": 2,
     "model_decision_loop": 4,
     "public_mission_surface": 5,
     "receipt_proof_owner": 2,
@@ -183,14 +182,14 @@
           "call_kind": "constructor_call",
           "caller": "sentinel.cli::_run_canonical_product_command",
           "resolution": "QUALIFIED",
-          "source": "sentinel/cli.py:539",
+          "source": "sentinel/cli.py:536",
           "target": "sentinel.operator.runtime_host.SentinelRuntimeHost"
         },
         {
           "call_kind": "constructor_call",
           "caller": "sentinel.cli::_run_cockpit_command",
           "resolution": "QUALIFIED",
-          "source": "sentinel/cli.py:986",
+          "source": "sentinel/cli.py:793",
           "target": "sentinel.operator.runtime_host.SentinelRuntimeHost"
         },
         {
@@ -305,7 +304,7 @@
       "decision": "KEEP",
       "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
       "effects_owned": "none",
-      "evidence_present": true,
+      "evidence_present": false,
       "migration_gate": "C2 qualified route parity required before deletion",
       "production_callers": [],
       "proof_owned": "none",
@@ -322,7 +321,7 @@
       "decision": "MIGRATE_DELETE",
       "deletion_gate": "delete only after qualified callers and acceptance probes prove parity",
       "effects_owned": "none",
-      "evidence_present": true,
+      "evidence_present": false,
       "migration_gate": "C2 qualified route parity required before deletion",
       "production_callers": [],
       "proof_owned": "none",
@@ -1560,11 +1559,8 @@
       "count": 0
     },
     "model_decision_client": {
-      "components": [
-        "canonical_provider_request_builder",
-        "cli_private_real_provider_canonical_decision_client"
-      ],
-      "count": 2
+      "components": [],
+      "count": 0
     },
     "model_decision_loop": {
       "components": [
