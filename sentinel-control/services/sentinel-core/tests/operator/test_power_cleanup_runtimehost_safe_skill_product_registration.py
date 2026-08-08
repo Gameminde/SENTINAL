@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 
 from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope, MissionAuthorityPolicy
@@ -9,6 +8,7 @@ from sentinel.operator.mission_lifecycle_service import MissionExecutionRequestS
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
 from sentinel.operator.power_skill_registry import build_default_power_skill_registry
 from sentinel.operator.runtime_host import SentinelRuntimeHost
+from sentinel.operator.unified_execution_dispatcher import load_product_action_kernel_artifact
 from sentinel.operator.unified_execution_dispatcher import DispatchStatus
 from sentinel.operator.workspace_patch_replay import WorkspacePatchReplayView
 
@@ -153,10 +153,16 @@ def test_high_risk_surfaces_remain_non_product_dispatchable(tmp_path: Path) -> N
     host = SentinelRuntimeHost(run_root=tmp_path / "runs")
     registry = build_default_power_skill_registry(runtime_connection_registry=host.connection_registry)
 
-    for skill_id in ("real_browser_control", "external_api", "account_authority", "financial_authority", "payment_authority"):
+    browser = registry.get("real_browser_control")
+    assert browser.product_reachable is True
+    assert browser.dispatch_enabled is False
+    assert browser.can_execute is False
+
+    for skill_id in ("external_api", "account_authority", "financial_authority", "payment_authority"):
         binding = registry.get(skill_id)
         assert binding.product_reachable is False
         assert binding.dispatch_enabled is False
+        assert binding.can_execute is False
 
 
 def _draft() -> MissionDraft:
@@ -227,5 +233,6 @@ def _sha256_file(path: Path) -> str:
 
 
 def _product_receipt(host: SentinelRuntimeHost, mission_id: str, receipt_ref: str) -> dict[str, object]:
-    path = host.kernel.store.mission_dir(mission_id) / "product_action_kernel" / "receipts" / f"{receipt_ref}.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    receipt = load_product_action_kernel_artifact(host.kernel, mission_id, "receipts", receipt_ref)
+    assert receipt is not None
+    return receipt
