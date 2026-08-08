@@ -30,8 +30,8 @@ def test_environment_state_graph_fuses_world_model_refs_and_product_cards() -> N
     assert "link:result_1" in state.action_graph.link_refs
     assert state.extraction_graph.product_or_result_candidate_count >= 1
     assert state.extraction_graph.relevant_product_candidate_count >= 1
-    assert "browse_search" in state.recommended_model_skills
-    assert "extract" in state.recommended_model_skills
+    assert "search" in state.recommended_model_skills
+    assert "extract_evidence" in state.recommended_model_skills
     assert state.raw_material_persisted is False
     assert state.can_execute is False
     tabs = state.state_fields["tabs_and_frames"]["value"]
