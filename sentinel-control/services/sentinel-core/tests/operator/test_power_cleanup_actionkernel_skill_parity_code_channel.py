@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from sentinel.operator import channel_adapter
@@ -11,7 +10,7 @@ from sentinel.operator.mission_lifecycle_service import MissionExecutionRequestS
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
 from sentinel.operator.power_skill_registry import build_default_power_skill_registry
 from sentinel.operator.runtime_host import SentinelRuntimeHost
-from sentinel.operator.unified_execution_dispatcher import DispatchStatus
+from sentinel.operator.unified_execution_dispatcher import DispatchStatus, load_product_action_kernel_artifact
 
 
 def test_runtimehost_registers_code_execution_sandbox_product_skill(tmp_path: Path) -> None:
@@ -485,5 +484,6 @@ def _workspace(tmp_path: Path) -> Path:
 
 
 def _product_receipt(host: SentinelRuntimeHost, mission_id: str, receipt_ref: str) -> dict[str, object]:
-    path = host.kernel.store.mission_dir(mission_id) / "product_action_kernel" / "receipts" / f"{receipt_ref}.json"
-    return json.loads(path.read_text(encoding="utf-8"))
+    receipt = load_product_action_kernel_artifact(host.kernel, mission_id, "receipts", receipt_ref)
+    assert receipt is not None
+    return receipt
