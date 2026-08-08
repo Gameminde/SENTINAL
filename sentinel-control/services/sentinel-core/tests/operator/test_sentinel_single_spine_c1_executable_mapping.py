@@ -379,3 +379,87 @@ def test_c2_workspace_metrics_split_unmigrated_surfaces_from_proven_bypasses() -
     assert metrics["public_canonical_route_hardcoded_capability_list"]["count"] == 0
     assert metrics["other_hardcoded_capability_surfaces"]["count"] >= 0
     assert metrics["authority_allowed_actions_fields"]["count"] >= 1
+
+
+def test_c3_product_loop_artifacts_are_replayable_and_classified() -> None:
+    repo_root = _repo_root()
+    docs = _sentinel_control_root() / "docs" / "reviews" / "deep_power_audit"
+    baseline_path = docs / "SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_COMPRESSION_BASELINE.json"
+    manifest_path = docs / "SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_COMPRESSION_MANIFEST.csv"
+    report_path = docs / "SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_COMPRESSION_REPORT.md"
+    probe = _probe_module()
+
+    expected = json.loads(json.dumps(probe.build_c3_product_loop_compression_baseline(repo_root), sort_keys=True))
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    rows = list(csv.DictReader(manifest_path.open(encoding="utf-8")))
+    report = report_path.read_text(encoding="utf-8")
+    joined_artifacts = "\n".join(
+        [
+            baseline_path.read_text(encoding="utf-8"),
+            manifest_path.read_text(encoding="utf-8"),
+            report,
+        ]
+    )
+
+    baseline_for_compare = json.loads(json.dumps(baseline, sort_keys=True))
+    expected_for_compare = json.loads(json.dumps(expected, sort_keys=True))
+    for payload in (baseline_for_compare, expected_for_compare):
+        taxonomy = payload["head_taxonomy"]
+        taxonomy["artifact_generation_head"] = "<runtime-dependent>"
+        taxonomy["current_worktree_head"] = "<runtime-dependent>"
+        taxonomy["current_remote_head"] = "<runtime-dependent>"
+    assert baseline_for_compare == expected_for_compare
+    assert baseline["wave"] == "C3_PRODUCT_LOOP_AND_DECISION_CLIENT_COMPRESSION"
+    assert baseline["current_phase"] == "C3S_REPLAYABLE_PROOF_SEAL"
+    assert baseline["head_taxonomy"]["current_worktree_head"]
+    assert baseline["head_taxonomy"]["implementation_tested_head"] == "88ee94f1768c962246b54c918b27dd4374a29a5e"
+    assert baseline["head_taxonomy"]["documentation_head"] == "b7c24e0a5baecd43fbb317cb0ddfc16743da0a58"
+    assert baseline["commit_taxonomy"]["deletion_commits"] == ["88ee94f1768c962246b54c918b27dd4374a29a5e"]
+
+    evidence = baseline["c3_gate_evidence"]
+    for gate in (
+        "product_workspace_cognition_loops",
+        "production_canonical_decision_clients",
+        "runtimehost_cognitive_methods_on_migrated_routes",
+        "legacy_action_envelope_usage_in_product_core",
+        "canonical_product_run_bypass",
+        "canonical_dev_run_bypass",
+        "workspace_duplicate_owner_per_capability_id",
+        "fake_material_success_on_migrated_surfaces",
+        "proof_root_linked_to_root_mission_record",
+    ):
+        item = evidence[gate]
+        assert item["evidence_class"] in {
+            "STATIC_PROBE",
+            "BEHAVIORAL_PROBE",
+            "NEGATIVE_BEHAVIORAL_PROBE",
+            "RUN_ATTESTATION",
+        }
+        assert item["status"] in {"PASS", "RECORDED"}
+        assert item["source_location"]
+
+    assert baseline["run_attestations"]["provider_calls"] == {
+        "value": 0,
+        "status": "ZERO_RECORDED",
+        "evidence_class": "RUN_ATTESTATION",
+        "source": "C3 migrated-surface scripted local probe",
+    }
+    assert baseline["run_attestations"]["browser_runs"] == {
+        "value": 0,
+        "status": "ZERO_RECORDED",
+        "evidence_class": "RUN_ATTESTATION",
+        "source": "C3 workspace-only migrated-surface probe",
+    }
+    assert baseline["qualified_callers_and_deletions"]["unknown_remaining"] == []
+    assert {
+        item["symbol"] for item in baseline["qualified_callers_and_deletions"]["deleted_symbols"]
+    } >= {
+        "sentinel.cli::_RealProviderCanonicalDecisionClient",
+        "sentinel.operator.canonical_core::RootMissionRuntime._action_envelope_for_decision",
+    }
+    assert all(row["source"] != "derived" for row in rows)
+    assert "## Gate Evidence Classes" in report
+    assert "## Qualified Callers And Deletions" in report
+    assert "C:\\" not in joined_artifacts
+    assert "provider_calls = 0" in report
+    assert "browser_runs = 0" in report

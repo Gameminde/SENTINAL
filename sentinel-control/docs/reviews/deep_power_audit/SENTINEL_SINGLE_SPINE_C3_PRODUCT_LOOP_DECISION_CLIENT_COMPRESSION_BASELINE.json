@@ -24,6 +24,293 @@
       }
     }
   },
+  "c3_gate_evidence": {
+    "canonical_dev_run_bypass": {
+      "evidence_class": "BEHAVIORAL_PROBE",
+      "route_trace": {
+        "decision_client": "_JsonlCanonicalDecisionScriptClient",
+        "exit_code": 0,
+        "legacy_action_envelope_adapter": false,
+        "mission_record_created_before_provider": true,
+        "product_receipt_count": 1,
+        "proof_receipt_count": 1,
+        "proof_root_linked": true,
+        "root_created_before_first_provider_call": true,
+        "root_mission_id_count": 1,
+        "runtimehost_cognition": false,
+        "status": "completed"
+      },
+      "source": "canonical-dev-run behavioral probe shares the canonical hosted product route",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/cli.py:503",
+      "status": "PASS",
+      "value": false
+    },
+    "canonical_product_run_bypass": {
+      "evidence_class": "BEHAVIORAL_PROBE",
+      "route_trace": {
+        "decision_client": "_JsonlCanonicalDecisionScriptClient",
+        "exit_code": 0,
+        "legacy_action_envelope_adapter": false,
+        "mission_record_created_before_provider": true,
+        "product_receipt_count": 1,
+        "proof_receipt_count": 1,
+        "proof_root_linked": true,
+        "root_created_before_first_provider_call": true,
+        "root_mission_id_count": 1,
+        "runtimehost_cognition": false,
+        "status": "completed"
+      },
+      "source": "canonical-product-run behavioral probe creates one root MissionRecord and one ProductActionKernel receipt",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/cli.py:507",
+      "status": "PASS",
+      "value": false
+    },
+    "direct_rootmissionruntime_workspace_executor": {
+      "evidence_class": "STATIC_PROBE",
+      "source": "RootMissionRuntime direct workspace executor methods absent from current AST",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:901",
+      "status": "PASS",
+      "value": 0
+    },
+    "fake_material_success_on_migrated_surfaces": {
+      "evidence_class": "NEGATIVE_BEHAVIORAL_PROBE",
+      "route_trace": {
+        "blocked_reason_detail": "canonical_simulated_backend_cannot_create_material_receipt",
+        "fake_backend_material_receipt_created": false,
+        "probe_status": "PASSED",
+        "source": "negative_behavioral_probe",
+        "terminal_state": "blocked",
+        "value": 0
+      },
+      "source": "C2 fake material backend rejection is replayed as a C3 migrated-route invariant",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:456",
+      "status": "PASS",
+      "value": 0
+    },
+    "hardcoded_capability_list_on_migrated_surfaces": {
+      "evidence_class": "STATIC_PROBE",
+      "source": "Migrated public route projects affordances from ExecutableCapabilityGraph, not prompt list constants",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/cli.py:507",
+      "status": "PASS",
+      "value": 0
+    },
+    "legacy_action_envelope_usage_in_product_core": {
+      "evidence_class": "STATIC_PROBE",
+      "source": "RootMissionRuntime product dispatch source contains typed ProductActionKernel execution and no ActionEnvelope bridge",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:901",
+      "status": "PASS",
+      "value": 0
+    },
+    "product_action_kernel_effect_dispatch_owner": {
+      "evidence_class": "STATIC_PROBE",
+      "source": "RootMissionRuntime dispatch method calls ProductActionKernel.execute_typed as the effect owner",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/action_kernel.py:237",
+      "status": "PASS",
+      "value": 1
+    },
+    "product_workspace_cognition_loops": {
+      "evidence_class": "BEHAVIORAL_PROBE",
+      "route_trace": {
+        "canonical-dev-run": {
+          "decision_client": "_JsonlCanonicalDecisionScriptClient",
+          "exit_code": 0,
+          "legacy_action_envelope_adapter": false,
+          "mission_record_created_before_provider": true,
+          "product_receipt_count": 1,
+          "proof_receipt_count": 1,
+          "proof_root_linked": true,
+          "root_created_before_first_provider_call": true,
+          "root_mission_id_count": 1,
+          "runtimehost_cognition": false,
+          "status": "completed"
+        },
+        "canonical-product-run": {
+          "decision_client": "_JsonlCanonicalDecisionScriptClient",
+          "exit_code": 0,
+          "legacy_action_envelope_adapter": false,
+          "mission_record_created_before_provider": true,
+          "product_receipt_count": 1,
+          "proof_receipt_count": 1,
+          "proof_root_linked": true,
+          "root_created_before_first_provider_call": true,
+          "root_mission_id_count": 1,
+          "runtimehost_cognition": false,
+          "status": "completed"
+        }
+      },
+      "source": "C3 migrated-surface probe proves both public workspace surfaces use one RootMissionRuntime loop",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/cli.py:507",
+      "status": "PASS",
+      "value": 1
+    },
+    "production_canonical_decision_clients": {
+      "evidence_class": "BEHAVIORAL_PROBE",
+      "route_trace": {
+        "client_class": "ProductModelNativeDecisionClient",
+        "decision_origin": "MODEL_SELECTED",
+        "decision_protocol": "MODEL_NATIVE_CANONICAL_JSON_V1",
+        "probe_status": "PASSED",
+        "provider_calls": 0,
+        "request_runtime": "product_model_native_decision",
+        "transport_request_count": 1
+      },
+      "source": "ProductModelNativeDecisionClient fake-transport probe emits CanonicalDecision directly",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/product_model_native_decision_client.py:83",
+      "status": "PASS",
+      "value": 1
+    },
+    "proof_root_linked_to_root_mission_record": {
+      "evidence_class": "BEHAVIORAL_PROBE",
+      "route_trace": {
+        "canonical-dev-run": {
+          "decision_client": "_JsonlCanonicalDecisionScriptClient",
+          "exit_code": 0,
+          "legacy_action_envelope_adapter": false,
+          "mission_record_created_before_provider": true,
+          "product_receipt_count": 1,
+          "proof_receipt_count": 1,
+          "proof_root_linked": true,
+          "root_created_before_first_provider_call": true,
+          "root_mission_id_count": 1,
+          "runtimehost_cognition": false,
+          "status": "completed"
+        },
+        "canonical-product-run": {
+          "decision_client": "_JsonlCanonicalDecisionScriptClient",
+          "exit_code": 0,
+          "legacy_action_envelope_adapter": false,
+          "mission_record_created_before_provider": true,
+          "product_receipt_count": 1,
+          "proof_receipt_count": 1,
+          "proof_root_linked": true,
+          "root_created_before_first_provider_call": true,
+          "root_mission_id_count": 1,
+          "runtimehost_cognition": false,
+          "status": "completed"
+        }
+      },
+      "source": "Migrated surface payloads link ProductActionKernel receipt refs into MissionProofRoot",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/cli.py:507",
+      "status": "PASS",
+      "value": true
+    },
+    "provider_request_builder_owner": {
+      "evidence_class": "STATIC_PROBE",
+      "source": "Provider request builder lives under ProductModelNativeDecisionClient, not CLI duplicate",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/product_model_native_decision_client.py:83",
+      "status": "PASS",
+      "value": "ProductModelNativeDecisionClient"
+    },
+    "remaining_non_migrated_model_led_product_loop": {
+      "evidence_class": "STATIC_PROBE",
+      "source": "ModelLedProductActionKernelTaskLoop is retained only for non-C3 routes",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py:116",
+      "status": "PASS",
+      "value": "KNOWN_NON_C3_ROUTE"
+    },
+    "remaining_non_migrated_runtimehost_loop": {
+      "evidence_class": "STATIC_PROBE",
+      "source": "Legacy RuntimeHost loop is retained only for non-C3 routes",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/runtime_host.py:792",
+      "status": "PASS",
+      "value": "KNOWN_NON_C3_ROUTE"
+    },
+    "root_mission_record_per_public_run": {
+      "evidence_class": "BEHAVIORAL_PROBE",
+      "route_trace": {
+        "canonical-dev-run": {
+          "decision_client": "_JsonlCanonicalDecisionScriptClient",
+          "exit_code": 0,
+          "legacy_action_envelope_adapter": false,
+          "mission_record_created_before_provider": true,
+          "product_receipt_count": 1,
+          "proof_receipt_count": 1,
+          "proof_root_linked": true,
+          "root_created_before_first_provider_call": true,
+          "root_mission_id_count": 1,
+          "runtimehost_cognition": false,
+          "status": "completed"
+        },
+        "canonical-product-run": {
+          "decision_client": "_JsonlCanonicalDecisionScriptClient",
+          "exit_code": 0,
+          "legacy_action_envelope_adapter": false,
+          "mission_record_created_before_provider": true,
+          "product_receipt_count": 1,
+          "proof_receipt_count": 1,
+          "proof_root_linked": true,
+          "root_created_before_first_provider_call": true,
+          "root_mission_id_count": 1,
+          "runtimehost_cognition": false,
+          "status": "completed"
+        }
+      },
+      "source": "Migrated surface payloads report exactly one root mission id",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/cli.py:507",
+      "status": "PASS",
+      "value": 1
+    },
+    "runtimehost_cognitive_methods_on_migrated_routes": {
+      "evidence_class": "NEGATIVE_BEHAVIORAL_PROBE",
+      "route_trace": {
+        "legacy_runtimehost_loop_called": false
+      },
+      "source": "RuntimeHost legacy cognitive method monkeypatch stayed uncalled on migrated routes",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/cli.py:507",
+      "status": "PASS",
+      "value": 0
+    },
+    "workspace_duplicate_owner_per_capability_id": {
+      "evidence_class": "STATIC_PROBE",
+      "route_trace": {
+        "components": [],
+        "count": 0,
+        "owners_by_capability": {
+          "sentinel_loop.finish": [
+            {
+              "authority_schema": "none",
+              "backend": "host_terminal_decision",
+              "callable_owner": "RootMissionRuntime:terminal_decision",
+              "receipt_contract": "canonical_core_terminal_truth_v1",
+              "registration_source": "ExecutableCapabilityGraph.routes"
+            }
+          ],
+          "workspace.list": [
+            {
+              "authority_schema": "workspace_read",
+              "backend": "workspace_read_only",
+              "callable_owner": "ProductActionKernel:workspace",
+              "receipt_contract": "canonical_core_workspace_receipt_v1",
+              "registration_source": "ExecutableCapabilityGraph.routes"
+            }
+          ],
+          "workspace.read": [
+            {
+              "authority_schema": "workspace_read",
+              "backend": "workspace_read_only",
+              "callable_owner": "ProductActionKernel:workspace",
+              "receipt_contract": "canonical_core_workspace_receipt_v1",
+              "registration_source": "ExecutableCapabilityGraph.routes"
+            }
+          ],
+          "workspace.search": [
+            {
+              "authority_schema": "workspace_read",
+              "backend": "workspace_read_only",
+              "callable_owner": "ProductActionKernel:workspace",
+              "receipt_contract": "canonical_core_workspace_receipt_v1",
+              "registration_source": "ExecutableCapabilityGraph.routes"
+            }
+          ]
+        },
+        "source": "ExecutableCapabilityGraph.routes"
+      },
+      "source": "Workspace owners are derived from ExecutableCapabilityGraph.routes",
+      "source_location": "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:456",
+      "status": "PASS",
+      "value": 0
+    }
+  },
   "c3_gates": {
     "canonical_dev_run_bypass": false,
     "canonical_product_run_bypass": false,
@@ -43,6 +330,21 @@
     "workspace_duplicate_owner_per_capability_id": 0
   },
   "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
+  "commit_taxonomy": {
+    "c2s_commits": [
+      "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92"
+    ],
+    "deletion_commits": [
+      "88ee94f1768c962246b54c918b27dd4374a29a5e"
+    ],
+    "documentation_commits": [
+      "b7c24e0a5baecd43fbb317cb0ddfc16743da0a58"
+    ],
+    "implementation_commits": [
+      "88ee94f1768c962246b54c918b27dd4374a29a5e"
+    ]
+  },
+  "current_phase": "C3S_REPLAYABLE_PROOF_SEAL",
   "finding_statuses_preserved": {
     "C-P0-01": "IMPLEMENTING",
     "C-P0-03": "IMPLEMENTING",
@@ -58,6 +360,14 @@
     "P1_fixed": "0/44",
     "P2_fixed": "0/6"
   },
+  "head_taxonomy": {
+    "artifact_generation_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
+    "current_remote_head": "b7c24e0a5baecd43fbb317cb0ddfc16743da0a58",
+    "current_worktree_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
+    "documentation_head": "b7c24e0a5baecd43fbb317cb0ddfc16743da0a58",
+    "implementation_tested_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+    "proof_attestation_head": "88ee94f1768c962246b54c918b27dd4374a29a5e"
+  },
   "implementation_head_before_report": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
   "provider_calls": 0,
   "provider_client_probe": {
@@ -69,12 +379,98 @@
     "request_runtime": "product_model_native_decision",
     "transport_request_count": 1
   },
+  "qualified_callers_and_deletions": {
+    "deleted_symbols": [
+      {
+        "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        "present_in_current_source": false,
+        "replacement": "sentinel.operator.product_model_native_decision_client::ProductModelNativeDecisionClient.for_canonical_decisions",
+        "source": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+        "status": "DELETED",
+        "symbol": "sentinel.cli::_RealProviderCanonicalDecisionClient"
+      },
+      {
+        "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        "present_in_current_source": false,
+        "replacement": "sentinel.operator.product_model_native_decision_client::_canonical_real_model_request",
+        "source": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+        "status": "DELETED_FROM_CLI",
+        "symbol": "sentinel.cli::_canonical_real_model_request"
+      },
+      {
+        "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        "present_in_current_source": false,
+        "replacement": "sentinel.operator.product_model_native_decision_client::_canonical_product_provider_prompt",
+        "source": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+        "status": "DELETED_FROM_CLI",
+        "symbol": "sentinel.cli::_canonical_product_provider_prompt"
+      },
+      {
+        "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        "present_in_current_source": false,
+        "replacement": "sentinel.operator.action_kernel::ActionKernel.execute_typed",
+        "source": "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py",
+        "status": "DELETED",
+        "symbol": "sentinel.operator.canonical_core::RootMissionRuntime._action_envelope_for_decision"
+      }
+    ],
+    "loc_delta": {
+      "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+      "source": "git show --stat recorded in C3 validation",
+      "status": "RECORDED_NOT_RECOMPUTED_BY_C3S"
+    },
+    "qualified_calls": [
+      {
+        "caller": "sentinel.cli::_run_canonical_dev_command",
+        "evidence_kind": "function_call",
+        "resolution": "QUALIFIED",
+        "source": "sentinel-control/services/sentinel-core/sentinel/cli.py:503",
+        "target": "sentinel.cli::_run_canonical_product_command"
+      },
+      {
+        "caller": "sentinel.cli::_run_canonical_product_command",
+        "evidence_kind": "provider_client_constructor",
+        "resolution": "QUALIFIED",
+        "source": "sentinel-control/services/sentinel-core/sentinel/cli.py:527",
+        "target": "sentinel.operator.product_model_native_decision_client::ProductModelNativeDecisionClient.for_canonical_decisions"
+      },
+      {
+        "caller": "sentinel.operator.canonical_core::RootMissionRuntime._execute_product_kernel_action",
+        "evidence_kind": "method_call",
+        "resolution": "QUALIFIED",
+        "source": "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:918",
+        "target": "sentinel.operator.action_kernel::ActionKernel.execute_typed"
+      },
+      {
+        "caller": "sentinel.operator.product_model_native_decision_client::ProductModelNativeDecisionClient.for_canonical_decisions",
+        "evidence_kind": "decision_protocol_adapter",
+        "resolution": "QUALIFIED",
+        "source": "sentinel-control/services/sentinel-core/sentinel/operator/product_model_native_decision_client.py:108",
+        "target": "sentinel.operator.canonical_core::CanonicalDecision"
+      }
+    ],
+    "unknown_remaining": []
+  },
   "remaining_global_surfaces": {
     "browser": "NOT_MIGRATED_IN_C3",
     "channel": "NOT_MIGRATED_IN_C3",
     "legacy_runtimehost_task_loop": "KEPT_FOR_NON_MIGRATED_ROUTES",
     "model_led_product_action_kernel_task_loop": "KEPT_FOR_NON_MIGRATED_ROUTES",
     "power_lab": "NOT_MIGRATED_IN_C3"
+  },
+  "run_attestations": {
+    "browser_runs": {
+      "evidence_class": "RUN_ATTESTATION",
+      "source": "C3 workspace-only migrated-surface probe",
+      "status": "ZERO_RECORDED",
+      "value": 0
+    },
+    "provider_calls": {
+      "evidence_class": "RUN_ATTESTATION",
+      "source": "C3 migrated-surface scripted local probe",
+      "status": "ZERO_RECORDED",
+      "value": 0
+    }
   },
   "surface_probe": {
     "browser_runs": 0,

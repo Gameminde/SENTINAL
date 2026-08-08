@@ -1,17 +1,17 @@
-gate,value,source,status
-product_workspace_cognition_loops,1,derived,PASS
-production_canonical_decision_clients,1,derived,PASS
-runtimehost_cognitive_methods_on_migrated_routes,0,derived,PASS
-legacy_action_envelope_usage_in_product_core,0,derived,PASS
-canonical_product_run_bypass,false,derived,PASS
-canonical_dev_run_bypass,false,derived,PASS
-direct_rootmissionruntime_workspace_executor,0,derived,PASS
-product_action_kernel_effect_dispatch_owner,1,derived,PASS
-workspace_duplicate_owner_per_capability_id,0,derived,PASS
-hardcoded_capability_list_on_migrated_surfaces,0,derived,PASS
-fake_material_success_on_migrated_surfaces,0,derived,PASS
-root_mission_record_per_public_run,1,derived,PASS
-proof_root_linked_to_root_mission_record,true,derived,PASS
-provider_request_builder_owner,"""ProductModelNativeDecisionClient""",derived,RECORDED
-remaining_non_migrated_runtimehost_loop,"""KNOWN_NON_C3_ROUTE""",derived,RECORDED
-remaining_non_migrated_model_led_product_loop,"""KNOWN_NON_C3_ROUTE""",derived,RECORDED
+gate,value,source,evidence_class,status,source_location
+product_workspace_cognition_loops,1,C3 migrated-surface probe proves both public workspace surfaces use one RootMissionRuntime loop,BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/cli.py:507
+production_canonical_decision_clients,1,ProductModelNativeDecisionClient fake-transport probe emits CanonicalDecision directly,BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/product_model_native_decision_client.py:83
+runtimehost_cognitive_methods_on_migrated_routes,0,RuntimeHost legacy cognitive method monkeypatch stayed uncalled on migrated routes,NEGATIVE_BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/cli.py:507
+legacy_action_envelope_usage_in_product_core,0,RootMissionRuntime product dispatch source contains typed ProductActionKernel execution and no ActionEnvelope bridge,STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:901
+canonical_product_run_bypass,false,canonical-product-run behavioral probe creates one root MissionRecord and one ProductActionKernel receipt,BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/cli.py:507
+canonical_dev_run_bypass,false,canonical-dev-run behavioral probe shares the canonical hosted product route,BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/cli.py:503
+direct_rootmissionruntime_workspace_executor,0,RootMissionRuntime direct workspace executor methods absent from current AST,STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:901
+product_action_kernel_effect_dispatch_owner,1,RootMissionRuntime dispatch method calls ProductActionKernel.execute_typed as the effect owner,STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/action_kernel.py:237
+workspace_duplicate_owner_per_capability_id,0,Workspace owners are derived from ExecutableCapabilityGraph.routes,STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:456
+hardcoded_capability_list_on_migrated_surfaces,0,"Migrated public route projects affordances from ExecutableCapabilityGraph, not prompt list constants",STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/cli.py:507
+fake_material_success_on_migrated_surfaces,0,C2 fake material backend rejection is replayed as a C3 migrated-route invariant,NEGATIVE_BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py:456
+root_mission_record_per_public_run,1,Migrated surface payloads report exactly one root mission id,BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/cli.py:507
+proof_root_linked_to_root_mission_record,true,Migrated surface payloads link ProductActionKernel receipt refs into MissionProofRoot,BEHAVIORAL_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/cli.py:507
+provider_request_builder_owner,"""ProductModelNativeDecisionClient""","Provider request builder lives under ProductModelNativeDecisionClient, not CLI duplicate",STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/product_model_native_decision_client.py:83
+remaining_non_migrated_runtimehost_loop,"""KNOWN_NON_C3_ROUTE""",Legacy RuntimeHost loop is retained only for non-C3 routes,STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/runtime_host.py:792
+remaining_non_migrated_model_led_product_loop,"""KNOWN_NON_C3_ROUTE""",ModelLedProductActionKernelTaskLoop is retained only for non-C3 routes,STATIC_PROBE,PASS,sentinel-control/services/sentinel-core/sentinel/operator/model_led_product_action_kernel_task_loop.py:116

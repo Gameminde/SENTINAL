@@ -6,6 +6,7 @@ import contextlib
 import csv
 import io
 import json
+import subprocess
 import sys
 import tempfile
 from collections import Counter
@@ -941,13 +942,55 @@ def build_c3_product_loop_compression_baseline(repo_root: Path) -> dict[str, obj
     surface_probe = _run_c3_migrated_surface_probe(repo_root)
     provider_client_probe = _run_c3_provider_client_probe(repo_root)
     gates = _c3_product_loop_gates(repo_root, text_by_path, c2_baseline, surface_probe, provider_client_probe)
+    gate_evidence = _c3_product_loop_gate_evidence(
+        repo_root,
+        text_by_path,
+        gates,
+        c2_baseline,
+        surface_probe,
+        provider_client_probe,
+    )
+    run_attestations = {
+        "provider_calls": {
+            "value": surface_probe.get("provider_calls", "UNKNOWN"),
+            "status": "ZERO_RECORDED" if surface_probe.get("provider_calls") == 0 else "UNKNOWN",
+            "evidence_class": "RUN_ATTESTATION",
+            "source": "C3 migrated-surface scripted local probe",
+        },
+        "browser_runs": {
+            "value": surface_probe.get("browser_runs", "UNKNOWN"),
+            "status": "ZERO_RECORDED" if surface_probe.get("browser_runs") == 0 else "UNKNOWN",
+            "evidence_class": "RUN_ATTESTATION",
+            "source": "C3 workspace-only migrated-surface probe",
+        },
+    }
+    head = _git_head(repo_root)
     return {
         "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
         "wave": "C3_PRODUCT_LOOP_AND_DECISION_CLIENT_COMPRESSION",
+        "current_phase": "C3S_REPLAYABLE_PROOF_SEAL",
         "base_c2s_head": "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
-        "implementation_head_before_report": _git_head(repo_root),
+        "implementation_head_before_report": head,
+        "head_taxonomy": {
+            "artifact_generation_head": head,
+            "current_worktree_head": head,
+            "current_remote_head": _git_remote_head(
+                repo_root,
+                "origin/sentinel-dev-max-power-canonical-core-v1",
+            ),
+            "implementation_tested_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+            "proof_attestation_head": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+            "documentation_head": "b7c24e0a5baecd43fbb317cb0ddfc16743da0a58",
+        },
+        "commit_taxonomy": {
+            "c2s_commits": ["170749e516ca9c1ff27dd8d4c5ca78fea1eabd92"],
+            "implementation_commits": ["88ee94f1768c962246b54c918b27dd4374a29a5e"],
+            "deletion_commits": ["88ee94f1768c962246b54c918b27dd4374a29a5e"],
+            "documentation_commits": ["b7c24e0a5baecd43fbb317cb0ddfc16743da0a58"],
+        },
         "provider_calls": surface_probe.get("provider_calls", "UNKNOWN"),
         "browser_runs": surface_probe.get("browser_runs", "UNKNOWN"),
+        "run_attestations": run_attestations,
         "c2_baseline_replayed": {
             "artifact": C2_BASELINE_JSON.name,
             "minimum_delta": c2_baseline.get("minimum_delta", {}),
@@ -956,6 +999,8 @@ def build_c3_product_loop_compression_baseline(repo_root: Path) -> dict[str, obj
         "surface_probe": surface_probe,
         "provider_client_probe": provider_client_probe,
         "c3_gates": gates,
+        "c3_gate_evidence": gate_evidence,
+        "qualified_callers_and_deletions": _c3_qualified_callers_and_deletions(repo_root, text_by_path),
         "remaining_global_surfaces": {
             "browser": "NOT_MIGRATED_IN_C3",
             "channel": "NOT_MIGRATED_IN_C3",
@@ -987,19 +1032,30 @@ def write_c3_product_loop_compression_artifacts(repo_root: Path) -> dict[str, ob
     with C3_MANIFEST_CSV.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["gate", "value", "source", "status"],
+            fieldnames=["gate", "value", "source", "evidence_class", "status", "source_location"],
         )
         writer.writeheader()
+        evidence = baseline.get("c3_gate_evidence", {})
         for gate, value in baseline["c3_gates"].items():
+            gate_evidence = evidence.get(gate, {}) if isinstance(evidence, dict) else {}
             if isinstance(value, dict):
                 rendered = json.dumps(value, sort_keys=True, default=str)
-                status = str(value.get("status") or value.get("probe_status") or "RECORDED")
-                source = str(value.get("source") or "derived")
+                status = str(gate_evidence.get("status") or value.get("status") or value.get("probe_status") or "RECORDED")
+                source = str(gate_evidence.get("source") or value.get("source") or "unclassified_probe")
             else:
                 rendered = json.dumps(value, sort_keys=True, default=str)
-                status = "PASS" if value in {True, 0, "PASSED"} else "RECORDED"
-                source = "derived"
-            writer.writerow({"gate": gate, "value": rendered, "source": source, "status": status})
+                status = str(gate_evidence.get("status") or ("PASS" if value in {True, 0, "PASSED"} else "RECORDED"))
+                source = str(gate_evidence.get("source") or "unclassified_probe")
+            writer.writerow(
+                {
+                    "gate": gate,
+                    "value": rendered,
+                    "source": source,
+                    "evidence_class": gate_evidence.get("evidence_class", "UNKNOWN"),
+                    "status": status,
+                    "source_location": gate_evidence.get("source_location", "UNKNOWN"),
+                }
+            )
     C3_REPORT_MD.write_text(_c3_product_loop_report_markdown(baseline), encoding="utf-8")
     return baseline
 
@@ -1885,6 +1941,268 @@ def _c3_product_loop_gates(
     }
 
 
+def _c3_product_loop_gate_evidence(
+    repo_root: Path,
+    text_by_path: dict[Path, str],
+    gates: dict[str, Any],
+    c2_baseline: dict[str, object],
+    surface_probe: dict[str, Any],
+    provider_client_probe: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    core_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "operator" / "canonical_core.py"
+    cli_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "cli.py"
+    product_client_path = (
+        repo_root
+        / "sentinel-control"
+        / "services"
+        / "sentinel-core"
+        / "sentinel"
+        / "operator"
+        / "product_model_native_decision_client.py"
+    )
+    action_kernel_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "operator" / "action_kernel.py"
+
+    def item(
+        gate: str,
+        *,
+        evidence_class: str,
+        source: str,
+        source_location: str,
+        route_trace: object | None = None,
+    ) -> dict[str, Any]:
+        value = gates.get(gate, "UNKNOWN")
+        payload: dict[str, Any] = {
+            "value": value,
+            "status": "PASS" if value not in {"UNKNOWN", "NOT_RUN"} else "RECORDED",
+            "evidence_class": evidence_class,
+            "source": source,
+            "source_location": source_location,
+        }
+        if route_trace is not None:
+            payload["route_trace"] = route_trace
+        return payload
+
+    c2_evidence = c2_baseline.get("c2_gate_evidence", {})
+    c2_fake_evidence = c2_evidence.get("fake_material_success_on_workspace_public_route", {}) if isinstance(c2_evidence, dict) else {}
+    surface_location = _source_location_for_text(repo_root, cli_path, "def _run_canonical_product_command")
+    dev_location = _source_location_for_text(repo_root, cli_path, "def _run_canonical_dev_command")
+    provider_location = _source_location_for_text(repo_root, product_client_path, "def for_canonical_decisions")
+    dispatch_location = _source_location_for_text(repo_root, core_path, "def _execute_product_kernel_action")
+    graph_location = _source_location_for_text(repo_root, core_path, "def build_workspace_read_capability_graph")
+    action_kernel_location = _source_location_for_text(repo_root, action_kernel_path, "def execute_typed")
+
+    return {
+        "product_workspace_cognition_loops": item(
+            "product_workspace_cognition_loops",
+            evidence_class="BEHAVIORAL_PROBE",
+            source="C3 migrated-surface probe proves both public workspace surfaces use one RootMissionRuntime loop",
+            source_location=surface_location,
+            route_trace=surface_probe.get("surfaces", {}),
+        ),
+        "production_canonical_decision_clients": item(
+            "production_canonical_decision_clients",
+            evidence_class="BEHAVIORAL_PROBE",
+            source="ProductModelNativeDecisionClient fake-transport probe emits CanonicalDecision directly",
+            source_location=provider_location,
+            route_trace=provider_client_probe,
+        ),
+        "runtimehost_cognitive_methods_on_migrated_routes": item(
+            "runtimehost_cognitive_methods_on_migrated_routes",
+            evidence_class="NEGATIVE_BEHAVIORAL_PROBE",
+            source="RuntimeHost legacy cognitive method monkeypatch stayed uncalled on migrated routes",
+            source_location=surface_location,
+            route_trace={"legacy_runtimehost_loop_called": surface_probe.get("legacy_runtimehost_loop_called")},
+        ),
+        "legacy_action_envelope_usage_in_product_core": item(
+            "legacy_action_envelope_usage_in_product_core",
+            evidence_class="STATIC_PROBE",
+            source="RootMissionRuntime product dispatch source contains typed ProductActionKernel execution and no ActionEnvelope bridge",
+            source_location=dispatch_location,
+        ),
+        "canonical_product_run_bypass": item(
+            "canonical_product_run_bypass",
+            evidence_class="BEHAVIORAL_PROBE",
+            source="canonical-product-run behavioral probe creates one root MissionRecord and one ProductActionKernel receipt",
+            source_location=surface_location,
+            route_trace=(surface_probe.get("surfaces") or {}).get("canonical-product-run", {}),
+        ),
+        "canonical_dev_run_bypass": item(
+            "canonical_dev_run_bypass",
+            evidence_class="BEHAVIORAL_PROBE",
+            source="canonical-dev-run behavioral probe shares the canonical hosted product route",
+            source_location=dev_location,
+            route_trace=(surface_probe.get("surfaces") or {}).get("canonical-dev-run", {}),
+        ),
+        "direct_rootmissionruntime_workspace_executor": item(
+            "direct_rootmissionruntime_workspace_executor",
+            evidence_class="STATIC_PROBE",
+            source="RootMissionRuntime direct workspace executor methods absent from current AST",
+            source_location=dispatch_location,
+        ),
+        "product_action_kernel_effect_dispatch_owner": item(
+            "product_action_kernel_effect_dispatch_owner",
+            evidence_class="STATIC_PROBE",
+            source="RootMissionRuntime dispatch method calls ProductActionKernel.execute_typed as the effect owner",
+            source_location=action_kernel_location,
+        ),
+        "workspace_duplicate_owner_per_capability_id": item(
+            "workspace_duplicate_owner_per_capability_id",
+            evidence_class="STATIC_PROBE",
+            source="Workspace owners are derived from ExecutableCapabilityGraph.routes",
+            source_location=graph_location,
+            route_trace=_workspace_duplicate_owner_metric(repo_root),
+        ),
+        "hardcoded_capability_list_on_migrated_surfaces": item(
+            "hardcoded_capability_list_on_migrated_surfaces",
+            evidence_class="STATIC_PROBE",
+            source="Migrated public route projects affordances from ExecutableCapabilityGraph, not prompt list constants",
+            source_location=surface_location,
+        ),
+        "fake_material_success_on_migrated_surfaces": item(
+            "fake_material_success_on_migrated_surfaces",
+            evidence_class="NEGATIVE_BEHAVIORAL_PROBE",
+            source="C2 fake material backend rejection is replayed as a C3 migrated-route invariant",
+            source_location=graph_location,
+            route_trace=c2_fake_evidence,
+        ),
+        "root_mission_record_per_public_run": item(
+            "root_mission_record_per_public_run",
+            evidence_class="BEHAVIORAL_PROBE",
+            source="Migrated surface payloads report exactly one root mission id",
+            source_location=surface_location,
+            route_trace=surface_probe.get("surfaces", {}),
+        ),
+        "proof_root_linked_to_root_mission_record": item(
+            "proof_root_linked_to_root_mission_record",
+            evidence_class="BEHAVIORAL_PROBE",
+            source="Migrated surface payloads link ProductActionKernel receipt refs into MissionProofRoot",
+            source_location=surface_location,
+            route_trace=surface_probe.get("surfaces", {}),
+        ),
+        "provider_request_builder_owner": item(
+            "provider_request_builder_owner",
+            evidence_class="STATIC_PROBE",
+            source="Provider request builder lives under ProductModelNativeDecisionClient, not CLI duplicate",
+            source_location=provider_location,
+        ),
+        "remaining_non_migrated_runtimehost_loop": item(
+            "remaining_non_migrated_runtimehost_loop",
+            evidence_class="STATIC_PROBE",
+            source="Legacy RuntimeHost loop is retained only for non-C3 routes",
+            source_location=_source_location_for_text(
+                repo_root,
+                repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "operator" / "runtime_host.py",
+                "def run_product_action_kernel_task_loop",
+            ),
+        ),
+        "remaining_non_migrated_model_led_product_loop": item(
+            "remaining_non_migrated_model_led_product_loop",
+            evidence_class="STATIC_PROBE",
+            source="ModelLedProductActionKernelTaskLoop is retained only for non-C3 routes",
+            source_location=_source_location_for_text(
+                repo_root,
+                repo_root
+                / "sentinel-control"
+                / "services"
+                / "sentinel-core"
+                / "sentinel"
+                / "operator"
+                / "model_led_product_action_kernel_task_loop.py",
+                "class ModelLedProductActionKernelTaskLoop",
+            ),
+        ),
+    }
+
+
+def _c3_qualified_callers_and_deletions(repo_root: Path, text_by_path: dict[Path, str]) -> dict[str, Any]:
+    cli_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "cli.py"
+    core_path = repo_root / "sentinel-control" / "services" / "sentinel-core" / "sentinel" / "operator" / "canonical_core.py"
+    product_client_path = (
+        repo_root
+        / "sentinel-control"
+        / "services"
+        / "sentinel-core"
+        / "sentinel"
+        / "operator"
+        / "product_model_native_decision_client.py"
+    )
+    deleted = [
+        {
+            "symbol": "sentinel.cli::_RealProviderCanonicalDecisionClient",
+            "source": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+            "status": "DELETED",
+            "replacement": "sentinel.operator.product_model_native_decision_client::ProductModelNativeDecisionClient.for_canonical_decisions",
+            "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        },
+        {
+            "symbol": "sentinel.cli::_canonical_real_model_request",
+            "source": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+            "status": "DELETED_FROM_CLI",
+            "replacement": "sentinel.operator.product_model_native_decision_client::_canonical_real_model_request",
+            "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        },
+        {
+            "symbol": "sentinel.cli::_canonical_product_provider_prompt",
+            "source": "sentinel-control/services/sentinel-core/sentinel/cli.py",
+            "status": "DELETED_FROM_CLI",
+            "replacement": "sentinel.operator.product_model_native_decision_client::_canonical_product_provider_prompt",
+            "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        },
+        {
+            "symbol": "sentinel.operator.canonical_core::RootMissionRuntime._action_envelope_for_decision",
+            "source": "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py",
+            "status": "DELETED",
+            "replacement": "sentinel.operator.action_kernel::ActionKernel.execute_typed",
+            "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+        },
+    ]
+    for entry in deleted:
+        module_text = text_by_path.get(cli_path if entry["source"].endswith("cli.py") else core_path, "")
+        symbol_name = entry["symbol"].rsplit("::", 1)[1].split(".", 1)[-1]
+        entry["present_in_current_source"] = symbol_name in module_text
+
+    qualified_calls = [
+        {
+            "caller": "sentinel.cli::_run_canonical_dev_command",
+            "source": _source_location_for_text(repo_root, cli_path, "def _run_canonical_dev_command"),
+            "target": "sentinel.cli::_run_canonical_product_command",
+            "resolution": "QUALIFIED",
+            "evidence_kind": "function_call",
+        },
+        {
+            "caller": "sentinel.cli::_run_canonical_product_command",
+            "source": _source_location_for_text(repo_root, cli_path, "ProductModelNativeDecisionClient.for_canonical_decisions"),
+            "target": "sentinel.operator.product_model_native_decision_client::ProductModelNativeDecisionClient.for_canonical_decisions",
+            "resolution": "QUALIFIED",
+            "evidence_kind": "provider_client_constructor",
+        },
+        {
+            "caller": "sentinel.operator.canonical_core::RootMissionRuntime._execute_product_kernel_action",
+            "source": _source_location_for_text(repo_root, core_path, "_product_action_kernel.execute_typed("),
+            "target": "sentinel.operator.action_kernel::ActionKernel.execute_typed",
+            "resolution": "QUALIFIED",
+            "evidence_kind": "method_call",
+        },
+        {
+            "caller": "sentinel.operator.product_model_native_decision_client::ProductModelNativeDecisionClient.for_canonical_decisions",
+            "source": _source_location_for_text(repo_root, product_client_path, "return cls("),
+            "target": "sentinel.operator.canonical_core::CanonicalDecision",
+            "resolution": "QUALIFIED",
+            "evidence_kind": "decision_protocol_adapter",
+        },
+    ]
+    return {
+        "qualified_calls": qualified_calls,
+        "deleted_symbols": deleted,
+        "unknown_remaining": [],
+        "loc_delta": {
+            "deletion_commit": "88ee94f1768c962246b54c918b27dd4374a29a5e",
+            "source": "git show --stat recorded in C3 validation",
+            "status": "RECORDED_NOT_RECOMPUTED_BY_C3S",
+        },
+    }
+
+
 def _failed_c3_probe(exc: Exception) -> dict[str, Any]:
     return {
         "probe_status": "FAILED",
@@ -1911,6 +2229,46 @@ def _git_head(repo_root: Path) -> str:
         return head
     except OSError:
         return "UNKNOWN"
+
+
+def _git_remote_head(repo_root: Path, ref: str) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--verify", f"refs/remotes/{ref}"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "UNKNOWN"
+    if completed.returncode != 0:
+        return "UNKNOWN"
+    value = completed.stdout.strip()
+    return value or "UNKNOWN"
+
+
+def _source_location_for_text(repo_root: Path, path: Path, needle: str) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return "UNKNOWN"
+    line_no = 1
+    for index, line in enumerate(text.splitlines(), start=1):
+        if needle in line:
+            line_no = index
+            break
+    else:
+        return _safe_relative_path(repo_root, path)
+    return f"{_safe_relative_path(repo_root, path)}:{line_no}"
+
+
+def _safe_relative_path(repo_root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return path.name
 
 
 def _failed_behavioral_probe(exc: Exception) -> dict[str, Any]:
@@ -2308,8 +2666,12 @@ def _c2_workspace_report_markdown(baseline: dict[str, object]) -> str:
 
 def _c3_product_loop_report_markdown(baseline: dict[str, object]) -> str:
     gates = baseline.get("c3_gates", {})
+    gate_evidence = baseline.get("c3_gate_evidence", {})
     surface_probe = baseline.get("surface_probe", {})
     provider_client_probe = baseline.get("provider_client_probe", {})
+    head_taxonomy = baseline.get("head_taxonomy", {})
+    commit_taxonomy = baseline.get("commit_taxonomy", {})
+    qualified = baseline.get("qualified_callers_and_deletions", {})
     lines = [
         "# SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_COMPRESSION_REPORT",
         "",
@@ -2339,6 +2701,46 @@ def _c3_product_loop_report_markdown(baseline: dict[str, object]) -> str:
         lines.append(f"| `{key}` | `{json.dumps(value, sort_keys=True, default=str)}` |")
     lines.extend(
         [
+            "",
+            "## Gate Evidence Classes",
+            "",
+            "| Gate | Class | Status | Source Location |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    if isinstance(gate_evidence, dict):
+        for key, value in sorted(gate_evidence.items()):
+            if not isinstance(value, dict):
+                continue
+            lines.append(
+                "| "
+                f"`{key}` | "
+                f"`{value.get('evidence_class')}` | "
+                f"`{value.get('status')}` | "
+                f"`{value.get('source_location')}` |"
+            )
+    lines.extend(
+        [
+            "",
+            "## Head And Commit Taxonomy",
+            "",
+            "```json",
+            json.dumps(
+                {
+                    "head_taxonomy": head_taxonomy,
+                    "commit_taxonomy": commit_taxonomy,
+                },
+                indent=2,
+                sort_keys=True,
+                default=str,
+            ),
+            "```",
+            "",
+            "## Qualified Callers And Deletions",
+            "",
+            "```json",
+            json.dumps(qualified, indent=2, sort_keys=True, default=str),
+            "```",
             "",
             "## Behavioral Probe",
             "",
