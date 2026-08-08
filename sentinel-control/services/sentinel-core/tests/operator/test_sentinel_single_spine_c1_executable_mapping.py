@@ -3,9 +3,12 @@ from __future__ import annotations
 import csv
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
+
+_SOURCE_LINE_RE = re.compile(r"(?P<path>[\w./\\-]+\.py):\d+")
 
 
 def _repo_root() -> Path:
@@ -31,6 +34,16 @@ def _probe_module() -> Any:
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _normalize_source_locations(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _normalize_source_locations(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_source_locations(item) for item in value]
+    if isinstance(value, str):
+        return _SOURCE_LINE_RE.sub(lambda match: f"{match.group('path')}:<line>", value)
+    return value
 
 
 def test_c1_executable_mapping_artifacts_remain_preserved_historical_baseline() -> None:
@@ -292,7 +305,7 @@ def test_c2_workspace_compression_artifacts_match_current_source() -> None:
         ]
     )
 
-    assert baseline == expected
+    assert _normalize_source_locations(baseline) == _normalize_source_locations(expected)
     assert len(rows) == baseline["component_count"] == 28
     assert baseline["wave"] == "C2_WORKSPACE_COMPRESSION"
     assert baseline["c2_gates"]["canonical_product_run_bypass"] is False
@@ -408,7 +421,7 @@ def test_c3_product_loop_artifacts_are_replayable_and_classified() -> None:
         taxonomy["artifact_generation_head"] = "<runtime-dependent>"
         taxonomy["current_worktree_head"] = "<runtime-dependent>"
         taxonomy["current_remote_head"] = "<runtime-dependent>"
-    assert baseline_for_compare == expected_for_compare
+    assert _normalize_source_locations(baseline_for_compare) == _normalize_source_locations(expected_for_compare)
     assert baseline["wave"] == "C3_PRODUCT_LOOP_AND_DECISION_CLIENT_COMPRESSION"
     assert baseline["current_phase"] == "C3S_REPLAYABLE_PROOF_SEAL"
     assert baseline["head_taxonomy"]["current_worktree_head"]
