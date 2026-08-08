@@ -421,6 +421,7 @@ def test_c3_product_loop_artifacts_are_replayable_and_classified() -> None:
         taxonomy["artifact_generation_head"] = "<runtime-dependent>"
         taxonomy["current_worktree_head"] = "<runtime-dependent>"
         taxonomy["current_remote_head"] = "<runtime-dependent>"
+        payload["implementation_head_before_report"] = "<runtime-dependent>"
     assert _normalize_source_locations(baseline_for_compare) == _normalize_source_locations(expected_for_compare)
     assert baseline["wave"] == "C3_PRODUCT_LOOP_AND_DECISION_CLIENT_COMPRESSION"
     assert baseline["current_phase"] == "C3S_REPLAYABLE_PROOF_SEAL"
@@ -536,3 +537,78 @@ def test_c4_browser_readonly_cutover_artifacts_match_current_source() -> None:
     assert "C:\\" not in joined_artifacts
     assert "provider_calls = 0" in report
     assert "browser_runs = 0" in report
+
+
+def test_c4s_browser_readonly_cutover_seal_records_publication_and_full_route_truth() -> None:
+    docs = _sentinel_control_root() / "docs" / "reviews" / "deep_power_audit"
+    baseline = json.loads(
+        (docs / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json").read_text(encoding="utf-8")
+    )
+    manifest_rows = {
+        row["component"]: row
+        for row in csv.DictReader(
+            (docs / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv").open(encoding="utf-8")
+        )
+    }
+    report = (docs / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md").read_text(encoding="utf-8")
+
+    assert baseline["current_phase"] == "C4S_BROWSER_READONLY_PROOF_SEAL"
+    assert not baseline["head_taxonomy"]["c4s_generation_head"].startswith("ref:")
+    assert baseline["head_taxonomy"]["implementation_tested_head"] == "d1408193883f8307753cefbb0622fa8695170ab9"
+    assert baseline["head_taxonomy"]["published_remote_head"] == "dfa4479af31349f10932691da38ef771e8a74519"
+    assert baseline["c4s_publication_truth"]["artifact_head_before_c4s"] == "d1408193883f8307753cefbb0622fa8695170ab9"
+    assert baseline["c4s_publication_truth"]["latest_pushed_head_before_c4s"] == "dfa4479af31349f10932691da38ef771e8a74519"
+
+    registrations = baseline["browser_registrations"]
+    assert registrations["route_count"] == 8
+    assert registrations["registry_scope"] == "canonical_c4_route_only"
+    assert registrations["legacy_browser_product_cutover_registry_exists"] is True
+    assert sorted(registrations["registered_operations"]) == [
+        "real_browser.extract_evidence",
+        "real_browser.inspect_result",
+        "real_browser.observe",
+        "real_browser.open",
+        "real_browser.open_result",
+        "real_browser.recover_session",
+        "real_browser.search",
+        "real_browser.verify_extraction",
+    ]
+
+    adapter_capabilities = json.loads(manifest_rows["canonical_browser_readonly_adapter"]["capability_ids"])
+    assert sorted(adapter_capabilities) == [
+        "real_browser_control.real_browser.extract_evidence",
+        "real_browser_control.real_browser.inspect_result",
+        "real_browser_control.real_browser.observe",
+        "real_browser_control.real_browser.open",
+        "real_browser_control.real_browser.open_result",
+        "real_browser_control.real_browser.recover_session",
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.verify_extraction",
+    ]
+
+    cleanup = baseline["cancellation_cleanup_probe"]
+    assert cleanup["probe_status"] == "PASSED"
+    assert cleanup["scenarios"]["completion"]["cleanup_completed"] is True
+    assert cleanup["scenarios"]["block"]["cleanup_completed"] is True
+    assert cleanup["scenarios"]["cancellation"]["cleanup_completed"] is True
+    assert cleanup["scenarios"]["cleanup_failure"]["cleanup_completed"] is False
+    assert cleanup["scenarios"]["survivor"]["cleanup_completed"] is False
+
+    validations = baseline["c4s_validation_results"]
+    expected_commands = {
+        "test_sentinel_dev_max_power_canonical_core_v1.py + single_spine probes + c4 cutover",
+        "RuntimeHost/ProductActionKernel groups",
+        "skill surface/code-channel/recovery groups",
+        "real_monster_product_model_native_decision_client.py",
+        "interactive_exploration.py",
+        "Browser state/proof/answer evidence group",
+        "compileall sentinel",
+        "git diff --check",
+        "JSON/CSV parse",
+        "secret/path/raw-provider scan",
+    }
+    assert expected_commands <= {item["name"] for item in validations}
+    assert all(item["status"] in {"PASSED", "UNAVAILABLE"} for item in validations)
+    assert "## C4S Publication Truth" in report
+    assert "## Validation Results" in report
+    assert "browser_capability_registries = 1 is scoped to the canonical C4 route only" in report

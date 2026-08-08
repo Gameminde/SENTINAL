@@ -11,6 +11,18 @@ external_network_calls = 0
 physical Browser boundaries = NOT_RUN
 ```
 
+## C4S Publication Truth
+
+```json
+{
+  "artifact_head_before_c4s": "d1408193883f8307753cefbb0622fa8695170ab9",
+  "c4s_final_commit": "SELF_REFERENCE_UNAVAILABLE_UNTIL_COMMIT",
+  "c4s_generation_head": "dfa4479af31349f10932691da38ef771e8a74519",
+  "fixed_proven_count": 0,
+  "latest_pushed_head_before_c4s": "dfa4479af31349f10932691da38ef771e8a74519"
+}
+```
+
 ## Architecture After C4
 
 ```text
@@ -35,6 +47,7 @@ public canonical product/dev request
 | --- | --- |
 | `browser_authority_denial_before_backend` | `true` |
 | `browser_capability_registries` | `1` |
+| `browser_capability_registries_scope` | `"canonical_c4_route_only"` |
 | `browser_duplicate_owner_per_capability_id` | `0` |
 | `browser_effect_dispatch_owner` | `"ProductActionKernel"` |
 | `browser_environment_secret_leaks` | `0` |
@@ -52,12 +65,15 @@ public canonical product/dev request
 | `cancellation_cleanup_proven_fake` | `true` |
 | `canonical_browser_public_bypass` | `false` |
 | `external_network_calls` | `0` |
+| `legacy_browser_product_cutover_registry_exists` | `true` |
 | `physical_browser_boundaries` | `"NOT_RUN"` |
 | `production_canonical_decision_clients` | `1` |
 | `real_browser_runs` | `0` |
 | `real_provider_calls` | `0` |
 | `runtimehost_browser_cognitive_methods` | `0` |
 | `shared_product_browser_cognition_loops` | `1` |
+
+`browser_capability_registries = 1 is scoped to the canonical C4 route only`; the legacy `browser_product_cutover_registry` remains present and is listed as migration work, not silently counted as removed.
 
 ## BrowserEnvironmentState
 
@@ -126,6 +142,22 @@ public canonical product/dev request
 }
 ```
 
+## Validation Results
+
+| Name | Status | Result |
+| --- | --- | --- |
+| `test_sentinel_dev_max_power_canonical_core_v1.py + single_spine probes + c4 cutover` | `PASSED` | `63/63 passed` |
+| `RuntimeHost/ProductActionKernel groups` | `PASSED` | `38/38 passed` |
+| `skill surface/code-channel/recovery groups` | `PASSED` | `27/27 passed` |
+| `real_monster_product_model_native_decision_client.py` | `PASSED` | `59/59 passed` |
+| `interactive_exploration.py` | `PASSED` | `59/59 passed` |
+| `Browser state/proof/answer evidence group` | `PASSED` | `29/29 passed` |
+| `compileall sentinel` | `PASSED` | `exit 0` |
+| `git diff --check` | `PASSED` | `exit 0` |
+| `JSON/CSV parse` | `PASSED` | `C2/C3/C4 JSON parsed; C2=28 rows, C3=16 rows, C4=16 rows` |
+| `secret/path/raw-provider scan` | `PASSED` | `only safe doctrine/report mentions, no raw secrets or local paths` |
+| `targeted Ruff correctness` | `UNAVAILABLE` | `No module named ruff` |
+
 ## Authority / Fake Material / Cancellation Probes
 
 ```json
@@ -139,14 +171,86 @@ public canonical product/dev request
     "real_browser_runs": 0
   },
   "cancellation_cleanup_probe": {
-    "cleanup_completed": true,
-    "cleanup_count": 1,
     "external_network_calls": 0,
-    "lease_released": true,
-    "model_turns": 1,
     "probe_status": "PASSED",
     "provider_calls": 0,
-    "real_browser_runs": 0
+    "real_browser_runs": 0,
+    "scenario_count": 5,
+    "scenarios": {
+      "block": {
+        "backend_call_log": [],
+        "blocked_reason_detail": "canonical_authority_required:browser_read",
+        "cleanup_completed": true,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "EFFECT_DISPATCH_FAILED",
+        "lease_released": true,
+        "model_turns": 1,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "blocked"
+      },
+      "cancellation": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "root_mission_cancelled_during_browser_effect",
+        "cleanup_completed": true,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "EFFECT_DISPATCH_FAILED",
+        "lease_released": true,
+        "model_turns": 1,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "blocked"
+      },
+      "cleanup_failure": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "",
+        "cleanup_completed": false,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "model_selected_finish",
+        "lease_released": false,
+        "model_turns": 2,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "completed"
+      },
+      "completion": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "",
+        "cleanup_completed": true,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "model_selected_finish",
+        "lease_released": true,
+        "model_turns": 2,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "completed"
+      },
+      "survivor": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "",
+        "cleanup_completed": false,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "model_selected_finish",
+        "lease_released": false,
+        "model_turns": 2,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "completed"
+      }
+    }
   },
   "fake_material_probe": {
     "external_network_calls": 0,
@@ -163,6 +267,7 @@ public canonical product/dev request
 ```json
 {
   "duplicate_owner_per_capability_id": 0,
+  "legacy_browser_product_cutover_registry_exists": true,
   "owners_by_capability": {
     "real_browser_control.real_browser.extract_evidence": [
       {
@@ -265,7 +370,18 @@ public canonical product/dev request
     "real_browser_control.real_browser.type_text",
     "real_browser_control.real_browser.upload"
   ],
+  "registered_operations": [
+    "real_browser.extract_evidence",
+    "real_browser.inspect_result",
+    "real_browser.observe",
+    "real_browser.open",
+    "real_browser.open_result",
+    "real_browser.recover_session",
+    "real_browser.search",
+    "real_browser.verify_extraction"
+  ],
   "registry_owner": "ExecutableCapabilityGraph",
+  "registry_scope": "canonical_c4_route_only",
   "route_count": 8
 }
 ```

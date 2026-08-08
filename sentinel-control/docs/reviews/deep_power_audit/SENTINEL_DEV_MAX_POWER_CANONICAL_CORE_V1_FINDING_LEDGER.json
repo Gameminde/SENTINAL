@@ -2813,7 +2813,7 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-08T14:15:45Z",
+  "updated_at_utc": "2026-08-08T15:25:31Z",
   "synced_checkpoint_head": "d1408193883f8307753cefbb0622fa8695170ab9",
   "ledger_schema_version": "canonical_core_finding_execution_ledger_v1",
   "fixed_proven_by_severity": {
@@ -2868,7 +2868,8 @@
       "15f37937d036a22008a13fe396fc1c2fedf27c58",
       "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
       "88ee94f1768c962246b54c918b27dd4374a29a5e",
-      "d1408193883f8307753cefbb0622fa8695170ab9"
+      "d1408193883f8307753cefbb0622fa8695170ab9",
+      "dfa4479af31349f10932691da38ef771e8a74519"
     ],
     "implementation_commits": [
       "15161055",
@@ -2885,7 +2886,8 @@
       "15f37937d036a22008a13fe396fc1c2fedf27c58",
       "170749e516ca9c1ff27dd8d4c5ca78fea1eabd92",
       "88ee94f1768c962246b54c918b27dd4374a29a5e",
-      "d1408193883f8307753cefbb0622fa8695170ab9"
+      "d1408193883f8307753cefbb0622fa8695170ab9",
+      "dfa4479af31349f10932691da38ef771e8a74519"
     ],
     "deletion_commits": [
       "b4f4baaceb6deb38f038a81321eb81d3ad21723b"
@@ -3246,6 +3248,141 @@
       "external_network_calls": 0,
       "physical_browser_lifecycle": "NOT_RUN",
       "real_cloak_parity": "NOT_RUN"
+    }
+  },
+  "single_spine_c4s_browser_readonly_proof_seal": {
+    "wave": "C4S_BROWSER_READONLY_PROOF_SEAL",
+    "status": "C4_BROWSER_READONLY_PROOF_SEALED_LOCAL",
+    "implementation_tested_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+    "published_remote_head_before_seal": "dfa4479af31349f10932691da38ef771e8a74519",
+    "c4s_generation_head_before_commit": "dfa4479af31349f10932691da38ef771e8a74519",
+    "artifact_head_before_c4s": "d1408193883f8307753cefbb0622fa8695170ab9",
+    "latest_pushed_head_before_c4s": "dfa4479af31349f10932691da38ef771e8a74519",
+    "provider_calls": 0,
+    "browser_runs": 0,
+    "real_browser_runs": 0,
+    "external_network_calls": 0,
+    "fixed_proven_count": 0,
+    "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
+    ],
+    "validation_results": [
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m pytest test_sentinel_dev_max_power_canonical_core_v1.py test_sentinel_single_spine_c1_executable_mapping.py test_sentinel_single_spine_c4_browser_readonly_cutover.py -q",
+        "name": "test_sentinel_dev_max_power_canonical_core_v1.py + single_spine probes + c4 cutover",
+        "provider_calls": 0,
+        "result": "63/63 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m pytest test_runtime_host_pack1.py test_power_cleanup_runtimehost_safe_skill_product_registration.py test_power_cleanup_pack9_product_actionkernel_task_loop.py test_power_cleanup_pack10_product_task_loop_runtimehost_entrypoint.py test_power_cleanup_product_action_kernel_dispatch_adapter.py -q",
+        "name": "RuntimeHost/ProductActionKernel groups",
+        "provider_calls": 0,
+        "result": "38/38 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m pytest test_power_unification_pack2_skill_only_model_surface.py test_power_cleanup_model_facing_executable_skill_truth.py test_power_cleanup_actionkernel_skill_parity_code_channel.py test_power_cleanup_recoverable_observation_loop_guard.py -q",
+        "name": "skill surface/code-channel/recovery groups",
+        "provider_calls": 0,
+        "result": "27/27 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m pytest test_real_monster_product_model_native_decision_client.py -q",
+        "name": "real_monster_product_model_native_decision_client.py",
+        "provider_calls": 0,
+        "result": "59/59 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m pytest test_interactive_exploration.py -q",
+        "name": "interactive_exploration.py",
+        "provider_calls": 0,
+        "result": "59/59 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m pytest test_browser_cortex_pack1_environment_state_graph.py test_browser_cortex_affordance_contracts.py test_browser_observe_receipt_proof_completeness.py test_browser_receipt_persistence_answer_claim_evidence.py -q",
+        "name": "Browser state/proof/answer evidence group",
+        "provider_calls": 0,
+        "result": "29/29 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel",
+        "name": "compileall sentinel",
+        "provider_calls": 0,
+        "result": "exit 0",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "git diff --check",
+        "name": "git diff --check",
+        "provider_calls": 0,
+        "result": "exit 0",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 parse check for C2/C3/C4 JSON and CSV artifacts",
+        "name": "JSON/CSV parse",
+        "provider_calls": 0,
+        "result": "C2/C3/C4 JSON parsed; C2=28 rows, C3=16 rows, C4=16 rows",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "rg targeted scan over C4 runtime/tests/artifacts/ledger",
+        "name": "secret/path/raw-provider scan",
+        "provider_calls": 0,
+        "result": "only safe doctrine/report mentions, no raw secrets or local paths",
+        "status": "PASSED"
+      },
+      {
+        "browser_runs": 0,
+        "command": "py -3.13 -m ruff --version",
+        "name": "targeted Ruff correctness",
+        "provider_calls": 0,
+        "result": "No module named ruff",
+        "status": "UNAVAILABLE"
+      }
+    ],
+    "sealed_truth": {
+      "remote_head_vs_artifact_head_reconciled": true,
+      "full_browser_route_count": 8,
+      "browser_registry_scope": "canonical_c4_route_only",
+      "legacy_browser_product_cutover_registry_exists": true,
+      "cancellation_cleanup_scenarios": [
+        "block",
+        "cancellation",
+        "cleanup_failure",
+        "completion",
+        "survivor"
+      ]
+    },
+    "remaining_open_truth": {
+      "FIXED_PROVEN": "0/65",
+      "C-P0-01": "IMPLEMENTING",
+      "C-P0-03": "IMPLEMENTING",
+      "C-P0-06": "IMPLEMENTING",
+      "P1-25": "IMPLEMENTING",
+      "C-P1-17": "IMPLEMENTING",
+      "P0-07": "IMPLEMENTING",
+      "P0-04": "CONFIRMED_CURRENT_PHYSICAL_BROWSER_NOT_REPAIRED_BY_FAKE_C4_ROUTE"
     }
   }
 }

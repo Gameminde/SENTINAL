@@ -65,6 +65,7 @@
   },
   "browser_registrations": {
     "duplicate_owner_per_capability_id": 0,
+    "legacy_browser_product_cutover_registry_exists": true,
     "owners_by_capability": {
       "real_browser_control.real_browser.extract_evidence": [
         {
@@ -167,13 +168,25 @@
       "real_browser_control.real_browser.type_text",
       "real_browser_control.real_browser.upload"
     ],
+    "registered_operations": [
+      "real_browser.extract_evidence",
+      "real_browser.inspect_result",
+      "real_browser.observe",
+      "real_browser.open",
+      "real_browser.open_result",
+      "real_browser.recover_session",
+      "real_browser.search",
+      "real_browser.verify_extraction"
+    ],
     "registry_owner": "ExecutableCapabilityGraph",
+    "registry_scope": "canonical_c4_route_only",
     "route_count": 8
   },
   "browser_runs": 0,
   "c4_gates": {
     "browser_authority_denial_before_backend": true,
     "browser_capability_registries": 1,
+    "browser_capability_registries_scope": "canonical_c4_route_only",
     "browser_duplicate_owner_per_capability_id": 0,
     "browser_effect_dispatch_owner": "ProductActionKernel",
     "browser_environment_secret_leaks": 0,
@@ -191,6 +204,7 @@
     "cancellation_cleanup_proven_fake": true,
     "canonical_browser_public_bypass": false,
     "external_network_calls": 0,
+    "legacy_browser_product_cutover_registry_exists": true,
     "physical_browser_boundaries": "NOT_RUN",
     "production_canonical_decision_clients": 1,
     "real_browser_runs": 0,
@@ -198,16 +212,185 @@
     "runtimehost_browser_cognitive_methods": 0,
     "shared_product_browser_cognition_loops": 1
   },
+  "c4s_publication_truth": {
+    "artifact_head_before_c4s": "d1408193883f8307753cefbb0622fa8695170ab9",
+    "c4s_final_commit": "SELF_REFERENCE_UNAVAILABLE_UNTIL_COMMIT",
+    "c4s_generation_head": "dfa4479af31349f10932691da38ef771e8a74519",
+    "fixed_proven_count": 0,
+    "latest_pushed_head_before_c4s": "dfa4479af31349f10932691da38ef771e8a74519"
+  },
+  "c4s_validation_results": [
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m pytest test_sentinel_dev_max_power_canonical_core_v1.py test_sentinel_single_spine_c1_executable_mapping.py test_sentinel_single_spine_c4_browser_readonly_cutover.py -q",
+      "name": "test_sentinel_dev_max_power_canonical_core_v1.py + single_spine probes + c4 cutover",
+      "provider_calls": 0,
+      "result": "63/63 passed",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m pytest test_runtime_host_pack1.py test_power_cleanup_runtimehost_safe_skill_product_registration.py test_power_cleanup_pack9_product_actionkernel_task_loop.py test_power_cleanup_pack10_product_task_loop_runtimehost_entrypoint.py test_power_cleanup_product_action_kernel_dispatch_adapter.py -q",
+      "name": "RuntimeHost/ProductActionKernel groups",
+      "provider_calls": 0,
+      "result": "38/38 passed",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m pytest test_power_unification_pack2_skill_only_model_surface.py test_power_cleanup_model_facing_executable_skill_truth.py test_power_cleanup_actionkernel_skill_parity_code_channel.py test_power_cleanup_recoverable_observation_loop_guard.py -q",
+      "name": "skill surface/code-channel/recovery groups",
+      "provider_calls": 0,
+      "result": "27/27 passed",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m pytest test_real_monster_product_model_native_decision_client.py -q",
+      "name": "real_monster_product_model_native_decision_client.py",
+      "provider_calls": 0,
+      "result": "59/59 passed",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m pytest test_interactive_exploration.py -q",
+      "name": "interactive_exploration.py",
+      "provider_calls": 0,
+      "result": "59/59 passed",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m pytest test_browser_cortex_pack1_environment_state_graph.py test_browser_cortex_affordance_contracts.py test_browser_observe_receipt_proof_completeness.py test_browser_receipt_persistence_answer_claim_evidence.py -q",
+      "name": "Browser state/proof/answer evidence group",
+      "provider_calls": 0,
+      "result": "29/29 passed",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel",
+      "name": "compileall sentinel",
+      "provider_calls": 0,
+      "result": "exit 0",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "git diff --check",
+      "name": "git diff --check",
+      "provider_calls": 0,
+      "result": "exit 0",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 parse check for C2/C3/C4 JSON and CSV artifacts",
+      "name": "JSON/CSV parse",
+      "provider_calls": 0,
+      "result": "C2/C3/C4 JSON parsed; C2=28 rows, C3=16 rows, C4=16 rows",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "rg targeted scan over C4 runtime/tests/artifacts/ledger",
+      "name": "secret/path/raw-provider scan",
+      "provider_calls": 0,
+      "result": "only safe doctrine/report mentions, no raw secrets or local paths",
+      "status": "PASSED"
+    },
+    {
+      "browser_runs": 0,
+      "command": "py -3.13 -m ruff --version",
+      "name": "targeted Ruff correctness",
+      "provider_calls": 0,
+      "result": "No module named ruff",
+      "status": "UNAVAILABLE"
+    }
+  ],
   "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
   "cancellation_cleanup_probe": {
-    "cleanup_completed": true,
-    "cleanup_count": 1,
     "external_network_calls": 0,
-    "lease_released": true,
-    "model_turns": 1,
     "probe_status": "PASSED",
     "provider_calls": 0,
-    "real_browser_runs": 0
+    "real_browser_runs": 0,
+    "scenario_count": 5,
+    "scenarios": {
+      "block": {
+        "backend_call_log": [],
+        "blocked_reason_detail": "canonical_authority_required:browser_read",
+        "cleanup_completed": true,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "EFFECT_DISPATCH_FAILED",
+        "lease_released": true,
+        "model_turns": 1,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "blocked"
+      },
+      "cancellation": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "root_mission_cancelled_during_browser_effect",
+        "cleanup_completed": true,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "EFFECT_DISPATCH_FAILED",
+        "lease_released": true,
+        "model_turns": 1,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "blocked"
+      },
+      "cleanup_failure": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "",
+        "cleanup_completed": false,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "model_selected_finish",
+        "lease_released": false,
+        "model_turns": 2,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "completed"
+      },
+      "completion": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "",
+        "cleanup_completed": true,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "model_selected_finish",
+        "lease_released": true,
+        "model_turns": 2,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "completed"
+      },
+      "survivor": {
+        "backend_call_log": [
+          "real_browser.observe"
+        ],
+        "blocked_reason_detail": "",
+        "cleanup_completed": false,
+        "cleanup_count": 1,
+        "external_network_calls": 0,
+        "final_reason": "model_selected_finish",
+        "lease_released": false,
+        "model_turns": 2,
+        "provider_calls": 0,
+        "real_browser_runs": 0,
+        "status": "completed"
+      }
+    }
   },
   "components": [
     {
@@ -571,7 +754,13 @@
       "canonical_owner": "ProductActionKernel browser adapter",
       "capability_ids": [
         "real_browser_control.real_browser.observe",
-        "real_browser_control.real_browser.extract_evidence"
+        "real_browser_control.real_browser.open",
+        "real_browser_control.real_browser.search",
+        "real_browser_control.real_browser.open_result",
+        "real_browser_control.real_browser.inspect_result",
+        "real_browser_control.real_browser.extract_evidence",
+        "real_browser_control.real_browser.verify_extraction",
+        "real_browser_control.real_browser.recover_session"
       ],
       "component": "canonical_browser_readonly_adapter",
       "decision": "KEEP",
@@ -594,7 +783,7 @@
       "state_owned": "fake lease/session state only for local C4 probes"
     }
   ],
-  "current_phase": "C4_BROWSER_READONLY_SINGLE_SPINE_CUTOVER",
+  "current_phase": "C4S_BROWSER_READONLY_PROOF_SEAL",
   "external_network_calls": 0,
   "fake_material_probe": {
     "external_network_calls": 0,
@@ -625,12 +814,14 @@
     "real_browser_runs": 0
   },
   "head_taxonomy": {
-    "artifact_generation_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
-    "current_remote_head": "d1408193883f8307753cefbb0622fa8695170ab9",
-    "current_worktree_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
-    "documentation_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
-    "implementation_tested_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1",
-    "proof_attestation_head": "ref: refs/heads/sentinel-dev-max-power-canonical-core-v1"
+    "artifact_generation_head": "dfa4479af31349f10932691da38ef771e8a74519",
+    "c4s_generation_head": "dfa4479af31349f10932691da38ef771e8a74519",
+    "current_remote_head": "dfa4479af31349f10932691da38ef771e8a74519",
+    "current_worktree_head": "dfa4479af31349f10932691da38ef771e8a74519",
+    "documentation_head": "dfa4479af31349f10932691da38ef771e8a74519",
+    "implementation_tested_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+    "proof_attestation_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+    "published_remote_head": "dfa4479af31349f10932691da38ef771e8a74519"
   },
   "legacy_browser_components_kept_as_research": [
     "browser_control_runtime",

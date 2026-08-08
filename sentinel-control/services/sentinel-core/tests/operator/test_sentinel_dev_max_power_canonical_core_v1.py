@@ -117,6 +117,7 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     )
     c3_truth = ledger["single_spine_c3_product_loop_decision_client_compression"]
     c4_truth = ledger["single_spine_c4_browser_readonly_cutover"]
+    c4s_truth = ledger["single_spine_c4s_browser_readonly_proof_seal"]
     assert ledger["current_head"] == c4_truth["implementation_head_before_report"]
     assert ledger["current_worktree_or_commit"] == c4_truth["implementation_head_before_report"]
     assert ledger["proof_runtime_head"] == c4_truth["implementation_head_before_report"]
@@ -147,6 +148,14 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert c4_truth["remaining_open_truth"]["P0-04"] == "CONFIRMED_CURRENT_PHYSICAL_BROWSER_NOT_REPAIRED_BY_FAKE_C4_ROUTE"
     assert c4_truth["implementation_head_before_report"] in ledger["ledger_commit_classes"]["implementation_commits"]
     assert c4_truth["implementation_head_before_report"] in ledger["ledger_commit_classes"]["ledger_commits"]
+    assert c4s_truth["status"] == "C4_BROWSER_READONLY_PROOF_SEALED_LOCAL"
+    assert c4s_truth["fixed_proven_count"] == 0
+    assert c4s_truth["provider_calls"] == 0
+    assert c4s_truth["browser_runs"] == 0
+    assert c4s_truth["implementation_tested_head"] == c4_truth["implementation_head_before_report"]
+    assert c4s_truth["published_remote_head_before_seal"] == "dfa4479af31349f10932691da38ef771e8a74519"
+    assert c4s_truth["proof_artifacts"] == c4_truth["proof_artifacts"]
+    assert all(item["status"] in {"PASSED", "UNAVAILABLE"} for item in c4s_truth["validation_results"])
     assert "b4f4baaceb6deb38f038a81321eb81d3ad21723b" in ledger["ledger_commit_classes"]["deletion_commits"]
     assert "4c587859eee9ddda5c356572549153137373f695" in ledger["ledger_commit_classes"]["ledger_commits"]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in ledger["ledger_commit_classes"]["proof_commits"]

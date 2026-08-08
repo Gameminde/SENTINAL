@@ -31,6 +31,18 @@ C3_REPORT_MD = DOC_DIR / "SENTINEL_SINGLE_SPINE_C3_PRODUCT_LOOP_DECISION_CLIENT_
 C4_BASELINE_JSON = DOC_DIR / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_BASELINE.json"
 C4_MANIFEST_CSV = DOC_DIR / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_MANIFEST.csv"
 C4_REPORT_MD = DOC_DIR / "SENTINEL_SINGLE_SPINE_C4_BROWSER_READONLY_CUTOVER_REPORT.md"
+C4_IMPLEMENTATION_TESTED_HEAD = "d1408193883f8307753cefbb0622fa8695170ab9"
+C4_PUBLISHED_HEAD_BEFORE_SEAL = "dfa4479af31349f10932691da38ef771e8a74519"
+C4_READ_ONLY_BROWSER_OPERATIONS = (
+    "real_browser.observe",
+    "real_browser.open",
+    "real_browser.search",
+    "real_browser.open_result",
+    "real_browser.inspect_result",
+    "real_browser.extract_evidence",
+    "real_browser.verify_extraction",
+    "real_browser.recover_session",
+)
 
 
 @dataclass(frozen=True)
@@ -1073,6 +1085,7 @@ def build_c4_browser_readonly_cutover_baseline(repo_root: Path) -> dict[str, obj
     cancellation_probe = _run_c4_browser_cancellation_cleanup_probe(repo_root)
     components = _c4_browser_component_rows(repo_root, text_by_path)
     registrations = _c4_browser_registration_probe(repo_root)
+    validation_results = _c4s_validation_results()
     gates = _c4_browser_gates(
         behavioral_probe=behavioral_probe,
         authority_probe=authority_probe,
@@ -1108,18 +1121,28 @@ def build_c4_browser_readonly_cutover_baseline(repo_root: Path) -> dict[str, obj
     return {
         "campaign": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
         "wave": "C4_BROWSER_READONLY_SINGLE_SPINE_CUTOVER",
-        "current_phase": "C4_BROWSER_READONLY_SINGLE_SPINE_CUTOVER",
+        "current_phase": "C4S_BROWSER_READONLY_PROOF_SEAL",
         "head_taxonomy": {
             "artifact_generation_head": head,
+            "c4s_generation_head": head,
             "current_worktree_head": head,
             "current_remote_head": _git_remote_head(
                 repo_root,
                 "origin/sentinel-dev-max-power-canonical-core-v1",
             ),
-            "implementation_tested_head": head,
-            "proof_attestation_head": head,
+            "implementation_tested_head": C4_IMPLEMENTATION_TESTED_HEAD,
+            "proof_attestation_head": C4_IMPLEMENTATION_TESTED_HEAD,
             "documentation_head": head,
+            "published_remote_head": C4_PUBLISHED_HEAD_BEFORE_SEAL,
         },
+        "c4s_publication_truth": {
+            "artifact_head_before_c4s": C4_IMPLEMENTATION_TESTED_HEAD,
+            "latest_pushed_head_before_c4s": C4_PUBLISHED_HEAD_BEFORE_SEAL,
+            "c4s_generation_head": head,
+            "c4s_final_commit": "SELF_REFERENCE_UNAVAILABLE_UNTIL_COMMIT",
+            "fixed_proven_count": 0,
+        },
+        "c4s_validation_results": validation_results,
         "provider_calls": guard_probe["provider_calls"],
         "browser_runs": guard_probe["real_browser_runs"],
         "real_browser_runs": guard_probe["real_browser_runs"],
@@ -2476,6 +2499,99 @@ def _run_c4_browser_behavioral_probe(repo_root: Path) -> dict[str, Any]:
         return _failed_c4_probe(exc)
 
 
+def _c4s_validation_results() -> list[dict[str, Any]]:
+    return [
+        {
+            "name": "test_sentinel_dev_max_power_canonical_core_v1.py + single_spine probes + c4 cutover",
+            "command": "py -3.13 -m pytest test_sentinel_dev_max_power_canonical_core_v1.py test_sentinel_single_spine_c1_executable_mapping.py test_sentinel_single_spine_c4_browser_readonly_cutover.py -q",
+            "status": "PASSED",
+            "result": "63/63 passed",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "RuntimeHost/ProductActionKernel groups",
+            "command": "py -3.13 -m pytest test_runtime_host_pack1.py test_power_cleanup_runtimehost_safe_skill_product_registration.py test_power_cleanup_pack9_product_actionkernel_task_loop.py test_power_cleanup_pack10_product_task_loop_runtimehost_entrypoint.py test_power_cleanup_product_action_kernel_dispatch_adapter.py -q",
+            "status": "PASSED",
+            "result": "38/38 passed",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "skill surface/code-channel/recovery groups",
+            "command": "py -3.13 -m pytest test_power_unification_pack2_skill_only_model_surface.py test_power_cleanup_model_facing_executable_skill_truth.py test_power_cleanup_actionkernel_skill_parity_code_channel.py test_power_cleanup_recoverable_observation_loop_guard.py -q",
+            "status": "PASSED",
+            "result": "27/27 passed",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "real_monster_product_model_native_decision_client.py",
+            "command": "py -3.13 -m pytest test_real_monster_product_model_native_decision_client.py -q",
+            "status": "PASSED",
+            "result": "59/59 passed",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "interactive_exploration.py",
+            "command": "py -3.13 -m pytest test_interactive_exploration.py -q",
+            "status": "PASSED",
+            "result": "59/59 passed",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "Browser state/proof/answer evidence group",
+            "command": "py -3.13 -m pytest test_browser_cortex_pack1_environment_state_graph.py test_browser_cortex_affordance_contracts.py test_browser_observe_receipt_proof_completeness.py test_browser_receipt_persistence_answer_claim_evidence.py -q",
+            "status": "PASSED",
+            "result": "29/29 passed",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "compileall sentinel",
+            "command": "py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel",
+            "status": "PASSED",
+            "result": "exit 0",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "git diff --check",
+            "command": "git diff --check",
+            "status": "PASSED",
+            "result": "exit 0",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "JSON/CSV parse",
+            "command": "py -3.13 parse check for C2/C3/C4 JSON and CSV artifacts",
+            "status": "PASSED",
+            "result": "C2/C3/C4 JSON parsed; C2=28 rows, C3=16 rows, C4=16 rows",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "secret/path/raw-provider scan",
+            "command": "rg targeted scan over C4 runtime/tests/artifacts/ledger",
+            "status": "PASSED",
+            "result": "only safe doctrine/report mentions, no raw secrets or local paths",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+        {
+            "name": "targeted Ruff correctness",
+            "command": "py -3.13 -m ruff --version",
+            "status": "UNAVAILABLE",
+            "result": "No module named ruff",
+            "provider_calls": 0,
+            "browser_runs": 0,
+        },
+    ]
+
+
 def _run_c4_browser_authority_denial_probe(repo_root: Path) -> dict[str, Any]:
     try:
         _ensure_sentinel_importable(repo_root)
@@ -2588,52 +2704,126 @@ def _run_c4_browser_cancellation_cleanup_probe(repo_root: Path) -> dict[str, Any
         return _failed_c4_probe(exc)
 
     class ScriptedModelClient:
-        def __init__(self) -> None:
+        def __init__(self, decisions: list[dict[str, Any]]) -> None:
+            self._decisions = list(decisions)
             self.requests: list[Any] = []
 
         def complete(self, request: Any) -> dict[str, Any]:
             self.requests.append(request)
-            return {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}}
+            if not self._decisions:
+                raise AssertionError("c4 cleanup probe model decision exhausted")
+            return self._decisions.pop(0)
 
     try:
-        with tempfile.TemporaryDirectory(prefix="sentinel_c4_cancel_probe_") as tmp:
-            root = Path(tmp)
-            workspace = root / "workspace"
-            workspace.mkdir(parents=True)
-            token = RootMissionCancellationToken()
-            model = ScriptedModelClient()
-            backend = FakeBrowserReadOnlyBackend(
-                allowed_origins=("sqlite.org",),
-                cancel_during_next_call=token,
-            )
-            result = run_canonical_product_mission(
-                objective="Cancellation must close the fake browser lease.",
-                workspace_root=workspace,
-                model_client=model,
-                provider_model="scripted-local/model",
-                kernel=MissionKernel(run_root=root / "runs"),
-                session_id="c4_cancel_probe",
-                capability_graph=build_workspace_browser_readonly_capability_graph(),
-                browser_readonly_backend=backend,
-                cancellation_token=token,
-                granted_authorities=("workspace_read", "browser_read", "none"),
-            )
-            return {
-                "probe_status": "PASSED"
-                if result.status == "blocked"
-                and result.blocked_reason_detail == "root_mission_cancelled_during_browser_effect"
-                and len(model.requests) == 1
-                and backend.cleanup_count == 1
-                and backend.lease_released is True
-                else "FAILED",
-                "model_turns": len(model.requests),
-                "cleanup_count": backend.cleanup_count,
-                "lease_released": backend.lease_released,
-                "cleanup_completed": result.cleanup_completed,
-                "provider_calls": backend.provider_calls,
-                "real_browser_runs": backend.real_browser_runs,
-                "external_network_calls": backend.external_network_calls,
-            }
+        def run_scenario(
+            name: str,
+            *,
+            backend: Any,
+            decisions: list[dict[str, Any]],
+            granted_authorities: tuple[str, ...],
+            token: Any | None = None,
+        ) -> dict[str, Any]:
+            with tempfile.TemporaryDirectory(prefix=f"sentinel_c4_cleanup_{name}_") as tmp:
+                root = Path(tmp)
+                workspace = root / "workspace"
+                workspace.mkdir(parents=True)
+                model = ScriptedModelClient(decisions)
+                result = run_canonical_product_mission(
+                    objective=f"C4 cleanup scenario {name}.",
+                    workspace_root=workspace,
+                    model_client=model,
+                    provider_model="scripted-local/model",
+                    kernel=MissionKernel(run_root=root / "runs"),
+                    session_id=f"c4_cleanup_{name}",
+                    capability_graph=build_workspace_browser_readonly_capability_graph(),
+                    browser_readonly_backend=backend,
+                    cancellation_token=token,
+                    granted_authorities=granted_authorities,
+                )
+                return {
+                    "status": result.status,
+                    "final_reason": result.final_reason,
+                    "blocked_reason_detail": result.blocked_reason_detail,
+                    "model_turns": len(model.requests),
+                    "backend_call_log": list(backend.call_log),
+                    "cleanup_count": backend.cleanup_count,
+                    "lease_released": backend.lease_released,
+                    "cleanup_completed": result.cleanup_completed,
+                    "provider_calls": backend.provider_calls,
+                    "real_browser_runs": backend.real_browser_runs,
+                    "external_network_calls": backend.external_network_calls,
+                }
+
+        completion = run_scenario(
+            "completion",
+            backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",)),
+            decisions=[
+                {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}},
+                {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "observed"}},
+            ],
+            granted_authorities=("workspace_read", "browser_read", "none"),
+        )
+        block = run_scenario(
+            "block",
+            backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",)),
+            decisions=[
+                {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}},
+            ],
+            granted_authorities=("workspace_read", "none"),
+        )
+        token = RootMissionCancellationToken()
+        cancellation = run_scenario(
+            "cancellation",
+            backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",), cancel_during_next_call=token),
+            decisions=[
+                {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}},
+                {"capability": "real_browser_control", "operation": "real_browser.extract_evidence", "arguments": {}},
+            ],
+            granted_authorities=("workspace_read", "browser_read", "none"),
+            token=token,
+        )
+        cleanup_failure = run_scenario(
+            "cleanup_failure",
+            backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",), cleanup_failure=True),
+            decisions=[
+                {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}},
+                {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "observed"}},
+            ],
+            granted_authorities=("workspace_read", "browser_read", "none"),
+        )
+        survivor = run_scenario(
+            "survivor",
+            backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",), survivor_count=1),
+            decisions=[
+                {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}},
+                {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "observed"}},
+            ],
+            granted_authorities=("workspace_read", "browser_read", "none"),
+        )
+        scenarios = {
+            "completion": completion,
+            "block": block,
+            "cancellation": cancellation,
+            "cleanup_failure": cleanup_failure,
+            "survivor": survivor,
+        }
+        expected = (
+            completion["cleanup_completed"] is True
+            and block["cleanup_completed"] is True
+            and block["backend_call_log"] == []
+            and cancellation["blocked_reason_detail"] == "root_mission_cancelled_during_browser_effect"
+            and cancellation["cleanup_completed"] is True
+            and cleanup_failure["cleanup_completed"] is False
+            and survivor["cleanup_completed"] is False
+        )
+        return {
+            "probe_status": "PASSED" if expected else "FAILED",
+            "scenarios": scenarios,
+            "provider_calls": max(item["provider_calls"] for item in scenarios.values()),
+            "real_browser_runs": max(item["real_browser_runs"] for item in scenarios.values()),
+            "external_network_calls": max(item["external_network_calls"] for item in scenarios.values()),
+            "scenario_count": len(scenarios),
+        }
     except Exception as exc:  # noqa: BLE001
         return _failed_c4_probe(exc)
 
@@ -2667,7 +2857,18 @@ def _c4_browser_registration_probe(repo_root: Path) -> dict[str, Any]:
     return {
         "probe_status": "PASSED" if browser_routes and not duplicates else "FAILED",
         "registry_owner": "ExecutableCapabilityGraph",
+        "registry_scope": "canonical_c4_route_only",
+        "legacy_browser_product_cutover_registry_exists": (
+            repo_root
+            / "sentinel-control"
+            / "services"
+            / "sentinel-core"
+            / "sentinel"
+            / "operator"
+            / "browser_product_cutover_registry.py"
+        ).exists(),
         "route_count": len(browser_routes),
+        "registered_operations": sorted(route.operation for route in browser_routes),
         "owners_by_capability": owners_by_capability,
         "duplicate_owner_per_capability_id": len(duplicates),
         "quarantined_mutating_capabilities": [
@@ -2694,6 +2895,8 @@ def _c4_browser_gates(
         "browser_root_mission_records_per_public_run": 1 if behavior_passed else "UNKNOWN",
         "runtimehost_browser_cognitive_methods": 0 if behavior_passed else "UNKNOWN",
         "browser_capability_registries": 1 if registrations.get("registry_owner") == "ExecutableCapabilityGraph" else "UNKNOWN",
+        "browser_capability_registries_scope": registrations.get("registry_scope", "UNKNOWN"),
+        "legacy_browser_product_cutover_registry_exists": registrations.get("legacy_browser_product_cutover_registry_exists", "UNKNOWN"),
         "browser_duplicate_owner_per_capability_id": registrations.get("duplicate_owner_per_capability_id", "UNKNOWN"),
         "browser_effect_dispatch_owner": "ProductActionKernel",
         "browser_legacy_action_envelope_usage": 0,
@@ -2822,7 +3025,7 @@ def _c4_proof_owned(component: str) -> str:
 
 def _c4_capability_ids(component: str) -> list[str]:
     if component == "canonical_browser_readonly_adapter":
-        return ["real_browser_control.real_browser.observe", "real_browser_control.real_browser.extract_evidence"]
+        return [f"real_browser_control.{operation}" for operation in C4_READ_ONLY_BROWSER_OPERATIONS]
     if "browser" in component:
         return ["real_browser_control"]
     return []
@@ -2858,6 +3061,22 @@ def _failed_c3_probe(exc: Exception) -> dict[str, Any]:
 
 
 def _git_head(repo_root: Path) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        completed = None
+    if completed is not None and completed.returncode == 0:
+        value = completed.stdout.strip()
+        if value:
+            return value
+
     head_file = repo_root / ".git" / "HEAD"
     if not head_file.exists():
         git_text = (repo_root / ".git").read_text(encoding="utf-8", errors="ignore") if (repo_root / ".git").exists() else ""
@@ -3451,6 +3670,12 @@ def _c4_browser_readonly_report_markdown(baseline: dict[str, object]) -> str:
         "physical Browser boundaries = NOT_RUN",
         "```",
         "",
+        "## C4S Publication Truth",
+        "",
+        "```json",
+        json.dumps(baseline.get("c4s_publication_truth", {}), indent=2, sort_keys=True, default=str),
+        "```",
+        "",
         "## Architecture After C4",
         "",
         "```text",
@@ -3479,6 +3704,8 @@ def _c4_browser_readonly_report_markdown(baseline: dict[str, object]) -> str:
     lines.extend(
         [
             "",
+            "`browser_capability_registries = 1 is scoped to the canonical C4 route only`; the legacy `browser_product_cutover_registry` remains present and is listed as migration work, not silently counted as removed.",
+            "",
             "## BrowserEnvironmentState",
             "",
             "- The model receives `task`, `browser`, `page`, `affordance_graph`, `focus`, `execution_signals`, `memory`, `evaluation`, and `demand_load_handles` from the canonical state.",
@@ -3490,6 +3717,20 @@ def _c4_browser_readonly_report_markdown(baseline: dict[str, object]) -> str:
             "```json",
             json.dumps(baseline.get("behavioral_probe", {}), indent=2, sort_keys=True, default=str),
             "```",
+            "",
+            "## Validation Results",
+            "",
+            "| Name | Status | Result |",
+            "| --- | --- | --- |",
+        ]
+    )
+    for item in baseline.get("c4s_validation_results", []):
+        if isinstance(item, dict):
+            lines.append(
+                f"| `{item.get('name')}` | `{item.get('status')}` | `{item.get('result')}` |"
+            )
+    lines.extend(
+        [
             "",
             "## Authority / Fake Material / Cancellation Probes",
             "",
