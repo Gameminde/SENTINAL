@@ -1,5 +1,24 @@
 # SENTINEL_SINGLE_SPINE_C5A_LIVE_READINESS_TIMEOUT_ROOT_CAUSE_REPORT
 
+## Status After Repair
+
+```text
+historical_root_cause = ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE
+repair_tranche = C5A_TIMEOUT_CONTAINMENT_REPAIR
+timeout_containment_race = REPAIRED_LOCAL_DETERMINISTIC
+current_live_blocker = CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED
+provider_calls = 0
+SQLite mission = NOT_RUN
+C5B = NOT_STARTED
+```
+
+This report remains the historical proof for the pre-repair timeout race. The
+current status is recorded in:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_TIMEOUT_CONTAINMENT_REPAIR_REPORT.md
+```
+
 ## Verdict
 
 ```text
@@ -138,4 +157,3 @@ profile_material_persisted = false
 provider_calls = 0
 SQLite = NOT_RUN
 ```
-

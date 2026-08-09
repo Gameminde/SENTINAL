@@ -1237,7 +1237,13 @@ class BrowserSessionManagerL5Live:
     def _capture_receipt(self, req: BrowserSessionRequest, session: _LiveBrowserSession, *, action_kind: str, status: BrowserSessionStatus, safe_summary: str, execution_effect: str) -> BrowserSessionReceipt:
         snapshot = self._snapshot(session.page, req.timeout_ms)
         screenshot = self._write_screenshot(session, action_kind, req.capture_screenshot, req.timeout_ms)
-        form_state = self._form_state(session.page, req.timeout_ms)
+        self._emit_lifecycle_event("form_state_capture", "stage_started")
+        try:
+            form_state = self._form_state(session.page, req.timeout_ms)
+            self._emit_lifecycle_event("form_state_capture", "stage_returned", details={"form_field_count": len(form_state)})
+        except Exception as exc:
+            form_state = []
+            self._emit_lifecycle_event("form_state_capture", "stage_failed", exception=exc)
         receipt = BrowserSessionReceipt(
             mission_id=req.mission.id,
             request_id=req.request_id,

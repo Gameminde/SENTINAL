@@ -1,5 +1,38 @@
 # SENTINEL_SINGLE_SPINE_C5A_PHYSICAL_BROWSER_BOUNDARY_REPORT
 
+## C5A Repair Update
+
+```text
+latest_repair_tranche = C5A_TIMEOUT_CONTAINMENT_REPAIR
+timeout_containment_race = REPAIRED_LOCAL_DETERMINISTIC
+live_cloak_ready_after_repair = false
+latest_live_blocker = CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED
+provider_calls = 0
+SQLite mission = NOT_RUN
+C5B = NOT_STARTED
+FIXED_PROVEN = 0/65
+```
+
+The earlier readiness timeout root cause remains valid history. The latest
+code no longer runs the live readiness path in an uncancellable daemon thread:
+the live path now uses an owned child process boundary and deterministic tests
+prove timeout kill/reap, late-publication blocking, cleanup completion before
+return, visible cleanup failure and one terminal timeout receipt.
+
+After this repair, three bounded live Cloak probes were run against a public
+read-only non-SQLite target. The timeout did not reproduce. The new stable live
+blocker is `TargetClosedError` during `cloak_open_context/new_process_launch`.
+Attempt 1 exposed and fixed an optional form-state `FileNotFoundError` after a
+valid observe snapshot; attempts 2 and 3 then both failed during Cloak process
+launch before usable context/page proof. No provider, SQLite mission, fixture
+backend or Playwright fallback was used.
+
+Detailed repair report:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_TIMEOUT_CONTAINMENT_REPAIR_REPORT.md
+```
+
 ## Verdict
 
 ```text

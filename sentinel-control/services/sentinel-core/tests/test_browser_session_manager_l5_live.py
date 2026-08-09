@@ -345,6 +345,44 @@ class _LifecycleFakeBackend:
         )
 
 
+class _FormStateFileNotFoundPage(_LifecycleFakePage):
+    def locator(self, selector: str) -> _LifecycleLocator:
+        if selector == "body":
+            return _LifecycleLocator("Operator Console")
+        if selector == "input, textarea, select":
+            raise FileNotFoundError("synthetic form-state backend scratch disappeared")
+        return _LifecycleLocator()
+
+
+class _FormStateFileNotFoundContext(_LifecycleFakeContext):
+    def new_page(self) -> _FormStateFileNotFoundPage:
+        return _FormStateFileNotFoundPage(self)
+
+
+class _FormStateFileNotFoundBackend(_LifecycleFakeBackend):
+    def open_context(
+        self,
+        *,
+        profile_dir: Path,
+        url: str,
+        timeout_ms: int,
+        viewport_width: int,
+        viewport_height: int,
+    ) -> Any:
+        from sentinel.organs.browser.cloak_backend import BrowserEngineSession
+
+        del url, timeout_ms, viewport_width, viewport_height
+        self.open_count += 1
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        context = _FormStateFileNotFoundContext(self)
+        return BrowserEngineSession(
+            backend_kind=self.backend_kind,
+            context=context,
+            page=context.new_page(),
+            profile_dir=profile_dir,
+        )
+
+
 def _profile_material_paths(capture_root: Path) -> list[Path]:
     if not capture_root.exists():
         return []
@@ -628,6 +666,50 @@ def test_live_browser_session_persists_form_state_across_steps(tmp_path: Path) -
         assert observed.receipt.form_state_summary == [{"name": "Email", "role": "textbox", "value_hash": typed.receipt.typed_text_hash}]
         assert closed.receipt.closed is True
         assert list((tmp_path / "browser").rglob("*_screenshot.png"))
+    finally:
+        manager.close_all()
+
+
+def test_live_browser_session_observe_preserves_snapshot_when_form_state_file_disappears(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+        BrowserSessionStatus,
+    )
+
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        backend=_FormStateFileNotFoundBackend(),
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+    )
+
+    try:
+        opened = manager.open_session(
+            BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+        )
+        observed = manager.observe(
+            BrowserSessionRequest(
+                mission=_envelope(),
+                url=URL,
+                contract=contract,
+                session_id=opened.session_id,
+                capture_screenshot=False,
+            )
+        )
+
+        assert opened.accepted is True
+        assert observed.accepted is True
+        assert observed.status == BrowserSessionStatus.OBSERVED
+        assert observed.reason == "browser_session_observed"
+        assert observed.receipt.before_snapshot_hash
+        assert observed.receipt.form_state_summary == []
+        assert observed.receipt.form_state_summary_hash
+        assert list((tmp_path / "browser").rglob("*_observe_snapshot.json"))
+        assert list((tmp_path / "browser").rglob("*_observe_receipt.json"))
     finally:
         manager.close_all()
 

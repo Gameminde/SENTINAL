@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import time
 from datetime import UTC, datetime, timedelta
@@ -1023,6 +1024,198 @@ def test_cloak_readiness_timeout_reports_active_stage_without_raw_material(tmp_p
     assert "SYNTHETIC_PROFILE_MARKER" not in journal_text
     assert "bounded.example.test" not in cache_text
     assert "bounded.example.test" not in journal_text
+
+
+def test_cloak_readiness_owned_process_timeout_kills_tree_and_blocks_late_publication(tmp_path: Path) -> None:
+    child_script = tmp_path / "blocked_readiness_child.py"
+    stage_journal_path = tmp_path / "readiness_stages.jsonl"
+    grandchild_pid_path = tmp_path / "grandchild.pid"
+    child_script.write_text(
+        """
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+journal_path = Path(sys.argv[1])
+grandchild_pid_path = Path(sys.argv[2])
+started_at = time.monotonic()
+
+def record(stage: str, event: str) -> None:
+    payload = {
+        "schema_version": "cloak_readiness_stage_v1",
+        "stage": stage,
+        "event": event,
+        "monotonic_offset_ms": int((time.monotonic() - started_at) * 1000),
+        "profile_file_count": 0,
+        "process_ref_count": 0,
+        "thread_count": 1,
+    }
+    journal_path.parent.mkdir(parents=True, exist_ok=True)
+    with journal_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True) + "\\n")
+
+record("readiness_probe", "stage_started")
+record("open_session", "stage_started")
+record("initial_navigation", "stage_started")
+grandchild = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+grandchild_pid_path.write_text(str(grandchild.pid), encoding="utf-8")
+while True:
+    time.sleep(0.05)
+    record("late_publication_candidate", "stage_started")
+""",
+        encoding="utf-8",
+    )
+
+    result = real_browser_runtime_module._run_owned_process_with_wall_timeout(
+        [sys.executable, str(child_script), str(stage_journal_path), str(grandchild_pid_path)],
+        wall_timeout_ms=1200,
+        stage_journal_path=stage_journal_path,
+        capture_root=tmp_path / "capture",
+    )
+
+    event_count_after_result = len(stage_journal_path.read_text(encoding="utf-8").splitlines())
+    time.sleep(0.25)
+    event_count_after_wait = len(stage_journal_path.read_text(encoding="utf-8").splitlines())
+    grandchild_pid = int(grandchild_pid_path.read_text(encoding="utf-8"))
+
+    assert result.timed_out is True
+    assert result.worker_terminated is True
+    assert result.owned_process_tree_killed is True
+    assert result.late_publication_blocked is True
+    assert result.terminal_receipt_count == 1
+    assert result.timeout_active_stage == "initial_navigation"
+    assert event_count_after_wait == event_count_after_result
+    assert not real_browser_runtime_module._process_exists_for_readiness_test(grandchild_pid)
+
+
+def test_cloak_readiness_timeout_reports_cleanup_failure_when_profile_material_survives(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _ProfileWritingHangingManager:
+        backend_kind = "cloakbrowser"
+
+        def __init__(self, capture_root: Path) -> None:
+            self.capture_root = capture_root
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def open_session(self, request: Any) -> Any:
+            del request
+            sensitive_dir = self.capture_root / "bs" / "session_timeout" / "Local Storage"
+            sensitive_dir.mkdir(parents=True, exist_ok=True)
+            (sensitive_dir / "leveldb.log").write_text("profile material", encoding="utf-8")
+            self.started.set()
+            self.release.wait(timeout=5.0)
+            raise RuntimeError("late session completion after readiness timeout")
+
+        def close_all(self) -> None:
+            pass
+
+    capture_root = tmp_path / "capture"
+    manager = _ProfileWritingHangingManager(capture_root)
+    monkeypatch.setattr(real_browser_runtime_module, "_remove_profile_material", lambda _capture_root: None)
+
+    try:
+        readiness = check_cloak_session_readiness(
+            target_url="https://bounded.example.test/catalog",
+            session_manager=manager,
+            capture_root=capture_root,
+            timeout_ms=30_000,
+            wall_timeout_ms=100,
+        )
+    finally:
+        manager.release.set()
+
+    assert manager.started.wait(timeout=0.5)
+    assert readiness.failure_code == "CLOAK_SESSION_READINESS_TIMEOUT"
+    assert readiness.cleanup_operational is False
+    assert readiness.cleanup_completed_before_return is True
+    assert readiness.cleanup_failure_code == "CLOAK_TIMEOUT_PROFILE_CLEANUP_INCOMPLETE"
+    assert readiness.profile_material_persisted is True
+
+
+def test_cloak_readiness_live_builder_uses_owned_process_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    local_binary = tmp_path / "chrome.exe"
+    local_binary.write_bytes(b"fake local browser executable")
+    calls: list[dict[str, Any]] = []
+
+    def _path_override_info() -> dict[str, Any]:
+        return {
+            "installed": False,
+            "version": "146.0.test",
+            "bundled_version": "146.0.test",
+            "platform": "windows-x64",
+            "tier": "free",
+            "path": str(local_binary),
+        }
+
+    def _fake_owned_process_runner(
+        command: list[str],
+        *,
+        wall_timeout_ms: int,
+        stage_journal_path: str | Path | None,
+        capture_root: Path | None,
+        env: dict[str, str] | None = None,
+    ) -> Any:
+        calls.append(
+            {
+                "command": command,
+                "wall_timeout_ms": wall_timeout_ms,
+                "stage_journal_path": stage_journal_path,
+                "capture_root": capture_root,
+                "env": env,
+            }
+        )
+        return real_browser_runtime_module._OwnedProcessRunResult(
+            timed_out=True,
+            process_started=True,
+            worker_terminated=True,
+            owned_process_tree_killed=True,
+            exit_code=-9,
+            stdout="",
+            stderr_hash="stderr_hash",
+            timeout_active_stage="initial_navigation",
+            timeout_open_stage_count=3,
+            late_publication_blocked=True,
+            cleanup_completed_before_return=True,
+            cleanup_failure_code="",
+            profile_material_persisted=False,
+            terminal_receipt_count=1,
+        )
+
+    def _parent_engine_must_not_be_built(**_kwargs: Any) -> Any:
+        raise AssertionError("live readiness must run inside the owned child process boundary")
+
+    monkeypatch.setenv("CLOAKBROWSER_BINARY_PATH", str(local_binary))
+    monkeypatch.setattr(real_browser_runtime_module, "_cloak_binary_info", _path_override_info)
+    monkeypatch.setattr(real_browser_runtime_module, "_run_owned_process_with_wall_timeout", _fake_owned_process_runner)
+    monkeypatch.setattr(real_browser_runtime_module, "_build_browser_session_manager", _parent_engine_must_not_be_built)
+    real_browser_runtime_module._build_browser_session_manager.__module__ = real_browser_runtime_module.__name__
+
+    readiness = check_cloak_session_readiness(
+        target_url="https://bounded.example.test/catalog",
+        capture_root=tmp_path / "capture",
+        timeout_ms=30_000,
+        wall_timeout_ms=100,
+        prepare_binary=False,
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["env"]["SENTINEL_CLOAK_READINESS_CHILD_PROCESS"] == "1"
+    assert readiness.failure_code == "CLOAK_SESSION_READINESS_TIMEOUT"
+    assert readiness.timeout_worker_terminated is True
+    assert readiness.owned_process_tree_killed is True
+    assert readiness.late_publication_blocked is True
+    assert readiness.cleanup_completed_before_return is True
+    assert readiness.terminal_receipt_count == 1
 
 
 def test_cloak_readiness_default_watchdog_does_not_starve_sequential_reopen(tmp_path: Path) -> None:

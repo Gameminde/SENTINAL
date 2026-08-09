@@ -4,12 +4,13 @@ import json
 import os
 import queue
 import shutil
+import signal
 import subprocess
 import sys
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import MISSING, dataclass, replace
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import urlparse
@@ -57,6 +58,28 @@ DEFAULT_SESSION_REF = "real_browser_session:bounded"
 CLOAK_BROWSER_BACKEND_ID = "cloak_browser"
 PLAYWRIGHT_REAL_BROWSER_BACKEND_ID = "playwright_real_browser_engine"
 
+_CLOAK_READINESS_ACTIVE_STAGES = {
+    "binary_resolution",
+    "engine_construction",
+    "bind_authority",
+    "open_session",
+    "backend_open_context",
+    "profile_material_creation",
+    "new_process_launch",
+    "endpoint_discovery",
+    "devtools_transport_connection",
+    "context_creation",
+    "page_creation",
+    "initial_navigation",
+    "first_observe",
+    "second_observe",
+    "devtools_metadata",
+    "close_session",
+    "reopen_session",
+    "reopened_observe",
+    "reopened_close_session",
+}
+
 
 @dataclass(frozen=True)
 class CloakSessionReadinessResult:
@@ -82,6 +105,12 @@ class CloakSessionReadinessResult:
     reopen_operational: bool = False
     timeout_active_stage: str = ""
     timeout_open_stage_count: int = 0
+    timeout_worker_terminated: bool = False
+    owned_process_tree_killed: bool = False
+    late_publication_blocked: bool = False
+    cleanup_completed_before_return: bool = False
+    cleanup_failure_code: str = ""
+    terminal_receipt_count: int = 0
 
     def safe_model_dump(self) -> dict[str, Any]:
         return {
@@ -107,7 +136,31 @@ class CloakSessionReadinessResult:
             "reopen_operational": self.reopen_operational,
             "timeout_active_stage": self.timeout_active_stage,
             "timeout_open_stage_count": self.timeout_open_stage_count,
+            "timeout_worker_terminated": self.timeout_worker_terminated,
+            "owned_process_tree_killed": self.owned_process_tree_killed,
+            "late_publication_blocked": self.late_publication_blocked,
+            "cleanup_completed_before_return": self.cleanup_completed_before_return,
+            "cleanup_failure_code": self.cleanup_failure_code,
+            "terminal_receipt_count": self.terminal_receipt_count,
         }
+
+
+@dataclass(frozen=True)
+class _OwnedProcessRunResult:
+    timed_out: bool
+    process_started: bool
+    worker_terminated: bool
+    owned_process_tree_killed: bool
+    exit_code: int | None
+    stdout: str
+    stderr_hash: str
+    timeout_active_stage: str
+    timeout_open_stage_count: int
+    late_publication_blocked: bool
+    cleanup_completed_before_return: bool
+    cleanup_failure_code: str
+    profile_material_persisted: bool
+    terminal_receipt_count: int
 
 
 @dataclass(frozen=True)
@@ -2751,7 +2804,12 @@ def check_cloak_session_readiness(
     selected_backend_id = selection.preferred_backend_id or ""
     safe_origin_hash = _safe_origin_hash(target_url) if target_url else ""
     capture_path = Path(capture_root) if capture_root is not None else None
-    stage_journal = _CloakReadinessStageJournal(stage_journal_path, capture_root=capture_path)
+    if session_manager is None and capture_path is None:
+        capture_path = _default_browser_session_capture_root()
+    effective_stage_journal_path: str | Path | None = stage_journal_path
+    if session_manager is None and effective_stage_journal_path is None and capture_path is not None:
+        effective_stage_journal_path = capture_path / "readiness_stages.jsonl"
+    stage_journal = _CloakReadinessStageJournal(effective_stage_journal_path, capture_root=capture_path)
     stage_journal.record(
         "configuration",
         "stage_started",
@@ -2808,6 +2866,31 @@ def check_cloak_session_readiness(
             stage_journal.record("binary_resolution", "stage_failed", failure_code=result.failure_code)
             return result
         stage_journal.record("binary_resolution", "stage_returned")
+        effective_wall_timeout_ms = (
+            wall_timeout_ms
+            if wall_timeout_ms is not None
+            else _cloak_readiness_sequence_watchdog_ms(timeout_ms)
+        )
+        live_builder_available = getattr(_build_browser_session_manager, "__module__", "") == __name__
+        if (
+            live_builder_available
+            and effective_wall_timeout_ms > 0
+            and os.environ.get("SENTINEL_CLOAK_READINESS_CHILD_PROCESS") != "1"
+        ):
+            result = _probe_cloak_readiness_in_owned_child_process(
+                target_url=target_url,
+                selected_backend_id=selected_backend_id,
+                safe_origin_hash=safe_origin_hash,
+                capture_path=capture_path,
+                headless=headless,
+                timeout_ms=timeout_ms,
+                wall_timeout_ms=effective_wall_timeout_ms,
+                require_local_binary_override=require_local_binary_override,
+                stage_journal=stage_journal,
+                stage_journal_path=effective_stage_journal_path,
+            )
+            _write_cloak_readiness_cache(cache_path, result)
+            return result
     stage_journal.record("engine_construction", "stage_started")
     engine = BrowserSessionManagerRealBrowserEngine(
         target_url=target_url,
@@ -3034,8 +3117,6 @@ class _CloakReadinessStageJournal:
         exception: BaseException | None = None,
         details: dict[str, Any] | None = None,
     ) -> None:
-        if self.path is None:
-            return
         payload: dict[str, Any] = {
             "schema_version": "cloak_readiness_stage_v1",
             "stage": stage,
@@ -3054,12 +3135,15 @@ class _CloakReadinessStageJournal:
             payload["details"] = _safe_readiness_stage_details(details)
         with self._lock:
             if event == "stage_started":
-                self._active_stages.append(stage)
+                if stage in _CLOAK_READINESS_ACTIVE_STAGES:
+                    self._active_stages.append(stage)
             elif event in {"stage_returned", "stage_failed"}:
                 for index in range(len(self._active_stages) - 1, -1, -1):
                     if self._active_stages[index] == stage:
                         del self._active_stages[index]
                         break
+            if self.path is None:
+                return
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(payload, sort_keys=True) + "\n")
@@ -3162,6 +3246,362 @@ def _last_json_object(output: str) -> dict[str, Any] | None:
     return None
 
 
+def _read_cloak_readiness_stage_events(stage_journal_path: str | Path | None) -> list[dict[str, Any]]:
+    if stage_journal_path is None:
+        return []
+    path = Path(stage_journal_path)
+    if not path.exists():
+        return []
+    events: list[dict[str, Any]] = []
+    try:
+        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict) and payload.get("schema_version") == "cloak_readiness_stage_v1":
+                events.append(payload)
+    except OSError:
+        return events
+    return events
+
+
+def _timeout_snapshot_from_stage_events(events: list[dict[str, Any]]) -> dict[str, Any]:
+    active: list[str] = []
+    for event in events:
+        stage = str(event.get("stage") or "")
+        if stage not in _CLOAK_READINESS_ACTIVE_STAGES:
+            continue
+        event_kind = str(event.get("event") or "")
+        if event_kind == "stage_started":
+            active.append(stage)
+        elif event_kind in {"stage_returned", "stage_failed"}:
+            for index in range(len(active) - 1, -1, -1):
+                if active[index] == stage:
+                    del active[index]
+                    break
+    return {
+        "timeout_active_stage": active[-1] if active else "",
+        "timeout_open_stage_count": len(active),
+    }
+
+
+def _cleanup_profile_material_with_status(capture_root: Path | None) -> tuple[bool, str]:
+    try:
+        _remove_profile_material(capture_root)
+    except Exception as exc:  # pragma: no cover - defensive cleanup boundary
+        return False, f"CLOAK_TIMEOUT_PROFILE_CLEANUP_EXCEPTION_{text_hash(exc.__class__.__name__)[:8]}"
+    if _profile_file_count(capture_root) > 0:
+        return False, "CLOAK_TIMEOUT_PROFILE_CLEANUP_INCOMPLETE"
+    return True, ""
+
+
+def _process_exists_for_readiness_test(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            completed = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=1,
+            )
+        except Exception:
+            return False
+        output = (completed.stdout or "").strip().lower()
+        return (
+            completed.returncode == 0
+            and output
+            and "no tasks" not in output
+            and "aucune" not in output
+            and "information" not in output
+            and f'"{pid}"' in output
+        )
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _terminate_owned_process_tree(process: subprocess.Popen[Any]) -> tuple[bool, bool]:
+    if process.poll() is not None:
+        return True, False
+    killed = False
+    if os.name == "nt":
+        try:
+            completed = subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            killed = completed.returncode == 0 or process.poll() is not None
+        except Exception:
+            killed = False
+    else:
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            killed = True
+        except Exception:
+            killed = False
+    try:
+        process.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        if os.name != "nt":
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                killed = True
+            except Exception:
+                pass
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            return False, killed
+    return process.poll() is not None, killed
+
+
+def _run_owned_process_with_wall_timeout(
+    command: list[str],
+    *,
+    wall_timeout_ms: int,
+    stage_journal_path: str | Path | None,
+    capture_root: Path | None,
+    env: dict[str, str] | None = None,
+) -> _OwnedProcessRunResult:
+    creationflags = 0
+    popen_kwargs: dict[str, Any] = {
+        "stdout": subprocess.PIPE,
+        "stderr": subprocess.PIPE,
+        "text": True,
+        "env": env,
+    }
+    if os.name == "nt":
+        creationflags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        creationflags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        popen_kwargs["creationflags"] = creationflags
+    else:
+        popen_kwargs["start_new_session"] = True
+
+    try:
+        process = subprocess.Popen(command, **popen_kwargs)
+    except Exception as exc:  # pragma: no cover - startup failure is environment-specific
+        cleanup_ok, cleanup_code = _cleanup_profile_material_with_status(capture_root)
+        return _OwnedProcessRunResult(
+            timed_out=False,
+            process_started=False,
+            worker_terminated=True,
+            owned_process_tree_killed=False,
+            exit_code=None,
+            stdout="",
+            stderr_hash="",
+            timeout_active_stage="process_start",
+            timeout_open_stage_count=1,
+            late_publication_blocked=True,
+            cleanup_completed_before_return=True,
+            cleanup_failure_code=cleanup_code or f"CLOAK_READINESS_CHILD_PROCESS_START_{text_hash(exc.__class__.__name__)[:8]}",
+            profile_material_persisted=not cleanup_ok or _profile_file_count(capture_root) > 0,
+            terminal_receipt_count=1,
+        )
+
+    try:
+        stdout, stderr = process.communicate(timeout=max(wall_timeout_ms, 1) / 1000)
+        cleanup_ok, cleanup_code = _cleanup_profile_material_with_status(capture_root)
+        return _OwnedProcessRunResult(
+            timed_out=False,
+            process_started=True,
+            worker_terminated=process.poll() is not None,
+            owned_process_tree_killed=False,
+            exit_code=process.returncode,
+            stdout=stdout or "",
+            stderr_hash=text_hash(stderr or ""),
+            timeout_active_stage="",
+            timeout_open_stage_count=0,
+            late_publication_blocked=True,
+            cleanup_completed_before_return=True,
+            cleanup_failure_code=cleanup_code,
+            profile_material_persisted=not cleanup_ok or _profile_file_count(capture_root) > 0,
+            terminal_receipt_count=1,
+        )
+    except subprocess.TimeoutExpired:
+        events_before_kill = _read_cloak_readiness_stage_events(stage_journal_path)
+        snapshot = _timeout_snapshot_from_stage_events(events_before_kill)
+        worker_terminated, tree_killed = _terminate_owned_process_tree(process)
+        try:
+            stdout, stderr = process.communicate(timeout=2)
+        except Exception:
+            stdout, stderr = "", ""
+        events_after_kill = _read_cloak_readiness_stage_events(stage_journal_path)
+        time.sleep(0.05)
+        events_after_settle = _read_cloak_readiness_stage_events(stage_journal_path)
+        cleanup_ok, cleanup_code = _cleanup_profile_material_with_status(capture_root)
+        return _OwnedProcessRunResult(
+            timed_out=True,
+            process_started=True,
+            worker_terminated=worker_terminated,
+            owned_process_tree_killed=tree_killed,
+            exit_code=process.poll(),
+            stdout=stdout or "",
+            stderr_hash=text_hash(stderr or ""),
+            timeout_active_stage=str(snapshot.get("timeout_active_stage") or ""),
+            timeout_open_stage_count=int(snapshot.get("timeout_open_stage_count") or 0),
+            late_publication_blocked=worker_terminated and len(events_after_settle) == len(events_after_kill),
+            cleanup_completed_before_return=True,
+            cleanup_failure_code=cleanup_code,
+            profile_material_persisted=not cleanup_ok or _profile_file_count(capture_root) > 0,
+            terminal_receipt_count=1,
+        )
+
+
+def _cloak_readiness_result_from_safe_payload(payload: dict[str, Any]) -> CloakSessionReadinessResult:
+    values: dict[str, Any] = {}
+    for name, field in CloakSessionReadinessResult.__dataclass_fields__.items():
+        if name in payload:
+            values[name] = payload[name]
+        elif field.default is not MISSING:
+            values[name] = field.default
+        else:
+            values[name] = None
+    return CloakSessionReadinessResult(**values)
+
+
+def _probe_cloak_readiness_in_owned_child_process(
+    *,
+    target_url: str,
+    selected_backend_id: str,
+    safe_origin_hash: str,
+    capture_path: Path | None,
+    headless: bool,
+    timeout_ms: int,
+    wall_timeout_ms: int,
+    require_local_binary_override: bool,
+    stage_journal: _CloakReadinessStageJournal,
+    stage_journal_path: str | Path | None,
+) -> CloakSessionReadinessResult:
+    stage_journal.record("owned_child_process", "stage_started", details={"wall_timeout_ms": wall_timeout_ms})
+    child_env = dict(os.environ)
+    module_root = str(Path(__file__).resolve().parents[2])
+    child_env["PYTHONPATH"] = (
+        module_root
+        if not child_env.get("PYTHONPATH")
+        else module_root + os.pathsep + str(child_env.get("PYTHONPATH"))
+    )
+    child_env["SENTINEL_CLOAK_READINESS_CHILD_PROCESS"] = "1"
+    child_env["SENTINEL_CLOAK_CHILD_TARGET_URL"] = target_url
+    child_env["SENTINEL_CLOAK_CHILD_CAPTURE_ROOT"] = str(capture_path or "")
+    child_env["SENTINEL_CLOAK_CHILD_TIMEOUT_MS"] = str(timeout_ms)
+    child_env["SENTINEL_CLOAK_CHILD_HEADLESS"] = "1" if headless else "0"
+    child_env["SENTINEL_CLOAK_CHILD_REQUIRE_LOCAL_BINARY_OVERRIDE"] = "1" if require_local_binary_override else "0"
+    child_env["SENTINEL_CLOAK_CHILD_STAGE_JOURNAL_PATH"] = str(stage_journal_path or "")
+
+    run = _run_owned_process_with_wall_timeout(
+        [sys.executable, "-m", "sentinel.operator.real_browser_control_runtime", "--cloak-readiness-child"],
+        wall_timeout_ms=wall_timeout_ms,
+        stage_journal_path=stage_journal_path,
+        capture_root=capture_path,
+        env=child_env,
+    )
+    if run.timed_out:
+        stage_journal.record(
+            "owned_child_process",
+            "stage_failed",
+            failure_code="CLOAK_SESSION_READINESS_TIMEOUT",
+            details={
+                "timeout_worker_terminated": run.worker_terminated,
+                "owned_process_tree_killed": run.owned_process_tree_killed,
+                "late_publication_blocked": run.late_publication_blocked,
+            },
+        )
+        stage_journal.record("timeout_cleanup", "stage_started")
+        stage_journal.record(
+            "timeout_cleanup",
+            "stage_returned" if not run.cleanup_failure_code else "stage_failed",
+            failure_code=run.cleanup_failure_code or None,
+            details={"cleanup_completed_before_return": run.cleanup_completed_before_return},
+        )
+        stage_journal.record("readiness_probe", "stage_failed", failure_code="CLOAK_SESSION_READINESS_TIMEOUT")
+        return _cloak_readiness_result(
+            ready=False,
+            selected_backend_id=selected_backend_id,
+            actual_backend_id=CLOAK_BROWSER_BACKEND_ID,
+            session_backend_kind="cloakbrowser",
+            safe_url_origin_hash=safe_origin_hash,
+            failure_code="CLOAK_SESSION_READINESS_TIMEOUT",
+            diagnostic_payload={
+                "timeout_ms": wall_timeout_ms,
+                "selected_backend_id": selected_backend_id,
+                "actual_backend_id": CLOAK_BROWSER_BACKEND_ID,
+                "session_backend_kind": "cloakbrowser",
+                "timeout_active_stage": run.timeout_active_stage,
+                "timeout_open_stage_count": run.timeout_open_stage_count,
+                "worker_terminated": run.worker_terminated,
+                "owned_process_tree_killed": run.owned_process_tree_killed,
+                "late_publication_blocked": run.late_publication_blocked,
+                "stderr_hash": run.stderr_hash,
+            },
+            capture_root=capture_path,
+            backend_selected=selected_backend_id == CLOAK_BROWSER_BACKEND_ID,
+            backend_identity_matched=selected_backend_id == CLOAK_BROWSER_BACKEND_ID,
+            cleanup_operational=not run.cleanup_failure_code and not run.profile_material_persisted,
+            timeout_active_stage=run.timeout_active_stage,
+            timeout_open_stage_count=run.timeout_open_stage_count,
+            timeout_worker_terminated=run.worker_terminated,
+            owned_process_tree_killed=run.owned_process_tree_killed,
+            late_publication_blocked=run.late_publication_blocked,
+            cleanup_completed_before_return=run.cleanup_completed_before_return,
+            cleanup_failure_code=run.cleanup_failure_code,
+            terminal_receipt_count=run.terminal_receipt_count,
+        )
+
+    payload = _last_json_object(run.stdout)
+    if payload:
+        result = _cloak_readiness_result_from_safe_payload(payload)
+        stage_journal.record(
+            "owned_child_process",
+            "stage_returned" if result.ready else "stage_failed",
+            failure_code=result.failure_code,
+            details={"exit_code": run.exit_code},
+        )
+        return replace(
+            result,
+            cleanup_operational=(
+                result.cleanup_operational
+                or (not run.cleanup_failure_code and not run.profile_material_persisted and not result.profile_material_persisted)
+            ),
+            cleanup_completed_before_return=True,
+            cleanup_failure_code=run.cleanup_failure_code or result.cleanup_failure_code,
+            profile_material_persisted=run.profile_material_persisted or result.profile_material_persisted,
+        )
+
+    failure_code = "CLOAK_READINESS_CHILD_OUTPUT_INVALID" if run.process_started else "CLOAK_READINESS_CHILD_PROCESS_START_FAILED"
+    stage_journal.record("owned_child_process", "stage_failed", failure_code=failure_code, details={"exit_code": run.exit_code})
+    stage_journal.record("readiness_probe", "stage_failed", failure_code=failure_code)
+    return _cloak_readiness_result(
+        ready=False,
+        selected_backend_id=selected_backend_id,
+        actual_backend_id=CLOAK_BROWSER_BACKEND_ID if run.process_started else "",
+        session_backend_kind="cloakbrowser" if run.process_started else "",
+        safe_url_origin_hash=safe_origin_hash,
+        failure_code=failure_code,
+        diagnostic_payload={
+            "exit_code": run.exit_code,
+            "stdout_hash": text_hash(run.stdout),
+            "stderr_hash": run.stderr_hash,
+            "cleanup_failure_code": run.cleanup_failure_code,
+        },
+        capture_root=capture_path,
+        backend_selected=selected_backend_id == CLOAK_BROWSER_BACKEND_ID,
+        backend_identity_matched=run.process_started and selected_backend_id == CLOAK_BROWSER_BACKEND_ID,
+        cleanup_operational=not run.cleanup_failure_code and not run.profile_material_persisted,
+        cleanup_completed_before_return=run.cleanup_completed_before_return,
+        cleanup_failure_code=run.cleanup_failure_code,
+        terminal_receipt_count=run.terminal_receipt_count,
+    )
+
+
 def _probe_cloak_readiness_with_wall_timeout(
     *,
     engine: BrowserSessionManagerRealBrowserEngine,
@@ -3230,8 +3670,13 @@ def _probe_cloak_readiness_with_wall_timeout(
             except Exception:
                 pass
         thread.join(timeout=0.5)
-        _remove_profile_material(capture_path)
-        stage_journal.record("timeout_cleanup", "stage_returned")
+        cleanup_ok, cleanup_failure_code = _cleanup_profile_material_with_status(capture_path)
+        stage_journal.record(
+            "timeout_cleanup",
+            "stage_returned" if cleanup_ok else "stage_failed",
+            failure_code=cleanup_failure_code or None,
+        )
+        worker_terminated = not thread.is_alive()
         return _cloak_readiness_result(
             ready=False,
             selected_backend_id=selected_backend_id,
@@ -3246,8 +3691,15 @@ def _probe_cloak_readiness_with_wall_timeout(
                 **timeout_snapshot,
             },
             capture_root=capture_path,
+            cleanup_operational=cleanup_ok,
             timeout_active_stage=str(timeout_snapshot.get("timeout_active_stage") or ""),
             timeout_open_stage_count=int(timeout_snapshot.get("timeout_open_stage_count") or 0),
+            timeout_worker_terminated=worker_terminated,
+            owned_process_tree_killed=False,
+            late_publication_blocked=worker_terminated,
+            cleanup_completed_before_return=True,
+            cleanup_failure_code=cleanup_failure_code,
+            terminal_receipt_count=1,
         )
 
     if kind == "exception":
@@ -3371,7 +3823,13 @@ def _probe_cloak_readiness(
                 pass
         _remove_profile_material(capture_path)
         stage_journal.record("probe_finally_cleanup", "stage_returned")
-    return replace(result, profile_material_persisted=_profile_file_count(capture_path) > 0)
+    profile_material_persisted = _profile_file_count(capture_path) > 0
+    return replace(
+        result,
+        profile_material_persisted=profile_material_persisted,
+        cleanup_operational=result.cleanup_operational or not profile_material_persisted,
+        cleanup_completed_before_return=True,
+    )
 
 
 def _build_browser_session_manager(
@@ -3441,6 +3899,12 @@ def _cloak_readiness_result(
     reopen_operational: bool = False,
     timeout_active_stage: str = "",
     timeout_open_stage_count: int = 0,
+    timeout_worker_terminated: bool = False,
+    owned_process_tree_killed: bool = False,
+    late_publication_blocked: bool = False,
+    cleanup_completed_before_return: bool = False,
+    cleanup_failure_code: str = "",
+    terminal_receipt_count: int = 0,
 ) -> CloakSessionReadinessResult:
     profile_material_persisted = _profile_file_count(capture_root) > 0
     return CloakSessionReadinessResult(
@@ -3466,6 +3930,12 @@ def _cloak_readiness_result(
         reopen_operational=reopen_operational,
         timeout_active_stage=timeout_active_stage,
         timeout_open_stage_count=timeout_open_stage_count,
+        timeout_worker_terminated=timeout_worker_terminated,
+        owned_process_tree_killed=owned_process_tree_killed,
+        late_publication_blocked=late_publication_blocked,
+        cleanup_completed_before_return=cleanup_completed_before_return,
+        cleanup_failure_code=cleanup_failure_code,
+        terminal_receipt_count=terminal_receipt_count,
     )
 
 
@@ -4880,6 +5350,36 @@ def _nth_selector(role: str, index: int) -> str:
         "textbox": "input,textarea",
     }.get(role, "*")
     return f"{tag} >> nth={index}"
+
+
+def _cloak_readiness_child_main() -> int:
+    target_url = os.environ.get("SENTINEL_CLOAK_CHILD_TARGET_URL", "").strip()
+    capture_root = os.environ.get("SENTINEL_CLOAK_CHILD_CAPTURE_ROOT", "").strip() or None
+    stage_journal_path = os.environ.get("SENTINEL_CLOAK_CHILD_STAGE_JOURNAL_PATH", "").strip() or None
+    timeout_value = os.environ.get("SENTINEL_CLOAK_CHILD_TIMEOUT_MS", "15000").strip()
+    headless_value = os.environ.get("SENTINEL_CLOAK_CHILD_HEADLESS", "1").strip().lower()
+    require_override = os.environ.get("SENTINEL_CLOAK_CHILD_REQUIRE_LOCAL_BINARY_OVERRIDE", "0").strip().lower()
+    try:
+        timeout_ms = int(timeout_value)
+    except ValueError:
+        timeout_ms = 15_000
+    result = check_cloak_session_readiness(
+        target_url=target_url,
+        capture_root=capture_root,
+        cache_path=None,
+        headless=headless_value not in {"0", "false", "no"},
+        timeout_ms=timeout_ms,
+        wall_timeout_ms=0,
+        prepare_binary=False,
+        require_local_binary_override=require_override in {"1", "true", "yes", "on"},
+        stage_journal_path=stage_journal_path,
+    )
+    print(json.dumps(result.safe_model_dump(), sort_keys=True), flush=True)
+    return 0 if result.ready else 2
+
+
+if __name__ == "__main__" and "--cloak-readiness-child" in sys.argv:
+    raise SystemExit(_cloak_readiness_child_main())
 
 
 __all__ = [
