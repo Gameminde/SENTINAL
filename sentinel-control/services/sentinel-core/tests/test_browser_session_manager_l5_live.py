@@ -1088,6 +1088,55 @@ def test_cloakbrowser_backend_closes_partial_context_when_page_creation_fails(mo
     assert calls == [{"closed": True}]
 
 
+def test_cloakbrowser_backend_records_launch_failure_on_new_process_stage(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from sentinel.organs.browser.cloak_backend import BrowserSessionEngineError, CloakBrowserSessionBackend
+
+    class TargetClosedError(RuntimeError):
+        pass
+
+    events: list[tuple[str, str, str | None]] = []
+
+    def _sink(
+        stage: str,
+        event: str,
+        *,
+        details: dict[str, Any] | None = None,
+        exception: BaseException | None = None,
+        failure_code: str | None = None,
+    ) -> None:
+        del details, failure_code
+        events.append((stage, event, exception.__class__.__name__ if exception is not None else None))
+
+    def _launch_persistent_context(user_data_dir: str, **kwargs: object) -> object:
+        del user_data_dir, kwargs
+        raise TargetClosedError("target closed during launch")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "cloakbrowser",
+        types.SimpleNamespace(launch_persistent_context=_launch_persistent_context),
+    )
+
+    backend = CloakBrowserSessionBackend(headless=True, lifecycle_event_sink=_sink)
+
+    with pytest.raises(BrowserSessionEngineError, match="cloakbrowser_open_failed"):
+        backend.open_context(
+            profile_dir=tmp_path / "profile",
+            url=URL,
+            timeout_ms=5_000,
+            viewport_width=1440,
+            viewport_height=1000,
+        )
+
+    assert ("new_process_launch", "stage_started", None) in events
+    assert ("new_process_launch", "stage_failed", "TargetClosedError") in events
+    assert ("cloak_open_context", "stage_failed", "TargetClosedError") in events
+    assert not any(stage == "context_creation" and event == "stage_returned" for stage, event, _ in events)
+
+
 def test_default_engine_is_cloak_and_never_silently_falls_back(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from sentinel.agent.organs.browser_session_manager_l5_live import (
         BrowserSessionContract,

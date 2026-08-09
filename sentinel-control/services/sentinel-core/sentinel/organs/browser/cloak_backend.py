@@ -94,17 +94,32 @@ class CloakBrowserSessionBackend:
         self._emit_lifecycle_event("profile_material_creation", "stage_returned")
         context: Any | None = None
         try:
-            self._emit_lifecycle_event("new_process_launch", "stage_started")
-            context = cloakbrowser.launch_persistent_context(
-                str(profile_dir),
-                headless=self.headless,
-                stealth_args=self.stealth_args,
-                humanize=self.humanize,
-                viewport={"width": viewport_width, "height": viewport_height},
-                accept_downloads=self.accept_downloads,
-                java_script_enabled=self.page_javascript_enabled,
-            )
-            self._emit_lifecycle_event("new_process_launch", "stage_returned")
+            launch_details = {
+                "headless": self.headless,
+                "stealth_args": self.stealth_args,
+                "humanize": self.humanize,
+                "accept_downloads": self.accept_downloads,
+                "javascript_enabled": self.page_javascript_enabled,
+                "viewport_width": viewport_width,
+                "viewport_height": viewport_height,
+            }
+            self._emit_lifecycle_event("new_process_launch", "stage_started", details=launch_details)
+            self._emit_lifecycle_event("context_creation", "stage_started")
+            try:
+                context = cloakbrowser.launch_persistent_context(
+                    str(profile_dir),
+                    headless=self.headless,
+                    stealth_args=self.stealth_args,
+                    humanize=self.humanize,
+                    viewport={"width": viewport_width, "height": viewport_height},
+                    accept_downloads=self.accept_downloads,
+                    java_script_enabled=self.page_javascript_enabled,
+                )
+            except Exception as exc:
+                self._emit_lifecycle_event("new_process_launch", "stage_failed", details=launch_details, exception=exc)
+                self._emit_lifecycle_event("context_creation", "stage_failed", exception=exc)
+                raise
+            self._emit_lifecycle_event("new_process_launch", "stage_returned", details=launch_details)
             self._emit_lifecycle_event("context_creation", "stage_returned")
             _install_context_fixture_route(context, self.document_fixtures, url)
             self._emit_lifecycle_event("page_creation", "stage_started")

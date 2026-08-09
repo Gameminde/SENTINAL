@@ -119,10 +119,11 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     c4_truth = ledger["single_spine_c4_browser_readonly_cutover"]
     c4s_truth = ledger["single_spine_c4s_browser_readonly_proof_seal"]
     c5a_repair_truth = ledger["single_spine_c5a_timeout_containment_repair"]
-    assert ledger["current_head"] == c5a_repair_truth["attestation_head"]
-    assert ledger["current_worktree_or_commit"] == c5a_repair_truth["attestation_head"]
-    assert ledger["proof_runtime_head"] == c5a_repair_truth["attestation_head"]
-    assert ledger["implementation_tested_head"] == c5a_repair_truth["attestation_head"]
+    c5a_target_truth = ledger["single_spine_c5a_target_closed_root_cause"]
+    assert ledger["current_head"] == c5a_target_truth["attestation_head"]
+    assert ledger["current_worktree_or_commit"] == c5a_target_truth["attestation_head"]
+    assert ledger["proof_runtime_head"] == c5a_target_truth["attestation_head"]
+    assert ledger["implementation_tested_head"] == c5a_target_truth["attestation_head"]
     entries = ledger["entries"]
     status_counts = dict(sorted(Counter(entry["status"] for entry in entries).items()))
     proof_tier_counts = dict(sorted(Counter(entry["proof_tier"] for entry in entries).items()))
@@ -157,21 +158,58 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert c4s_truth["published_remote_head_before_seal"] == "dfa4479af31349f10932691da38ef771e8a74519"
     assert c4s_truth["proof_artifacts"] == c4_truth["proof_artifacts"]
     assert all(item["status"] in {"PASSED", "UNAVAILABLE"} for item in c4s_truth["validation_results"])
-    assert c5a_repair_truth["status"] == "TIMEOUT_CONTAINMENT_REPAIRED_LOCAL_WITH_LIVE_NEXT_BLOCKER"
+    assert c5a_repair_truth["status"] == (
+        "TIMEOUT_CONTAINMENT_REPAIRED_LOCAL_WITH_HISTORICAL_NEXT_BLOCKER_NOT_REPRODUCED"
+    )
     assert c5a_repair_truth["provider_calls"] == 0
     assert c5a_repair_truth["browser_runs"] == 0
     assert c5a_repair_truth["live_probe_after_repair"]["ready"] is False
     assert c5a_repair_truth["live_probe_after_repair"]["attempts"] == 3
     assert c5a_repair_truth["live_probe_after_repair"]["timeout_reproduced_after_repair"] is False
     assert c5a_repair_truth["live_probe_after_repair"]["attempt_3_first_failure"] == "cloak_open_context:TargetClosedError:new_process_launch"
+    assert c5a_repair_truth["live_probe_after_repair"]["followup_status"] == (
+        "PRIOR_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE"
+    )
+    assert c5a_repair_truth["live_probe_after_repair"]["followup_ready_count"] == 3
     assert c5a_repair_truth["deterministic_gates"]["owned_child_process_boundary"] is True
     assert c5a_repair_truth["deterministic_gates"]["late_publication_blocked"] is True
     assert c5a_repair_truth["deterministic_gates"]["cleanup_failure_visible"] is True
+    assert c5a_target_truth["status"] == "PRIOR_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE"
+    assert c5a_target_truth["provider_calls"] == 0
+    assert c5a_target_truth["sqlite_mission"] == "NOT_RUN"
+    assert c5a_target_truth["c5b"] == "NOT_STARTED"
+    assert c5a_target_truth["root_cause_proven"] is False
+    assert c5a_target_truth["deterministic_gates"]["new_process_launch_failure_terminalized"] is True
+    assert c5a_target_truth["deterministic_gates"]["context_creation_failure_terminalized"] is True
+    assert c5a_target_truth["deterministic_gates"]["backend_selected_truth_on_pre_receipt_failure"] is True
+    assert c5a_target_truth["deterministic_gates"]["receipt_backend_match_not_claimed_before_receipt"] is True
+    assert c5a_target_truth["live_probe_after_instrumentation"]["attempts"] == 3
+    assert c5a_target_truth["live_probe_after_instrumentation"]["ready_count"] == 3
+    assert c5a_target_truth["live_probe_after_instrumentation"]["all_ready"] is True
+    assert c5a_target_truth["live_probe_after_instrumentation"]["context_operational"] is True
+    assert c5a_target_truth["live_probe_after_instrumentation"]["page_operational"] is True
+    assert c5a_target_truth["live_probe_after_instrumentation"]["read_only_observation"] is True
+    assert c5a_target_truth["live_probe_after_instrumentation"]["cleanup_success_count"] == 3
+    assert c5a_target_truth["live_probe_after_instrumentation"]["profile_material_persisted_count"] == 0
+    assert c5a_target_truth["live_probe_after_instrumentation"]["target_closed_reproduced"] is False
+    assert (c5a_truth := ledger["single_spine_c5a_physical_browser_boundary"])
+    assert c5a_truth["live_cloak_readiness"] == "READY_3_OF_3_AFTER_TARGET_CLOSED_WAVE"
+    assert c5a_truth["remaining_open_truth"]["Browser physical/Cloak live proof"] == (
+        "C5A_LIVE_READINESS_READY_3_OF_3_CONTEXT_PAGE_OBSERVE_CLEANUP"
+    )
+    assert c5a_truth["remaining_open_truth"]["readiness timeout root cause"] == (
+        "ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE_REPAIRED_LOCAL"
+    )
+    assert c5a_truth["remaining_open_truth"]["new process TargetClosedError"] == (
+        "PRIOR_BLOCKER_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE"
+    )
     assert "b4f4baaceb6deb38f038a81321eb81d3ad21723b" in ledger["ledger_commit_classes"]["deletion_commits"]
     assert "4c587859eee9ddda5c356572549153137373f695" in ledger["ledger_commit_classes"]["ledger_commits"]
     assert "fe28a144445168aa75bc3f9c02e1e4626466e5db" in ledger["ledger_commit_classes"]["proof_commits"]
     assert c5a_repair_truth["source_head_before_repair"] in ledger["ledger_commit_classes"]["implementation_commits"]
     assert c5a_repair_truth["attestation_head"] in ledger["ledger_commit_classes"]["ledger_commits"]
+    assert c5a_target_truth["source_head_before_wave"] in ledger["ledger_commit_classes"]["implementation_commits"]
+    assert c5a_target_truth["attestation_head"] in ledger["ledger_commit_classes"]["ledger_commits"]
     assert c2_truth["c2s_seal_commit"] in ledger["ledger_commit_classes"]["implementation_commits"]
     assert c2_truth["c2s_seal_commit"] in ledger["ledger_commit_classes"]["ledger_commits"]
     slice_ids = [item["slice_id"] for item in ledger["methodological_reconciliation"]["slices"]]

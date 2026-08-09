@@ -3907,6 +3907,7 @@ def _cloak_readiness_result(
     terminal_receipt_count: int = 0,
 ) -> CloakSessionReadinessResult:
     profile_material_persisted = _profile_file_count(capture_root) > 0
+    backend_was_selected = backend_selected or selected_backend_id == CLOAK_BROWSER_BACKEND_ID
     return CloakSessionReadinessResult(
         ready=ready,
         provider_call_allowed=ready,
@@ -3919,7 +3920,7 @@ def _cloak_readiness_result(
         diagnostic_hash=stable_hash(diagnostic_payload),
         receipt_backend_match=bool(ready and selected_backend_id == actual_backend_id == CLOAK_BROWSER_BACKEND_ID),
         profile_material_persisted=profile_material_persisted,
-        backend_selected=backend_selected,
+        backend_selected=backend_was_selected,
         backend_identity_matched=backend_identity_matched,
         process_operational=process_operational,
         devtools_operational=devtools_operational,

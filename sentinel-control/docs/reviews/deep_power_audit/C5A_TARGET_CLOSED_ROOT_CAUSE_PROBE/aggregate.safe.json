@@ -1,0 +1,15 @@
+{
+  "all_ready": true,
+  "attempts": 3,
+  "c5b": "NOT_STARTED",
+  "cleanup_success_count": 3,
+  "probe_id": "C5A_TARGET_CLOSED_ROOT_CAUSE_AGGREGATE",
+  "profile_material_persisted_count": 0,
+  "provider_calls": 0,
+  "ready_count": 3,
+  "safe_url_origin_hashes": [
+    "d17a75e537853e7720686153c928604d7ad5904cfc03b8bbdbb3e63554f8c06f"
+  ],
+  "sqlite": "NOT_RUN",
+  "target_closed_reproduced": false
+}

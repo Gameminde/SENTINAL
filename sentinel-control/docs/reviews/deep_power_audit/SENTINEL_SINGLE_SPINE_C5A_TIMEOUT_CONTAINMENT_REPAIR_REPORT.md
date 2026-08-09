@@ -3,10 +3,11 @@
 ## Verdict
 
 ```text
-C5A_TIMEOUT_CONTAINMENT_REPAIR = IMPLEMENTED_LOCAL_WITH_LIVE_NEXT_BLOCKER
+C5A_TIMEOUT_CONTAINMENT_REPAIR = IMPLEMENTED_LOCAL_WITH_HISTORICAL_NEXT_BLOCKER_NOT_REPRODUCED
 timeout_containment_race = REPAIRED_BY_OWNED_CHILD_PROCESS_BOUNDARY
-live_cloak_ready = false
-live_next_blocker = CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED
+live_cloak_ready_at_end_of_repair_wave = false
+historical_live_next_blocker = CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED
+followup_target_closed_wave = READY_3_OF_3_AND_TARGET_CLOSED_NOT_REPRODUCED
 provider_calls = 0
 SQLite mission = NOT_RUN
 C5B = NOT_STARTED
@@ -111,13 +112,31 @@ Attempt results:
 Final live status:
 
 ```text
-usable_context = NOT_PROVEN
-usable_page = NOT_PROVEN
-read_only_observation = NOT_PROVEN
+usable_context_at_end_of_repair_wave = NOT_PROVEN
+usable_page_at_end_of_repair_wave = NOT_PROVEN
+read_only_observation_at_end_of_repair_wave = NOT_PROVEN
 profile_material_persisted = false
 cleanup_operational = true on final attempt
 timeout_reproduced_after_repair = false
-next_stable_blocker = TargetClosedError during Cloak new_process_launch
+historical_next_blocker = TargetClosedError during Cloak new_process_launch
+```
+
+Follow-up result:
+
+```text
+C5A_CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED_ROOT_CAUSE =
+PRIOR_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE
+live_cloak_readiness_after_followup = READY_3_OF_3
+context_operational_after_followup = true
+page_operational_after_followup = true
+read_only_observation_after_followup = true
+cleanup_after_followup = true
+```
+
+The follow-up wave is recorded in:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_TARGET_CLOSED_ROOT_CAUSE_REPORT.md
 ```
 
 ## Still Visible Debt
@@ -126,7 +145,7 @@ next_stable_blocker = TargetClosedError during Cloak new_process_launch
 global ledger historical C4/C4S heads still reference d1408193 as historical artifact heads
 C2 static probe remains PARTIAL/TIMEOUT in ast.generic_visit
 Pack4 Browser regression remains TIMEOUT
-Browser physical usable context/page = NOT_PROVEN
+Browser physical usable context/page = READY_3_OF_3_IN_READINESS_HARNESS
 Browser live mission = NOT_RUN
 ```
 
@@ -162,7 +181,7 @@ py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel
 -> passed
 
 JSON/JSONL parse of ledger and C5A safe probe artifacts
--> json_ok=7, jsonl_ok=3
+-> json_ok=8, jsonl_ok=3
 
 git diff --check
 -> passed
@@ -183,5 +202,6 @@ SQLite = NOT_RUN
 C5B = NOT_STARTED
 ```
 
-Do not start C5B until real Cloak proves usable context, usable page, bounded
-read-only observation and owned cleanup.
+This next step has now been executed as a follow-up wave. It did not reproduce
+the prior TargetClosed symptom and produced three successful readiness probes.
+Do not start C5B until the operator accepts that follow-up result.

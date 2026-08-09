@@ -1,5 +1,5 @@
 {
-  "attestation_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+  "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "baseline_commit": "efdbd558abddbc38cea7e506ff8cb8dfe8ef93fa",
   "canonical_core_vertical_product_tranche": {
     "attestation_head": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
@@ -2719,7 +2719,8 @@
       "d1408193883f8307753cefbb0622fa8695170ab9",
       "dfa4479af31349f10932691da38ef771e8a74519",
       "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
-      "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
+      "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+      "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f"
     ],
     "ledger_commits": [
       "41d417ef",
@@ -2735,11 +2736,14 @@
       "d1408193883f8307753cefbb0622fa8695170ab9",
       "dfa4479af31349f10932691da38ef771e8a74519",
       "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
-      "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
+      "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+      "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f"
     ],
     "proof_commits": [
       "b721ce62343316bcdbe9c792af8a0967c8ae1680",
-      "fe28a144445168aa75bc3f9c02e1e4626466e5db"
+      "fe28a144445168aa75bc3f9c02e1e4626466e5db",
+      "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
+      "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
     ]
   },
   "ledger_id": "SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_FINDING_LEDGER",
@@ -3337,25 +3341,32 @@
       "canonical_receipt_linked_to_root_mission_record": true,
       "canonical_state_browser_backend_visible_next_turn": true,
       "cleanup_after_completion_denial_cancellation": true,
+      "cleanup_after_target_closed_wave": true,
       "cleanup_failure_visible": true,
+      "context_operational_after_target_closed_wave": true,
       "effect_dispatch_owner": "ProductActionKernel",
       "fake_material_success_on_physical_route": 0,
       "fixture_backend": false,
       "late_publication_blocked_deterministic": true,
-      "latest_live_blocker_after_repair": "CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED",
+      "latest_live_blocker_after_repair": "PRIOR_CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
       "legacy_action_envelope_on_public_route": 0,
-      "live_cloak_failure_code": "CLOAK_SESSION_READINESS_TIMEOUT",
-      "live_cloak_ready": false,
+      "live_cloak_failure_code": null,
+      "live_cloak_ready": true,
       "live_cloak_ready_after_repair": false,
+      "live_cloak_ready_after_target_closed_wave": true,
       "owned_child_process_boundary": true,
       "owned_process_tree_killed_deterministic": true,
+      "page_operational_after_target_closed_wave": true,
       "physical_backend_delegates_to_real_browser_runtime": true,
+      "profile_material_persisted_after_target_closed_wave": false,
       "proof_root_receipt_artifacts_verified": true,
+      "read_only_observation_after_target_closed_wave": true,
       "real_browser_terminal_receipt_written": true,
       "root_cause_probe": "ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE",
       "selected_backend_id": "cloak_browser",
       "session_backend_kind": "cloakbrowser",
       "single_cognition_loop": "RootMissionRuntime",
+      "target_closed_reproduced_after_instrumentation": false,
       "timeout_containment_repaired_local": true
     },
     "implementation_files": [
@@ -3366,7 +3377,7 @@
       "sentinel-control/services/sentinel-core/sentinel/agent/organs/browser_session_manager_l5_live.py",
       "sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py"
     ],
-    "latest_live_blocker_after_repair": "CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED",
+    "latest_live_blocker_after_repair": "PRIOR_CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
     "latest_repair": {
       "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
       "browser_runs": 0,
@@ -3382,6 +3393,7 @@
         "terminal_receipt_unique": true
       },
       "fixed_proven_count": 0,
+      "followup_target_closed_wave": "READY_3_OF_3_AND_TARGET_CLOSED_NOT_REPRODUCED",
       "live_probe_after_repair": {
         "attempt_1_first_failure": "first_observe:FileNotFoundError",
         "attempt_1_fix": "form_state_capture_secondary_failure_to_safe_empty_summary",
@@ -3392,6 +3404,9 @@
         "cleanup_operational_final_attempt": true,
         "failure_code": "CLOAK_SESSION_BOOTSTRAP_NOT_READY",
         "file_sha256_match": true,
+        "followup_ready_count": 3,
+        "followup_status": "PRIOR_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
+        "historical_next_blocker": "TargetClosedError during Cloak new_process_launch",
         "path_hash": "f3fad5133de1a876082e5a7f6be7c61cf083e2a4742c4cf44fcfa6cfe34d3a2e",
         "profile_material_persisted_final_attempt": false,
         "read_only_observation": "NOT_PROVEN",
@@ -3411,55 +3426,27 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py",
         "sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py"
       ],
-      "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE_PLUS_LIVE_CLOAK_PROBE_FAILED_NEXT_BLOCKER",
+      "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE_PLUS_C5A_LIVE_READINESS_READY_FOLLOWUP",
       "provider_calls": 0,
       "qwen": "NOT_RUN",
       "remaining_visible_debt": {
-        "Browser_physical_usable_context_page": "NOT_PROVEN",
+        "Browser_physical_usable_context_page": "READY_3_OF_3_IN_READINESS_HARNESS",
         "C2_static_probe": "PARTIAL_TIMEOUT_AST_GENERIC_VISIT",
         "FIXED_PROVEN": "0/65",
         "Pack4_browser_regression": "TIMEOUT"
       },
       "source_head_before_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
       "sqlite_mission": "NOT_RUN",
-      "status": "TIMEOUT_CONTAINMENT_REPAIRED_LOCAL_WITH_LIVE_NEXT_BLOCKER",
+      "status": "TIMEOUT_CONTAINMENT_REPAIRED_LOCAL_WITH_HISTORICAL_NEXT_BLOCKER_NOT_REPRODUCED",
       "wave": "C5A_TIMEOUT_CONTAINMENT_REPAIR"
     },
-    "live_cloak_failure_code": "CLOAK_SESSION_BOOTSTRAP_NOT_READY",
-    "live_cloak_readiness": {
-      "actual_backend_id": "cloak_browser",
-      "candidate_count": 1,
-      "diagnostic_event_count": 63,
-      "ensure_binary_called": false,
-      "failure_code": "CLOAK_SESSION_READINESS_TIMEOUT",
-      "file_sha256": "03f53661a5c47e7b0a661bee2bce8a0d302b7a60834c328df417561fa0636d80",
-      "first_unconfirmed_live_condition": "parent-visible readiness before initial navigation completed",
-      "installed": true,
-      "path_hash": "a78c3a809e49a8ee24a77f220b45d10a4f2e764e4ed62f72452e4d4e08b55eec",
-      "path_present": true,
-      "platform": "windows-x64",
-      "probe_temp_cleanup": false,
-      "probe_temp_cleanup_after_wait": true,
-      "profile_material_persisted": true,
-      "raw_cookie_or_token_persisted": false,
-      "raw_dom_persisted": false,
-      "raw_path_persisted": false,
-      "raw_provider_material_persisted": false,
-      "raw_stack_persisted": false,
-      "readiness_ready": false,
-      "root_cause": "readiness timeout containment uses an uncancellable daemon thread; the worker can continue after parent timeout and race cleanup",
-      "safe_post_timeout_note": "driver pipe EPIPE remains classified as a post-timeout symptom unless later proof shows it is first causal",
-      "selected_backend_id": "cloak_browser",
-      "session_backend_kind": "cloakbrowser",
-      "stage_sequence_hash": "3078c005d3a0cb0271fdf29d3948d5bc0985842e388d05a82178ff93821ecfe0",
-      "tier": "free",
-      "timeout_active_stage": "initial_navigation",
-      "timeout_open_stage_count": 3,
-      "version": "146.0.7680.177.5"
-    },
+    "latest_target_closed_root_cause_wave": "C5A_CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED_ROOT_CAUSE",
+    "live_cloak_failure_code": null,
+    "live_cloak_readiness": "READY_3_OF_3_AFTER_TARGET_CLOSED_WAVE",
     "live_cloak_readiness_probes": 3,
     "live_cloak_readiness_probes_after_repair": 3,
-    "live_cloak_ready": false,
+    "live_cloak_readiness_probes_after_target_closed_wave": 3,
+    "live_cloak_ready": true,
     "live_cloak_runs": 0,
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_PHYSICAL_BROWSER_BOUNDARY_REPORT.md",
@@ -3472,7 +3459,7 @@
     ],
     "provider_calls": 0,
     "remaining_open_truth": {
-      "Browser physical/Cloak live proof": "BLOCKED_BY_CLOAK_SESSION_READINESS_TIMEOUT",
+      "Browser physical/Cloak live proof": "C5A_LIVE_READINESS_READY_3_OF_3_CONTEXT_PAGE_OBSERVE_CLEANUP",
       "Browser sandbox/process kill live proof": "NOT_RUN",
       "C-P0-01": "IMPLEMENTING",
       "C-P0-03": "IMPLEMENTING",
@@ -3482,8 +3469,9 @@
       "P0-01": "IMPLEMENTING",
       "P0-07": "IMPLEMENTING",
       "P1-25": "IMPLEMENTING",
+      "new process TargetClosedError": "PRIOR_BLOCKER_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
       "provider/model Browser mission": "NOT_RUN",
-      "readiness timeout root cause": "ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE",
+      "readiness timeout root cause": "ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE_REPAIRED_LOCAL",
       "redirect/origin physical enforcement": "NOT_RUN"
     },
     "scripted_physical_backend_actions": 3,
@@ -3592,6 +3580,131 @@
     ],
     "wave": "C5A_PHYSICAL_BROWSER_BOUNDARY"
   },
+  "single_spine_c5a_target_closed_root_cause": {
+    "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "c5b": "NOT_STARTED",
+    "classification": "LIVE_READINESS_READY_AFTER_PREVIOUS_TARGET_CLOSED_BLOCKER_NOT_REPRODUCED",
+    "deterministic_gates": {
+      "backend_selected_truth_on_pre_receipt_failure": true,
+      "context_creation_failure_terminalized": true,
+      "new_process_launch_failure_terminalized": true,
+      "owned_child_process_boundary_preserved": true,
+      "receipt_backend_match_not_claimed_before_receipt": true
+    },
+    "diagnosis": {
+      "direct_cloak_control": "production-like direct Cloak launch/context/page/about_blank navigation passed without raw output persistence",
+      "final_sentinel_readiness_probes": "3/3 ready",
+      "first_failure_after_instrumentation": "",
+      "prior_blocker": "cloak_open_context:TargetClosedError:new_process_launch",
+      "target_closed_reproduced": false
+    },
+    "fixed_proven_count": 0,
+    "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "live_probe_after_instrumentation": {
+      "all_ready": true,
+      "attempts": 3,
+      "cleanup_success_count": 3,
+      "context_operational": true,
+      "devtools_operational": true,
+      "multi_action_reuse_operational": true,
+      "page_operational": true,
+      "process_operational": true,
+      "profile_material_persisted_count": 0,
+      "read_only_observation": true,
+      "ready_count": 3,
+      "reopen_operational": true,
+      "safe_origin_hash_only": true,
+      "target_closed_reproduced": false
+    },
+    "post_push_attestation_remote_head_before_wave": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_TARGET_CLOSED_ROOT_CAUSE_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/C5A_TARGET_CLOSED_ROOT_CAUSE_PROBE/aggregate.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5A_TARGET_CLOSED_ROOT_CAUSE_PROBE/live_readiness_summary_attempt1.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5A_TARGET_CLOSED_ROOT_CAUSE_PROBE/live_readiness_summary_attempt2.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5A_TARGET_CLOSED_ROOT_CAUSE_PROBE/live_readiness_summary_attempt3.safe.json",
+      "sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py"
+    ],
+    "provider_calls": 0,
+    "qwen": "NOT_RUN",
+    "remaining_visible_debt": {
+      "Browser_live_product_mission": "NOT_RUN",
+      "Browser_sandbox_process_kill_live_probe": "NOT_RUN_IN_THIS_WAVE",
+      "C2_static_probe": "PARTIAL_TIMEOUT_AST_GENERIC_VISIT",
+      "FIXED_PROVEN": "0/65",
+      "Pack4_browser_regression": "TIMEOUT"
+    },
+    "root_cause_proven": false,
+    "source_head_before_wave": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
+    "sqlite_mission": "NOT_RUN",
+    "status": "PRIOR_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
+    "validation_results": [
+      {
+        "browser_product_missions": 0,
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py::test_cloakbrowser_backend_records_launch_failure_on_new_process_stage sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py::test_cloakbrowser_backend_is_primary_and_uses_persistent_context sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py::test_cloakbrowser_backend_closes_partial_context_when_page_creation_fails sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py::test_live_browser_session_lifecycle_sink_records_safe_open_close_substages -q",
+        "name": "C5A target-closed launch telemetry focused group",
+        "provider_calls": 0,
+        "result": "4/4 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_product_missions": 0,
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py::test_cloak_readiness_gate_blocks_before_provider_when_bootstrap_missing sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py::test_cloak_readiness_owned_process_timeout_kills_tree_and_blocks_late_publication sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py::test_cloak_readiness_live_builder_uses_owned_process_boundary -q",
+        "name": "C5A readiness truth focused group",
+        "provider_calls": 0,
+        "result": "3/3 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_product_missions": 0,
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py::test_stage0_finding_ledger_contains_all_65_findings -q",
+        "name": "C5A ledger follow-up truth",
+        "provider_calls": 0,
+        "result": "1/1 passed",
+        "status": "PASSED"
+      },
+      {
+        "browser_product_missions": 0,
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c5_physical_browser_boundary.py -q",
+        "name": "C5A physical boundary local group",
+        "provider_calls": 0,
+        "result": "3/3 passed",
+        "status": "PASSED"
+      },
+      {
+        "command": "py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel",
+        "name": "compileall sentinel",
+        "result": "exit 0",
+        "status": "PASSED"
+      },
+      {
+        "command": "parse ledger and C5A target-closed safe probe artifacts",
+        "name": "JSON/JSONL parse",
+        "result": "json_ok=8; jsonl_ok=3",
+        "status": "PASSED"
+      },
+      {
+        "command": "git diff --check",
+        "name": "git diff --check",
+        "result": "exit 0",
+        "status": "PASSED"
+      },
+      {
+        "command": "scan C5A reports, ledger and safe artifacts",
+        "name": "targeted high-confidence secret/path/raw-browser-material scan",
+        "result": "no raw local path, key, raw URL, DOM, cookie/session/profile material or provider payload found",
+        "status": "PASSED"
+      },
+      {
+        "command": "py -3.13 -m ruff check targeted changed files",
+        "name": "targeted Ruff correctness",
+        "result": "No module named ruff",
+        "status": "UNAVAILABLE"
+      }
+    ],
+    "wave": "C5A_CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED_ROOT_CAUSE"
+  },
   "single_spine_c5a_timeout_containment_repair": {
     "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
     "browser_runs": 0,
@@ -3607,6 +3720,7 @@
       "terminal_receipt_unique": true
     },
     "fixed_proven_count": 0,
+    "followup_target_closed_wave": "READY_3_OF_3_AND_TARGET_CLOSED_NOT_REPRODUCED",
     "live_probe_after_repair": {
       "attempt_1_first_failure": "first_observe:FileNotFoundError",
       "attempt_1_fix": "form_state_capture_secondary_failure_to_safe_empty_summary",
@@ -3617,6 +3731,9 @@
       "cleanup_operational_final_attempt": true,
       "failure_code": "CLOAK_SESSION_BOOTSTRAP_NOT_READY",
       "file_sha256_match": true,
+      "followup_ready_count": 3,
+      "followup_status": "PRIOR_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
+      "historical_next_blocker": "TargetClosedError during Cloak new_process_launch",
       "path_hash": "f3fad5133de1a876082e5a7f6be7c61cf083e2a4742c4cf44fcfa6cfe34d3a2e",
       "profile_material_persisted_final_attempt": false,
       "read_only_observation": "NOT_PROVEN",
@@ -3636,18 +3753,18 @@
       "sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py",
       "sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py"
     ],
-    "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE_PLUS_LIVE_CLOAK_PROBE_FAILED_NEXT_BLOCKER",
+    "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE_PLUS_C5A_LIVE_READINESS_READY_FOLLOWUP",
     "provider_calls": 0,
     "qwen": "NOT_RUN",
     "remaining_visible_debt": {
-      "Browser_physical_usable_context_page": "NOT_PROVEN",
+      "Browser_physical_usable_context_page": "READY_3_OF_3_IN_READINESS_HARNESS",
       "C2_static_probe": "PARTIAL_TIMEOUT_AST_GENERIC_VISIT",
       "FIXED_PROVEN": "0/65",
       "Pack4_browser_regression": "TIMEOUT"
     },
     "source_head_before_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
     "sqlite_mission": "NOT_RUN",
-    "status": "TIMEOUT_CONTAINMENT_REPAIRED_LOCAL_WITH_LIVE_NEXT_BLOCKER",
+    "status": "TIMEOUT_CONTAINMENT_REPAIRED_LOCAL_WITH_HISTORICAL_NEXT_BLOCKER_NOT_REPRODUCED",
     "validation_results": [
       {
         "browser_runs": 0,
@@ -3768,8 +3885,8 @@
     "IMPLEMENTING": 8,
     "OPEN": 48
   },
-  "synced_checkpoint_head": "d1408193883f8307753cefbb0622fa8695170ab9",
-  "tested_runtime_head": "d1408193883f8307753cefbb0622fa8695170ab9",
+  "synced_checkpoint_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+  "tested_runtime_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "tracked_dirty_state": [
     "## sentinel-dev-max-power-canonical-core-v1"
   ],
@@ -3777,5 +3894,5 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-08T15:25:31Z"
+  "updated_at_utc": "2026-08-09T10:11:59Z"
 }

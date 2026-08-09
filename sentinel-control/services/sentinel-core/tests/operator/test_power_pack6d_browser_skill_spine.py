@@ -595,6 +595,8 @@ def test_cloak_readiness_gate_blocks_before_provider_when_bootstrap_missing(tmp_
     assert readiness.failure_code == "CLOAK_SESSION_BOOTSTRAP_NOT_READY"
     assert readiness.selected_backend_id == CLOAK_BROWSER_BACKEND_ID
     assert readiness.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert readiness.backend_selected is True
+    assert readiness.receipt_backend_match is False
     assert manager.open_calls == 1
     assert not list((tmp_path / "capture").rglob("*cookie*"))
     assert not list((tmp_path / "capture").rglob("*session*"))
