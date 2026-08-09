@@ -80,6 +80,8 @@ class CloakSessionReadinessResult:
     multi_action_reuse_operational: bool = False
     cleanup_operational: bool = False
     reopen_operational: bool = False
+    timeout_active_stage: str = ""
+    timeout_open_stage_count: int = 0
 
     def safe_model_dump(self) -> dict[str, Any]:
         return {
@@ -103,6 +105,8 @@ class CloakSessionReadinessResult:
             "multi_action_reuse_operational": self.multi_action_reuse_operational,
             "cleanup_operational": self.cleanup_operational,
             "reopen_operational": self.reopen_operational,
+            "timeout_active_stage": self.timeout_active_stage,
+            "timeout_open_stage_count": self.timeout_open_stage_count,
         }
 
 
@@ -3019,6 +3023,7 @@ class _CloakReadinessStageJournal:
         self.capture_root = capture_root
         self.started_at = time.monotonic()
         self._lock = threading.RLock()
+        self._active_stages: list[str] = []
 
     def record(
         self,
@@ -3048,9 +3053,24 @@ class _CloakReadinessStageJournal:
         if details:
             payload["details"] = _safe_readiness_stage_details(details)
         with self._lock:
+            if event == "stage_started":
+                self._active_stages.append(stage)
+            elif event in {"stage_returned", "stage_failed"}:
+                for index in range(len(self._active_stages) - 1, -1, -1):
+                    if self._active_stages[index] == stage:
+                        del self._active_stages[index]
+                        break
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(payload, sort_keys=True) + "\n")
+
+    def timeout_snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            active = [stage for stage in self._active_stages if stage not in {"readiness_probe"}]
+        return {
+            "timeout_active_stage": active[-1] if active else "",
+            "timeout_open_stage_count": len(active),
+        }
 
 
 def _safe_readiness_stage_details(details: dict[str, Any]) -> dict[str, Any]:
@@ -3200,6 +3220,7 @@ def _probe_cloak_readiness_with_wall_timeout(
     try:
         kind, value = result_queue.get(timeout=wall_timeout_ms / 1000)
     except queue.Empty:
+        timeout_snapshot = stage_journal.timeout_snapshot()
         stage_journal.record("readiness_probe", "stage_failed", failure_code="CLOAK_SESSION_READINESS_TIMEOUT")
         stage_journal.record("timeout_cleanup", "stage_started")
         close_all = getattr(engine.session_manager, "close_all", None)
@@ -3222,8 +3243,11 @@ def _probe_cloak_readiness_with_wall_timeout(
                 "timeout_ms": wall_timeout_ms,
                 "selected_backend_id": selected_backend_id,
                 "actual_backend_id": actual_backend_id,
+                **timeout_snapshot,
             },
             capture_root=capture_path,
+            timeout_active_stage=str(timeout_snapshot.get("timeout_active_stage") or ""),
+            timeout_open_stage_count=int(timeout_snapshot.get("timeout_open_stage_count") or 0),
         )
 
     if kind == "exception":
@@ -3415,6 +3439,8 @@ def _cloak_readiness_result(
     multi_action_reuse_operational: bool = False,
     cleanup_operational: bool = False,
     reopen_operational: bool = False,
+    timeout_active_stage: str = "",
+    timeout_open_stage_count: int = 0,
 ) -> CloakSessionReadinessResult:
     profile_material_persisted = _profile_file_count(capture_root) > 0
     return CloakSessionReadinessResult(
@@ -3438,6 +3464,8 @@ def _cloak_readiness_result(
         multi_action_reuse_operational=multi_action_reuse_operational,
         cleanup_operational=cleanup_operational,
         reopen_operational=reopen_operational,
+        timeout_active_stage=timeout_active_stage,
+        timeout_open_stage_count=timeout_open_stage_count,
     )
 
 

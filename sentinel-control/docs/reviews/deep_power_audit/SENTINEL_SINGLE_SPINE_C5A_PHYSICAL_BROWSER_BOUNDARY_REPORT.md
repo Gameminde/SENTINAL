@@ -6,12 +6,13 @@
 C5A = PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_DETERMINISTIC_PLUS_LIVE_READINESS_BLOCKER
 FIXED_PROVEN = 0/65
 provider_calls = 0
-live_cloak_readiness_probes = 2
+live_cloak_readiness_probes = 3
 live_cloak_ready = false
 browser_runs = 0 product browser missions
 scripted_physical_backend_actions = 3
 real Cloak readiness probe = VALID_FAILED_CLOAK_SESSION_READINESS_TIMEOUT
 SQLite mission = NOT_RUN
+root_cause_probe = ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE
 ```
 
 This tranche does not claim live Browser/Cloak mission power. It proves the
@@ -71,9 +72,11 @@ not exposed to the public canonical route or the model.
 | `physical_backend_delegates_to_real_browser_runtime` | `true` |
 | `legacy_action_envelope_on_public_route` | `0` |
 | `provider_calls` | `0` |
-| `live_cloak_readiness_probes` | `2` |
+| `live_cloak_readiness_probes` | `3` |
 | `live_cloak_ready` | `false` |
 | `live_cloak_failure_code` | `CLOAK_SESSION_READINESS_TIMEOUT` |
+| `timeout_active_stage_latest_probe` | `initial_navigation` |
+| `timeout_open_stage_count_latest_probe` | `3` |
 | `scripted_physical_backend_actions` | `3` |
 | `authority_denial_before_engine_call` | `true` |
 | `bounded_domain_authority_ref_present` | `true` |
@@ -169,10 +172,44 @@ The post-probe process census was intentionally not treated as owned-process
 cleanup proof because it counted unrelated user browser and Node processes. It
 did show no process name containing `cloak` or `chromium` at that moment.
 
+## Root Cause Probe
+
+```text
+root_cause_probe = ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE
+provider_calls = 0
+SQLite mission = NOT_RUN
+candidate_count = 1
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+failure_code = CLOAK_SESSION_READINESS_TIMEOUT
+timeout_active_stage = initial_navigation
+timeout_open_stage_count = 3
+stage_event_count = 63
+stage_sequence_hash = 3078c005d3a0cb0271fdf29d3948d5bc0985842e388d05a82178ff93821ecfe0
+context_operational = false at parent timeout
+page_operational = false at parent timeout
+cleanup_operational = false at parent timeout
+profile_material_persisted = true at parent timeout
+temp_probe_cleanup_after_wait = true
+```
+
+The timeout parent returned while the worker was still inside the open-session
+path. The safe stage tail then showed `context_creation`, `page_creation`,
+`initial_navigation`, `backend_open_context`, and `session_publication` events
+continuing after the parent had already emitted `CLOAK_SESSION_READINESS_TIMEOUT`.
+That proves the immediate blocker is the readiness containment design: a daemon
+thread can outlive the parent timeout and race cleanup. The latest probe does
+not prove Cloak cannot create a context/page; it proves Sentinel currently
+cannot safely classify, cancel, and clean up a slow Cloak readiness sequence.
+
+`EPIPE` remains classified as a post-timeout driver-pipe symptom until a
+separate proof shows it is the first causal failure.
+
 ## Remaining Open Truth
 
 ```text
 Browser physical/Cloak live proof = BLOCKED_BY_CLOAK_SESSION_READINESS_TIMEOUT
+readiness timeout root cause = ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE
 Browser sandbox/process kill live proof = NOT_RUN
 redirect/origin physical enforcement = NOT_RUN
 provider/model Browser mission = NOT_RUN
@@ -198,5 +235,8 @@ canonical single spine = required
 SQLite mission = NOT_RUN
 ```
 
-Only after the readiness timeout root cause is proven and the live body proof
-passes should C5B run a real provider Browser mission.
+The root cause is now proven. The next implementation step is timeout
+containment repair: run readiness in a killable isolated child process or an
+equivalent cancellation boundary, then prove usable Cloak context/page,
+bounded read-only observation, owned-process cleanup, and no persisted profile
+material before C5B.

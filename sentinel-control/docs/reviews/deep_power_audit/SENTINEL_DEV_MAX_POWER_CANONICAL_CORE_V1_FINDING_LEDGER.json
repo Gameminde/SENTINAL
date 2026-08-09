@@ -239,6 +239,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+  "latest_pushed_head_before_c5a_root_cause": "ccb3163216df188510cc7c6ffd2869b448de4c0d",
   "entries": [
     {
       "acceptance_probe": "Public product request -> ProductModelNativeDecisionClient -> RuntimeHost.run_product_action_kernel_task_loop -> ProductActionKernel -> receipt; fail if dispatch bypasses through run_canonical_product_mission or RootMissionRuntime direct effect execution.",
@@ -3392,21 +3393,24 @@
     "attested_c5a_implementation_head": "54bd3699bbbd458e1d8b8f5a8f1e6185d52ec681",
     "provider_calls": 0,
     "live_cloak_runs": 0,
-    "live_cloak_readiness_probes": 2,
+    "live_cloak_readiness_probes": 3,
     "live_cloak_ready": false,
     "live_cloak_failure_code": "CLOAK_SESSION_READINESS_TIMEOUT",
     "sqlite_mission": "NOT_RUN",
     "browser_runs": 0,
     "scripted_physical_backend_actions": 3,
     "fixed_proven_count": 0,
-    "status": "PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_DETERMINISTIC_PLUS_LIVE_READINESS_BLOCKER",
+    "status": "PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_DETERMINISTIC_PLUS_ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE",
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_PHYSICAL_BROWSER_BOUNDARY_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_LIVE_READINESS_TIMEOUT_ROOT_CAUSE_REPORT.md",
       "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c5_physical_browser_boundary.py"
     ],
     "implementation_files": [
       "sentinel-control/services/sentinel-core/sentinel/operator/canonical_browser_readonly_adapter.py",
-      "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py"
+      "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py",
+      "sentinel-control/services/sentinel-core/sentinel/operator/real_browser_control_runtime.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py"
     ],
     "gates": {
       "single_cognition_loop": "RootMissionRuntime",
@@ -3422,6 +3426,7 @@
       "SQLite_mission_reached": false,
       "live_cloak_ready": false,
       "live_cloak_failure_code": "CLOAK_SESSION_READINESS_TIMEOUT",
+      "root_cause_probe": "ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE",
       "real_browser_terminal_receipt_written": true,
       "canonical_receipt_linked_to_root_mission_record": true,
       "proof_root_receipt_artifacts_verified": true,
@@ -3484,10 +3489,26 @@
         "name": "live Cloak readiness probes",
         "command": "process-scoped Cloak provenance recovery + check_cloak_session_readiness against bounded public read-only target",
         "status": "VALID_FAILED_READINESS",
-        "result": "2 probes; candidate_count=1; selected_backend_id=cloak_browser; actual_backend_id=cloak_browser; failure_code=CLOAK_SESSION_READINESS_TIMEOUT; stage_event_count=54; SQLite mission NOT_RUN",
+        "result": "3 probes; candidate_count=1; selected_backend_id=cloak_browser; actual_backend_id=cloak_browser; failure_code=CLOAK_SESSION_READINESS_TIMEOUT; latest timeout_active_stage=initial_navigation; latest stage_event_count=63; SQLite mission NOT_RUN",
         "provider_calls": 0,
         "browser_runs": 0,
-        "live_cloak_readiness_probes": 2
+        "live_cloak_readiness_probes": 3
+      },
+      {
+        "name": "C5A live readiness active-stage timeout telemetry",
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_power_pack6d_browser_skill_spine.py::test_cloak_readiness_timeout_reports_active_stage_without_raw_material -q",
+        "status": "PASSED",
+        "result": "RED failed with KeyError: timeout_active_stage; GREEN 1/1 passed after safe active-stage telemetry",
+        "provider_calls": 0,
+        "browser_runs": 0
+      },
+      {
+        "name": "Cloak readiness timeout adjacent probes",
+        "command": "py -3.13 -m pytest timeout/reopen readiness probes by explicit test ids -q",
+        "status": "PASSED",
+        "result": "5/5 passed",
+        "provider_calls": 0,
+        "browser_runs": 0
       }
     ],
     "live_cloak_readiness": {
@@ -3505,21 +3526,26 @@
       "session_backend_kind": "cloakbrowser",
       "readiness_ready": false,
       "failure_code": "CLOAK_SESSION_READINESS_TIMEOUT",
-      "diagnostic_event_count": 54,
-      "stage_sequence_hash": "ebbfe690445823654695093e51cbadd30f8896921cea61fb25dab3a57f494c76",
-      "profile_material_persisted": false,
-      "probe_temp_cleanup": true,
+      "diagnostic_event_count": 63,
+      "stage_sequence_hash": "3078c005d3a0cb0271fdf29d3948d5bc0985842e388d05a82178ff93821ecfe0",
+      "profile_material_persisted": true,
+      "probe_temp_cleanup": false,
+      "probe_temp_cleanup_after_wait": true,
+      "timeout_active_stage": "initial_navigation",
+      "timeout_open_stage_count": 3,
       "raw_path_persisted": false,
       "raw_stack_persisted": false,
       "raw_dom_persisted": false,
       "raw_cookie_or_token_persisted": false,
       "raw_provider_material_persisted": false,
-      "first_unconfirmed_live_condition": "backend context/page readiness after process launch began",
-      "safe_post_timeout_note": "driver pipe EPIPE surfaced after timeout handling; raw stack and local paths were not persisted"
+      "first_unconfirmed_live_condition": "parent-visible readiness before initial navigation completed",
+      "root_cause": "readiness timeout containment uses an uncancellable daemon thread; the worker can continue after parent timeout and race cleanup",
+      "safe_post_timeout_note": "driver pipe EPIPE remains classified as a post-timeout symptom unless later proof shows it is first causal"
     },
     "remaining_open_truth": {
       "FIXED_PROVEN": "0/65",
       "Browser physical/Cloak live proof": "BLOCKED_BY_CLOAK_SESSION_READINESS_TIMEOUT",
+      "readiness timeout root cause": "ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE",
       "Browser sandbox/process kill live proof": "NOT_RUN",
       "redirect/origin physical enforcement": "NOT_RUN",
       "provider/model Browser mission": "NOT_RUN",

@@ -979,6 +979,52 @@ def test_cloak_readiness_timeout_writes_parent_visible_stage_journal(tmp_path: P
     assert "bounded.example.test" not in stage_journal_path.read_text(encoding="utf-8")
 
 
+def test_cloak_readiness_timeout_reports_active_stage_without_raw_material(tmp_path: Path) -> None:
+    class _HangingCloakSessionManager:
+        backend_kind = "cloakbrowser"
+
+        def __init__(self) -> None:
+            self.started = threading.Event()
+            self.release = threading.Event()
+
+        def open_session(self, request: Any) -> Any:
+            del request
+            self.started.set()
+            self.release.wait(timeout=5.0)
+            raise RuntimeError("late session completion with SYNTHETIC_PROFILE_MARKER")
+
+        def close_all(self) -> None:
+            pass
+
+    manager = _HangingCloakSessionManager()
+    cache_path = tmp_path / "readiness.json"
+    stage_journal_path = tmp_path / "readiness_stages.jsonl"
+    try:
+        readiness = check_cloak_session_readiness(
+            target_url="https://bounded.example.test/catalog",
+            session_manager=manager,
+            capture_root=tmp_path / "capture",
+            cache_path=cache_path,
+            timeout_ms=30_000,
+            wall_timeout_ms=100,
+            stage_journal_path=stage_journal_path,
+        )
+    finally:
+        manager.release.set()
+
+    assert manager.started.wait(timeout=0.5)
+    assert readiness.failure_code == "CLOAK_SESSION_READINESS_TIMEOUT"
+    dumped = readiness.safe_model_dump()
+    assert dumped["timeout_active_stage"] == "open_session"
+    assert dumped["timeout_open_stage_count"] >= 1
+    cache_text = cache_path.read_text(encoding="utf-8")
+    journal_text = stage_journal_path.read_text(encoding="utf-8")
+    assert "SYNTHETIC_PROFILE_MARKER" not in cache_text
+    assert "SYNTHETIC_PROFILE_MARKER" not in journal_text
+    assert "bounded.example.test" not in cache_text
+    assert "bounded.example.test" not in journal_text
+
+
 def test_cloak_readiness_default_watchdog_does_not_starve_sequential_reopen(tmp_path: Path) -> None:
     class _SlowHealthyCloakSessionManager(_FakeBrowserSessionManager):
         def __init__(self) -> None:
