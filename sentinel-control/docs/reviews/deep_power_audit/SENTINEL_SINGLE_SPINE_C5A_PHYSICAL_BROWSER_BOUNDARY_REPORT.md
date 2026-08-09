@@ -3,19 +3,24 @@
 ## Verdict
 
 ```text
-C5A = PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_DETERMINISTIC
+C5A = PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_DETERMINISTIC_PLUS_LIVE_READINESS_BLOCKER
 FIXED_PROVEN = 0/65
 provider_calls = 0
-live_cloak_runs = 0
-browser_runs = 0 real external browser runs
+live_cloak_readiness_probes = 2
+live_cloak_ready = false
+browser_runs = 0 product browser missions
 scripted_physical_backend_actions = 3
-real Cloak readiness probe = NOT_RUN
+real Cloak readiness probe = VALID_FAILED_CLOAK_SESSION_READINESS_TIMEOUT
+SQLite mission = NOT_RUN
 ```
 
-This tranche does not claim live Browser/Cloak power. It proves the canonical
-single spine can route a Browser read-only physical backend through the existing
-`RealBrowserControlRuntime` and `ProductActionKernel` without creating another
-cognitive loop.
+This tranche does not claim live Browser/Cloak mission power. It proves the
+canonical single spine can route a Browser read-only physical backend through
+the existing `RealBrowserControlRuntime` and `ProductActionKernel` without
+creating another cognitive loop. The follow-up live readiness probes recovered
+one safe Cloak candidate and then stopped before any provider call or SQLite
+mission because the Cloak session did not become ready before the bounded
+readiness timeout.
 
 ## Architecture After C5A
 
@@ -66,13 +71,18 @@ not exposed to the public canonical route or the model.
 | `physical_backend_delegates_to_real_browser_runtime` | `true` |
 | `legacy_action_envelope_on_public_route` | `0` |
 | `provider_calls` | `0` |
-| `live_cloak_runs` | `0` |
+| `live_cloak_readiness_probes` | `2` |
+| `live_cloak_ready` | `false` |
+| `live_cloak_failure_code` | `CLOAK_SESSION_READINESS_TIMEOUT` |
 | `scripted_physical_backend_actions` | `3` |
 | `authority_denial_before_engine_call` | `true` |
 | `bounded_domain_authority_ref_present` | `true` |
 | `selected_backend_id` | `cloak_browser` |
 | `actual_backend_id` | `cloak_browser` |
 | `session_backend_kind` | `cloakbrowser` |
+| `fixture_backend` | `false` |
+| `Playwright_fallback_selected` | `false` |
+| `SQLite_mission_reached` | `false` |
 | `real_browser_terminal_receipt_written` | `true` |
 | `canonical_receipt_linked_to_root_mission_record` | `true` |
 | `proof_root_receipt_artifacts_verified` | `true` |
@@ -123,21 +133,46 @@ test_power_unification_pack4_browser_l5_l6_product_backend.py
 ## Live Cloak Status
 
 ```text
-CLOAKBROWSER_BINARY_PATH in current shell = false
-SENTINEL_REQUIRE_CLOAKBROWSER_BINARY_PATH in current shell = false
-SENTINEL_BROWSER_TEST_URL in current shell = false
-real Cloak readiness probe = NOT_RUN
-provider call = NOT_RUN
+CLOAK binary provenance = single existing candidate recovered process-scoped
+candidate_count = 1
+installed = true
+version = 146.0.7680.177.5
+tier = free
+platform = windows-x64
+path_present = true
+path_hash = a78c3a809e49a8ee24a77f220b45d10a4f2e764e4ed62f72452e4d4e08b55eec
+file_sha256 = 03f53661a5c47e7b0a661bee2bce8a0d302b7a60834c328df417561fa0636d80
+ensure_binary_called = false
+selected_backend_id = cloak_browser
+actual_backend_id = cloak_browser
+session_backend_kind = cloakbrowser
+readiness_ready = false
+failure_code = CLOAK_SESSION_READINESS_TIMEOUT
+diagnostic_event_count = 54
+stage_sequence_hash = ebbfe690445823654695093e51cbadd30f8896921cea61fb25dab3a57f494c76
+profile_material_persisted = false
+probe_temp_cleanup = true
+provider_calls = 0
+SQLite mission = NOT_RUN
+Playwright fallback selected = false
 ```
 
-C5A therefore remains a local deterministic boundary proof. The next live step
-must recover the previously validated Cloak provenance process-scoped, then run
-one body-only readiness/canonical route probe without provider calls.
+Safe stage telemetry shows provenance resolution reached a single candidate and
+the live backend route selected `cloak_browser`. The first live condition not
+confirmed was operational readiness of the backend context/page after process
+launch began; the bounded readiness probe timed out before a usable context/page
+was published. A driver pipe `EPIPE` surfaced after timeout handling, but no raw
+stack, local path, profile material, DOM, screenshot, cookie, token, or provider
+material is persisted in this report.
+
+The post-probe process census was intentionally not treated as owned-process
+cleanup proof because it counted unrelated user browser and Node processes. It
+did show no process name containing `cloak` or `chromium` at that moment.
 
 ## Remaining Open Truth
 
 ```text
-Browser physical/Cloak live proof = NOT_RUN
+Browser physical/Cloak live proof = BLOCKED_BY_CLOAK_SESSION_READINESS_TIMEOUT
 Browser sandbox/process kill live proof = NOT_RUN
 redirect/origin physical enforcement = NOT_RUN
 provider/model Browser mission = NOT_RUN
@@ -154,13 +189,14 @@ P0-07 = IMPLEMENTING
 ## Next Correct Step
 
 ```text
-C5A-LIVE-BODY-PROBE
+C5A-LIVE-READINESS-TIMEOUT-ROOT-CAUSE
 provider_calls = 0
 real Cloak = required
 fixture backend = no
 Playwright fallback = no
 canonical single spine = required
+SQLite mission = NOT_RUN
 ```
 
-Only after that body proof passes should C5B run a real provider Browser
-mission.
+Only after the readiness timeout root cause is proven and the live body proof
+passes should C5B run a real provider Browser mission.
