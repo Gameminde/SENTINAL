@@ -3384,5 +3384,106 @@
       "P0-07": "IMPLEMENTING",
       "P0-04": "CONFIRMED_CURRENT_PHYSICAL_BROWSER_NOT_REPAIRED_BY_FAKE_C4_ROUTE"
     }
+  },
+  "single_spine_c5a_physical_browser_boundary": {
+    "wave": "C5A_PHYSICAL_BROWSER_BOUNDARY",
+    "source_runtime_head_before_c5a": "19a16646b66d6d943addee2c158772421f310fb0",
+    "attestation_head": "SELF_REFERENCE_UNAVAILABLE_UNTIL_COMMIT",
+    "provider_calls": 0,
+    "live_cloak_runs": 0,
+    "browser_runs": 0,
+    "scripted_physical_backend_actions": 3,
+    "fixed_proven_count": 0,
+    "status": "PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_DETERMINISTIC",
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_PHYSICAL_BROWSER_BOUNDARY_REPORT.md",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c5_physical_browser_boundary.py"
+    ],
+    "implementation_files": [
+      "sentinel-control/services/sentinel-core/sentinel/operator/canonical_browser_readonly_adapter.py",
+      "sentinel-control/services/sentinel-core/sentinel/operator/canonical_core.py"
+    ],
+    "gates": {
+      "single_cognition_loop": "RootMissionRuntime",
+      "effect_dispatch_owner": "ProductActionKernel",
+      "physical_backend_delegates_to_real_browser_runtime": true,
+      "authority_denial_before_engine_call": true,
+      "bounded_domain_authority_ref_present": true,
+      "selected_backend_id": "cloak_browser",
+      "actual_backend_id": "cloak_browser",
+      "session_backend_kind": "cloakbrowser",
+      "real_browser_terminal_receipt_written": true,
+      "canonical_receipt_linked_to_root_mission_record": true,
+      "proof_root_receipt_artifacts_verified": true,
+      "canonical_state_browser_backend_visible_next_turn": true,
+      "cancellation_after_dispatch_blocks_completion": true,
+      "cleanup_after_completion_denial_cancellation": true,
+      "legacy_action_envelope_on_public_route": 0,
+      "fake_material_success_on_physical_route": 0
+    },
+    "validation": [
+      {
+        "name": "C5A physical browser boundary",
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c5_physical_browser_boundary.py -q",
+        "status": "PASSED",
+        "result": "3/3 passed",
+        "provider_calls": 0,
+        "browser_runs": 0
+      },
+      {
+        "name": "C4 + C5A browser cutover group",
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c5_physical_browser_boundary.py -q",
+        "status": "PASSED",
+        "result": "9/9 passed",
+        "provider_calls": 0,
+        "browser_runs": 0
+      },
+      {
+        "name": "C4 + C5A + observe receipt proof",
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c5_physical_browser_boundary.py sentinel-control/services/sentinel-core/tests/operator/test_browser_observe_receipt_proof_completeness.py -q",
+        "status": "PASSED",
+        "result": "10/10 passed",
+        "provider_calls": 0,
+        "browser_runs": 0
+      },
+      {
+        "name": "compileall sentinel",
+        "command": "py -3.13 -m compileall -q sentinel-control/services/sentinel-core/sentinel",
+        "status": "PASSED",
+        "result": "exit 0",
+        "provider_calls": 0,
+        "browser_runs": 0
+      },
+      {
+        "name": "canonical core C2/C3/C4 probe group",
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py -q; py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py::test_c2_workspace_compression_artifacts_match_current_source -q",
+        "status": "PARTIAL",
+        "result": "canonical core 44/44 passed; C1 mapping first blocking test timed out at test_c2_workspace_compression_artifacts_match_current_source",
+        "provider_calls": 0,
+        "browser_runs": 0
+      },
+      {
+        "name": "pack4 Browser product-spine regression",
+        "command": "py -3.13 -m pytest sentinel-control/services/sentinel-core/tests/operator/test_power_unification_pack4_browser_l5_l6_product_backend.py -q",
+        "status": "TIMEOUT",
+        "result": "31 tests collected; full file timed out before completion",
+        "provider_calls": 0,
+        "browser_runs": 0
+      }
+    ],
+    "remaining_open_truth": {
+      "FIXED_PROVEN": "0/65",
+      "Browser physical/Cloak live proof": "NOT_RUN",
+      "Browser sandbox/process kill live proof": "NOT_RUN",
+      "redirect/origin physical enforcement": "NOT_RUN",
+      "provider/model Browser mission": "NOT_RUN",
+      "P0-01": "IMPLEMENTING",
+      "C-P0-01": "IMPLEMENTING",
+      "C-P0-03": "IMPLEMENTING",
+      "C-P0-06": "IMPLEMENTING",
+      "P1-25": "IMPLEMENTING",
+      "C-P1-17": "IMPLEMENTING",
+      "P0-07": "IMPLEMENTING"
+    }
   }
 }

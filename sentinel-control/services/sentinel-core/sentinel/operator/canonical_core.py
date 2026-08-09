@@ -18,9 +18,11 @@ from sentinel.operator.canonical_browser_readonly_adapter import (
     READ_ONLY_BROWSER_OPERATIONS,
     CanonicalBrowserReadOnlyAdapter,
     FakeBrowserReadOnlyBackend,
+    PhysicalBrowserReadOnlyBackend,
 )
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
+from sentinel.operator.real_browser_control_runtime import BOUNDED_URL_AUTHORITY_REF
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.operator.store import _filesystem_path, _path_exists
@@ -608,7 +610,7 @@ def run_canonical_dev_mission(
     cancellation_token: RootMissionCancellationToken | None = None,
     granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
     capability_graph: ExecutableCapabilityGraph | None = None,
-    browser_readonly_backend: FakeBrowserReadOnlyBackend | None = None,
+    browser_readonly_backend: FakeBrowserReadOnlyBackend | PhysicalBrowserReadOnlyBackend | None = None,
 ) -> CanonicalDevMissionResult:
     runtime = RootMissionRuntime(
         objective=objective,
@@ -640,7 +642,7 @@ def run_canonical_product_mission(
     cancellation_token: RootMissionCancellationToken | None = None,
     granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
     capability_graph: ExecutableCapabilityGraph | None = None,
-    browser_readonly_backend: FakeBrowserReadOnlyBackend | None = None,
+    browser_readonly_backend: FakeBrowserReadOnlyBackend | PhysicalBrowserReadOnlyBackend | None = None,
 ) -> CanonicalDevMissionResult:
     runtime = RootMissionRuntime(
         objective=objective,
@@ -675,7 +677,7 @@ class RootMissionRuntime:
         kernel: MissionKernel | None = None,
         session_id: str = "canonical_core_dev_session",
         granted_authorities: tuple[str, ...] = ("workspace_read", "none"),
-        browser_readonly_backend: FakeBrowserReadOnlyBackend | None = None,
+        browser_readonly_backend: FakeBrowserReadOnlyBackend | PhysicalBrowserReadOnlyBackend | None = None,
         allow_legacy_action_envelope: bool = False,
     ) -> None:
         self.root_mission_id = new_id("root_mission")
@@ -1064,12 +1066,14 @@ class RootMissionRuntime:
                 "arguments": safe_arguments,
             }
         )
+        authority = self._mission_authority_envelope()
         return self._product_action_kernel.execute_typed(
             capability_id=route.capability,
             operation=route.operation,
             params=safe_arguments,
-            authority=self._mission_authority_envelope(),
+            authority=authority,
             context={
+                "authority": authority,
                 "root_mission_id": self.root_mission_id,
                 "decision_id": decision.decision_id,
                 "canonical_route": route.model_dump(mode="json"),
@@ -1111,12 +1115,23 @@ class RootMissionRuntime:
             for capability in dict.fromkeys(route.capability for route in self.capability_graph.routes)
             if capability != "sentinel_loop"
         ]
+        allowed_actions = tuple(
+            dict.fromkeys(
+                [
+                    *self.capability_graph.model_visible_affordances(),
+                    *(route.operation for route in self.capability_graph.routes),
+                ]
+            )
+        )
+        allowed_domains = []
+        if any(route.capability == "real_browser_control" for route in self.capability_graph.routes):
+            allowed_domains.append(BOUNDED_URL_AUTHORITY_REF)
         return MissionAuthorityEnvelope(
             user_id="sentinel_canonical_core",
             mission_title="Canonical product mission",
             mission_objective=self.objective,
             allowed_tools=allowed_tools,
-            allowed_actions=list(self.capability_graph.model_visible_affordances()),
+            allowed_actions=list(allowed_actions),
             forbidden_actions=[
                 "provider_native_tools",
                 "authority_self_grant",
@@ -1124,6 +1139,7 @@ class RootMissionRuntime:
                 "raw_secret_exposure",
             ],
             allowed_paths=[str(self.workspace_root)],
+            allowed_domains=allowed_domains,
             max_actions=max(1, self.budget.max_material_actions),
         )
 

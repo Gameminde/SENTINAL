@@ -4,10 +4,20 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
+from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernelError, ActionResult
 from sentinel.operator.browser_affordance_contracts import BROWSER_COGNITIVE_AFFORDANCE_ORDER
 from sentinel.operator.browser_environment_state import BrowserEnvironmentStateBuilder
-from sentinel.operator.real_browser_control_runtime import RealBrowserEngineElement, RealBrowserEngineSnapshot
+from sentinel.operator.kernel import MissionKernel
+from sentinel.operator.real_browser_control_runtime import (
+    BOUNDED_URL_AUTHORITY_REF,
+    CLOAK_BROWSER_BACKEND_ID,
+    DEFAULT_SESSION_REF,
+    RealBrowserControlRuntime,
+    RealBrowserEngine,
+    RealBrowserEngineElement,
+    RealBrowserEngineSnapshot,
+)
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.shared.models import new_id
 
@@ -151,8 +161,267 @@ class FakeBrowserReadOnlyBackend:
         }
 
 
+@dataclass
+class PhysicalBrowserReadOnlyBackend:
+    engine: RealBrowserEngine
+    kernel: MissionKernel
+    allowed_origins: tuple[str, ...] = ("sqlite.org",)
+    selected_backend_id: str = CLOAK_BROWSER_BACKEND_ID
+    bounded_url_ref: str = BOUNDED_URL_AUTHORITY_REF
+    session_ref: str = DEFAULT_SESSION_REF
+    cleanup_failure: bool = False
+    cleanup_count: int = 0
+    lease_released: bool = False
+    provider_calls: int = 0
+    real_browser_runs: int = 0
+    external_network_calls: int = 0
+
+    def __post_init__(self) -> None:
+        self.allowed_origins = tuple(dict.fromkeys(self.allowed_origins or ("sqlite.org",)))
+        self.current_origin = self.allowed_origins[0]
+
+    def execute_physical(self, *, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
+        authority = context.get("authority")
+        if not isinstance(authority, MissionAuthorityEnvelope):
+            raise ActionKernelError("physical_browser_authority_missing")
+        root_mission_id = str(context.get("root_mission_id") or "").strip()
+        if not root_mission_id:
+            raise ActionKernelError("physical_browser_root_mission_missing")
+        token = context.get("root_cancellation_token")
+        if getattr(token, "cancelled", False):
+            raise ActionKernelError("root_mission_cancelled_before_browser_dispatch")
+        bind_root_session_id = getattr(self.engine, "bind_root_session_id", None)
+        if callable(bind_root_session_id):
+            bind_root_session_id(root_mission_id)
+        runtime_context = dict(context)
+        runtime_context.setdefault("adapter_id", "canonical_physical_browser_readonly_adapter")
+        runtime_context.setdefault("root_browser_runtime_lease", self._root_lease_context(root_mission_id))
+        runtime_context.setdefault("mission_workspace_manifest", self._mission_workspace_manifest(root_mission_id))
+        runtime = RealBrowserControlRuntime(
+            kernel=self.kernel,
+            mission_id=root_mission_id,
+            engine=self.engine,
+            bounded_url_ref=self.bounded_url_ref,
+            session_ref=self.session_ref,
+            selected_backend_id=self.selected_backend_id,
+            product_context=runtime_context,
+        )
+        result = runtime.execute(envelope, authority=authority, context=runtime_context)
+        self.real_browser_runs += 1
+        if getattr(token, "cancelled", False):
+            raise ActionKernelError("root_mission_cancelled_during_browser_effect")
+        return self._with_canonical_observation(result, operation=envelope.operation, runtime_context=runtime_context)
+
+    def cleanup(self) -> dict[str, Any]:
+        self.cleanup_count += 1
+        if self.cleanup_failure:
+            raise ActionKernelError("physical_browser_readonly_cleanup_failed")
+        close = getattr(self.engine, "close", None)
+        if callable(close):
+            close()
+        self.lease_released = True
+        return {
+            "cleanup_count": self.cleanup_count,
+            "lease_released": self.lease_released,
+            "survivor_count": 0,
+            "cleanup_completed": True,
+            "selected_backend_id": self.selected_backend_id,
+            "actual_backend_id": getattr(self.engine, "browser_backend_id", self.selected_backend_id),
+            "session_backend_kind": _engine_session_backend_kind(self.engine),
+        }
+
+    def _root_lease_context(self, root_mission_id: str) -> dict[str, Any]:
+        root_hash = stable_hash(
+            {
+                "root_mission_id": root_mission_id,
+                "backend": getattr(self.engine, "browser_backend_id", self.selected_backend_id),
+                "session_backend_kind": _engine_session_backend_kind(self.engine),
+            }
+        )
+        return {
+            "status": "ACTIVE",
+            "root_browser_lease_id_hash": root_hash,
+            "lease_hash": root_hash,
+            "browser_engine_identity_hash": stable_hash({"root_hash": root_hash, "backend": self.selected_backend_id}),
+            "backend_context_identity_hash": stable_hash(
+                {"root_hash": root_hash, "session_backend_kind": _engine_session_backend_kind(self.engine)}
+            ),
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+
+    def _mission_workspace_manifest(self, root_mission_id: str) -> dict[str, Any]:
+        handle = {
+            "kind": "browser_session",
+            "safe_ref": self.session_ref,
+            "handle_hash": stable_hash({"root_mission_id": root_mission_id, "session_ref": self.session_ref}),
+            "backend": self.selected_backend_id,
+        }
+        manifest = {
+            "manifest_id": f"mission_workspace:{stable_hash(root_mission_id)[:24]}",
+            "handles": [handle],
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        manifest["manifest_hash"] = stable_hash(manifest)
+        return manifest
+
+    def _with_canonical_observation(
+        self,
+        result: ActionResult,
+        *,
+        operation: str,
+        runtime_context: dict[str, Any],
+    ) -> ActionResult:
+        cards = dict(result.context_cards)
+        backend_execution = cards.get("browser_backend_execution") if isinstance(cards.get("browser_backend_execution"), dict) else {}
+        environment_state = cards.get("browser_environment_state") if isinstance(cards.get("browser_environment_state"), dict) else {}
+        root_lease = runtime_context.get("root_browser_runtime_lease") if isinstance(runtime_context, dict) else {}
+        if not isinstance(root_lease, dict):
+            root_lease = {}
+        safe_observation = {
+            "backend_kind": "physical",
+            "browser_operation": operation,
+            "status": result.status,
+            "root_browser_lease_id_hash": str(root_lease.get("root_browser_lease_id_hash") or root_lease.get("lease_hash") or ""),
+            "browser_engine_identity_hash": str(root_lease.get("browser_engine_identity_hash") or ""),
+            "backend_context_identity_hash": str(root_lease.get("backend_context_identity_hash") or ""),
+            "page_identity_hash": stable_hash(
+                {"operation": operation, "result_hash": result.result_hash, "receipt_refs": result.receipt_refs}
+            ),
+            "selected_backend_id": str(backend_execution.get("selected_backend_id") or self.selected_backend_id),
+            "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(self.engine, "browser_backend_id", "")),
+            "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(self.engine)),
+            "browser_environment_state_hash": str(cards.get("browser_environment_state_hash") or stable_hash(environment_state)),
+            "browser_evidence_refs": tuple(result.evidence_refs),
+            "evidence_delta": len(result.evidence_refs),
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        physical_environment_state = self._physical_environment_state(
+            operation=operation,
+            result=result,
+            environment_state=environment_state,
+            backend_execution=backend_execution,
+            safe_observation=safe_observation,
+            runtime_context=runtime_context,
+        )
+        cards["browser_environment_state_source"] = environment_state
+        cards["browser_environment_state"] = physical_environment_state
+        cards["browser_environment_state_hash"] = stable_hash(physical_environment_state)
+        cards.setdefault("browser_readonly_observation", safe_observation)
+        cards.setdefault(
+            "browser_terminal_receipt",
+            {
+                "receipt_id": result.receipt_refs[0] if result.receipt_refs else "",
+                "operation": operation,
+                "status": result.status,
+                "selected_backend_id": safe_observation["selected_backend_id"],
+                "actual_backend_id": safe_observation["actual_backend_id"],
+                "session_backend_kind": safe_observation["session_backend_kind"],
+                "material_action": result.material_action,
+                "fake_backend": False,
+                "data_not_authority": True,
+                "can_execute": False,
+            },
+        )
+        cards["simulated_backend"] = False
+        return result.model_copy(update={"context_cards": cards})
+
+    def _physical_environment_state(
+        self,
+        *,
+        operation: str,
+        result: ActionResult,
+        environment_state: dict[str, Any],
+        backend_execution: dict[str, Any],
+        safe_observation: dict[str, Any],
+        runtime_context: dict[str, Any],
+    ) -> dict[str, Any]:
+        page_state = environment_state.get("page_state") if isinstance(environment_state.get("page_state"), dict) else {}
+        world_summary = environment_state.get("world_model_summary") if isinstance(environment_state.get("world_model_summary"), dict) else {}
+        page_title = (
+            page_state.get("title")
+            or page_state.get("page_title")
+            or world_summary.get("page_title")
+            or "unknown"
+        )
+        page_state_hash = str(
+            page_state.get("state_hash")
+            or page_state.get("page_state_hash")
+            or safe_observation.get("page_identity_hash")
+            or result.result_hash
+        )
+        available_actions = tuple(str(item) for item in runtime_context.get("available_actions") or ())
+        return {
+            "schema_version": "canonical_browser_environment_state_v1",
+            "source_contract": str(environment_state.get("schema_version") or "real_browser_environment_state"),
+            "task": {
+                "objective_hash": text_hash(str(runtime_context.get("mission_objective") or "")),
+                "progress": "physical_browser_action_observed",
+                "remaining_provider_decisions": int(runtime_context.get("remaining_provider_decisions") or 0),
+                "remaining_material_actions": int(runtime_context.get("remaining_material_actions") or 0),
+            },
+            "browser": {
+                "selected_backend_id": str(backend_execution.get("selected_backend_id") or self.selected_backend_id),
+                "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(self.engine, "browser_backend_id", "")),
+                "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(self.engine)),
+                "session_lease_status": "ACTIVE",
+                "real_browser_runs": self.real_browser_runs,
+                "external_network_calls": self.external_network_calls,
+            },
+            "page": {
+                "origin_hash": str(getattr(self.engine, "safe_url_origin_hash", "") or ""),
+                "title": redact_operator_text(str(page_title)),
+                "page_state_hash": page_state_hash,
+                "page_type": str(page_state.get("page_kind_guess") or "unknown"),
+                "readiness": "observed" if result.status == "completed" else result.status,
+            },
+            "affordance_graph": {
+                "available": [item for item in available_actions if item.startswith("real_browser_control.")],
+                "order": list(BROWSER_COGNITIVE_AFFORDANCE_ORDER),
+                "source": "ExecutableCapabilityGraph.routes",
+            },
+            "focus": {"selected_ref_hash": "", "selection_kind": "unknown"},
+            "execution_signals": {
+                "last_action": operation,
+                "status": result.status,
+                "failure_class": str(result.failure_class or ""),
+                "evidence_delta": len(result.evidence_refs),
+            },
+            "memory": {
+                "public_evidence": tuple(result.evidence_refs),
+                "evidence_count": len(result.evidence_refs),
+            },
+            "evaluation": {
+                "typed_observation": redact_operator_value(
+                    safe_observation.get("typed_observation") if isinstance(safe_observation.get("typed_observation"), dict) else {}
+                ),
+                "unknowns": () if result.evidence_refs else ("evidence_missing",),
+                "contradictions": (),
+            },
+            "demand_load_handles": {
+                "source_environment_state_hash": stable_hash(environment_state),
+                "runtime_context_hash": stable_hash(runtime_context),
+            },
+            "limits": {
+                "max_affordances": 12,
+                "max_evidence_cards": 12,
+                "max_depth": 2,
+                "raw_dom_exposed": False,
+                "cookies_exposed": False,
+                "tokens_exposed": False,
+                "selectors_as_protocol": False,
+            },
+            "data_not_authority": True,
+            "authority_effect": "none",
+            "can_grant_authority": False,
+            "can_execute": False,
+        }
+
+
 class CanonicalBrowserReadOnlyAdapter:
-    def __init__(self, backend: FakeBrowserReadOnlyBackend) -> None:
+    def __init__(self, backend: FakeBrowserReadOnlyBackend | PhysicalBrowserReadOnlyBackend) -> None:
         self.backend = backend
 
     def execute(self, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
@@ -164,6 +433,9 @@ class CanonicalBrowserReadOnlyAdapter:
         if operation not in READ_ONLY_BROWSER_OPERATIONS:
             raise ActionKernelError("browser_readonly_operation_not_registered")
         self._validate_read_only_preconditions(operation=operation, params=params)
+        execute_physical = getattr(self.backend, "execute_physical", None)
+        if callable(execute_physical):
+            return execute_physical(envelope=envelope, context=context)
         observation = self.backend.perform(operation=operation, params=params)
         if getattr(token, "cancelled", False):
             raise ActionKernelError("root_mission_cancelled_during_browser_effect")
@@ -388,7 +660,12 @@ def _safe_confidence(value: Any) -> float:
 __all__ = [
     "CanonicalBrowserReadOnlyAdapter",
     "FakeBrowserReadOnlyBackend",
+    "PhysicalBrowserReadOnlyBackend",
     "MUTATING_BROWSER_OPERATIONS",
     "READ_ONLY_BROWSER_OPERATIONS",
     "compile_canonical_browser_environment_state",
 ]
+
+
+def _engine_session_backend_kind(engine: RealBrowserEngine) -> str:
+    return str(getattr(engine, "session_manager_backend_kind", "") or engine.__class__.__name__)
