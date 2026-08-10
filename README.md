@@ -8,11 +8,21 @@
 
 <br>
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+![Status](https://img.shields.io/badge/status-experimental-orange.svg)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)
+![Architecture](https://img.shields.io/badge/architecture-local--first-111111.svg)
+![Runtime](https://img.shields.io/badge/runtime-evidence--driven-success.svg)
+
+<br>
+
 `COMPUTER` · `BROWSER` · `CODE` · `MEMORY` · `WORKERS` · `MISSIONS` · `VOICE` · `CHANNELS`
 
 <br>
 
 **Model = intelligence. Sentinel = body, senses, memory, runtime, authority, and proof.**
+
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Apache-2.0](LICENSE)
 
 </div>
 
@@ -624,6 +634,9 @@ SENTINAL/
 ├── agent-lab/          # agent experiments / evaluation work
 ├── PLAN/               # planning material
 ├── RedditPulse/        # adjacent experimental project material
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── LICENSE
 └── README.md
 ```
 
@@ -714,6 +727,24 @@ Can humans revoke that power cleanly?
 ```
 
 Those are the problems Sentinel is trying to solve.
+
+---
+
+# Contributing
+
+Contributions are welcome, especially around browser/computer perception, mission reliability, recovery, evidence, replay, model-facing state quality, tests, and documentation.
+
+Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before proposing large new capability surfaces.
+
+Security-sensitive findings should follow [`SECURITY.md`](SECURITY.md) rather than being disclosed with exploit details in a public issue.
+
+---
+
+# License
+
+Sentinel Control is licensed under the **Apache License 2.0**.
+
+See [`LICENSE`](LICENSE).
 
 ---
 
