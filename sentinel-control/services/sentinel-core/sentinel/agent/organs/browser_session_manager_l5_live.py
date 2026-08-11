@@ -26,6 +26,7 @@ from sentinel.organs.browser.cloak_backend import (
     PlaywrightSessionBackend,
 )
 from sentinel.organs.browser.models import BrowserAccessibilitySnapshot
+from sentinel.organs.browser.sentinel_chromium_backend import SentinelChromiumSessionBackend
 from sentinel.shared.models import SentinelModel, new_id
 
 
@@ -1507,6 +1508,13 @@ def _backend_for_engine(
     lifecycle_event_sink: Callable[..., None] | None = None,
 ) -> BrowserSessionBackend:
     normalized = engine.strip().lower()
+    if normalized in {"sentinel_chromium", "chromium", "sentinel_chromium_browser"}:
+        return SentinelChromiumSessionBackend(
+            document_fixtures=document_fixtures,
+            headless=headless,
+            accept_downloads=accept_downloads,
+            lifecycle_event_sink=lifecycle_event_sink,
+        )
     if normalized == "cloak":
         return CloakBrowserSessionBackend(
             document_fixtures=document_fixtures,

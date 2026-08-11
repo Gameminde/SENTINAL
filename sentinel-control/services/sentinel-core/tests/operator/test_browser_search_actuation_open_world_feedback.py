@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -126,7 +126,7 @@ def test_recoverable_search_failure_exposes_model_visible_body_failure_packet(
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://www.python.org/")
     monkeypatch.setenv("SENTINEL_BROWSER_HEADLESS", "true")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
 
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
@@ -221,7 +221,7 @@ def test_recoverable_search_failure_without_evidence_does_not_advertise_empty_ex
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://www.python.org/")
     monkeypatch.setenv("SENTINEL_BROWSER_HEADLESS", "true")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
 
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"
@@ -267,7 +267,7 @@ def test_no_search_control_with_visible_links_recommends_follow_or_inspect_not_s
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://www.sqlite.org/")
     monkeypatch.setenv("SENTINEL_BROWSER_HEADLESS", "true")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
 
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = tmp_path / "workspace"

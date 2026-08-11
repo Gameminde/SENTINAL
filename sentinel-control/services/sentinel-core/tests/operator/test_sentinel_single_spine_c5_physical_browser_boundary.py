@@ -15,9 +15,10 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.real_browser_control_runtime import (
     BOUNDED_URL_AUTHORITY_REF,
-    CLOAK_BROWSER_BACKEND_ID,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
+    SENTINEL_CHROMIUM_BACKEND_ID,
+    build_canonical_real_browser_engine_from_env,
 )
 
 
@@ -33,9 +34,9 @@ class ScriptedModelClient:
         return self._decisions.pop(0)
 
 
-class InstrumentedCloakReadOnlyEngine:
-    browser_backend_id = CLOAK_BROWSER_BACKEND_ID
-    session_manager_backend_kind = "cloakbrowser"
+class InstrumentedSentinelChromiumReadOnlyEngine:
+    browser_backend_id = SENTINEL_CHROMIUM_BACKEND_ID
+    session_manager_backend_kind = "sentinel_chromium"
 
     def __init__(self) -> None:
         self.open_count = 0
@@ -98,7 +99,7 @@ class InstrumentedCloakReadOnlyEngine:
         )
 
 
-class CancellingCloakReadOnlyEngine(InstrumentedCloakReadOnlyEngine):
+class CancellingSentinelChromiumReadOnlyEngine(InstrumentedSentinelChromiumReadOnlyEngine):
     def __init__(self, token: RootMissionCancellationToken) -> None:
         super().__init__()
         self._token = token
@@ -109,10 +110,24 @@ class CancellingCloakReadOnlyEngine(InstrumentedCloakReadOnlyEngine):
         return snapshot
 
 
-def test_physical_browser_readonly_backend_runs_through_single_spine_with_cloak_receipts(tmp_path: Path) -> None:
+def test_canonical_browser_engine_factory_does_not_require_cloak_configuration(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://sqlite.org/gencol.html")
+    monkeypatch.delenv("CLOAKBROWSER_BINARY_PATH", raising=False)
+    monkeypatch.delenv("SENTINEL_REQUIRE_CLOAKBROWSER_BINARY_PATH", raising=False)
+
+    engine = build_canonical_real_browser_engine_from_env(capture_root=tmp_path / "capture")
+
+    assert engine.browser_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
+    assert engine.session_manager_backend_kind == "sentinel_chromium"
+
+
+def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovereign_receipts(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
-    engine = InstrumentedCloakReadOnlyEngine()
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
     backend = PhysicalBrowserReadOnlyBackend(engine=engine, kernel=kernel)
     model = ScriptedModelClient(
         [
@@ -167,23 +182,23 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_cloak_
     assert backend.cleanup_count == 1
     assert backend.lease_released is True
     assert real_browser_receipts
-    assert first_browser_receipt["selected_backend_id"] == CLOAK_BROWSER_BACKEND_ID
-    assert first_browser_receipt["actual_backend_id"] == CLOAK_BROWSER_BACKEND_ID
-    assert first_browser_receipt["session_backend_kind"] == "cloakbrowser"
+    assert first_browser_receipt["selected_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert first_browser_receipt["actual_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert first_browser_receipt["session_backend_kind"] == "sentinel_chromium"
     assert first_browser_receipt.get("backend_mismatch") is False
     assert all(receipt.capability == "real_browser_control" for receipt in result.receipts)
     assert result.receipts[0].safe_observation["backend_kind"] == "physical"
-    assert result.receipts[0].safe_observation["selected_backend_id"] == CLOAK_BROWSER_BACKEND_ID
-    assert result.receipts[0].safe_observation["actual_backend_id"] == CLOAK_BROWSER_BACKEND_ID
-    assert third_turn_state["browser_environment_state"]["browser"]["selected_backend_id"] == CLOAK_BROWSER_BACKEND_ID
-    assert third_turn_state["browser_environment_state"]["browser"]["actual_backend_id"] == CLOAK_BROWSER_BACKEND_ID
+    assert result.receipts[0].safe_observation["selected_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert result.receipts[0].safe_observation["actual_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert third_turn_state["browser_environment_state"]["browser"]["selected_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert third_turn_state["browser_environment_state"]["browser"]["actual_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
     assert any(event.event_type == "canonical_browser_readonly_cleanup_completed" for event in events)
 
 
 def test_physical_browser_authority_carries_concrete_backend_origins_to_session_manager(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
-    engine = InstrumentedCloakReadOnlyEngine()
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
     backend = PhysicalBrowserReadOnlyBackend(
         engine=engine,
         kernel=kernel,
@@ -222,7 +237,7 @@ def test_physical_browser_authority_carries_concrete_backend_origins_to_session_
 def test_physical_browser_authority_denial_blocks_before_engine_call(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
-    engine = InstrumentedCloakReadOnlyEngine()
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
     backend = PhysicalBrowserReadOnlyBackend(engine=engine, kernel=kernel)
     model = ScriptedModelClient(
         [
@@ -257,7 +272,7 @@ def test_physical_browser_cancellation_after_dispatch_preserves_terminal_receipt
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
     token = RootMissionCancellationToken()
-    engine = CancellingCloakReadOnlyEngine(token)
+    engine = CancellingSentinelChromiumReadOnlyEngine(token)
     backend = PhysicalBrowserReadOnlyBackend(engine=engine, kernel=kernel)
     model = ScriptedModelClient(
         [

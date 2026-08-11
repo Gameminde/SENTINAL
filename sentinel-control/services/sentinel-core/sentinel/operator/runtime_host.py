@@ -43,12 +43,11 @@ from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.read_only_operator_spine import ReadOnlyActionKind, ReadOnlyDecision, ReadOnlyDecisionClient, ReadOnlyReportClient
 from sentinel.operator.real_browser_control_runtime import (
     BOUNDED_URL_AUTHORITY_REF,
-    CLOAK_BROWSER_BACKEND_ID,
     RealBrowserControlRuntime,
     RealBrowserControlRuntimeError,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
-    build_cloak_first_real_browser_engine_from_env,
+    build_canonical_real_browser_engine_from_env,
 )
 from sentinel.operator.runtime_connections import RuntimeConnectionRegistry, build_default_runtime_connection_registry
 from sentinel.operator.unified_execution_dispatcher import (
@@ -1701,7 +1700,7 @@ def _product_browser_engine(envelope: ActionEnvelope) -> object:
     if engine_profile in {"fake_product_search", "local_fake", "inmemory"}:
         return _ProductLocalCloakBrowserEngine()
     if os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip():
-        return build_cloak_first_real_browser_engine_from_env()
+        return build_canonical_real_browser_engine_from_env()
     raise RuntimeError("real_browser_live_backend_config_missing")
 
 

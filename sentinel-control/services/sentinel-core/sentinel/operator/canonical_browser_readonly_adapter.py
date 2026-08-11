@@ -11,12 +11,12 @@ from sentinel.operator.browser_environment_state import BrowserEnvironmentStateB
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.real_browser_control_runtime import (
     BOUNDED_URL_AUTHORITY_REF,
-    CLOAK_BROWSER_BACKEND_ID,
     DEFAULT_SESSION_REF,
     RealBrowserControlRuntime,
     RealBrowserEngine,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
+    SENTINEL_CHROMIUM_BACKEND_ID,
 )
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.shared.models import new_id
@@ -166,7 +166,7 @@ class PhysicalBrowserReadOnlyBackend:
     engine: RealBrowserEngine
     kernel: MissionKernel
     allowed_origins: tuple[str, ...] = ("sqlite.org",)
-    selected_backend_id: str = CLOAK_BROWSER_BACKEND_ID
+    selected_backend_id: str = SENTINEL_CHROMIUM_BACKEND_ID
     bounded_url_ref: str = BOUNDED_URL_AUTHORITY_REF
     session_ref: str = DEFAULT_SESSION_REF
     cleanup_failure: bool = False

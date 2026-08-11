@@ -25,8 +25,14 @@ from sentinel.operator.action_power_contract import (
     build_browser_actionability_registry,
     recoverable_action_observation,
 )
-from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
+from sentinel.operator.browser_backend_contract import (
+    CLOAK_BROWSER_BACKEND_ID,
+    PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+    SENTINEL_CHROMIUM_BACKEND_ID,
+    SENTINEL_CHROMIUM_SESSION_KIND,
+)
 from sentinel.operator.browser_backend_selector import BrowserBackendSelection, select_browser_backend
+from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
 from sentinel.operator.browser_cortex_quality_gate import derive_search_progress_state
 from sentinel.operator.browser_environment_state import BrowserEnvironmentStateBuilder
 from sentinel.operator.browser_observation_bundle import build_browser_observation_bundle
@@ -55,8 +61,6 @@ class RealBrowserControlRuntimeError(RuntimeError):
 
 BOUNDED_URL_AUTHORITY_REF = "real_browser:bounded_test_url"
 DEFAULT_SESSION_REF = "real_browser_session:bounded"
-CLOAK_BROWSER_BACKEND_ID = "cloak_browser"
-PLAYWRIGHT_REAL_BROWSER_BACKEND_ID = "playwright_real_browser_engine"
 
 _CLOAK_READINESS_ACTIVE_STAGES = {
     "binary_resolution",
@@ -481,11 +485,11 @@ class BrowserSessionManagerRealBrowserEngine:
     """Real-browser engine adapter over BrowserSessionManager L5.
 
     The model-facing browser skill should execute through the product browser
-    session manager when Cloak/session is selected, while preserving the
+    session manager when Sentinel Chromium is selected, while preserving the
     existing RealBrowserEngine contract used by the skill spine.
     """
 
-    browser_backend_id = CLOAK_BROWSER_BACKEND_ID
+    browser_backend_id = SENTINEL_CHROMIUM_BACKEND_ID
 
     def __init__(
         self,
@@ -497,8 +501,11 @@ class BrowserSessionManagerRealBrowserEngine:
         timeout_ms: int = 15_000,
         lifecycle_event_sink: Callable[..., None] | None = None,
         root_session_id: str | None = None,
+        browser_backend_id: str = SENTINEL_CHROMIUM_BACKEND_ID,
+        session_manager_engine: str = SENTINEL_CHROMIUM_SESSION_KIND,
     ) -> None:
         self.target_url = target_url
+        self.browser_backend_id = browser_backend_id
         self.timeout_ms = timeout_ms
         self.open_count = 0
         self.observe_count = 0
@@ -528,6 +535,7 @@ class BrowserSessionManagerRealBrowserEngine:
             capture_root=effective_capture_root,
             headless=headless,
             lifecycle_event_sink=lifecycle_event_sink,
+            engine=session_manager_engine,
         )
 
     @property
@@ -2314,7 +2322,7 @@ class RealBrowserControlRuntime:
                 "actual_backend_id": self.actual_backend_id,
                 "session_backend_kind": _engine_session_backend_kind(self.engine),
                 "compatibility_only": self.actual_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
-                "product_backend_proven": self.actual_backend_id == CLOAK_BROWSER_BACKEND_ID,
+                "product_backend_proven": self.actual_backend_id == SENTINEL_CHROMIUM_BACKEND_ID,
                 "selection_reason": (
                     self.browser_backend_selection.selection_reason
                     if self.browser_backend_selection is not None
@@ -2746,10 +2754,39 @@ def build_cloak_first_real_browser_engine_from_env(
             target_url=target_url,
             capture_root=capture_root,
             headless=headless_value not in {"0", "false", "no"},
+            browser_backend_id=CLOAK_BROWSER_BACKEND_ID,
+            session_manager_engine="cloak",
         )
     if allow_playwright_compatibility and selection.compatibility_backend_id == PLAYWRIGHT_REAL_BROWSER_BACKEND_ID:
         return build_playwright_real_browser_engine_from_env()
     raise RealBrowserControlRuntimeError(f"real_browser_cloak_backend_unavailable:{selection.selection_reason}")
+
+
+def build_sentinel_chromium_real_browser_engine_from_env(
+    *,
+    capture_root: str | Path | None = None,
+) -> RealBrowserEngine:
+    target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
+    if not target_url:
+        raise RealBrowserControlRuntimeError("REAL_BROWSER_TEST_URL_CONFIG_MISSING")
+    selection = select_browser_backend()
+    if selection.preferred_backend_id != SENTINEL_CHROMIUM_BACKEND_ID:
+        raise RealBrowserControlRuntimeError(f"real_browser_sentinel_chromium_backend_unavailable:{selection.selection_reason}")
+    headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
+    return BrowserSessionManagerRealBrowserEngine(
+        target_url=target_url,
+        capture_root=capture_root,
+        headless=headless_value not in {"0", "false", "no"},
+        browser_backend_id=SENTINEL_CHROMIUM_BACKEND_ID,
+        session_manager_engine=SENTINEL_CHROMIUM_SESSION_KIND,
+    )
+
+
+def build_canonical_real_browser_engine_from_env(
+    *,
+    capture_root: str | Path | None = None,
+) -> RealBrowserEngine:
+    return build_sentinel_chromium_real_browser_engine_from_env(capture_root=capture_root)
 
 
 def check_cloak_session_readiness_from_env(
@@ -2801,7 +2838,8 @@ def check_cloak_session_readiness(
 ) -> CloakSessionReadinessResult:
     target_url = target_url.strip()
     selection = select_browser_backend()
-    selected_backend_id = selection.preferred_backend_id or ""
+    cloak_candidate = next((candidate for candidate in selection.candidates if candidate.backend_id == CLOAK_BROWSER_BACKEND_ID), None)
+    selected_backend_id = CLOAK_BROWSER_BACKEND_ID if cloak_candidate is not None and cloak_candidate.available else ""
     safe_origin_hash = _safe_origin_hash(target_url) if target_url else ""
     capture_path = Path(capture_root) if capture_root is not None else None
     if session_manager is None and capture_path is None:
@@ -2899,6 +2937,8 @@ def check_cloak_session_readiness(
         headless=headless,
         timeout_ms=timeout_ms,
         lifecycle_event_sink=stage_journal.record,
+        browser_backend_id=CLOAK_BROWSER_BACKEND_ID,
+        session_manager_engine="cloak",
     )
     actual_backend_id = _engine_backend_id(engine)
     session_backend_kind = _engine_session_backend_kind(engine)
@@ -3837,12 +3877,13 @@ def _build_browser_session_manager(
     capture_root: str | Path | None,
     headless: bool,
     lifecycle_event_sink: Callable[..., None] | None = None,
+    engine: str = SENTINEL_CHROMIUM_SESSION_KIND,
 ) -> Any:
     from sentinel.agent.organs.browser_session_manager_l5_live import BrowserSessionManagerL5Live
 
     return BrowserSessionManagerL5Live(
         capture_root=Path(capture_root) if capture_root is not None else _default_browser_session_capture_root(),
-        engine="cloak",
+        engine=engine,
         headless=headless,
         lifecycle_event_sink=lifecycle_event_sink,
     )
@@ -5396,8 +5437,11 @@ __all__ = [
     "RealBrowserControlRuntimeError",
     "RealBrowserEngineElement",
     "RealBrowserEngineSnapshot",
+    "SENTINEL_CHROMIUM_BACKEND_ID",
+    "build_canonical_real_browser_engine_from_env",
     "build_cloak_first_real_browser_engine_from_env",
     "build_playwright_real_browser_engine_from_env",
+    "build_sentinel_chromium_real_browser_engine_from_env",
     "check_cloak_session_readiness",
     "check_cloak_session_readiness_from_env",
     "classify_cloak_binary_provenance",

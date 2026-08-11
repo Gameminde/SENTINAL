@@ -47,7 +47,7 @@ def test_browser_product_skill_consumes_mission_workspace_browser_session_handle
     assert browser_receipt["browser_session_ref"] == browser_handle["safe_ref"]
     assert browser_receipt["mission_workspace_ref"] == manifest["manifest_id"]
     assert browser_receipt["mission_workspace_hash"] == manifest["manifest_hash"]
-    assert browser_receipt["simple_skill"] == "browse_search"
+    assert browser_receipt["simple_skill"] == "search"
     assert browser_receipt["internal_action_id"] == "real_browser_control.real_browser.search"
     assert browser_receipt["product_dispatch_owner"] == "product_action_kernel_adapter"
 
@@ -158,7 +158,7 @@ def test_extract_routes_through_runtimehost_product_action_kernel(tmp_path: Path
     action_mission_id = result.dispatch_results[0].mission_id
     browser_receipt = _first_json(host.kernel.store.mission_dir(action_mission_id) / "real_browser_control" / "receipts")
     assert browser_receipt["action_kind"] == "real_browser.extract_product_cards"
-    assert browser_receipt["simple_skill"] == "extract"
+    assert browser_receipt["simple_skill"] == "extract_evidence"
     assert browser_receipt["product_dispatch_owner"] == "product_action_kernel_adapter"
 
 
@@ -193,15 +193,15 @@ def test_generic_extract_evidence_routes_through_runtimehost_product_action_kern
     action_mission_id = result.dispatch_results[0].mission_id
     browser_receipt = _first_json(host.kernel.store.mission_dir(action_mission_id) / "real_browser_control" / "receipts")
     assert browser_receipt["action_kind"] == "real_browser.extract_evidence"
-    assert browser_receipt["simple_skill"] == "extract"
+    assert browser_receipt["simple_skill"] == "extract_evidence"
     assert browser_receipt["product_dispatch_owner"] == "product_action_kernel_adapter"
 
 
 def test_browser_l5_l6_registered_as_hidden_backend_not_model_surface(tmp_path: Path) -> None:
     frame = SentinelRuntimeHost(run_root=tmp_path / "runs").product_task_loop_entrypoint_frame()
 
-    assert "browse_search" in frame["model_visible_skills"]
-    assert "extract" in frame["model_visible_skills"]
+    assert "search" in frame["model_visible_skills"]
+    assert "extract_evidence" in frame["model_visible_skills"]
     assert "real_browser_control.real_browser.search" in frame["model_visible_available_actions"]
     assert "real_browser_control.real_browser.search" in frame["runtime_internal_action_map"].values()
     assert "browser_l5_l6_backend" in frame["hidden_backend_bindings"]
@@ -262,7 +262,7 @@ def test_env_configured_browser_product_route_uses_cloak_first_engine_factory(tm
         return runtime_host_module._ProductLocalCloakBrowserEngine()
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
 
@@ -298,7 +298,7 @@ def test_browser_action_start_exception_creates_body_failure_fact_and_packet(tmp
         raise FileNotFoundError("C:/private/local/private_cloak_binary.exe")
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
     sink = CrashSafeBoundedLiveRunEvidenceSink(
@@ -372,7 +372,7 @@ def test_root_browser_lease_reused_across_child_browser_actions(tmp_path: Path, 
         return engine
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
     client = ProductActionKernelLoopDecisionClient(
@@ -428,7 +428,7 @@ def test_root_browser_lease_closes_on_material_budget_exhaustion(tmp_path: Path,
         return engine
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
     client = ProductActionKernelLoopDecisionClient(
@@ -489,7 +489,7 @@ def test_live_cloak_root_leases_serialize_until_close(tmp_path: Path, monkeypatc
     SlowClosableProductCloakEngine.max_active_count = 0
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", SlowClosableProductCloakEngine)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", SlowClosableProductCloakEngine)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     start_barrier = threading.Barrier(2)
     results: list[ProductActionKernelTaskLoopStatus] = []
@@ -530,7 +530,7 @@ def test_runtimehost_shutdown_closes_leaked_root_browser_lease(tmp_path: Path, m
         return engine
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     scope = host.create_product_task_resource_scope(
         root_session_id="session_pack4_shutdown_leaked_browser_scope",
@@ -564,7 +564,7 @@ def test_product_loop_continues_to_extract_after_recoverable_browser_search_with
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
     monkeypatch.setattr(
         runtime_host_module,
-        "build_cloak_first_real_browser_engine_from_env",
+        "build_canonical_real_browser_engine_from_env",
         SearchActuationFailingCloakEngine,
     )
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
@@ -697,7 +697,7 @@ def test_body_session_unavailable_reaches_next_model_turn_before_terminal_block(
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
     monkeypatch.setattr(
         runtime_host_module,
-        "build_cloak_first_real_browser_engine_from_env",
+        "build_canonical_real_browser_engine_from_env",
         fake_factory,
     )
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
@@ -766,7 +766,7 @@ def test_product_loop_does_not_block_browser_visible_trade_or_processor_text(
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
     monkeypatch.setattr(
         runtime_host_module,
-        "build_cloak_first_real_browser_engine_from_env",
+        "build_canonical_real_browser_engine_from_env",
         SearchActuationFailingCatalogEngine,
     )
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
@@ -822,7 +822,7 @@ def test_completed_browser_search_context_propagates_to_extract_when_live_sessio
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
     monkeypatch.setattr(
         runtime_host_module,
-        "build_cloak_first_real_browser_engine_from_env",
+        "build_canonical_real_browser_engine_from_env",
         CompletedSearchThenClosedSessionEngine,
     )
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
@@ -879,7 +879,7 @@ def test_first_turn_extract_without_browser_context_routes_to_search_before_extr
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
     monkeypatch.setattr(
         runtime_host_module,
-        "build_cloak_first_real_browser_engine_from_env",
+        "build_canonical_real_browser_engine_from_env",
         runtime_host_module._ProductLocalCloakBrowserEngine,
     )
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
@@ -1111,7 +1111,7 @@ def test_browser_replay_does_not_create_session_process_context(tmp_path: Path, 
         return engine
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
 
@@ -1143,7 +1143,7 @@ def test_local_body_stress_reuses_and_reopens_root_browser_lease(tmp_path: Path,
         return engine
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
     outcomes = []
@@ -1254,7 +1254,7 @@ def test_cleanup_result_records_post_close_browser_lease_card(tmp_path: Path, mo
         return engine
 
     monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://bounded.example/")
-    monkeypatch.setattr(runtime_host_module, "build_cloak_first_real_browser_engine_from_env", fake_factory)
+    monkeypatch.setattr(runtime_host_module, "build_canonical_real_browser_engine_from_env", fake_factory)
     host = SentinelRuntimeHost(run_root=tmp_path / "runs").start().host
     workspace = _workspace(tmp_path)
     sink = CrashSafeBoundedLiveRunEvidenceSink(evidence_root=tmp_path / "evidence", run_id="post_close_cleanup")

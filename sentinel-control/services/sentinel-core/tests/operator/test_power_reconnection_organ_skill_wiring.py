@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from sentinel.mission.models import MissionAuthorityEnvelope
-from sentinel.operator.browser_backend_selector import select_browser_backend
+from sentinel.operator.browser_backend_selector import (
+    CLOAK_BROWSER_MODULE,
+    SENTINEL_CHROMIUM_BROWSER_MODULE,
+    select_browser_backend,
+)
 from sentinel.operator.decision_context import DecisionContextCompiler
 from sentinel.operator.power_skill_registry import build_default_power_skill_registry
 from sentinel.operator.runtime_host import SentinelRuntimeHost
@@ -24,38 +28,38 @@ def test_pack_c_skill_registry_lists_read_patch_code_channel_browser() -> None:
     assert bindings["code_execution_sandbox"].task_loop_reachable is True
     assert bindings["bounded_channel"].task_loop_reachable is True
     assert bindings["real_browser_control"].task_loop_reachable is True
-    assert bindings["real_browser_control"].preferred_backend_id == "cloak_browser"
+    assert bindings["real_browser_control"].preferred_backend_id == "sentinel_chromium"
     assert bindings["real_browser_control"].model_visible_backend_id == "browser_skill"
     assert bindings["real_browser_control"].can_execute is False
     assert bindings["real_browser_control"].can_grant_authority is False
 
 
-def test_pack_c_browser_backend_selector_prefers_cloak_when_available() -> None:
+def test_pack_c_browser_backend_selector_prefers_sovereign_chromium_when_cloak_available() -> None:
     selection = select_browser_backend(
         available_backend_modules={
-            "sentinel.organs.browser.cloak_backend",
-            "sentinel.operator.real_browser_control_runtime",
+            CLOAK_BROWSER_MODULE,
+            SENTINEL_CHROMIUM_BROWSER_MODULE,
         }
     )
 
-    assert selection.preferred_backend_id == "cloak_browser"
+    assert selection.preferred_backend_id == "sentinel_chromium"
     assert selection.model_visible_backend_id == "browser_skill"
-    assert selection.playwright_requires_explicit_compatibility is True
-    assert "cloak_browser" in {candidate.backend_id for candidate in selection.candidates}
+    by_id = {candidate.backend_id: candidate for candidate in selection.candidates}
+    assert by_id["cloak_browser"].role == "optional_external_backend"
+    assert by_id["cloak_browser"].explicit_compatibility_required is True
+    assert "sentinel_chromium" in by_id
     assert selection.can_execute is False
 
 
-def test_pack_c_playwright_backend_requires_explicit_compatibility_selection() -> None:
+def test_pack_c_sovereign_chromium_does_not_require_cloak_module() -> None:
     selection = select_browser_backend(
         available_backend_modules={
-            "sentinel.operator.real_browser_control_runtime",
+            SENTINEL_CHROMIUM_BROWSER_MODULE,
         }
     )
 
-    assert selection.preferred_backend_id is None
-    assert selection.playwright_requires_explicit_compatibility is True
-    assert selection.compatibility_backend_id == "playwright_real_browser_engine"
-    assert selection.selection_reason == "cloak_browser_backend_unavailable"
+    assert selection.preferred_backend_id == "sentinel_chromium"
+    assert selection.selection_reason == "sentinel_chromium_backend_available"
 
 
 def test_pack_c_runtime_host_product_adapters_expose_safe_workspace_patch(tmp_path) -> None:
@@ -144,7 +148,7 @@ def test_pack_c_decision_context_exposes_safe_power_skill_backend_frame() -> Non
 
     assert backend_frame["invariant"] == "skills_map_to_organs_and_backends_without_granting_authority"
     assert by_skill["real_browser_control"]["model_visible_backend_id"] == "browser_skill"
-    assert by_skill["real_browser_control"]["preferred_backend_id"] == "cloak_browser"
+    assert by_skill["real_browser_control"]["preferred_backend_id"] == "sentinel_chromium"
     assert by_skill["workspace_patch"]["owner_module"] == "sentinel.operator.workspace_patch_runtime"
     assert all(item["can_execute"] is False for item in backend_frame["skill_backends"])
     assert "raw_provider" not in str(backend_frame).lower()

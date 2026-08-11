@@ -191,6 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+  "current_wave": "C5_BROWSER_ORGAN_SOVEREIGN_BACKEND_CORRECTION",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -3339,6 +3340,42 @@
     ],
     "wave": "C4S_BROWSER_READONLY_PROOF_SEAL"
   },
+  "single_spine_c5_sovereign_backend_correction": {
+    "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "browser_live_missions": 0,
+    "c5b_status": "NOT_RUN",
+    "canonical_backend": "sentinel_chromium",
+    "classification": "IMPLEMENTED_LOCAL_CANDIDATE",
+    "cloak_reclassification": "optional_external_backend",
+    "fixed_proven_count": 0,
+    "gates": {
+      "browser_backend_contract_minimal": true,
+      "c5b_declared_success": false,
+      "canonical_runtime_starts_without_cloak_env": true,
+      "cloak_historical_proofs_rewritten": false,
+      "cloak_required_for_canonical_operation": false,
+      "playwright_objects_cross_browser_backend_contract": false,
+      "runtimehost_live_product_factory_uses_canonical_builder": true,
+      "selector_defaults_to_sentinel_chromium": true,
+      "sentinel_chromium_registered": true
+    },
+    "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "live_sovereign_browser_probes": 0,
+    "playwright_truth": "internal_open_source_mechanism_inside_sentinel_chromium_or_explicit_test_backend",
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/C5_BROWSER_ORGAN_SOVEREIGN_BACKEND_CORRECTION_REPORT.md",
+      "sentinel-control/services/sentinel-core/sentinel/operator/browser_backend_contract.py",
+      "sentinel-control/services/sentinel-core/sentinel/organs/browser/sentinel_chromium_backend.py"
+    ],
+    "provider_calls": 0,
+    "remaining_risk": [
+      "sentinel_chromium has not yet passed 5/5 live sequential launch proof.",
+      "origin/redirect enforcement, physical cancellation, process-tree kill and cleanup remain NOT_RUN for the sovereign backend.",
+      "C5B real-model Browser mission remains NOT_RUN.",
+      "Dynamic affordance filtering debt remains visible in test_browser_search_actuation_open_world_feedback."
+    ],
+    "source_head": "4086b080f9645e00fe18ed015a35a9c0bb8de67a"
+  },
   "single_spine_c5a_physical_browser_boundary": {
     "accepted_c5a_live_readiness": "READY_3_OF_3",
     "accepted_checkpoint": "6c17b9816d8037acad7daa4e5d4e0c0cf97fd2ed",
@@ -3961,5 +3998,5 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-11T07:53:48.582805+00:00"
+  "updated_at_utc": "2026-08-11T10:52:04.160391+00:00"
 }

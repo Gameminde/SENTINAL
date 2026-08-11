@@ -5,11 +5,17 @@ from typing import Iterable
 
 from pydantic import Field, model_validator
 
+from sentinel.operator.browser_backend_contract import (
+    CLOAK_BROWSER_BACKEND_ID,
+    PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+    SENTINEL_CHROMIUM_BACKEND_ID,
+)
 from sentinel.operator.safety import assert_data_not_authority
 from sentinel.shared.models import SentinelModel
 
 
 CLOAK_BROWSER_MODULE = "sentinel.organs.browser.cloak_backend"
+SENTINEL_CHROMIUM_BROWSER_MODULE = "sentinel.organs.browser.sentinel_chromium_backend"
 PLAYWRIGHT_BROWSER_MODULE = "sentinel.operator.real_browser_control_runtime"
 
 
@@ -69,36 +75,45 @@ def select_browser_backend(
     available_backend_modules: Iterable[str] | None = None,
 ) -> BrowserBackendSelection:
     available = set(available_backend_modules) if available_backend_modules is not None else _discover_available_modules()
+    sentinel_chromium_available = SENTINEL_CHROMIUM_BROWSER_MODULE in available
     cloak_available = CLOAK_BROWSER_MODULE in available
     playwright_available = PLAYWRIGHT_BROWSER_MODULE in available
     candidates = (
         BrowserBackendCandidate(
-            backend_id="cloak_browser",
-            display_name="CloakBrowser live browser backend",
-            owner_module=CLOAK_BROWSER_MODULE,
-            role="preferred_live_browser_backend",
-            available=cloak_available,
+            backend_id=SENTINEL_CHROMIUM_BACKEND_ID,
+            display_name="Sentinel Chromium sovereign browser backend",
+            owner_module=SENTINEL_CHROMIUM_BROWSER_MODULE,
+            role="canonical_browser_backend",
+            available=sentinel_chromium_available,
         ),
         BrowserBackendCandidate(
-            backend_id="playwright_real_browser_engine",
-            display_name="Playwright compatibility browser backend",
+            backend_id=CLOAK_BROWSER_BACKEND_ID,
+            display_name="CloakBrowser optional external browser backend",
+            owner_module=CLOAK_BROWSER_MODULE,
+            role="optional_external_backend",
+            available=cloak_available,
+            explicit_compatibility_required=True,
+        ),
+        BrowserBackendCandidate(
+            backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID,
+            display_name="Playwright internal Chromium control mechanism",
             owner_module=PLAYWRIGHT_BROWSER_MODULE,
-            role="explicit_compatibility_or_test_backend",
+            role="internal_open_source_mechanism_or_explicit_test_backend",
             available=playwright_available,
             explicit_compatibility_required=True,
         ),
     )
-    if cloak_available:
+    if sentinel_chromium_available:
         return BrowserBackendSelection(
-            preferred_backend_id="cloak_browser",
-            compatibility_backend_id="playwright_real_browser_engine" if playwright_available else None,
-            selection_reason="cloak_browser_backend_available",
+            preferred_backend_id=SENTINEL_CHROMIUM_BACKEND_ID,
+            compatibility_backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID if playwright_available else None,
+            selection_reason="sentinel_chromium_backend_available",
             candidates=candidates,
         )
     return BrowserBackendSelection(
         preferred_backend_id=None,
-        compatibility_backend_id="playwright_real_browser_engine" if playwright_available else None,
-        selection_reason="cloak_browser_backend_unavailable" if playwright_available else "no_browser_backend_available",
+        compatibility_backend_id=PLAYWRIGHT_REAL_BROWSER_BACKEND_ID if playwright_available else None,
+        selection_reason="sentinel_chromium_backend_unavailable" if playwright_available or cloak_available else "no_browser_backend_available",
         candidates=candidates,
     )
 
@@ -106,7 +121,7 @@ def select_browser_backend(
 def _discover_available_modules() -> set[str]:
     return {
         module_name
-        for module_name in (CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)
+        for module_name in (SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)
         if importlib.util.find_spec(module_name) is not None
     }
 
@@ -116,5 +131,6 @@ __all__ = [
     "BrowserBackendSelection",
     "CLOAK_BROWSER_MODULE",
     "PLAYWRIGHT_BROWSER_MODULE",
+    "SENTINEL_CHROMIUM_BROWSER_MODULE",
     "select_browser_backend",
 ]

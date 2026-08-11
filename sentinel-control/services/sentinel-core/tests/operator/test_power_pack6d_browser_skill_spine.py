@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import sys
@@ -15,7 +15,12 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
 from sentinel.operator.action_power_contract import ActionFailureClass
 from sentinel.operator.actionability_registry import build_default_actionability_registry
-from sentinel.operator.browser_backend_selector import CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE, select_browser_backend
+from sentinel.operator.browser_backend_selector import (
+    CLOAK_BROWSER_MODULE,
+    PLAYWRIGHT_BROWSER_MODULE,
+    SENTINEL_CHROMIUM_BROWSER_MODULE,
+    select_browser_backend,
+)
 from sentinel.operator.browser_affordance_contracts import compile_executable_browser_affordances
 from sentinel.operator.browser_decision_frame import BrowserDecisionFrameCompiler
 from sentinel.operator.browser_model_native_control_loop import map_browser_model_native_intent
@@ -42,6 +47,7 @@ from sentinel.operator.real_browser_control_runtime import (
     RealBrowserControlRuntimeError,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
+    SENTINEL_CHROMIUM_BACKEND_ID,
     check_cloak_session_readiness,
     classify_cloak_binary_provenance,
 )
@@ -113,23 +119,29 @@ def test_browser_skill_consumes_power_skill_backend_frame() -> None:
 
     assert browser_backend["model_visible_backend_id"] == "browser_skill"
     assert browser_backend["task_loop_reachable"] is True
-    assert "CloakBrowser" in browser_backend["organ_refs"]
+    assert "SentinelChromium" in browser_backend["organ_refs"]
+    assert "CloakBrowserOptionalExternalAdapter" in browser_backend["organ_refs"]
 
 
-def test_browser_skill_selects_cloak_session_backend_when_available() -> None:
+def test_browser_skill_selects_sovereign_chromium_when_cloak_is_available() -> None:
     selection = select_browser_backend(
         available_backend_modules=(
-            "sentinel.organs.browser.cloak_backend",
-            "sentinel.operator.real_browser_control_runtime",
+            CLOAK_BROWSER_MODULE,
+            SENTINEL_CHROMIUM_BROWSER_MODULE,
+            PLAYWRIGHT_BROWSER_MODULE,
         )
     )
 
-    assert selection.preferred_backend_id == "cloak_browser"
+    assert selection.preferred_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
     assert selection.model_visible_backend_id == "browser_skill"
+    by_id = {candidate.backend_id: candidate for candidate in selection.candidates}
+    assert by_id[CLOAK_BROWSER_BACKEND_ID].role == "optional_external_backend"
 
 
-def test_cloak_available_selected_as_product_backend(tmp_path: Path) -> None:
-    selection = select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE))
+def test_sovereign_chromium_selected_as_product_backend_when_available(tmp_path: Path) -> None:
+    selection = select_browser_backend(
+        available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)
+    )
     engine = BrowserSessionManagerRealBrowserEngine(
         target_url="https://bounded.example.test/catalog",
         session_manager=_FakeBrowserSessionManager(),
@@ -137,12 +149,12 @@ def test_cloak_available_selected_as_product_backend(tmp_path: Path) -> None:
 
     fixture = _BrowserSkillFixture(tmp_path, engine=engine, backend_selection=selection)
 
-    assert fixture.runtime.selected_backend_id == CLOAK_BROWSER_BACKEND_ID
-    assert fixture.runtime.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
+    assert fixture.runtime.selected_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
+    assert fixture.runtime.actual_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
 
 
 def test_cloak_selected_actual_backend_must_match(tmp_path: Path) -> None:
-    selection = select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE))
+    selection = select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE))
 
     with pytest.raises(RealBrowserControlRuntimeError, match="real_browser_backend_selection_mismatch"):
         _BrowserSkillFixture(
@@ -153,11 +165,12 @@ def test_cloak_selected_actual_backend_must_match(tmp_path: Path) -> None:
         )
 
 
-def test_backend_frame_preferred_cloak_must_match_actual_backend_or_block(tmp_path: Path) -> None:
+def test_backend_frame_preferred_sovereign_chromium_must_match_actual_backend_or_block(tmp_path: Path) -> None:
     selection = select_browser_backend(
         available_backend_modules=(
-            "sentinel.organs.browser.cloak_backend",
-            "sentinel.operator.real_browser_control_runtime",
+            SENTINEL_CHROMIUM_BROWSER_MODULE,
+            CLOAK_BROWSER_MODULE,
+            PLAYWRIGHT_BROWSER_MODULE,
         )
     )
 
@@ -193,10 +206,15 @@ def test_playwright_actual_engine_requires_explicit_compatibility_selection(tmp_
     assert opened.status == "completed"
 
 
-def test_no_silent_cloak_to_playwright_fallback(tmp_path: Path) -> None:
-    selection = select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE))
+def test_no_silent_sovereign_chromium_to_playwright_fallback(tmp_path: Path) -> None:
+    selection = select_browser_backend(
+        available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)
+    )
 
-    with pytest.raises(RealBrowserControlRuntimeError, match="real_browser_backend_selection_mismatch:selected=cloak_browser:actual=playwright_real_browser_engine"):
+    with pytest.raises(
+        RealBrowserControlRuntimeError,
+        match="real_browser_backend_selection_mismatch:selected=sentinel_chromium:actual=playwright_real_browser_engine",
+    ):
         _BrowserSkillFixture(
             tmp_path,
             engine=_PlaywrightCompatibilitySearchEngine(results_visible=True),
@@ -221,7 +239,7 @@ def test_real_browser_search_dispatches_to_selected_backend(tmp_path: Path) -> N
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
@@ -286,7 +304,7 @@ def test_browser_session_engine_press_key_dispatches_to_l5_backend(tmp_path: Pat
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
@@ -305,7 +323,7 @@ def test_real_browser_search_opens_cloak_session_when_not_already_open(tmp_path:
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     result = fixture.runtime.execute(
@@ -333,7 +351,7 @@ def test_browser_session_engine_translates_product_authority_to_l5_session_actio
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     result = fixture.runtime.execute(
@@ -358,7 +376,7 @@ def test_search_material_receipt_records_backend_truth(tmp_path: Path) -> None:
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
@@ -374,9 +392,9 @@ def test_search_material_receipt_records_backend_truth(tmp_path: Path) -> None:
     receipt = fixture.load_action_receipt(result.receipt_refs[0])
 
     assert receipt["action_kind"] == "real_browser.search"
-    assert receipt["selected_backend_id"] == CLOAK_BROWSER_BACKEND_ID
-    assert receipt["actual_backend_id"] == CLOAK_BROWSER_BACKEND_ID
-    assert receipt["session_backend_kind"] == "cloakbrowser"
+    assert receipt["selected_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert receipt["actual_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert receipt["session_backend_kind"] == "sentinel_chromium"
     assert receipt["search_materiality"]["input_written"] is True
     assert receipt["search_materiality"]["submission_attempted"] is True
     assert receipt["search_materiality"]["result_region_changed"] is True
@@ -494,7 +512,7 @@ def test_browser_session_manager_l5_used_for_live_backend_when_available(tmp_pat
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     fixture.runtime.execute(ActionEnvelope(capability_id="real_browser_control", operation="real_browser.open"), authority=fixture.authority, context={})
@@ -502,8 +520,8 @@ def test_browser_session_manager_l5_used_for_live_backend_when_available(tmp_pat
 
     assert manager.open_calls == 1
     assert manager.observe_calls >= 1
-    assert fixture.runtime.actual_backend_id == CLOAK_BROWSER_BACKEND_ID
-    assert engine.session_manager_backend_kind == "cloakbrowser"
+    assert fixture.runtime.actual_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
+    assert engine.session_manager_backend_kind == "sentinel_chromium"
 
 
 def test_browser_session_devtools_metadata_is_exposed_as_safe_context(tmp_path: Path) -> None:
@@ -515,7 +533,7 @@ def test_browser_session_devtools_metadata_is_exposed_as_safe_context(tmp_path: 
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     result = fixture.runtime.execute(
@@ -526,7 +544,7 @@ def test_browser_session_devtools_metadata_is_exposed_as_safe_context(tmp_path: 
 
     devtools = result.context_cards["browser_devtools_context"]
     assert devtools["source"] == "browser_session_manager_l5"
-    assert devtools["backend_kind"] == "cloakbrowser"
+    assert devtools["backend_kind"] == "sentinel_chromium"
     assert devtools["page_target_count"] == 1
     assert devtools["snapshot_hash"] == "fake_a11y_snapshot_hash"
     assert devtools["network_ledger_hash"] == "fake_network_ledger_hash"
@@ -550,7 +568,7 @@ def test_browser_session_devtools_metadata_failure_does_not_block_browser_action
     fixture = _BrowserSkillFixture(
         tmp_path,
         engine=engine,
-        backend_selection=select_browser_backend(available_backend_modules=(CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
+        backend_selection=select_browser_backend(available_backend_modules=(SENTINEL_CHROMIUM_BROWSER_MODULE, CLOAK_BROWSER_MODULE, PLAYWRIGHT_BROWSER_MODULE)),
     )
 
     result = fixture.runtime.execute(
@@ -603,7 +621,7 @@ def test_cloak_readiness_gate_blocks_before_provider_when_bootstrap_missing(tmp_
 
 
 def test_cloak_readiness_gate_passes_when_fake_cloak_session_opens(tmp_path: Path) -> None:
-    manager = _FakeBrowserSessionManager()
+    manager = _FakeBrowserSessionManager(backend_kind="cloakbrowser")
 
     readiness = check_cloak_session_readiness(
         target_url="https://bounded.example.test/catalog",
@@ -749,7 +767,7 @@ def test_cloak_local_binary_override_allows_readiness_without_download(tmp_path:
     local_binary = tmp_path / "Local Chrome" / "chrome.exe"
     local_binary.parent.mkdir(parents=True)
     local_binary.write_bytes(b"fake local browser executable")
-    manager = _FakeBrowserSessionManager()
+    manager = _FakeBrowserSessionManager(backend_kind="cloakbrowser")
 
     def _not_installed_but_path_present() -> dict[str, Any]:
         return {
@@ -832,7 +850,7 @@ def test_cloak_readiness_can_require_local_binary_override_before_launch(
 def test_cloak_readiness_safe_receipts_do_not_count_as_profile_material(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     local_binary = tmp_path / "chrome.exe"
     local_binary.write_bytes(b"fake local browser executable")
-    manager = _FakeBrowserSessionManager()
+    manager = _FakeBrowserSessionManager(backend_kind="cloakbrowser")
 
     def _path_override_info() -> dict[str, Any]:
         return {
@@ -1368,7 +1386,7 @@ def test_cloak_readiness_timeout_removes_sensitive_profile_dirs(tmp_path: Path) 
 def test_cloak_selected_actual_backend_receipt_matches_after_ready(tmp_path: Path) -> None:
     readiness = check_cloak_session_readiness(
         target_url="https://bounded.example.test/catalog",
-        session_manager=_FakeBrowserSessionManager(),
+        session_manager=_FakeBrowserSessionManager(backend_kind="cloakbrowser"),
         capture_root=tmp_path / "capture",
     )
 
@@ -3410,14 +3428,15 @@ class _RawNativeIntentDecisionClient:
 
 
 class _FakeBrowserSessionManager:
-    backend_kind = "cloakbrowser"
+    backend_kind = "sentinel_chromium"
 
-    def __init__(self) -> None:
+    def __init__(self, *, backend_kind: str = "sentinel_chromium") -> None:
+        self.backend_kind = backend_kind
         self.open_calls = 0
         self.observe_calls = 0
         self.devtools_calls: list[str] = []
         self.interact_calls: list[tuple[str, str, str]] = []
-        self._session_id = "fake_bsess_cloak"
+        self._session_id = f"fake_bsess_{backend_kind}"
         self._searched = False
 
     def open_session(self, request: Any) -> Any:

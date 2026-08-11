@@ -382,14 +382,20 @@ def _real_browser_binding(browser_selection: BrowserBackendSelection) -> PowerSk
         runtime_connection_id="real_browser_control",
         owner_module="sentinel.operator.real_browser_control_runtime",
         owner_symbol="RealBrowserControlRuntime",
-        organ_refs=("BrowserSessionManagerL5Live", "CloakBrowser", "BrowserWorldModelBuilder"),
+        organ_refs=(
+            "BrowserSessionManagerL5Live",
+            "SentinelChromium",
+            "CloakBrowserOptionalExternalAdapter",
+            "BrowserWorldModelBuilder",
+        ),
         backend_candidates=tuple(candidate.backend_id for candidate in browser_selection.candidates),
         product_reachable=True,
         task_loop_reachable=True,
         proof_contract="RealBrowserActionReceipt",
         replay_contract="RealBrowserControlReplayView no-reopen/no-reclick/no-retype deltas",
         limitations=(
-            "model-visible backend is browser_skill; low-level Playwright refs remain internal",
+            "model-visible backend is browser_skill; low-level Playwright refs remain internal to sentinel_chromium",
+            "CloakBrowser is optional_external_backend and must not be required for canonical operation",
             browser_selection.selection_reason,
         ),
     )
