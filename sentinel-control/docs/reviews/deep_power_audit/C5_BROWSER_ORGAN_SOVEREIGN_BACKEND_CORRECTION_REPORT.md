@@ -89,8 +89,24 @@ canonical_engine_factory_requires_no_cloak_env = true
 canonical_readonly_receipts_use_sentinel_chromium = true
 RuntimeHost_live_product_factory_uses_canonical_builder = true
 historical_cloak_readiness_probe_path_preserved = true
+post_commit_live_smoke_sentinel_chromium = PASSED
 provider_calls = 0
 browser_live_missions = 0
+```
+
+Additional live smoke, not a C5B gate:
+
+```text
+backend = sentinel_chromium
+target_kind = public_read_only_origin
+origin = example.com
+open = PASSED
+observe = PASSED
+close = CALLED
+Cloak dependency = false
+provider_calls = 0
+product_browser_mission = NOT_RUN
+sovereign_5_of_5_gate = NOT_RUN
 ```
 
 Validation commands:
