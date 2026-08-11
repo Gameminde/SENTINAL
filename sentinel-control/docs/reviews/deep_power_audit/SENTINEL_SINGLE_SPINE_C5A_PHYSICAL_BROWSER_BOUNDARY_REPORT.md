@@ -1,5 +1,28 @@
 # SENTINEL_SINGLE_SPINE_C5A_PHYSICAL_BROWSER_BOUNDARY_REPORT
 
+## Post-C5B Status Note
+
+The C5A truth below remains scoped to the physical Browser boundary wave. A
+subsequent C5B controlled live Browser product mission was attempted after the
+C5A readiness acceptance. That C5B run reached the real provider phase and
+blocked on provider credential rejection before any model-native decision or
+Browser action:
+
+```text
+C5B = VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR
+C5B provider_calls = 1
+C5B product_browser_mission_attempts = 1
+C5B physical_browser_backend_actions = 0
+C5B cleanup = PASSED
+```
+
+The C5B report and safe bundle are recorded separately under:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_REPORT.md
+sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION/c5b_live_mission.safe.json
+```
+
 ## C5A Repair Update
 
 ```text
@@ -39,12 +62,12 @@ sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_TARGET_
 ## Verdict
 
 ```text
-C5A = PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_DETERMINISTIC_PLUS_LIVE_READINESS_BLOCKER
+C5A = PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_PLUS_LIVE_READINESS_READY_3_OF_3
 FIXED_PROVEN = 0/65
 provider_calls = 0
 live_cloak_readiness_probes = 3
 live_cloak_ready = true
-browser_runs = 0 product browser missions
+product_browser_missions = 0
 scripted_physical_backend_actions = 3
 real Cloak readiness probe = READY_3_OF_3_CONTEXT_PAGE_OBSERVE_CLEANUP
 SQLite mission = NOT_RUN
@@ -109,6 +132,7 @@ not exposed to the public canonical route or the model.
 | `physical_backend_delegates_to_real_browser_runtime` | `true` |
 | `legacy_action_envelope_on_public_route` | `0` |
 | `provider_calls` | `0` |
+| `product_browser_missions` | `0` |
 | `live_cloak_readiness_probes` | `3` |
 | `live_cloak_ready` | `true` |
 | `live_cloak_failure_code` | `null` |

@@ -2693,9 +2693,10 @@
     }
   ],
   "fixed_proven_count": 0,
-  "fixed_proven_total": 0,
+  "fixed_proven_total": 65,
   "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "latest_pushed_head_before_c5a_root_cause": "ccb3163216df188510cc7c6ffd2869b448de4c0d",
+  "latest_c5_status": "C5B_VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR",
+  "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
   "latest_pushed_head_before_c5a_timeout_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
   "ledger_commit_classes": {
     "deletion_commits": [
@@ -2812,6 +2813,7 @@
     ],
     "tested_runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680"
   },
+  "physical_browser_backend_actions": 0,
   "post_session_publication_truth": {
     "appendix_required_when_historical_report_says_push_pending": true,
     "branch": "sentinel-dev-max-power-canonical-core-v1",
@@ -2819,6 +2821,7 @@
     "historical_reports_may_retain_push_pending": true,
     "temporary_bridge_commit_published": "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
   },
+  "product_browser_mission_attempts": 1,
   "proof_runtime_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "proof_tier_counts": {
     "T0_STATIC_INSPECTED": 48,
@@ -2826,6 +2829,16 @@
     "T1_LOCAL_DETERMINISTIC_CANDIDATE": 7,
     "T1_LOCAL_REPRODUCED_UNSAFE": 1,
     "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_NOT_P0_01_CLOSURE": 1
+  },
+  "provider_calls": 1,
+  "published_counters_after_c5b": {
+    "P0 fixed": "0/15",
+    "P1 fixed": "0/44",
+    "P2 fixed": "0/6",
+    "physical_browser_backend_actions": 0,
+    "product_browser_mission_attempts": 1,
+    "provider_calls": 1,
+    "total FIXED_PROVEN": "0/65"
   },
   "published_counters_after_commit": {
     "P0 fixed / 15": "0/15",
@@ -3327,9 +3340,11 @@
     "wave": "C4S_BROWSER_READONLY_PROOF_SEAL"
   },
   "single_spine_c5a_physical_browser_boundary": {
+    "accepted_c5a_live_readiness": "READY_3_OF_3",
+    "accepted_checkpoint": "6c17b9816d8037acad7daa4e5d4e0c0cf97fd2ed",
     "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
     "attested_c5a_implementation_head": "54bd3699bbbd458e1d8b8f5a8f1e6185d52ec681",
-    "browser_runs": 0,
+    "browser_runs": "0_PRODUCT_BROWSER_MISSIONS",
     "fixed_proven_count": 0,
     "gates": {
       "Playwright_fallback_selected": false,
@@ -3378,6 +3393,7 @@
       "sentinel-control/services/sentinel-core/tests/test_browser_session_manager_l5_live.py"
     ],
     "latest_live_blocker_after_repair": "PRIOR_CLOAK_NEW_PROCESS_LAUNCH_TARGET_CLOSED_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
+    "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
     "latest_repair": {
       "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
       "browser_runs": 0,
@@ -3447,7 +3463,8 @@
     "live_cloak_readiness_probes_after_repair": 3,
     "live_cloak_readiness_probes_after_target_closed_wave": 3,
     "live_cloak_ready": true,
-    "live_cloak_runs": 0,
+    "live_cloak_runs": "3_LIVE_CLOAK_READINESS_PROBES",
+    "product_browser_missions": 0,
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_PHYSICAL_BROWSER_BOUNDARY_REPORT.md",
       "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_LIVE_READINESS_TIMEOUT_ROOT_CAUSE_REPORT.md",
@@ -3469,7 +3486,9 @@
       "P0-01": "IMPLEMENTING",
       "P0-07": "IMPLEMENTING",
       "P1-25": "IMPLEMENTING",
+      "live_cloak_readiness_probes": "3",
       "new process TargetClosedError": "PRIOR_BLOCKER_NOT_REPRODUCED_AFTER_INSTRUMENTED_FINAL_CODE",
+      "product_browser_missions": "0",
       "provider/model Browser mission": "NOT_RUN",
       "readiness timeout root cause": "ROOT_CAUSE_PROVEN_TIMEOUT_CONTAINMENT_RACE_REPAIRED_LOCAL",
       "redirect/origin physical enforcement": "NOT_RUN"
@@ -3477,7 +3496,7 @@
     "scripted_physical_backend_actions": 3,
     "source_runtime_head_before_c5a": "19a16646b66d6d943addee2c158772421f310fb0",
     "sqlite_mission": "NOT_RUN",
-    "status": "PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_PLUS_TIMEOUT_CONTAINMENT_REPAIRED_WITH_LIVE_TARGET_CLOSED_BLOCKER",
+    "status": "PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_PLUS_LIVE_READINESS_READY_3_OF_3",
     "validation": [
       {
         "browser_runs": 0,
@@ -3581,6 +3600,7 @@
     "wave": "C5A_PHYSICAL_BROWSER_BOUNDARY"
   },
   "single_spine_c5a_target_closed_root_cause": {
+    "accepted_checkpoint": "6c17b9816d8037acad7daa4e5d4e0c0cf97fd2ed",
     "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
     "c5b": "NOT_STARTED",
     "classification": "LIVE_READINESS_READY_AFTER_PREVIOUS_TARGET_CLOSED_BLOCKER_NOT_REPRODUCED",
@@ -3600,6 +3620,8 @@
     },
     "fixed_proven_count": 0,
     "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
+    "live_cloak_readiness_probes": 3,
     "live_probe_after_instrumentation": {
       "all_ready": true,
       "attempts": 3,
@@ -3617,6 +3639,7 @@
       "target_closed_reproduced": false
     },
     "post_push_attestation_remote_head_before_wave": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
+    "product_browser_missions": 0,
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_TARGET_CLOSED_ROOT_CAUSE_REPORT.md",
       "sentinel-control/docs/reviews/deep_power_audit/C5A_TARGET_CLOSED_ROOT_CAUSE_PROBE/aggregate.safe.json",
@@ -3721,6 +3744,7 @@
     },
     "fixed_proven_count": 0,
     "followup_target_closed_wave": "READY_3_OF_3_AND_TARGET_CLOSED_NOT_REPRODUCED",
+    "live_cloak_readiness_probes_after_followup": 3,
     "live_probe_after_repair": {
       "attempt_1_first_failure": "first_observe:FileNotFoundError",
       "attempt_1_fix": "form_state_capture_secondary_failure_to_safe_empty_summary",
@@ -3745,6 +3769,7 @@
       "version": "146.0.7680.177.5",
       "version_match": true
     },
+    "product_browser_missions": 0,
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/SENTINEL_SINGLE_SPINE_C5A_TIMEOUT_CONTAINMENT_REPAIR_REPORT.md",
       "sentinel-control/docs/reviews/deep_power_audit/C5A_TIMEOUT_CONTAINMENT_REPAIR_PROBE/live_probe_summary.safe.json",
@@ -3826,6 +3851,48 @@
     ],
     "wave": "C5A_TIMEOUT_CONTAINMENT_REPAIR"
   },
+  "single_spine_c5b_controlled_live_browser_product_mission": {
+    "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "classification": "REAL_PROVIDER_PHASE_REACHED_BEFORE_BROWSER_ACTION_PROVIDER_401",
+    "first_causal_blocker": "canonical_provider_failure_PROVIDER_AUTH_ERROR_credential_rejected_http_401",
+    "fixed_proven_count": 0,
+    "gates": {
+      "cleanup_completed": true,
+      "cloak_reached_during_product_mission": false,
+      "mission_record_created_before_provider": true,
+      "model_native_decision_accepted": false,
+      "product_action_kernel_reached": false,
+      "provider_authenticated": false,
+      "provider_phase_reached": true,
+      "raw_dom_persisted": false,
+      "raw_provider_output_persisted": false,
+      "record_hash_verified": true,
+      "root_created_before_first_provider_call": true,
+      "secret_session_material_persisted": false,
+      "timeline_verified": true
+    },
+    "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "material_actions": 0,
+    "physical_browser_backend_actions": 0,
+    "preflight": {
+      "artifact": "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_PREFLIGHT/c5b_preflight.safe.json",
+      "status": "PASSED"
+    },
+    "product_browser_mission_attempts": 1,
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION/c5b_live_mission.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION/c5b_attempt0_provenance_block.safe.json"
+    ],
+    "provider_calls": 1,
+    "remaining_risk": [
+      "Provider credential or entitlement rejected before model decision.",
+      "Cognitive Browser product mission remains NOT_PROVEN because ProductActionKernel and Cloak were not reached during C5B.",
+      "External authentic ledger remains missing; FIXED_PROVEN remains 0/65."
+    ],
+    "source_head": "6c17b9816d8037acad7daa4e5d4e0c0cf97fd2ed",
+    "status": "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
+  },
   "single_spine_compression_campaign": {
     "browser_runs": 0,
     "campaign_id": "SENTINEL_SINGLE_SPINE_COMPRESSION_CAMPAIGN",
@@ -3894,5 +3961,5 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-09T10:11:59Z"
+  "updated_at_utc": "2026-08-11T07:53:48.582805+00:00"
 }

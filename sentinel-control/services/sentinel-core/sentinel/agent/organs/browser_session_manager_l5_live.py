@@ -415,6 +415,24 @@ class BrowserSessionManagerL5Live:
                 "stage_returned",
                 details={"backend_kind": getattr(engine_session, "backend_kind", "unknown")},
             )
+            self._emit_lifecycle_event("origin_revalidation", "stage_started", details={"session_id_hash": stable_hash(session_id)})
+            origin_failure = self._current_url_authorization_failure(
+                req=req,
+                url=str(getattr(engine_session.page, "url", "") or ""),
+            )
+            if origin_failure:
+                self._emit_lifecycle_event("origin_revalidation", "stage_failed", failure_code=origin_failure)
+                try:
+                    engine_session.close()
+                finally:
+                    self._remove_profile_material(profile_dir)
+                    self._emit_lifecycle_event(
+                        "profile_lease_release",
+                        "stage_returned",
+                        details={"profile_material_count": self._profile_material_count(profile_dir)},
+                    )
+                return self._blocked(req, safety, origin_failure, BrowserSessionActionKind.OPEN.value)
+            self._emit_lifecycle_event("origin_revalidation", "stage_returned", details={"session_id_hash": stable_hash(session_id)})
             session = _LiveBrowserSession(
                 session_id=session_id,
                 mission_id=req.mission.id,
@@ -517,6 +535,12 @@ class BrowserSessionManagerL5Live:
                     if str(exc).startswith("browser_session_"):
                         raise RuntimeError(str(exc)) from exc
                     raise RuntimeError(f"browser_session_step_failed:{type(exc).__name__}") from exc
+                origin_failure = self._current_url_authorization_failure(
+                    req=req,
+                    url=str(getattr(session.page, "url", "") or ""),
+                )
+                if origin_failure:
+                    raise RuntimeError(origin_failure)
                 session.step_index += 1
                 try:
                     after = self._snapshot(session.page, req.timeout_ms)
@@ -1115,6 +1139,17 @@ class BrowserSessionManagerL5Live:
             and contract.data_not_instruction is True
         )
 
+    @staticmethod
+    def _current_url_authorization_failure(*, req: BrowserSessionRequest, url: str) -> str | None:
+        host = (urlparse(url).hostname or "").lower()
+        if not host:
+            return "browser_session_final_url_missing"
+        contract_domains = {domain.lower() for domain in req.contract.allowed_domains}
+        mission_domains = {domain.lower() for domain in req.mission.allowed_domains}
+        if host not in contract_domains or host not in mission_domains:
+            return "browser_session_cross_origin_result"
+        return None
+
     def _execute_step(self, session: _LiveBrowserSession, req: BrowserSessionRequest, timeout_ms: int) -> None:
         action = _action_value(req.action_kind)
         if action == BrowserSessionActionKind.OPEN_TAB.value:
@@ -1421,6 +1456,8 @@ class BrowserSessionManagerL5Live:
     def _blocked(self, req: BrowserSessionRequest, safety: BrowserSessionSafetyValidationResult, reason: str, action_kind: str) -> BrowserSessionResult:
         session = self._session(req)
         self._sanitize_session(session=session, reason="failure")
+        if reason in _SESSION_DISCARD_BLOCK_REASONS and session is not None:
+            self._discard_session_after_hard_boundary(session)
         receipt = BrowserSessionReceipt(
             mission_id=req.mission.id,
             request_id=req.request_id,
@@ -1437,6 +1474,19 @@ class BrowserSessionManagerL5Live:
         )
         certificate = self._certify_receipt(receipt)
         return BrowserSessionResult(accepted=False, status=BrowserSessionStatus.BLOCKED, reason=reason, mission_id=req.mission.id, session_id=req.session_id, receipt=receipt, finalgate_certificate=certificate, safety_validation=safety)
+
+    def _discard_session_after_hard_boundary(self, session: _LiveBrowserSession) -> None:
+        try:
+            self._emit_lifecycle_event("old_session_disposal", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
+            session.close()
+            self._emit_lifecycle_event("old_session_disposal", "stage_returned", details={"session_id_hash": stable_hash(session.session_id)})
+        finally:
+            self._emit_lifecycle_event("profile_lease_release", "stage_started", details={"session_id_hash": stable_hash(session.session_id)})
+            self._remove_profile_material(session.profile_dir)
+            self._emit_lifecycle_event("profile_lease_release", "stage_returned", details={"profile_material_count": self._profile_material_count(session.profile_dir)})
+            with self._sessions_lock:
+                self._sessions.pop(session.session_id, None)
+            self._emit_lifecycle_event("post_close_state_reset", "stage_returned", details={"live_session_count": self._live_session_count()})
 
 
 def render_browser_session_receipt_as_untrusted_context(receipt: BrowserSessionReceipt) -> str:
@@ -1504,6 +1554,9 @@ _PROMOTED_SESSION_ACTIONS = {
     BrowserSessionActionKind.SWITCH_TAB.value,
     BrowserSessionActionKind.CLOSE_TAB.value,
 }
+
+
+_SESSION_DISCARD_BLOCK_REASONS = frozenset({"browser_session_cross_origin_result"})
 
 
 _BLOCKED_DOWNLOAD_EXTENSIONS = frozenset({".exe", ".bat", ".cmd", ".ps1", ".sh", ".js", ".vbs"})

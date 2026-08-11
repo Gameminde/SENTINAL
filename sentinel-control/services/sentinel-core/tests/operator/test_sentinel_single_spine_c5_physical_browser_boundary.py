@@ -180,6 +180,45 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_cloak_
     assert any(event.event_type == "canonical_browser_readonly_cleanup_completed" for event in events)
 
 
+def test_physical_browser_authority_carries_concrete_backend_origins_to_session_manager(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedCloakReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org", "www.sqlite.org"),
+    )
+    model = ScriptedModelClient(
+        [
+            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "Browser authority includes concrete backend origins."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Open a bounded public browser target.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c5_physical_browser_concrete_origin_authority",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "completed"
+    assert engine.bound_authority is not None
+    assert BOUNDED_URL_AUTHORITY_REF in engine.bound_authority.allowed_domains
+    assert "sqlite.org" in engine.bound_authority.allowed_domains
+    assert "www.sqlite.org" in engine.bound_authority.allowed_domains
+
+
 def test_physical_browser_authority_denial_blocks_before_engine_call(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")

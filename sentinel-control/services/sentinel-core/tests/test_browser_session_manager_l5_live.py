@@ -308,11 +308,44 @@ class _LifecycleFakePage:
         return _LifecycleLocator()
 
 
+class _CrossOriginClickLocator(_LifecycleLocator):
+    def __init__(self, page: "_CrossOriginAfterClickPage") -> None:
+        super().__init__()
+        self.page = page
+
+    def click(self, *, timeout: int) -> None:
+        del timeout
+        self.page.url = "https://evil.example/escaped"
+
+
+class _CrossOriginRoleQuery:
+    def __init__(self, page: "_CrossOriginAfterClickPage") -> None:
+        self.page = page
+
+    def nth(self, index: int) -> _CrossOriginClickLocator:
+        del index
+        return _CrossOriginClickLocator(self.page)
+
+
+class _CrossOriginAfterClickPage(_LifecycleFakePage):
+    def get_by_role(self, role: str, *, name: str | None = None, exact: bool | None = None) -> _CrossOriginRoleQuery:
+        del role, name, exact
+        return _CrossOriginRoleQuery(self)
+
+
 class _LifecycleFakeBackend:
     backend_kind = "cloakbrowser"
 
-    def __init__(self, *, fail_on_open_numbers: set[int] | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        fail_on_open_numbers: set[int] | None = None,
+        final_url: str = URL,
+        cross_origin_after_click: bool = False,
+    ) -> None:
         self.fail_on_open_numbers = fail_on_open_numbers or set()
+        self.final_url = final_url
+        self.cross_origin_after_click = cross_origin_after_click
         self.open_count = 0
         self.close_count = 0
         self.profile_dir_hashes: list[str] = []
@@ -337,10 +370,12 @@ class _LifecycleFakeBackend:
         if self.open_count in self.fail_on_open_numbers:
             raise BrowserSessionEngineError("fake_engine_open_failed")
         context = _LifecycleFakeContext(self)
+        page = _CrossOriginAfterClickPage(context) if self.cross_origin_after_click else context.new_page()
+        page.url = self.final_url
         return BrowserEngineSession(
             backend_kind=self.backend_kind,
             context=context,
-            page=context.new_page(),
+            page=page,
             profile_dir=profile_dir,
         )
 
@@ -712,6 +747,75 @@ def test_live_browser_session_observe_preserves_snapshot_when_form_state_file_di
         assert list((tmp_path / "browser").rglob("*_observe_receipt.json"))
     finally:
         manager.close_all()
+
+
+def test_live_browser_session_blocks_cross_origin_final_url_after_open(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    backend = _LifecycleFakeBackend(final_url="https://evil.example/redirected")
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        backend=backend,
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+    )
+
+    result = manager.open_session(
+        BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+    )
+
+    assert result.accepted is False
+    assert result.reason == "browser_session_cross_origin_result"
+    assert backend.close_count == 1
+    assert _profile_material_paths(tmp_path / "browser") == []
+
+
+def test_live_browser_session_blocks_cross_origin_final_url_after_interaction(tmp_path: Path) -> None:
+    from sentinel.agent.organs.browser_session_manager_l5_live import (
+        BrowserSessionActionKind,
+        BrowserSessionContract,
+        BrowserSessionManagerL5Live,
+        BrowserSessionRequest,
+    )
+
+    backend = _LifecycleFakeBackend(cross_origin_after_click=True)
+    manager = BrowserSessionManagerL5Live(
+        capture_root=tmp_path / "browser",
+        backend=backend,
+    )
+    contract = BrowserSessionContract(
+        mission_id=MISSION_ID,
+        allowed_domains=["example.com"],
+        allowed_action_kinds=[BrowserSessionActionKind.CLICK],
+    )
+
+    opened = manager.open_session(
+        BrowserSessionRequest(mission=_envelope(), url=URL, contract=contract, capture_screenshot=False)
+    )
+    result = manager.interact(
+        BrowserSessionRequest(
+            mission=_envelope(),
+            url=URL,
+            contract=contract,
+            session_id=opened.session_id,
+            action_kind=BrowserSessionActionKind.CLICK,
+            target_role="button",
+            target_name="Remember",
+            capture_screenshot=False,
+        )
+    )
+
+    assert opened.accepted is True
+    assert result.accepted is False
+    assert result.reason == "browser_session_cross_origin_result"
+    assert backend.close_count == 1
+    assert _profile_material_paths(tmp_path / "browser") == []
 
 
 def test_live_browser_session_promotes_bounded_multitab_with_receipts(tmp_path: Path) -> None:

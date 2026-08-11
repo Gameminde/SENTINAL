@@ -194,6 +194,13 @@ def test_stage0_finding_ledger_contains_all_65_findings() -> None:
     assert c5a_target_truth["live_probe_after_instrumentation"]["target_closed_reproduced"] is False
     assert (c5a_truth := ledger["single_spine_c5a_physical_browser_boundary"])
     assert c5a_truth["live_cloak_readiness"] == "READY_3_OF_3_AFTER_TARGET_CLOSED_WAVE"
+    assert c5a_truth["status"] == "PHYSICAL_BROWSER_BOUNDARY_ADAPTER_LOCAL_PLUS_LIVE_READINESS_READY_3_OF_3"
+    assert c5a_truth["latest_pushed_head_before_c5a_root_cause"] == (
+        "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f"
+    )
+    assert c5a_truth["product_browser_missions"] == 0
+    assert c5a_truth["live_cloak_readiness_probes"] == 3
+    assert c5a_truth["live_cloak_runs"] == "3_LIVE_CLOAK_READINESS_PROBES"
     assert c5a_truth["remaining_open_truth"]["Browser physical/Cloak live proof"] == (
         "C5A_LIVE_READINESS_READY_3_OF_3_CONTEXT_PAGE_OBSERVE_CLEANUP"
     )

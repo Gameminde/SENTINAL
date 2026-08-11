@@ -1,0 +1,133 @@
+{
+  "attempt_history": [
+    {
+      "attempt_id": "attempt0_premission_provenance_field_mismatch",
+      "classification": "PREMISSION_RUNNER_PROVENANCE_RECOVERY_BUG",
+      "mission_started": false,
+      "provider_calls": 0,
+      "safe_artifact": "c5b_attempt0_provenance_block.safe.json"
+    }
+  ],
+  "backend_truth": {
+    "actual_backend_ids": [],
+    "engine_close_count": "not_exposed",
+    "engine_extract_count": 0,
+    "engine_observe_count": 0,
+    "engine_open_count": 0,
+    "physical_backend_provider_calls": 0,
+    "physical_backend_real_browser_runs": 0,
+    "selected_backend_id": "cloak_browser",
+    "session_backend_kinds": []
+  },
+  "branch": "sentinel-dev-max-power-canonical-core-v1",
+  "cleanup": {
+    "capture_root_profile_material_after_cleanup": 0,
+    "mission_cleanup_completed": true,
+    "raw_profile_material_persisted": false
+  },
+  "cloak_provenance": {
+    "binary_info_candidate_key": "binary_path",
+    "candidate_count": 1,
+    "content_verified": true,
+    "path_hash": "f3fad5133de1a876082e5a7f6be7c61cf083e2a4742c4cf44fcfa6cfe34d3a2e",
+    "raw_binary_path_persisted": false,
+    "version": "146.0.7680.177.5"
+  },
+  "cookies_tokens_sessions_persisted": false,
+  "created_at": "2026-08-11T07:51:26.667585+00:00",
+  "decision_client": {
+    "class": "ProductModelNativeDecisionClient",
+    "provider_calls": 1,
+    "safe_diagnostics": []
+  },
+  "decisions": [],
+  "duration_seconds": 5.1943,
+  "error": null,
+  "git_head": "6c17b9816d8037acad7daa4e5d4e0c0cf97fd2ed",
+  "material_capability_sequence": [],
+  "mission_freeze": {
+    "authority": "public_web_read_only_browser_read_workspace_read",
+    "backend_id": "aliyun_openai_compatible_chat",
+    "holdout": false,
+    "max_material_actions": 16,
+    "max_provider_decisions": 10,
+    "mission_id": "C5B_SQLITE_OFFICIAL_GENERATED_COLUMNS_READONLY_V1",
+    "model_id": "qwen-plus",
+    "no_fixture_backend": true,
+    "no_login_no_mutation_no_download_no_upload": true,
+    "playwright_fallback": false,
+    "provider_id": "aliyun_dashscope",
+    "target_origin": "sqlite.org",
+    "target_url_hash": "c00f537043f603b17daddeedff4a993c2fc4c9d19d1dc996be53474ab57265b5"
+  },
+  "mission_kernel": {
+    "browser_receipt_count": 0,
+    "browser_receipt_hashes": [],
+    "canonical_receipt_count": 0,
+    "event_count": 6,
+    "event_types": [
+      "mission_created",
+      "mission_queued",
+      "mission_running",
+      "canonical_model_decision_failed",
+      "mission_blocked",
+      "canonical_browser_readonly_cleanup_completed"
+    ],
+    "record_hash_verified": true,
+    "timeline_verified": true
+  },
+  "mission_result": {
+    "blocked_reason_detail": "canonical_provider_failure_PROVIDER_AUTH_ERROR_credential_rejected_http_401",
+    "cleanup_completed": true,
+    "final_answer": "",
+    "final_reason": "MODEL_DECISION_FAILED",
+    "material_action_count": 0,
+    "mission_record_created_before_provider": true,
+    "provider_decision_count": 1,
+    "provider_model": "aliyun_dashscope/qwen-plus",
+    "record_status": "blocked",
+    "root_created_before_first_provider_call": true,
+    "root_mission_id": "root_mission_7600d57fe518417aab677403923cbfd6",
+    "status": "blocked"
+  },
+  "preflight_reference": {
+    "expected_terminal_verdict": "C5B_PREFLIGHT_PASSED",
+    "safe_artifact": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_PREFLIGHT/c5b_preflight.safe.json"
+  },
+  "proof_root": {
+    "authentic_external_ledger": false,
+    "decision_refs": [],
+    "integrity_model": "mission_kernel_receipt_timeline_v1",
+    "kernel_timeline_verified": true,
+    "proof_artifact_ref": "mission_proof_root.json",
+    "proof_gaps": [
+      "external_append_only_signer_missing"
+    ],
+    "proof_root_hash": "c432f15113ce2cdaf1a95933b8d141300e3a0f4850d4c24c430452062c43313f",
+    "proof_root_id": "mission_proof_root_6abfa3128ef2479096f6f341cbd91418",
+    "receipt_artifact_refs": [],
+    "receipt_artifacts_verified": true,
+    "receipt_refs": [],
+    "record_hash_verified": true,
+    "root_mission_id": "root_mission_7600d57fe518417aab677403923cbfd6"
+  },
+  "provider_config_ready": {
+    "base_url_env_set": true,
+    "base_url_hash": "96fd7aa96afa8bb6bae02001907b8b4f598bfe3ca55b04ced7961ebf42e95497",
+    "credential_env_set": true,
+    "credential_fingerprint_persisted": false
+  },
+  "raw_dom_persisted": false,
+  "raw_provider_output_persisted": false,
+  "receipts": [],
+  "replay": {
+    "mode": "mission_kernel_timeline_reconstruction",
+    "receipt_refs": [],
+    "side_effects_reexecuted": false,
+    "timeline_verified": true
+  },
+  "run_started": true,
+  "run_started_at": "2026-08-11T07:51:27.036473+00:00",
+  "schema_version": "c5b_controlled_live_browser_product_mission_v1",
+  "terminal_verdict": "C5B_VALID_REAL_MODEL_BROWSER_MISSION_BLOCKED"
+}

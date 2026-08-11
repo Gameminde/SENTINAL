@@ -1126,6 +1126,12 @@ class RootMissionRuntime:
         allowed_domains = []
         if any(route.capability == "real_browser_control" for route in self.capability_graph.routes):
             allowed_domains.append(BOUNDED_URL_AUTHORITY_REF)
+            backend = getattr(self._browser_readonly_adapter, "backend", None)
+            allowed_domains.extend(
+                str(origin).strip().lower()
+                for origin in getattr(backend, "allowed_origins", ()) or ()
+                if str(origin).strip()
+            )
         return MissionAuthorityEnvelope(
             user_id="sentinel_canonical_core",
             mission_title="Canonical product mission",

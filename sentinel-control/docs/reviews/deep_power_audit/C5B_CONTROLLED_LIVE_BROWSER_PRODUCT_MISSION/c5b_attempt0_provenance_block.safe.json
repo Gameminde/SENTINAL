@@ -1,0 +1,45 @@
+{
+  "branch": "sentinel-dev-max-power-canonical-core-v1",
+  "cloak_provenance": {
+    "candidate_count": 0,
+    "content_verified": false,
+    "path_hash": "",
+    "raw_binary_path_persisted": false,
+    "version": "146.0.7680.177.5"
+  },
+  "cookies_tokens_sessions_persisted": false,
+  "created_at": "2026-08-11T07:48:52.710335+00:00",
+  "duration_seconds": 0.5011,
+  "error": null,
+  "git_head": "6c17b9816d8037acad7daa4e5d4e0c0cf97fd2ed",
+  "mission_freeze": {
+    "authority": "public_web_read_only_browser_read_workspace_read",
+    "backend_id": "aliyun_openai_compatible_chat",
+    "holdout": false,
+    "max_material_actions": 16,
+    "max_provider_decisions": 10,
+    "mission_id": "C5B_SQLITE_OFFICIAL_GENERATED_COLUMNS_READONLY_V1",
+    "model_id": "qwen-plus",
+    "no_fixture_backend": true,
+    "no_login_no_mutation_no_download_no_upload": true,
+    "playwright_fallback": false,
+    "provider_id": "aliyun_dashscope",
+    "target_origin": "sqlite.org",
+    "target_url_hash": "c00f537043f603b17daddeedff4a993c2fc4c9d19d1dc996be53474ab57265b5"
+  },
+  "preflight_reference": {
+    "expected_terminal_verdict": "C5B_PREFLIGHT_PASSED",
+    "safe_artifact": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_PREFLIGHT/c5b_preflight.safe.json"
+  },
+  "provider_config_ready": {
+    "base_url_env_set": true,
+    "base_url_hash": "96fd7aa96afa8bb6bae02001907b8b4f598bfe3ca55b04ced7961ebf42e95497",
+    "credential_env_set": true,
+    "credential_fingerprint_persisted": false
+  },
+  "raw_dom_persisted": false,
+  "raw_provider_output_persisted": false,
+  "run_started": false,
+  "schema_version": "c5b_controlled_live_browser_product_mission_v1",
+  "terminal_verdict": "VALID_INFRA_BLOCKED_CLOAK_PROVENANCE_MISSING"
+}
