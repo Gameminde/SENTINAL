@@ -191,7 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "current_wave": "C5_BROWSER_ORGAN_SOVEREIGN_BACKEND_CORRECTION",
+  "current_wave": "C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -2722,7 +2722,9 @@
       "dfa4479af31349f10932691da38ef771e8a74519",
       "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
       "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-      "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f"
+      "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
+      "1037610089ba645bb438f0a6b3d98c36a956f811",
+      "885be68d70cfd29da8348f5f179ba78b7128fcf2"
     ],
     "ledger_commits": [
       "41d417ef",
@@ -2739,7 +2741,8 @@
       "dfa4479af31349f10932691da38ef771e8a74519",
       "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
       "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-      "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f"
+      "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
+      "885be68d70cfd29da8348f5f179ba78b7128fcf2"
     ],
     "proof_commits": [
       "b721ce62343316bcdbe9c792af8a0967c8ae1680",
@@ -3340,27 +3343,100 @@
     ],
     "wave": "C4S_BROWSER_READONLY_PROOF_SEAL"
   },
+  "single_spine_c5_sentinel_chromium_sovereign_physical_gate": {
+    "actual_backend_id": "sentinel_chromium",
+    "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "cloak_dependency": false,
+    "gates": {
+      "close_completed": "5/5",
+      "cross_origin_cleanup_completed": true,
+      "dynamic_affordance_availability": "FIXED_LOCAL",
+      "late_publication_blocked": true,
+      "launches": "5/5",
+      "owned_pid_tree_dead_before_next_cycle": "5/5",
+      "physical_cancellation": true,
+      "process_baseline_restored": "5/5",
+      "process_tree_kill": true,
+      "profile_material_persisted": false,
+      "public_canonical_product_run_physical_backend_enabled": true,
+      "redirect_cross_origin_blocked": true,
+      "same_origin_allowed": true,
+      "terminal_receipt_unique": true,
+      "timeout_context": true,
+      "timeout_launch": true,
+      "timeout_navigation": true,
+      "usable_context_page_observation": "5/5"
+    },
+    "product_browser_missions": 0,
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/sovereign_physical_gate.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/origin_boundary.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/boundary_timeout_and_cancellation.safe.json",
+      "sentinel-control/services/sentinel-core/sentinel/operator/sovereign_browser_physical_gate.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_chromium_sovereign_physical_gate.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c5_physical_browser_boundary.py",
+      "sentinel-control/services/sentinel-core/sentinel/cli.py"
+    ],
+    "proof_tier": "T2_LIVE_BODY_PROVEN",
+    "provider_calls": 0,
+    "remaining_truth": {
+      "C5B real-model Browser mission": "NOT_RUN",
+      "FIXED_PROVEN": "0/65"
+    },
+    "source_head_before_gate": "885be68d70cfd29da8348f5f179ba78b7128fcf2",
+    "status": "SOVEREIGN_PHYSICAL_GATE_PASSED",
+    "wave": "C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE"
+  },
   "single_spine_c5_sovereign_backend_correction": {
     "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
     "browser_live_missions": 0,
-    "c5b_status": "NOT_RUN",
+    "c5b_status": "NOT_RUN_ON_SENTINEL_CHROMIUM",
     "canonical_backend": "sentinel_chromium",
-    "classification": "IMPLEMENTED_LOCAL_CANDIDATE",
+    "classification": "SOVEREIGN_BACKEND_SELECTED_AND_PHYSICAL_GATE_PASSED",
     "cloak_reclassification": "optional_external_backend",
     "fixed_proven_count": 0,
     "gates": {
+      "actual_backend_id": "sentinel_chromium",
       "browser_backend_contract_minimal": true,
       "c5b_declared_success": false,
       "canonical_runtime_starts_without_cloak_env": true,
+      "cloak_dependency": false,
       "cloak_historical_proofs_rewritten": false,
       "cloak_required_for_canonical_operation": false,
+      "close_completed": "5/5",
+      "cross_origin_cleanup_completed": true,
+      "dynamic_affordance_availability": "FIXED_LOCAL",
+      "late_publication_blocked": true,
+      "launches": "5/5",
+      "owned_pid_tree_dead_before_next_cycle": "5/5",
+      "physical_cancellation": true,
       "playwright_objects_cross_browser_backend_contract": false,
+      "process_baseline_restored": "5/5",
+      "process_tree_kill": true,
+      "profile_material_persisted": false,
+      "public_canonical_product_run_physical_backend_enabled": true,
+      "redirect_cross_origin_blocked": true,
       "runtimehost_live_product_factory_uses_canonical_builder": true,
+      "same_origin_allowed": true,
       "selector_defaults_to_sentinel_chromium": true,
-      "sentinel_chromium_registered": true
+      "sentinel_chromium_registered": true,
+      "sovereign_5_of_5_gate": true,
+      "terminal_receipt_unique": true,
+      "timeout_context": true,
+      "timeout_launch": true,
+      "timeout_navigation": true,
+      "usable_context_page_observation": "5/5"
     },
+    "historical_C5B_provider_calls": 1,
+    "historical_c5b_status": "C5B_VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR_ON_PRE_SOVEREIGN_ROUTE",
+    "implementation_commits_recorded": [
+      "1037610089ba645bb438f0a6b3d98c36a956f811",
+      "885be68d70cfd29da8348f5f179ba78b7128fcf2"
+    ],
     "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-    "live_sovereign_browser_probes": 0,
+    "latest_c5_status": "SOVEREIGN_PHYSICAL_GATE_PASSED_C5B_NOT_RUN",
+    "live_sovereign_browser_probes": 5,
     "live_sovereign_browser_smokes": 1,
     "playwright_truth": "internal_open_source_mechanism_inside_sentinel_chromium_or_explicit_test_backend",
     "post_commit_live_smoke": {
@@ -3375,19 +3451,29 @@
       "sovereign_5_of_5_gate": "NOT_RUN",
       "target_kind": "public_read_only_origin"
     },
+    "product_browser_missions": 0,
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/C5_BROWSER_ORGAN_SOVEREIGN_BACKEND_CORRECTION_REPORT.md",
       "sentinel-control/services/sentinel-core/sentinel/operator/browser_backend_contract.py",
-      "sentinel-control/services/sentinel-core/sentinel/organs/browser/sentinel_chromium_backend.py"
+      "sentinel-control/services/sentinel-core/sentinel/organs/browser/sentinel_chromium_backend.py",
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/sovereign_physical_gate.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/origin_boundary.safe.json",
+      "sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/boundary_timeout_and_cancellation.safe.json",
+      "sentinel-control/services/sentinel-core/sentinel/operator/sovereign_browser_physical_gate.py",
+      "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_chromium_sovereign_physical_gate.py"
     ],
-    "provider_calls": 0,
+    "provider_calls": "0_IN_SOVEREIGN_PHYSICAL_GATE",
     "remaining_risk": [
-      "sentinel_chromium has not yet passed 5/5 live sequential launch proof.",
-      "origin/redirect enforcement, physical cancellation, process-tree kill and cleanup remain NOT_RUN for the sovereign backend.",
-      "C5B real-model Browser mission remains NOT_RUN.",
-      "Dynamic affordance filtering debt remains visible in test_browser_search_actuation_open_world_feedback."
+      "C5B real-model Browser mission on sentinel_chromium remains NOT_RUN.",
+      "Multi-site Browser generalization remains NOT_RUN.",
+      "Browser Organ completion and FIXED_PROVEN findings remain unclaimed."
     ],
-    "source_head": "4086b080f9645e00fe18ed015a35a9c0bb8de67a"
+    "source_head": "885be68d70cfd29da8348f5f179ba78b7128fcf2",
+    "source_head_before_physical_gate": "885be68d70cfd29da8348f5f179ba78b7128fcf2",
+    "sovereign_tranche_provider_calls": 0,
+    "standalone_NVIDIA_smoke_calls": 1,
+    "status": "SOVEREIGN_PHYSICAL_GATE_PASSED_C5B_NOT_RUN"
   },
   "single_spine_c5a_physical_browser_boundary": {
     "accepted_c5a_live_readiness": "READY_3_OF_3",

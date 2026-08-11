@@ -46,7 +46,7 @@ from sentinel.operator.canonical_core import (
     build_workspace_browser_readonly_capability_graph,
     run_canonical_product_mission,
 )
-from sentinel.operator.canonical_browser_readonly_adapter import FakeBrowserReadOnlyBackend
+from sentinel.operator.canonical_browser_readonly_adapter import FakeBrowserReadOnlyBackend, PhysicalBrowserReadOnlyBackend
 from sentinel.operator.cockpit import LLMLiveOperatorCockpit
 from sentinel.operator.legacy_classification import InternalAccessClassification
 from sentinel.operator.mission_lifecycle_service import (
@@ -63,6 +63,10 @@ from sentinel.operator.product_model_native_decision_client import (
     ProductModelNativeDecisionClient,
     _canonical_user_model_contract,
     extract_canonical_json_decision,
+)
+from sentinel.operator.real_browser_control_runtime import (
+    SENTINEL_CHROMIUM_BACKEND_ID,
+    build_canonical_real_browser_engine_from_env,
 )
 from sentinel.operator.action_kernel import ActionKernelError
 from sentinel.operator.kernel import MissionKernel
@@ -233,6 +237,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable the local fake/in-memory read-only Browser Organ route for C4 probes only.",
     )
+    canonical_parser.add_argument(
+        "--enable-browser-readonly-physical",
+        action="store_true",
+        help="Enable the canonical sovereign Chromium read-only Browser Organ route.",
+    )
+    canonical_parser.add_argument(
+        "--browser-allowed-origin",
+        action="append",
+        default=None,
+        help="Allowed public browser origin for the canonical physical read-only Browser Organ route.",
+    )
     canonical_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
 
     canonical_product_parser = subparsers.add_parser(
@@ -261,6 +276,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--enable-browser-readonly-fake",
         action="store_true",
         help="Enable the local fake/in-memory read-only Browser Organ route for C4 probes only.",
+    )
+    canonical_product_parser.add_argument(
+        "--enable-browser-readonly-physical",
+        action="store_true",
+        help="Enable the canonical sovereign Chromium read-only Browser Organ route.",
+    )
+    canonical_product_parser.add_argument(
+        "--browser-allowed-origin",
+        action="append",
+        default=None,
+        help="Allowed public browser origin for the canonical physical read-only Browser Organ route.",
     )
     canonical_product_parser.add_argument("--json", action="store_true", help="Print machine-readable result summary.")
 
@@ -549,7 +575,11 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
     capability_graph = None
     browser_readonly_backend = None
     granted_authorities = ("workspace_read", "none")
-    if bool(getattr(args, "enable_browser_readonly_fake", False)):
+    enable_fake_browser = bool(getattr(args, "enable_browser_readonly_fake", False))
+    enable_physical_browser = bool(getattr(args, "enable_browser_readonly_physical", False))
+    if enable_fake_browser and enable_physical_browser:
+        raise CanonicalCoreError("canonical_browser_readonly_backend_ambiguous")
+    if enable_fake_browser:
         capability_graph = build_workspace_browser_readonly_capability_graph()
         browser_readonly_backend = FakeBrowserReadOnlyBackend(
             allowed_origins=("sqlite.org", "python.org", "developer.mozilla.org"),
@@ -563,6 +593,21 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
                     "confidence": 0.9,
                 },
             ),
+        )
+        granted_authorities = ("workspace_read", "browser_read", "none")
+    elif enable_physical_browser:
+        capability_graph = build_workspace_browser_readonly_capability_graph()
+        allowed_origins = tuple(
+            dict.fromkeys(
+                str(origin).strip()
+                for origin in (getattr(args, "browser_allowed_origin", None) or ())
+                if str(origin).strip()
+            )
+        )
+        browser_readonly_backend = PhysicalBrowserReadOnlyBackend(
+            engine=build_canonical_real_browser_engine_from_env(capture_root=run_root / "browser_capture"),
+            kernel=host.kernel,
+            allowed_origins=allowed_origins or ("sqlite.org",),
         )
         granted_authorities = ("workspace_read", "browser_read", "none")
     cleanup_completed = False
@@ -610,7 +655,14 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
         public_product_spine={
             "strategy": "RUNTIMEHOST_HOSTS_ROOTMISSIONRUNTIME_CANONICAL_WORKSPACE",
             "public_surface": public_surface,
-            "browser_readonly_fake_enabled": bool(getattr(args, "enable_browser_readonly_fake", False)),
+            "browser_readonly_fake_enabled": enable_fake_browser,
+            "browser_readonly_physical_enabled": enable_physical_browser,
+            "browser_backend_id": (
+                SENTINEL_CHROMIUM_BACKEND_ID
+                if enable_physical_browser
+                else ("fake_browser_readonly" if enable_fake_browser else "none")
+            ),
+            "cloak_dependency": False if enable_physical_browser else None,
             "decision_client": decision_client_label,
             "runtime_entrypoint": "RootMissionRuntime.run",
             "model_decision_protocol": "CanonicalDecision",

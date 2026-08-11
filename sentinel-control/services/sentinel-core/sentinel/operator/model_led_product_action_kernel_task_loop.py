@@ -1620,12 +1620,10 @@ def _browser_cognitive_decision_frame(
     candidate_count = _safe_int(result_regions.get("candidate_count"))
     relevant_count = _safe_int(result_regions.get("relevant_candidate_count"))
     affordance_skills = _browser_affordance_skills(currently_executable_affordances)
-    skills = _dedupe_strings(
-        [
-            *[str(skill) for skill in environment.get("recommended_model_skills", []) if str(skill)],
-            *affordance_skills,
-        ]
-    )
+    if isinstance(currently_executable_affordances, list):
+        skills = affordance_skills
+    else:
+        skills = _dedupe_strings(str(skill) for skill in environment.get("recommended_model_skills", []) if str(skill))
     failure_fact = safe_context_cards.get("runtime_failure_fact")
     failure_code = str(failure_fact.get("failure_code") or "") if isinstance(failure_fact, dict) else ""
     if failure_code == "real_browser_search_control_not_found" and "follow" in affordance_skills:
@@ -1643,7 +1641,7 @@ def _browser_cognitive_decision_frame(
     elif "navigate" in affordance_skills:
         primary = "navigate"
     else:
-        primary = "search" if _mission_objective_mentions_browser_work(mission_objective) else None
+        primary = None
     return {
         "canonical_state_source": "BrowserEnvironmentState",
         "state_hash": safe_context_cards.get("browser_environment_state_hash"),
@@ -1723,11 +1721,14 @@ def _model_visible_actions_for_browser_state(
         )
     if "finish" in {str(item.get("skill") or "") for item in affordances if isinstance(item, dict)}:
         executable_actions.add("sentinel_loop.finish")
+    browser_search_executable = "real_browser_control.real_browser.search" in executable_actions
     visible: list[str] = []
     for action in actions:
         if action.startswith("real_browser_control.real_browser."):
             if action in executable_actions:
                 visible.append(action)
+            continue
+        if action == "workspace.search" and not browser_search_executable:
             continue
         if action == "sentinel_loop.finish" and action not in executable_actions:
             continue

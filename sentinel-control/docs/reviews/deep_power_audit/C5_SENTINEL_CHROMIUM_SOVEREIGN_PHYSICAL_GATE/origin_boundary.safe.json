@@ -1,0 +1,19 @@
+{
+  "actual_backend_id": "sentinel_chromium",
+  "allowed_host_hash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+  "cloak_dependency": false,
+  "cross_origin_cleanup_completed": true,
+  "cross_origin_reason": "browser_session_cross_origin_result",
+  "product_browser_missions": 0,
+  "profile_material_count_after_probe": 0,
+  "provider_calls": 0,
+  "raw_dom_persisted": false,
+  "raw_url_persisted": false,
+  "redirect_cross_origin_blocked": true,
+  "redirect_target_host_hash": "49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d9763",
+  "same_origin_allowed": true,
+  "same_origin_hash": "8e0fc08de30c3bc55b06946108bc2a4172db48ad0bb01b2d01f0b5dadbcf26e3",
+  "same_origin_reason": "browser_session_opened",
+  "schema_version": "c5_sentinel_chromium_origin_boundary_probe_v1",
+  "secrets_persisted": false
+}

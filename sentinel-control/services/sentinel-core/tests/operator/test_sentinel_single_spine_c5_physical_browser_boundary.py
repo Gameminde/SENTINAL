@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from sentinel import cli
 from sentinel.agent.model_execution.redaction import stable_hash
 from sentinel.operator.canonical_browser_readonly_adapter import PhysicalBrowserReadOnlyBackend
 from sentinel.operator.canonical_core import (
@@ -122,6 +123,63 @@ def test_canonical_browser_engine_factory_does_not_require_cloak_configuration(
 
     assert engine.browser_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
     assert engine.session_manager_backend_kind == "sentinel_chromium"
+
+
+def test_public_canonical_product_run_can_enable_sovereign_physical_browser(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    workspace = _workspace(tmp_path)
+    script = tmp_path / "decisions.jsonl"
+    script.write_text(
+        "\n".join(
+            [
+                json.dumps({"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}}),
+                json.dumps({"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Observed."}}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://sqlite.org/gencol.html")
+    monkeypatch.delenv("CLOAKBROWSER_BINARY_PATH", raising=False)
+    monkeypatch.delenv("SENTINEL_REQUIRE_CLOAKBROWSER_BINARY_PATH", raising=False)
+    monkeypatch.setattr(
+        cli,
+        "build_canonical_real_browser_engine_from_env",
+        lambda *, capture_root=None: InstrumentedSentinelChromiumReadOnlyEngine(),
+    )
+
+    exit_code = cli.main(
+        [
+            "canonical-product-run",
+            "--objective",
+            "Observe official SQLite generated columns documentation.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--decision-script",
+            str(script),
+            "--provider-model",
+            "scripted-local/model",
+            "--enable-browser-readonly-physical",
+            "--browser-allowed-origin",
+            "sqlite.org",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out.strip())
+
+    assert exit_code == 0
+    assert payload["status"] == "completed"
+    assert payload["public_product_spine"]["browser_readonly_physical_enabled"] is True
+    assert payload["public_product_spine"]["browser_readonly_fake_enabled"] is False
+    assert payload["public_product_spine"]["browser_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert payload["public_product_spine"]["cloak_dependency"] is False
+    assert payload["product_receipt_refs"]
 
 
 def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovereign_receipts(tmp_path: Path) -> None:

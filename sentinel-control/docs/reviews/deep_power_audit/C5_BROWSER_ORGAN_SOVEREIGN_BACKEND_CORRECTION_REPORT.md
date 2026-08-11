@@ -3,19 +3,22 @@
 ## Verdict
 
 ```text
-C5_BROWSER_ORGAN_SOVEREIGN_BACKEND_CORRECTION = IMPLEMENTED_LOCAL_CANDIDATE
+C5_BROWSER_ORGAN_SOVEREIGN_BACKEND_CORRECTION = SOVEREIGN_BACKEND_SELECTED_AND_PHYSICAL_GATE_PASSED
 canonical_backend = sentinel_chromium
 cloak_reclassification = optional_external_backend
-provider_calls = 0
+sovereign_tranche_provider_calls = 0
+historical_C5B_provider_calls = 1
+standalone_NVIDIA_smoke_calls = 1
 browser_live_missions = 0
-C5B = NOT_RUN
+C5B_sentinel_chromium = NOT_RUN
 FIXED_PROVEN = 0/65
 ```
 
 This tranche does not declare C5B success. It replaces the mandatory browser
 engine dependency with a Sentinel-owned backend contract and a sovereign
-Chromium skeleton while preserving the existing Browser Organ governance,
-affordances, receipts and historical Cloak evidence.
+Chromium backend while preserving the existing Browser Organ governance,
+affordances, receipts and historical Cloak evidence. The current proof is a
+live physical browser gate, not a real-model Browser mission.
 
 ## Coupling Audit
 
@@ -94,7 +97,7 @@ provider_calls = 0
 browser_live_missions = 0
 ```
 
-Additional live smoke, not a C5B gate:
+Historical live smoke, not a C5B gate:
 
 ```text
 backend = sentinel_chromium
@@ -106,7 +109,61 @@ close = CALLED
 Cloak dependency = false
 provider_calls = 0
 product_browser_mission = NOT_RUN
-sovereign_5_of_5_gate = NOT_RUN
+sovereign_5_of_5_gate = HISTORICAL_NOT_RUN
+```
+
+## Sovereign Physical Gate
+
+Current C5 sovereign physical gate, provider-free:
+
+```text
+C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE = SOVEREIGN_PHYSICAL_GATE_PASSED
+source_head_before_gate = 885be68d70cfd29da8348f5f179ba78b7128fcf2
+actual_backend_id = sentinel_chromium
+cloak_dependency = false
+provider_calls = 0
+product_browser_missions = 0
+live_sentinel_chromium_cycles = 5
+usable_context_page_observation = 5/5
+close_completed = 5/5
+owned_pid_tree_dead_before_next_cycle = 5/5
+process_baseline_restored = 5/5
+profile_material_persisted = false
+terminal_receipt_unique = true
+```
+
+Boundary probes:
+
+```text
+same_origin_allowed = true
+redirect_cross_origin_blocked = true
+cross_origin_cleanup_completed = true
+timeout_launch = true
+timeout_context = true
+timeout_navigation = true
+physical_cancellation = true
+process_tree_kill = true
+late_publication_blocked = true
+terminal_receipt_unique = true
+```
+
+Public route correction:
+
+```text
+canonical-product-run supports --enable-browser-readonly-physical
+browser_backend_id = sentinel_chromium
+cloak_dependency = false
+capability_graph = ExecutableCapabilityGraph
+effect_dispatch = ProductActionKernel
+legacy ActionEnvelope exposed to model = false
+```
+
+Safe evidence bundle:
+
+```text
+sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/sovereign_physical_gate.safe.json
+sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/origin_boundary.safe.json
+sentinel-control/docs/reviews/deep_power_audit/C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE/boundary_timeout_and_cancellation.safe.json
 ```
 
 Validation commands:
@@ -121,16 +178,18 @@ Known validation debt, not fixed in this backend tranche:
 
 ```text
 sentinel-control/services/sentinel-core/tests/operator/test_browser_search_actuation_open_world_feedback.py::test_no_search_control_with_visible_links_recommends_follow_or_inspect_not_search
-= FAILS_EXISTING_AFFORDANCE_AVAILABILITY_EXPECTATION
+= FIXED_LOCAL_DYNAMIC_AFFORDANCE_AVAILABILITY
 ```
 
-That failure concerns dynamic model-visible affordance filtering after a search
-failure. It is not a Cloak dependency or sovereign backend blocker, and it
-should be handled in the Browser Cortex affordance/state wave.
+That failure concerned dynamic model-visible affordance filtering after a page
+without a search control. The fix prevents a stale recommended browser search
+or workspace search label from being presented as an executable Browser search
+affordance when the observed Browser state does not support it.
 
 ## Before C5B
 
-The sovereign backend still needs the required live physical proof:
+The sovereign backend has now passed the required provider-free live physical
+proof:
 
 ```text
 5/5 sequential launches
@@ -143,4 +202,6 @@ late publication blocked
 cloak_dependency = false
 ```
 
-Only after these gates pass should C5B run exactly once with NVIDIA MiniMax M3.
+The next authorized step is exactly one C5B run with NVIDIA MiniMax M3 on
+`sentinel_chromium`. No Cloak repair is required unless the generic
+BrowserBackend contract regresses.
