@@ -1,0 +1,3 @@
+# Keep archived prototypes visible for provenance without letting them dominate
+# GitHub repository language statistics.
+archive/prototypes/** linguist-vendored

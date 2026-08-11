@@ -3,13 +3,14 @@
 *
 
 !.gitignore
+!.gitattributes
 !README.md
 !sentinel-control/
 !sentinel-control/**
 !agent-lab/
 !agent-lab/**
-!RedditPulse/
-!RedditPulse/**
+!archive/
+!archive/**
 !PLAN/
 !PLAN/**
 
@@ -46,25 +47,25 @@ sentinel-control/services/sentinel-core/w/
 # Agent Lab vendor source clones are research inputs, not repo-owned source.
 agent-lab/vendors/*/source/
 
-# RedditPulse local state and nested repository metadata
-RedditPulse/.git/
-RedditPulse/.gitnexus/
-RedditPulse/.claude/
-RedditPulse/AGENTS.md
-RedditPulse/CLAUDE.md
-RedditPulse/**/.env
-RedditPulse/**/.env.*
-!RedditPulse/**/.env.example
-RedditPulse/**/node_modules/
-RedditPulse/**/.next/
-RedditPulse/**/__pycache__/
-RedditPulse/**/.pytest_cache/
-RedditPulse/**/.venv/
-RedditPulse/**/dist/
-RedditPulse/**/output/
-RedditPulse/**/*.pyc
-RedditPulse/engine/data/working_proxies.json
-RedditPulse/engine/data/working_proxies.txt
+# Archived prototype local state and nested repository metadata
+archive/prototypes/*/.git/
+archive/prototypes/*/.gitnexus/
+archive/prototypes/*/.claude/
+archive/prototypes/*/AGENTS.md
+archive/prototypes/*/CLAUDE.md
+archive/prototypes/*/**/.env
+archive/prototypes/*/**/.env.*
+!archive/prototypes/*/**/.env.example
+archive/prototypes/*/**/node_modules/
+archive/prototypes/*/**/.next/
+archive/prototypes/*/**/__pycache__/
+archive/prototypes/*/**/.pytest_cache/
+archive/prototypes/*/**/.venv/
+archive/prototypes/*/**/dist/
+archive/prototypes/*/**/output/
+archive/prototypes/*/**/*.pyc
+archive/prototypes/*/engine/data/working_proxies.json
+archive/prototypes/*/engine/data/working_proxies.txt
 
 # Logs and local reports
 **/*.log
