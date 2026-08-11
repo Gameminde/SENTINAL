@@ -1,0 +1,92 @@
+{
+  "authority": "public_web_read_only",
+  "browser": {
+    "actual_backend_id": "sentinel_chromium",
+    "browser_receipts": [],
+    "cleanup_completed": true,
+    "dispatch_reached": false,
+    "lease_released": true,
+    "material_actions": 0,
+    "selected_backend_id": "sentinel_chromium",
+    "survivor_count": 0
+  },
+  "classification": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
+  "first_causal_divergence": {
+    "exception_class": "ActionKernelError",
+    "exception_hash": "e85267dbcfc2be0771a3ce7704888131aa025a5617ade8d3d3af2f165b7f0771",
+    "failure_code": "CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED",
+    "safe_interpretation": "Provider returned a payload that reached the canonical normalizer, but no advertised capability/operation could be extracted.",
+    "stage": "provider_or_decision_normalization"
+  },
+  "mission": {
+    "blocked_reason": "CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED",
+    "final_answer": "",
+    "final_reason": "MODEL_DECISION_FAILED",
+    "mission_record_created_before_provider": true,
+    "model_native_decision_accepted": false,
+    "model_selected_finish": false,
+    "product_action_kernel_reached": false,
+    "status": "blocked"
+  },
+  "mission_id_hash": "57ed5837637e935b62ca7f2e04315531e6053bb87c849ba141fd0d24c1416bb3",
+  "mission_objective_hash": "686f31b7a62d1e27831dcffb6e0792b1dd341ace0c3388504f6a9262b723a9a9",
+  "proof": {
+    "authentic_external_ledger": false,
+    "kernel_timeline_verified": true,
+    "proof_gaps": [
+      "external_append_only_signer_missing"
+    ],
+    "proof_root_hash": "e1b7fa665fa9c607a02320424407b40d5dd5906d014be354dd57ce130cd96716",
+    "receipt_artifacts_verified": true,
+    "receipt_count": 0,
+    "receipt_refs": [],
+    "record_hash_verified": true,
+    "replay_side_effects_reexecuted": false
+  },
+  "provider": {
+    "backend_id": "nvidia_openai_compatible_chat",
+    "model_id": "minimaxai/minimax-m3",
+    "provider_auth_error": false,
+    "provider_calls": 1,
+    "provider_id": "nvidia",
+    "provider_payload_reached_normalizer": true,
+    "raw_provider_output_persisted": false
+  },
+  "safety": {
+    "cloak_dependency": false,
+    "cookies_tokens_secrets_persisted": false,
+    "fixture_backend": false,
+    "playwright_fallback": false,
+    "raw_dom_persisted": false,
+    "raw_provider_output_persisted": false,
+    "raw_url_persisted": false,
+    "retry_count": 0
+  },
+  "schema_version": "c5b_controlled_live_browser_product_mission_sovereign_v1_safe_bundle",
+  "source_head": "c19f8e2b71cf3c297d41e4da51d56c06daaffb40",
+  "target_origin": "sqlite.org",
+  "timeline": {
+    "event_count": 6,
+    "event_hashes": [
+      "90faeac9721d22da2bacc0f579c82f1437eb6f59d9819c2e5978d493a3a14178",
+      "f6795d96a38a580663121cd76e082476ec20409563dbc697ea56d7e063b1e59f",
+      "0c8829733947ff5e29fc27bfb1e4bdac1f60741ad5d4127314412b7cf01f389f",
+      "0feb93c47e7e3952520ba208b0d937ee4e4c43355b045e76eaa0b6a8dfcda342",
+      "c4267ccf85c1e91d692ff7e78eda36b548405a1cb5ef3f9086408dacdd51236b",
+      "760f9df59991ea7afab25a3f81acbbc21379a852d909ff31a29b842f129a9f28"
+    ],
+    "event_types": [
+      "mission_created",
+      "mission_queued",
+      "mission_running",
+      "canonical_model_decision_failed",
+      "mission_blocked",
+      "canonical_browser_readonly_cleanup_completed"
+    ],
+    "events_file_sha256": "dc7817a71c2f6bc188d6bb96fc498c6738ef79ba799ee79995b0edf8646c5b32",
+    "proof_root_file_sha256": "6c897797ae4dee1a16b40764da5cb52ebb3c5413ae65b5b3952bec1008ae1092",
+    "record_file_sha256": "d21162252afd68874880a6062e0f2a1eb837062c7af2fa9d90bfe1a62cdfc88d",
+    "telemetry_file_sha256": "4d472a0ca110dd0d2ed36cac12e677733f15639b99bf2d8d05a32d893c851463",
+    "telemetry_line_count": 7
+  }
+}

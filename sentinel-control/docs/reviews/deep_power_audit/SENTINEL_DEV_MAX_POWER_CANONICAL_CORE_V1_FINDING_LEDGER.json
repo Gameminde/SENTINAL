@@ -191,7 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "current_wave": "C5_SENTINEL_CHROMIUM_SOVEREIGN_PHYSICAL_GATE",
+  "current_wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V1",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -2724,7 +2724,8 @@
       "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
       "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
       "1037610089ba645bb438f0a6b3d98c36a956f811",
-      "885be68d70cfd29da8348f5f179ba78b7128fcf2"
+      "885be68d70cfd29da8348f5f179ba78b7128fcf2",
+      "c19f8e2b71cf3c297d41e4da51d56c06daaffb40"
     ],
     "ledger_commits": [
       "41d417ef",
@@ -2748,7 +2749,8 @@
       "b721ce62343316bcdbe9c792af8a0967c8ae1680",
       "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
-      "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
+      "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+      "c19f8e2b71cf3c297d41e4da51d56c06daaffb40"
     ]
   },
   "ledger_id": "SENTINEL_DEV_MAX_POWER_CANONICAL_CORE_V1_FINDING_LEDGER",
@@ -3390,8 +3392,8 @@
   },
   "single_spine_c5_sovereign_backend_correction": {
     "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-    "browser_live_missions": 0,
-    "c5b_status": "NOT_RUN_ON_SENTINEL_CHROMIUM",
+    "browser_live_missions": 1,
+    "c5b_status": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH_ON_SENTINEL_CHROMIUM",
     "canonical_backend": "sentinel_chromium",
     "classification": "SOVEREIGN_BACKEND_SELECTED_AND_PHYSICAL_GATE_PASSED",
     "cloak_reclassification": "optional_external_backend",
@@ -3435,7 +3437,7 @@
       "885be68d70cfd29da8348f5f179ba78b7128fcf2"
     ],
     "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-    "latest_c5_status": "SOVEREIGN_PHYSICAL_GATE_PASSED_C5B_NOT_RUN",
+    "latest_c5_status": "C5B_SOVEREIGN_VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
     "live_sovereign_browser_probes": 5,
     "live_sovereign_browser_smokes": 1,
     "playwright_truth": "internal_open_source_mechanism_inside_sentinel_chromium_or_explicit_test_backend",
@@ -3465,12 +3467,16 @@
     ],
     "provider_calls": "0_IN_SOVEREIGN_PHYSICAL_GATE",
     "remaining_risk": [
-      "C5B real-model Browser mission on sentinel_chromium remains NOT_RUN.",
+      "C5B real-model Browser mission did not reach ProductActionKernel because MiniMax output did not normalize to a CanonicalDecision.",
+      "No SQLite content/browser quality was evaluated in C5B sovereign V1.",
       "Multi-site Browser generalization remains NOT_RUN.",
       "Browser Organ completion and FIXED_PROVEN findings remain unclaimed."
     ],
     "source_head": "885be68d70cfd29da8348f5f179ba78b7128fcf2",
     "source_head_before_physical_gate": "885be68d70cfd29da8348f5f179ba78b7128fcf2",
+    "sovereign_C5B_material_actions": 0,
+    "sovereign_C5B_product_browser_missions": 1,
+    "sovereign_C5B_provider_calls": 1,
     "sovereign_tranche_provider_calls": 0,
     "standalone_NVIDIA_smoke_calls": 1,
     "status": "SOVEREIGN_PHYSICAL_GATE_PASSED_C5B_NOT_RUN"
@@ -4028,6 +4034,74 @@
     ],
     "source_head": "6c17b9816d8037acad7daa4e5d4e0c0cf97fd2ed",
     "status": "VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR"
+  },
+  "single_spine_c5b_controlled_live_browser_product_mission_sovereign_v1": {
+    "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "browser": {
+      "actual_backend_id": "sentinel_chromium_cleanup_only",
+      "browser_receipts": 0,
+      "cleanup_completed": true,
+      "cloak_dependency": false,
+      "fixture_backend": false,
+      "material_actions": 0,
+      "playwright_fallback": false,
+      "product_action_kernel_dispatch": "NOT_REACHED",
+      "real_browser_control_runtime": "NOT_REACHED",
+      "selected_backend_id": "sentinel_chromium",
+      "survivor_count": 0
+    },
+    "first_causal_divergence": {
+      "failure_code": "CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED",
+      "smallest_next_fix": "persist safe provider response shape telemetry and align MiniMax canonical decision protocol without retrying this consumed run",
+      "stage": "provider_or_decision_normalization"
+    },
+    "fixed_proven_count": 0,
+    "mission": {
+      "authority": "public_web_read_only",
+      "blocked_reason": "CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED",
+      "final_answer": "",
+      "final_reason": "MODEL_DECISION_FAILED",
+      "max_material_actions": 16,
+      "max_provider_decisions": 10,
+      "mission_status": "blocked",
+      "model_selected_finish": false,
+      "objective": "Find official SQLite documentation explaining generated columns and provide a short useful answer.",
+      "retry_count": 0,
+      "target_origin": "sqlite.org"
+    },
+    "proof": {
+      "authentic_external_ledger": false,
+      "kernel_timeline_verified": true,
+      "mission_record_created_before_provider": true,
+      "proof_gap": "external_append_only_signer_missing",
+      "receipt_artifacts_verified": true,
+      "receipt_refs": [],
+      "record_hash_verified": true,
+      "replay_side_effects_reexecuted": false
+    },
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V1_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V1/c5b_sovereign_minimax_result.safe.json"
+    ],
+    "proof_tier": "T3_REAL_MODEL_ATTEMPTED_BUT_PRODUCT_EFFECT_NOT_REACHED",
+    "provider": {
+      "backend_id": "nvidia_openai_compatible_chat",
+      "model_id": "minimaxai/minimax-m3",
+      "provider_auth_error": false,
+      "provider_calls": 1,
+      "provider_id": "nvidia",
+      "provider_payload_reached_normalizer": true,
+      "raw_provider_output_persisted": false
+    },
+    "remaining_truth": {
+      "Browser actuation reached": "NO",
+      "C5B useful mission success": "NOT_PROVEN",
+      "FIXED_PROVEN": "0/65",
+      "SQLite content reached": "NO"
+    },
+    "source_head": "c19f8e2b71cf3c297d41e4da51d56c06daaffb40",
+    "status": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
+    "wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V1"
   },
   "single_spine_compression_campaign": {
     "browser_runs": 0,
