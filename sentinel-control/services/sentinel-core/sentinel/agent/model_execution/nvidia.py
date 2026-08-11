@@ -9,7 +9,7 @@ from sentinel.agent.model_execution.provider_profiles import build_default_provi
 
 NVIDIA_PROVIDER_ID = "nvidia"
 NVIDIA_BACKEND_ID = "nvidia_openai_compatible_chat"
-NVIDIA_DEFAULT_MODEL_ID = "minimaxai/minimax-m2.7"
+NVIDIA_DEFAULT_MODEL_ID = "minimaxai/minimax-m3"
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 NVIDIA_CREDENTIAL_ENV = "NVIDIA_API_KEY"
 

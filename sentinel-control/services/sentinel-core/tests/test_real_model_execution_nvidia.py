@@ -31,6 +31,10 @@ RAW_PROMPT = (
 SECRET_VALUE = "unit-test-nvidia-token-not-real"
 
 
+def test_nvidia_default_model_is_minimax_m3() -> None:
+    assert NVIDIA_DEFAULT_MODEL_ID == "minimaxai/minimax-m3"
+
+
 class RecordingUrlOpen:
     def __init__(self, payload: dict[str, Any], status_code: int = 200) -> None:
         self.payload = payload

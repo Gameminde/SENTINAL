@@ -85,6 +85,20 @@ def test_aliyun_dashscope_catalog_pins_openai_compatible_deepseek_route(
     assert entry.capability_flags.server_side_tools_enabled_by_default is False
 
 
+def test_nvidia_catalog_registers_minimax_m3_openai_compatible_route() -> None:
+    entry = build_default_provider_catalog().get("nvidia")
+    backend = entry.backends[0]
+
+    assert entry.display_name == "NVIDIA NIM / Integrate"
+    assert entry.credential_policy.credential_env_var == "NVIDIA_API_KEY"
+    assert backend.backend_id == "nvidia_openai_compatible_chat"
+    assert backend.endpoint_template == "https://integrate.api.nvidia.com/v1/chat/completions"
+    assert backend.supports_model("minimaxai/minimax-m3")
+    assert backend.supports_model("minimaxai/minimax-m2.7")
+    assert entry.capability_flags.grants_tool_execution is False
+    assert entry.capability_flags.server_side_tools_enabled_by_default is False
+
+
 def test_aliyun_dashscope_endpoint_override_rejects_non_aliyun_hosts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
