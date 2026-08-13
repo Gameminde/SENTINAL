@@ -1,0 +1,104 @@
+{
+  "schema_version": "c5b_controlled_live_browser_product_mission_sovereign_v3_safe",
+  "tranche": "REMOVE_TEST_URL_FROM_PRODUCT_PATH_PLUS_C5B_SOVEREIGN_V3",
+  "mission": {
+    "mission_id": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V3",
+    "objective_hash": "cc49862376b700b1b43e59a9247ffcfd772908555c5bd39f5eaa062fa0c51270",
+    "target_origin_authority": "sqlite.org",
+    "authority": "public_web_read_only",
+    "cross_origin": "denied",
+    "retries": 0
+  },
+  "runtime": {
+    "tested_runtime_head": "6b6d8aaea722a0663665b822111842dd4d9f6a4b",
+    "backend": "sentinel_chromium",
+    "cloak_dependency": false,
+    "real_browser_test_url_required": false,
+    "initial_browser_target": "about:blank",
+    "network_navigation_during_readiness": false
+  },
+  "provider": {
+    "provider_id": "nvidia",
+    "backend_id": "nvidia_openai_compatible_chat",
+    "model_id": "minimaxai/minimax-m3",
+    "provider_calls": 1,
+    "raw_provider_material_persisted": false
+  },
+  "result": {
+    "status": "blocked",
+    "classification": "VALID_FAILED_AUTHORITY_BOUNDARY_BEFORE_BROWSER_DISPATCH",
+    "final_reason": "EFFECT_DISPATCH_FAILED",
+    "first_causal_blocker": "browser_origin_transition_not_authorized",
+    "mission_record_created_before_provider": true,
+    "provider_decision_count": 1,
+    "material_action_count": 0,
+    "ProductActionKernel_dispatch_attempts": 1,
+    "browser_launches_or_actions": 0,
+    "product_receipt_count": 0,
+    "finalgate_refs": 0,
+    "cleanup_completed": true
+  },
+  "decision_boundary": {
+    "decision_accepted": true,
+    "decision_protocol": "MODEL_NATIVE_CANONICAL_JSON_V1",
+    "decision_origin": "MODEL_SELECTED",
+    "selected_capability": "real_browser_control",
+    "selected_operation": "real_browser.open",
+    "selected_target_host": "www.sqlite.org",
+    "selected_url_path_hash": "5e62885a8d1e2547fad1495ca93ad4ec07eddcf32332617285af044adb6ff173",
+    "allowed_origin_hosts": [
+      "sqlite.org"
+    ],
+    "authority_expansion": false,
+    "blocked_before_backend_open": true
+  },
+  "proof": {
+    "record_hash_verified": true,
+    "kernel_timeline_verified": true,
+    "receipt_artifacts_verified": true,
+    "proof_artifact_ref": "mission_proof_root.json",
+    "authentic_external_ledger": false,
+    "proof_gaps": [
+      "external_append_only_signer_missing"
+    ],
+    "replay_side_effects_reexecuted": false
+  },
+  "artifact_hashes": [
+    {
+      "artifact_ref": "root_mission/events.jsonl",
+      "bytes": 7841,
+      "sha256": "79ec890806c94d2e344b3a1398ad85f209518b396d4cd55d1471466f721b0946"
+    },
+    {
+      "artifact_ref": "root_mission/mission_proof_root.json",
+      "bytes": 709,
+      "sha256": "bd38cf024822ed1e8ebdfa683e7f3c1da219758bb2a05c77dba7381a83e13642"
+    },
+    {
+      "artifact_ref": "root_mission/record.json",
+      "bytes": 2849,
+      "sha256": "bded98a11d9bc8e7391e7bf496eb12e77cbb31d61d2fa7c13e9bb0df92b3e5de"
+    },
+    {
+      "artifact_ref": "telemetry/events.jsonl",
+      "bytes": 11710,
+      "sha256": "fe8f8bf258aef263eb1c6247911690a6abd4a3bf1f28e74b191a6747a8a28354"
+    }
+  ],
+  "event_timeline": [
+    {"sequence": 0, "event_type": "mission_created", "metadata_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"},
+    {"sequence": 1, "event_type": "mission_queued", "metadata_hash": "728548ff33edeabb440188e6648e43eb2f2a59d23138376ac154661fc4d00f27"},
+    {"sequence": 2, "event_type": "mission_running", "metadata_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"},
+    {"sequence": 3, "event_type": "canonical_authority_snapshot_created", "metadata_hash": "f94267657786a889ac63f5c51f30c37c2c99cd75d0c9e644ad04b93daeabc85c"},
+    {"sequence": 4, "event_type": "canonical_browser_backend_readiness_passed", "metadata_hash": "570c75138d1c2db48235ae4e6b70a5c3f120b8973265a3122125378097a15952"},
+    {"sequence": 5, "event_type": "canonical_decision_accepted", "metadata_hash": "8cdeee2f293399c67d924e16c78fa0b661db334f172ebfd5b545acef7bfc5622"},
+    {"sequence": 6, "event_type": "canonical_effect_failed", "metadata_hash": "aac354bc98f36011f53f32183748556193ef289f04c191e6f412696d6ced836f"},
+    {"sequence": 7, "event_type": "mission_blocked", "metadata_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"},
+    {"sequence": 8, "event_type": "canonical_browser_readonly_cleanup_completed", "metadata_hash": "6813e32082bbd2c0a2f71146920838185e94d48794fcd08308cce22b276f3405"}
+  ],
+  "next_blocker": {
+    "summary": "The model selected an official SQLite host variant outside the mission's strict single-host authority.",
+    "smallest_next_decision": "Either grant an explicit www.sqlite.org origin alias in the next mission authority, or introduce a governed origin-alias policy with tests. Do not retry V3."
+  },
+  "fixed_proven": "0/65"
+}
