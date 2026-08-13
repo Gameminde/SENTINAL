@@ -1,0 +1,96 @@
+{
+  "schema_version": "minimax_decision_protocol_only_v1_safe",
+  "classification": "REJECTED_CANONICAL_DECISION_TRANSPORT",
+  "created_at_utc": "2026-08-13T08:48:12Z",
+  "provider": {
+    "provider_id": "nvidia",
+    "backend_id": "nvidia_openai_compatible_chat",
+    "model_id": "minimaxai/minimax-m3",
+    "provider_calls": 1,
+    "retries": 0
+  },
+  "execution_boundaries": {
+    "ProductActionKernel_dispatch": 0,
+    "Browser_launches_actions": 0,
+    "external_effects": 0,
+    "raw_provider_material_persisted": false,
+    "raw_arguments_persisted": false,
+    "raw_reasoning_persisted": false,
+    "raw_payload_persisted": false
+  },
+  "request": {
+    "root_mission_id_hash": "236ddfd43338c59e713915a62c0ab4d622c9bd61a84cbf1df181a00b191b72cc",
+    "request_id_hash": "12706d48cc9756ebb1f811c2acb58680b7c89d2e843c430666695bbd05d73d62",
+    "state_hash": "5bc87bb3c0d1e6504b2ecb02acdfa411e6d61954481f6eadd1208f005ca0f611",
+    "objective_hash": "c65fff70c0894286894e68096ae8cb9b98dfb60b4d2e84347d2226d5c4776861",
+    "transport_profiles_attempted": [
+      "strict_json_content",
+      "fenced_strict_json"
+    ],
+    "visible_affordances_hash": "32741e4a85a6bcaced041ef45fd01f71d35357e90d6d4a248016c5ab821a1714",
+    "visible_operation_schema_hash": "5af4c527144bb303a0a33de0b80754540df13fd0c0f2e57ea7999ac36577f5a7"
+  },
+  "safe_transport_telemetry": {
+    "matched_transport": "strict_json_content",
+    "response_root_type": "dict",
+    "choices_count": 0,
+    "message_present": false,
+    "content_present": true,
+    "content_type": "str",
+    "tool_calls_present": false,
+    "tool_calls_count": 0,
+    "reasoning_content_present": false,
+    "finish_reason": "stop",
+    "content_length_bucket": "1-255",
+    "content_hash": "733f701ec65c8b7323ab6ec6688171d64baca7f51c09be810a084263890256be",
+    "json_detected": true,
+    "json_root_type": "dict",
+    "fenced_json_detected": false,
+    "canonical_fields_present": [
+      "arguments"
+    ],
+    "canonical_fields_missing": [
+      "capability",
+      "operation"
+    ],
+    "validation_stage": "strict_json_content",
+    "typed_outcome": "REJECTED_CANONICAL_DECISION_TRANSPORT",
+    "typed_rejection_reason": "capability_missing",
+    "decision_origin_chain": [
+      "provider_transport:strict_json_content"
+    ]
+  },
+  "decision": {},
+  "exception": {
+    "exception_class": "ActionKernelError",
+    "exception_hash": "b3e03b4d1e7b7a82aac886a36dfefcd57d635bd57e8da0f799f63a8319cc56ac"
+  },
+  "gates": {
+    "provider_calls_exactly_one": true,
+    "retries_zero": true,
+    "ProductActionKernel_dispatch_zero": true,
+    "Browser_launches_actions_zero": true,
+    "external_effects_zero": true,
+    "raw_provider_material_persisted_false": true,
+    "no_parser_modified_during_probe": true
+  },
+  "next_step": {
+    "c5b_v2_proposed_if_probe_passes": false,
+    "c5b_v2_executed": false,
+    "authorization_required": true
+  },
+  "validation": [
+    {
+      "command": "probe and ledger counters verified",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "secret/raw scan over ledger and probe report artifacts",
+      "result": "passed"
+    }
+  ]
+}

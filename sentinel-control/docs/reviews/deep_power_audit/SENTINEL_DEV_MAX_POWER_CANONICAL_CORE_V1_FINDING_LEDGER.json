@@ -191,7 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "current_wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
+  "current_wave": "MINIMAX_DECISION_PROTOCOL_ONLY_V1",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -2696,7 +2696,7 @@
   "fixed_proven_count": 0,
   "fixed_proven_total": 65,
   "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "latest_c5_status": "C5B_SOVEREIGN_V1_CONSUMED_MINIMAX_DECISION_PROTOCOL_ALIGNMENT_LOCAL_CANDIDATE",
+  "latest_c5_status": "MINIMAX_DECISION_PROTOCOL_ONLY_V1_VALID_REAL_PROVIDER_PROTOCOL_REJECTION",
   "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
   "latest_pushed_head_before_c5a_timeout_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
   "ledger_commit_classes": {
@@ -2827,7 +2827,7 @@
     "historical_reports_may_retain_push_pending": true,
     "temporary_bridge_commit_published": "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
   },
-  "product_browser_mission_attempts": 1,
+  "product_browser_mission_attempts": 2,
   "proof_runtime_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "proof_tier_counts": {
     "T0_STATIC_INSPECTED": 48,
@@ -2836,7 +2836,7 @@
     "T1_LOCAL_REPRODUCED_UNSAFE": 1,
     "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_NOT_P0_01_CLOSURE": 1
   },
-  "provider_calls": 1,
+  "provider_calls": 2,
   "published_counters_after_c5b": {
     "P0 fixed": "0/15",
     "P1 fixed": "0/44",
@@ -3437,7 +3437,7 @@
       "885be68d70cfd29da8348f5f179ba78b7128fcf2"
     ],
     "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-    "latest_c5_status": "C5B_SOVEREIGN_VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
+    "latest_c5_status": "C5B_SOVEREIGN_V1_CONSUMED_MINIMAX_DECISION_PROTOCOL_ALIGNMENT_LOCAL_CANDIDATE",
     "live_sovereign_browser_probes": 5,
     "live_sovereign_browser_smokes": 1,
     "playwright_truth": "internal_open_source_mechanism_inside_sentinel_chromium_or_explicit_test_backend",
@@ -3479,7 +3479,12 @@
     "sovereign_C5B_provider_calls": 1,
     "sovereign_tranche_provider_calls": 0,
     "standalone_NVIDIA_smoke_calls": 1,
-    "status": "SOVEREIGN_PHYSICAL_GATE_PASSED_C5B_NOT_RUN"
+    "status": "SOVEREIGN_BACKEND_SELECTED_C5B_V1_ATTEMPTED_BEFORE_DISPATCH",
+    "current_sovereign_c5b_status": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
+    "sovereign_C5B_attempts": 1,
+    "sovereign_C5B_browser_dispatches": 0,
+    "mission_attempted": 1,
+    "browser_dispatches": 0
   },
   "single_spine_c5a_physical_browser_boundary": {
     "accepted_c5a_live_readiness": "READY_3_OF_3",
@@ -4171,7 +4176,7 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-13T07:43:04Z",
+  "updated_at_utc": "2026-08-13T08:49:09Z",
   "minimax_canonical_decision_protocol_alignment_v1": {
     "wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
     "status": "IMPLEMENTED_LOCAL_CANDIDATE",
@@ -4252,11 +4257,96 @@
       "ProductActionKernel dispatch": 0,
       "Browser actions": 0
     },
-    "updated_at_utc": "2026-08-13T07:43:04Z"
+    "updated_at_utc": "2026-08-13T08:45:58Z",
+    "source_head_reconciliation": {
+      "previous_remote_head_announced": "8353329c",
+      "observed_source_head_before_alignment_tranche": "91cad30debc143c7aa660b94d1e6883814090cd7",
+      "classification": "INTERMEDIATE_LOCAL_AND_REMOTE_HEAD_AFTER_PRIOR_PUSH",
+      "note": "91cad30d was the checked-out HEAD at the start of the alignment tranche; it follows the earlier announced remote checkpoint and precedes d08dc2fe."
+    }
   },
-  "current_tranche_provider_calls": 0,
+  "current_tranche_provider_calls": 1,
   "current_tranche_browser_actions": 0,
   "current_tranche_product_action_kernel_dispatches": 0,
   "historical_C5B_provider_calls": 1,
-  "historical_C5B_product_browser_mission_attempts": 1
+  "historical_C5B_product_browser_mission_attempts": 1,
+  "pre_sovereign_C5B_attempts": 1,
+  "sovereign_C5B_attempts": 1,
+  "cumulative_C5B_attempts": 2,
+  "pre_sovereign_C5B_provider_calls": 1,
+  "sovereign_C5B_provider_calls": 1,
+  "cumulative_C5B_provider_calls": 2,
+  "standalone_NVIDIA_smoke_calls": 1,
+  "alignment_tranche_provider_calls": 0,
+  "sovereign_C5B_browser_dispatches": 0,
+  "published_counters_after_minimax_alignment_correction": {
+    "pre_sovereign_C5B_attempts": 1,
+    "sovereign_C5B_attempts": 1,
+    "cumulative_C5B_attempts": 2,
+    "pre_sovereign_C5B_provider_calls": 1,
+    "sovereign_C5B_provider_calls": 1,
+    "cumulative_C5B_provider_calls": 2,
+    "standalone_NVIDIA_smoke_calls": 1,
+    "alignment_tranche_provider_calls": 0,
+    "sovereign_C5B_browser_dispatches": 0,
+    "FIXED_PROVEN": "0/65"
+  },
+  "minimax_decision_protocol_only_v1": {
+    "wave": "MINIMAX_DECISION_PROTOCOL_ONLY_V1",
+    "status": "VALID_REAL_PROVIDER_PROTOCOL_REJECTION",
+    "authorization": "APPROVED_ONE_PROVIDER_CALL_ONLY",
+    "provider": {
+      "provider_id": "nvidia",
+      "backend_id": "nvidia_openai_compatible_chat",
+      "model_id": "minimaxai/minimax-m3",
+      "provider_calls": 1,
+      "retries": 0
+    },
+    "backend": "nvidia_openai_compatible_chat",
+    "model": "minimaxai/minimax-m3",
+    "provider_calls_authorized": 1,
+    "provider_calls_consumed": 1,
+    "retries_authorized": 0,
+    "ProductActionKernel dispatch": 0,
+    "Browser launches/actions": 0,
+    "external_effects": 0,
+    "fixed_proven": "0/65",
+    "documentation_correction_committed_with_probe": true,
+    "updated_at_utc": "2026-08-13T08:49:09Z",
+    "classification": "REJECTED_CANONICAL_DECISION_TRANSPORT",
+    "retries_consumed": 0,
+    "raw_provider_material_persisted": false,
+    "matched_transport": "strict_json_content",
+    "response_structural_shape": {
+      "response_root_type": "dict",
+      "choices_count": 0,
+      "message_present": false,
+      "content_present": true,
+      "content_type": "str",
+      "tool_calls_present": false,
+      "tool_calls_count": 0,
+      "reasoning_content_present": false,
+      "finish_reason": "stop",
+      "content_length_bucket": "1-255",
+      "content_hash": "733f701ec65c8b7323ab6ec6688171d64baca7f51c09be810a084263890256be",
+      "json_detected": true,
+      "json_root_type": "dict",
+      "fenced_json_detected": false,
+      "canonical_fields_present": [
+        "arguments"
+      ],
+      "canonical_fields_missing": [
+        "capability",
+        "operation"
+      ]
+    },
+    "typed_outcome": "REJECTED_CANONICAL_DECISION_TRANSPORT",
+    "typed_rejection_reason": "capability_missing",
+    "decision_accepted": false,
+    "no_action_invented": true,
+    "c5b_v2_authorized": false,
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/MINIMAX_DECISION_PROTOCOL_ONLY_V1/minimax_decision_protocol_only.safe.json"
+    ]
+  }
 }
