@@ -1,0 +1,289 @@
+{
+  "attempt_consumed": true,
+  "browser": {
+    "authority_expansion": false,
+    "backend": "sentinel_chromium",
+    "browser_actions_completed": 2,
+    "browser_receipts": [
+      {
+        "backend_id": "sentinel_chromium",
+        "failure_code": "",
+        "operation": "real_browser.extract_evidence",
+        "receipt_file": "real_browser_action_67917ffe2e794fc1bdb99a7c2cb59205.json",
+        "receipt_sha256": "8171dec44f190248020edf0069e5844b651812221969194f85c1a31ad0f0a6ae",
+        "status": "completed"
+      },
+      {
+        "backend_id": "UNKNOWN_LEGACY_OPEN_RECEIPT_SCHEMA",
+        "failure_code": "",
+        "operation": "UNKNOWN_LEGACY_OPEN_RECEIPT_SCHEMA",
+        "receipt_file": "real_browser_open_c51362c8f6a0432cb8a9a3c09408a357.json",
+        "receipt_sha256": "da2e6122f977ab08e4fe4363ca727a1fc5fd57be372807fc6cfe5ca8f3634ead",
+        "status": "UNKNOWN_LEGACY_OPEN_RECEIPT_SCHEMA"
+      }
+    ],
+    "canonical_receipts": [
+      {
+        "actual_backend_id": "sentinel_chromium",
+        "capability": "real_browser_control",
+        "decision_id_hash": "dae1c3ad4fa59ff777e5c1128382a141cd26ea061500bcc76313f4f723867b44",
+        "evidence_refs_count": 1,
+        "material_action": false,
+        "operation": "real_browser.open",
+        "receipt_file": "canonical_effect_receipt_22acfef798344548a4af399d1262e44a.json",
+        "receipt_ref": "canonical_effect_receipt_22acfef798344548a4af399d1262e44a",
+        "receipt_sha256": "68c6b1842d4081f4d62477efa77635409232588bee7ce6b2f6f3ac0671bea235",
+        "selected_backend_id": "sentinel_chromium",
+        "site_authority_match": {
+          "accepted_host_forms": [
+            "sqlite.org",
+            "www.sqlite.org"
+          ],
+          "authority_expansion": false,
+          "authority_match": "SiteScope",
+          "canonical_site": "sqlite.org",
+          "decision_rewritten": false,
+          "deny_reason": "",
+          "matched": true,
+          "matched_host_form": "www.sqlite.org",
+          "normalized_host": "www.sqlite.org",
+          "normalized_port": "default",
+          "normalized_scheme": "https",
+          "requested_url_hash": "c80a430699e5b8082b1486bb1abe94451034160677e686ca20119cb0af857d36",
+          "risk_policy": "public_read_only_navigation_site_aliases_allowed"
+        },
+        "status": "completed"
+      },
+      {
+        "actual_backend_id": "sentinel_chromium",
+        "capability": "real_browser_control",
+        "decision_id_hash": "a1c2f7f8febd5e7e71d7016134f4f381ef2868871245ee2a207d0d067f570e4e",
+        "evidence_refs_count": 1,
+        "material_action": true,
+        "operation": "real_browser.extract_evidence",
+        "receipt_file": "canonical_effect_receipt_eccca1c92bc34a83b4924afd1736774d.json",
+        "receipt_ref": "canonical_effect_receipt_eccca1c92bc34a83b4924afd1736774d",
+        "receipt_sha256": "40d31fbe8fb4eeb71e34e56b057f6aa353f986a9cf155a8a34c7f840ea668b97",
+        "selected_backend_id": "sentinel_chromium",
+        "site_authority_match": {
+          "accepted_host_forms": [
+            "sqlite.org",
+            "www.sqlite.org"
+          ],
+          "authority_expansion": false,
+          "authority_match": "SiteScope",
+          "canonical_site": "sqlite.org",
+          "decision_rewritten": false,
+          "deny_reason": "",
+          "matched": true,
+          "matched_host_form": "www.sqlite.org",
+          "normalized_host": "www.sqlite.org",
+          "normalized_port": "default",
+          "normalized_scheme": "https",
+          "requested_url_hash": "c80a430699e5b8082b1486bb1abe94451034160677e686ca20119cb0af857d36",
+          "risk_policy": "public_read_only_navigation_site_aliases_allowed"
+        },
+        "status": "completed"
+      }
+    ],
+    "cleanup_completed": true,
+    "cloak_dependency": false,
+    "normalized_hosts": [
+      "www.sqlite.org"
+    ],
+    "operations": [
+      "real_browser.open",
+      "real_browser.extract_evidence"
+    ],
+    "product_action_kernel_dispatches": 2,
+    "requested_url_rewritten": false,
+    "site_scope_authority_passed": true,
+    "survivor_count": 0
+  },
+  "classification": "VALID_FAILED_PROVIDER_RATE_LIMIT_AFTER_BROWSER_PROGRESS",
+  "fixed_proven": "0/65",
+  "generated_at_utc": "2026-08-13T10:39:52.975695+00:00",
+  "mission": {
+    "final_reason": "MODEL_DECISION_FAILED",
+    "mission_id_hash": "e05c203499fe552d47be7f2939ce220ede57fcd603f489702effd2c88fbc5480",
+    "mission_record_created_before_provider": true,
+    "objective_hash": "f40eecf872e6223331933731023b0808d801148c530660f06330def32973ef01",
+    "status": "blocked",
+    "target_site_scope": {
+      "accepted_host_forms": [
+        "sqlite.org",
+        "www.sqlite.org"
+      ],
+      "authority": "public_web_read_only",
+      "canonical_site": "sqlite.org",
+      "cross_origin": "denied"
+    }
+  },
+  "proof": {
+    "finalgate": [
+      {
+        "failure_code": "",
+        "file": "real_browser_finalgate_103e36ae5e114d8996531727aa2a5672.json",
+        "material_receipt_count": null,
+        "replay_side_effects": null,
+        "sha256": "ebe6cb242b8fdc69adc3a6dbc5a8b4e04e891b3c26ce20857c53d8d18cd068d8",
+        "status": "accepted",
+        "unsupported_claim_count": null
+      }
+    ],
+    "kernel_timeline_verified": true,
+    "proof_gaps": [
+      "external_append_only_signer_missing"
+    ],
+    "proof_root_hash": "47dcbd663dc27fbe7bf07619c1dd86560273b2632d5484537465afa0e5101992",
+    "receipt_artifacts_verified": true,
+    "receipt_count": 2,
+    "record_hash_verified": true,
+    "replay_side_effects_reexecuted": false
+  },
+  "provider": {
+    "backend_id": "nvidia_openai_compatible_chat",
+    "failure_code": "provider_failure_PROVIDER_RATE_LIMIT_http_429",
+    "model_id": "minimaxai/minimax-m3",
+    "provider_decision_count": 3,
+    "provider_id": "nvidia",
+    "raw_provider_material_persisted_in_safe_bundle": false
+  },
+  "rerun_authorized": false,
+  "source_head_before_fix": "478d23341e7bf7bfd0a334f9a17e4d41df2d98ff",
+  "telemetry": {
+    "event_kind_counts": {
+      "mission_blocked": 1,
+      "mission_created": 1,
+      "mission_queued": 1,
+      "mission_running": 1,
+      "mission_started": 1,
+      "organ_called": 10
+    },
+    "last_events": [
+      {
+        "domain": "organ",
+        "event_kind": "organ_called",
+        "index": 7,
+        "metadata": {
+          "safe_url_origin_hash": "6725fb1287649c7426ef6b057bcc1a119a02e4f313f4b64dfe9d5d976f934236",
+          "sequence": 6
+        },
+        "receipt_refs_count": 1,
+        "safe_summary": "Bounded real browser page opened.",
+        "source_surface": "mission_store"
+      },
+      {
+        "domain": "organ",
+        "event_kind": "organ_called",
+        "index": 8,
+        "metadata": {
+          "after_state_hash": "c9f49810c8576fb4dae65bce0e1f9b945468df87a87e031f1c3a8070b90713f7",
+          "before_state_hash": "82c5cf08afdcdbbc490ff627fb6609cdeb058b7851e035c3ecc87b07719f4d8e",
+          "receipt_hash": "ed3b6322e5dc8a63a2361db074e66b2f66b0a240c3b8c9d8c6696d32814b1fbf",
+          "sequence": 7
+        },
+        "receipt_refs_count": 1,
+        "safe_summary": "Canonical effect receipt persisted for real_browser_control.real_browser.open.",
+        "source_surface": "mission_store"
+      },
+      {
+        "domain": "organ",
+        "event_kind": "organ_called",
+        "index": 9,
+        "metadata": {
+          "decision_origin": "MODEL_SELECTED",
+          "decision_protocol": "MODEL_NATIVE_CANONICAL_JSON_V1",
+          "selected_capability": "real_browser_control",
+          "selected_operation": "real_browser.extract_evidence",
+          "sequence": 8,
+          "typed_proposed_effect": "REAL"
+        },
+        "receipt_refs_count": 0,
+        "safe_summary": "Canonical decision accepted for real_browser_control.real_browser.extract_evidence.",
+        "source_surface": "mission_store"
+      },
+      {
+        "domain": "organ",
+        "event_kind": "organ_called",
+        "index": 10,
+        "metadata": {
+          "after_state_hash": "20f0556bda4371237975388a819939a6167afa0103b3a0bd36dc3a40312e5f84",
+          "before_state_hash": "20f0556bda4371237975388a819939a6167afa0103b3a0bd36dc3a40312e5f84",
+          "sequence": 9
+        },
+        "receipt_refs_count": 1,
+        "safe_summary": "Bounded real browser action completed.",
+        "source_surface": "mission_store"
+      },
+      {
+        "domain": "organ",
+        "event_kind": "organ_called",
+        "index": 11,
+        "metadata": {
+          "after_state_hash": "e7e4e4565076665b9cb3428d8bee436f8bf51e368b3650e016ce59a6ed6e3bc8",
+          "before_state_hash": "b60a208239c04c9758c7306d9378f491fff32ef1877bed356ef6a734c87c84f9",
+          "receipt_hash": "ceec7d999ae5fec887043f50f14af1ba29113fb2d2a4b77cb8ac2095e7133b3c",
+          "sequence": 10
+        },
+        "receipt_refs_count": 1,
+        "safe_summary": "Canonical effect receipt persisted for real_browser_control.real_browser.extract_evidence.",
+        "source_surface": "mission_store"
+      },
+      {
+        "domain": "organ",
+        "event_kind": "organ_called",
+        "index": 12,
+        "metadata": {
+          "exception_class": "ActionKernelError",
+          "exception_hash": "c17513d17b5fca0d49e9bba8b0d6353e302d7b730850f25f72512eb7a771c951",
+          "failure_code": "CANONICAL_DECISION_TRANSPORT_REJECTED:provider_failure_PROVIDER_RATE_LIMIT_http_429",
+          "failure_stage": "provider_or_decision_normalization",
+          "material_action_count": 2,
+          "provider_decision_count": 3,
+          "sequence": 11
+        },
+        "receipt_refs_count": 0,
+        "safe_summary": "Canonical model decision failed before executable dispatch.",
+        "source_surface": "mission_store"
+      },
+      {
+        "domain": "operational",
+        "event_kind": "mission_blocked",
+        "index": 13,
+        "metadata": {
+          "sequence": 12
+        },
+        "receipt_refs_count": 0,
+        "safe_summary": "Canonical root mission terminal state: MODEL_DECISION_FAILED.",
+        "source_surface": "mission_store"
+      },
+      {
+        "domain": "organ",
+        "event_kind": "organ_called",
+        "index": 14,
+        "metadata": {
+          "browser_readonly_cleanup": {
+            "actual_backend_id": "sentinel_chromium",
+            "cleanup_completed": true,
+            "cleanup_count": 1,
+            "lease_released": true,
+            "selected_backend_id": "sentinel_chromium",
+            "session_backend_kind": "sentinel_chromium",
+            "survivor_count": 0
+          },
+          "cleanup_completed": true,
+          "sequence": 13
+        },
+        "receipt_refs_count": 0,
+        "safe_summary": "Canonical browser read-only cleanup completed.",
+        "source_surface": "mission_store"
+      }
+    ],
+    "long_path_extraction_required_on_windows": true,
+    "runtime_artifacts_file_count": 8,
+    "runtime_artifacts_total_bytes": 59332
+  },
+  "tested_runtime_head": "d04ee176ba159fcde3e151d4d2146be8931566b7",
+  "tranche": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V4"
+}

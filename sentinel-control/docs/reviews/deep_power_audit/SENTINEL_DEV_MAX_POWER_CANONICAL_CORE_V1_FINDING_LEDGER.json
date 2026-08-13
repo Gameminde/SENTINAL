@@ -2616,7 +2616,7 @@
       "classification": "TOOL_CONTRACT_AMBIGUOUS",
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "depends_on": [],
-      "finding": "The monorepo mixes Sentinel core, a research-only agent lab, a separate Reddit/CueIdea product and a demo web façade.",
+      "finding": "The monorepo mixes Sentinel core, a research-only agent lab, a separate Reddit/CueIdea product and a demo web fa\u00e7ade.",
       "fixed_proven_commit": "",
       "id": "C-P2-24",
       "integration_or_live_probe": "",
@@ -2696,7 +2696,7 @@
   "fixed_proven_count": 0,
   "fixed_proven_total": 65,
   "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "latest_c5_status": "C5B_SOVEREIGN_V3_VALID_FAILED_AUTHORITY_BOUNDARY_BEFORE_BROWSER_DISPATCH",
+  "latest_c5_status": "C5B_SOVEREIGN_V4_VALID_FAILED_PROVIDER_RATE_LIMIT_AFTER_BROWSER_PROGRESS",
   "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
   "latest_pushed_head_before_c5a_timeout_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
   "ledger_commit_classes": {
@@ -2819,7 +2819,7 @@
     ],
     "tested_runtime_head": "b721ce62343316bcdbe9c792af8a0967c8ae1680"
   },
-  "physical_browser_backend_actions": 0,
+  "physical_browser_backend_actions": 2,
   "post_session_publication_truth": {
     "appendix_required_when_historical_report_says_push_pending": true,
     "branch": "sentinel-dev-max-power-canonical-core-v1",
@@ -2827,7 +2827,7 @@
     "historical_reports_may_retain_push_pending": true,
     "temporary_bridge_commit_published": "c08f6c9cf61daea71bef7913285ba4a6e94712c6"
   },
-  "product_browser_mission_attempts": 4,
+  "product_browser_mission_attempts": 5,
   "proof_runtime_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "proof_tier_counts": {
     "T0_STATIC_INSPECTED": 48,
@@ -2836,7 +2836,7 @@
     "T1_LOCAL_REPRODUCED_UNSAFE": 1,
     "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_NOT_P0_01_CLOSURE": 1
   },
-  "provider_calls": 3,
+  "provider_calls": 6,
   "published_counters_after_c5b": {
     "P0 fixed": "0/15",
     "P1 fixed": "0/44",
@@ -3392,7 +3392,7 @@
   },
   "single_spine_c5_sovereign_backend_correction": {
     "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-    "browser_live_missions": 1,
+    "browser_live_missions": 2,
     "c5b_status": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH_ON_SENTINEL_CHROMIUM",
     "canonical_backend": "sentinel_chromium",
     "classification": "SOVEREIGN_BACKEND_SELECTED_AND_PHYSICAL_GATE_PASSED",
@@ -3437,7 +3437,7 @@
       "885be68d70cfd29da8348f5f179ba78b7128fcf2"
     ],
     "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-    "latest_c5_status": "C5B_SOVEREIGN_V1_CONSUMED_MINIMAX_DECISION_PROTOCOL_ALIGNMENT_LOCAL_CANDIDATE",
+    "latest_c5_status": "C5B_SOVEREIGN_V4_VALID_FAILED_PROVIDER_RATE_LIMIT_AFTER_BROWSER_PROGRESS",
     "live_sovereign_browser_probes": 5,
     "live_sovereign_browser_smokes": 1,
     "playwright_truth": "internal_open_source_mechanism_inside_sentinel_chromium_or_explicit_test_backend",
@@ -3453,7 +3453,7 @@
       "sovereign_5_of_5_gate": "NOT_RUN",
       "target_kind": "public_read_only_origin"
     },
-    "product_browser_missions": 0,
+    "product_browser_missions": 1,
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/C5_BROWSER_ORGAN_SOVEREIGN_BACKEND_CORRECTION_REPORT.md",
       "sentinel-control/services/sentinel-core/sentinel/operator/browser_backend_contract.py",
@@ -3470,21 +3470,22 @@
       "C5B real-model Browser mission did not reach ProductActionKernel because MiniMax output did not normalize to a CanonicalDecision.",
       "No SQLite content/browser quality was evaluated in C5B sovereign V1.",
       "Multi-site Browser generalization remains NOT_RUN.",
-      "Browser Organ completion and FIXED_PROVEN findings remain unclaimed."
+      "Browser Organ completion and FIXED_PROVEN findings remain unclaimed.",
+      "MiniMax provider rate limit can interrupt live mission after browser progress."
     ],
     "source_head": "885be68d70cfd29da8348f5f179ba78b7128fcf2",
     "source_head_before_physical_gate": "885be68d70cfd29da8348f5f179ba78b7128fcf2",
-    "sovereign_C5B_material_actions": 0,
+    "sovereign_C5B_material_actions": 2,
     "sovereign_C5B_product_browser_missions": 1,
-    "sovereign_C5B_provider_calls": 1,
+    "sovereign_C5B_provider_calls": 4,
     "sovereign_tranche_provider_calls": 0,
     "standalone_NVIDIA_smoke_calls": 1,
     "status": "SOVEREIGN_BACKEND_SELECTED_C5B_V1_ATTEMPTED_BEFORE_DISPATCH",
-    "current_sovereign_c5b_status": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
-    "sovereign_C5B_attempts": 1,
-    "sovereign_C5B_browser_dispatches": 0,
-    "mission_attempted": 1,
-    "browser_dispatches": 0
+    "current_sovereign_c5b_status": "VALID_FAILED_PROVIDER_RATE_LIMIT_AFTER_BROWSER_PROGRESS",
+    "sovereign_C5B_attempts": 2,
+    "sovereign_C5B_browser_dispatches": 2,
+    "mission_attempted": 2,
+    "browser_dispatches": 2
   },
   "single_spine_c5a_physical_browser_boundary": {
     "accepted_c5a_live_readiness": "READY_3_OF_3",
@@ -4471,5 +4472,92 @@
     ],
     "fixed_proven": "0/65",
     "updated_at_utc": "2026-08-13T09:54:40Z"
+  },
+  "published_counters_after_c5b_sovereign_v4": {
+    "pre_sovereign_C5B_attempts": 1,
+    "sovereign_C5B_attempts": 2,
+    "cumulative_C5B_attempts": 3,
+    "pre_sovereign_C5B_provider_calls": 1,
+    "sovereign_C5B_provider_calls": 4,
+    "cumulative_C5B_provider_calls": 5,
+    "standalone_NVIDIA_smoke_calls": 1,
+    "v4_provider_decisions": 3,
+    "v4_browser_dispatches": 2,
+    "v4_browser_actions_completed": 2,
+    "FIXED_PROVEN": "0/65"
+  },
+  "single_spine_c5b_controlled_live_browser_product_mission_sovereign_v4": {
+    "wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V4",
+    "status": "VALID_FAILED_PROVIDER_RATE_LIMIT_AFTER_BROWSER_PROGRESS",
+    "tested_runtime_head": "d04ee176ba159fcde3e151d4d2146be8931566b7",
+    "attempt_consumed": true,
+    "rerun_authorized": false,
+    "provider": {
+      "backend_id": "nvidia_openai_compatible_chat",
+      "failure_code": "provider_failure_PROVIDER_RATE_LIMIT_http_429",
+      "model_id": "minimaxai/minimax-m3",
+      "provider_decision_count": 3,
+      "provider_id": "nvidia",
+      "raw_provider_material_persisted_in_safe_bundle": false
+    },
+    "browser": {
+      "selected_backend_id": "sentinel_chromium",
+      "actual_backend_id": "sentinel_chromium",
+      "ProductActionKernel dispatch": 2,
+      "Browser launches/actions": 2,
+      "operations": [
+        "real_browser.open",
+        "real_browser.extract_evidence"
+      ],
+      "site_scope_authority_passed": true,
+      "normalized_hosts": [
+        "www.sqlite.org"
+      ],
+      "cleanup_completed": true,
+      "survivor_count": 0
+    },
+    "decision_boundary": {
+      "decision_accepted": true,
+      "decision_origin": "MODEL_SELECTED",
+      "selected_capability_sequence": [
+        "real_browser_control",
+        "real_browser_control"
+      ],
+      "selected_operation_sequence": [
+        "real_browser.open",
+        "real_browser.extract_evidence"
+      ],
+      "authority_match": "SiteScope",
+      "decision_rewritten": false,
+      "authority_expansion": false
+    },
+    "proof": {
+      "finalgate": [
+        {
+          "failure_code": "",
+          "file": "real_browser_finalgate_103e36ae5e114d8996531727aa2a5672.json",
+          "material_receipt_count": null,
+          "replay_side_effects": null,
+          "sha256": "ebe6cb242b8fdc69adc3a6dbc5a8b4e04e891b3c26ce20857c53d8d18cd068d8",
+          "status": "accepted",
+          "unsupported_claim_count": null
+        }
+      ],
+      "kernel_timeline_verified": true,
+      "proof_gaps": [
+        "external_append_only_signer_missing"
+      ],
+      "proof_root_hash": "47dcbd663dc27fbe7bf07619c1dd86560273b2632d5484537465afa0e5101992",
+      "receipt_artifacts_verified": true,
+      "receipt_count": 2,
+      "record_hash_verified": true,
+      "replay_side_effects_reexecuted": false
+    },
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V4_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V4/c5b_sovereign_v4.safe.json"
+    ],
+    "fixed_proven": "0/65",
+    "updated_at_utc": "2026-08-13T10:41:31Z"
   }
 }
