@@ -14,6 +14,7 @@ from sentinel.operator.canonical_core import (
 )
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import OperatorMissionStatus
+from sentinel.operator.provider_mesh import ProviderMesh, ProviderMeshProviderSpec
 from sentinel.operator.real_browser_control_runtime import (
     BOUNDED_URL_AUTHORITY_REF,
     RealBrowserControlRuntimeError,
@@ -34,6 +35,14 @@ class ScriptedModelClient:
         if not self._decisions:
             raise AssertionError("scripted model decision exhausted")
         return self._decisions.pop(0)
+
+
+class ScriptedThenRateLimitModelClient(ScriptedModelClient):
+    def complete(self, request: Any) -> dict[str, Any]:
+        if self._decisions:
+            return super().complete(request)
+        self.requests.append(request)
+        raise RuntimeError("provider_failure_PROVIDER_RATE_LIMIT_http_429")
 
 
 class InstrumentedSentinelChromiumReadOnlyEngine:
@@ -427,6 +436,88 @@ def test_physical_browser_site_scope_denies_suffix_subdomain_and_cross_site_redi
         assert result.blocked_reason_detail == "browser_origin_transition_not_authorized"
         assert engine.open_count == 0
         assert engine.target_urls == []
+
+
+def test_provider_mesh_checkpoints_rate_limit_and_resumes_without_replaying_browser_receipt(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    primary = ScriptedThenRateLimitModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://www.sqlite.org/gencol.html"},
+            }
+        ]
+    )
+    fallback = ScriptedModelClient(
+        [
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "SQLite generated columns are documented by the official SQLite site."},
+            }
+        ]
+    )
+    mesh = ProviderMesh(
+        providers=(
+            ProviderMeshProviderSpec(
+                provider_id="openrouter",
+                backend_id="openrouter_chat_completions",
+                model_id="z-ai/glm-5.2",
+                client=primary,
+                role="primary",
+            ),
+            ProviderMeshProviderSpec(
+                provider_id="openrouter",
+                backend_id="openrouter_chat_completions",
+                model_id="moonshotai/kimi-k2.7-code",
+                client=fallback,
+                role="fallback_1",
+            ),
+        ),
+        fallback_order=("z-ai/glm-5.2", "moonshotai/kimi-k2.7-code"),
+    )
+
+    result = run_canonical_product_mission(
+        objective="Find official SQLite documentation explaining generated columns and provide a short useful answer.",
+        workspace_root=workspace,
+        model_client=mesh,
+        provider_model="openrouter/z-ai/glm-5.2",
+        kernel=kernel,
+        session_id="c6_provider_mesh_resume",
+        max_provider_decisions=6,
+        max_material_actions=4,
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 1
+    assert engine.open_count == 1
+    assert len(result.receipts) == 1
+    assert result.receipts[0].operation == "real_browser.open"
+    assert fallback.requests
+    resumed_state = fallback.requests[0].canonical_state.safe_model_dump()
+    assert resumed_state["material_action_count"] == 1
+    assert resumed_state["evidence_refs"]
+    assert mesh.safe_transitions[0]["fallback_reason"] == "provider_failure_PROVIDER_RATE_LIMIT_http_429"
+    assert mesh.safe_transitions[0]["requested_model"] == "z-ai/glm-5.2"
+    assert mesh.safe_transitions[0]["actual_model"] == "z-ai/glm-5.2"
+    assert mesh.safe_transitions[0]["next_model"] == "moonshotai/kimi-k2.7-code"
+    assert mesh.safe_transitions[0]["mission_state_hash"] == resumed_state["state_hash"]
+    assert mesh.safe_transitions[0]["previous_receipt_root"]
+    events = kernel.store.load_events(result.root_mission_id)
+    assert any(event.event_type == "canonical_provider_mesh_turn_failed" for event in events)
 
 
 def test_physical_browser_open_blocks_cross_origin_before_engine_call(tmp_path: Path) -> None:

@@ -22,6 +22,7 @@ from sentinel.operator.canonical_browser_readonly_adapter import (
 )
 from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import MissionAuthoritySummary, MissionDraft, OperatorMissionStatus
+from sentinel.operator.provider_mesh import ProviderMeshTurnFailed
 from sentinel.operator.real_browser_control_runtime import BOUNDED_URL_AUTHORITY_REF
 from sentinel.operator.redaction import redact_operator_text, redact_operator_value
 from sentinel.operator.safety import assert_data_not_authority
@@ -773,6 +774,11 @@ class RootMissionRuntime:
                 self.provider_decision_count += 1
                 try:
                     raw_decision = model_client.complete(request)
+                except ProviderMeshTurnFailed as exc:
+                    if self.kernel is None:
+                        raise
+                    self._persist_provider_mesh_turn_failure(exc)
+                    continue
                 except Exception as exc:
                     if self.kernel is None:
                         raise
@@ -1459,6 +1465,35 @@ class RootMissionRuntime:
                 "provider_decision_count": self.provider_decision_count,
                 "material_action_count": self.material_action_count,
             },
+        )
+
+    def _persist_provider_mesh_turn_failure(self, exc: ProviderMeshTurnFailed) -> None:
+        if self.kernel is None:
+            return
+        transition = redact_operator_value(exc.transition)
+        model_visible_transition = {
+            key: value
+            for key, value in transition.items()
+            if key not in {"mission_state_hash"}
+        }
+        observation = {
+            "provider_mesh_turn_terminalized": True,
+            "provider_mesh_transition": model_visible_transition,
+            "provider_decision_count": self.provider_decision_count,
+            "material_action_count": self.material_action_count,
+            "browser_actions_replayed": False,
+            "checkpointed": True,
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        self.recent_observations.append(observation)
+        checkpoint_state_hash = self.compile_state().state_hash
+        transition["mission_state_hash"] = checkpoint_state_hash
+        self.kernel.store.append_event(
+            self.root_mission_id,
+            event_type="canonical_provider_mesh_turn_failed",
+            safe_summary="Provider mesh terminalized one provider turn and checkpointed mission state.",
+            metadata={**observation, "provider_mesh_transition": transition, "mission_state_hash": checkpoint_state_hash},
         )
 
     def _persist_effect_failure(self, exc: Exception, *, failure_stage: str | None = None) -> None:

@@ -1,0 +1,67 @@
+{
+  "wave": "C6_PROVIDER_MESH_AND_RESUMABLE_COGNITIVE_SESSION",
+  "classification": "IMPLEMENTED_LOCAL_CANDIDATE",
+  "provider_calls": 0,
+  "browser_runs": 0,
+  "real_openrouter_calls": 0,
+  "real_nvidia_calls": 0,
+  "openrouter_required": false,
+  "openrouter_auto_enabled": false,
+  "configured_models": {
+    "primary": {
+      "provider_id": "openrouter",
+      "backend_id": "openrouter_chat_completions",
+      "model_id": "z-ai/glm-5.2"
+    },
+    "fallback_1": {
+      "provider_id": "openrouter",
+      "backend_id": "openrouter_chat_completions",
+      "model_id": "moonshotai/kimi-k2.7-code"
+    },
+    "fallback_2": {
+      "provider_id": "openrouter",
+      "backend_id": "openrouter_chat_completions",
+      "model_id": "qwen/qwen3.5-plus-02-15"
+    },
+    "experimental": {
+      "provider_id": "openrouter",
+      "backend_id": "openrouter_chat_completions",
+      "model_id": "nvidia/minimaxai/minimax-m3"
+    }
+  },
+  "provider_mesh_capabilities": [
+    "provider capabilities",
+    "health state",
+    "rate-limit state",
+    "cost policy",
+    "context capacity",
+    "circuit breaker",
+    "explicit fallback order",
+    "actual provider/model provenance"
+  ],
+  "injected_proof": {
+    "provider_a_decision": true,
+    "browser_action_completed_and_receipted": true,
+    "provider_a_rate_limited": true,
+    "cognitive_state_checkpointed": true,
+    "provider_b_resumed": true,
+    "previous_browser_action_replayed": false,
+    "mission_completed_usefully_in_fixture": true,
+    "receipt_count": 1,
+    "provider_decision_turns": 3,
+    "material_actions": 1
+  },
+  "transition_truth": {
+    "fallback_silent": false,
+    "requested_provider_recorded": true,
+    "actual_provider_recorded": true,
+    "requested_model_recorded": true,
+    "actual_model_recorded": true,
+    "fallback_reason_recorded": true,
+    "mission_state_hash_recorded": true,
+    "previous_receipt_root_recorded": true
+  },
+  "raw_provider_material_persisted": false,
+  "fixed_proven": "0/65",
+  "updated_at_utc": "2026-08-13T12:02:41Z"
+}

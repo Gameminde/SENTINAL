@@ -102,6 +102,23 @@ def test_nvidia_catalog_registers_minimax_m3_openai_compatible_route() -> None:
     assert entry.capability_flags.server_side_tools_enabled_by_default is False
 
 
+def test_openrouter_catalog_lists_c6_explicit_models_without_auto_route() -> None:
+    entry = build_default_provider_catalog().get("openrouter")
+    backend = entry.backends[0]
+
+    assert backend.backend_id == "openrouter_chat_completions"
+    assert backend.supports_model("z-ai/glm-5.2")
+    assert backend.supports_model("moonshotai/kimi-k2.7-code")
+    assert backend.supports_model("qwen/qwen3.5-plus-02-15")
+    assert backend.supports_model("nvidia/minimaxai/minimax-m3")
+    assert not backend.supports_model("openrouter/auto")
+    assert "openrouter/auto" not in backend.supported_models
+    assert entry.recommendation is not None
+    assert entry.recommendation.fallback_can_execute is False
+    assert entry.capability_flags.grants_tool_execution is False
+    assert entry.capability_flags.server_side_tools_enabled_by_default is False
+
+
 def test_aliyun_dashscope_endpoint_override_rejects_non_aliyun_hosts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

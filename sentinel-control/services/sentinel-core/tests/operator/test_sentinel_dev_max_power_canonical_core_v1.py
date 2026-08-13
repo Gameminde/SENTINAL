@@ -1790,6 +1790,30 @@ def test_canonical_decision_client_accepts_openai_strict_json_content_with_safe_
     assert "raw_content" not in client.safe_diagnostics[-1]
 
 
+def test_openrouter_canonical_decision_client_uses_generic_openai_compatible_transport(tmp_path: Path) -> None:
+    raw_content = json.dumps(
+        {
+            "capability": "workspace",
+            "operation": "search",
+            "arguments": {"query": "needle"},
+        }
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": raw_content}]),
+        provider_id="openrouter",
+        backend_id="openrouter_chat_completions",
+        model_id="z-ai/glm-5.2",
+    )
+
+    decision = client.complete(_canonical_request(tmp_path))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "workspace"
+    assert decision.selected_operation == "search"
+    assert telemetry["supported_transport_profiles"] == ["strict_json_content", "fenced_strict_json"]
+    assert telemetry["raw_provider_material_persisted"] is False
+
+
 def test_canonical_decision_client_accepts_fenced_json_only_when_profile_allows(
     tmp_path: Path,
 ) -> None:

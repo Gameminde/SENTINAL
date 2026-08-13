@@ -308,6 +308,8 @@ def _default_canonical_transport_profiles(*, provider_id: str, backend_id: str, 
         return ("strict_json_content", "fenced_strict_json")
     if provider_id == "aliyun_dashscope" and backend_id == "aliyun_openai_compatible_chat":
         return ("strict_json_content", "fenced_strict_json")
+    if provider_id == "openrouter" and backend_id == "openrouter_chat_completions":
+        return ("strict_json_content", "fenced_strict_json")
     return ("unsupported",)
 
 
