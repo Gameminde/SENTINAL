@@ -1,0 +1,42 @@
+{
+  "schema_version": "c5b_controlled_live_browser_product_mission_sovereign_v2_safe",
+  "classification": "VALID_FAILED_INFRASTRUCTURE_BEFORE_PROVIDER",
+  "source_head": "d6ed7f46c90a7ace5be3d2c32d48954cb4653194",
+  "mission": {
+    "mission_id": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V2",
+    "objective_hash": "cc49862376b700b1b43e59a9247ffcfd772908555c5bd39f5eaa062fa0c51270",
+    "target_origin": "sqlite.org",
+    "authority": "public_web_read_only",
+    "attempt_consumed": true,
+    "rerun_authorized": false
+  },
+  "provider": {
+    "provider_id": "nvidia",
+    "backend_id": "nvidia_openai_compatible_chat",
+    "model_id": "minimaxai/minimax-m3",
+    "provider_calls": 0,
+    "provider_phase": "NOT_REACHED"
+  },
+  "browser": {
+    "selected_backend_id": "sentinel_chromium",
+    "actual_backend_id": "NOT_REACHED",
+    "browser_launches_actions": 0,
+    "ProductActionKernel_dispatch": 0,
+    "failure_code": "REAL_BROWSER_TEST_URL_CONFIG_MISSING",
+    "failure_stage": "physical_browser_engine_construction",
+    "mission_record_created": false,
+    "proof_root_created": false
+  },
+  "safety": {
+    "raw_provider_output_persisted": false,
+    "raw_dom_persisted": false,
+    "cookies_tokens_secrets_persisted": false,
+    "external_effects": 0,
+    "retry_count": 0
+  },
+  "first_causal_blocker": {
+    "stage": "browser_preflight_before_provider",
+    "safe_interpretation": "The physical browser engine requires a configured bounded test URL before construction; the mission stopped before provider use.",
+    "smallest_next_fix": "Move or satisfy the sovereign browser bounded URL readiness precondition before provider allocation, then authorize a new mission version if desired."
+  }
+}

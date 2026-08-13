@@ -191,7 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "current_wave": "MODEL_FREEDOM_INTENT_BRIDGE_V1",
+  "current_wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V2",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -2696,7 +2696,7 @@
   "fixed_proven_count": 0,
   "fixed_proven_total": 65,
   "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "latest_c5_status": "MODEL_FREEDOM_INTENT_BRIDGE_V1_IMPLEMENTED_LOCAL_CANDIDATE_C5B_V2_PENDING",
+  "latest_c5_status": "C5B_SOVEREIGN_V2_VALID_FAILED_INFRASTRUCTURE_BEFORE_PROVIDER",
   "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
   "latest_pushed_head_before_c5a_timeout_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
   "ledger_commit_classes": {
@@ -4176,7 +4176,7 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-13T09:21:50Z",
+  "updated_at_utc": "2026-08-13T09:26:39Z",
   "minimax_canonical_decision_protocol_alignment_v1": {
     "wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
     "status": "IMPLEMENTED_LOCAL_CANDIDATE",
@@ -4271,8 +4271,8 @@
   "historical_C5B_provider_calls": 1,
   "historical_C5B_product_browser_mission_attempts": 1,
   "pre_sovereign_C5B_attempts": 1,
-  "sovereign_C5B_attempts": 1,
-  "cumulative_C5B_attempts": 2,
+  "sovereign_C5B_attempts": 2,
+  "cumulative_C5B_attempts": 3,
   "pre_sovereign_C5B_provider_calls": 1,
   "sovereign_C5B_provider_calls": 1,
   "cumulative_C5B_provider_calls": 2,
@@ -4390,5 +4390,33 @@
     },
     "c5b_v2_status": "PENDING_OFFLINE_VALIDATION_AND_SINGLE_LIVE_RUN",
     "updated_at_utc": "2026-08-13T09:21:50Z"
+  },
+  "single_spine_c5b_controlled_live_browser_product_mission_sovereign_v2": {
+    "wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V2",
+    "status": "VALID_FAILED_INFRASTRUCTURE_BEFORE_PROVIDER",
+    "source_head": "d6ed7f46c90a7ace5be3d2c32d48954cb4653194",
+    "attempt_consumed": true,
+    "rerun_authorized": false,
+    "provider": {
+      "provider_id": "nvidia",
+      "backend_id": "nvidia_openai_compatible_chat",
+      "model_id": "minimaxai/minimax-m3",
+      "provider_calls": 0,
+      "provider_phase": "NOT_REACHED"
+    },
+    "browser": {
+      "selected_backend_id": "sentinel_chromium",
+      "actual_backend_id": "NOT_REACHED",
+      "ProductActionKernel dispatch": 0,
+      "Browser launches/actions": 0,
+      "failure_code": "REAL_BROWSER_TEST_URL_CONFIG_MISSING",
+      "failure_stage": "physical_browser_engine_construction"
+    },
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V2_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V2/c5b_sovereign_v2.safe.json"
+    ],
+    "fixed_proven": "0/65",
+    "updated_at_utc": "2026-08-13T09:26:39Z"
   }
 }
