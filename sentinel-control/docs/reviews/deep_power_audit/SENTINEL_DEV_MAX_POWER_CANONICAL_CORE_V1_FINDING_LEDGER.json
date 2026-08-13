@@ -191,7 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "current_wave": "MINIMAX_DECISION_PROTOCOL_ONLY_V1",
+  "current_wave": "MODEL_FREEDOM_INTENT_BRIDGE_V1",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -2696,7 +2696,7 @@
   "fixed_proven_count": 0,
   "fixed_proven_total": 65,
   "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "latest_c5_status": "MINIMAX_DECISION_PROTOCOL_ONLY_V1_VALID_REAL_PROVIDER_PROTOCOL_REJECTION",
+  "latest_c5_status": "MODEL_FREEDOM_INTENT_BRIDGE_V1_IMPLEMENTED_LOCAL_CANDIDATE_C5B_V2_PENDING",
   "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
   "latest_pushed_head_before_c5a_timeout_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
   "ledger_commit_classes": {
@@ -4176,7 +4176,7 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-13T08:49:09Z",
+  "updated_at_utc": "2026-08-13T09:21:50Z",
   "minimax_canonical_decision_protocol_alignment_v1": {
     "wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
     "status": "IMPLEMENTED_LOCAL_CANDIDATE",
@@ -4265,7 +4265,7 @@
       "note": "91cad30d was the checked-out HEAD at the start of the alignment tranche; it follows the earlier announced remote checkpoint and precedes d08dc2fe."
     }
   },
-  "current_tranche_provider_calls": 1,
+  "current_tranche_provider_calls": 0,
   "current_tranche_browser_actions": 0,
   "current_tranche_product_action_kernel_dispatches": 0,
   "historical_C5B_provider_calls": 1,
@@ -4293,7 +4293,7 @@
   },
   "minimax_decision_protocol_only_v1": {
     "wave": "MINIMAX_DECISION_PROTOCOL_ONLY_V1",
-    "status": "VALID_REAL_PROVIDER_PROTOCOL_REJECTION",
+    "status": "VALID_REAL_PROVIDER_PROTOCOL_REJECTION_ACCIDENTALLY_CONSUMED_BEFORE_DIRECTION_CORRECTION",
     "authorization": "APPROVED_ONE_PROVIDER_CALL_ONLY",
     "provider": {
       "provider_id": "nvidia",
@@ -4312,7 +4312,7 @@
     "external_effects": 0,
     "fixed_proven": "0/65",
     "documentation_correction_committed_with_probe": true,
-    "updated_at_utc": "2026-08-13T08:49:09Z",
+    "updated_at_utc": "2026-08-13T09:21:50Z",
     "classification": "REJECTED_CANONICAL_DECISION_TRANSPORT",
     "retries_consumed": 0,
     "raw_provider_material_persisted": false,
@@ -4347,6 +4347,48 @@
     "c5b_v2_authorized": false,
     "proof_artifacts": [
       "sentinel-control/docs/reviews/deep_power_audit/MINIMAX_DECISION_PROTOCOL_ONLY_V1/minimax_decision_protocol_only.safe.json"
-    ]
+    ],
+    "not_c5b": "true",
+    "preserved_because_provider_call_occurred": true
+  },
+  "model_freedom_intent_bridge_v1": {
+    "wave": "MODEL_FREEDOM_INTENT_BRIDGE_V1",
+    "status": "IMPLEMENTED_LOCAL_CANDIDATE",
+    "doctrine": "CanonicalDecision is internal compiler output, not a model-facing contract.",
+    "provider_calls": 0,
+    "ProductActionKernel dispatch": 0,
+    "Browser launches/actions": 0,
+    "fixed_proven": "0/65",
+    "inputs_supported_offline": [
+      "native_tool_call",
+      "canonical JSON",
+      "partial JSON",
+      "affordance_id",
+      "function-like expression",
+      "ReAct-style action",
+      "explicit natural-language intent",
+      "final answer"
+    ],
+    "selection_rules": {
+      "single_compatible_affordance": "compile to CanonicalDecision",
+      "multiple_compatible_affordances": "reject as ambiguous_intent",
+      "missing_material_arguments": "reject as invalid_arguments",
+      "unknown_or_unavailable_route": "reject before ProductActionKernel",
+      "authority_expansion": "not representable by bridge output"
+    },
+    "selection_basis_supported": [
+      "explicit_native_tool",
+      "explicit_action_name",
+      "explicit_affordance_id",
+      "unique_schema_compatible_candidate",
+      "unique_semantic_candidate",
+      "explicit_final_answer"
+    ],
+    "tests": {
+      "model_expression_bridge_cases": "6 passed",
+      "canonical_decision_transport_group": "23 passed"
+    },
+    "c5b_v2_status": "PENDING_OFFLINE_VALIDATION_AND_SINGLE_LIVE_RUN",
+    "updated_at_utc": "2026-08-13T09:21:50Z"
   }
 }

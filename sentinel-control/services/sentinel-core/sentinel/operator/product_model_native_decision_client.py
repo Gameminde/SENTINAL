@@ -58,6 +58,15 @@ class _CanonicalDecisionTransportDecode:
     rejection_reason: str = ""
 
 
+@dataclass(frozen=True)
+class _CandidateIntent:
+    payload: dict[str, Any]
+    source_expression_type: str
+    extraction_method: str
+    origin_chain: list[str]
+    source_hash: str = ""
+
+
 class ProductModelClient(Protocol):
     def complete(self, request: Any) -> Any:
         ...
@@ -321,26 +330,58 @@ def decode_canonical_decision_transport(
     if _native_tool_calls_present(raw) and "native_tool_call" not in profiles:
         return _rejected_decode(telemetry, "unsupported_transport")
 
-    candidates: list[tuple[str, dict[str, Any], list[str]]] = []
+    candidates: list[_CandidateIntent] = []
     if "native_tool_call" in profiles:
         tool_result = _canonical_payload_from_native_tool_call(raw)
         if tool_result[0]:
             return _rejected_decode(telemetry, str(tool_result[0]))
         if tool_result[1] is not None:
-            candidates.append(("native_tool_call", tool_result[1], tool_result[2]))
+            candidates.append(
+                _CandidateIntent(
+                    payload=tool_result[1],
+                    source_expression_type="native_tool_call",
+                    extraction_method="native_tool_call",
+                    origin_chain=tool_result[2],
+                    source_hash=stable_hash(_canonical_response_shape_telemetry(raw)),
+                )
+            )
     content = _canonical_visible_content(raw)
     if content is not None and "strict_json_content" in profiles:
         strict_result = _canonical_payload_from_strict_json_content(content)
         if strict_result[0] and "fenced_strict_json" not in profiles:
-            return _rejected_decode(telemetry, str(strict_result[0]))
+            expression_candidates = _candidate_intents_from_freeform_content(content)
+            if not expression_candidates:
+                return _rejected_decode(telemetry, str(strict_result[0]))
+            candidates.extend(expression_candidates)
         if strict_result[1] is not None:
-            candidates.append(("strict_json_content", strict_result[1], ["provider_transport:strict_json_content"]))
+            candidates.append(
+                _CandidateIntent(
+                    payload=strict_result[1],
+                    source_expression_type=_json_source_expression_type(strict_result[1]),
+                    extraction_method="strict_json_content",
+                    origin_chain=["provider_transport:strict_json_content"],
+                    source_hash=text_hash(content),
+                )
+            )
     if content is not None and "fenced_strict_json" in profiles:
         fenced_result = _canonical_payload_from_fenced_json_content(content)
         if fenced_result[0] and "strict_json_content" not in profiles:
-            return _rejected_decode(telemetry, str(fenced_result[0]))
+            expression_candidates = _candidate_intents_from_freeform_content(content)
+            if not expression_candidates:
+                return _rejected_decode(telemetry, str(fenced_result[0]))
+            candidates.extend(expression_candidates)
         if fenced_result[1] is not None:
-            candidates.append(("fenced_strict_json", fenced_result[1], ["provider_transport:fenced_strict_json"]))
+            candidates.append(
+                _CandidateIntent(
+                    payload=fenced_result[1],
+                    source_expression_type=_json_source_expression_type(fenced_result[1]),
+                    extraction_method="fenced_strict_json",
+                    origin_chain=["provider_transport:fenced_strict_json"],
+                    source_hash=text_hash(content),
+                )
+            )
+    if not candidates and content is not None:
+        candidates.extend(_candidate_intents_from_freeform_content(content))
 
     if len(candidates) > 1:
         return _rejected_decode(telemetry, "multiple_candidate_decisions")
@@ -351,38 +392,11 @@ def decode_canonical_decision_transport(
             return _rejected_decode(telemetry, "malformed_json")
         return _rejected_decode(telemetry, "narrative_only_response")
 
-    stage, payload, origin_chain = candidates[0]
-    normalized_payload = dict(payload)
-    capability = str(
-        normalized_payload.get("capability") or normalized_payload.get("selected_capability") or ""
-    ).strip()
-    operation = str(
-        normalized_payload.get("operation") or normalized_payload.get("selected_operation") or ""
-    ).strip()
-    if not capability:
-        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "capability_missing")
-    if not operation:
-        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "operation_missing")
-    route_status = _canonical_route_status(request, capability=capability, operation=operation)
-    if route_status == "unknown_capability":
-        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "unknown_capability")
-    if route_status == "unavailable_operation":
-        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "unavailable_operation")
-    route_schema = _canonical_route_schema(request, capability=capability, operation=operation)
-    arguments = normalized_payload.get("arguments", normalized_payload.get("params", {}))
-    if not isinstance(arguments, dict) or _validate_canonical_decision_arguments(
-        arguments,
-        arguments_schema=route_schema.get("arguments_schema"),
-    ):
-        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "invalid_arguments")
-    telemetry = _telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain)
-    telemetry["decision_origin_chain"] = [
-        *origin_chain,
-        "capability_graph_route_verified",
-        "arguments_schema_verified",
-        "decision_origin:model_selected",
-    ]
-    return _CanonicalDecisionTransportDecode(payload=normalized_payload, telemetry=telemetry)
+    return _compile_candidate_intent(
+        request=request,
+        telemetry=telemetry,
+        intent=candidates[0],
+    )
 
 
 def _canonical_provider_failure_code(raw: dict[str, Any]) -> str:
@@ -425,6 +439,521 @@ def _telemetry_with_payload(
     updated["typed_rejection_reason"] = ""
     updated["decision_origin_chain"] = list(origin_chain)
     return updated
+
+
+def _compile_candidate_intent(
+    *,
+    request: Any,
+    telemetry: dict[str, Any],
+    intent: _CandidateIntent,
+) -> _CanonicalDecisionTransportDecode:
+    payload = dict(intent.payload)
+    arguments = _candidate_arguments(payload)
+    answer = _candidate_final_answer(payload)
+    capability_hint = _candidate_capability_hint(payload)
+    operation_hint = _candidate_operation_hint(payload)
+    if answer and not capability_hint and not operation_hint:
+        capability_hint = "sentinel_loop"
+        operation_hint = "finish"
+        arguments = {"answer": answer}
+        selection_basis_hint = "explicit_final_answer"
+    elif _candidate_explicit_affordance(payload):
+        selection_basis_hint = "explicit_affordance_id"
+    elif capability_hint or operation_hint:
+        selection_basis_hint = "explicit_action_name"
+    else:
+        selection_basis_hint = "unique_schema_compatible_candidate"
+
+    matches = _compatible_route_matches(
+        request,
+        capability_hint=capability_hint,
+        operation_hint=operation_hint,
+        arguments=arguments,
+    )
+    base_telemetry = _telemetry_with_payload(
+        telemetry,
+        intent.extraction_method,
+        payload,
+        intent.origin_chain,
+    )
+    base_telemetry.update(
+        {
+            "source_expression_type": intent.source_expression_type,
+            "extraction_method": intent.extraction_method,
+            "candidate_count": len(matches),
+            "selection_basis": selection_basis_hint,
+            "ambiguity_status": "unknown",
+            "source_hash": intent.source_hash,
+        }
+    )
+    if not matches:
+        if capability_hint and _capability_known(request, capability_hint) is False:
+            return _rejected_decode(base_telemetry, "unknown_capability")
+        if operation_hint and _operation_known(request, operation_hint) is False:
+            return _rejected_decode(base_telemetry, "unavailable_operation")
+        if capability_hint or operation_hint:
+            return _rejected_decode(base_telemetry, "invalid_arguments")
+        if arguments:
+            return _rejected_decode(base_telemetry, "invalid_arguments")
+        return _rejected_decode(base_telemetry, "narrative_only_response")
+    if len(matches) > 1:
+        ambiguous = dict(base_telemetry)
+        ambiguous["ambiguity_status"] = "ambiguous"
+        ambiguous["candidate_affordances"] = [match["route"]["affordance"] for match in matches]
+        return _rejected_decode(ambiguous, "ambiguous_intent")
+
+    match = matches[0]
+    route = match["route"]
+    normalized_arguments = match["arguments"]
+    selection_basis = selection_basis_hint
+    if selection_basis == "unique_schema_compatible_candidate" and intent.source_expression_type == "natural_language_intent":
+        selection_basis = "unique_semantic_candidate"
+    normalized_payload = {
+        **payload,
+        "capability": route["capability"],
+        "operation": route["operation"],
+        "arguments": normalized_arguments,
+    }
+    compiled = _telemetry_with_payload(
+        telemetry,
+        intent.extraction_method,
+        normalized_payload,
+        intent.origin_chain,
+    )
+    compiled.update(
+        {
+            "source_expression_type": intent.source_expression_type,
+            "extraction_method": intent.extraction_method,
+            "candidate_count": 1,
+            "selection_basis": selection_basis,
+            "selected_affordance": route["affordance"],
+            "ambiguity_status": "unambiguous",
+            "source_hash": intent.source_hash,
+            "argument_aliases_applied": match["argument_aliases_applied"],
+            "typed_rejection_reason": "",
+            "decision_origin_chain": [
+                *intent.origin_chain,
+                f"source_expression_type:{intent.source_expression_type}",
+                f"extraction_method:{intent.extraction_method}",
+                f"candidate_count:{len(matches)}",
+                f"selection_basis:{selection_basis}",
+                f"selected_affordance:{route['affordance']}",
+                "capability_graph_route_verified",
+                "arguments_schema_verified",
+                "decision_origin:model_selected",
+            ],
+        }
+    )
+    return _CanonicalDecisionTransportDecode(payload=normalized_payload, telemetry=compiled)
+
+
+def _json_source_expression_type(payload: dict[str, Any]) -> str:
+    if _candidate_final_answer(payload):
+        return "final_answer"
+    if _candidate_capability_hint(payload) and _candidate_operation_hint(payload):
+        return "canonical_json"
+    if _candidate_explicit_affordance(payload):
+        return "affordance_id"
+    return "partial_json"
+
+
+def _candidate_intents_from_freeform_content(content: str) -> list[_CandidateIntent]:
+    stripped = content.strip()
+    if not stripped:
+        return []
+    action = _extract_react_action(stripped)
+    if action is not None:
+        return [
+            _CandidateIntent(
+                payload=action,
+                source_expression_type="react_action",
+                extraction_method="react_style_action",
+                origin_chain=["provider_transport:freeform_text", "model_expression:react_action"],
+                source_hash=text_hash(content),
+            )
+        ]
+    function_like = _extract_function_like_action(stripped)
+    if function_like is not None:
+        return [
+            _CandidateIntent(
+                payload=function_like,
+                source_expression_type="function_like_expression",
+                extraction_method="function_like_expression",
+                origin_chain=["provider_transport:freeform_text", "model_expression:function_like_expression"],
+                source_hash=text_hash(content),
+            )
+        ]
+    yaml_like = _extract_yaml_like_action(stripped)
+    if yaml_like is not None:
+        return [
+            _CandidateIntent(
+                payload=yaml_like,
+                source_expression_type="yaml_action",
+                extraction_method="yaml_like_action",
+                origin_chain=["provider_transport:freeform_text", "model_expression:yaml_action"],
+                source_hash=text_hash(content),
+            )
+        ]
+    xml_like = _extract_xml_like_action(stripped)
+    if xml_like is not None:
+        return [
+            _CandidateIntent(
+                payload=xml_like,
+                source_expression_type="xml_action",
+                extraction_method="xml_like_action",
+                origin_chain=["provider_transport:freeform_text", "model_expression:xml_action"],
+                source_hash=text_hash(content),
+            )
+        ]
+    final = _extract_final_answer(stripped)
+    if final:
+        return [
+            _CandidateIntent(
+                payload={"answer": final},
+                source_expression_type="final_answer",
+                extraction_method="explicit_final_answer",
+                origin_chain=["provider_transport:freeform_text", "model_expression:final_answer"],
+                source_hash=text_hash(content),
+            )
+        ]
+    natural = _extract_explicit_natural_language_intent(stripped)
+    if natural is not None:
+        return [
+            _CandidateIntent(
+                payload=natural,
+                source_expression_type="natural_language_intent",
+                extraction_method="explicit_natural_language_intent",
+                origin_chain=["provider_transport:freeform_text", "model_expression:natural_language_intent"],
+                source_hash=text_hash(content),
+            )
+        ]
+    return []
+
+
+def _extract_react_action(content: str) -> dict[str, Any] | None:
+    action_match = re.search(r"(?im)^\s*Action\s*:\s*([A-Za-z0-9_.-]+)\s*$", content)
+    if action_match is None:
+        return None
+    action = action_match.group(1).strip()
+    arguments = _extract_named_arguments_block(content) or {}
+    return {"operation": action, "arguments": arguments}
+
+
+def _extract_function_like_action(content: str) -> dict[str, Any] | None:
+    match = re.fullmatch(r"\s*([A-Za-z_][\w.:-]*)\s*\((.*)\)\s*", content, flags=re.DOTALL)
+    if match is None:
+        return None
+    action = match.group(1).strip()
+    arguments = _parse_function_arguments(match.group(2).strip())
+    if arguments is None:
+        return None
+    return {"operation": action, "arguments": arguments}
+
+
+def _extract_yaml_like_action(content: str) -> dict[str, Any] | None:
+    action_match = re.search(r"(?im)^\s*(?:action|affordance|operation)\s*:\s*([A-Za-z0-9_.-]+)\s*$", content)
+    if action_match is None:
+        return None
+    arguments = _extract_named_arguments_block(content) or {}
+    return {"operation": action_match.group(1).strip(), "arguments": arguments}
+
+
+def _extract_xml_like_action(content: str) -> dict[str, Any] | None:
+    match = re.search(
+        r"<action(?:\s+name=[\"']([^\"']+)[\"'])?\s*>(.*?)</action>",
+        content,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    if match is None:
+        return None
+    action = str(match.group(1) or "").strip()
+    body = match.group(2).strip()
+    arguments = _parse_json_object(body) or _extract_named_arguments_block(content) or {}
+    return {"operation": action, "arguments": arguments}
+
+
+def _extract_final_answer(content: str) -> str:
+    match = re.search(r"(?is)^\s*(?:final\s+answer|answer|réponse\s+finale)\s*:\s*(.+)$", content)
+    if match is None:
+        return ""
+    answer = match.group(1).strip()
+    return answer if answer else ""
+
+
+def _extract_explicit_natural_language_intent(content: str) -> dict[str, Any] | None:
+    lowered = content.lower()
+    open_match = re.search(
+        r"\b(?:open|navigate(?:\s+to)?|visit|go\s+to)\s+(https?://[^\s\"']+|[A-Za-z0-9.-]+\.[A-Za-z]{2,})",
+        content,
+        flags=re.IGNORECASE,
+    )
+    if open_match is not None:
+        return {"operation": "real_browser.open", "arguments": {"target_origin": open_match.group(1).strip()}}
+    search_match = re.search(r"\bsearch\s+(?:for\s+)?[\"“](.+?)[\"”]", content, flags=re.IGNORECASE)
+    if search_match is not None:
+        return {"operation": "search", "arguments": {"query": search_match.group(1).strip()}}
+    if lowered.startswith("finish with "):
+        return {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": content[12:].strip()}}
+    return None
+
+
+def _extract_named_arguments_block(content: str) -> dict[str, Any] | None:
+    match = re.search(r"(?is)(?:Arguments|Args|Input|Params)\s*:\s*(\{.*\})\s*$", content)
+    if match is None:
+        return None
+    return _parse_json_object(match.group(1))
+
+
+def _parse_json_object(value: str) -> dict[str, Any] | None:
+    try:
+        loaded = json.loads(value.strip())
+    except json.JSONDecodeError:
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def _parse_function_arguments(value: str) -> dict[str, Any] | None:
+    if not value:
+        return {}
+    if value.startswith("{"):
+        return _parse_json_object(value)
+    arguments: dict[str, Any] = {}
+    for part in _split_function_argument_parts(value):
+        if not part:
+            continue
+        if "=" not in part:
+            return None
+        key, raw = part.split("=", 1)
+        key = key.strip()
+        if not key:
+            return None
+        parsed = _parse_scalar_argument(raw.strip())
+        arguments[key] = parsed
+    return arguments
+
+
+def _split_function_argument_parts(value: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    quote = ""
+    escape = False
+    for char in value:
+        if escape:
+            current.append(char)
+            escape = False
+            continue
+        if char == "\\":
+            current.append(char)
+            escape = True
+            continue
+        if quote:
+            current.append(char)
+            if char == quote:
+                quote = ""
+            continue
+        if char in {"'", '"'}:
+            current.append(char)
+            quote = char
+            continue
+        if char == ",":
+            parts.append("".join(current).strip())
+            current = []
+            continue
+        current.append(char)
+    parts.append("".join(current).strip())
+    return parts
+
+
+def _parse_scalar_argument(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        stripped = value.strip()
+        if len(stripped) >= 2 and stripped[0] == stripped[-1] and stripped[0] in {"'", '"'}:
+            return stripped[1:-1]
+        return stripped
+
+
+def _candidate_arguments(payload: dict[str, Any]) -> dict[str, Any]:
+    arguments = payload.get("arguments", payload.get("params"))
+    if isinstance(arguments, dict):
+        return dict(arguments)
+    control_keys = {
+        "action",
+        "affordance",
+        "affordance_id",
+        "answer",
+        "capability",
+        "final_answer",
+        "intent",
+        "name",
+        "operation",
+        "selected_capability",
+        "selected_operation",
+        "skill",
+        "tool",
+    }
+    if not any(key in payload for key in control_keys):
+        return dict(payload)
+    return {}
+
+
+def _candidate_final_answer(payload: dict[str, Any]) -> str:
+    for key in ("final_answer", "answer"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _candidate_capability_hint(payload: dict[str, Any]) -> str:
+    for key in ("capability", "selected_capability", "skill"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return _canonical_capability_alias(value)
+    return ""
+
+
+def _candidate_operation_hint(payload: dict[str, Any]) -> str:
+    for key in ("operation", "selected_operation", "action", "affordance_id", "affordance", "tool", "intent", "name"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return _canonical_operation_alias(value)
+    return ""
+
+
+def _candidate_explicit_affordance(payload: dict[str, Any]) -> str:
+    value = payload.get("affordance_id", payload.get("affordance"))
+    return str(value or "").strip()
+
+
+def _compatible_route_matches(
+    request: Any,
+    *,
+    capability_hint: str,
+    operation_hint: str,
+    arguments: dict[str, Any],
+) -> list[dict[str, Any]]:
+    routes = _visible_routes(request)
+    hinted_routes = _routes_matching_hints(routes, capability_hint=capability_hint, operation_hint=operation_hint)
+    candidate_routes = hinted_routes if (capability_hint or operation_hint) else routes
+    matches: list[dict[str, Any]] = []
+    for route in candidate_routes:
+        normalized_arguments, aliases = _normalize_arguments_for_route(route, arguments)
+        if _validate_canonical_decision_arguments(
+            normalized_arguments,
+            arguments_schema=route.get("arguments_schema"),
+        ):
+            continue
+        matches.append({"route": route, "arguments": normalized_arguments, "argument_aliases_applied": aliases})
+    return matches
+
+
+def _visible_routes(request: Any) -> list[dict[str, Any]]:
+    routes: list[dict[str, Any]] = []
+    for schema in request.canonical_state.model_visible_operation_schemas:
+        if isinstance(schema, dict):
+            routes.append(dict(schema))
+    return routes
+
+
+def _routes_matching_hints(
+    routes: list[dict[str, Any]],
+    *,
+    capability_hint: str,
+    operation_hint: str,
+) -> list[dict[str, Any]]:
+    normalized_capability = _canonical_capability_alias(capability_hint)
+    normalized_operation = _canonical_operation_alias(operation_hint)
+    matches: list[dict[str, Any]] = []
+    for route in routes:
+        capability = str(route.get("capability") or "")
+        operation = str(route.get("operation") or "")
+        affordance = str(route.get("affordance") or f"{capability}.{operation}")
+        if normalized_capability and capability != normalized_capability:
+            continue
+        if normalized_operation and not _operation_hint_matches_route(normalized_operation, operation, affordance):
+            continue
+        matches.append(route)
+    return matches
+
+
+def _operation_hint_matches_route(hint: str, operation: str, affordance: str) -> bool:
+    if hint == affordance or hint == operation:
+        return True
+    if "." not in hint:
+        return operation.split(".")[-1] == hint or affordance.split(".")[-1] == hint
+    return operation.endswith(f".{hint}") or affordance.endswith(f".{hint}")
+
+
+def _canonical_capability_alias(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_")
+    aliases = {
+        "browser": "real_browser_control",
+        "real_browser": "real_browser_control",
+        "real_browser_control": "real_browser_control",
+        "workspace": "workspace",
+        "sentinel": "sentinel_loop",
+        "sentinel_loop": "sentinel_loop",
+        "finish": "sentinel_loop",
+    }
+    return aliases.get(normalized, value.strip())
+
+
+def _canonical_operation_alias(value: str) -> str:
+    normalized = value.strip()
+    lowered = normalized.lower()
+    aliases = {
+        "browser.open": "real_browser.open",
+        "browser.observe": "real_browser.observe",
+        "browser.search": "real_browser.search",
+        "browser.follow": "real_browser.open_result",
+        "browser.open_result": "real_browser.open_result",
+        "browser.inspect": "real_browser.inspect_result",
+        "browser.extract": "real_browser.extract_evidence",
+        "browser.extract_evidence": "real_browser.extract_evidence",
+        "browser.verify": "real_browser.verify_extraction",
+        "browser.recover": "real_browser.recover_session",
+    }
+    return aliases.get(lowered, normalized)
+
+
+def _normalize_arguments_for_route(route: dict[str, Any], arguments: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
+    normalized = dict(arguments)
+    aliases_applied: dict[str, str] = {}
+    alias_map = _argument_aliases_for_route(route)
+    for source, target in alias_map.items():
+        if source in normalized and target not in normalized:
+            normalized[target] = normalized.pop(source)
+            aliases_applied[source] = target
+    return normalized, aliases_applied
+
+
+def _argument_aliases_for_route(route: dict[str, Any]) -> dict[str, str]:
+    affordance = str(route.get("affordance") or "")
+    operation = str(route.get("operation") or "")
+    if affordance == "real_browser_control.real_browser.open" or operation == "real_browser.open":
+        return {"url": "target_origin", "origin": "target_origin", "target": "target_origin"}
+    if affordance == "workspace.read" or operation == "read":
+        return {"file": "path", "filepath": "path"}
+    return {}
+
+
+def _capability_known(request: Any, capability: str) -> bool:
+    normalized = _canonical_capability_alias(capability)
+    return any(str(route.get("capability") or "") == normalized for route in _visible_routes(request))
+
+
+def _operation_known(request: Any, operation: str) -> bool:
+    normalized = _canonical_operation_alias(operation)
+    return any(
+        _operation_hint_matches_route(
+            normalized,
+            str(route.get("operation") or ""),
+            str(route.get("affordance") or ""),
+        )
+        for route in _visible_routes(request)
+    )
 
 
 def _canonical_response_shape_telemetry(raw: Any) -> dict[str, Any]:
@@ -817,10 +1346,14 @@ def _compile_canonical_product_prompt(request: Any) -> str:
     )
     return (
         "You are the model brain. Sentinel is the body, state, effects, proof, and laws.\n"
-        "Choose exactly one safe next operation for this read-only workspace mission.\n"
-        "Return exactly one JSON object and no markdown.\n"
+        "Choose exactly one safe next intent for this read-only mission, or provide a final answer when evidence supports it.\n"
+        "You do not need to speak Sentinel's internal IR. Express the intent clearly; Sentinel will compile it only if it is unambiguous and authorized.\n"
         "Allowed operations are generated from Sentinel's executable capability graph:\n"
         f"{json.dumps(operation_schemas, sort_keys=True, default=str)}\n"
+        "Accepted expression styles include native tool calls when advertised, strict JSON, fenced JSON, "
+        "Action: <affordance> with Arguments JSON, function-like calls such as browser.open(url=\"...\"), "
+        "explicit natural-language intents, or Final answer: <answer>.\n"
+        "If more than one operation could match your expression, Sentinel will ask for a clearer next intent instead of guessing.\n"
         f"{capability_boundary}"
         "Finish only after a prior receipt/evidence ref supports the answer.\n"
         f"Mission objective: {request.canonical_state.objective}\n"

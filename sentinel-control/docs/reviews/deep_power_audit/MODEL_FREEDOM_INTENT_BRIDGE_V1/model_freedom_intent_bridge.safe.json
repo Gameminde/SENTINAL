@@ -1,0 +1,88 @@
+{
+  "schema_version": "model_freedom_intent_bridge_v1_safe",
+  "classification": "IMPLEMENTED_LOCAL_CANDIDATE",
+  "doctrine": "CanonicalDecision is internal compiler output, not a model-facing contract.",
+  "provider_calls": 0,
+  "ProductActionKernel_dispatch": 0,
+  "Browser_launches_actions": 0,
+  "FIXED_PROVEN": "0/65",
+  "bridge_flow": [
+    "ModelExpression",
+    "CandidateIntent",
+    "ExecutableCapabilityGraph validation",
+    "CanonicalDecision internal compiler output",
+    "ProductActionKernel governed effect boundary"
+  ],
+  "accepted_expression_fixtures": [
+    "native_tool_call",
+    "canonical_json",
+    "partial_json_arguments_only_unique_schema_candidate",
+    "function_like_expression",
+    "react_style_action",
+    "final_answer"
+  ],
+  "rejection_fixtures": [
+    "partial_json_arguments_only_ambiguous",
+    "missing_material_arguments",
+    "unsupported_transport",
+    "malformed_json",
+    "narrative_only_response",
+    "unknown_capability",
+    "unavailable_operation",
+    "invalid_arguments"
+  ],
+  "selection_basis_supported": [
+    "explicit_native_tool",
+    "explicit_action_name",
+    "explicit_affordance_id",
+    "unique_schema_compatible_candidate",
+    "unique_semantic_candidate",
+    "explicit_final_answer"
+  ],
+  "safety_invariants": {
+    "new_capability_created": false,
+    "material_argument_invented": false,
+    "authority_elevation": false,
+    "ambiguous_candidate_selected": false,
+    "minimax_specific_parser": false,
+    "playwright_exposed_to_model": false
+  },
+  "validation": [
+    {
+      "command": "py -3.13 -m pytest tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py -k \"model_expression_bridge\" -q",
+      "result": "6 passed"
+    },
+    {
+      "command": "py -3.13 -m pytest tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py -k \"canonical_decision_client_accepts_openai_strict_json_content or canonical_decision_client_accepts_fenced_json_only_when_profile_allows or canonical_decision_client_accepts_native_tool_call_only_when_profile_allows or canonical_decision_transport_rejects_partial_or_ambiguous_outputs or canonical_decision_transport_rejects_unadvertised_tool_call_without_inventing_action or unknown_provider_profile_is_unsupported_without_silent_json_assumption or model_expression_bridge or product_model_native_decision_client_can_emit_canonical_decision or public_product_cli_real_provider_mode_uses_product_native_transport or provider_failure_diagnostics_preserve_safe_auth_cause\" -q",
+      "result": "23 passed"
+    },
+    {
+      "command": "py -3.13 -m pytest tests/test_real_model_execution_nvidia.py tests/test_model_provider_catalog.py::test_nvidia_catalog_registers_minimax_m3_openai_compatible_route -q",
+      "result": "7 passed"
+    },
+    {
+      "command": "py -3.13 -m compileall -q sentinel",
+      "result": "passed"
+    },
+    {
+      "command": "JSON parse of ledger and safe artifacts",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "high-confidence secret scan over changed files",
+      "result": "passed"
+    },
+    {
+      "command": "docs raw-material field scan",
+      "result": "passed"
+    }
+  ],
+  "c5b_v2": {
+    "authorized_after_offline_gates": true,
+    "executed_in_this_artifact": false
+  }
+}

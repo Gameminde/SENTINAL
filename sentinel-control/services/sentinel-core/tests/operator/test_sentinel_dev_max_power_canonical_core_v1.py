@@ -14,14 +14,17 @@ from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel import cli
 from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
 from sentinel.operator.canonical_core import (
+    CanonicalCapabilityRoute,
     CanonicalDecision,
     CanonicalCoreError,
     CanonicalDecisionRequest,
     DecisionOrigin,
     DecisionProtocol,
     EffectKind,
+    ExecutableCapabilityGraph,
     RootMissionRuntime,
     RootMissionCancellationToken,
+    build_workspace_browser_readonly_capability_graph,
     build_workspace_read_capability_graph,
     run_canonical_dev_mission,
     run_canonical_product_mission,
@@ -1670,6 +1673,10 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     ]
     prompt = captured_requests[0].prompt_text_in_memory_only
     assert "Allowed operations are generated from Sentinel's executable capability graph" in prompt
+    assert "You do not need to speak Sentinel's internal IR" in prompt
+    assert "Action: <affordance>" in prompt
+    assert "function-like calls such as browser.open" in prompt
+    assert "Return exactly one JSON object" not in prompt
     assert "model_visible_operation_schemas" in prompt
     assert "workspace.search" in prompt
     assert "- {\"capability\":\"workspace\"" not in prompt
@@ -1849,13 +1856,14 @@ def test_canonical_decision_client_accepts_native_tool_call_only_when_profile_al
     assert telemetry["tool_calls_present"] is True
     assert telemetry["tool_calls_count"] == 1
     assert telemetry["extraction_stage"] == "native_tool_call"
-    assert telemetry["decision_origin_chain"] == [
+    assert telemetry["decision_origin_chain"][:2] == [
         "provider_transport:native_tool_call",
         "tool_name_explicitly_encoded_capability_operation",
-        "capability_graph_route_verified",
-        "arguments_schema_verified",
-        "decision_origin:model_selected",
     ]
+    assert "selection_basis:explicit_action_name" in telemetry["decision_origin_chain"]
+    assert "capability_graph_route_verified" in telemetry["decision_origin_chain"]
+    assert "arguments_schema_verified" in telemetry["decision_origin_chain"]
+    assert telemetry["decision_origin_chain"][-1] == "decision_origin:model_selected"
 
 
 @pytest.mark.parametrize(
@@ -1869,8 +1877,6 @@ def test_canonical_decision_client_accepts_native_tool_call_only_when_profile_al
         ({"choices": [{"message": {"role": "assistant"}}]}, ("strict_json_content",), "content_absent"),
         ({"content": '{"capability":"workspace","operation":"search","arguments":'}, ("strict_json_content",), "malformed_json"),
         ({"content": "I will search for the answer."}, ("strict_json_content",), "narrative_only_response"),
-        ({"content": '{"operation":"search","arguments":{"query":"needle"}}'}, ("strict_json_content",), "capability_missing"),
-        ({"content": '{"capability":"workspace","arguments":{"query":"needle"}}'}, ("strict_json_content",), "operation_missing"),
         (
             {"content": '{"capability":"shell","operation":"run","arguments":{"query":"needle"}}'},
             ("strict_json_content",),
@@ -2008,6 +2014,161 @@ def test_unknown_provider_profile_is_unsupported_without_silent_json_assumption(
     assert client.safe_diagnostics[-1]["mapped_action"] is None
 
 
+def test_model_expression_bridge_accepts_arguments_only_when_one_schema_candidate_exists(tmp_path: Path) -> None:
+    graph = ExecutableCapabilityGraph(
+        routes=(
+            _probe_route("select", required=("signal",), properties={"signal": {"type": "string"}}),
+        )
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"arguments":{"signal":"ready"}}'}]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    decision = client.complete(_canonical_request(tmp_path, capability_graph=graph))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "protocol_probe"
+    assert decision.selected_operation == "select"
+    assert decision.arguments == {"signal": "ready"}
+    assert telemetry["selection_basis"] == "unique_schema_compatible_candidate"
+    assert telemetry["candidate_count"] == 1
+    assert telemetry["source_expression_type"] == "partial_json"
+
+
+def test_model_expression_bridge_rejects_arguments_only_when_schema_candidate_is_ambiguous(tmp_path: Path) -> None:
+    graph = ExecutableCapabilityGraph(
+        routes=(
+            _probe_route(
+                "select",
+                required=("signal",),
+                properties={"signal": {"type": "string"}},
+            ),
+            CanonicalCapabilityRoute(
+                capability="alternate_probe",
+                operation="select",
+                executor_id="alternate_probe.select",
+                effect_kind=EffectKind.PROPOSAL,
+                backend_mode="test_only_no_executor",
+                required_authority="none",
+                arguments_schema={
+                    "type": "object",
+                    "properties": {"signal": {"type": "string"}},
+                    "required": ["signal"],
+                    "additionalProperties": False,
+                },
+                preconditions=("test_only",),
+                readiness_probe="always_available",
+                materiality_verifier="none",
+                proof_contract="test_only",
+                recovery_policy="none",
+                cleanup_contract="none",
+            ),
+        )
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"arguments":{"signal":"ready"}}'}]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    with pytest.raises(ActionKernelError, match="ambiguous_intent"):
+        client.complete(_canonical_request(tmp_path, capability_graph=graph))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["typed_rejection_reason"] == "ambiguous_intent"
+    assert telemetry["candidate_count"] == 2
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
+def test_model_expression_bridge_accepts_function_like_browser_intent_without_playwright_exposure(
+    tmp_path: Path,
+) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": 'browser.open(url="https://sqlite.org")'}]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content", "fenced_strict_json"),
+    )
+
+    decision = client.complete(
+        _canonical_request(tmp_path, capability_graph=build_workspace_browser_readonly_capability_graph())
+    )
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "real_browser_control"
+    assert decision.selected_operation == "real_browser.open"
+    assert decision.arguments == {"target_origin": "https://sqlite.org"}
+    assert telemetry["selection_basis"] == "explicit_action_name"
+    assert telemetry["argument_aliases_applied"] == {"url": "target_origin"}
+    assert "playwright" not in str(telemetry).lower()
+
+
+def test_model_expression_bridge_accepts_react_style_action_with_json_arguments(tmp_path: Path) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient(
+            [{"content": 'Action: real_browser.open\nArguments: {"target_origin":"sqlite.org"}'}]
+        ),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content", "fenced_strict_json"),
+    )
+
+    decision = client.complete(
+        _canonical_request(tmp_path, capability_graph=build_workspace_browser_readonly_capability_graph())
+    )
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "real_browser_control"
+    assert decision.selected_operation == "real_browser.open"
+    assert decision.arguments == {"target_origin": "sqlite.org"}
+    assert telemetry["source_expression_type"] == "react_action"
+    assert telemetry["selection_basis"] == "explicit_action_name"
+
+
+def test_model_expression_bridge_preserves_final_answer_as_finish_intent(tmp_path: Path) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": "Final answer: Generated columns are defined by SQLite."}]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content", "fenced_strict_json"),
+    )
+
+    decision = client.complete(_canonical_request(tmp_path))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "sentinel_loop"
+    assert decision.selected_operation == "finish"
+    assert decision.arguments == {"answer": "Generated columns are defined by SQLite."}
+    assert telemetry["source_expression_type"] == "final_answer"
+    assert telemetry["selection_basis"] == "explicit_final_answer"
+
+
+def test_model_expression_bridge_does_not_invent_missing_material_arguments(tmp_path: Path) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": "Action: real_browser.search"}]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content", "fenced_strict_json"),
+    )
+
+    with pytest.raises(ActionKernelError, match="invalid_arguments"):
+        client.complete(_canonical_request(tmp_path, capability_graph=build_workspace_browser_readonly_capability_graph()))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["typed_rejection_reason"] == "invalid_arguments"
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
 def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:
     with pytest.raises(CanonicalCoreError, match="credential_rejected_http_401"):
         cli._extract_canonical_json_decision(
@@ -2028,12 +2189,17 @@ def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:
         )
 
 
-def _canonical_request(tmp_path: Path) -> CanonicalDecisionRequest:
+def _canonical_request(
+    tmp_path: Path,
+    *,
+    capability_graph: ExecutableCapabilityGraph | None = None,
+) -> CanonicalDecisionRequest:
     workspace = _workspace(tmp_path)
     runtime = RootMissionRuntime(
         objective="Find needle.",
         workspace_root=workspace,
         provider_model="provider/model",
+        capability_graph=capability_graph,
     )
     return CanonicalDecisionRequest(
         root_mission_id=runtime.root_mission_id,
@@ -2041,6 +2207,34 @@ def _canonical_request(tmp_path: Path) -> CanonicalDecisionRequest:
         canonical_state=runtime.compile_state(),
         prompt_summary="test",
         cancellation_ref=runtime.cancellation_token.safe_ref,
+    )
+
+
+def _probe_route(
+    operation: str,
+    *,
+    required: tuple[str, ...] = (),
+    properties: dict[str, Any] | None = None,
+) -> CanonicalCapabilityRoute:
+    return CanonicalCapabilityRoute(
+        capability="protocol_probe",
+        operation=operation,
+        executor_id=f"protocol_probe.{operation}",
+        effect_kind=EffectKind.PROPOSAL,
+        backend_mode="test_only_no_executor",
+        required_authority="none",
+        arguments_schema={
+            "type": "object",
+            "properties": properties or {},
+            "required": list(required),
+            "additionalProperties": False,
+        },
+        preconditions=("test_only",),
+        readiness_probe="always_available",
+        materiality_verifier="none",
+        proof_contract="test_only",
+        recovery_policy="none",
+        cleanup_contract="none",
     )
 
 
