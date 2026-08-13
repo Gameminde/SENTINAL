@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
+from urllib.parse import urlparse
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
@@ -163,8 +164,9 @@ class FakeBrowserReadOnlyBackend:
 
 @dataclass
 class PhysicalBrowserReadOnlyBackend:
-    engine: RealBrowserEngine
     kernel: MissionKernel
+    engine: RealBrowserEngine | None = None
+    engine_factory: Callable[[], RealBrowserEngine] | None = None
     allowed_origins: tuple[str, ...] = ("sqlite.org",)
     selected_backend_id: str = SENTINEL_CHROMIUM_BACKEND_ID
     bounded_url_ref: str = BOUNDED_URL_AUTHORITY_REF
@@ -177,8 +179,41 @@ class PhysicalBrowserReadOnlyBackend:
     external_network_calls: int = 0
 
     def __post_init__(self) -> None:
-        self.allowed_origins = tuple(dict.fromkeys(self.allowed_origins or ("sqlite.org",)))
+        self.allowed_origins = tuple(
+            dict.fromkeys(_origin_host(origin) for origin in (self.allowed_origins or ("sqlite.org",)))
+        )
         self.current_origin = self.allowed_origins[0]
+        self._pending_target_url = "about:blank"
+
+    def assert_ready(self, *, root_mission_id: str, authority: MissionAuthorityEnvelope) -> dict[str, Any]:
+        engine = self._require_engine()
+        bind_root_session_id = getattr(engine, "bind_root_session_id", None)
+        if callable(bind_root_session_id):
+            bind_root_session_id(root_mission_id)
+        bind_authority = getattr(engine, "bind_authority", None)
+        if callable(bind_authority):
+            bind_authority(authority)
+        return {
+            "backend_kind": "physical",
+            "selected_backend_id": self.selected_backend_id,
+            "actual_backend_id": getattr(engine, "browser_backend_id", self.selected_backend_id),
+            "session_backend_kind": _engine_session_backend_kind(engine),
+            "initial_target": "about:blank",
+            "network_navigation_during_readiness": False,
+        }
+
+    def prepare_open_target(self, params: dict[str, Any]) -> None:
+        requested = str(params.get("url") or params.get("target_origin") or "").strip()
+        if not requested:
+            raise ActionKernelError("browser_open_target_missing")
+        target_url = _normal_browser_target_url(requested)
+        host = _origin_host(target_url)
+        if host not in set(self.allowed_origins):
+            raise ActionKernelError("browser_origin_transition_not_authorized")
+        self.current_origin = host
+        self._pending_target_url = target_url
+        if self.engine is not None:
+            _set_engine_target_url(self.engine, target_url)
 
     def execute_physical(self, *, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
         authority = context.get("authority")
@@ -190,9 +225,11 @@ class PhysicalBrowserReadOnlyBackend:
         token = context.get("root_cancellation_token")
         if getattr(token, "cancelled", False):
             raise ActionKernelError("root_mission_cancelled_before_browser_dispatch")
-        bind_root_session_id = getattr(self.engine, "bind_root_session_id", None)
+        engine = self._require_engine()
+        bind_root_session_id = getattr(engine, "bind_root_session_id", None)
         if callable(bind_root_session_id):
             bind_root_session_id(root_mission_id)
+        _set_engine_target_url(engine, self._pending_target_url)
         runtime_context = dict(context)
         runtime_context.setdefault("adapter_id", "canonical_physical_browser_readonly_adapter")
         runtime_context.setdefault("root_browser_runtime_lease", self._root_lease_context(root_mission_id))
@@ -200,7 +237,7 @@ class PhysicalBrowserReadOnlyBackend:
         runtime = RealBrowserControlRuntime(
             kernel=self.kernel,
             mission_id=root_mission_id,
-            engine=self.engine,
+            engine=engine,
             bounded_url_ref=self.bounded_url_ref,
             session_ref=self.session_ref,
             selected_backend_id=self.selected_backend_id,
@@ -216,9 +253,11 @@ class PhysicalBrowserReadOnlyBackend:
         self.cleanup_count += 1
         if self.cleanup_failure:
             raise ActionKernelError("physical_browser_readonly_cleanup_failed")
-        close = getattr(self.engine, "close", None)
-        if callable(close):
-            close()
+        engine = self.engine
+        if engine is not None:
+            close = getattr(engine, "close", None)
+            if callable(close):
+                close()
         self.lease_released = True
         return {
             "cleanup_count": self.cleanup_count,
@@ -226,16 +265,17 @@ class PhysicalBrowserReadOnlyBackend:
             "survivor_count": 0,
             "cleanup_completed": True,
             "selected_backend_id": self.selected_backend_id,
-            "actual_backend_id": getattr(self.engine, "browser_backend_id", self.selected_backend_id),
-            "session_backend_kind": _engine_session_backend_kind(self.engine),
+            "actual_backend_id": getattr(engine, "browser_backend_id", self.selected_backend_id),
+            "session_backend_kind": _engine_session_backend_kind(engine) if engine is not None else "not_constructed",
         }
 
     def _root_lease_context(self, root_mission_id: str) -> dict[str, Any]:
+        engine = self._require_engine()
         root_hash = stable_hash(
             {
                 "root_mission_id": root_mission_id,
-                "backend": getattr(self.engine, "browser_backend_id", self.selected_backend_id),
-                "session_backend_kind": _engine_session_backend_kind(self.engine),
+                "backend": getattr(engine, "browser_backend_id", self.selected_backend_id),
+                "session_backend_kind": _engine_session_backend_kind(engine),
             }
         )
         return {
@@ -244,7 +284,7 @@ class PhysicalBrowserReadOnlyBackend:
             "lease_hash": root_hash,
             "browser_engine_identity_hash": stable_hash({"root_hash": root_hash, "backend": self.selected_backend_id}),
             "backend_context_identity_hash": stable_hash(
-                {"root_hash": root_hash, "session_backend_kind": _engine_session_backend_kind(self.engine)}
+                {"root_hash": root_hash, "session_backend_kind": _engine_session_backend_kind(engine)}
             ),
             "data_not_authority": True,
             "can_execute": False,
@@ -273,6 +313,7 @@ class PhysicalBrowserReadOnlyBackend:
         operation: str,
         runtime_context: dict[str, Any],
     ) -> ActionResult:
+        engine = self._require_engine()
         cards = dict(result.context_cards)
         backend_execution = cards.get("browser_backend_execution") if isinstance(cards.get("browser_backend_execution"), dict) else {}
         environment_state = cards.get("browser_environment_state") if isinstance(cards.get("browser_environment_state"), dict) else {}
@@ -290,8 +331,8 @@ class PhysicalBrowserReadOnlyBackend:
                 {"operation": operation, "result_hash": result.result_hash, "receipt_refs": result.receipt_refs}
             ),
             "selected_backend_id": str(backend_execution.get("selected_backend_id") or self.selected_backend_id),
-            "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(self.engine, "browser_backend_id", "")),
-            "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(self.engine)),
+            "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(engine, "browser_backend_id", "")),
+            "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(engine)),
             "browser_environment_state_hash": str(cards.get("browser_environment_state_hash") or stable_hash(environment_state)),
             "browser_evidence_refs": tuple(result.evidence_refs),
             "evidence_delta": len(result.evidence_refs),
@@ -338,6 +379,7 @@ class PhysicalBrowserReadOnlyBackend:
         safe_observation: dict[str, Any],
         runtime_context: dict[str, Any],
     ) -> dict[str, Any]:
+        engine = self._require_engine()
         page_state = environment_state.get("page_state") if isinstance(environment_state.get("page_state"), dict) else {}
         world_summary = environment_state.get("world_model_summary") if isinstance(environment_state.get("world_model_summary"), dict) else {}
         page_title = (
@@ -364,14 +406,14 @@ class PhysicalBrowserReadOnlyBackend:
             },
             "browser": {
                 "selected_backend_id": str(backend_execution.get("selected_backend_id") or self.selected_backend_id),
-                "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(self.engine, "browser_backend_id", "")),
-                "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(self.engine)),
+                "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(engine, "browser_backend_id", "")),
+                "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(engine)),
                 "session_lease_status": "ACTIVE",
                 "real_browser_runs": self.real_browser_runs,
                 "external_network_calls": self.external_network_calls,
             },
             "page": {
-                "origin_hash": str(getattr(self.engine, "safe_url_origin_hash", "") or ""),
+                "origin_hash": str(getattr(engine, "safe_url_origin_hash", "") or ""),
                 "title": redact_operator_text(str(page_title)),
                 "page_state_hash": page_state_hash,
                 "page_type": str(page_state.get("page_kind_guess") or "unknown"),
@@ -418,6 +460,14 @@ class PhysicalBrowserReadOnlyBackend:
             "can_grant_authority": False,
             "can_execute": False,
         }
+
+    def _require_engine(self) -> RealBrowserEngine:
+        if self.engine is None:
+            if self.engine_factory is None:
+                raise ActionKernelError("physical_browser_engine_missing")
+            self.engine = self.engine_factory()
+            _set_engine_target_url(self.engine, self._pending_target_url)
+        return self.engine
 
 
 class CanonicalBrowserReadOnlyAdapter:
@@ -509,6 +559,10 @@ class CanonicalBrowserReadOnlyAdapter:
 
     def _validate_read_only_preconditions(self, *, operation: str, params: dict[str, Any]) -> None:
         if operation == "real_browser.open":
+            prepare_open_target = getattr(self.backend, "prepare_open_target", None)
+            if callable(prepare_open_target):
+                prepare_open_target(params)
+                return
             requested = str(params.get("target_origin") or self.backend.current_origin).strip()
             if requested and requested not in set(self.backend.allowed_origins):
                 raise ActionKernelError("browser_origin_transition_not_authorized")
@@ -669,3 +723,31 @@ __all__ = [
 
 def _engine_session_backend_kind(engine: RealBrowserEngine) -> str:
     return str(getattr(engine, "session_manager_backend_kind", "") or engine.__class__.__name__)
+
+
+def _origin_host(value: str) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    parsed = urlparse(text if "://" in text else f"https://{text}")
+    return (parsed.hostname or text.split("/", 1)[0]).lower()
+
+
+def _normal_browser_target_url(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        raise ActionKernelError("browser_open_target_missing")
+    parsed = urlparse(text if "://" in text else f"https://{text}")
+    host = (parsed.hostname or "").lower()
+    if not host:
+        raise ActionKernelError("browser_open_target_host_missing")
+    return text if "://" in text else f"https://{host}/"
+
+
+def _set_engine_target_url(engine: RealBrowserEngine, target_url: str) -> None:
+    setter = getattr(engine, "set_target_url", None)
+    if callable(setter):
+        setter(target_url)
+        return
+    if hasattr(engine, "target_url"):
+        setattr(engine, "target_url", target_url)

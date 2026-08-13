@@ -566,6 +566,14 @@ class BrowserSessionManagerRealBrowserEngine:
     def bind_root_session_id(self, root_session_id: str) -> None:
         self._root_session_id = str(root_session_id or "").strip()
 
+    def set_target_url(self, target_url: str) -> None:
+        self.target_url = str(target_url or "").strip() or "about:blank"
+        self._last_snapshot = RealBrowserEngineSnapshot(
+            page_title="Browser session page",
+            state_hash=stable_hash({"target_url_hash": stable_hash(self.target_url), "opened": False}),
+            elements=(),
+        )
+
     def open(self) -> RealBrowserEngineSnapshot:
         self.open_count += 1
         result = self.session_manager.open_session(self._request("open"))
@@ -913,8 +921,6 @@ class RealBrowserControlRuntime:
 
     def _open(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.open")
-        if envelope.params.get("url"):
-            raise RealBrowserControlRuntimeError("real_browser_unbounded_url_blocked")
         snapshot = self.engine.open()
         context_cards = self._world_context_cards(
             snapshot,
@@ -2766,15 +2772,12 @@ def build_sentinel_chromium_real_browser_engine_from_env(
     *,
     capture_root: str | Path | None = None,
 ) -> RealBrowserEngine:
-    target_url = os.environ.get("SENTINEL_BROWSER_TEST_URL", "").strip()
-    if not target_url:
-        raise RealBrowserControlRuntimeError("REAL_BROWSER_TEST_URL_CONFIG_MISSING")
     selection = select_browser_backend()
     if selection.preferred_backend_id != SENTINEL_CHROMIUM_BACKEND_ID:
         raise RealBrowserControlRuntimeError(f"real_browser_sentinel_chromium_backend_unavailable:{selection.selection_reason}")
     headless_value = os.environ.get("SENTINEL_BROWSER_HEADLESS", "true").strip().lower()
     return BrowserSessionManagerRealBrowserEngine(
-        target_url=target_url,
+        target_url="about:blank",
         capture_root=capture_root,
         headless=headless_value not in {"0", "false", "no"},
         browser_backend_id=SENTINEL_CHROMIUM_BACKEND_ID,

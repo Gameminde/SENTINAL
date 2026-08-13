@@ -605,8 +605,8 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
             )
         )
         browser_readonly_backend = PhysicalBrowserReadOnlyBackend(
-            engine=build_canonical_real_browser_engine_from_env(capture_root=run_root / "browser_capture"),
             kernel=host.kernel,
+            engine_factory=lambda: build_canonical_real_browser_engine_from_env(capture_root=run_root / "browser_capture"),
             allowed_origins=allowed_origins or ("sqlite.org",),
         )
         granted_authorities = ("workspace_read", "browser_read", "none")

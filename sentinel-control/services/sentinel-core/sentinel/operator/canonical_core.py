@@ -514,7 +514,7 @@ def build_workspace_browser_readonly_capability_graph() -> ExecutableCapabilityG
             "real_browser.open",
             arguments_schema={
                 "type": "object",
-                "properties": {"target_origin": {"type": "string"}},
+                "properties": {"target_origin": {"type": "string"}, "url": {"type": "string"}},
                 "additionalProperties": False,
             },
             materiality_verifier="bounded_origin_state_observed",
@@ -724,6 +724,7 @@ class RootMissionRuntime:
         self._cleanup_completed = False
         self._cleanup_failures: list[str] = []
         self._browser_environment_state: dict[str, Any] = {}
+        self._browser_backend_readiness_checked = False
         if self.kernel is not None:
             self._create_and_start_mission_record()
 
@@ -739,6 +740,13 @@ class RootMissionRuntime:
                 )
             raise CanonicalCoreError("canonical_model_client_required")
         try:
+            browser_readiness_failure = self._ensure_browser_backend_ready_before_provider()
+            if browser_readiness_failure:
+                return self._terminal_result(
+                    status="blocked",
+                    reason="BROWSER_BACKEND_READINESS_FAILED",
+                    blocked_reason_detail=browser_readiness_failure,
+                )
             while True:
                 if self._precondition_blocker:
                     return self._terminal_result(
@@ -1149,6 +1157,46 @@ class RootMissionRuntime:
             max_actions=max(1, self.budget.max_material_actions),
         )
 
+    def _ensure_browser_backend_ready_before_provider(self) -> str:
+        if self._browser_backend_readiness_checked or self._browser_readonly_adapter is None:
+            return ""
+        self._browser_backend_readiness_checked = True
+        authority = self._mission_authority_envelope()
+        if self.kernel is not None:
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_authority_snapshot_created",
+                safe_summary="Canonical mission authority snapshot created before browser readiness.",
+                metadata={
+                    "allowed_actions_count": len(authority.allowed_actions),
+                    "allowed_domains_count": len(authority.allowed_domains),
+                    "provider_decision_count": self.provider_decision_count,
+                    "material_action_count": self.material_action_count,
+                },
+            )
+        assert_ready = getattr(self._browser_readonly_adapter.backend, "assert_ready", None)
+        if not callable(assert_ready):
+            return ""
+        try:
+            readiness = assert_ready(root_mission_id=self.root_mission_id, authority=authority)
+        except Exception as exc:  # noqa: BLE001
+            self._persist_browser_backend_readiness_receipt(exc)
+            return _safe_exception_code(exc)
+        if self.kernel is not None:
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_browser_backend_readiness_passed",
+                safe_summary="Canonical browser backend readiness passed before provider allocation.",
+                metadata=redact_operator_value(
+                    {
+                        **dict(readiness or {}),
+                        "provider_decision_count": self.provider_decision_count,
+                        "material_action_count": self.material_action_count,
+                    }
+                ),
+            )
+        return ""
+
     def _observation_from_action_result(self, action_result: ActionResult) -> dict[str, Any]:
         browser_environment_state = action_result.context_cards.get("browser_environment_state")
         if isinstance(browser_environment_state, dict):
@@ -1444,6 +1492,60 @@ class RootMissionRuntime:
             )
         except Exception:
             return
+
+    def _persist_browser_backend_readiness_receipt(self, exc: Exception) -> None:
+        if self.kernel is None:
+            return
+        before_state = self.compile_state()
+        failure_code = _safe_exception_code(exc)
+        observation = {
+            "backend_kind": "physical",
+            "browser_operation": "browser_backend_readiness",
+            "status": "blocked",
+            "failure_stage": "backend_readiness_before_provider",
+            "failure_code": failure_code,
+            "exception_class": exc.__class__.__name__,
+            "exception_hash": stable_hash(
+                {
+                    "exception_class": exc.__class__.__name__,
+                    "safe_message": redact_operator_text(str(exc)),
+                }
+            ),
+            "provider_decision_count": self.provider_decision_count,
+            "material_action_count": self.material_action_count,
+            "product_action_kernel_dispatch": False,
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        receipt = CanonicalEffectReceipt(
+            root_mission_id=self.root_mission_id,
+            decision_id=f"host_browser_readiness:{stable_hash(observation)[:24]}",
+            capability="real_browser_control",
+            operation="browser_backend_readiness",
+            effect_kind=EffectKind.REAL,
+            backend_mode="sentinel_chromium_readiness",
+            status="blocked",
+            material_action=False,
+            safe_summary="Canonical browser backend readiness failed before provider allocation.",
+            safe_observation=observation,
+            evidence_refs=(f"browser_readiness_failure:{stable_hash(observation)[:24]}",),
+            before_state_hash=before_state.state_hash,
+            after_state_hash=stable_hash(
+                {
+                    "before_state_hash": before_state.state_hash,
+                    "readiness_failure_hash": stable_hash(observation),
+                    "receipt_index": len(self.receipts),
+                }
+            ),
+        )
+        try:
+            self._persist_receipt(receipt)
+        except Exception as persist_exc:  # noqa: BLE001
+            self._persist_effect_failure(persist_exc, failure_stage="browser_readiness_receipt_persistence")
+            return
+        self.receipts.append(receipt)
+        self.evidence_refs.extend(receipt.evidence_refs)
+        self.recent_observations.append(observation)
 
     def _persist_receipt(self, receipt: CanonicalEffectReceipt) -> None:
         if self.kernel is None:

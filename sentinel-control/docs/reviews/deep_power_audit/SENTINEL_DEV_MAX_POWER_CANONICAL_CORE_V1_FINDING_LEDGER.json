@@ -4388,8 +4388,8 @@
       "model_expression_bridge_cases": "6 passed",
       "canonical_decision_transport_group": "23 passed"
     },
-    "c5b_v2_status": "PENDING_OFFLINE_VALIDATION_AND_SINGLE_LIVE_RUN",
-    "updated_at_utc": "2026-08-13T09:21:50Z"
+    "c5b_v2_status": "CONSUMED_VALID_FAILED_INFRASTRUCTURE_BEFORE_PROVIDER_REAL_BROWSER_TEST_URL_CONFIG_MISSING",
+    "updated_at_utc": "2026-08-13T09:54:40Z"
   },
   "single_spine_c5b_controlled_live_browser_product_mission_sovereign_v2": {
     "wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V2",

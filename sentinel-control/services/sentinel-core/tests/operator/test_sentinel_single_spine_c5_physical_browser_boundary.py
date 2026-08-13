@@ -16,6 +16,7 @@ from sentinel.operator.kernel import MissionKernel
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.real_browser_control_runtime import (
     BOUNDED_URL_AUTHORITY_REF,
+    RealBrowserControlRuntimeError,
     RealBrowserEngineElement,
     RealBrowserEngineSnapshot,
     SENTINEL_CHROMIUM_BACKEND_ID,
@@ -53,6 +54,7 @@ class InstrumentedSentinelChromiumReadOnlyEngine:
         self.close_count = 0
         self.bound_authority: Any | None = None
         self.bound_root_session_id = ""
+        self.target_urls: list[str] = []
         self.closed = False
 
     @property
@@ -64,6 +66,11 @@ class InstrumentedSentinelChromiumReadOnlyEngine:
 
     def bind_root_session_id(self, root_session_id: str) -> None:
         self.bound_root_session_id = root_session_id
+
+    def set_target_url(self, url: str) -> None:
+        if self.target_urls and self.target_urls[-1] == url:
+            return
+        self.target_urls.append(url)
 
     def open(self) -> RealBrowserEngineSnapshot:
         self.open_count += 1
@@ -115,7 +122,7 @@ def test_canonical_browser_engine_factory_does_not_require_cloak_configuration(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://sqlite.org/gencol.html")
+    monkeypatch.delenv("SENTINEL_BROWSER_TEST_URL", raising=False)
     monkeypatch.delenv("CLOAKBROWSER_BINARY_PATH", raising=False)
     monkeypatch.delenv("SENTINEL_REQUIRE_CLOAKBROWSER_BINARY_PATH", raising=False)
 
@@ -123,6 +130,88 @@ def test_canonical_browser_engine_factory_does_not_require_cloak_configuration(
 
     assert engine.browser_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
     assert engine.session_manager_backend_kind == "sentinel_chromium"
+    assert getattr(engine, "target_url", None) == "about:blank"
+
+
+def test_public_product_physical_browser_readiness_after_mission_record_and_before_provider(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    observed: dict[str, Any] = {"factory_called": False, "model_called": False}
+
+    def _factory() -> InstrumentedSentinelChromiumReadOnlyEngine:
+        observed["factory_called"] = True
+        missions = kernel.list_missions()
+        observed["mission_count_at_factory"] = len(missions)
+        observed["mission_record_verified_at_factory"] = bool(
+            missions and kernel.store.verify_record(missions[0].mission_id)
+        )
+        return InstrumentedSentinelChromiumReadOnlyEngine()
+
+    class FailingIfCalledModel:
+        def complete(self, request: Any) -> dict[str, Any]:
+            observed["model_called"] = True
+            raise AssertionError("provider_allocated_before_browser_readiness")
+
+    backend = PhysicalBrowserReadOnlyBackend(kernel=kernel, engine_factory=_factory)
+
+    result = run_canonical_product_mission(
+        objective="Open official SQLite generated columns documentation.",
+        workspace_root=workspace,
+        model_client=FailingIfCalledModel(),
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c5_browser_readiness_before_provider",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert observed["factory_called"] is True
+    assert observed["mission_record_verified_at_factory"] is True
+    assert observed["model_called"] is True
+    assert result.mission_record_created_before_provider is True
+
+
+def test_public_product_browser_readiness_failure_terminalizes_with_receipt_before_provider(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+
+    def _factory() -> InstrumentedSentinelChromiumReadOnlyEngine:
+        raise RealBrowserControlRuntimeError("sentinel_chromium_backend_construction_failed_for_test")
+
+    class FailingIfCalledModel:
+        def complete(self, request: Any) -> dict[str, Any]:
+            raise AssertionError("provider_called_after_browser_readiness_failure")
+
+    backend = PhysicalBrowserReadOnlyBackend(kernel=kernel, engine_factory=_factory)
+
+    result = run_canonical_product_mission(
+        objective="Open official SQLite generated columns documentation.",
+        workspace_root=workspace,
+        model_client=FailingIfCalledModel(),
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c5_browser_readiness_failure_terminalizes",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    record = kernel.store.load_record(result.root_mission_id)
+
+    assert result.status == "blocked"
+    assert result.final_reason == "BROWSER_BACKEND_READINESS_FAILED"
+    assert result.provider_decision_count == 0
+    assert result.mission_record_created_before_provider is True
+    assert record.status is OperatorMissionStatus.BLOCKED
+    assert result.receipts
+    assert result.receipts[0].operation == "browser_backend_readiness"
+    assert result.receipts[0].status == "blocked"
+    assert result.cleanup_completed is True
 
 
 def test_public_canonical_product_run_can_enable_sovereign_physical_browser(
@@ -141,7 +230,7 @@ def test_public_canonical_product_run_can_enable_sovereign_physical_browser(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setenv("SENTINEL_BROWSER_TEST_URL", "https://sqlite.org/gencol.html")
+    monkeypatch.delenv("SENTINEL_BROWSER_TEST_URL", raising=False)
     monkeypatch.delenv("CLOAKBROWSER_BINARY_PATH", raising=False)
     monkeypatch.delenv("SENTINEL_REQUIRE_CLOAKBROWSER_BINARY_PATH", raising=False)
     monkeypatch.setattr(
@@ -189,7 +278,11 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
     backend = PhysicalBrowserReadOnlyBackend(engine=engine, kernel=kernel)
     model = ScriptedModelClient(
         [
-            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://sqlite.org/gencol.html"},
+            },
             {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}},
             {"capability": "real_browser_control", "operation": "real_browser.extract_evidence", "arguments": {}},
             {
@@ -253,6 +346,84 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
     assert any(event.event_type == "canonical_browser_readonly_cleanup_completed" for event in events)
 
 
+def test_physical_browser_open_uses_model_url_only_at_authorized_dispatch(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://sqlite.org/gencol.html"},
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "Opened governed SQLite documentation."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Open official SQLite generated columns documentation.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c5_physical_browser_authorized_url_dispatch",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "completed"
+    assert engine.open_count == 1
+    assert engine.target_urls == ["https://sqlite.org/gencol.html"]
+
+
+def test_physical_browser_open_blocks_cross_origin_before_engine_call(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://example.com/escape"},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Do not allow a browser origin escape.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c5_physical_browser_cross_origin_denied",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "blocked"
+    assert result.blocked_reason_detail == "browser_origin_transition_not_authorized"
+    assert engine.open_count == 0
+    assert engine.target_urls == []
+
+
 def test_physical_browser_authority_carries_concrete_backend_origins_to_session_manager(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
@@ -264,7 +435,11 @@ def test_physical_browser_authority_carries_concrete_backend_origins_to_session_
     )
     model = ScriptedModelClient(
         [
-            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"target_origin": "sqlite.org"},
+            },
             {
                 "capability": "sentinel_loop",
                 "operation": "finish",
@@ -299,7 +474,11 @@ def test_physical_browser_authority_denial_blocks_before_engine_call(tmp_path: P
     backend = PhysicalBrowserReadOnlyBackend(engine=engine, kernel=kernel)
     model = ScriptedModelClient(
         [
-            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://sqlite.org/gencol.html"},
+            },
         ]
     )
 
