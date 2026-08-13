@@ -387,6 +387,48 @@ def test_physical_browser_open_uses_model_url_only_at_authorized_dispatch(tmp_pa
     assert engine.target_urls == ["https://sqlite.org/gencol.html"]
 
 
+def test_physical_browser_site_scope_allows_public_readonly_apex_www_and_normalized_forms(tmp_path: Path) -> None:
+    cases = (
+        ("sqlite.org", "sqlite.org"),
+        ("www.sqlite.org", "www.sqlite.org"),
+        ("https://sqlite.org/gencol.html", "sqlite.org"),
+        ("https://www.sqlite.org/gencol.html", "www.sqlite.org"),
+        ("https://WWW.SQLITE.ORG/gencol.html", "www.sqlite.org"),
+        ("https://sqlite.org./gencol.html", "sqlite.org"),
+        ("http://sqlite.org:80/gencol.html", "sqlite.org"),
+        ("https://sqlite.org:443/gencol.html", "sqlite.org"),
+    )
+    for index, (url, expected_host) in enumerate(cases):
+        result, engine = _run_physical_open(tmp_path / f"allowed_{index}", url=url, allowed_origins=("sqlite.org",))
+
+        assert result.status == "completed"
+        assert engine.open_count == 1
+        match = result.receipts[0].safe_observation["site_authority_match"]
+        assert match["requested_url"] == url
+        assert match["normalized_host"] == expected_host
+        assert match["authority_match"] == "SiteScope"
+        assert match["canonical_site"] == "sqlite.org"
+        assert match["matched"] is True
+        assert match["risk_policy"] == "public_read_only_navigation_site_aliases_allowed"
+
+
+def test_physical_browser_site_scope_denies_suffix_subdomain_and_cross_site_redirect_targets(tmp_path: Path) -> None:
+    cases = (
+        "https://sqlite.org.attacker.com/gencol.html",
+        "https://docs.sqlite.org/gencol.html",
+        "https://evil.sqlite.org/gencol.html",
+        "https://example.com/redirect?target=https://sqlite.org/gencol.html",
+        "https://sqlite.org:444/gencol.html",
+    )
+    for index, url in enumerate(cases):
+        result, engine = _run_physical_open(tmp_path / f"denied_{index}", url=url, allowed_origins=("sqlite.org",))
+
+        assert result.status == "blocked"
+        assert result.blocked_reason_detail == "browser_origin_transition_not_authorized"
+        assert engine.open_count == 0
+        assert engine.target_urls == []
+
+
 def test_physical_browser_open_blocks_cross_origin_before_engine_call(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
@@ -548,6 +590,48 @@ def test_physical_browser_cancellation_after_dispatch_preserves_terminal_receipt
 
 def _workspace(tmp_path: Path) -> Path:
     workspace = tmp_path / "workspace"
-    workspace.mkdir()
+    workspace.mkdir(parents=True)
     (workspace / "notes.md").write_text("local fixture only\n", encoding="utf-8")
     return workspace
+
+
+def _run_physical_open(
+    tmp_path: Path,
+    *,
+    url: str,
+    allowed_origins: tuple[str, ...],
+) -> tuple[Any, InstrumentedSentinelChromiumReadOnlyEngine]:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=allowed_origins,
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": url},
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "Opened governed SQLite documentation."},
+            },
+        ]
+    )
+    result = run_canonical_product_mission(
+        objective="Open official SQLite generated columns documentation.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id=f"c5_physical_browser_site_scope_{stable_hash(url)[:12]}",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+    return result, engine

@@ -541,7 +541,13 @@ class BrowserSessionManagerRealBrowserEngine:
     @property
     def safe_url_origin_hash(self) -> str:
         parsed = urlparse(self.target_url)
-        return stable_hash({"scheme": parsed.scheme, "host": parsed.hostname or "", "port": parsed.port})
+        return stable_hash(
+            {
+                "scheme": (parsed.scheme or "").lower(),
+                "host": _normalize_browser_hostname(parsed.hostname or ""),
+                "port": _normalized_browser_port(scheme=(parsed.scheme or "").lower(), port=parsed.port),
+            }
+        )
 
     @property
     def session_manager_backend_kind(self) -> str:
@@ -712,7 +718,7 @@ class BrowserSessionManagerRealBrowserEngine:
         )
 
     def _target_host(self) -> str:
-        host = (urlparse(self.target_url).hostname or "").lower()
+        host = _normalize_browser_hostname(urlparse(self.target_url).hostname or "")
         if not host:
             raise RealBrowserControlRuntimeError("real_browser_target_url_host_missing")
         return host
@@ -3996,7 +4002,34 @@ def _write_cloak_readiness_cache(cache_path: str | Path | None, result: CloakSes
 
 def _safe_origin_hash(target_url: str) -> str:
     parsed = urlparse(target_url)
-    return stable_hash({"scheme": parsed.scheme, "host": parsed.hostname or "", "port": parsed.port})
+    scheme = (parsed.scheme or "").lower()
+    return stable_hash(
+        {
+            "scheme": scheme,
+            "host": _normalize_browser_hostname(parsed.hostname or ""),
+            "port": _normalized_browser_port(scheme=scheme, port=parsed.port),
+        }
+    )
+
+
+def _normalize_browser_hostname(host: str) -> str:
+    text = str(host or "").strip().rstrip(".").lower()
+    if not text:
+        return ""
+    try:
+        return text.encode("idna").decode("ascii").lower()
+    except UnicodeError:
+        return text
+
+
+def _normalized_browser_port(*, scheme: str, port: int | None) -> int | None:
+    if port is None:
+        return None
+    if scheme == "http" and port == 80:
+        return None
+    if scheme == "https" and port == 443:
+        return None
+    return int(port)
 
 
 def _profile_file_count(capture_root: Path | None) -> int:

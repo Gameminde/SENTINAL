@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Callable
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
 from sentinel.mission.models import MissionAuthorityEnvelope
@@ -179,11 +179,13 @@ class PhysicalBrowserReadOnlyBackend:
     external_network_calls: int = 0
 
     def __post_init__(self) -> None:
+        self._site_scopes = _public_read_only_site_scopes(self.allowed_origins or ("sqlite.org",))
         self.allowed_origins = tuple(
-            dict.fromkeys(_origin_host(origin) for origin in (self.allowed_origins or ("sqlite.org",)))
+            dict.fromkeys(host for scope in self._site_scopes for host in scope.accepted_host_forms)
         )
-        self.current_origin = self.allowed_origins[0]
+        self.current_origin = self._site_scopes[0].canonical_site
         self._pending_target_url = "about:blank"
+        self._last_authority_match: dict[str, Any] = {}
 
     def assert_ready(self, *, root_mission_id: str, authority: MissionAuthorityEnvelope) -> dict[str, Any]:
         engine = self._require_engine()
@@ -206,14 +208,15 @@ class PhysicalBrowserReadOnlyBackend:
         requested = str(params.get("url") or params.get("target_origin") or "").strip()
         if not requested:
             raise ActionKernelError("browser_open_target_missing")
-        target_url = _normal_browser_target_url(requested)
-        host = _origin_host(target_url)
-        if host not in set(self.allowed_origins):
+        target = _parse_browser_target(requested)
+        match = _match_public_read_only_site_scope(target=target, site_scopes=self._site_scopes)
+        self._last_authority_match = match
+        if not match["matched"]:
             raise ActionKernelError("browser_origin_transition_not_authorized")
-        self.current_origin = host
-        self._pending_target_url = target_url
+        self.current_origin = str(match["matched_host_form"])
+        self._pending_target_url = str(target["target_url"])
         if self.engine is not None:
-            _set_engine_target_url(self.engine, target_url)
+            _set_engine_target_url(self.engine, self._pending_target_url)
 
     def execute_physical(self, *, envelope: ActionEnvelope, context: dict[str, Any]) -> ActionResult:
         authority = context.get("authority")
@@ -336,6 +339,7 @@ class PhysicalBrowserReadOnlyBackend:
             "browser_environment_state_hash": str(cards.get("browser_environment_state_hash") or stable_hash(environment_state)),
             "browser_evidence_refs": tuple(result.evidence_refs),
             "evidence_delta": len(result.evidence_refs),
+            "site_authority_match": redact_operator_value(self._last_authority_match),
             "data_not_authority": True,
             "can_execute": False,
         }
@@ -360,6 +364,7 @@ class PhysicalBrowserReadOnlyBackend:
                 "selected_backend_id": safe_observation["selected_backend_id"],
                 "actual_backend_id": safe_observation["actual_backend_id"],
                 "session_backend_kind": safe_observation["session_backend_kind"],
+                "site_authority_match": redact_operator_value(self._last_authority_match),
                 "material_action": result.material_action,
                 "fake_backend": False,
                 "data_not_authority": True,
@@ -430,6 +435,7 @@ class PhysicalBrowserReadOnlyBackend:
                 "status": result.status,
                 "failure_class": str(result.failure_class or ""),
                 "evidence_delta": len(result.evidence_refs),
+                "site_authority_match": redact_operator_value(self._last_authority_match),
             },
             "memory": {
                 "public_evidence": tuple(result.evidence_refs),
@@ -725,23 +731,127 @@ def _engine_session_backend_kind(engine: RealBrowserEngine) -> str:
     return str(getattr(engine, "session_manager_backend_kind", "") or engine.__class__.__name__)
 
 
+@dataclass(frozen=True)
+class _SiteScope:
+    canonical_site: str
+    accepted_host_forms: tuple[str, ...]
+
+
+def _public_read_only_site_scopes(allowed_origins: tuple[str, ...]) -> tuple[_SiteScope, ...]:
+    scopes: list[_SiteScope] = []
+    for origin in allowed_origins:
+        host = _origin_host(origin)
+        if not host:
+            continue
+        canonical = host[4:] if host.startswith("www.") else host
+        accepted = tuple(dict.fromkeys((canonical, f"www.{canonical}")))
+        scopes.append(_SiteScope(canonical_site=canonical, accepted_host_forms=accepted))
+    if not scopes:
+        scopes.append(_SiteScope(canonical_site="sqlite.org", accepted_host_forms=("sqlite.org", "www.sqlite.org")))
+    unique: dict[str, _SiteScope] = {}
+    for scope in scopes:
+        unique.setdefault(scope.canonical_site, scope)
+    return tuple(unique.values())
+
+
+def _match_public_read_only_site_scope(*, target: dict[str, Any], site_scopes: tuple[_SiteScope, ...]) -> dict[str, Any]:
+    normalized_host = str(target["normalized_host"])
+    normalized_port = target.get("normalized_port")
+    base = {
+        "requested_url": target["requested_url"],
+        "requested_url_hash": stable_hash(str(target["requested_url"])),
+        "normalized_scheme": target["normalized_scheme"],
+        "normalized_host": normalized_host,
+        "normalized_port": normalized_port if normalized_port is not None else "default",
+        "authority_match": "SiteScope",
+        "risk_policy": "public_read_only_navigation_site_aliases_allowed",
+        "matched": False,
+        "matched_host_form": "",
+        "canonical_site": "",
+        "accepted_host_forms": (),
+        "authority_expansion": False,
+        "decision_rewritten": False,
+    }
+    for scope in site_scopes:
+        if normalized_host not in set(scope.accepted_host_forms):
+            continue
+        match = {
+            **base,
+            "matched": normalized_port is None,
+            "matched_host_form": normalized_host if normalized_port is None else "",
+            "canonical_site": scope.canonical_site,
+            "accepted_host_forms": scope.accepted_host_forms,
+            "deny_reason": "" if normalized_port is None else "non_default_port_not_in_site_scope",
+        }
+        return match
+    return {
+        **base,
+        "accepted_host_forms": tuple(dict.fromkeys(host for scope in site_scopes for host in scope.accepted_host_forms)),
+        "deny_reason": "host_outside_site_scope",
+    }
+
+
+def _parse_browser_target(value: str) -> dict[str, Any]:
+    requested = str(value or "").strip()
+    if not requested:
+        raise ActionKernelError("browser_open_target_missing")
+    has_scheme = "://" in requested
+    parsed = urlparse(requested if has_scheme else f"https://{requested}")
+    scheme = (parsed.scheme or "https").lower()
+    host = _normalize_hostname(parsed.hostname or "")
+    if not host:
+        raise ActionKernelError("browser_open_target_host_missing")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ActionKernelError("browser_open_target_port_invalid") from exc
+    normalized_port = _normalized_url_port(scheme=scheme, port=port)
+    return {
+        "requested_url": requested,
+        "target_url": requested if has_scheme else _browser_target_url_with_default_scheme(parsed=parsed, host=host),
+        "normalized_scheme": scheme,
+        "normalized_host": host,
+        "normalized_port": normalized_port,
+    }
+
+
 def _origin_host(value: str) -> str:
     text = str(value or "").strip().lower()
     if not text:
         return ""
     parsed = urlparse(text if "://" in text else f"https://{text}")
-    return (parsed.hostname or text.split("/", 1)[0]).lower()
+    return _normalize_hostname(parsed.hostname or text.split("/", 1)[0])
 
 
 def _normal_browser_target_url(value: str) -> str:
-    text = str(value or "").strip()
+    return str(_parse_browser_target(value)["target_url"])
+
+
+def _normalize_hostname(host: str) -> str:
+    text = str(host or "").strip().rstrip(".").lower()
     if not text:
-        raise ActionKernelError("browser_open_target_missing")
-    parsed = urlparse(text if "://" in text else f"https://{text}")
-    host = (parsed.hostname or "").lower()
-    if not host:
-        raise ActionKernelError("browser_open_target_host_missing")
-    return text if "://" in text else f"https://{host}/"
+        return ""
+    try:
+        return text.encode("idna").decode("ascii").lower()
+    except UnicodeError:
+        return text
+
+
+def _normalized_url_port(*, scheme: str, port: int | None) -> int | None:
+    if port is None:
+        return None
+    if scheme == "http" and port == 80:
+        return None
+    if scheme == "https" and port == 443:
+        return None
+    return int(port)
+
+
+def _browser_target_url_with_default_scheme(*, parsed: Any, host: str) -> str:
+    path = parsed.path or "/"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return urlunparse(("https", host, path, "", parsed.query, parsed.fragment))
 
 
 def _set_engine_target_url(engine: RealBrowserEngine, target_url: str) -> None:
