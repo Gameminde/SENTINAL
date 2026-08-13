@@ -95,6 +95,9 @@ def test_nvidia_catalog_registers_minimax_m3_openai_compatible_route() -> None:
     assert backend.endpoint_template == "https://integrate.api.nvidia.com/v1/chat/completions"
     assert backend.supports_model("minimaxai/minimax-m3")
     assert backend.supports_model("minimaxai/minimax-m2.7")
+    assert backend.supports_tools is False
+    assert backend.supports_json_mode is False
+    assert backend.supports_json_schema is False
     assert entry.capability_flags.grants_tool_execution is False
     assert entry.capability_flags.server_side_tools_enabled_by_default is False
 

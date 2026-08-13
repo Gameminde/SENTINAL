@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 from sentinel.agent.model_contract import (
@@ -40,6 +41,22 @@ _BROWSER_MODEL_SKILLS = {
     "extract",
 }
 
+_CANONICAL_DECISION_TRANSPORT_PROFILES = {
+    "native_tool_call",
+    "strict_json_content",
+    "fenced_strict_json",
+    "unsupported",
+}
+_CANONICAL_REJECTION_PREFIX = "CANONICAL_DECISION_TRANSPORT_REJECTED"
+_CANONICAL_FIELDS = ("arguments", "capability", "operation")
+
+
+@dataclass(frozen=True)
+class _CanonicalDecisionTransportDecode:
+    payload: dict[str, Any]
+    telemetry: dict[str, Any]
+    rejection_reason: str = ""
+
 
 class ProductModelClient(Protocol):
     def complete(self, request: Any) -> Any:
@@ -67,6 +84,7 @@ class ProductModelNativeDecisionClient:
         canonical_provider_id: str = "",
         canonical_backend_id: str = "",
         canonical_model_id: str = "",
+        canonical_transport_profiles: tuple[str, ...] | None = None,
     ) -> None:
         self._model_client = model_client
         self._request_factory = request_factory
@@ -75,6 +93,14 @@ class ProductModelNativeDecisionClient:
         self._canonical_provider_id = canonical_provider_id
         self._canonical_backend_id = canonical_backend_id
         self._canonical_model_id = canonical_model_id
+        self._canonical_transport_profiles = _normalize_canonical_transport_profiles(
+            canonical_transport_profiles
+            or _default_canonical_transport_profiles(
+                provider_id=canonical_provider_id,
+                backend_id=canonical_backend_id,
+                model_id=canonical_model_id,
+            )
+        )
         self.call_count = 0
         self.safe_diagnostics: list[dict[str, Any]] = []
         self.latest_safe_model_operational_assessment: dict[str, Any] | None = None
@@ -88,7 +114,16 @@ class ProductModelNativeDecisionClient:
         backend_id: str,
         model_id: str,
         user_model_contract_id: str = "",
+        canonical_transport_profiles: tuple[str, ...] | None = None,
     ) -> "ProductModelNativeDecisionClient":
+        profiles = _normalize_canonical_transport_profiles(
+            canonical_transport_profiles
+            or _default_canonical_transport_profiles(
+                provider_id=provider_id,
+                backend_id=backend_id,
+                model_id=model_id,
+            )
+        )
         contract_id = user_model_contract_id or _canonical_user_model_contract(
             provider_id=provider_id,
             backend_id=backend_id,
@@ -103,6 +138,7 @@ class ProductModelNativeDecisionClient:
                 backend_id=backend_id,
                 model_id=model_id,
                 user_model_contract_id=contract_id,
+                canonical_transport_profiles=profiles,
             )
 
         return cls(
@@ -112,6 +148,7 @@ class ProductModelNativeDecisionClient:
             canonical_provider_id=provider_id,
             canonical_backend_id=backend_id,
             canonical_model_id=model_id,
+            canonical_transport_profiles=profiles,
         )
 
     def complete(self, context: Any) -> Any:
@@ -159,17 +196,47 @@ class ProductModelNativeDecisionClient:
         real_request = self._request_factory({"canonical_request": request}, prompt)
         raw_output = self._model_client.complete(real_request)
         self.call_count += 1
-        payload = extract_canonical_json_decision(raw_output)
+        decoded = decode_canonical_decision_transport(
+            raw_output,
+            request=request,
+            supported_profiles=self._canonical_transport_profiles,
+        )
+        if decoded.rejection_reason:
+            failure_code = f"{_CANONICAL_REJECTION_PREFIX}:{decoded.rejection_reason}"
+            self._record_diagnostic(
+                context=request.canonical_state.safe_model_dump(),
+                raw_output=decoded.telemetry,
+                failure_code=failure_code,
+                canonical_decision_transport=decoded.telemetry,
+            )
+            raise ActionKernelError(failure_code)
+        payload = decoded.payload
         capability = str(payload.get("capability") or payload.get("selected_capability") or "").strip()
         operation = str(payload.get("operation") or payload.get("selected_operation") or "").strip()
-        if not capability and "." in operation:
-            capability, operation = operation.split(".", 1)
-        if not capability or not operation:
-            raise ActionKernelError("CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED")
         route_schema = _canonical_route_schema(request, capability=capability, operation=operation)
         arguments = payload.get("arguments", payload.get("params", {}))
         if not isinstance(arguments, dict):
-            raise ActionKernelError("CANONICAL_DECISION_ARGUMENTS_MUST_BE_OBJECT")
+            telemetry = _telemetry_with_rejection(decoded.telemetry, "invalid_arguments")
+            self._record_diagnostic(
+                context=request.canonical_state.safe_model_dump(),
+                raw_output=telemetry,
+                failure_code=f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments",
+                canonical_decision_transport=telemetry,
+            )
+            raise ActionKernelError(f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments")
+        argument_error = _validate_canonical_decision_arguments(
+            arguments,
+            arguments_schema=route_schema.get("arguments_schema"),
+        )
+        if argument_error:
+            telemetry = _telemetry_with_rejection(decoded.telemetry, "invalid_arguments")
+            self._record_diagnostic(
+                context=request.canonical_state.safe_model_dump(),
+                raw_output=telemetry,
+                failure_code=f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments",
+                canonical_decision_transport=telemetry,
+            )
+            raise ActionKernelError(f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments")
         decision = CanonicalDecision(
             root_mission_id=request.root_mission_id,
             provider_model=request.provider_model,
@@ -186,9 +253,10 @@ class ProductModelNativeDecisionClient:
         )
         self._record_diagnostic(
             context=request.canonical_state.safe_model_dump(),
-            raw_output=payload,
+            raw_output=decoded.telemetry,
             failure_code=None,
             mapped_action=f"{decision.capability}.{decision.operation}",
+            canonical_decision_transport=decoded.telemetry,
         )
         return decision
 
@@ -199,16 +267,459 @@ class ProductModelNativeDecisionClient:
         raw_output: Any,
         failure_code: str | None,
         mapped_action: str | None = None,
+        canonical_decision_transport: dict[str, Any] | None = None,
     ) -> None:
-        self.safe_diagnostics.append(
-            {
-                "context_hash": stable_hash(_safe_context_shape(context)),
-                "model_output_hash": text_hash(_safe_render_shape(raw_output)),
-                "failure_code": failure_code,
-                "mapped_action": mapped_action,
-                "raw_model_material_persisted": False,
-            }
-        )
+        diagnostic = {
+            "context_hash": stable_hash(_safe_context_shape(context)),
+            "model_output_hash": text_hash(_safe_render_shape(raw_output)),
+            "failure_code": failure_code,
+            "mapped_action": mapped_action,
+            "raw_model_material_persisted": False,
+        }
+        if canonical_decision_transport is not None:
+            diagnostic["canonical_decision_transport"] = canonical_decision_transport
+        self.safe_diagnostics.append(diagnostic)
+
+
+def _normalize_canonical_transport_profiles(profiles: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for profile in profiles:
+        value = str(profile or "").strip()
+        if not value:
+            continue
+        if value not in _CANONICAL_DECISION_TRANSPORT_PROFILES:
+            raise ActionKernelError(f"{_CANONICAL_REJECTION_PREFIX}:unsupported_transport")
+        if value not in normalized:
+            normalized.append(value)
+    return tuple(normalized or ("unsupported",))
+
+
+def _default_canonical_transport_profiles(*, provider_id: str, backend_id: str, model_id: str) -> tuple[str, ...]:
+    if provider_id == "nvidia" and backend_id == "nvidia_openai_compatible_chat":
+        return ("strict_json_content", "fenced_strict_json")
+    if provider_id == "aliyun_dashscope" and backend_id == "aliyun_openai_compatible_chat":
+        return ("strict_json_content", "fenced_strict_json")
+    return ("unsupported",)
+
+
+def decode_canonical_decision_transport(
+    raw: Any,
+    *,
+    request: Any,
+    supported_profiles: tuple[str, ...],
+) -> _CanonicalDecisionTransportDecode:
+    profiles = _normalize_canonical_transport_profiles(supported_profiles)
+    telemetry = _canonical_response_shape_telemetry(raw)
+    telemetry["supported_transport_profiles"] = list(profiles)
+    telemetry["raw_provider_material_persisted"] = False
+    if "unsupported" in profiles:
+        return _rejected_decode(telemetry, "unsupported_transport")
+    if isinstance(raw, dict):
+        provider_failure = _canonical_provider_failure_code(raw)
+        if provider_failure:
+            return _rejected_decode(telemetry, provider_failure)
+    if _native_tool_calls_present(raw) and "native_tool_call" not in profiles:
+        return _rejected_decode(telemetry, "unsupported_transport")
+
+    candidates: list[tuple[str, dict[str, Any], list[str]]] = []
+    if "native_tool_call" in profiles:
+        tool_result = _canonical_payload_from_native_tool_call(raw)
+        if tool_result[0]:
+            return _rejected_decode(telemetry, str(tool_result[0]))
+        if tool_result[1] is not None:
+            candidates.append(("native_tool_call", tool_result[1], tool_result[2]))
+    content = _canonical_visible_content(raw)
+    if content is not None and "strict_json_content" in profiles:
+        strict_result = _canonical_payload_from_strict_json_content(content)
+        if strict_result[0] and "fenced_strict_json" not in profiles:
+            return _rejected_decode(telemetry, str(strict_result[0]))
+        if strict_result[1] is not None:
+            candidates.append(("strict_json_content", strict_result[1], ["provider_transport:strict_json_content"]))
+    if content is not None and "fenced_strict_json" in profiles:
+        fenced_result = _canonical_payload_from_fenced_json_content(content)
+        if fenced_result[0] and "strict_json_content" not in profiles:
+            return _rejected_decode(telemetry, str(fenced_result[0]))
+        if fenced_result[1] is not None:
+            candidates.append(("fenced_strict_json", fenced_result[1], ["provider_transport:fenced_strict_json"]))
+
+    if len(candidates) > 1:
+        return _rejected_decode(telemetry, "multiple_candidate_decisions")
+    if not candidates:
+        if content is None:
+            return _rejected_decode(telemetry, "content_absent")
+        if _looks_like_json_attempt(content):
+            return _rejected_decode(telemetry, "malformed_json")
+        return _rejected_decode(telemetry, "narrative_only_response")
+
+    stage, payload, origin_chain = candidates[0]
+    normalized_payload = dict(payload)
+    capability = str(
+        normalized_payload.get("capability") or normalized_payload.get("selected_capability") or ""
+    ).strip()
+    operation = str(
+        normalized_payload.get("operation") or normalized_payload.get("selected_operation") or ""
+    ).strip()
+    if not capability:
+        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "capability_missing")
+    if not operation:
+        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "operation_missing")
+    route_status = _canonical_route_status(request, capability=capability, operation=operation)
+    if route_status == "unknown_capability":
+        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "unknown_capability")
+    if route_status == "unavailable_operation":
+        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "unavailable_operation")
+    route_schema = _canonical_route_schema(request, capability=capability, operation=operation)
+    arguments = normalized_payload.get("arguments", normalized_payload.get("params", {}))
+    if not isinstance(arguments, dict) or _validate_canonical_decision_arguments(
+        arguments,
+        arguments_schema=route_schema.get("arguments_schema"),
+    ):
+        return _rejected_decode(_telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain), "invalid_arguments")
+    telemetry = _telemetry_with_payload(telemetry, stage, normalized_payload, origin_chain)
+    telemetry["decision_origin_chain"] = [
+        *origin_chain,
+        "capability_graph_route_verified",
+        "arguments_schema_verified",
+        "decision_origin:model_selected",
+    ]
+    return _CanonicalDecisionTransportDecode(payload=normalized_payload, telemetry=telemetry)
+
+
+def _canonical_provider_failure_code(raw: dict[str, Any]) -> str:
+    if raw.get("provider_failure") is True:
+        category = str(raw.get("provider_failure_category") or raw.get("provider_error_class") or "UNKNOWN")
+        diagnosis = _canonical_provider_failure_diagnosis(raw)
+        return f"provider_failure_{category}_{diagnosis}"
+    metadata = raw.get("metadata")
+    if isinstance(metadata, dict) and metadata.get("blocked_reason"):
+        return f"provider_blocked_{metadata.get('blocked_reason')}"
+    return ""
+
+
+def _rejected_decode(telemetry: dict[str, Any], reason: str) -> _CanonicalDecisionTransportDecode:
+    return _CanonicalDecisionTransportDecode(
+        payload={},
+        telemetry=_telemetry_with_rejection(telemetry, reason),
+        rejection_reason=reason,
+    )
+
+
+def _telemetry_with_rejection(telemetry: dict[str, Any], reason: str) -> dict[str, Any]:
+    updated = dict(telemetry)
+    updated["typed_rejection_reason"] = reason
+    return updated
+
+
+def _telemetry_with_payload(
+    telemetry: dict[str, Any],
+    stage: str,
+    payload: dict[str, Any],
+    origin_chain: list[str],
+) -> dict[str, Any]:
+    updated = dict(telemetry)
+    updated["extraction_stage"] = stage
+    updated["json_detected"] = True
+    updated["json_root_type"] = "dict"
+    updated["canonical_fields_present"] = _canonical_fields_present(payload)
+    updated["canonical_fields_missing"] = _canonical_fields_missing(payload)
+    updated["typed_rejection_reason"] = ""
+    updated["decision_origin_chain"] = list(origin_chain)
+    return updated
+
+
+def _canonical_response_shape_telemetry(raw: Any) -> dict[str, Any]:
+    message = _first_openai_compatible_message(raw)
+    content = _canonical_visible_content(raw)
+    tool_calls = message.get("tool_calls") if isinstance(message, dict) else None
+    finish_reason = _first_openai_compatible_finish_reason(raw)
+    payload = _canonical_direct_payload(raw)
+    json_payload = payload if payload is not None else _safe_json_shape_from_content(content)
+    return {
+        "response_root_type": type(raw).__name__,
+        "choices_count": _choices_count(raw),
+        "message_present": isinstance(message, dict),
+        "content_present": content is not None,
+        "content_type": type(content).__name__ if content is not None else "",
+        "tool_calls_present": isinstance(tool_calls, list) and bool(tool_calls),
+        "tool_calls_count": len(tool_calls) if isinstance(tool_calls, list) else 0,
+        "reasoning_content_present": _reasoning_content_present(message),
+        "finish_reason": str(finish_reason or ""),
+        "content_length_bucket": _length_bucket(len(content)) if isinstance(content, str) else "unknown",
+        "content_hash": text_hash(content) if isinstance(content, str) else "",
+        "json_detected": json_payload is not None,
+        "json_root_type": type(json_payload).__name__ if json_payload is not None else "unknown",
+        "canonical_fields_present": _canonical_fields_present(json_payload or {}),
+        "canonical_fields_missing": _canonical_fields_missing(json_payload or {}),
+        "extraction_stage": "not_selected",
+        "typed_rejection_reason": "",
+    }
+
+
+def _canonical_visible_content(raw: Any) -> str | None:
+    if isinstance(raw, str):
+        return raw
+    if isinstance(raw, dict):
+        message = _first_openai_compatible_message(raw)
+        if isinstance(message, dict):
+            content = message.get("content")
+            if isinstance(content, str):
+                return content
+            if content is None:
+                return None
+        for key in ("content", "reply", "text", "message"):
+            value = raw.get(key)
+            if isinstance(value, str):
+                return value
+        metadata = raw.get("metadata")
+        if isinstance(metadata, dict):
+            for key in ("content", "reply", "text", "message"):
+                value = metadata.get(key)
+                if isinstance(value, str):
+                    return value
+    content = getattr(raw, "raw_text_in_memory_only", None)
+    if isinstance(content, str):
+        return content
+    payload = getattr(raw, "content", None)
+    if isinstance(payload, dict):
+        return _canonical_visible_content(payload)
+    return None
+
+
+def _canonical_direct_payload(raw: Any) -> dict[str, Any] | None:
+    if isinstance(raw, dict) and any(key in raw for key in ("capability", "selected_capability", "operation", "selected_operation")):
+        return raw
+    payload = getattr(raw, "content", None)
+    if isinstance(payload, dict) and any(key in payload for key in ("capability", "selected_capability", "operation", "selected_operation")):
+        return payload
+    return None
+
+
+def _canonical_payload_from_strict_json_content(content: str) -> tuple[str, dict[str, Any] | None]:
+    stripped = content.strip()
+    if not stripped.startswith("{"):
+        return ("narrative_only_response", None)
+    try:
+        loaded = json.loads(stripped)
+    except json.JSONDecodeError:
+        return ("malformed_json", None)
+    if not isinstance(loaded, dict):
+        return ("malformed_json", None)
+    return ("", loaded)
+
+
+def _canonical_payload_from_fenced_json_content(content: str) -> tuple[str, dict[str, Any] | None]:
+    stripped = content.strip()
+    match = re.fullmatch(r"```(?:json)?\s*(\{.*\})\s*```", stripped, flags=re.DOTALL | re.IGNORECASE)
+    if match is None:
+        return ("narrative_only_response", None)
+    try:
+        loaded = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return ("malformed_json", None)
+    if not isinstance(loaded, dict):
+        return ("malformed_json", None)
+    return ("", loaded)
+
+
+def _canonical_payload_from_native_tool_call(raw: Any) -> tuple[str, dict[str, Any] | None, list[str]]:
+    message = _first_openai_compatible_message(raw)
+    tool_calls = message.get("tool_calls") if isinstance(message, dict) else None
+    if not isinstance(tool_calls, list) or not tool_calls:
+        return ("", None, [])
+    if len(tool_calls) != 1:
+        return ("multiple_candidate_decisions", None, [])
+    call = tool_calls[0]
+    function = call.get("function") if isinstance(call, dict) else None
+    if not isinstance(function, dict):
+        return ("malformed_json", None, [])
+    name = str(function.get("name") or "").strip()
+    if "." not in name:
+        return ("capability_missing", None, ["provider_transport:native_tool_call"])
+    capability, operation = name.split(".", 1)
+    arguments_raw = function.get("arguments", {})
+    if isinstance(arguments_raw, str):
+        try:
+            arguments = json.loads(arguments_raw)
+        except json.JSONDecodeError:
+            return ("malformed_json", None, ["provider_transport:native_tool_call"])
+    elif isinstance(arguments_raw, dict):
+        arguments = dict(arguments_raw)
+    else:
+        return ("invalid_arguments", None, ["provider_transport:native_tool_call"])
+    if not isinstance(arguments, dict):
+        return ("invalid_arguments", None, ["provider_transport:native_tool_call"])
+    payload = {"capability": capability.strip(), "operation": operation.strip(), "arguments": arguments}
+    return (
+        "",
+        payload,
+        ["provider_transport:native_tool_call", "tool_name_explicitly_encoded_capability_operation"],
+    )
+
+
+def _first_openai_compatible_message(raw: Any) -> dict[str, Any] | None:
+    payload = raw if isinstance(raw, dict) else getattr(raw, "content", None)
+    if not isinstance(payload, dict):
+        return None
+    choices = payload.get("choices")
+    if isinstance(choices, list) and choices:
+        choice = choices[0]
+        if isinstance(choice, dict) and isinstance(choice.get("message"), dict):
+            return choice["message"]
+    raw_response = payload.get("raw_provider_response")
+    if isinstance(raw_response, dict):
+        return _first_openai_compatible_message(raw_response)
+    return None
+
+
+def _first_openai_compatible_finish_reason(raw: Any) -> str | None:
+    payload = raw if isinstance(raw, dict) else getattr(raw, "content", None)
+    if not isinstance(payload, dict):
+        return None
+    choices = payload.get("choices")
+    if isinstance(choices, list) and choices:
+        choice = choices[0]
+        if isinstance(choice, dict) and choice.get("finish_reason") is not None:
+            return str(choice.get("finish_reason"))
+    if payload.get("finish_reason") is not None:
+        return str(payload.get("finish_reason"))
+    raw_response = payload.get("raw_provider_response")
+    if isinstance(raw_response, dict):
+        return _first_openai_compatible_finish_reason(raw_response)
+    return None
+
+
+def _choices_count(raw: Any) -> int:
+    payload = raw if isinstance(raw, dict) else getattr(raw, "content", None)
+    if not isinstance(payload, dict):
+        return 0
+    choices = payload.get("choices")
+    if isinstance(choices, list):
+        return len(choices)
+    raw_response = payload.get("raw_provider_response")
+    if isinstance(raw_response, dict):
+        return _choices_count(raw_response)
+    return 0
+
+
+def _native_tool_calls_present(raw: Any) -> bool:
+    message = _first_openai_compatible_message(raw)
+    tool_calls = message.get("tool_calls") if isinstance(message, dict) else None
+    return isinstance(tool_calls, list) and bool(tool_calls)
+
+
+def _reasoning_content_present(message: dict[str, Any] | None) -> bool:
+    if not isinstance(message, dict):
+        return False
+    return any(key in message and message.get(key) not in (None, "", [], {}) for key in ("reasoning_content", "reasoning", "thinking"))
+
+
+def _safe_json_shape_from_content(content: str | None) -> dict[str, Any] | list[Any] | None:
+    if not isinstance(content, str) or not content.strip():
+        return None
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        match = re.fullmatch(r"```(?:json)?\s*(\{.*\})\s*```", stripped, flags=re.DOTALL | re.IGNORECASE)
+        if match is None:
+            return None
+        stripped = match.group(1)
+    try:
+        loaded = json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(loaded, dict | list):
+        return loaded
+    return None
+
+
+def _looks_like_json_attempt(content: str) -> bool:
+    stripped = content.strip()
+    return stripped.startswith("{") or stripped.startswith("[") or stripped.startswith("```")
+
+
+def _canonical_fields_present(payload: dict[str, Any]) -> list[str]:
+    if not isinstance(payload, dict):
+        return []
+    present: list[str] = []
+    if payload.get("capability") or payload.get("selected_capability"):
+        present.append("capability")
+    if payload.get("operation") or payload.get("selected_operation"):
+        present.append("operation")
+    if "arguments" in payload or "params" in payload:
+        present.append("arguments")
+    return [field for field in _CANONICAL_FIELDS if field in present]
+
+
+def _canonical_fields_missing(payload: dict[str, Any]) -> list[str]:
+    present = set(_canonical_fields_present(payload))
+    return [field for field in _CANONICAL_FIELDS if field not in present]
+
+
+def _canonical_route_status(request: Any, *, capability: str, operation: str) -> str:
+    visible_schemas = request.canonical_state.model_visible_operation_schemas
+    capabilities = {str(schema.get("capability") or "") for schema in visible_schemas if isinstance(schema, dict)}
+    if capability not in capabilities:
+        return "unknown_capability"
+    for schema in visible_schemas:
+        if (
+            isinstance(schema, dict)
+            and str(schema.get("capability") or "") == capability
+            and str(schema.get("operation") or "") == operation
+        ):
+            return "available"
+    return "unavailable_operation"
+
+
+def _validate_canonical_decision_arguments(
+    arguments: dict[str, Any],
+    *,
+    arguments_schema: Any,
+) -> str:
+    if not isinstance(arguments_schema, dict):
+        return ""
+    if arguments_schema.get("type") == "object" and not isinstance(arguments, dict):
+        return "arguments_not_object"
+    properties = arguments_schema.get("properties")
+    if not isinstance(properties, dict):
+        properties = {}
+    required = arguments_schema.get("required")
+    if isinstance(required, list):
+        for key in required:
+            if str(key) not in arguments:
+                return "required_argument_missing"
+    if arguments_schema.get("additionalProperties") is False:
+        allowed = {str(key) for key in properties}
+        for key in arguments:
+            if str(key) not in allowed:
+                return "unexpected_argument"
+    for key, value in arguments.items():
+        spec = properties.get(key)
+        if not isinstance(spec, dict):
+            continue
+        expected_type = spec.get("type")
+        if expected_type == "string" and not isinstance(value, str):
+            return "argument_type_mismatch"
+        if expected_type == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
+            return "argument_type_mismatch"
+        if expected_type == "array":
+            if not isinstance(value, list):
+                return "argument_type_mismatch"
+            item_spec = spec.get("items")
+            if isinstance(item_spec, dict) and item_spec.get("type") == "string":
+                if any(not isinstance(item, str) for item in value):
+                    return "argument_type_mismatch"
+    return ""
+
+
+def _length_bucket(length: int) -> str:
+    if length <= 0:
+        return "0"
+    if length <= 255:
+        return "1-255"
+    if length <= 1023:
+        return "256-1023"
+    if length <= 4095:
+        return "1024-4095"
+    return "4096+"
 
 
 def _canonical_user_model_contract(*, provider_id: str, backend_id: str, model_id: str) -> UserModelContract:
@@ -249,15 +760,18 @@ def _canonical_real_model_request(
     backend_id: str,
     model_id: str,
     user_model_contract_id: str,
+    canonical_transport_profiles: tuple[str, ...],
 ) -> RealModelRequest:
     metadata = {
         "raw_text_transport": "product_model_native_intent_v1",
+        "canonical_decision_transport_profiles": list(canonical_transport_profiles),
         "canonical_core_product_route": True,
         "mission_id": canonical_request.root_mission_id,
         "canonical_state_hash": canonical_request.canonical_state.state_hash,
         "model_visible_affordances": list(canonical_request.canonical_state.model_visible_affordances),
         "fallback_auto_enabled": False,
         "provider_native_tools_enabled": False,
+        "provider_native_tool_call_decode_enabled": "native_tool_call" in set(canonical_transport_profiles),
     }
     prompt_hash = text_hash(prompt)
     hash_payload = {

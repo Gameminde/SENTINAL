@@ -97,6 +97,15 @@ def _default_entries() -> list[ProviderCatalogEntry]:
                 "https://build.nvidia.com/minimaxai/minimax-m3",
                 "https://docs.nvidia.com/nim/large-language-models/latest/reference/api-reference.html",
             ],
+            capability=ProviderCapabilityFlags(
+                chat=True,
+                streaming=False,
+                json_mode=False,
+                json_schema=False,
+                tool_calling=False,
+                server_side_tools=False,
+                reasoning_controls=False,
+            ),
             timeout=ProviderTimeoutProfile(read_timeout_seconds=120.0, total_timeout_seconds=150.0),
             recommendation=ProviderRecommendation(
                 recommended_for=["long-timeout diagnostics", "explicit MiniMax M3 product-route experiments"],

@@ -1,0 +1,124 @@
+{
+  "schema_version": "minimax_canonical_decision_protocol_alignment_v1_safe",
+  "classification": "IMPLEMENTED_LOCAL_CANDIDATE",
+  "source_head_before_tranche": "91cad30debc143c7aa660b94d1e6883814090cd7",
+  "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+  "fixed_proven": "0/65",
+  "c5b_sovereign_v1": {
+    "status": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
+    "consumed_immutable": true,
+    "rerun_authorized": false,
+    "provider_id": "nvidia",
+    "backend_id": "nvidia_openai_compatible_chat",
+    "model_id": "minimaxai/minimax-m3",
+    "historical_provider_calls": 1,
+    "historical_product_action_kernel_dispatch": "NOT_REACHED",
+    "historical_browser_actions": 0
+  },
+  "current_tranche_counters": {
+    "provider_calls": 0,
+    "product_action_kernel_dispatch": 0,
+    "browser_actions": 0,
+    "raw_provider_material_persisted": false
+  },
+  "real_minimax_shape_diagnosis": {
+    "raw_response_shape_found_in_local_artifacts": false,
+    "raw_provider_output_persisted_in_historical_bundle": false,
+    "safe_artifacts_examined": [
+      "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V1/c5b_sovereign_minimax_result.safe.json",
+      ".c5b_sentinel_chromium_minimax_m3_v1 events/record/telemetry metadata"
+    ],
+    "observed_safe_failure_code": "CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED",
+    "safe_event_types_present": [
+      "mission_created",
+      "mission_queued",
+      "mission_running",
+      "canonical_model_decision_failed",
+      "mission_blocked",
+      "canonical_browser_readonly_cleanup_completed"
+    ],
+    "telemetry_limitation": "No raw MiniMax response shape remained locally; no exact provider transport diagnosis is claimed."
+  },
+  "transport_profiles": {
+    "native_tool_call": {
+      "status": "SUPPORTED_WHEN_EXPLICITLY_CONFIGURED",
+      "acceptance_rule": "exactly one tool call whose function name unambiguously encodes capability.operation"
+    },
+    "strict_json_content": {
+      "status": "SUPPORTED_WHEN_EXPLICITLY_CONFIGURED",
+      "acceptance_rule": "assistant visible content is a strict JSON object containing capability, operation and schema-valid arguments"
+    },
+    "fenced_strict_json": {
+      "status": "SUPPORTED_WHEN_EXPLICITLY_CONFIGURED",
+      "acceptance_rule": "assistant visible content is a single fenced JSON object containing capability, operation and schema-valid arguments"
+    },
+    "unsupported": {
+      "status": "SUPPORTED_REJECTION_PROFILE",
+      "acceptance_rule": "reject without inventing an action"
+    }
+  },
+  "typed_rejections_covered": [
+    "content_absent",
+    "multiple_candidate_decisions",
+    "malformed_json",
+    "capability_missing",
+    "operation_missing",
+    "unknown_capability",
+    "unavailable_operation",
+    "invalid_arguments",
+    "narrative_only_response",
+    "unsupported_transport"
+  ],
+  "gates": {
+    "provider_calls": 0,
+    "product_action_kernel_dispatch": 0,
+    "browser_actions": 0,
+    "raw_provider_material_persisted": false,
+    "no_action_invented": true,
+    "valid_supported_transports_accepted": true,
+    "partial_ambiguous_outputs_rejected": true,
+    "provider_adapters_existing_non_regressed": true,
+    "decision_origin_chain_verified": true
+  },
+  "proof_artifacts": [
+    "sentinel/operator/product_model_native_decision_client.py",
+    "tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py",
+    "tests/test_model_provider_catalog.py",
+    "sentinel/agent/model_execution/provider_profiles.py"
+  ],
+  "validation": [
+    {
+      "command": "py -3.13 -m pytest tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py -k \"canonical_decision_client_accepts_openai_strict_json_content or canonical_decision_client_accepts_fenced_json_only_when_profile_allows or canonical_decision_client_accepts_native_tool_call_only_when_profile_allows or canonical_decision_transport_rejects_partial_or_ambiguous_outputs or canonical_decision_transport_rejects_unadvertised_tool_call_without_inventing_action or unknown_provider_profile_is_unsupported_without_silent_json_assumption or product_model_native_decision_client_can_emit_canonical_decision or public_product_cli_real_provider_mode_uses_product_native_transport or provider_failure_diagnostics_preserve_safe_auth_cause\" -q",
+      "result": "19 passed"
+    },
+    {
+      "command": "py -3.13 -m pytest tests/test_real_model_execution_nvidia.py tests/test_model_provider_catalog.py::test_nvidia_catalog_registers_minimax_m3_openai_compatible_route -q",
+      "result": "7 passed"
+    },
+    {
+      "command": "py -3.13 -m compileall -q sentinel",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "targeted high-confidence secret scan over changed files",
+      "result": "passed"
+    },
+    {
+      "command": "JSON parse of ledger and safe bundle",
+      "result": "passed"
+    }
+  ],
+  "next_probe_proposal": {
+    "probe_id": "MINIMAX_DECISION_PROTOCOL_ONLY_V1",
+    "executed": false,
+    "authorization_required": true,
+    "provider_calls_if_authorized": 1,
+    "product_action_kernel_dispatch": 0,
+    "browser_actions": 0,
+    "purpose": "Capture safe shape telemetry for a fresh MiniMax decision response without executing a browser/product action."
+  }
+}

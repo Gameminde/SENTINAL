@@ -12,7 +12,7 @@ import pytest
 
 from sentinel.mission.models import MissionAuthorityEnvelope
 from sentinel import cli
-from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionResult
+from sentinel.operator.action_kernel import ActionEnvelope, ActionKernel, ActionKernelError, ActionResult
 from sentinel.operator.canonical_core import (
     CanonicalDecision,
     CanonicalCoreError,
@@ -1657,6 +1657,11 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     assert len(captured_requests) == 2
     assert captured_requests[0].runtime == "product_model_native_decision"
     assert captured_requests[0].request_metadata["raw_text_transport"] == "product_model_native_intent_v1"
+    assert captured_requests[0].request_metadata["canonical_decision_transport_profiles"] == [
+        "strict_json_content",
+        "fenced_strict_json",
+    ]
+    assert captured_requests[0].request_metadata["provider_native_tool_call_decode_enabled"] is False
     assert captured_requests[0].request_metadata["model_visible_affordances"] == [
         "workspace.list",
         "workspace.read",
@@ -1723,6 +1728,286 @@ def test_product_model_native_decision_client_can_emit_canonical_decision(tmp_pa
     assert decision.arguments == {"query": "needle"}
 
 
+def test_canonical_decision_client_accepts_openai_strict_json_content_with_safe_shape_telemetry(
+    tmp_path: Path,
+) -> None:
+    raw_content = json.dumps(
+        {
+            "capability": "workspace",
+            "operation": "search",
+            "arguments": {"query": "needle"},
+            "expected_state_delta": "matches",
+        }
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient(
+            [
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "stop",
+                            "message": {"role": "assistant", "content": raw_content},
+                        }
+                    ],
+                }
+            ]
+        ),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    decision = client.complete(_canonical_request(tmp_path))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "workspace"
+    assert decision.selected_operation == "search"
+    assert decision.arguments == {"query": "needle"}
+    assert telemetry["response_root_type"] == "dict"
+    assert telemetry["choices_count"] == 1
+    assert telemetry["message_present"] is True
+    assert telemetry["content_present"] is True
+    assert telemetry["content_type"] == "str"
+    assert telemetry["tool_calls_present"] is False
+    assert telemetry["reasoning_content_present"] is False
+    assert telemetry["finish_reason"] == "stop"
+    assert telemetry["content_length_bucket"] == "1-255"
+    assert telemetry["json_detected"] is True
+    assert telemetry["json_root_type"] == "dict"
+    assert telemetry["canonical_fields_present"] == ["arguments", "capability", "operation"]
+    assert telemetry["canonical_fields_missing"] == []
+    assert telemetry["extraction_stage"] == "strict_json_content"
+    assert telemetry["typed_rejection_reason"] == ""
+    assert "needle" not in str(telemetry)
+    assert "raw_content" not in client.safe_diagnostics[-1]
+
+
+def test_canonical_decision_client_accepts_fenced_json_only_when_profile_allows(
+    tmp_path: Path,
+) -> None:
+    fenced = (
+        "```json\n"
+        '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'
+        "\n```"
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": fenced}]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("fenced_strict_json",),
+    )
+
+    decision = client.complete(_canonical_request(tmp_path))
+
+    assert decision.selected_capability == "workspace"
+    assert decision.selected_operation == "search"
+    assert client.safe_diagnostics[-1]["canonical_decision_transport"]["extraction_stage"] == "fenced_strict_json"
+
+
+def test_canonical_decision_client_accepts_native_tool_call_only_when_profile_allows(
+    tmp_path: Path,
+) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient(
+            [
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "tool_calls",
+                            "message": {
+                                "role": "assistant",
+                                "content": None,
+                                "tool_calls": [
+                                    {
+                                        "type": "function",
+                                        "function": {
+                                            "name": "workspace.search",
+                                            "arguments": '{"query":"needle"}',
+                                        },
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                }
+            ]
+        ),
+        provider_id="unit_provider",
+        backend_id="unit_native_tool_backend",
+        model_id="unit-tool-model",
+        canonical_transport_profiles=("native_tool_call",),
+    )
+
+    decision = client.complete(_canonical_request(tmp_path))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "workspace"
+    assert decision.selected_operation == "search"
+    assert decision.arguments == {"query": "needle"}
+    assert telemetry["tool_calls_present"] is True
+    assert telemetry["tool_calls_count"] == 1
+    assert telemetry["extraction_stage"] == "native_tool_call"
+    assert telemetry["decision_origin_chain"] == [
+        "provider_transport:native_tool_call",
+        "tool_name_explicitly_encoded_capability_operation",
+        "capability_graph_route_verified",
+        "arguments_schema_verified",
+        "decision_origin:model_selected",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("raw_output", "profiles", "reason"),
+    [
+        (
+            {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'},
+            ("unsupported",),
+            "unsupported_transport",
+        ),
+        ({"choices": [{"message": {"role": "assistant"}}]}, ("strict_json_content",), "content_absent"),
+        ({"content": '{"capability":"workspace","operation":"search","arguments":'}, ("strict_json_content",), "malformed_json"),
+        ({"content": "I will search for the answer."}, ("strict_json_content",), "narrative_only_response"),
+        ({"content": '{"operation":"search","arguments":{"query":"needle"}}'}, ("strict_json_content",), "capability_missing"),
+        ({"content": '{"capability":"workspace","arguments":{"query":"needle"}}'}, ("strict_json_content",), "operation_missing"),
+        (
+            {"content": '{"capability":"shell","operation":"run","arguments":{"query":"needle"}}'},
+            ("strict_json_content",),
+            "unknown_capability",
+        ),
+        (
+            {"content": '{"capability":"workspace","operation":"patch","arguments":{"path":"README.md"}}'},
+            ("strict_json_content",),
+            "unavailable_operation",
+        ),
+        (
+            {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle","extra":"x"}}'},
+            ("strict_json_content",),
+            "invalid_arguments",
+        ),
+        (
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}',
+                            "tool_calls": [
+                                {
+                                    "type": "function",
+                                    "function": {"name": "workspace.search", "arguments": '{"query":"needle"}'},
+                                }
+                            ],
+                        }
+                    }
+                ],
+            },
+            ("native_tool_call", "strict_json_content"),
+            "multiple_candidate_decisions",
+        ),
+        (
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}',
+                            "tool_calls": [
+                                {
+                                    "type": "function",
+                                    "function": {"name": "workspace.search", "arguments": '{"query":"needle"}'},
+                                }
+                            ],
+                        }
+                    }
+                ],
+            },
+            ("strict_json_content",),
+            "unsupported_transport",
+        ),
+    ],
+)
+def test_canonical_decision_transport_rejects_partial_or_ambiguous_outputs(
+    tmp_path: Path,
+    raw_output: dict[str, Any],
+    profiles: tuple[str, ...],
+    reason: str,
+) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([raw_output]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=profiles,
+    )
+
+    with pytest.raises(ActionKernelError, match=reason):
+        client.complete(_canonical_request(tmp_path))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["typed_rejection_reason"] == reason
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+    assert "needle" not in str(telemetry)
+
+
+def test_canonical_decision_transport_rejects_unadvertised_tool_call_without_inventing_action(
+    tmp_path: Path,
+) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient(
+            [
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "tool_calls": [
+                                    {
+                                        "type": "function",
+                                        "function": {"name": "search", "arguments": '{"query":"needle"}'},
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        ),
+        provider_id="unit_provider",
+        backend_id="unit_native_tool_backend",
+        model_id="unit-tool-model",
+        canonical_transport_profiles=("native_tool_call",),
+    )
+
+    with pytest.raises(ActionKernelError, match="capability_missing"):
+        client.complete(_canonical_request(tmp_path))
+
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
+def test_unknown_provider_profile_is_unsupported_without_silent_json_assumption(tmp_path: Path) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient(
+            [
+                {
+                    "content": json.dumps(
+                        {"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}}
+                    )
+                }
+            ]
+        ),
+        provider_id="unknown_provider",
+        backend_id="unknown_backend",
+        model_id="unknown_model",
+    )
+
+    with pytest.raises(ActionKernelError, match="unsupported_transport"):
+        client.complete(_canonical_request(tmp_path))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["supported_transport_profiles"] == ["unsupported"]
+    assert telemetry["typed_rejection_reason"] == "unsupported_transport"
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
 def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:
     with pytest.raises(CanonicalCoreError, match="credential_rejected_http_401"):
         cli._extract_canonical_json_decision(
@@ -1741,6 +2026,22 @@ def test_provider_failure_diagnostics_preserve_safe_auth_cause() -> None:
                 "http_status": 403,
             }
         )
+
+
+def _canonical_request(tmp_path: Path) -> CanonicalDecisionRequest:
+    workspace = _workspace(tmp_path)
+    runtime = RootMissionRuntime(
+        objective="Find needle.",
+        workspace_root=workspace,
+        provider_model="provider/model",
+    )
+    return CanonicalDecisionRequest(
+        root_mission_id=runtime.root_mission_id,
+        provider_model="provider/model",
+        canonical_state=runtime.compile_state(),
+        prompt_summary="test",
+        cancellation_ref=runtime.cancellation_token.safe_ref,
+    )
 
 
 def _workspace(tmp_path: Path) -> Path:

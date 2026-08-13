@@ -191,7 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "current_wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V1",
+  "current_wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -2616,7 +2616,7 @@
       "classification": "TOOL_CONTRACT_AMBIGUOUS",
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "depends_on": [],
-      "finding": "The monorepo mixes Sentinel core, a research-only agent lab, a separate Reddit/CueIdea product and a demo web fa\u00e7ade.",
+      "finding": "The monorepo mixes Sentinel core, a research-only agent lab, a separate Reddit/CueIdea product and a demo web façade.",
       "fixed_proven_commit": "",
       "id": "C-P2-24",
       "integration_or_live_probe": "",
@@ -2696,7 +2696,7 @@
   "fixed_proven_count": 0,
   "fixed_proven_total": 65,
   "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "latest_c5_status": "C5B_VALID_INFRA_BLOCKED_PROVIDER_AUTH_ERROR",
+  "latest_c5_status": "C5B_SOVEREIGN_V1_CONSUMED_MINIMAX_DECISION_PROTOCOL_ALIGNMENT_LOCAL_CANDIDATE",
   "latest_pushed_head_before_c5a_root_cause": "fb3561f1bfdaee7a004a3bddacf8c39cbd8f057f",
   "latest_pushed_head_before_c5a_timeout_repair": "f63dcfe2f7e65b72cc8c943902eb2c940f6a9b3c",
   "ledger_commit_classes": {
@@ -4171,5 +4171,92 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-11T11:02:36.749533+00:00"
+  "updated_at_utc": "2026-08-13T07:43:04Z",
+  "minimax_canonical_decision_protocol_alignment_v1": {
+    "wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
+    "status": "IMPLEMENTED_LOCAL_CANDIDATE",
+    "source_head_before_tranche": "91cad30debc143c7aa660b94d1e6883814090cd7",
+    "implementation_tested_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "attestation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "fixed_proven_count": 0,
+    "fixed_proven": "0/65",
+    "c5b_sovereign_v1": {
+      "status": "VALID_FAILED_MODEL_DECISION_NORMALIZATION_BEFORE_BROWSER_DISPATCH",
+      "consumed_immutable": true,
+      "rerun_authorized": false,
+      "historical_provider_calls": 1,
+      "historical_product_action_kernel_dispatch": "NOT_REACHED",
+      "historical_browser_actions": 0,
+      "historical_failure_code": "CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED"
+    },
+    "current_tranche_counters": {
+      "provider_calls": 0,
+      "product_action_kernel_dispatch": 0,
+      "browser_actions": 0,
+      "raw_provider_material_persisted": false
+    },
+    "real_minimax_shape_diagnosis": {
+      "raw_response_shape_found_in_local_artifacts": false,
+      "raw_provider_output_persisted_in_historical_bundle": false,
+      "observed_safe_failure_code": "CANONICAL_DECISION_CAPABILITY_OPERATION_REQUIRED",
+      "telemetry_limitation": "No raw MiniMax response shape remained locally; exact provider transport shape is not claimed."
+    },
+    "transport_profiles": {
+      "native_tool_call": "supported only when explicitly configured and tool name encodes capability.operation",
+      "strict_json_content": "supported only when explicitly configured and visible content is a strict JSON object",
+      "fenced_strict_json": "supported only when explicitly configured and visible content is a single fenced JSON object",
+      "unsupported": "reject without action invention"
+    },
+    "typed_rejections_covered": [
+      "content_absent",
+      "multiple_candidate_decisions",
+      "malformed_json",
+      "capability_missing",
+      "operation_missing",
+      "unknown_capability",
+      "unavailable_operation",
+      "invalid_arguments",
+      "narrative_only_response",
+      "unsupported_transport"
+    ],
+    "gates": {
+      "provider_calls": 0,
+      "ProductActionKernel dispatch": 0,
+      "Browser actions": 0,
+      "raw_provider_material_persisted": false,
+      "no_action_invented": true,
+      "valid_supported_transports_accepted": true,
+      "partial_ambiguous_outputs_rejected": true,
+      "provider_adapters_existing_non_regressed": true,
+      "DecisionOrigin chain verified": true
+    },
+    "proof_artifacts": [
+      "sentinel-control/docs/reviews/deep_power_audit/MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1_REPORT.md",
+      "sentinel-control/docs/reviews/deep_power_audit/MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1/minimax_decision_protocol_alignment.safe.json"
+    ],
+    "validation_results": [
+      {
+        "command": "py -3.13 -m pytest tests/operator/test_sentinel_dev_max_power_canonical_core_v1.py -k <canonical MiniMax transport tests> -q",
+        "result": "19 passed"
+      },
+      {
+        "command": "py -3.13 -m pytest tests/test_real_model_execution_nvidia.py tests/test_model_provider_catalog.py::test_nvidia_catalog_registers_minimax_m3_openai_compatible_route -q",
+        "result": "7 passed"
+      }
+    ],
+    "next_probe_proposal": {
+      "probe_id": "MINIMAX_DECISION_PROTOCOL_ONLY_V1",
+      "executed": false,
+      "authorization_required": true,
+      "provider_calls_if_authorized": 1,
+      "ProductActionKernel dispatch": 0,
+      "Browser actions": 0
+    },
+    "updated_at_utc": "2026-08-13T07:43:04Z"
+  },
+  "current_tranche_provider_calls": 0,
+  "current_tranche_browser_actions": 0,
+  "current_tranche_product_action_kernel_dispatches": 0,
+  "historical_C5B_provider_calls": 1,
+  "historical_C5B_product_browser_mission_attempts": 1
 }
