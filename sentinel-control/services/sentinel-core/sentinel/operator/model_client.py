@@ -13,6 +13,10 @@ from sentinel.agent.model_execution.openai_compatible import (
     OpenAICompatibleChatProvider,
     OpenAICompatibleProviderConfig,
 )
+from sentinel.agent.model_execution.openai_responses import (
+    OpenAIResponsesProvider,
+    OpenAIResponsesProviderConfig,
+)
 from sentinel.agent.model_execution.policy import ModelTimeoutPolicy
 from sentinel.agent.model_execution.provider_profiles import build_default_provider_catalog
 from sentinel.agent.model_execution.redaction import stable_hash, text_hash
@@ -50,6 +54,7 @@ class OperatorCatalogModelClient:
             return _blocked("LOCAL_ENDPOINT_NOT_LOOPBACK")
         if backend.family not in {
             ProviderFamily.OPENAI_COMPATIBLE_CHAT,
+            ProviderFamily.OPENAI_NATIVE,
             ProviderFamily.LOCAL_OPENAI_COMPATIBLE,
             ProviderFamily.DEEPSEEK_COMPATIBLE,
             ProviderFamily.MISTRAL_NATIVE_OR_COMPATIBLE,
@@ -57,16 +62,28 @@ class OperatorCatalogModelClient:
         }:
             return _blocked("UNSUPPORTED_BACKEND_FAMILY")
 
-        provider = OpenAICompatibleChatProvider(
-            config=OpenAICompatibleProviderConfig(
-                provider_id=entry.provider_id,
-                backend_id=backend.backend_id,
-                base_url=_base_url_from_endpoint(backend.endpoint_template),
-                credential_env=entry.credential_policy.credential_env_var,
-                default_model_id=request.model_id,
-                backend_profile=backend,
+        if backend.family is ProviderFamily.OPENAI_NATIVE and backend.runtime == "responses":
+            provider: OpenAICompatibleChatProvider | OpenAIResponsesProvider = OpenAIResponsesProvider(
+                config=OpenAIResponsesProviderConfig(
+                    provider_id=entry.provider_id,
+                    backend_id=backend.backend_id,
+                    endpoint_url=backend.endpoint_template,
+                    credential_env=entry.credential_policy.credential_env_var,
+                    default_model_id=request.model_id,
+                    backend_profile=backend,
+                )
             )
-        )
+        else:
+            provider = OpenAICompatibleChatProvider(
+                config=OpenAICompatibleProviderConfig(
+                    provider_id=entry.provider_id,
+                    backend_id=backend.backend_id,
+                    base_url=_base_url_from_endpoint(backend.endpoint_template),
+                    credential_env=entry.credential_policy.credential_env_var,
+                    default_model_id=request.model_id,
+                    backend_profile=backend,
+                )
+            )
         if request.runtime == "operator_llm_conversation" and backend.supports_json_mode:
             request_metadata = {
                 **request.request_metadata,
@@ -163,7 +180,7 @@ def _is_loopback_endpoint(endpoint: str) -> bool:
         return False
 
 
-def _provider_timeout_policy(*, provider: OpenAICompatibleChatProvider, request: RealModelRequest) -> ModelTimeoutPolicy:
+def _provider_timeout_policy(*, provider: Any, request: RealModelRequest) -> ModelTimeoutPolicy:
     if request.request_metadata.get("read_only_lane") != "exploration_decision":
         return provider.default_timeout_policy()
     timeout_payload = request.request_metadata.get("timeout_policy")
@@ -269,6 +286,7 @@ def build_safe_provider_inventory(*, provider_catalog: ProviderCatalog | None = 
             "backend_ids": backend_ids,
             "model_ids": sorted(dict.fromkeys(model_ids)),
             "plain_chat_completion": entry.family in plain_chat_families,
+            "responses_backend": any(backend.runtime == "responses" for backend in entry.backends),
             "provider_native_tools_disabled": not entry.capability_flags.server_side_tools_enabled_by_default,
             "process_scoped_credentials": entry.credential_policy.credential_source_type == "env",
             "credential_present": bool(credential_env and os.environ.get(credential_env)),

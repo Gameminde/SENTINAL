@@ -97,9 +97,9 @@ export async function runCanonicalProductMissionFromWeb(
   const workspaceRoot = path.join(dataRoot, "canonical_product_workspaces", runId);
   const objective = input.objective.trim() || DEFAULT_OBJECTIVE;
   const targetOrigin = (input.targetOrigin || "sqlite.org").trim() || "sqlite.org";
-  const providerId = (input.providerId || process.env.SENTINEL_CANONICAL_MODEL_PROVIDER_ID || "aliyun_dashscope").trim();
-  const backendId = (input.backendId || process.env.SENTINEL_CANONICAL_MODEL_BACKEND_ID || "aliyun_openai_compatible_chat").trim();
-  const modelId = (input.modelId || process.env.SENTINEL_CANONICAL_MODEL_ID || "qwen-plus").trim();
+  const providerId = (input.providerId || process.env.SENTINEL_CANONICAL_MODEL_PROVIDER_ID || "opencode").trim();
+  const backendId = (input.backendId || process.env.SENTINEL_CANONICAL_MODEL_BACKEND_ID || "opencode_responses").trim();
+  const modelId = (input.modelId || process.env.SENTINEL_CANONICAL_MODEL_ID || "muse-spark-1.2-contributor-free").trim();
 
   await mkdir(runRoot, { recursive: true });
   await mkdir(workspaceRoot, { recursive: true });

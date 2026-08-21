@@ -43,9 +43,9 @@ export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] 
           depth,
           mode: "canonical_public",
           targetOrigin: "sqlite.org",
-          providerId: "aliyun_dashscope",
-          backendId: "aliyun_openai_compatible_chat",
-          modelId: "qwen-plus",
+          providerId: "opencode",
+          backendId: "opencode_responses",
+          modelId: "muse-spark-1.2-contributor-free",
         }),
       });
       const payload = (await response.json()) as { run?: SentinelRunRecord; error?: string };

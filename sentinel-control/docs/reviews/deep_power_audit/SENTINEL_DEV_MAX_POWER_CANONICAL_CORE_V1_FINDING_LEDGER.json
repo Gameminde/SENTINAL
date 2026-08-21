@@ -2621,7 +2621,7 @@
       "classification": "TOOL_CONTRACT_AMBIGUOUS",
       "current_head_revalidated": "fe28a144445168aa75bc3f9c02e1e4626466e5db",
       "depends_on": [],
-      "finding": "The monorepo mixes Sentinel core, a research-only agent lab, a separate Reddit/CueIdea product and a demo web fa\u00e7ade.",
+      "finding": "The monorepo mixes Sentinel core, a research-only agent lab, a separate Reddit/CueIdea product and a demo web façade.",
       "fixed_proven_commit": "",
       "id": "C-P2-24",
       "integration_or_live_probe": "",
@@ -4182,7 +4182,7 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-21T13:25:15.101220Z",
+  "updated_at_utc": "2026-08-21T13:53:32.028766Z",
   "minimax_canonical_decision_protocol_alignment_v1": {
     "wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
     "status": "IMPLEMENTED_LOCAL_CANDIDATE",
@@ -4725,5 +4725,22 @@
     "c6_public_product_recent_material_actions": 0,
     "c6_public_product_browser_dispatches": 0,
     "c6_public_product_live_runs_recorded": 5
+  },
+  "latest_provider_status": "OPENCODE_MUSE_SPARK_PROVIDER_READINESS_IMPLEMENTED_OFFLINE_CANDIDATE",
+  "opencode_muse_spark_provider_readiness": {
+    "wave": "OPENCODE_MUSE_SPARK_PROVIDER_READINESS",
+    "classification": "IMPLEMENTED_OFFLINE_CANDIDATE",
+    "provider_id": "opencode",
+    "backend_id": "opencode_responses",
+    "model_id": "muse-spark-1.2-contributor-free",
+    "adapter": "OpenAIResponsesProvider",
+    "credential_env_var": "OPENCODE_API_KEY",
+    "provider_calls": 0,
+    "product_browser_runs": 0,
+    "raw_secret_persisted": false,
+    "raw_provider_material_persisted": false,
+    "real_call_status": "NOT_RUN_ENV_ABSENT",
+    "fixed_proven": "0/65",
+    "report": "sentinel-control/docs/OPENCODE_MUSE_SPARK_PROVIDER_READINESS_REPORT.md"
   }
 }
