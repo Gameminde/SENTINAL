@@ -13,8 +13,8 @@ import type { RunDepth, SentinelRunRecord } from "@/lib/types";
 export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] }) {
   const [runs, setRuns] = useState(initialRuns);
   const [selectedRunId, setSelectedRunId] = useState(initialRuns[0]?.id ?? "");
-  const [idea, setIdea] = useState("AI invoice chasing for freelancers");
-  const [niche, setNiche] = useState("Freelancers and small agencies");
+  const [idea, setIdea] = useState("Find official SQLite documentation explaining generated columns and provide a short useful answer.");
+  const [niche, setNiche] = useState("sqlite.org");
   const [depth, setDepth] = useState<RunDepth>("standard");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,16 @@ export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] 
       const response = await fetch("/api/runs", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ idea, niche, depth }),
+        body: JSON.stringify({
+          idea,
+          niche,
+          depth,
+          mode: "canonical_public",
+          targetOrigin: "sqlite.org",
+          providerId: "aliyun_dashscope",
+          backendId: "aliyun_openai_compatible_chat",
+          modelId: "qwen-plus",
+        }),
       });
       const payload = (await response.json()) as { run?: SentinelRunRecord; error?: string };
 
@@ -71,14 +80,14 @@ export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] 
       <div className="hero">
         <section className="hero-panel">
           <div className="eyebrow">Agents</div>
-          <h1 className="page-title">Run the Sentinel GTM Operator</h1>
+          <h1 className="page-title">Run Sentinel</h1>
           <p className="page-copy">
-            Create a local Sentinel run, generate the evidence ledger and GTM pack outline, then approve or reject actions through the Firewall queue.
+            Launch a governed public read-only mission through the canonical Sentinel runtime, then inspect the receipts, evidence, answer, and cleanup state returned by the body.
           </p>
 
           <form className="run-form" onSubmit={handleSubmit}>
             <label>
-              <span>Idea</span>
+              <span>Mission objective</span>
               <input
                 className="input"
                 value={idea}
@@ -88,7 +97,7 @@ export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] 
               />
             </label>
             <label>
-              <span>Niche</span>
+              <span>Authority scope</span>
               <input className="input" value={niche} onChange={(event) => setNiche(event.target.value)} />
             </label>
             <label>
@@ -101,7 +110,7 @@ export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] 
             </label>
             <button className="primary-btn" type="submit" disabled={isSubmitting}>
               {isSubmitting ? <RefreshCw size={16} /> : <Play size={16} />}
-              <span>{isSubmitting ? "Creating run" : "Run analysis"}</span>
+              <span>{isSubmitting ? "Running Sentinel" : "Run Sentinel"}</span>
             </button>
           </form>
 
@@ -131,8 +140,38 @@ export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] 
             <Metric label="Verdict" value={selectedRun.summary.verdict} sub={selectedRun.status.replace(/_/g, " ")} />
             <Metric label="Confidence" value={`${selectedRun.confidence}%`} sub={selectedRun.depth} />
             <Metric label="Risk" value={`${selectedRun.riskScore}`} sub={selectedRun.riskLabel} />
-            <Metric label="Actions" value={`${selectedRun.actions.length}`} sub="firewall reviewed" />
+            <Metric
+              label="Actions"
+              value={`${selectedRun.canonicalMission?.completedActions.length ?? selectedRun.actions.length}`}
+              sub={selectedRun.canonicalMission ? "receipt linked" : "firewall reviewed"}
+            />
           </div>
+          {selectedRun.canonicalMission ? (
+            <div className="list" style={{ marginTop: 16 }}>
+              <div className="list-item">
+                <strong>Canonical runtime</strong>
+                <p>
+                  {selectedRun.canonicalMission.currentStage} / {selectedRun.canonicalMission.selectedProvider}/
+                  {selectedRun.canonicalMission.selectedModel}
+                </p>
+                <span className="page-note">
+                  Authority: {selectedRun.canonicalMission.authorityScope.grantedAuthorities.join(", ") || "unknown"} / origins:{" "}
+                  {selectedRun.canonicalMission.authorityScope.browserAllowedOrigins.join(", ") || "unknown"}
+                </span>
+              </div>
+              <div className="list-item">
+                <strong>{selectedRun.canonicalMission.terminalAnswer ? "Answer" : "Blocker"}</strong>
+                <p>{selectedRun.canonicalMission.terminalAnswer || selectedRun.canonicalMission.terminalBlocker || "No terminal text."}</p>
+                <span className="page-note">
+                  Evidence refs {selectedRun.canonicalMission.evidenceRefs.length} / cleanup {selectedRun.canonicalMission.cleanupStatus}
+                </span>
+              </div>
+              <div className="list-item">
+                <strong>Executable affordances</strong>
+                <p>{selectedRun.canonicalMission.modelVisibleAffordances.join(", ")}</p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="run-switcher" aria-label="Recent runs">
             {runs.slice(0, 5).map((run) => (

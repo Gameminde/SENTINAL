@@ -1,6 +1,7 @@
 export type RiskLevel = "low" | "medium" | "high" | "critical";
 export type ApprovalStatus = "not_required" | "pending" | "approved" | "rejected" | "blocked";
 export type RunDepth = "quick" | "standard" | "deep";
+export type RunMode = "canonical_public" | "sandbox_hypothesis";
 export type RunVerdict = "build" | "pivot" | "niche_down" | "kill" | "research_more";
 export type FeedbackTargetType = "action" | "asset" | "evidence" | "run";
 export type FeedbackRating = "useful" | "weak" | "approved" | "rejected";
@@ -234,6 +235,7 @@ export interface SentinelRunRecord {
   paidQuote?: PaidRunQuoteRow;
   prospectSources: ProspectSourceRow[];
   cueideaReport?: CueIdeaReportSummaryRow;
+  canonicalMission?: CanonicalProductMissionRow;
   gtmQuality: GTMPackQualityRow;
   project: ProjectCard;
 }
@@ -243,6 +245,40 @@ export interface CreateRunInput {
   niche?: string;
   depth: RunDepth;
   userId?: string;
+  mode?: RunMode;
+  targetOrigin?: string;
+  providerId?: string;
+  backendId?: string;
+  modelId?: string;
+}
+
+export interface CanonicalProductMissionRow {
+  rootMissionId: string;
+  status: string;
+  currentStage: string;
+  selectedProvider: string;
+  selectedModel: string;
+  authorityScope: {
+    grantedAuthorities: string[];
+    browserAllowedOrigins: string[];
+    publicWebReadOnly: boolean;
+  };
+  modelVisibleAffordances: string[];
+  completedActions: Array<{
+    receiptId: string;
+    capability: string;
+    operation: string;
+    status: string;
+    materialAction: boolean;
+    evidenceRefs: string[];
+  }>;
+  evidenceRefs: string[];
+  terminalAnswer?: string;
+  terminalBlocker?: string;
+  cleanupStatus: string;
+  proofRootId?: string;
+  proofRootVerified: boolean;
+  replaySideEffectsReexecuted: boolean;
 }
 
 export interface CreateFeedbackInput {

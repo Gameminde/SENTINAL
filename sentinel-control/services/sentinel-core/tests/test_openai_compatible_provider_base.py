@@ -55,6 +55,20 @@ class RecordingHttpxClient:
         return _Response(self.payload, self.status_code)
 
 
+class RequestErrorHttpxClient:
+    def __call__(self, *_args: Any, **_kwargs: Any) -> RequestErrorHttpxClient:
+        return self
+
+    def __enter__(self) -> RequestErrorHttpxClient:
+        return self
+
+    def __exit__(self, *_args: Any) -> None:
+        return None
+
+    def post(self, *_args: Any, **_kwargs: Any) -> Any:
+        raise httpx.RemoteProtocolError("server disconnected with sk-test-unit-secret-1234567890")
+
+
 class _Response:
     def __init__(self, payload: dict[str, Any], status_code: int) -> None:
         self._payload = payload
@@ -267,6 +281,25 @@ def test_provider_error_message_is_hashed_or_classified_not_raw(
     assert "provider_error_message_hash" in response.content
     assert raw_error not in response.model_dump_json()
     assert "sk-test-unit-secret-1234567890" not in response.model_dump_json()
+
+
+def test_provider_request_error_preserves_safe_transport_diagnostics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("UNIT_PROVIDER_KEY", SECRET_VALUE)
+    monkeypatch.setattr("httpx.Client", RequestErrorHttpxClient())
+
+    response = _provider().execute(_compatible_request(), timeout=_timeout(), credential=_credential())
+
+    assert response.error_class == ModelExecutionOutcomeClass.PROVIDER_ERROR.value
+    assert response.content["provider_transport_error_class"] == "RemoteProtocolError"
+    assert response.content["provider_transport_error_message_hash"] == text_hash(
+        "server disconnected with sk-test-unit-secret-1234567890"
+    )
+    assert response.content["provider_transport_error_message_redacted"] is True
+    dumped = response.model_dump_json()
+    assert "server disconnected" not in dumped
+    assert "sk-test-unit-secret-1234567890" not in dumped
 
 
 def _provider(*, profile: ProviderBackendProfile | None = None) -> OpenAICompatibleChatProvider:

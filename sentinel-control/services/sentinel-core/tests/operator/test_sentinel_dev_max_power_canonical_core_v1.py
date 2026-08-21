@@ -29,6 +29,7 @@ from sentinel.operator.canonical_core import (
     run_canonical_dev_mission,
     run_canonical_product_mission,
 )
+from sentinel.operator.canonical_browser_readonly_adapter import FakeBrowserReadOnlyBackend
 from sentinel.operator.product_model_native_decision_client import ProductModelNativeDecisionClient
 from sentinel.operator.models import OperatorMissionStatus
 from sentinel.operator.code_execution_sandbox_runtime import CodeExecutionSandboxRuntime
@@ -67,6 +68,19 @@ class FailingModelClient:
 class RaisingDispatchModelClient:
     def complete(self, request: Any) -> dict[str, Any]:
         return {"capability": "workspace", "operation": "read", "arguments": {"path": "missing.md"}}
+
+
+class NarrativeThenDecisionModelClient:
+    def __init__(self) -> None:
+        self.requests: list[Any] = []
+
+    def complete(self, request: Any) -> dict[str, Any]:
+        self.requests.append(request)
+        if len(self.requests) == 1:
+            raise ActionKernelError("CANONICAL_DECISION_TRANSPORT_REJECTED:narrative_only_response")
+        if len(self.requests) == 2:
+            return {"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}}
+        return {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Needle found."}}
 
 
 def _ledger_closure_gate_violations(entry: dict[str, Any]) -> list[str]:
@@ -1240,6 +1254,190 @@ def test_progress_state_marks_exact_duplicate_search_without_new_evidence_as_no_
     assert second_request_state.paths_explored == ()
 
 
+def test_model_narrative_non_decision_is_returned_as_replan_observation_without_dispatch(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    model = NarrativeThenDecisionModelClient()
+
+    result = run_canonical_product_mission(
+        objective="Find the needle evidence without inventing an action for a narrative-only model response.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/qwen-like",
+        kernel=kernel,
+        session_id="session_narrative_replan",
+        max_provider_decisions=4,
+        max_material_actions=4,
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 1
+    assert len(result.receipts) == 1
+    assert result.receipts[0].operation == "search"
+    second_turn_observations = model.requests[1].canonical_state.recent_observations
+    assert second_turn_observations[-1]["typed_outcome"] == "MODEL_EXPRESSION_NON_DECISION"
+    assert second_turn_observations[-1]["recovery_instruction"] == "replan_or_select_available_affordance"
+    assert second_turn_observations[-1]["material_action_observed"] is False
+    assert result.cleanup_completed is True
+
+
+def test_model_invalid_arguments_are_returned_as_replan_observation_without_dispatch(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    model = ScriptedModelClient(
+        [
+            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {"target_origin": "sqlite.org"}},
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Opened the authorized site."}},
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Open the authorized SQLite site.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+        kernel=kernel,
+        session_id="session_invalid_args_replan",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",)),
+        granted_authorities=("workspace_read", "browser_read", "none"),
+        max_provider_decisions=4,
+        max_material_actions=4,
+    )
+
+    assert result.status == "completed"
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 1
+    assert result.receipts[0].operation == "real_browser.open"
+    second_turn_observation = model.requests[1].canonical_state.recent_observations[-1]
+    assert second_turn_observation["typed_outcome"] == "MODEL_EXPRESSION_NON_DECISION"
+    assert second_turn_observation["transport_rejection_reason"] == "invalid_arguments"
+    assert second_turn_observation["argument_validation_error"] == "required_argument_missing"
+    assert second_turn_observation["product_action_kernel_dispatch"] is False
+
+
+def test_initial_browser_state_only_advertises_executable_browser_affordances(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    model = ScriptedModelClient(
+        [
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "No browser action taken."}},
+        ]
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Open SQLite docs before searching.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",)),
+        granted_authorities=("workspace_read", "browser_read", "none"),
+        max_provider_decisions=1,
+        max_material_actions=1,
+    )
+
+    first_state = model.requests[0].canonical_state
+    affordances = set(first_state.model_visible_affordances)
+    assert "real_browser_control.real_browser.open" in affordances
+    assert "real_browser_control.real_browser.observe" in affordances
+    assert "real_browser_control.real_browser.search" not in affordances
+    assert "real_browser_control.real_browser.extract_evidence" not in affordances
+    open_schema = next(
+        schema
+        for schema in first_state.model_visible_operation_schemas
+        if schema["operation"] == "real_browser.open"
+    )
+    target_origin_schema = open_schema["arguments_schema"]["properties"]["target_origin"]
+    assert target_origin_schema["default"] == "sqlite.org"
+    assert target_origin_schema["enum"] == ["sqlite.org"]
+    assert result.status == "blocked"
+    assert result.material_action_count == 0
+
+
+def test_browser_initial_prompt_shows_only_executable_open_with_authorized_origin(tmp_path: Path) -> None:
+    captured_requests: list[Any] = []
+
+    class FakeModelClient:
+        def complete(self, request: Any) -> dict[str, str]:
+            captured_requests.append(request)
+            return {"content": '{"capability":"sentinel_loop","operation":"finish","arguments":{"answer":"stop"}}'}
+
+    workspace = _workspace(tmp_path)
+    runtime = RootMissionRuntime(
+        objective="Open SQLite docs before searching.",
+        workspace_root=workspace,
+        provider_model="aliyun_dashscope/qwen-plus",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",)),
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=FakeModelClient(),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+    )
+
+    runtime.run(model_client=client)
+
+    prompt = captured_requests[0].prompt_text_in_memory_only
+    assert 'browser.open(target_origin="sqlite.org")' in prompt
+    assert "browser.search(query=" not in prompt
+    assert "browser.extract_evidence(" not in prompt
+
+
+def test_model_non_decision_observation_includes_safe_bridge_telemetry(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    raw_model = ScriptedModelClient(
+        [
+            {"content": '{"arguments":{"unsupported":"value"}}'},
+            {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'},
+            {"content": '{"capability":"sentinel_loop","operation":"finish","arguments":{"answer":"blocked honestly"}}'},
+        ]
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=raw_model,
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+    )
+
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    result = run_canonical_product_mission(
+        objective="Open SQLite docs before searching.",
+        workspace_root=workspace,
+        model_client=client,
+        provider_model="aliyun_dashscope/qwen-plus",
+        kernel=kernel,
+        session_id="session_bridge_telemetry",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",)),
+        granted_authorities=("workspace_read", "browser_read", "none"),
+        max_provider_decisions=4,
+        max_material_actions=2,
+    )
+
+    assert result.status == "completed"
+    events_path = tmp_path / "runs" / result.root_mission_id / "events.jsonl"
+    events = [json.loads(line) for line in events_path.read_text(encoding="utf-8").splitlines()]
+    bridge_observation = next(
+        event["metadata"]
+        for event in events
+        if event["event_type"] == "canonical_model_expression_non_decision"
+    )
+    assert bridge_observation["transport_rejection_reason"] == "invalid_arguments"
+    assert bridge_observation["argument_validation_error"] == "no_compatible_route"
+    assert bridge_observation["bridge_candidate_count"] == 0
+    assert bridge_observation["bridge_source_expression_type"] == "partial_json"
+    assert bridge_observation["bridge_selection_basis"] == "unique_schema_compatible_candidate"
+    assert bridge_observation["raw_provider_material_persisted"] is False
+    assert "unsupported" not in str(bridge_observation)
+    assert "value" not in str(bridge_observation)
+
+
 def test_product_receipt_integrity_rejects_deleted_or_modified_receipt_artifact(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
@@ -1606,6 +1804,74 @@ def test_public_product_cli_entrypoint_reaches_single_canonical_workspace_spine(
     assert len(receipt_files) == len(payload["product_receipt_refs"])
 
 
+def test_public_product_cli_projects_runtime_state_for_web_cutover(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    workspace = _workspace(tmp_path)
+    script = tmp_path / "decisions.jsonl"
+    script.write_text(
+        "\n".join(
+            [
+                json.dumps({"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}}),
+                json.dumps(
+                    {
+                        "capability": "sentinel_loop",
+                        "operation": "finish",
+                        "arguments": {"answer": "The public product received a canonical answer."},
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    code = cli.main(
+        [
+            "canonical-product-run",
+            "--objective",
+            "Return a canonical product answer to the web dashboard.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(tmp_path / "runs"),
+            "--decision-script",
+            str(script),
+            "--provider-model",
+            "scripted-product-model/model",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+
+    assert code == 0
+    assert payload["status"] == "completed"
+    assert payload["current_stage"] == "terminal_completed"
+    assert payload["provider_model"] == "scripted-product-model/model"
+    assert payload["authority_scope"]["granted_authorities"] == ["workspace_read", "none"]
+    assert payload["model_visible_affordances"] == [
+        "workspace.list",
+        "workspace.read",
+        "workspace.search",
+        "sentinel_loop.finish",
+    ]
+    assert payload["completed_actions"] == [
+        {
+            "receipt_id": payload["product_receipt_refs"][0],
+            "capability": "workspace",
+            "operation": "search",
+            "status": "completed",
+            "material_action": True,
+            "evidence_refs": payload["evidence_refs"],
+        }
+    ]
+    assert payload["terminal_answer"] == "The public product received a canonical answer."
+    assert payload["proof_root"]["receipt_artifacts_verified"] is True
+    assert payload["cleanup_completed"] is True
+
+
 def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -1676,6 +1942,9 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     assert "You do not need to speak Sentinel's internal IR" in prompt
     assert "Action: <affordance>" in prompt
     assert "function-like calls such as browser.open" in prompt
+    assert "Decision menu (graph-derived)" in prompt
+    assert "workspace.search(query=\"...\")" in prompt
+    assert len(prompt) < 7000
     assert "Return exactly one JSON object" not in prompt
     assert "model_visible_operation_schemas" in prompt
     assert "workspace.search" in prompt
@@ -2132,6 +2401,29 @@ def test_model_expression_bridge_accepts_function_like_browser_intent_without_pl
     assert telemetry["selection_basis"] == "explicit_action_name"
     assert telemetry["argument_aliases_applied"] == {"url": "target_origin"}
     assert "playwright" not in str(telemetry).lower()
+
+
+def test_model_expression_bridge_accepts_json_action_field_with_function_like_browser_intent(
+    tmp_path: Path,
+) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"action":"browser.open(target_origin=\\"sqlite.org\\")"}'}]),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+        canonical_transport_profiles=("strict_json_content", "fenced_strict_json"),
+    )
+
+    decision = client.complete(
+        _canonical_request(tmp_path, capability_graph=build_workspace_browser_readonly_capability_graph())
+    )
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "real_browser_control"
+    assert decision.selected_operation == "real_browser.open"
+    assert decision.arguments == {"target_origin": "sqlite.org"}
+    assert telemetry["selection_basis"] == "explicit_action_name"
+    assert telemetry["source_expression_type"] == "partial_json"
 
 
 def test_model_expression_bridge_accepts_react_style_action_with_json_arguments(tmp_path: Path) -> None:

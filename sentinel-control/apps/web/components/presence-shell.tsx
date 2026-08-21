@@ -129,8 +129,10 @@ function actionCode(event: PresenceEventV1) {
 }
 
 function currentTruthIndex(events: PresenceEventV1[]) {
-  const terminalIndex = events.findLastIndex((event) => event.event_kind === "TERMINAL");
-  return terminalIndex >= 0 ? terminalIndex : Math.max(0, events.length - 1);
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    if (events[index]?.event_kind === "TERMINAL") return index;
+  }
+  return Math.max(0, events.length - 1);
 }
 
 export function PresenceShell() {

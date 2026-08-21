@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
+import type { CanonicalProductCliResult } from "@/lib/canonical-runtime";
 import type { NormalizedCueIdeaImport } from "@/lib/cueidea-import";
 import { actions, agents, evidence, firewallPolicies, projects, runStages, runSummary } from "@/lib/demo-data";
 import type {
@@ -1214,6 +1215,200 @@ export async function createRun(input: CreateRunInput) {
       status: "Sandbox pack generated",
       updatedAt: compactDate(createdAt),
       description: "Sandbox / hypothesis mode: local Sentinel run generated a GTM pack shell and approval queue without CueIdea evidence.",
+      files: assets.map((asset) => asset.title),
+    },
+  };
+  run.cost = estimateRunCost(run);
+
+  state.runs = [run, ...state.runs].slice(0, 25);
+  await writeState(state);
+  await syncRunToSupabase(run);
+  return clone(run);
+}
+
+export async function createRunFromCanonicalProductResult(
+  input: CreateRunInput,
+  canonical: CanonicalProductCliResult,
+) {
+  const state = await readState();
+  const createdAt = nowIso();
+  const id = runIdFromDate(new Date(createdAt));
+  const objective = input.idea.trim();
+  const depth: RunDepth = input.depth || "standard";
+  const providerParts = String(canonical.provider_model || "").split("/");
+  const selectedProvider = providerParts[0] || input.providerId || "unknown";
+  const selectedModel = providerParts.slice(1).join("/") || input.modelId || "unknown";
+  const evidenceRefs = Array.from(new Set(canonical.evidence_refs || []));
+  const completedActions = canonical.completed_actions || [];
+  const completed = canonical.status === "completed";
+  const terminalText = completed
+    ? (canonical.terminal_answer || "Sentinel completed the canonical product mission.")
+    : (canonical.blocked_reason || canonical.final_reason || "Sentinel reached a terminal blocker.");
+  const evidenceRows: EvidenceRow[] = evidenceRefs.length > 0
+    ? evidenceRefs.map((ref, index) => ({
+        id: `ev_canonical_${index + 1}`,
+        source: "Canonical Sentinel runtime",
+        proofTier: "direct",
+        summary: `Safe evidence reference ${ref} was produced by the canonical runtime.`,
+        confidence: canonical.proof_root?.receipt_artifacts_verified ? 88 : 72,
+        freshness: "just now",
+        actionRefs: completedActions.map((action) => action.receipt_id),
+        details: {
+          excerpt: "Evidence content is available through the canonical proof root and receipt references.",
+          methodology: "Public product request executed through RuntimeHost, RootMissionRuntime, ProductActionKernel, and the configured organ backend.",
+          tags: ["canonical_runtime", "receipt_linked"],
+        },
+      }))
+    : [
+        {
+          id: "ev_canonical_blocker",
+          source: "Canonical Sentinel runtime",
+          proofTier: "supporting",
+          summary: "No material evidence reference was produced before terminalization.",
+          confidence: 70,
+          freshness: "just now",
+          actionRefs: [],
+          details: {
+            excerpt: "Sentinel preserved an honest terminal blocker instead of fabricating evidence.",
+            methodology: "The canonical mission returned without evidence refs.",
+            tags: ["canonical_runtime", "terminal_blocker"],
+          },
+        },
+      ];
+  const actionRows: ActionRow[] = completedActions.map((action, index) => ({
+    id: action.receipt_id || `canonical_action_${index + 1}`,
+    tool: action.capability,
+    title: `${action.capability}.${action.operation}`,
+    intent: "Model-selected action executed through ProductActionKernel.",
+    risk: action.material_action ? "medium" : "low",
+    approvalStatus: "not_required",
+    requiresApproval: false,
+    dryRun: {
+      whyNeeded: "Selected by the model inside the granted public read-only mission authority.",
+      preview: {
+        status: action.status,
+        receipt: action.receipt_id,
+      },
+      evidenceUsed: action.evidence_refs || [],
+    },
+    sourceNotes: ["DecisionOrigin preserved by canonical runtime.", "Receipt persisted under MissionProofRoot."],
+  }));
+  const traceRecords: TraceLogRow[] = [
+    {
+      id: `trace_${randomUUID().slice(0, 8)}`,
+      eventType: "canonical_product_run",
+      message: `Public product request executed through canonical runtime with status ${canonical.status}.`,
+      createdAt,
+    },
+    {
+      id: `trace_${randomUUID().slice(0, 8)}`,
+      eventType: "provider_model_selected",
+      message: `${selectedProvider}/${selectedModel}`,
+      createdAt,
+    },
+    {
+      id: `trace_${randomUUID().slice(0, 8)}`,
+      eventType: "proof_root_recorded",
+      message: `Proof root ${canonical.proof_root?.proof_root_id || "unknown"} receipt verification ${canonical.proof_root?.receipt_artifacts_verified ? "passed" : "not passed"}.`,
+      createdAt,
+    },
+    {
+      id: `trace_${randomUUID().slice(0, 8)}`,
+      eventType: "cleanup_recorded",
+      message: canonical.cleanup_completed ? "Canonical cleanup completed." : "Canonical cleanup did not complete.",
+      createdAt,
+    },
+  ];
+  const assets: GeneratedAssetRow[] = [
+    {
+      id: `asset_canonical_answer_${randomUUID().slice(0, 8)}`,
+      assetType: completed ? "terminal_answer" : "terminal_blocker",
+      title: completed ? "Canonical terminal answer" : "Canonical terminal blocker",
+      content: terminalText,
+      evidenceRefs,
+      createdAt,
+    },
+  ];
+
+  const run: SentinelRunRecord = {
+    id,
+    userId: input.userId || DEFAULT_USER_ID,
+    inputIdea: objective,
+    niche: input.niche?.trim() || input.targetOrigin || undefined,
+    depth,
+    status: canonical.status,
+    verdict: completed ? "research_more" : "niche_down",
+    confidence: canonical.proof_root?.receipt_artifacts_verified ? 82 : 58,
+    riskScore: canonical.cleanup_completed ? 22 : 55,
+    riskLabel: canonical.cleanup_completed ? "Controlled" : "Needs cleanup review",
+    createdAt,
+    updatedAt: createdAt,
+    summary: {
+      title: objective,
+      status: completed ? "Canonical runtime completed" : "Canonical runtime blocked",
+      runId: id,
+      startedAt: compactDate(createdAt),
+      verdict: completed ? "Grounded answer returned" : "Truthful blocker",
+      confidence: canonical.proof_root?.receipt_artifacts_verified ? 82 : 58,
+      riskScore: canonical.cleanup_completed ? 22 : 55,
+      riskLabel: canonical.cleanup_completed ? "Controlled" : "Needs cleanup review",
+    },
+    stages: [
+      { key: "authority", label: "Authority", detail: (canonical.authority_scope?.granted_authorities || []).join(", ") || "unknown" },
+      { key: "provider", label: "Provider", detail: `${selectedProvider}/${selectedModel}` },
+      { key: "actions", label: "Actions", detail: `${completedActions.length} completed`, active: canonical.status !== "completed" },
+      { key: "evidence", label: "Evidence", detail: `${evidenceRefs.length} refs` },
+      { key: "cleanup", label: "Cleanup", detail: canonical.cleanup_completed ? "completed" : "not completed", active: canonical.status === "completed" },
+    ],
+    agents: clone(agents),
+    evidence: evidenceRows,
+    actions: actionRows,
+    generatedAssets: assets,
+    watchlist: buildWatchlistRows(objective, evidenceRows, createdAt),
+    traceRecords,
+    cost: {
+      currency: "USD",
+      totalCents: 0,
+      lines: [],
+      note: "Provider cost is tracked by the canonical runtime when available; this web row does not persist raw provider output.",
+    },
+    feedback: [],
+    prospectSources: buildProspectSources(objective, evidenceRows),
+    gtmQuality: evaluateGtmQuality(assets),
+    canonicalMission: {
+      rootMissionId: canonical.root_mission_id,
+      status: canonical.status,
+      currentStage: canonical.current_stage,
+      selectedProvider,
+      selectedModel,
+      authorityScope: {
+        grantedAuthorities: canonical.authority_scope?.granted_authorities || [],
+        browserAllowedOrigins: canonical.authority_scope?.browser_allowed_origins || [],
+        publicWebReadOnly: Boolean(canonical.authority_scope?.public_web_read_only),
+      },
+      modelVisibleAffordances: canonical.model_visible_affordances || [],
+      completedActions: completedActions.map((action) => ({
+        receiptId: action.receipt_id,
+        capability: action.capability,
+        operation: action.operation,
+        status: action.status,
+        materialAction: Boolean(action.material_action),
+        evidenceRefs: action.evidence_refs || [],
+      })),
+      evidenceRefs,
+      terminalAnswer: completed ? canonical.terminal_answer || "" : undefined,
+      terminalBlocker: completed ? undefined : canonical.blocked_reason || canonical.final_reason,
+      cleanupStatus: canonical.cleanup_completed ? "completed" : "not_completed",
+      proofRootId: canonical.proof_root?.proof_root_id,
+      proofRootVerified: Boolean(canonical.proof_root?.receipt_artifacts_verified && canonical.proof_root?.kernel_timeline_verified),
+      replaySideEffectsReexecuted: Boolean(canonical.replay?.side_effects_reexecuted),
+    },
+    project: {
+      id: slugify(`${objective}-${id}`),
+      name: objective,
+      status: completed ? "Canonical answer returned" : "Canonical blocker preserved",
+      updatedAt: compactDate(createdAt),
+      description: "Public product run returned by the canonical Sentinel runtime.",
       files: assets.map((asset) => asset.title),
     },
   };

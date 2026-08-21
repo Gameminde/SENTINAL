@@ -75,6 +75,11 @@ class EffectKind(StrEnum):
     PROPOSAL = "PROPOSAL"
 
 
+_CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX = "CANONICAL_DECISION_TRANSPORT_REJECTED:"
+_RECOVERABLE_MODEL_NON_DECISION_REASONS = frozenset({"invalid_arguments", "narrative_only_response"})
+_MAX_MODEL_NON_DECISION_RECOVERIES = 2
+
+
 class RootMissionCancellationToken:
     def __init__(self) -> None:
         self.token_id = new_id("root_mission_cancel")
@@ -516,6 +521,7 @@ def build_workspace_browser_readonly_capability_graph() -> ExecutableCapabilityG
             arguments_schema={
                 "type": "object",
                 "properties": {"target_origin": {"type": "string"}, "url": {"type": "string"}},
+                "required": ["target_origin"],
                 "additionalProperties": False,
             },
             materiality_verifier="bounded_origin_state_observed",
@@ -715,6 +721,7 @@ class RootMissionRuntime:
         self._action_signature_counts: dict[str, int] = {}
         self.observations_without_novelty = 0
         self.duplicate_no_progress_count = 0
+        self._model_expression_non_decision_count = 0
         self.paths_explored: list[str] = []
         self.provider_decision_count = 0
         self.material_action_count = 0
@@ -780,6 +787,9 @@ class RootMissionRuntime:
                     self._persist_provider_mesh_turn_failure(exc)
                     continue
                 except Exception as exc:
+                    if self._model_expression_non_decision_recoverable(exc):
+                        self._record_model_expression_non_decision(exc, model_client=model_client)
+                        continue
                     if self.kernel is None:
                         raise
                     self._persist_model_decision_failure(exc)
@@ -796,6 +806,7 @@ class RootMissionRuntime:
                     )
                 try:
                     decision = self._normalize_decision(raw_decision)
+                    self._assert_decision_arguments_valid(decision)
                 except CanonicalCapabilityQuarantined as exc:
                     return self._terminal_result(
                         status="blocked",
@@ -804,6 +815,9 @@ class RootMissionRuntime:
                         blocked_reason_detail=exc.reason,
                     )
                 except Exception as exc:
+                    if self._model_expression_non_decision_recoverable(exc):
+                        self._record_model_expression_non_decision(exc, model_client=model_client)
+                        continue
                     if self.kernel is None:
                         raise
                     self._persist_model_decision_failure(exc)
@@ -866,14 +880,16 @@ class RootMissionRuntime:
             self.close()
 
     def compile_state(self) -> CanonicalState:
+        visible_schemas = self._current_model_visible_operation_schemas()
+        visible_affordances = tuple(str(schema.get("affordance") or "") for schema in visible_schemas if schema.get("affordance"))
         return CanonicalState(
             root_mission_id=self.root_mission_id,
             objective=self.objective,
             workspace_ref=_workspace_ref(self.workspace_root),
             provider_decision_count=self.provider_decision_count,
             material_action_count=self.material_action_count,
-            model_visible_affordances=self.capability_graph.model_visible_affordances(),
-            model_visible_operation_schemas=self.capability_graph.model_visible_operation_schemas(),
+            model_visible_affordances=visible_affordances,
+            model_visible_operation_schemas=visible_schemas,
             last_action=self.last_action,
             evidence_refs=tuple(dict.fromkeys(self.evidence_refs)),
             recent_observations=tuple(self.recent_observations[-4:]),
@@ -887,6 +903,72 @@ class RootMissionRuntime:
             remaining_material_actions=max(0, self.budget.max_material_actions - self.material_action_count),
             browser_environment_state=self._browser_environment_state,
         )
+
+    def _current_model_visible_operation_schemas(self) -> tuple[dict[str, Any], ...]:
+        schemas: list[dict[str, Any]] = []
+        for route in self.capability_graph.routes:
+            if not route.model_visible:
+                continue
+            if not self._route_currently_executable_for_model(route):
+                continue
+            arguments_schema = self._model_visible_arguments_schema(route)
+            schemas.append(
+                {
+                    "affordance": route.affordance,
+                    "capability": route.capability,
+                    "operation": route.operation,
+                    "arguments_schema": arguments_schema,
+                    "effect_kind": route.effect_kind.value,
+                    "required_authority": route.required_authority,
+                    "preconditions": list(route.preconditions),
+                    "readiness_probe": route.readiness_probe,
+                    "materiality_verifier": route.materiality_verifier,
+                    "proof_contract": route.proof_contract,
+                }
+            )
+        return tuple(schemas)
+
+    def _model_visible_arguments_schema(self, route: CanonicalCapabilityRoute) -> dict[str, Any]:
+        schema = dict(route.arguments_schema or {})
+        if route.capability == "real_browser_control" and route.operation == "real_browser.open":
+            allowed_origins = self._browser_allowed_origins()
+            if allowed_origins:
+                properties = dict(schema.get("properties") or {})
+                target_origin = dict(properties.get("target_origin") or {})
+                target_origin.setdefault("type", "string")
+                target_origin["default"] = allowed_origins[0]
+                target_origin["enum"] = list(allowed_origins)
+                properties["target_origin"] = target_origin
+                schema["properties"] = properties
+        return schema
+
+    def _browser_allowed_origins(self) -> tuple[str, ...]:
+        if self._browser_readonly_adapter is None:
+            return ()
+        origins = getattr(self._browser_readonly_adapter.backend, "allowed_origins", ()) or ()
+        return tuple(dict.fromkeys(str(origin).strip() for origin in origins if str(origin).strip()))
+
+    def _route_currently_executable_for_model(self, route: CanonicalCapabilityRoute) -> bool:
+        if route.capability != "real_browser_control":
+            return True
+        operation = route.operation
+        if operation in {"real_browser.open", "real_browser.observe", "real_browser.recover_session"}:
+            return True
+        if operation == "real_browser.verify_extraction":
+            return bool(self.evidence_refs)
+        return self._browser_page_available()
+
+    def _browser_page_available(self) -> bool:
+        state = self._browser_environment_state
+        if not isinstance(state, dict) or not state:
+            return False
+        url = str(state.get("current_url") or state.get("url") or "").strip().lower()
+        if not url or url == "about:blank":
+            return False
+        page_available = state.get("page_available")
+        if page_available is False:
+            return False
+        return True
 
     def close(self) -> None:
         if self._closed:
@@ -1008,6 +1090,15 @@ class RootMissionRuntime:
         if len(operation_matches) == 1:
             return operation_matches[0]
         return None
+
+    def _assert_decision_arguments_valid(self, decision: CanonicalDecision) -> None:
+        route = self.capability_graph.resolve(decision.capability, decision.operation)
+        arguments = _normalize_runtime_arguments_for_route(route, dict(decision.arguments))
+        error = _validate_runtime_arguments(arguments, route.arguments_schema)
+        if error:
+            raise ActionKernelError(f"CANONICAL_DECISION_TRANSPORT_REJECTED:invalid_arguments.{error}")
+        if arguments != decision.arguments:
+            decision.arguments = redact_operator_value(arguments)
 
     def _dispatch_effect(self, decision: CanonicalDecision, *, before_state: CanonicalState) -> CanonicalEffectReceipt:
         route = self.capability_graph.resolve(decision.capability, decision.operation)
@@ -1467,6 +1558,52 @@ class RootMissionRuntime:
             },
         )
 
+    def _model_expression_non_decision_recoverable(self, exc: Exception) -> bool:
+        reason = _canonical_decision_transport_rejection_reason(exc)
+        if reason not in _RECOVERABLE_MODEL_NON_DECISION_REASONS:
+            return False
+        if self._model_expression_non_decision_count >= _MAX_MODEL_NON_DECISION_RECOVERIES:
+            return False
+        if self.provider_decision_count >= self.budget.max_provider_decisions:
+            return False
+        return True
+
+    def _record_model_expression_non_decision(
+        self,
+        exc: Exception,
+        *,
+        model_client: CanonicalModelClient | None = None,
+    ) -> None:
+        self._model_expression_non_decision_count += 1
+        reason = _canonical_decision_transport_rejection_reason(exc) or "unknown"
+        argument_validation_error = _canonical_decision_argument_validation_error(exc)
+        bridge_telemetry = _safe_latest_model_bridge_telemetry(model_client)
+        observation = {
+            "typed_outcome": "MODEL_EXPRESSION_NON_DECISION",
+            "source_failure_code": _safe_exception_code(exc),
+            "transport_rejection_reason": reason,
+            "argument_validation_error": argument_validation_error,
+            "recovery_instruction": "replan_or_select_available_affordance",
+            "available_affordances_count": len(self._current_model_visible_operation_schemas()),
+            **bridge_telemetry,
+            "remaining_provider_decisions": max(0, self.budget.max_provider_decisions - self.provider_decision_count),
+            "remaining_material_actions": max(0, self.budget.max_material_actions - self.material_action_count),
+            "provider_decision_count": self.provider_decision_count,
+            "material_action_count": self.material_action_count,
+            "material_action_observed": False,
+            "product_action_kernel_dispatch": False,
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        self.recent_observations.append(observation)
+        if self.kernel is not None:
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_model_expression_non_decision",
+                safe_summary="Model expression did not select one executable affordance; replan observation returned.",
+                metadata=observation,
+            )
+
     def _persist_provider_mesh_turn_failure(self, exc: ProviderMeshTurnFailed) -> None:
         if self.kernel is None:
             return
@@ -1887,6 +2024,55 @@ def _relative_workspace_path(root: Path, path: Path) -> str:
     return path.relative_to(root).as_posix()
 
 
+def _normalize_runtime_arguments_for_route(route: CanonicalCapabilityRoute, arguments: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(arguments)
+    if route.operation == "real_browser.open":
+        for source in ("url", "origin", "target"):
+            if source in normalized and "target_origin" not in normalized:
+                normalized["target_origin"] = normalized.pop(source)
+                break
+    if route.capability == "workspace" and route.operation == "read":
+        for source in ("file", "filepath"):
+            if source in normalized and "path" not in normalized:
+                normalized["path"] = normalized.pop(source)
+                break
+    return normalized
+
+
+def _validate_runtime_arguments(arguments: dict[str, Any], schema: dict[str, Any]) -> str:
+    if schema.get("type") == "object" and not isinstance(arguments, dict):
+        return "arguments_not_object"
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        properties = {}
+    required = schema.get("required")
+    if isinstance(required, list):
+        for key in required:
+            if str(key) not in arguments:
+                return "required_argument_missing"
+    if schema.get("additionalProperties") is False:
+        allowed = {str(key) for key in properties}
+        if any(str(key) not in allowed for key in arguments):
+            return "unexpected_argument"
+    for key, value in arguments.items():
+        spec = properties.get(key)
+        if not isinstance(spec, dict):
+            continue
+        expected_type = spec.get("type")
+        if expected_type == "string" and not isinstance(value, str):
+            return "argument_type_mismatch"
+        if expected_type == "integer" and (not isinstance(value, int) or isinstance(value, bool)):
+            return "argument_type_mismatch"
+        if expected_type == "array":
+            if not isinstance(value, list):
+                return "argument_type_mismatch"
+            item_spec = spec.get("items")
+            if isinstance(item_spec, dict) and item_spec.get("type") == "string":
+                if any(not isinstance(item, str) for item in value):
+                    return "argument_type_mismatch"
+    return ""
+
+
 def _safe_exception_code(exc: Exception) -> str:
     if isinstance(exc, CanonicalEffectDispatchError):
         return _safe_exception_code(exc.cause)
@@ -1897,6 +2083,82 @@ def _safe_exception_code(exc: Exception) -> str:
     if isinstance(exc, CanonicalCoreError) and text and "\n" not in text and len(text) <= 120:
         return redact_operator_text(text)
     return exc.__class__.__name__
+
+
+def _canonical_decision_transport_rejection_reason(exc: Exception) -> str:
+    text = str(exc)
+    if not isinstance(exc, ActionKernelError):
+        return ""
+    if not text.startswith(_CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX):
+        return ""
+    reason = text.removeprefix(_CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX)
+    if not reason or "\n" in reason or len(reason) > 80:
+        return ""
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", reason):
+        return ""
+    if reason.startswith("invalid_arguments."):
+        return "invalid_arguments"
+    return reason
+
+
+def _canonical_decision_argument_validation_error(exc: Exception) -> str:
+    text = str(exc)
+    if not isinstance(exc, ActionKernelError) or not text.startswith(_CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX):
+        return ""
+    reason = text.removeprefix(_CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX)
+    prefix = "invalid_arguments."
+    if not reason.startswith(prefix):
+        return ""
+    detail = reason.removeprefix(prefix)
+    if not detail or "\n" in detail or len(detail) > 80:
+        return ""
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", detail):
+        return ""
+    return detail
+
+
+def _safe_latest_model_bridge_telemetry(model_client: Any) -> dict[str, Any]:
+    diagnostics = getattr(model_client, "safe_diagnostics", None)
+    if not isinstance(diagnostics, list) or not diagnostics:
+        return {}
+    latest = diagnostics[-1]
+    if not isinstance(latest, dict):
+        return {}
+    telemetry = latest.get("canonical_decision_transport")
+    if not isinstance(telemetry, dict):
+        return {}
+    return {
+        "bridge_candidate_count": _safe_int(telemetry.get("candidate_count")),
+        "bridge_source_expression_type": _safe_token(telemetry.get("source_expression_type")),
+        "bridge_extraction_method": _safe_token(telemetry.get("extraction_method")),
+        "bridge_selection_basis": _safe_token(telemetry.get("selection_basis")),
+        "bridge_ambiguity_status": _safe_token(telemetry.get("ambiguity_status")),
+        "bridge_typed_rejection_reason": _safe_token(telemetry.get("typed_rejection_reason")),
+        "bridge_json_detected": bool(telemetry.get("json_detected")),
+        "bridge_json_root_type": _safe_token(telemetry.get("json_root_type")),
+        "bridge_canonical_fields_present": _safe_string_tuple(telemetry.get("canonical_fields_present")),
+        "bridge_canonical_fields_missing": _safe_string_tuple(telemetry.get("canonical_fields_missing")),
+        "raw_provider_material_persisted": bool(telemetry.get("raw_provider_material_persisted")),
+    }
+
+
+def _safe_int(value: Any) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _safe_token(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text or len(text) > 80:
+        return ""
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]+", text):
+        return ""
+    return text
+
+
+def _safe_string_tuple(value: Any) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        return ()
+    return tuple(_safe_token(item) for item in value if _safe_token(item))
 
 
 __all__ = [

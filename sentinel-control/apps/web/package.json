@@ -6,7 +6,8 @@
     "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:canonical-product-cutover": "node scripts/canonical-product-cutover.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.577.0",

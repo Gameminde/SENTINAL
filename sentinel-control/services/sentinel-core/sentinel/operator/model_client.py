@@ -205,6 +205,12 @@ def _provider_failure_payload(
         "provider_error_message_hash",
         "provider_error_message_redacted",
         "provider_error_body_hash",
+        "provider_transport_error_class",
+        "provider_transport_error_message_hash",
+        "provider_transport_error_message_redacted",
+        "provider_local_error_class",
+        "provider_local_error_message_hash",
+        "provider_local_error_message_redacted",
         "rejected_reason",
         "content_extraction_source",
         "content_extraction_error",
@@ -230,6 +236,8 @@ def _provider_failure_category(error_class: str | None, diagnostic: dict[str, An
         return "PROVIDER_BAD_REQUEST"
     if isinstance(status, int) and 500 <= status:
         return "PROVIDER_MODEL_UNAVAILABLE"
+    if diagnostic.get("provider_transport_error_class"):
+        return "PROVIDER_TRANSPORT_ERROR"
     if error_class == "TIMEOUT":
         return "PROVIDER_TRANSPORT_ERROR"
     if error_class == "INVALID_RESPONSE_SCHEMA":

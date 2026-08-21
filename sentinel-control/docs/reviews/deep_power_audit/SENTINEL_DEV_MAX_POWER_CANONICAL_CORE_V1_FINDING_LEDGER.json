@@ -191,7 +191,7 @@
   "created_at_utc": "2026-07-29T10:28:22.436170+00:00",
   "current_branch": "sentinel-dev-max-power-canonical-core-v1",
   "current_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
-  "current_wave": "C5B_CONTROLLED_LIVE_BROWSER_PRODUCT_MISSION_SOVEREIGN_V3",
+  "current_wave": "C6_PUBLIC_PRODUCT_CANONICAL_CUTOVER",
   "current_worktree_or_commit": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
   "entries": [
     {
@@ -223,7 +223,8 @@
         "4899046f7e0eeda4a6ad6c689064c7c06a355eb4",
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
-        "15f37937d036a22008a13fe396fc1c2fedf27c58"
+        "15f37937d036a22008a13fe396fc1c2fedf27c58",
+        "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
       ],
       "chosen_invariant": "public_product_request_must_route_to_real_model_before_fixed_proven",
       "classification": "REPLACE_WITH_RECOVERY",
@@ -268,7 +269,7 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c1_executable_mapping.py"
       ],
       "proof_tier": "T3_REAL_MODEL_CANONICAL_SLICE_PROVEN_NOT_P0_01_CLOSURE",
-      "remaining_risk": "C2 compresses the workspace public route locally, but P0-01 remains open until a real provider public route proof and absence-of-bypass proof cover the canonical replacement gate.",
+      "remaining_risk": "Public product route now reaches the canonical runtime, but no useful live browser mission completed; provider transport blocked before material browser dispatch.",
       "required_change": "Connect the public product surface to RuntimeHost.run_product_action_kernel_task_loop through ProductModelNativeDecisionClient and keep RootMissionRuntime behind the canonical root record/proof role rather than a parallel effect executor.",
       "responsible_files_symbols": [
         "sentinel/cli.py::_run_canonical_product_command",
@@ -1694,7 +1695,8 @@
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
         "15f37937d036a22008a13fe396fc1c2fedf27c58",
-        "d1408193883f8307753cefbb0622fa8695170ab9"
+        "d1408193883f8307753cefbb0622fa8695170ab9",
+        "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
       ],
       "chosen_invariant": "root_runtime_orchestrates_body_not_model_cognition",
       "classification": "RUNTIME_ORCHESTRATION_FAILURE",
@@ -1737,7 +1739,7 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "Non-workspace spines and public surfaces still coexist until W3/W4 migrations prove parity.",
+      "remaining_risk": "Public product route now reaches the canonical runtime, but no useful live browser mission completed; provider transport blocked before material browser dispatch.",
       "required_change": "Create one root MissionRuntime and one model decision protocol; make all organs, memory, proof and recovery adapters of that spine.",
       "responsible_files_symbols": [
         "sentinel/operator/canonical_core.py::RootMissionRuntime",
@@ -1779,7 +1781,8 @@
       "change_applied": "Revalidated as still open during methodology reconciliation; no closing fix applied in slices 0A-0C.",
       "change_commits": [
         "aca1f008",
-        "30c2cfad1b0d9d9089c71d6312bf481114f02691"
+        "30c2cfad1b0d9d9089c71d6312bf481114f02691",
+        "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
       ],
       "chosen_invariant": "no_fixed_proven_without_product_path_probe_mission_and_persistent_proof",
       "classification": "TELEMETRY_OR_TRUTH_MISMATCH",
@@ -1793,7 +1796,7 @@
       "primary_evidence": "sentinel-control/apps/web/lib/run-store.ts:5,1134-1225,1486-1535; mission-store.ts:19-220",
       "proof_artifacts": [],
       "proof_tier": "T0_STATIC_REVALIDATED",
-      "remaining_risk": "Finding remains open.",
+      "remaining_risk": "Public product route now reaches the canonical runtime, but no useful live browser mission completed; provider transport blocked before material browser dispatch.",
       "required_change": "Replace TypeScript demo run construction with a thin API over the canonical root MissionRuntime; keep demo mode explicitly separate.",
       "responsible_files_symbols": [],
       "severity": "P0",
@@ -1806,7 +1809,7 @@
         }
       ],
       "source_audit": "whole_system_complementary_audit",
-      "status": "CONFIRMED_CURRENT",
+      "status": "IMPLEMENTING",
       "superseded_modules": [],
       "target_wave": "W4",
       "targeted_tests": []
@@ -1824,7 +1827,8 @@
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
         "15f37937d036a22008a13fe396fc1c2fedf27c58",
-        "d1408193883f8307753cefbb0622fa8695170ab9"
+        "d1408193883f8307753cefbb0622fa8695170ab9",
+        "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
       ],
       "chosen_invariant": "no_product_cognitive_turn_without_role_model_client",
       "classification": "COGNITIVE_STATE_MISSING",
@@ -1863,7 +1867,7 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "Legacy model clients and model-facing surfaces remain outside the complete canonical core.",
+      "remaining_risk": "Public product route now reaches the canonical runtime, but no useful live browser mission completed; provider transport blocked before material browser dispatch.",
       "required_change": "Require one explicit provider client before the first cognition turn and make absence a typed preflight failure, not a partial brain run.",
       "responsible_files_symbols": [
         "sentinel/cli.py::_RealProviderCanonicalDecisionClient",
@@ -1990,7 +1994,8 @@
         "b4f4baaceb6deb38f038a81321eb81d3ad21723b",
         "fa5f51bf8145f63d24fe83742719d1e0d45349e6",
         "15f37937d036a22008a13fe396fc1c2fedf27c58",
-        "d1408193883f8307753cefbb0622fa8695170ab9"
+        "d1408193883f8307753cefbb0622fa8695170ab9",
+        "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT"
       ],
       "chosen_invariant": "model_visible_affordances_generated_from_executable_routes",
       "classification": "AFFORDANCE_MISSING",
@@ -2032,7 +2037,7 @@
         "sentinel-control/services/sentinel-core/tests/operator/test_sentinel_single_spine_c4_browser_readonly_cutover.py"
       ],
       "proof_tier": "T1_LOCAL_DETERMINISTIC_CANDIDATE",
-      "remaining_risk": "The full executable organ graph is not yet one canonical registry across all organs.",
+      "remaining_risk": "Public product route now reaches the canonical runtime, but no useful live browser mission completed; provider transport blocked before material browser dispatch.",
       "required_change": "Register executable routes once and derive model affordances, health, authority schema, proof contract and documentation from that registration.",
       "responsible_files_symbols": [
         "sentinel/operator/canonical_core.py::ExecutableCapabilityGraph",
@@ -4177,7 +4182,7 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-13T09:26:39Z",
+  "updated_at_utc": "2026-08-21T13:25:15.101220Z",
   "minimax_canonical_decision_protocol_alignment_v1": {
     "wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
     "status": "IMPLEMENTED_LOCAL_CANDIDATE",
@@ -4560,7 +4565,7 @@
     "fixed_proven": "0/65",
     "updated_at_utc": "2026-08-13T10:41:31Z"
   },
-  "latest_c6_status": "C6_PROVIDER_MESH_AND_RESUMABLE_COGNITIVE_SESSION_IMPLEMENTED_LOCAL_CANDIDATE",
+  "latest_c6_status": "C6_PUBLIC_PRODUCT_CANONICAL_CUTOVER_IMPLEMENTED_LOCAL_CANDIDATE_WITH_LIVE_PROVIDER_BLOCKER",
   "c6_provider_mesh_and_resumable_cognitive_session": {
     "wave": "C6_PROVIDER_MESH_AND_RESUMABLE_COGNITIVE_SESSION",
     "classification": "IMPLEMENTED_LOCAL_CANDIDATE",
@@ -4647,5 +4652,78 @@
     "c6_browser_runs": 0,
     "c6_real_openrouter_calls": 0,
     "c6_real_nvidia_calls": 0
+  },
+  "c6_public_product_canonical_cutover": {
+    "wave": "C6_PUBLIC_PRODUCT_CANONICAL_CUTOVER",
+    "classification": "IMPLEMENTED_LOCAL_CANDIDATE_WITH_LIVE_PROVIDER_BLOCKER",
+    "source_head_before_tranche": "4dcb639bc0c54e6b9f85d4be12314b55a2d4d6e5",
+    "implementation_head": "SELF_REFERENCE_UNAVAILABLE_IN_COMMIT_CONTENT",
+    "public_product_route_reached": true,
+    "route": "public_web_api_runs_to_canonical_product_run",
+    "runtime_path": [
+      "web_api_runs",
+      "canonical_runtime_helper",
+      "sentinel.cli canonical-product-run",
+      "RuntimeHost",
+      "RootMissionRuntime",
+      "ProductModelNativeDecisionClient",
+      "ModelFreedomIntentBridge",
+      "ExecutableCapabilityGraph",
+      "ProductActionKernel",
+      "sentinel_chromium",
+      "MissionProofRoot",
+      "web_run_store"
+    ],
+    "provider": {
+      "provider_id": "aliyun_dashscope",
+      "backend_id": "aliyun_openai_compatible_chat",
+      "model_id": "qwen-plus"
+    },
+    "backend": {
+      "selected_backend_id": "sentinel_chromium",
+      "actual_backend_id": "sentinel_chromium",
+      "readiness_before_provider": true,
+      "cleanup_completed": true
+    },
+    "authority": {
+      "target_origin": "sqlite.org",
+      "public_web_read_only": true,
+      "cross_origin": "denied"
+    },
+    "latest_public_run_id": "GR-202608211317-3185ac",
+    "latest_root_mission_id_hash": "root_mission_hash:3b6957cf2f63f263",
+    "recent_public_runs": [
+      "GR-202608211234-d3ae49",
+      "GR-202608211242-c12a5b",
+      "GR-202608211257-b7a5e4",
+      "GR-202608211303-199d6b",
+      "GR-202608211317-3185ac"
+    ],
+    "recent_provider_decision_count_total": 13,
+    "recent_material_action_count_total": 0,
+    "product_action_kernel_browser_dispatches": 0,
+    "proof_root_verified_latest": true,
+    "replay_side_effects_reexecuted_latest": false,
+    "safe_feedback_added": [
+      "narrative_only_response_replan",
+      "invalid_arguments_replan",
+      "invalid_arguments_no_compatible_route_detail",
+      "bridge_safe_telemetry"
+    ],
+    "latest_terminal_blocker": "CANONICAL_DECISION_TRANSPORT_REJECTED:provider_failure_PROVIDER_TRANSPORT_ERROR_transport_ConnectError",
+    "raw_provider_material_persisted": false,
+    "raw_secret_persisted": false,
+    "fixed_proven": "0/65",
+    "report": "sentinel-control/docs/reviews/deep_power_audit/C6_PUBLIC_PRODUCT_CANONICAL_CUTOVER_REPORT.md"
+  },
+  "published_counters_after_c6_public_product_cutover": {
+    "P0 fixed": "0/15",
+    "P1 fixed": "0/44",
+    "P2 fixed": "0/6",
+    "total FIXED_PROVEN": "0/65",
+    "c6_public_product_recent_provider_decisions": 13,
+    "c6_public_product_recent_material_actions": 0,
+    "c6_public_product_browser_dispatches": 0,
+    "c6_public_product_live_runs_recorded": 5
   }
 }

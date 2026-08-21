@@ -109,8 +109,18 @@ class OpenAICompatibleChatProvider(RealModelProvider):
             return self._http_error_response(request, exc)
         except httpx.TimeoutException:
             return self._error_response(request, ModelExecutionOutcomeClass.TIMEOUT)
-        except (httpx.RequestError, json.JSONDecodeError, ValueError):
-            return self._error_response(request, ModelExecutionOutcomeClass.PROVIDER_ERROR)
+        except httpx.RequestError as exc:
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.PROVIDER_ERROR,
+                diagnostic=_transport_error_diagnostic(exc),
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
+            return self._error_response(
+                request,
+                ModelExecutionOutcomeClass.PROVIDER_ERROR,
+                diagnostic=_local_provider_error_diagnostic(exc),
+            )
 
         return self.map_payload(request, payload)
 
@@ -411,6 +421,24 @@ def _http_error_diagnostic(response: httpx.Response) -> dict[str, Any]:
     else:
         diagnostic["provider_error_body_hash"] = text_hash(json.dumps(parsed, sort_keys=True))
     return diagnostic
+
+
+def _transport_error_diagnostic(exc: httpx.RequestError) -> dict[str, Any]:
+    text = str(exc)
+    return {
+        "provider_transport_error_class": exc.__class__.__name__,
+        "provider_transport_error_message_hash": text_hash(text),
+        "provider_transport_error_message_redacted": True,
+    }
+
+
+def _local_provider_error_diagnostic(exc: Exception) -> dict[str, Any]:
+    text = str(exc)
+    return {
+        "provider_local_error_class": exc.__class__.__name__,
+        "provider_local_error_message_hash": text_hash(text),
+        "provider_local_error_message_redacted": True,
+    }
 
 
 def _get_path(payload: dict[str, Any], path: str | None) -> Any:

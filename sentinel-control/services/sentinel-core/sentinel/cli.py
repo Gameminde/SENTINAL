@@ -43,6 +43,7 @@ from sentinel.operator.authority_issuer import MissionAuthorityApprovalScope
 from sentinel.operator.canonical_core import (
     CanonicalCoreError,
     CanonicalDecisionRequest,
+    build_workspace_read_capability_graph,
     build_workspace_browser_readonly_capability_graph,
     run_canonical_product_mission,
 )
@@ -91,6 +92,13 @@ class CanonicalProductPublicRunResult(SentinelModel):
     blocked_reason: str | None = None
     provider_decision_count: int
     material_action_count: int
+    current_stage: str
+    provider_model: str
+    authority_scope: dict[str, Any]
+    model_visible_affordances: tuple[str, ...]
+    completed_actions: tuple[dict[str, Any], ...]
+    evidence_refs: tuple[str, ...]
+    terminal_answer: str
     mission_record_created_before_provider: bool
     root_created_before_first_provider_call: bool
     mission_ids: tuple[str, ...] = ()
@@ -637,6 +645,34 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
         blocked_reason=mission_result.blocked_reason_detail or None,
         provider_decision_count=mission_result.provider_decision_count,
         material_action_count=mission_result.material_action_count,
+        current_stage=(
+            "terminal_completed"
+            if mission_result.status == "completed"
+            else ("terminal_blocked" if mission_result.status == "blocked" else "terminal_failed")
+        ),
+        provider_model=mission_result.provider_model,
+        authority_scope={
+            "granted_authorities": list(granted_authorities),
+            "browser_allowed_origins": list(getattr(browser_readonly_backend, "allowed_origins", ()) or ()),
+            "workspace_ref": str(workspace.resolve()),
+            "public_web_read_only": enable_physical_browser,
+        },
+        model_visible_affordances=tuple(
+            (capability_graph or build_workspace_read_capability_graph()).model_visible_affordances()
+        ),
+        completed_actions=tuple(
+            {
+                "receipt_id": receipt.receipt_id,
+                "capability": receipt.capability,
+                "operation": receipt.operation,
+                "status": receipt.status,
+                "material_action": receipt.material_action,
+                "evidence_refs": list(receipt.evidence_refs),
+            }
+            for receipt in mission_result.receipts
+        ),
+        evidence_refs=tuple(dict.fromkeys(ref for receipt in mission_result.receipts for ref in receipt.evidence_refs)),
+        terminal_answer=mission_result.final_answer,
         mission_record_created_before_provider=mission_result.mission_record_created_before_provider,
         root_created_before_first_provider_call=mission_result.root_created_before_first_provider_call,
         mission_ids=(mission_result.root_mission_id,),

@@ -58,6 +58,36 @@ export default async function RunDetailPage({ params }: { params: Promise<{ runI
               <Chip tone={badge.tone} key={badge.label}>{badge.label}</Chip>
             ))}
           </div>
+          {run.canonicalMission ? (
+            <div className="list" style={{ marginTop: 16 }}>
+              <div className="list-item">
+                <strong>Canonical Sentinel runtime</strong>
+                <p>
+                  {run.canonicalMission.currentStage} / {run.canonicalMission.selectedProvider}/
+                  {run.canonicalMission.selectedModel}
+                </p>
+                <span className="page-note">
+                  Root {run.canonicalMission.rootMissionId} / cleanup {run.canonicalMission.cleanupStatus}
+                </span>
+              </div>
+              <div className="list-item">
+                <strong>Authority scope</strong>
+                <p>
+                  {run.canonicalMission.authorityScope.grantedAuthorities.join(", ") || "unknown"} / origins{" "}
+                  {run.canonicalMission.authorityScope.browserAllowedOrigins.join(", ") || "unknown"}
+                </p>
+              </div>
+              <div className="list-item">
+                <strong>{run.canonicalMission.terminalAnswer ? "Terminal answer" : "Terminal blocker"}</strong>
+                <p>{run.canonicalMission.terminalAnswer || run.canonicalMission.terminalBlocker || "No terminal text."}</p>
+                <span className="page-note">
+                  Proof root {run.canonicalMission.proofRootId || "unknown"} / verified{" "}
+                  {run.canonicalMission.proofRootVerified ? "true" : "false"} / replay reexecuted effects{" "}
+                  {run.canonicalMission.replaySideEffectsReexecuted ? "true" : "false"}
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="panel">
           <div className="section-heading">

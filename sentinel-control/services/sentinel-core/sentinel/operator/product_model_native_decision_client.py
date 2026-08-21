@@ -211,7 +211,11 @@ class ProductModelNativeDecisionClient:
             supported_profiles=self._canonical_transport_profiles,
         )
         if decoded.rejection_reason:
-            failure_code = f"{_CANONICAL_REJECTION_PREFIX}:{decoded.rejection_reason}"
+            failure_reason = _canonical_rejection_reason_with_detail(
+                decoded.rejection_reason,
+                telemetry=decoded.telemetry,
+            )
+            failure_code = f"{_CANONICAL_REJECTION_PREFIX}:{failure_reason}"
             self._record_diagnostic(
                 context=request.canonical_state.safe_model_dump(),
                 raw_output=decoded.telemetry,
@@ -242,10 +246,10 @@ class ProductModelNativeDecisionClient:
             self._record_diagnostic(
                 context=request.canonical_state.safe_model_dump(),
                 raw_output=telemetry,
-                failure_code=f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments",
+                failure_code=f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments.{argument_error}",
                 canonical_decision_transport=telemetry,
             )
-            raise ActionKernelError(f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments")
+            raise ActionKernelError(f"{_CANONICAL_REJECTION_PREFIX}:invalid_arguments.{argument_error}")
         decision = CanonicalDecision(
             root_mission_id=request.root_mission_id,
             provider_model=request.provider_model,
@@ -777,9 +781,14 @@ def _parse_scalar_argument(value: str) -> Any:
 
 
 def _candidate_arguments(payload: dict[str, Any]) -> dict[str, Any]:
+    function_like = _candidate_function_like_action_payload(payload)
     arguments = payload.get("arguments", payload.get("params"))
     if isinstance(arguments, dict):
-        return dict(arguments)
+        merged = dict(function_like.get("arguments") or {}) if function_like else {}
+        merged.update(dict(arguments))
+        return merged
+    if function_like is not None:
+        return dict(function_like.get("arguments") or {})
     control_keys = {
         "action",
         "affordance",
@@ -820,8 +829,21 @@ def _candidate_operation_hint(payload: dict[str, Any]) -> str:
     for key in ("operation", "selected_operation", "action", "affordance_id", "affordance", "tool", "intent", "name"):
         value = payload.get(key)
         if isinstance(value, str) and value.strip():
+            function_like = _extract_function_like_action(value)
+            if function_like is not None:
+                return _canonical_operation_alias(str(function_like.get("operation") or ""))
             return _canonical_operation_alias(value)
     return ""
+
+
+def _candidate_function_like_action_payload(payload: dict[str, Any]) -> dict[str, Any] | None:
+    for key in ("operation", "selected_operation", "action", "affordance_id", "affordance", "tool", "intent", "name"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            function_like = _extract_function_like_action(value)
+            if function_like is not None:
+                return function_like
+    return None
 
 
 def _candidate_explicit_affordance(payload: dict[str, Any]) -> str:
@@ -1340,6 +1362,10 @@ def _compile_canonical_product_prompt(request: Any) -> str:
     operation_schemas = state.get("model_visible_operation_schemas", [])
     affordances = tuple(str(item) for item in state.get("model_visible_affordances", ()) if str(item))
     browser_readonly_available = any(item.startswith("real_browser_control.real_browser.") for item in affordances)
+    decision_menu = _canonical_decision_menu(operation_schemas)
+    replan_hint = _canonical_replan_hint(state)
+    compact_schemas = _compact_model_visible_operation_schemas(operation_schemas)
+    compact_state = _canonical_prompt_state(state)
     capability_boundary = (
         "Do not request code execution, network outside the registered read-only browser route, credentials, "
         "shell, provider-native tools, fallback, authority changes, or mutating browser effects.\n"
@@ -1351,17 +1377,140 @@ def _compile_canonical_product_prompt(request: Any) -> str:
         "Choose exactly one safe next intent for this read-only mission, or provide a final answer when evidence supports it.\n"
         "You do not need to speak Sentinel's internal IR. Express the intent clearly; Sentinel will compile it only if it is unambiguous and authorized.\n"
         "Allowed operations are generated from Sentinel's executable capability graph:\n"
-        f"{json.dumps(operation_schemas, sort_keys=True, default=str)}\n"
+        f"model_visible_operation_schemas: {json.dumps(compact_schemas, sort_keys=True, default=str)}\n"
         "Accepted expression styles include native tool calls when advertised, strict JSON, fenced JSON, "
         "Action: <affordance> with Arguments JSON, function-like calls such as browser.open(url=\"...\"), "
         "explicit natural-language intents, or Final answer: <answer>.\n"
         "If more than one operation could match your expression, Sentinel will ask for a clearer next intent instead of guessing.\n"
+        f"{decision_menu}"
+        f"{replan_hint}"
         f"{capability_boundary}"
         "Finish only after a prior receipt/evidence ref supports the answer.\n"
         f"Mission objective: {request.canonical_state.objective}\n"
         f"Mission objective hash: {text_hash(request.canonical_state.objective)}\n"
-        f"Canonical state: {json.dumps(state, sort_keys=True, default=str)}\n"
+        f"Compact state: {json.dumps(compact_state, sort_keys=True, default=str)}\n"
     )
+
+
+def _compact_model_visible_operation_schemas(operation_schemas: Any) -> list[dict[str, Any]]:
+    compact: list[dict[str, Any]] = []
+    if not isinstance(operation_schemas, list):
+        return compact
+    for schema in operation_schemas[:16]:
+        if not isinstance(schema, dict):
+            continue
+        arguments_schema = schema.get("arguments_schema")
+        properties = arguments_schema.get("properties") if isinstance(arguments_schema, dict) else {}
+        required = arguments_schema.get("required") if isinstance(arguments_schema, dict) else []
+        compact.append(
+            {
+                "affordance": schema.get("affordance"),
+                "capability": schema.get("capability"),
+                "operation": schema.get("operation"),
+                "arguments": sorted(str(key) for key in properties.keys()) if isinstance(properties, dict) else [],
+                "required": [str(key) for key in required] if isinstance(required, list) else [],
+                "effect_kind": schema.get("effect_kind"),
+            }
+        )
+    return compact
+
+
+def _canonical_prompt_state(state: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "root_mission_id": state.get("root_mission_id"),
+        "provider_decision_count": state.get("provider_decision_count"),
+        "material_action_count": state.get("material_action_count"),
+        "last_action": state.get("last_action"),
+        "evidence_refs": state.get("evidence_refs"),
+        "recent_observations": state.get("recent_observations"),
+        "remaining_provider_decisions": state.get("remaining_provider_decisions"),
+        "remaining_material_actions": state.get("remaining_material_actions"),
+        "finish_available": state.get("finish_available"),
+        "objective_unresolved": state.get("objective_unresolved"),
+        "browser_environment_state": _compact_browser_environment_state(state.get("browser_environment_state")),
+    }
+
+
+def _compact_browser_environment_state(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "current_url": value.get("current_url") or value.get("url") or "unknown",
+        "page_title": value.get("page_title") or value.get("title") or "unknown",
+        "page_type": value.get("page_type") or "unknown",
+        "page_available": value.get("page_available", "unknown"),
+        "evidence_count": len(value.get("public_evidence_inventory") or ()),
+        "interactive_candidate_count": len(value.get("visible_interactive_candidates") or ()),
+    }
+
+
+def _canonical_decision_menu(operation_schemas: Any) -> str:
+    lines = ["Decision menu (graph-derived):"]
+    if not isinstance(operation_schemas, list):
+        return "Decision menu (graph-derived): none\n"
+    for schema in operation_schemas[:16]:
+        if not isinstance(schema, dict):
+            continue
+        affordance = str(schema.get("affordance") or "").strip()
+        if not affordance:
+            capability = str(schema.get("capability") or "").strip()
+            operation = str(schema.get("operation") or "").strip()
+            affordance = f"{capability}.{operation}".strip(".")
+        if not affordance:
+            continue
+        lines.append(f"- {affordance}: {_canonical_affordance_expression_example(schema)}")
+    return "\n".join(lines) + "\n"
+
+
+def _canonical_affordance_expression_example(schema: dict[str, Any]) -> str:
+    affordance = str(schema.get("affordance") or "").strip()
+    operation = str(schema.get("operation") or "").strip()
+    display_name = _canonical_display_operation_name(affordance=affordance, operation=operation)
+    args_schema = schema.get("arguments_schema")
+    properties = args_schema.get("properties") if isinstance(args_schema, dict) else {}
+    if not isinstance(properties, dict) or not properties:
+        return f"Action: {affordance or operation}"
+    required = args_schema.get("required") if isinstance(args_schema, dict) else None
+    if isinstance(required, list) and required:
+        keys = [str(key) for key in required if str(key) in properties]
+    else:
+        keys = sorted(str(key) for key in properties.keys())[:2]
+    rendered_args = ", ".join(
+        f'{key}="{_canonical_argument_example_value(properties.get(key))}"' for key in keys[:3]
+    )
+    return f"{display_name}({rendered_args})"
+
+
+def _canonical_argument_example_value(spec: Any) -> str:
+    if not isinstance(spec, dict):
+        return "..."
+    value = spec.get("default")
+    enum = spec.get("enum")
+    if value is None and isinstance(enum, list) and enum:
+        value = enum[0]
+    if isinstance(value, (str, int, float, bool)):
+        return str(value)
+    return "..."
+
+
+def _canonical_display_operation_name(*, affordance: str, operation: str) -> str:
+    name = operation or affordance
+    if name.startswith("real_browser."):
+        return name.replace("real_browser.", "browser.", 1)
+    return affordance or operation
+
+
+def _canonical_replan_hint(state: dict[str, Any]) -> str:
+    observations = state.get("recent_observations")
+    if not isinstance(observations, list):
+        return ""
+    for observation in reversed(observations):
+        if isinstance(observation, dict) and observation.get("typed_outcome") == "MODEL_EXPRESSION_NON_DECISION":
+            return (
+                "Previous response did not select one executable affordance. "
+                "Now choose one available operation from the decision menu, ask a clarification, or finish only with evidence.\n"
+            )
+    return ""
 
 
 def extract_canonical_json_decision(raw: Any) -> dict[str, Any]:
@@ -1416,7 +1565,21 @@ def _canonical_provider_failure_diagnosis(payload: dict[str, Any]) -> str:
         return "auth_rejected_status_unknown"
     if http_status is not None:
         return f"http_{http_status}"
+    transport_class = str(payload.get("provider_transport_error_class") or "").strip()
+    if transport_class and re.fullmatch(r"[A-Za-z0-9_.:-]+", transport_class):
+        return f"transport_{transport_class}"
+    local_class = str(payload.get("provider_local_error_class") or "").strip()
+    if local_class and re.fullmatch(r"[A-Za-z0-9_.:-]+", local_class):
+        return f"local_{local_class}"
     return "cause_unknown"
+
+
+def _canonical_rejection_reason_with_detail(reason: str, *, telemetry: dict[str, Any]) -> str:
+    if reason != "invalid_arguments":
+        return reason
+    if telemetry.get("candidate_count") == 0:
+        return "invalid_arguments.no_compatible_route"
+    return reason
 
 
 def _canonical_route_schema(request: Any, *, capability: str, operation: str) -> dict[str, Any]:

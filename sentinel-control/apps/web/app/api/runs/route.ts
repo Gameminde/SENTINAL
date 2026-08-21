@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthRequiredError, getRequestUser } from "@/lib/auth";
-import { createRun, listRunsForUser } from "@/lib/run-store";
+import { runCanonicalProductMissionFromWeb } from "@/lib/canonical-runtime";
+import { createRun, createRunFromCanonicalProductResult, listRunsForUser } from "@/lib/run-store";
 import type { CreateRunInput, RunDepth } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -30,12 +31,38 @@ export async function POST(request: Request) {
 
   try {
     const user = await getRequestUser(request);
-    const run = await createRun({
-      idea,
-      niche: body?.niche?.trim() || undefined,
-      depth,
-      userId: user.userId,
-    });
+    const mode = body?.mode === "sandbox_hypothesis" ? "sandbox_hypothesis" : "canonical_public";
+    const run = mode === "canonical_public"
+      ? await (async () => {
+          const canonical = await runCanonicalProductMissionFromWeb({
+            objective: idea,
+            targetOrigin: body?.targetOrigin?.trim() || "sqlite.org",
+            providerId: body?.providerId?.trim() || undefined,
+            backendId: body?.backendId?.trim() || undefined,
+            modelId: body?.modelId?.trim() || undefined,
+          });
+          return createRunFromCanonicalProductResult(
+            {
+              idea,
+              niche: body?.niche?.trim() || undefined,
+              depth,
+              userId: user.userId,
+              mode,
+              targetOrigin: body?.targetOrigin?.trim() || "sqlite.org",
+              providerId: body?.providerId?.trim() || undefined,
+              backendId: body?.backendId?.trim() || undefined,
+              modelId: body?.modelId?.trim() || undefined,
+            },
+            canonical.result,
+          );
+        })()
+      : await createRun({
+          idea,
+          niche: body?.niche?.trim() || undefined,
+          depth,
+          userId: user.userId,
+          mode,
+        });
 
     return NextResponse.json({ run }, { status: 201 });
   } catch (error) {
