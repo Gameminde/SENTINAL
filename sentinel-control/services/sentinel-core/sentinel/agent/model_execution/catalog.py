@@ -213,6 +213,7 @@ class ProviderBackendProfile(SentinelModel):
     supports_tools: bool = False
     supports_reasoning_controls: bool = False
     supports_usage: bool = True
+    max_tokens_field: str = "max_completion_tokens"
     usage_mapping: ProviderUsageMapping = Field(default_factory=ProviderUsageMapping)
     timeout_profile: ProviderTimeoutProfile = Field(default_factory=ProviderTimeoutProfile)
     retry_policy: ProviderRetryPolicy = Field(default_factory=ProviderRetryPolicy)
@@ -229,6 +230,8 @@ class ProviderBackendProfile(SentinelModel):
     def _validate_backend_metadata(self) -> ProviderBackendProfile:
         if not self.supported_models:
             raise ValueError("backend profile must explicitly list catalog-approved models.")
+        if self.max_tokens_field not in {"max_completion_tokens", "max_tokens"}:
+            raise ValueError("unsupported max token request field.")
         _ensure_secret_free("provider backend profile", self.model_dump(mode="json"))
         return self
 

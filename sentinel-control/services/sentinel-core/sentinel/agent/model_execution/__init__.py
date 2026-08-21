@@ -46,6 +46,7 @@ from sentinel.agent.model_execution.provider import RealModelProvider
 from sentinel.agent.model_execution.provider_profiles import build_default_provider_catalog
 from sentinel.agent.model_execution.receipts import ModelExecutionReceipt, build_model_execution_receipt
 from sentinel.agent.model_execution.registry import ModelProviderRegistry, ProviderCapabilityMetadata
+from sentinel.agent.model_execution.tokenrouter import TokenRouterChatCompletionsProvider
 from sentinel.agent.model_execution.validator import LLMDecisionResultValidator
 
 __all__ = [
@@ -93,6 +94,7 @@ __all__ = [
     "RealModelProvider",
     "RealModelRequest",
     "RealModelRequestBuilder",
+    "TokenRouterChatCompletionsProvider",
     "build_model_execution_receipt",
     "build_default_provider_catalog",
 ]

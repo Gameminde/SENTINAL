@@ -32,7 +32,10 @@ from sentinel.perf.caches.model_call_optimizer import ModelCallPlan
 REQUIRED_PROVIDER_IDS = {
     "groq",
     "openrouter",
+    "tokenrouter",
     "nvidia",
+    "opencode",
+    "opencode_chat",
     "aliyun_dashscope",
     "deepseek",
     "mistral",
@@ -115,6 +118,19 @@ def test_openrouter_catalog_lists_c6_explicit_models_without_auto_route() -> Non
     assert "openrouter/auto" not in backend.supported_models
     assert entry.recommendation is not None
     assert entry.recommendation.fallback_can_execute is False
+    assert entry.capability_flags.grants_tool_execution is False
+    assert entry.capability_flags.server_side_tools_enabled_by_default is False
+
+
+def test_tokenrouter_catalog_lists_free_qwen_without_paid_route() -> None:
+    entry = build_default_provider_catalog().get("tokenrouter")
+    backend = entry.backends[0]
+
+    assert backend.backend_id == "tokenrouter_chat_completions"
+    assert backend.endpoint_template == "https://api.tokenrouter.com/v1/chat/completions"
+    assert entry.credential_policy.credential_env_var == "TOKENROUTER_API_KEY"
+    assert backend.supports_model("qwen/qwen3.8-max-free")
+    assert not backend.supports_model("qwen/qwen3.8-max")
     assert entry.capability_flags.grants_tool_execution is False
     assert entry.capability_flags.server_side_tools_enabled_by_default is False
 

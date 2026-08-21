@@ -82,6 +82,7 @@ class OperatorCatalogModelClient:
                     credential_env=entry.credential_policy.credential_env_var,
                     default_model_id=request.model_id,
                     backend_profile=backend,
+                    max_tokens_field=backend.max_tokens_field,
                 )
             )
         if request.runtime == "operator_llm_conversation" and backend.supports_json_mode:

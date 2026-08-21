@@ -314,6 +314,8 @@ def _default_canonical_transport_profiles(*, provider_id: str, backend_id: str, 
         return ("strict_json_content", "fenced_strict_json")
     if provider_id == "openrouter" and backend_id == "openrouter_chat_completions":
         return ("strict_json_content", "fenced_strict_json")
+    if provider_id == "tokenrouter" and backend_id == "tokenrouter_chat_completions":
+        return ("strict_json_content", "fenced_strict_json")
     if provider_id == "opencode_chat" and backend_id == "opencode_chat_completions":
         return ("strict_json_content", "fenced_strict_json")
     if provider_id == "opencode" and backend_id == "opencode_responses":
