@@ -40,6 +40,11 @@ export async function POST(request: Request) {
             providerId: body?.providerId?.trim() || undefined,
             backendId: body?.backendId?.trim() || undefined,
             modelId: body?.modelId?.trim() || undefined,
+            handoffProviderId: body?.handoffProviderId?.trim() || undefined,
+            handoffBackendId: body?.handoffBackendId?.trim() || undefined,
+            handoffModelId: body?.handoffModelId?.trim() || undefined,
+            plannedHandoffAfterMaterialActions: body?.plannedHandoffAfterMaterialActions,
+            plannedHandoffReason: body?.plannedHandoffReason?.trim() || undefined,
           });
           return createRunFromCanonicalProductResult(
             {
@@ -52,6 +57,11 @@ export async function POST(request: Request) {
               providerId: body?.providerId?.trim() || undefined,
               backendId: body?.backendId?.trim() || undefined,
               modelId: body?.modelId?.trim() || undefined,
+              handoffProviderId: body?.handoffProviderId?.trim() || undefined,
+              handoffBackendId: body?.handoffBackendId?.trim() || undefined,
+              handoffModelId: body?.handoffModelId?.trim() || undefined,
+              plannedHandoffAfterMaterialActions: body?.plannedHandoffAfterMaterialActions,
+              plannedHandoffReason: body?.plannedHandoffReason?.trim() || undefined,
             },
             canonical.result,
           );

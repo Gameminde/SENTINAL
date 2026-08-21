@@ -4765,8 +4765,9 @@
   },
   "c6l_public_long_horizon_multi_model_mission_v1": {
     "wave": "C6L_PUBLIC_LONG_HORIZON_MULTI_MODEL_MISSION_V1",
-    "classification": "NOT_LAUNCHED",
-    "reason": "PLANNED_SAME_ROOT_MULTI_MODEL_HANDOFF_NOT_PRODUCT_ROUTED",
+    "classification": "ARMED_LOCAL_HANDOFF_CANDIDATE",
+    "previous_blocker": "PLANNED_SAME_ROOT_MULTI_MODEL_HANDOFF_NOT_PRODUCT_ROUTED",
+    "current_status": "PLANNED_SAME_ROOT_MULTI_MODEL_HANDOFF_PRODUCT_ROUTED_LOCAL",
     "provider_calls": 0,
     "browser_runs": 0,
     "product_action_kernel_dispatch": 0,

@@ -1959,6 +1959,86 @@ def test_public_product_cli_real_provider_mode_uses_product_native_transport(
     assert payload["proof_root"]["integrity_model"] == "mission_kernel_receipt_timeline_v1"
 
 
+def test_public_product_cli_can_plan_same_root_provider_handoff(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = _workspace(tmp_path)
+    captured_requests: list[Any] = []
+
+    class FakeCatalogModelClient:
+        def __init__(self, **kwargs: Any) -> None:
+            self.contract = kwargs["user_model_contract"]
+
+        def complete(self, request: Any) -> dict[str, Any]:
+            captured_requests.append(request)
+            if self.contract.selected_model == "x-preview-f-free":
+                return {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"sqlite wal"}}'}
+            return {
+                "content": (
+                    '{"capability":"sentinel_loop","operation":"finish",'
+                    '"arguments":{"answer":"Phase B resumed the same mission and finished."}}'
+                )
+            }
+
+    monkeypatch.setattr(cli, "OperatorCatalogModelClient", FakeCatalogModelClient)
+    run_root = tmp_path / "runs"
+
+    code = cli.main(
+        [
+            "canonical-product-run",
+            "--objective",
+            "Exercise planned same-root model handoff.",
+            "--workspace",
+            str(workspace),
+            "--run-root",
+            str(run_root),
+            "--provider-id",
+            "opencode_chat",
+            "--backend-id",
+            "opencode_chat_completions",
+            "--model-id",
+            "x-preview-f-free",
+            "--handoff-provider-id",
+            "opencode",
+            "--handoff-backend-id",
+            "opencode_responses",
+            "--handoff-model-id",
+            "muse-spark-1.2-contributor-free",
+            "--planned-handoff-after-material-actions",
+            "1",
+            "--planned-handoff-reason",
+            "workspace_evidence_phase_a_complete",
+            "--max-provider-decisions",
+            "5",
+            "--max-material-actions",
+            "3",
+            "--json",
+        ]
+    )
+
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert code == 0
+    assert payload["status"] == "completed"
+    assert payload["provider_decision_count"] == 2
+    assert payload["material_action_count"] == 1
+    assert captured_requests[0].model_id == "x-preview-f-free"
+    assert captured_requests[1].model_id == "muse-spark-1.2-contributor-free"
+    assert captured_requests[1].request_metadata["mission_id"] == payload["root_mission_id"]
+    assert "provider_handoff" in captured_requests[1].prompt_text_in_memory_only
+    assert "muse-spark-1.2-contributor-free" in captured_requests[1].prompt_text_in_memory_only
+    assert "material_action_count" in captured_requests[1].prompt_text_in_memory_only
+    assert payload["public_product_spine"]["decision_client"] == "ProviderMesh(ProductModelNativeDecisionClient)"
+    event_types: list[str] = []
+    for event_path in run_root.rglob("events.jsonl"):
+        for line in event_path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                event_types.append(json.loads(line).get("event_type"))
+    assert "canonical_provider_mesh_planned_handoff" in event_types
+
+
 def test_product_model_native_decision_client_can_emit_canonical_decision(tmp_path: Path) -> None:
     captured_requests: list[Any] = []
 

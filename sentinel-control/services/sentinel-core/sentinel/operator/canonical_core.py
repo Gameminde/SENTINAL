@@ -781,6 +781,7 @@ class RootMissionRuntime:
                 self.provider_decision_count += 1
                 try:
                     raw_decision = model_client.complete(request)
+                    self._persist_model_client_pending_transitions(model_client)
                 except ProviderMeshTurnFailed as exc:
                     if self.kernel is None:
                         raise
@@ -1632,6 +1633,33 @@ class RootMissionRuntime:
             safe_summary="Provider mesh terminalized one provider turn and checkpointed mission state.",
             metadata={**observation, "provider_mesh_transition": transition, "mission_state_hash": checkpoint_state_hash},
         )
+
+    def _persist_model_client_pending_transitions(self, model_client: CanonicalModelClient | None) -> None:
+        if self.kernel is None or model_client is None:
+            return
+        consumer = getattr(model_client, "consume_pending_transitions", None)
+        if not callable(consumer):
+            return
+        for raw_transition in consumer():
+            transition = redact_operator_value(raw_transition)
+            if not isinstance(transition, dict):
+                continue
+            event_type = "canonical_provider_mesh_transition"
+            if transition.get("transition_kind") == "planned_handoff":
+                event_type = "canonical_provider_mesh_planned_handoff"
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type=event_type,
+                safe_summary="Provider mesh recorded a safe model handoff transition.",
+                metadata={
+                    "provider_mesh_transition": transition,
+                    "mission_state_hash": transition.get("mission_state_hash"),
+                    "previous_receipt_root": transition.get("previous_receipt_root"),
+                    "browser_actions_replayed": False,
+                    "data_not_authority": True,
+                    "can_execute": False,
+                },
+            )
 
     def _persist_effect_failure(self, exc: Exception, *, failure_stage: str | None = None) -> None:
         if self.kernel is None:

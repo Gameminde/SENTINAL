@@ -9,6 +9,11 @@ export type CanonicalProductRunInput = {
   providerId?: string;
   backendId?: string;
   modelId?: string;
+  handoffProviderId?: string;
+  handoffBackendId?: string;
+  handoffModelId?: string;
+  plannedHandoffAfterMaterialActions?: number;
+  plannedHandoffReason?: string;
   maxProviderDecisions?: number;
   maxMaterialActions?: number;
 };
@@ -100,6 +105,9 @@ export async function runCanonicalProductMissionFromWeb(
   const providerId = (input.providerId || process.env.SENTINEL_CANONICAL_MODEL_PROVIDER_ID || "opencode").trim();
   const backendId = (input.backendId || process.env.SENTINEL_CANONICAL_MODEL_BACKEND_ID || "opencode_responses").trim();
   const modelId = (input.modelId || process.env.SENTINEL_CANONICAL_MODEL_ID || "muse-spark-1.2-contributor-free").trim();
+  const handoffProviderId = input.handoffProviderId?.trim();
+  const handoffBackendId = input.handoffBackendId?.trim();
+  const handoffModelId = input.handoffModelId?.trim();
 
   await mkdir(runRoot, { recursive: true });
   await mkdir(workspaceRoot, { recursive: true });
@@ -136,6 +144,22 @@ export async function runCanonicalProductMissionFromWeb(
     targetOrigin,
     "--json",
   ];
+  if (handoffProviderId || handoffBackendId || handoffModelId) {
+    args.push(
+      "--handoff-provider-id",
+      handoffProviderId || "",
+      "--handoff-backend-id",
+      handoffBackendId || "",
+      "--handoff-model-id",
+      handoffModelId || "",
+    );
+  }
+  if (input.plannedHandoffAfterMaterialActions !== undefined) {
+    args.push("--planned-handoff-after-material-actions", String(input.plannedHandoffAfterMaterialActions));
+  }
+  if (input.plannedHandoffReason?.trim()) {
+    args.push("--planned-handoff-reason", input.plannedHandoffReason.trim());
+  }
 
   const result = await new Promise<CanonicalProductCliResult>((resolve, reject) => {
     const child = spawn(pythonBin, args, {

@@ -250,6 +250,11 @@ export interface CreateRunInput {
   providerId?: string;
   backendId?: string;
   modelId?: string;
+  handoffProviderId?: string;
+  handoffBackendId?: string;
+  handoffModelId?: string;
+  plannedHandoffAfterMaterialActions?: number;
+  plannedHandoffReason?: string;
 }
 
 export interface CanonicalProductMissionRow {

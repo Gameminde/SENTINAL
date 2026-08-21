@@ -520,6 +520,92 @@ def test_provider_mesh_checkpoints_rate_limit_and_resumes_without_replaying_brow
     assert any(event.event_type == "canonical_provider_mesh_turn_failed" for event in events)
 
 
+def test_provider_mesh_planned_handoff_resumes_same_mission_without_replaying_browser_receipt(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    phase_a = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://www.sqlite.org/wal.html"},
+            }
+        ]
+    )
+    phase_b = ScriptedModelClient(
+        [
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "SQLite WAL evidence was collected before the planned handoff."},
+            }
+        ]
+    )
+    mesh = ProviderMesh(
+        providers=(
+            ProviderMeshProviderSpec(
+                provider_id="opencode_chat",
+                backend_id="opencode_chat_completions",
+                model_id="x-preview-f-free",
+                client=phase_a,
+                role="phase_a",
+            ),
+            ProviderMeshProviderSpec(
+                provider_id="opencode",
+                backend_id="opencode_responses",
+                model_id="muse-spark-1.2-contributor-free",
+                client=phase_b,
+                role="phase_b",
+            ),
+        ),
+        fallback_order=("x-preview-f-free", "muse-spark-1.2-contributor-free"),
+        planned_handoff_after_material_actions=1,
+        planned_handoff_reason="sqlite_evidence_phase_a_complete",
+    )
+
+    result = run_canonical_product_mission(
+        objective="Use official SQLite documentation to explain WAL and produce a short useful answer.",
+        workspace_root=workspace,
+        model_client=mesh,
+        provider_model="opencode_chat/x-preview-f-free",
+        kernel=kernel,
+        session_id="c6l_planned_handoff",
+        max_provider_decisions=6,
+        max_material_actions=4,
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert result.provider_decision_count == 2
+    assert result.material_action_count == 1
+    assert engine.open_count == 1
+    assert phase_b.requests
+    resumed_state = phase_b.requests[0].canonical_state.safe_model_dump()
+    assert resumed_state["root_mission_id"] == result.root_mission_id
+    assert resumed_state["material_action_count"] == 1
+    assert resumed_state["evidence_refs"]
+    assert any(
+        observation.get("provider_handoff") == "planned"
+        and observation.get("previous_model") == "x-preview-f-free"
+        and observation.get("next_model") == "muse-spark-1.2-contributor-free"
+        for observation in resumed_state["recent_observations"]
+    )
+    assert mesh.safe_transitions[0]["handoff_reason"] == "sqlite_evidence_phase_a_complete"
+    assert mesh.safe_transitions[0]["previous_receipt_root"]
+    assert mesh.safe_transitions[0]["browser_actions_replayed"] is False
+    events = kernel.store.load_events(result.root_mission_id)
+    assert any(event.event_type == "canonical_provider_mesh_planned_handoff" for event in events)
+
+
 def test_physical_browser_open_blocks_cross_origin_before_engine_call(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")

@@ -60,6 +60,7 @@ from sentinel.operator.models import (
     OperatorMode,
     OperatorTurnResult,
 )
+from sentinel.operator.provider_mesh import ProviderMesh, ProviderMeshProviderSpec
 from sentinel.operator.product_model_native_decision_client import (
     ProductModelNativeDecisionClient,
     _canonical_user_model_contract,
@@ -278,6 +279,11 @@ def build_parser() -> argparse.ArgumentParser:
     canonical_product_parser.add_argument("--provider-id", default=None, help="Catalog provider id for real provider mode.")
     canonical_product_parser.add_argument("--backend-id", default=None, help="Catalog backend id for real provider mode.")
     canonical_product_parser.add_argument("--model-id", default=None, help="Catalog model id for real provider mode.")
+    canonical_product_parser.add_argument("--handoff-provider-id", default=None, help="Optional planned Phase B provider id.")
+    canonical_product_parser.add_argument("--handoff-backend-id", default=None, help="Optional planned Phase B backend id.")
+    canonical_product_parser.add_argument("--handoff-model-id", default=None, help="Optional planned Phase B model id.")
+    canonical_product_parser.add_argument("--planned-handoff-after-material-actions", type=int, default=None)
+    canonical_product_parser.add_argument("--planned-handoff-reason", default="planned_provider_handoff")
     canonical_product_parser.add_argument("--max-provider-decisions", type=int, default=40)
     canonical_product_parser.add_argument("--max-material-actions", type=int, default=120)
     canonical_product_parser.add_argument(
@@ -579,6 +585,47 @@ def _run_canonical_product_command(args: argparse.Namespace, *, public_surface: 
         )
         decision_client_label = "ProductModelNativeDecisionClient"
         provider_model = f"{provider_id}/{model_id}"
+        handoff_provider_id = str(getattr(args, "handoff_provider_id", "") or "").strip()
+        handoff_backend_id = str(getattr(args, "handoff_backend_id", "") or "").strip()
+        handoff_model_id = str(getattr(args, "handoff_model_id", "") or "").strip()
+        handoff_requested = any((handoff_provider_id, handoff_backend_id, handoff_model_id))
+        if handoff_requested:
+            if not (handoff_provider_id and handoff_backend_id and handoff_model_id):
+                raise CanonicalCoreError("planned_handoff_contract_incomplete")
+            handoff_contract = _canonical_user_model_contract(
+                provider_id=handoff_provider_id,
+                backend_id=handoff_backend_id,
+                model_id=handoff_model_id,
+            )
+            handoff_client = ProductModelNativeDecisionClient.for_canonical_decisions(
+                model_client=OperatorCatalogModelClient(user_model_contract=handoff_contract),
+                provider_id=handoff_provider_id,
+                backend_id=handoff_backend_id,
+                model_id=handoff_model_id,
+                user_model_contract_id=handoff_contract.id,
+            )
+            decision_client = ProviderMesh(
+                providers=(
+                    ProviderMeshProviderSpec(
+                        provider_id=provider_id,
+                        backend_id=backend_id,
+                        model_id=model_id,
+                        client=decision_client,
+                        role="phase_a",
+                    ),
+                    ProviderMeshProviderSpec(
+                        provider_id=handoff_provider_id,
+                        backend_id=handoff_backend_id,
+                        model_id=handoff_model_id,
+                        client=handoff_client,
+                        role="phase_b",
+                    ),
+                ),
+                fallback_order=(model_id, handoff_model_id),
+                planned_handoff_after_material_actions=getattr(args, "planned_handoff_after_material_actions", None),
+                planned_handoff_reason=str(getattr(args, "planned_handoff_reason", "") or "planned_provider_handoff"),
+            )
+            decision_client_label = "ProviderMesh(ProductModelNativeDecisionClient)"
     host = SentinelRuntimeHost(run_root=run_root)
     capability_graph = None
     browser_readonly_backend = None
