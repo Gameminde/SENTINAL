@@ -255,6 +255,9 @@ export interface CreateRunInput {
   handoffModelId?: string;
   plannedHandoffAfterMaterialActions?: number;
   plannedHandoffReason?: string;
+  maxProviderDecisions?: number;
+  maxMaterialActions?: number;
+  maxWallTimeMs?: number;
 }
 
 export interface CanonicalProductMissionRow {

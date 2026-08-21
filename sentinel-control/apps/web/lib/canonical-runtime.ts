@@ -16,6 +16,7 @@ export type CanonicalProductRunInput = {
   plannedHandoffReason?: string;
   maxProviderDecisions?: number;
   maxMaterialActions?: number;
+  maxWallTimeMs?: number;
 };
 
 export type CanonicalProductCliResult = {
@@ -93,6 +94,11 @@ function parseCliJson(stdout: string): CanonicalProductCliResult {
   return JSON.parse(candidate) as CanonicalProductCliResult;
 }
 
+function clampWallTimeMs(value: number | undefined) {
+  if (!Number.isFinite(value)) return 10 * 60 * 1000;
+  return Math.max(60 * 1000, Math.min(Math.trunc(value), 45 * 60 * 1000));
+}
+
 export async function runCanonicalProductMissionFromWeb(
   input: CanonicalProductRunInput,
 ): Promise<{ runId: string; runRoot: string; workspaceRoot: string; result: CanonicalProductCliResult }> {
@@ -108,6 +114,7 @@ export async function runCanonicalProductMissionFromWeb(
   const handoffProviderId = input.handoffProviderId?.trim();
   const handoffBackendId = input.handoffBackendId?.trim();
   const handoffModelId = input.handoffModelId?.trim();
+  const timeoutMs = clampWallTimeMs(input.maxWallTimeMs);
 
   await mkdir(runRoot, { recursive: true });
   await mkdir(workspaceRoot, { recursive: true });
@@ -173,7 +180,7 @@ export async function runCanonicalProductMissionFromWeb(
     const timeout = setTimeout(() => {
       child.kill("SIGTERM");
       reject(new Error("canonical_product_subprocess_timeout"));
-    }, 10 * 60 * 1000);
+    }, timeoutMs);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {

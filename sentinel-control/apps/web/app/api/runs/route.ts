@@ -45,6 +45,9 @@ export async function POST(request: Request) {
             handoffModelId: body?.handoffModelId?.trim() || undefined,
             plannedHandoffAfterMaterialActions: body?.plannedHandoffAfterMaterialActions,
             plannedHandoffReason: body?.plannedHandoffReason?.trim() || undefined,
+            maxProviderDecisions: body?.maxProviderDecisions,
+            maxMaterialActions: body?.maxMaterialActions,
+            maxWallTimeMs: body?.maxWallTimeMs,
           });
           return createRunFromCanonicalProductResult(
             {
@@ -62,6 +65,9 @@ export async function POST(request: Request) {
               handoffModelId: body?.handoffModelId?.trim() || undefined,
               plannedHandoffAfterMaterialActions: body?.plannedHandoffAfterMaterialActions,
               plannedHandoffReason: body?.plannedHandoffReason?.trim() || undefined,
+              maxProviderDecisions: body?.maxProviderDecisions,
+              maxMaterialActions: body?.maxMaterialActions,
+              maxWallTimeMs: body?.maxWallTimeMs,
             },
             canonical.result,
           );
