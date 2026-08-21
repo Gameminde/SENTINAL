@@ -95,7 +95,7 @@ function parseCliJson(stdout: string): CanonicalProductCliResult {
 }
 
 function clampWallTimeMs(value: number | undefined) {
-  if (!Number.isFinite(value)) return 10 * 60 * 1000;
+  if (typeof value !== "number" || !Number.isFinite(value)) return 10 * 60 * 1000;
   return Math.max(60 * 1000, Math.min(Math.trunc(value), 45 * 60 * 1000));
 }
 
