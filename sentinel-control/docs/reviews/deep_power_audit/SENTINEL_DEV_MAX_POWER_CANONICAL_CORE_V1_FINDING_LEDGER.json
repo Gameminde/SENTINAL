@@ -4726,7 +4726,7 @@
     "c6_public_product_browser_dispatches": 0,
     "c6_public_product_live_runs_recorded": 5
   },
-  "latest_provider_status": "OPENCODE_MUSE_SPARK_PROVIDER_REACHABLE_INTERMITTENT",
+  "latest_provider_status": "OPENCODE_FREE_MODELS_ROUTED_OFFLINE_C6L_HANDOFF_BLOCKED",
   "opencode_muse_spark_provider_readiness": {
     "wave": "OPENCODE_MUSE_SPARK_PROVIDER_READINESS",
     "classification": "REAL_PROVIDER_REACHABLE_INTERMITTENT",
@@ -4744,8 +4744,33 @@
     "report": "sentinel-control/docs/OPENCODE_MUSE_SPARK_PROVIDER_READINESS_REPORT.md",
     "endpoint": "https://api.opencode.ai/v1/responses",
     "supported_free_model_ids": [
-      "muse-spark-1.2-contributor-free",
-      "x-preview-f-free"
+      "muse-spark-1.2-contributor-free"
     ]
+  },
+  "opencode_x_preview_free_transport_routing": {
+    "wave": "OPENCODE_FREE_MODEL_TRANSPORT_ROUTING",
+    "classification": "IMPLEMENTED_LOCAL_CANDIDATE",
+    "provider_id": "opencode_chat",
+    "backend_id": "opencode_chat_completions",
+    "model_id": "x-preview-f-free",
+    "adapter": "OpenAICompatibleChatProvider",
+    "credential_env_var": "OPENCODE_API_KEY",
+    "provider_calls": 0,
+    "product_browser_runs": 0,
+    "raw_secret_persisted": false,
+    "raw_provider_material_persisted": false,
+    "fixed_proven": "0/65",
+    "report": "sentinel-control/docs/OPENCODE_MUSE_SPARK_PROVIDER_READINESS_REPORT.md",
+    "endpoint": "https://api.opencode.ai/v1/chat/completions"
+  },
+  "c6l_public_long_horizon_multi_model_mission_v1": {
+    "wave": "C6L_PUBLIC_LONG_HORIZON_MULTI_MODEL_MISSION_V1",
+    "classification": "NOT_LAUNCHED",
+    "reason": "PLANNED_SAME_ROOT_MULTI_MODEL_HANDOFF_NOT_PRODUCT_ROUTED",
+    "provider_calls": 0,
+    "browser_runs": 0,
+    "product_action_kernel_dispatch": 0,
+    "fixed_proven": "0/65",
+    "report": "sentinel-control/docs/reviews/deep_power_audit/C6L_PUBLIC_LONG_HORIZON_MULTI_MODEL_MISSION_V1_PREFLIGHT_REPORT.md"
   }
 }

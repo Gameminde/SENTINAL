@@ -25,8 +25,13 @@ from sentinel.agent.model_execution import (
 )
 from sentinel.agent.model_execution.opencode import (
     OPENCODE_BACKEND_ID,
+    OPENCODE_CHAT_BACKEND_ID,
+    OPENCODE_CHAT_PROVIDER_ID,
     OPENCODE_DEFAULT_MODEL_ID,
     OPENCODE_RESPONSES_URL,
+    OPENCODE_CHAT_BASE_URL,
+    OPENCODE_CHAT_DEFAULT_MODEL_ID,
+    OpenCodeChatCompletionsProvider,
     OpenCodeResponsesProvider,
 )
 from sentinel.operator.model_client import OperatorCatalogModelClient
@@ -97,9 +102,31 @@ def _opencode_request():
     )
 
 
+def _opencode_chat_request():
+    return _request().model_copy(
+        update={
+            "provider_id": OPENCODE_CHAT_PROVIDER_ID,
+            "backend_id": OPENCODE_CHAT_BACKEND_ID,
+            "backend": OPENCODE_CHAT_BACKEND_ID,
+            "runtime": "chat_completions",
+            "model_id": OPENCODE_CHAT_DEFAULT_MODEL_ID,
+            "prompt_text_in_memory_only": RAW_PROMPT,
+            "estimated_output_tokens": 80,
+        }
+    )
+
+
 def _credential() -> ProviderCredentialHandle:
     return ProviderCredentialHandle.from_env(
         provider_id="opencode",
+        env_var_name="OPENCODE_API_KEY",
+        scopes=["model:read"],
+    )
+
+
+def _chat_credential() -> ProviderCredentialHandle:
+    return ProviderCredentialHandle.from_env(
+        provider_id=OPENCODE_CHAT_PROVIDER_ID,
         env_var_name="OPENCODE_API_KEY",
         scopes=["model:read"],
     )
@@ -113,7 +140,7 @@ def _request_timeout():
 
 def test_opencode_catalog_lists_free_muse_spark_responses_model() -> None:
     entry = build_default_provider_catalog().get("opencode")
-    backend = entry.backends[0]
+    backend = next(candidate for candidate in entry.backends if candidate.backend_id == OPENCODE_BACKEND_ID)
 
     assert entry.provider_id == "opencode"
     assert backend.backend_id == OPENCODE_BACKEND_ID
@@ -121,8 +148,19 @@ def test_opencode_catalog_lists_free_muse_spark_responses_model() -> None:
     assert backend.endpoint_template == OPENCODE_RESPONSES_URL
     assert OPENCODE_DEFAULT_MODEL_ID == "muse-spark-1.2-contributor-free"
     assert backend.supports_model(OPENCODE_DEFAULT_MODEL_ID)
-    assert backend.supports_model("x-preview-f-free")
+    assert not backend.supports_model("x-preview-f-free")
     assert entry.credential_policy.credential_env_var == "OPENCODE_API_KEY"
+
+
+def test_opencode_catalog_routes_x_preview_free_to_chat_completions() -> None:
+    entry = build_default_provider_catalog().get(OPENCODE_CHAT_PROVIDER_ID)
+    backend = next(candidate for candidate in entry.backends if candidate.backend_id == OPENCODE_CHAT_BACKEND_ID)
+
+    assert entry.provider_id == "opencode_chat"
+    assert backend.runtime == "chat_completions"
+    assert backend.endpoint_template == f"{OPENCODE_CHAT_BASE_URL}/chat/completions"
+    assert backend.supports_model("x-preview-f-free")
+    assert not backend.supports_model(OPENCODE_DEFAULT_MODEL_ID)
 
 
 def test_opencode_missing_api_key_returns_missing_credential_without_network(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,6 +200,26 @@ def test_opencode_responses_request_uses_exact_free_model_and_endpoint(monkeypat
     assert body["stream"] is False
     assert SECRET_VALUE not in str(metadata)
     assert RAW_PROMPT not in str(metadata)
+    assert response.error_class is None
+
+
+def test_opencode_chat_request_uses_x_preview_free_and_chat_completions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENCODE_API_KEY", SECRET_VALUE)
+    recorder = RecordingHttpxClient(_valid_chat_payload())
+    monkeypatch.setattr("httpx.Client", recorder)
+
+    response = OpenCodeChatCompletionsProvider().execute(
+        _opencode_chat_request(),
+        timeout=_request_timeout(),
+        credential=_chat_credential(),
+    )
+
+    call = recorder.calls[0]
+    body = call["json"]
+
+    assert call["url"] == f"{OPENCODE_CHAT_BASE_URL}/chat/completions"
+    assert body["model"] == OPENCODE_CHAT_DEFAULT_MODEL_ID
+    assert body["messages"][0]["content"] == RAW_PROMPT
     assert response.error_class is None
 
 
@@ -367,4 +425,21 @@ def _valid_nested_output_payload() -> dict[str, Any]:
             }
         ],
         "usage": {"input_tokens": 14, "output_tokens": 12, "total_tokens": 26},
+    }
+
+
+def _valid_chat_payload() -> dict[str, Any]:
+    return {
+        "id": "chat_opencode_1",
+        "model": OPENCODE_CHAT_DEFAULT_MODEL_ID,
+        "choices": [
+            {
+                "finish_reason": "stop",
+                "message": {
+                    "role": "assistant",
+                    "content": json.dumps(_decision_payload()),
+                },
+            }
+        ],
+        "usage": {"prompt_tokens": 14, "completion_tokens": 12, "total_tokens": 26},
     }

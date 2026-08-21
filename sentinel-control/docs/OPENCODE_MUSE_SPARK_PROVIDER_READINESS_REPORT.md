@@ -1,4 +1,4 @@
-# OpenCode Muse Spark Provider Readiness Report
+# OpenCode Free Provider Readiness Report
 
 ## Verdict
 
@@ -7,6 +7,10 @@ OPENCODE_MUSE_SPARK_PROVIDER_READINESS = REAL_PROVIDER_REACHABLE_INTERMITTENT
 provider_id = opencode
 backend_id = opencode_responses
 model_id = muse-spark-1.2-contributor-free
+OPENCODE_X_PREVIEW_FREE_TRANSPORT_ROUTING = IMPLEMENTED_LOCAL_CANDIDATE
+x_preview_provider_id = opencode_chat
+x_preview_backend_id = opencode_chat_completions
+x_preview_model_id = x-preview-f-free
 provider_calls = 1+
 product_browser_runs = 0
 raw_secret_persisted = false
@@ -14,7 +18,8 @@ raw_secret_persisted = false
 
 OpenCode is registered as an explicit, non-silent provider candidate for the
 canonical product route. The implementation uses a generic OpenAI Responses
-adapter, not a Muse-specific parser.
+adapter for Muse Spark and a generic OpenAI-compatible Chat Completions adapter
+for `x-preview-f-free`. Neither path uses a model-specific parser.
 
 ## Route
 
@@ -33,7 +38,15 @@ The default public product provider selection was moved to:
 provider_id = opencode
 backend_id = opencode_responses
 default_model_id = muse-spark-1.2-contributor-free
-additional_free_model_id_seen_in_models_api = x-preview-f-free
+```
+
+The second free model is routed explicitly as:
+
+```text
+provider_id = opencode_chat
+backend_id = opencode_chat_completions
+model_id = x-preview-f-free
+endpoint = https://api.opencode.ai/v1/chat/completions
 ```
 
 The credential must be supplied only through:
@@ -58,6 +71,9 @@ The tests prove:
 - HTTP errors are typed and sanitized;
 - `OperatorCatalogModelClient` routes an OpenCode Responses backend without
   falling back to chat-completions;
+- `x-preview-f-free` is not accepted on the Responses backend;
+- `x-preview-f-free` is accepted only through the explicit Chat Completions
+  backend;
 - existing NVIDIA and OpenRouter provider tests remain green.
 
 ## Live Status
@@ -95,6 +111,8 @@ backend_browser = sentinel_chromium
 To test the second free model ID observed from `/models`, set:
 
 ```text
+SENTINEL_CANONICAL_MODEL_PROVIDER_ID = opencode_chat
+SENTINEL_CANONICAL_MODEL_BACKEND_ID = opencode_chat_completions
 SENTINEL_CANONICAL_MODEL_ID = x-preview-f-free
 ```
 

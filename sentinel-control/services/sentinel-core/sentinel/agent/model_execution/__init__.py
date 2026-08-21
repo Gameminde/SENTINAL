@@ -39,7 +39,7 @@ from sentinel.agent.model_execution.openai_compatible import (
     OpenAICompatibleProviderConfig,
 )
 from sentinel.agent.model_execution.openai_responses import OpenAIResponsesProvider, OpenAIResponsesProviderConfig
-from sentinel.agent.model_execution.opencode import OpenCodeResponsesProvider
+from sentinel.agent.model_execution.opencode import OpenCodeChatCompletionsProvider, OpenCodeResponsesProvider
 from sentinel.agent.model_execution.openrouter import OpenRouterChatCompletionsProvider
 from sentinel.agent.model_execution.policy import ModelExecutionBudgetPolicy, ModelRetryPolicy, ModelTimeoutPolicy
 from sentinel.agent.model_execution.provider import RealModelProvider
@@ -69,6 +69,7 @@ __all__ = [
     "OpenAICompatibleProviderConfig",
     "OpenAIResponsesProvider",
     "OpenAIResponsesProviderConfig",
+    "OpenCodeChatCompletionsProvider",
     "OpenCodeResponsesProvider",
     "OpenRouterChatCompletionsProvider",
     "ProviderBackendProfile",
