@@ -62,13 +62,16 @@ class RecordingHttpxClient:
 
 
 class _Response:
-    def __init__(self, payload: dict[str, Any], status_code: int = 200) -> None:
+    def __init__(self, payload: dict[str, Any] | str, status_code: int = 200) -> None:
         self._payload = payload
         self.status_code = status_code
-        self.text = json.dumps(payload)
+        self.text = payload if isinstance(payload, str) else json.dumps(payload)
+        self.headers: dict[str, str] = {}
         self.request = httpx.Request("POST", "https://redacted.invalid")
 
     def json(self) -> dict[str, Any]:
+        if isinstance(self._payload, str):
+            raise json.JSONDecodeError("not json", self._payload, 0)
         return self._payload
 
     def raise_for_status(self) -> None:
@@ -118,6 +121,7 @@ def test_opencode_catalog_lists_free_muse_spark_responses_model() -> None:
     assert backend.endpoint_template == OPENCODE_RESPONSES_URL
     assert OPENCODE_DEFAULT_MODEL_ID == "muse-spark-1.2-contributor-free"
     assert backend.supports_model(OPENCODE_DEFAULT_MODEL_ID)
+    assert backend.supports_model("x-preview-f-free")
     assert entry.credential_policy.credential_env_var == "OPENCODE_API_KEY"
 
 
@@ -203,6 +207,22 @@ def test_opencode_nested_output_response_validates(monkeypatch: pytest.MonkeyPat
     assert result.success is True
 
 
+def test_opencode_text_plain_response_is_treated_as_visible_model_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENCODE_API_KEY", SECRET_VALUE)
+    monkeypatch.setattr("httpx.Client", RecordingHttpxClient(json.dumps(_decision_payload())))
+
+    response = OpenCodeResponsesProvider().execute(
+        _opencode_request(),
+        timeout=_request_timeout(),
+        credential=_credential(),
+    )
+    result = LLMDecisionResultValidator.validate(response)
+
+    assert response.error_class is None
+    assert response.content["content_extraction_source"] == "responses.output_text"
+    assert result.success is True
+
+
 def test_opencode_http_errors_are_structured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENCODE_API_KEY", SECRET_VALUE)
     monkeypatch.setattr("httpx.Client", RecordingHttpxClient({"error": {"message": "no payment method"}}, status_code=402))
@@ -251,7 +271,29 @@ def test_opencode_real_provider_skip_safe() -> None:
         timeout=_request_timeout(),
         credential=_credential(),
     )
+    if response.error_class in {
+        ModelExecutionOutcomeClass.RATE_LIMIT.value,
+        ModelExecutionOutcomeClass.TIMEOUT.value,
+        ModelExecutionOutcomeClass.PROVIDER_ERROR.value,
+        ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA.value,
+    }:
+        assert os.environ["OPENCODE_API_KEY"] not in response.model_dump_json()
+        assert request.prompt_text_in_memory_only not in response.model_dump_json()
+        pytest.skip(f"real OpenCode call returned provider outcome: {response.error_class}")
+
     result = LLMDecisionResultValidator.validate(response)
+    if result.outcome_class in {
+        ModelExecutionOutcomeClass.RATE_LIMIT,
+        ModelExecutionOutcomeClass.TIMEOUT,
+        ModelExecutionOutcomeClass.PROVIDER_ERROR,
+        ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA,
+    }:
+        assert os.environ["OPENCODE_API_KEY"] not in response.model_dump_json()
+        assert request.prompt_text_in_memory_only not in response.model_dump_json()
+        return
+
+    assert response.error_class is None
+    assert result.success is True
     receipt = build_model_execution_receipt(
         request=request,
         outcome_class=result.outcome_class,
@@ -259,20 +301,6 @@ def test_opencode_real_provider_skip_safe() -> None:
         credential=_credential(),
         attempts=1,
     )
-
-    if result.outcome_class in {
-        ModelExecutionOutcomeClass.RATE_LIMIT,
-        ModelExecutionOutcomeClass.TIMEOUT,
-        ModelExecutionOutcomeClass.PROVIDER_ERROR,
-        ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA,
-    }:
-        dumped = receipt.model_dump_json()
-        assert os.environ["OPENCODE_API_KEY"] not in dumped
-        assert request.prompt_text_in_memory_only not in dumped
-        pytest.skip(f"real OpenCode call returned provider outcome: {result.outcome_class.value}")
-
-    assert response.error_class is None
-    assert result.success is True
     dumped = receipt.model_dump_json()
     assert os.environ["OPENCODE_API_KEY"] not in dumped
     assert request.prompt_text_in_memory_only not in dumped

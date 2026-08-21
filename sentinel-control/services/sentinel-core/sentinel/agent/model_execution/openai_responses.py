@@ -111,7 +111,7 @@ class OpenAIResponsesProvider(RealModelProvider):
                     json=self._request_body(request),
                 )
                 response.raise_for_status()
-                payload = response.json()
+                payload = _response_payload(response)
         except httpx.HTTPStatusError as exc:
             return self._http_error_response(request, exc)
         except httpx.TimeoutException:
@@ -170,6 +170,7 @@ class OpenAIResponsesProvider(RealModelProvider):
             parsed_content = _parse_content(content, strict_json_only=strict_json_only, output_truncated=output_truncated)
         if not isinstance(parsed_content, dict):
             return self._error_response(request, ModelExecutionOutcomeClass.INVALID_RESPONSE_SCHEMA)
+        parsed_content["content_extraction_source"] = "responses.output_text"
 
         usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
         response_id = payload.get("id")
@@ -255,3 +256,25 @@ def _extract_finish_reason(payload: dict[str, Any]) -> str | None:
             if isinstance(finish_reason, str) and finish_reason:
                 return finish_reason
     return None
+
+
+def _response_payload(response: httpx.Response) -> dict[str, Any]:
+    try:
+        payload = response.json()
+    except (json.JSONDecodeError, ValueError):
+        text = response.text
+        if text:
+            return {
+                "id": response.headers.get("x-request-id"),
+                "status": "completed",
+                "output_text": text,
+                "text_plain_response": True,
+            }
+        raise
+    if isinstance(payload, dict):
+        return payload
+    return {
+        "status": "completed",
+        "output_text": json.dumps(payload),
+        "json_value_response": True,
+    }

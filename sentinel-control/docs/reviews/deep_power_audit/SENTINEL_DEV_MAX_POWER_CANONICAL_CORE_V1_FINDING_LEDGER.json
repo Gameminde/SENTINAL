@@ -4182,7 +4182,7 @@
     "count": 1,
     "raw_paths_persisted": false
   },
-  "updated_at_utc": "2026-08-21T13:53:32.028766Z",
+  "updated_at_utc": "2026-08-21T14:32:57.662613Z",
   "minimax_canonical_decision_protocol_alignment_v1": {
     "wave": "MINIMAX_CANONICAL_DECISION_PROTOCOL_ALIGNMENT_V1",
     "status": "IMPLEMENTED_LOCAL_CANDIDATE",
@@ -4726,21 +4726,26 @@
     "c6_public_product_browser_dispatches": 0,
     "c6_public_product_live_runs_recorded": 5
   },
-  "latest_provider_status": "OPENCODE_MUSE_SPARK_PROVIDER_READINESS_IMPLEMENTED_OFFLINE_CANDIDATE",
+  "latest_provider_status": "OPENCODE_MUSE_SPARK_PROVIDER_REACHABLE_INTERMITTENT",
   "opencode_muse_spark_provider_readiness": {
     "wave": "OPENCODE_MUSE_SPARK_PROVIDER_READINESS",
-    "classification": "IMPLEMENTED_OFFLINE_CANDIDATE",
+    "classification": "REAL_PROVIDER_REACHABLE_INTERMITTENT",
     "provider_id": "opencode",
     "backend_id": "opencode_responses",
     "model_id": "muse-spark-1.2-contributor-free",
     "adapter": "OpenAIResponsesProvider",
     "credential_env_var": "OPENCODE_API_KEY",
-    "provider_calls": 0,
+    "provider_calls": "multiple_provider_only_probes",
     "product_browser_runs": 0,
     "raw_secret_persisted": false,
     "raw_provider_material_persisted": false,
-    "real_call_status": "NOT_RUN_ENV_ABSENT",
+    "real_call_status": "PROVIDER_REACHABLE_AT_LEAST_ONCE_WITH_INTERMITTENT_TIMEOUTS",
     "fixed_proven": "0/65",
-    "report": "sentinel-control/docs/OPENCODE_MUSE_SPARK_PROVIDER_READINESS_REPORT.md"
+    "report": "sentinel-control/docs/OPENCODE_MUSE_SPARK_PROVIDER_READINESS_REPORT.md",
+    "endpoint": "https://api.opencode.ai/v1/responses",
+    "supported_free_model_ids": [
+      "muse-spark-1.2-contributor-free",
+      "x-preview-f-free"
+    ]
   }
 }

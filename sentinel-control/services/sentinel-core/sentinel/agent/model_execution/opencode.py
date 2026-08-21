@@ -10,7 +10,7 @@ from sentinel.agent.model_execution.provider_profiles import build_default_provi
 OPENCODE_PROVIDER_ID = "opencode"
 OPENCODE_BACKEND_ID = "opencode_responses"
 OPENCODE_DEFAULT_MODEL_ID = "muse-spark-1.2-contributor-free"
-OPENCODE_RESPONSES_URL = "https://api.opencode.ai/zen/v1/responses"
+OPENCODE_RESPONSES_URL = "https://api.opencode.ai/v1/responses"
 OPENCODE_CREDENTIAL_ENV = "OPENCODE_API_KEY"
 
 
