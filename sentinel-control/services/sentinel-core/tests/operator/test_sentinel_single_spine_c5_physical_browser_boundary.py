@@ -45,6 +45,14 @@ class ScriptedThenRateLimitModelClient(ScriptedModelClient):
         raise RuntimeError("provider_failure_PROVIDER_RATE_LIMIT_http_429")
 
 
+class ScriptedThenProviderAuthErrorModelClient(ScriptedModelClient):
+    def complete(self, request: Any) -> dict[str, Any]:
+        if self._decisions:
+            return super().complete(request)
+        self.requests.append(request)
+        raise RuntimeError("provider_failure_PROVIDER_AUTH_ERROR_credential_rejected_http_401")
+
+
 class InstrumentedSentinelChromiumReadOnlyEngine:
     browser_backend_id = SENTINEL_CHROMIUM_BACKEND_ID
     session_manager_backend_kind = "sentinel_chromium"
@@ -518,6 +526,98 @@ def test_provider_mesh_checkpoints_rate_limit_and_resumes_without_replaying_brow
     assert mesh.safe_transitions[0]["previous_receipt_root"]
     events = kernel.store.load_events(result.root_mission_id)
     assert any(event.event_type == "canonical_provider_mesh_turn_failed" for event in events)
+
+
+def test_provider_mesh_checkpoints_auth_error_and_resumes_explicit_fallback_without_replaying_browser_receipt(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    primary = ScriptedThenProviderAuthErrorModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://www.sqlite.org/gencol.html"},
+            }
+        ]
+    )
+    fallback = ScriptedModelClient(
+        [
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "SQLite generated columns evidence was already collected before fallback."},
+            }
+        ]
+    )
+    mesh = ProviderMesh(
+        providers=(
+            ProviderMeshProviderSpec(
+                provider_id="tokenrouter",
+                backend_id="tokenrouter_chat_completions",
+                model_id="qwen/qwen3.8-max-free",
+                client=primary,
+                role="primary",
+            ),
+            ProviderMeshProviderSpec(
+                provider_id="opencode",
+                backend_id="opencode_responses",
+                model_id="muse-spark-1.2-contributor-free",
+                client=fallback,
+                role="fallback_1",
+            ),
+        ),
+        fallback_order=("qwen/qwen3.8-max-free", "muse-spark-1.2-contributor-free"),
+    )
+
+    result = run_canonical_product_mission(
+        objective="Find official SQLite documentation explaining generated columns and provide a short useful answer.",
+        workspace_root=workspace,
+        model_client=mesh,
+        provider_model="tokenrouter/qwen/qwen3.8-max-free",
+        kernel=kernel,
+        session_id="c6_provider_mesh_auth_error_resume",
+        max_provider_decisions=6,
+        max_material_actions=4,
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 1
+    assert engine.open_count == 1
+    assert len(result.receipts) == 1
+    assert result.receipts[0].operation == "real_browser.open"
+    assert fallback.requests
+    resumed_state = fallback.requests[0].canonical_state.safe_model_dump()
+    assert resumed_state["material_action_count"] == 1
+    assert resumed_state["evidence_refs"]
+    assert any(
+        observation.get("provider_handoff") == "fallback"
+        and observation.get("previous_model") == "qwen/qwen3.8-max-free"
+        and observation.get("next_model") == "muse-spark-1.2-contributor-free"
+        and observation.get("browser_actions_replayed") is False
+        for observation in resumed_state["recent_observations"]
+    )
+    assert mesh.safe_transitions[0]["fallback_reason"] == "provider_failure_PROVIDER_AUTH_ERROR_credential_rejected_http_401"
+    assert mesh.safe_transitions[0]["provider_turn_terminalized"] is True
+    assert mesh.safe_transitions[0]["browser_actions_replayed"] is False
+    assert mesh.safe_transitions[0]["fallback_silent"] is False
+    assert mesh.safe_transitions[0]["mission_state_hash"] == resumed_state["state_hash"]
+    events = kernel.store.load_events(result.root_mission_id)
+    turn_failure_events = [event for event in events if event.event_type == "canonical_provider_mesh_turn_failed"]
+    assert turn_failure_events
+    assert turn_failure_events[0].metadata["loop_event_type"] == "model/request-error"
 
 
 def test_provider_mesh_planned_handoff_resumes_same_mission_without_replaying_browser_receipt(tmp_path: Path) -> None:

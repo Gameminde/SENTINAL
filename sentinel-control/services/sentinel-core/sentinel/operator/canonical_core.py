@@ -1615,6 +1615,7 @@ class RootMissionRuntime:
             if key not in {"mission_state_hash"}
         }
         observation = {
+            "loop_event_type": "model/request-error",
             "provider_mesh_turn_terminalized": True,
             "provider_mesh_transition": model_visible_transition,
             "provider_decision_count": self.provider_decision_count,

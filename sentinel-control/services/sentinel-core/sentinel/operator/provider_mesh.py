@@ -122,6 +122,7 @@ class ProviderMesh:
         state_hash = str(getattr(state, "state_hash", "") or "")
         receipt_refs = tuple(getattr(state, "evidence_refs", ()) or ())
         transition = {
+            "transition_kind": "fallback",
             "requested_provider": spec.provider_id,
             "requested_model": spec.model_id,
             "requested_backend": spec.backend_id,
@@ -273,8 +274,10 @@ def _request_for_provider(request: Any, spec: ProviderMeshProviderSpec, *, trans
 
 
 def _model_visible_handoff_observation(transition: dict[str, Any]) -> dict[str, Any]:
+    transition_kind = str(transition.get("transition_kind") or "")
+    provider_handoff = "fallback" if transition_kind == "fallback" or transition.get("fallback_reason") else "planned"
     return {
-        "provider_handoff": "planned",
+        "provider_handoff": provider_handoff,
         "previous_provider": transition.get("actual_provider"),
         "previous_model": transition.get("actual_model"),
         "next_provider": transition.get("next_provider"),
@@ -294,6 +297,11 @@ def _recoverable_provider_failure_code(exc: Exception) -> str:
         "provider_failure_PROVIDER_RATE_LIMIT_http_429",
         "PROVIDER_RATE_LIMIT_http_429",
         "http_429",
+        "provider_failure_PROVIDER_AUTH_ERROR_credential_rejected_http_401",
+        "provider_failure_PROVIDER_AUTH_ERROR_http_401",
+        "PROVIDER_AUTH_ERROR_credential_rejected_http_401",
+        "PROVIDER_AUTH_ERROR_http_401",
+        "http_401",
         "provider_failure_PROVIDER_MODEL_UNAVAILABLE_http_503",
         "PROVIDER_MODEL_UNAVAILABLE_http_503",
         "http_503",
