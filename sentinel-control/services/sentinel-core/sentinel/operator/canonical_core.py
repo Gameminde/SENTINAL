@@ -78,6 +78,19 @@ class EffectKind(StrEnum):
 _CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX = "CANONICAL_DECISION_TRANSPORT_REJECTED:"
 _RECOVERABLE_MODEL_NON_DECISION_REASONS = frozenset({"invalid_arguments", "narrative_only_response"})
 _MAX_MODEL_NON_DECISION_RECOVERIES = 2
+_EVIDENCE_REQUIRED_OBJECTIVE_MARKERS = (
+    "cite",
+    "citation",
+    "docs",
+    "documentation",
+    "evidence",
+    "grounded",
+    "official",
+    "prove",
+    "source",
+    "verify",
+    "using only",
+)
 
 
 class RootMissionCancellationToken:
@@ -282,6 +295,50 @@ class CanonicalDecisionRequest(SentinelModel):
             can_execute=self.can_execute,
         )
         return self
+
+
+class CanonicalModelExpression(SentinelModel):
+    expression_id: str = Field(default_factory=lambda: new_id("canonical_model_expression"))
+    root_mission_id: str
+    provider_model: str
+    expression_type: str
+    source_expression_type: str = "assistant_message"
+    source_hash: str = ""
+    content_length_bucket: str = "unknown"
+    expression_hash: str = ""
+    data_not_authority: bool = True
+    authority_effect: str = "none"
+    can_grant_authority: bool = False
+    can_execute: bool = False
+
+    @model_validator(mode="after")
+    def _expression_is_data_only(self) -> "CanonicalModelExpression":
+        assert_data_not_authority(
+            context="canonical_model_expression",
+            authority_effect=self.authority_effect,
+            data_not_authority=self.data_not_authority,
+            can_grant_authority=self.can_grant_authority,
+            can_execute=self.can_execute,
+        )
+        if not self.expression_hash:
+            self.expression_hash = stable_hash(self.safe_model_dump(include_hash=False))
+        return self
+
+    def safe_model_dump(self, *, include_hash: bool = True) -> dict[str, Any]:
+        payload = {
+            "expression_id": self.expression_id,
+            "root_mission_id": self.root_mission_id,
+            "provider_model": redact_operator_text(self.provider_model),
+            "expression_type": redact_operator_text(self.expression_type),
+            "source_expression_type": redact_operator_text(self.source_expression_type),
+            "source_hash": redact_operator_text(self.source_hash),
+            "content_length_bucket": redact_operator_text(self.content_length_bucket),
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        if include_hash:
+            payload["expression_hash"] = self.expression_hash
+        return payload
 
 
 class CanonicalDecision(SentinelModel):
@@ -799,6 +856,11 @@ class RootMissionRuntime:
                         reason="MODEL_DECISION_FAILED",
                         blocked_reason_detail=_safe_exception_code(exc),
                     )
+                if isinstance(raw_decision, CanonicalModelExpression):
+                    terminal = self._handle_model_expression(raw_decision)
+                    if terminal is not None:
+                        return terminal
+                    continue
                 if self.cancellation_token.cancelled:
                     return self._terminal_result(
                         status="blocked",
@@ -852,8 +914,9 @@ class RootMissionRuntime:
                             reason="EFFECT_DISPATCH_FAILED",
                             blocked_reason_detail=_safe_exception_code(exc),
                         )
-                    if not self.receipts:
-                        return self._terminal_result(status="blocked", reason="MODEL_FINISH_BEFORE_RECEIPT")
+                    if self._final_answer_requires_more_evidence(decision):
+                        self._record_final_answer_missing_evidence(decision)
+                        continue
                     return self._terminal_result(
                         status="completed",
                         reason="model_selected_finish",
@@ -1559,6 +1622,98 @@ class RootMissionRuntime:
             },
         )
 
+    def _handle_model_expression(self, expression: CanonicalModelExpression) -> CanonicalDevMissionResult | None:
+        if expression.expression_type == "clarification_question":
+            self._record_model_assistant_message(
+                expression,
+                typed_outcome="MODEL_CLARIFICATION_REQUESTED",
+                recovery_instruction="await_user_input",
+            )
+            return self._terminal_result(status="needs_user_input", reason="MODEL_REQUESTED_CLARIFICATION")
+        self._record_model_assistant_message(
+            expression,
+            typed_outcome="MODEL_ASSISTANT_MESSAGE",
+            recovery_instruction="continue_or_select_authorized_affordance",
+        )
+        return None
+
+    def _record_model_assistant_message(
+        self,
+        expression: CanonicalModelExpression,
+        *,
+        typed_outcome: str,
+        recovery_instruction: str,
+    ) -> None:
+        self.observations_without_novelty += 1
+        observation = {
+            "loop_event_type": "assistant/message",
+            "typed_outcome": typed_outcome,
+            "expression_type": expression.expression_type,
+            "source_expression_type": expression.source_expression_type,
+            "source_hash": expression.source_hash,
+            "content_length_bucket": expression.content_length_bucket,
+            "expression_hash": expression.expression_hash,
+            "recovery_instruction": recovery_instruction,
+            "available_affordances_count": len(self._current_model_visible_operation_schemas()),
+            "remaining_provider_decisions": max(0, self.budget.max_provider_decisions - self.provider_decision_count),
+            "remaining_material_actions": max(0, self.budget.max_material_actions - self.material_action_count),
+            "provider_decision_count": self.provider_decision_count,
+            "material_action_count": self.material_action_count,
+            "observations_without_novelty": self.observations_without_novelty,
+            "material_action_observed": False,
+            "product_action_kernel_dispatch": False,
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        self.recent_observations.append(observation)
+        if self.kernel is not None:
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_model_assistant_message",
+                safe_summary="Model produced safe assistant cognition without selecting an executable effect.",
+                metadata=observation,
+            )
+
+    def _final_answer_requires_more_evidence(self, decision: CanonicalDecision) -> bool:
+        if self.evidence_refs:
+            return False
+        if not _objective_requires_grounded_evidence(self.objective):
+            return False
+        answer = str(decision.arguments.get("answer") or decision.arguments.get("safe_summary") or "").strip()
+        return bool(answer)
+
+    def _record_final_answer_missing_evidence(self, decision: CanonicalDecision) -> None:
+        self.observations_without_novelty += 1
+        answer = str(decision.arguments.get("answer") or decision.arguments.get("safe_summary") or "")
+        observation = {
+            "loop_event_type": "assistant/message",
+            "typed_outcome": "MODEL_FINAL_ANSWER_MISSING_EVIDENCE",
+            "source_expression_type": "final_answer",
+            "answer_hash": text_hash(answer),
+            "answer_length_bucket": _length_bucket(answer),
+            "recovery_instruction": "continue_with_authorized_evidence_gathering",
+            "available_affordances_count": len(self._current_model_visible_operation_schemas()),
+            "remaining_provider_decisions": max(0, self.budget.max_provider_decisions - self.provider_decision_count),
+            "remaining_material_actions": max(0, self.budget.max_material_actions - self.material_action_count),
+            "provider_decision_count": self.provider_decision_count,
+            "material_action_count": self.material_action_count,
+            "observations_without_novelty": self.observations_without_novelty,
+            "material_action_observed": False,
+            "product_action_kernel_dispatch": False,
+            "objective_requires_evidence": True,
+            "evidence_refs_count": len(self.evidence_refs),
+            "data_not_authority": True,
+            "can_execute": False,
+        }
+        self.recent_observations.append(observation)
+        if self.kernel is not None:
+            self.kernel.store.append_event(
+                self.root_mission_id,
+                event_type="canonical_model_final_answer_missing_evidence",
+                safe_summary="Model proposed a final answer before required evidence was available; loop continued.",
+                metadata=observation,
+            )
+
     def _model_expression_non_decision_recoverable(self, exc: Exception) -> bool:
         reason = _canonical_decision_transport_rejection_reason(exc)
         if reason not in _RECOVERABLE_MODEL_NON_DECISION_REASONS:
@@ -1978,6 +2133,24 @@ def _normalized_search_terms(text: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(expanded))
 
 
+def _objective_requires_grounded_evidence(objective: str) -> bool:
+    normalized = _normalize_search_text(objective)
+    return any(marker in normalized for marker in _EVIDENCE_REQUIRED_OBJECTIVE_MARKERS)
+
+
+def _length_bucket(value: str) -> str:
+    length = len(value)
+    if length == 0:
+        return "0"
+    if length <= 80:
+        return "1-80"
+    if length <= 400:
+        return "81-400"
+    if length <= 1200:
+        return "401-1200"
+    return "1201+"
+
+
 def _normalize_search_text(text: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[_\-.\\/]+", " ", text).lower()).strip()
 
@@ -2200,6 +2373,7 @@ __all__ = [
     "CanonicalDevMissionResult",
     "CanonicalEffectReceipt",
     "CanonicalModelClient",
+    "CanonicalModelExpression",
     "CanonicalState",
     "DecisionOrigin",
     "DecisionProtocol",

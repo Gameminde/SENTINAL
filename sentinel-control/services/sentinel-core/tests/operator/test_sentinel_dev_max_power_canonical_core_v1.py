@@ -18,6 +18,7 @@ from sentinel.operator.canonical_core import (
     CanonicalDecision,
     CanonicalCoreError,
     CanonicalDecisionRequest,
+    CanonicalModelExpression,
     DecisionOrigin,
     DecisionProtocol,
     EffectKind,
@@ -81,6 +82,18 @@ class NarrativeThenDecisionModelClient:
         if len(self.requests) == 2:
             return {"capability": "workspace", "operation": "search", "arguments": {"query": "needle"}}
         return {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Needle found."}}
+
+
+class RawOutputModelClient:
+    def __init__(self, outputs: list[Any]) -> None:
+        self._outputs = list(outputs)
+        self.requests: list[Any] = []
+
+    def complete(self, request: Any) -> Any:
+        self.requests.append(request)
+        if not self._outputs:
+            raise AssertionError("raw model output exhausted")
+        return self._outputs.pop(0)
 
 
 def _ledger_closure_gate_violations(entry: dict[str, Any]) -> list[str]:
@@ -1283,6 +1296,161 @@ def test_model_narrative_non_decision_is_returned_as_replan_observation_without_
     assert result.cleanup_completed is True
 
 
+def test_model_narrative_messages_remain_cognition_until_action_without_protocol_rejection(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    raw = RawOutputModelClient(
+        [
+            {"content": "I will inspect the available state and think about what evidence is missing."},
+            {"content": "A workspace search may be useful after I align the objective with the available tools."},
+            {"content": "I should now move from planning to an evidence-producing action."},
+            {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'},
+            {"content": "Final Answer: Needle found."},
+        ]
+    )
+    model = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=raw,
+        provider_id="opencode",
+        backend_id="opencode_responses",
+        model_id="muse-spark-1.2-contributor-free",
+    )
+
+    result = run_canonical_product_mission(
+        objective="Find the needle evidence while allowing the model to plan in natural language.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="opencode/muse-spark-1.2-contributor-free",
+        kernel=kernel,
+        session_id="session_narrative_is_cognition",
+        max_provider_decisions=6,
+        max_material_actions=3,
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert result.provider_decision_count == 5
+    assert result.material_action_count == 1
+    assert result.receipts[0].operation == "search"
+    events = kernel.store.load_events(result.root_mission_id)
+    assistant_messages = [event.metadata for event in events if event.event_type == "canonical_model_assistant_message"]
+    assert len(assistant_messages) == 3
+    assert all(observation["typed_outcome"] == "MODEL_ASSISTANT_MESSAGE" for observation in assistant_messages)
+    assert not any(
+        "CANONICAL_DECISION_TRANSPORT_REJECTED:narrative_only_response"
+        in json.dumps(event.metadata, sort_keys=True, default=str)
+        for event in events
+    )
+    assert not any(event.event_type == "canonical_model_decision_failed" for event in events)
+
+
+def test_narrative_final_answer_can_complete_simple_mission_without_material_receipt(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    raw = RawOutputModelClient([{"content": "Final Answer: Hello from Sentinel."}])
+    model = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=raw,
+        provider_id="opencode",
+        backend_id="opencode_responses",
+        model_id="muse-spark-1.2-contributor-free",
+    )
+
+    result = run_canonical_product_mission(
+        objective="Answer with a short greeting.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="opencode/muse-spark-1.2-contributor-free",
+        kernel=kernel,
+        session_id="session_simple_final_answer",
+        max_provider_decisions=2,
+        max_material_actions=1,
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert result.provider_decision_count == 1
+    assert result.material_action_count == 0
+    assert result.receipts == ()
+    assert result.final_answer == "Hello from Sentinel."
+
+
+def test_evidence_required_final_answer_without_evidence_continues_without_protocol_rejection(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    raw = RawOutputModelClient(
+        [
+            {"content": "Final Answer: SQLite has useful documentation."},
+            {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'},
+            {"content": "Final Answer: Needle found."},
+        ]
+    )
+    model = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=raw,
+        provider_id="opencode",
+        backend_id="opencode_responses",
+        model_id="muse-spark-1.2-contributor-free",
+    )
+
+    result = run_canonical_product_mission(
+        objective="Find evidence in the workspace and provide an evidence-grounded answer.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="opencode/muse-spark-1.2-contributor-free",
+        kernel=kernel,
+        session_id="session_final_answer_needs_evidence",
+        max_provider_decisions=4,
+        max_material_actions=3,
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 1
+    assert result.receipts[0].operation == "search"
+    events = kernel.store.load_events(result.root_mission_id)
+    observation = next(
+        event.metadata for event in events if event.event_type == "canonical_model_final_answer_missing_evidence"
+    )
+    assert observation["loop_event_type"] == "assistant/message"
+    assert observation["typed_outcome"] == "MODEL_FINAL_ANSWER_MISSING_EVIDENCE"
+    assert observation["product_action_kernel_dispatch"] is False
+    assert observation["recovery_instruction"] == "continue_with_authorized_evidence_gathering"
+
+
+def test_model_clarification_question_becomes_needs_user_input_without_protocol_rejection(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    raw = RawOutputModelClient([{"content": "Should I use sqlite.org only for this answer?"}])
+    model = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=raw,
+        provider_id="opencode",
+        backend_id="opencode_responses",
+        model_id="muse-spark-1.2-contributor-free",
+    )
+
+    result = run_canonical_product_mission(
+        objective="Clarify the documentation source before acting.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="opencode/muse-spark-1.2-contributor-free",
+        kernel=kernel,
+        session_id="session_clarification",
+        max_provider_decisions=2,
+        max_material_actions=1,
+    )
+
+    assert result.status == "needs_user_input"
+    assert result.final_reason == "MODEL_REQUESTED_CLARIFICATION"
+    assert result.provider_decision_count == 1
+    assert result.material_action_count == 0
+    events = kernel.store.load_events(result.root_mission_id)
+    assert any(
+        event.event_type == "canonical_model_assistant_message"
+        and event.metadata["loop_event_type"] == "assistant/message"
+        and event.metadata["typed_outcome"] == "MODEL_CLARIFICATION_REQUESTED"
+        for event in events
+    )
+
+
 def test_model_invalid_arguments_are_returned_as_replan_observation_without_dispatch(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
@@ -2249,7 +2417,6 @@ def test_canonical_decision_client_accepts_native_tool_call_only_when_profile_al
         ),
         ({"choices": [{"message": {"role": "assistant"}}]}, ("strict_json_content",), "content_absent"),
         ({"content": '{"capability":"workspace","operation":"search","arguments":'}, ("strict_json_content",), "malformed_json"),
-        ({"content": "I will search for the answer."}, ("strict_json_content",), "narrative_only_response"),
         (
             {"content": '{"capability":"shell","operation":"run","arguments":{"query":"needle"}}'},
             ("strict_json_content",),
@@ -2326,6 +2493,27 @@ def test_canonical_decision_transport_rejects_partial_or_ambiguous_outputs(
     assert telemetry["typed_rejection_reason"] == reason
     assert client.safe_diagnostics[-1]["mapped_action"] is None
     assert "needle" not in str(telemetry)
+
+
+def test_canonical_decision_transport_returns_narrative_as_assistant_message_expression(tmp_path: Path) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": "I will search for the answer."}]),
+        provider_id="nvidia",
+        backend_id="nvidia_openai_compatible_chat",
+        model_id="minimaxai/minimax-m3",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    expression = client.complete(_canonical_request(tmp_path))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert isinstance(expression, CanonicalModelExpression)
+    assert expression.expression_type == "assistant_message"
+    assert expression.can_execute is False
+    assert telemetry["loop_event_type"] == "assistant/message"
+    assert telemetry["typed_rejection_reason"] == ""
+    assert telemetry["raw_provider_material_persisted"] is False
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
 
 
 def test_canonical_decision_transport_rejects_unadvertised_tool_call_without_inventing_action(
@@ -2557,11 +2745,11 @@ def test_model_expression_bridge_does_not_invent_missing_material_arguments(tmp_
         canonical_transport_profiles=("strict_json_content", "fenced_strict_json"),
     )
 
-    with pytest.raises(ActionKernelError, match="invalid_arguments"):
+    with pytest.raises(ActionKernelError, match="unavailable_operation"):
         client.complete(_canonical_request(tmp_path, capability_graph=build_workspace_browser_readonly_capability_graph()))
 
     telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
-    assert telemetry["typed_rejection_reason"] == "invalid_arguments"
+    assert telemetry["typed_rejection_reason"] == "unavailable_operation"
     assert client.safe_diagnostics[-1]["mapped_action"] is None
 
 

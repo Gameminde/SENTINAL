@@ -35,5 +35,8 @@ assert.match(store, /canonical\.proof_root\?\.receipt_artifacts_verified/, "web 
 assert.match(operator, /mode: "canonical_public"/, "visible run button must launch canonical public mode");
 assert.match(operator, /selectedRun\.canonicalMission\.modelVisibleAffordances/, "UI must render graph-projected affordances");
 assert.doesNotMatch(operator, /workspace\.list|real_browser\.open|real_browser\.extract_evidence/, "UI component must not hardcode capability names");
+assert.match(operator, /id:\s*"tokenrouter-qwen"[\s\S]*autoSelectable:\s*false/, "known auth-invalid TokenRouter preset must remain manual-only");
+assert.match(operator, /defaultPrimaryPresetId/, "provider default must be computed from ready presets instead of providerPresets[0]");
+assert.doesNotMatch(operator, /useState<string>\(providerPresets\[0\]\.id\)/, "UI must not automatically pick the first configured provider");
 
 console.log("canonical-product-cutover.test.mjs passed");

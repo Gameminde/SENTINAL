@@ -38,14 +38,16 @@ Return a grounded recommendation covering data model, timestamps, transactions, 
 const providerPresets = [
   {
     id: "tokenrouter-qwen",
+    autoSelectable: false,
     label: "Qwen 3.8 Max Free",
     providerId: "tokenrouter",
     backendId: "tokenrouter_chat_completions",
     modelId: "qwen/qwen3.8-max-free",
-    note: "TokenRouter / OpenAI-compatible chat",
+    note: "TokenRouter / OpenAI-compatible chat / setup required",
   },
   {
     id: "opencode-ox",
+    autoSelectable: true,
     label: "Ox Alpha Free",
     providerId: "opencode_chat",
     backendId: "opencode_chat_completions",
@@ -54,6 +56,7 @@ const providerPresets = [
   },
   {
     id: "opencode-muse",
+    autoSelectable: true,
     label: "Muse Spark 1.2 Free",
     providerId: "opencode",
     backendId: "opencode_responses",
@@ -62,6 +65,7 @@ const providerPresets = [
   },
   {
     id: "nvidia-minimax",
+    autoSelectable: true,
     label: "MiniMax M3",
     providerId: "nvidia",
     backendId: "nvidia_openai_compatible_chat",
@@ -73,6 +77,7 @@ const providerPresets = [
 const noHandoffId = "none";
 
 type ProviderPreset = (typeof providerPresets)[number];
+const defaultPrimaryPresetId = providerPresets.find((preset) => preset.autoSelectable)?.id ?? providerPresets[0].id;
 
 function providerById(id: string): ProviderPreset {
   return providerPresets.find((preset) => preset.id === id) ?? providerPresets[0];
@@ -309,7 +314,7 @@ export function RunOperator({ initialRuns }: { initialRuns: SentinelRunRecord[] 
   const [idea, setIdea] = useState(missionObjective);
   const [targetOrigin, setTargetOrigin] = useState("sqlite.org");
   const [depth, setDepth] = useState<RunDepth>("deep");
-  const [primaryPresetId, setPrimaryPresetId] = useState<string>(providerPresets[0].id);
+  const [primaryPresetId, setPrimaryPresetId] = useState<string>(defaultPrimaryPresetId);
   const [handoffPresetId, setHandoffPresetId] = useState<string>(noHandoffId);
   const [maxProviderDecisions, setMaxProviderDecisions] = useState(30);
   const [maxMaterialActions, setMaxMaterialActions] = useState(20);

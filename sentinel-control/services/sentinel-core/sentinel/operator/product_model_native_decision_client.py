@@ -197,7 +197,13 @@ class ProductModelNativeDecisionClient:
         return decision
 
     def _complete_canonical(self, request: Any) -> Any:
-        from sentinel.operator.canonical_core import CanonicalDecision, CanonicalDecisionRequest, DecisionOrigin, DecisionProtocol
+        from sentinel.operator.canonical_core import (
+            CanonicalDecision,
+            CanonicalDecisionRequest,
+            CanonicalModelExpression,
+            DecisionOrigin,
+            DecisionProtocol,
+        )
 
         if not isinstance(request, CanonicalDecisionRequest):
             raise ActionKernelError("CANONICAL_DECISION_REQUEST_REQUIRED")
@@ -211,6 +217,20 @@ class ProductModelNativeDecisionClient:
             supported_profiles=self._canonical_transport_profiles,
         )
         if decoded.rejection_reason:
+            if decoded.rejection_reason == "narrative_only_response":
+                expression = _canonical_model_expression_from_narrative(
+                    raw_output,
+                    request=request,
+                    expression_model=CanonicalModelExpression,
+                )
+                telemetry = _telemetry_with_model_expression(decoded.telemetry, expression=expression)
+                self._record_diagnostic(
+                    context=request.canonical_state.safe_model_dump(),
+                    raw_output=telemetry,
+                    failure_code=None,
+                    canonical_decision_transport=telemetry,
+                )
+                return expression
             failure_reason = _canonical_rejection_reason_with_detail(
                 decoded.rejection_reason,
                 telemetry=decoded.telemetry,
@@ -451,6 +471,68 @@ def _telemetry_with_payload(
     updated["typed_rejection_reason"] = ""
     updated["decision_origin_chain"] = list(origin_chain)
     return updated
+
+
+def _telemetry_with_model_expression(telemetry: dict[str, Any], *, expression: Any) -> dict[str, Any]:
+    updated = dict(telemetry)
+    updated["typed_rejection_reason"] = ""
+    updated["extraction_stage"] = "freeform_model_expression"
+    updated["loop_event_type"] = "assistant/message"
+    updated["source_expression_type"] = getattr(expression, "source_expression_type", "assistant_message")
+    updated["model_expression_type"] = getattr(expression, "expression_type", "assistant_message")
+    updated["source_hash"] = getattr(expression, "source_hash", "")
+    updated["content_length_bucket"] = getattr(expression, "content_length_bucket", "unknown")
+    updated["canonical_fields_present"] = []
+    updated["canonical_fields_missing"] = []
+    updated["decision_origin_chain"] = [
+        "provider_transport:freeform_text",
+        "model_expression:assistant_message",
+        "decision_origin:model_selected",
+        "no_executable_effect_selected",
+    ]
+    return updated
+
+
+def _canonical_model_expression_from_narrative(
+    raw: Any,
+    *,
+    request: Any,
+    expression_model: Any,
+) -> Any:
+    content = _canonical_visible_content(raw) or ""
+    expression_type = "clarification_question" if _looks_like_clarification_question(content) else "assistant_message"
+    source_expression_type = "clarification_question" if expression_type == "clarification_question" else "assistant_message"
+    return expression_model(
+        root_mission_id=request.root_mission_id,
+        provider_model=request.provider_model,
+        expression_type=expression_type,
+        source_expression_type=source_expression_type,
+        source_hash=text_hash(content),
+        content_length_bucket=_content_length_bucket(content),
+    )
+
+
+def _looks_like_clarification_question(content: str) -> bool:
+    stripped = " ".join(content.strip().split())
+    if not stripped:
+        return False
+    lowered = stripped.lower()
+    if stripped.endswith("?"):
+        return True
+    return lowered.startswith(("should i ", "do you want ", "would you like ", "can you clarify", "please clarify"))
+
+
+def _content_length_bucket(content: str) -> str:
+    length = len(content)
+    if length == 0:
+        return "0"
+    if length <= 80:
+        return "1-80"
+    if length <= 400:
+        return "81-400"
+    if length <= 1200:
+        return "401-1200"
+    return "1201+"
 
 
 def _compile_candidate_intent(
