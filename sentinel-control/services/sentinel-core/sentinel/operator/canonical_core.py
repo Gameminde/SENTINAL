@@ -850,6 +850,9 @@ class RootMissionRuntime:
                     if self._model_expression_non_decision_recoverable(exc):
                         self._record_model_expression_non_decision(exc, model_client=model_client)
                         continue
+                    if self._model_expression_non_decision_budget_exhausted(exc):
+                        self._record_model_expression_non_decision(exc, model_client=model_client)
+                        return self._terminal_result(status="blocked", reason="PROVIDER_DECISION_BUDGET_EXHAUSTED")
                     if self.kernel is None:
                         raise
                     self._persist_model_decision_failure(exc)
@@ -883,6 +886,9 @@ class RootMissionRuntime:
                     if self._model_expression_non_decision_recoverable(exc):
                         self._record_model_expression_non_decision(exc, model_client=model_client)
                         continue
+                    if self._model_expression_non_decision_budget_exhausted(exc):
+                        self._record_model_expression_non_decision(exc, model_client=model_client)
+                        return self._terminal_result(status="blocked", reason="PROVIDER_DECISION_BUDGET_EXHAUSTED")
                     if self.kernel is None:
                         raise
                     self._persist_model_decision_failure(exc)
@@ -1808,6 +1814,10 @@ class RootMissionRuntime:
         if self.provider_decision_count >= self.budget.max_provider_decisions:
             return False
         return True
+
+    def _model_expression_non_decision_budget_exhausted(self, exc: Exception) -> bool:
+        reason = _canonical_decision_transport_rejection_reason(exc)
+        return reason in _RECOVERABLE_MODEL_NON_DECISION_REASONS and self.provider_decision_count >= self.budget.max_provider_decisions
 
     def _record_model_expression_non_decision(
         self,
