@@ -79,7 +79,6 @@ _CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX = "CANONICAL_DECISION_TRANSPORT_RE
 _RECOVERABLE_MODEL_NON_DECISION_REASONS = frozenset(
     {"invalid_arguments", "narrative_only_response", "unavailable_operation"}
 )
-_MAX_MODEL_NON_DECISION_RECOVERIES = 2
 _EVIDENCE_REQUIRED_OBJECTIVE_MARKERS = (
     "cite",
     "citation",
@@ -1779,8 +1778,6 @@ class RootMissionRuntime:
     def _model_expression_non_decision_recoverable(self, exc: Exception) -> bool:
         reason = _canonical_decision_transport_rejection_reason(exc)
         if reason not in _RECOVERABLE_MODEL_NON_DECISION_REASONS:
-            return False
-        if self._model_expression_non_decision_count >= _MAX_MODEL_NON_DECISION_RECOVERIES:
             return False
         if self.provider_decision_count >= self.budget.max_provider_decisions:
             return False

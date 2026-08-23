@@ -1525,6 +1525,43 @@ def test_model_invalid_arguments_are_returned_as_replan_observation_without_disp
     assert second_turn_observation["product_action_kernel_dispatch"] is False
 
 
+def test_repeated_partial_model_expressions_continue_until_budget_or_valid_action(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    model = ScriptedModelClient(
+        [
+            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {}},
+            {"capability": "real_browser_control", "operation": "real_browser.open", "arguments": {"target_origin": "sqlite.org"}},
+            {"capability": "sentinel_loop", "operation": "finish", "arguments": {"answer": "Opened the authorized site."}},
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Open the authorized SQLite site after partial model expressions.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="test-provider/model",
+        kernel=kernel,
+        session_id="session_repeated_partial_expressions_continue",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",)),
+        granted_authorities=("workspace_read", "browser_read", "none"),
+        max_provider_decisions=6,
+        max_material_actions=4,
+    )
+
+    events = kernel.store.load_events(result.root_mission_id)
+    non_decisions = [event for event in events if event.event_type == "canonical_model_expression_non_decision"]
+
+    assert result.status == "completed"
+    assert result.provider_decision_count == 5
+    assert result.material_action_count == 1
+    assert len(non_decisions) == 3
+    assert not any(event.event_type == "canonical_model_decision_failed" for event in events)
+
+
 def test_initial_browser_state_only_advertises_executable_browser_affordances(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     model = ScriptedModelClient(
