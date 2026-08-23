@@ -414,6 +414,16 @@ def decode_canonical_decision_transport(
             )
     if not candidates and content is not None:
         candidates.extend(_candidate_intents_from_freeform_content(content))
+    if not candidates and content is not None and _state_allows_natural_final_answer(request, content):
+        candidates.append(
+            _CandidateIntent(
+                payload={"answer": content.strip()},
+                source_expression_type="natural_final_answer",
+                extraction_method="natural_final_answer",
+                origin_chain=["provider_transport:freeform_text", "model_expression:natural_final_answer"],
+                source_hash=text_hash(content),
+            )
+        )
 
     if len(candidates) > 1:
         return _rejected_decode(telemetry, "multiple_candidate_decisions")
@@ -546,6 +556,7 @@ def _compile_candidate_intent(
     answer = _candidate_final_answer(payload)
     capability_hint = _candidate_capability_hint(payload)
     operation_hint = _candidate_operation_hint(payload)
+    extraction_method = _candidate_extraction_method(intent)
     if answer and not capability_hint and not operation_hint:
         capability_hint = "sentinel_loop"
         operation_hint = "finish"
@@ -566,14 +577,14 @@ def _compile_candidate_intent(
     )
     base_telemetry = _telemetry_with_payload(
         telemetry,
-        intent.extraction_method,
+        extraction_method,
         payload,
         intent.origin_chain,
     )
     base_telemetry.update(
         {
             "source_expression_type": intent.source_expression_type,
-            "extraction_method": intent.extraction_method,
+            "extraction_method": extraction_method,
             "candidate_count": len(matches),
             "selection_basis": selection_basis_hint,
             "ambiguity_status": "unknown",
@@ -581,6 +592,18 @@ def _compile_candidate_intent(
         }
     )
     if not matches:
+        argument_error = _candidate_route_argument_error(
+            request,
+            capability_hint=capability_hint,
+            operation_hint=operation_hint,
+            arguments=arguments,
+        )
+        if argument_error:
+            return _CanonicalDecisionTransportDecode(
+                payload={},
+                telemetry=_telemetry_with_rejection(base_telemetry, "invalid_arguments"),
+                rejection_reason=f"invalid_arguments.{argument_error}",
+            )
         if capability_hint and _capability_known(request, capability_hint) is False:
             return _rejected_decode(base_telemetry, "unknown_capability")
         if operation_hint and _operation_known(request, operation_hint) is False:
@@ -610,14 +633,14 @@ def _compile_candidate_intent(
     }
     compiled = _telemetry_with_payload(
         telemetry,
-        intent.extraction_method,
+        extraction_method,
         normalized_payload,
         intent.origin_chain,
     )
     compiled.update(
         {
             "source_expression_type": intent.source_expression_type,
-            "extraction_method": intent.extraction_method,
+            "extraction_method": extraction_method,
             "candidate_count": 1,
             "selection_basis": selection_basis,
             "selected_affordance": route["affordance"],
@@ -628,7 +651,7 @@ def _compile_candidate_intent(
             "decision_origin_chain": [
                 *intent.origin_chain,
                 f"source_expression_type:{intent.source_expression_type}",
-                f"extraction_method:{intent.extraction_method}",
+                f"extraction_method:{extraction_method}",
                 f"candidate_count:{len(matches)}",
                 f"selection_basis:{selection_basis}",
                 f"selected_affordance:{route['affordance']}",
@@ -639,6 +662,17 @@ def _compile_candidate_intent(
         }
     )
     return _CanonicalDecisionTransportDecode(payload=normalized_payload, telemetry=compiled)
+
+
+def _candidate_extraction_method(intent: _CandidateIntent) -> str:
+    payload = intent.payload
+    if (
+        intent.source_expression_type == "partial_json"
+        and _candidate_operation_hint(payload)
+        and isinstance(payload.get("arguments", payload.get("params")), dict)
+    ):
+        return "operation_and_arguments"
+    return intent.extraction_method
 
 
 def _json_source_expression_type(payload: dict[str, Any]) -> str:
@@ -939,6 +973,30 @@ def _candidate_explicit_affordance(payload: dict[str, Any]) -> str:
     return str(value or "").strip()
 
 
+def _state_allows_natural_final_answer(request: Any, content: str) -> bool:
+    state = getattr(request, "canonical_state", None)
+    if getattr(state, "finish_available", False) is not True:
+        return False
+    stripped = " ".join(content.strip().split())
+    if len(stripped.split()) < 6:
+        return False
+    if _looks_like_clarification_question(stripped):
+        return False
+    lowered = stripped.lower()
+    non_terminal_prefixes = (
+        "i will ",
+        "i'll ",
+        "let me ",
+        "next ",
+        "i need to ",
+        "we should ",
+        "plan:",
+        "steps:",
+        "thought:",
+    )
+    return not lowered.startswith(non_terminal_prefixes)
+
+
 def _compatible_route_matches(
     request: Any,
     *,
@@ -959,6 +1017,31 @@ def _compatible_route_matches(
             continue
         matches.append({"route": route, "arguments": normalized_arguments, "argument_aliases_applied": aliases})
     return matches
+
+
+def _candidate_route_argument_error(
+    request: Any,
+    *,
+    capability_hint: str,
+    operation_hint: str,
+    arguments: dict[str, Any],
+) -> str:
+    routes = _visible_routes(request)
+    hinted_routes = _routes_matching_hints(routes, capability_hint=capability_hint, operation_hint=operation_hint)
+    candidate_routes = hinted_routes if (capability_hint or operation_hint) else routes
+    errors: list[str] = []
+    for route in candidate_routes:
+        normalized_arguments, _aliases = _normalize_arguments_for_route(route, arguments)
+        error = _validate_canonical_decision_arguments(
+            normalized_arguments,
+            arguments_schema=route.get("arguments_schema"),
+        )
+        if error:
+            errors.append(error)
+    unique_errors = list(dict.fromkeys(errors))
+    if len(unique_errors) == 1:
+        return unique_errors[0]
+    return ""
 
 
 def _visible_routes(request: Any) -> list[dict[str, Any]]:

@@ -2709,6 +2709,190 @@ def test_model_expression_bridge_accepts_arguments_only_when_one_schema_candidat
     assert telemetry["source_expression_type"] == "partial_json"
 
 
+def test_model_expression_bridge_accepts_operation_and_arguments_when_one_route_is_compatible(tmp_path: Path) -> None:
+    graph = ExecutableCapabilityGraph(
+        routes=(
+            _probe_route(
+                "select",
+                required=("signal",),
+                properties={"signal": {"type": "string"}},
+            ),
+        )
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"operation":"select","arguments":{"signal":"ready"}}'}]),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    decision = client.complete(_canonical_request(tmp_path, capability_graph=graph))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert decision.selected_capability == "protocol_probe"
+    assert decision.selected_operation == "select"
+    assert decision.arguments == {"signal": "ready"}
+    assert telemetry["source_expression_type"] == "partial_json"
+    assert telemetry["extraction_method"] == "operation_and_arguments"
+    assert telemetry["selection_basis"] == "explicit_action_name"
+    assert telemetry["candidate_count"] == 1
+    assert telemetry["selected_affordance"] == "protocol_probe.select"
+    assert telemetry["ambiguity_status"] == "unambiguous"
+    assert telemetry["source_hash"]
+
+
+def test_model_expression_bridge_rejects_operation_and_arguments_when_multiple_routes_are_compatible(
+    tmp_path: Path,
+) -> None:
+    graph = ExecutableCapabilityGraph(
+        routes=(
+            _probe_route(
+                "select",
+                required=("signal",),
+                properties={"signal": {"type": "string"}},
+            ),
+            CanonicalCapabilityRoute(
+                capability="alternate_probe",
+                operation="select",
+                executor_id="alternate_probe.select",
+                effect_kind=EffectKind.PROPOSAL,
+                backend_mode="test_only_no_executor",
+                required_authority="none",
+                arguments_schema={
+                    "type": "object",
+                    "properties": {"signal": {"type": "string"}},
+                    "required": ["signal"],
+                    "additionalProperties": False,
+                },
+                preconditions=("test_only",),
+                readiness_probe="always_available",
+                materiality_verifier="none",
+                proof_contract="test_only",
+                recovery_policy="none",
+                cleanup_contract="none",
+            ),
+        )
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"operation":"select","arguments":{"signal":"ready"}}'}]),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    with pytest.raises(ActionKernelError, match="ambiguous_intent"):
+        client.complete(_canonical_request(tmp_path, capability_graph=graph))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["source_expression_type"] == "partial_json"
+    assert telemetry["extraction_method"] == "operation_and_arguments"
+    assert telemetry["candidate_count"] == 2
+    assert telemetry["ambiguity_status"] == "ambiguous"
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
+def test_model_expression_bridge_returns_recoverable_for_operation_and_arguments_with_zero_routes(
+    tmp_path: Path,
+) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"operation":"missing_route","arguments":{"signal":"ready"}}'}]),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    with pytest.raises(ActionKernelError, match="unavailable_operation"):
+        client.complete(_canonical_request(tmp_path, capability_graph=ExecutableCapabilityGraph(routes=())))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["source_expression_type"] == "partial_json"
+    assert telemetry["extraction_method"] == "operation_and_arguments"
+    assert telemetry["typed_rejection_reason"] == "unavailable_operation"
+    assert telemetry["candidate_count"] == 0
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
+def test_model_expression_bridge_never_invents_missing_required_argument_for_partial_operation(
+    tmp_path: Path,
+) -> None:
+    graph = ExecutableCapabilityGraph(
+        routes=(
+            _probe_route(
+                "select",
+                required=("signal",),
+                properties={"signal": {"type": "string"}},
+            ),
+        )
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"operation":"select","arguments":{}}'}]),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    with pytest.raises(ActionKernelError, match="invalid_arguments.required_argument_missing"):
+        client.complete(_canonical_request(tmp_path, capability_graph=graph))
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["source_expression_type"] == "partial_json"
+    assert telemetry["extraction_method"] == "operation_and_arguments"
+    assert telemetry["typed_rejection_reason"] == "invalid_arguments"
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
+def test_model_expression_bridge_never_selects_unauthorized_compatible_partial_route(tmp_path: Path) -> None:
+    graph = ExecutableCapabilityGraph(
+        routes=(
+            CanonicalCapabilityRoute(
+                capability="external_effect",
+                operation="select",
+                executor_id="external_effect.select",
+                effect_kind=EffectKind.REAL,
+                backend_mode="test_only_no_executor",
+                required_authority="external_effect_grant",
+                arguments_schema={
+                    "type": "object",
+                    "properties": {"signal": {"type": "string"}},
+                    "required": ["signal"],
+                    "additionalProperties": False,
+                },
+                preconditions=("test_only",),
+                readiness_probe="always_available",
+                materiality_verifier="none",
+                proof_contract="test_only",
+                recovery_policy="none",
+                cleanup_contract="none",
+            ),
+        )
+    )
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient([{"content": '{"operation":"select","arguments":{"signal":"ready"}}'}]),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+        canonical_transport_profiles=("strict_json_content",),
+    )
+
+    with pytest.raises(ActionKernelError, match="unavailable_operation"):
+        client.complete(
+            _canonical_request(
+                tmp_path,
+                capability_graph=graph,
+                granted_authorities=("none",),
+            )
+        )
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert telemetry["candidate_count"] == 0
+    assert telemetry["typed_rejection_reason"] == "unavailable_operation"
+    assert client.safe_diagnostics[-1]["mapped_action"] is None
+
+
 def test_model_expression_bridge_rejects_arguments_only_when_schema_candidate_is_ambiguous(tmp_path: Path) -> None:
     graph = ExecutableCapabilityGraph(
         routes=(
@@ -2845,6 +3029,36 @@ def test_model_expression_bridge_preserves_final_answer_as_finish_intent(tmp_pat
     assert telemetry["selection_basis"] == "explicit_final_answer"
 
 
+def test_model_expression_bridge_accepts_natural_final_answer_after_evidence_is_available(tmp_path: Path) -> None:
+    client = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=ScriptedModelClient(
+            [
+                {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'},
+                {"content": "Needle appears in the workspace evidence, so the requested fact is grounded."},
+            ]
+        ),
+        provider_id="aliyun_dashscope",
+        backend_id="aliyun_openai_compatible_chat",
+        model_id="qwen-plus",
+        canonical_transport_profiles=("strict_json_content", "fenced_strict_json"),
+    )
+
+    result = run_canonical_dev_mission(
+        objective="Find the needle and answer with grounded evidence.",
+        workspace_root=_workspace(tmp_path),
+        model_client=client,
+        provider_model="aliyun_dashscope/qwen-plus",
+        max_provider_decisions=3,
+        max_material_actions=2,
+    )
+
+    telemetry = client.safe_diagnostics[-1]["canonical_decision_transport"]
+    assert result.status == "completed"
+    assert result.final_answer == "Needle appears in the workspace evidence, so the requested fact is grounded."
+    assert telemetry["source_expression_type"] == "natural_final_answer"
+    assert telemetry["selection_basis"] == "explicit_final_answer"
+
+
 def test_model_expression_bridge_does_not_invent_missing_material_arguments(tmp_path: Path) -> None:
     client = ProductModelNativeDecisionClient.for_canonical_decisions(
         model_client=ScriptedModelClient([{"content": "Action: real_browser.search"}]),
@@ -2886,6 +3100,7 @@ def _canonical_request(
     tmp_path: Path,
     *,
     capability_graph: ExecutableCapabilityGraph | None = None,
+    granted_authorities: tuple[str, ...] = ("workspace_read", "browser_read", "none"),
 ) -> CanonicalDecisionRequest:
     workspace = _workspace(tmp_path)
     runtime = RootMissionRuntime(
@@ -2893,6 +3108,7 @@ def _canonical_request(
         workspace_root=workspace,
         provider_model="provider/model",
         capability_graph=capability_graph,
+        granted_authorities=granted_authorities,
     )
     return CanonicalDecisionRequest(
         root_mission_id=runtime.root_mission_id,

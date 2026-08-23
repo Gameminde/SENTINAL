@@ -981,6 +981,8 @@ class RootMissionRuntime:
         for route in self.capability_graph.routes:
             if not route.model_visible:
                 continue
+            if not self._route_authorized_for_model(route):
+                continue
             if not self._route_currently_executable_for_model(route):
                 continue
             arguments_schema = self._model_visible_arguments_schema(route)
@@ -1443,6 +1445,11 @@ class RootMissionRuntime:
         if route.required_authority in self.granted_authorities:
             return
         raise CanonicalCoreError(f"canonical_authority_required:{route.required_authority}")
+
+    def _route_authorized_for_model(self, route: CanonicalCapabilityRoute) -> bool:
+        if route.required_authority == "none":
+            return True
+        return route.required_authority in self.granted_authorities
 
     def _finish(self, arguments: dict[str, Any]) -> tuple[str, dict[str, Any], str]:
         answer = redact_operator_text(str(arguments.get("answer") or arguments.get("safe_summary") or ""))
