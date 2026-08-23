@@ -100,6 +100,195 @@ def test_browser_readonly_route_uses_single_spine_and_returns_state_next_turn(tm
     assert any(event.event_type == "canonical_browser_readonly_cleanup_completed" for event in events)
 
 
+def test_browser_open_returns_rich_perception_without_model_facing_verify_or_repeat_observe(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    backend = FakeBrowserReadOnlyBackend(
+        allowed_origins=("sqlite.org",),
+        page_title="SQLite WAL",
+        evidence_cards=(
+            {
+                "evidence_id": "sqlite_wal_doc",
+                "kind": "documentation_page",
+                "title": "Write-Ahead Logging",
+                "summary": "SQLite WAL lets readers and writers proceed concurrently.",
+                "confidence": 0.94,
+            },
+        ),
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"target_origin": "sqlite.org"},
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "WAL improves reader/writer concurrency."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Use official SQLite documentation to explain why WAL improves concurrency.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c4_browser_open_rich_perception",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+        max_provider_decisions=3,
+        max_material_actions=3,
+    )
+
+    second_turn_state = model.requests[1].canonical_state.safe_model_dump()
+    visible_after_open = set(second_turn_state["model_visible_affordances"])
+    last_observation = second_turn_state["recent_observations"][-1]
+
+    assert result.status == "completed"
+    assert result.provider_decision_count == 2
+    assert result.material_action_count == 1
+    assert backend.call_log == ["real_browser.open"]
+    assert "real_browser_control.real_browser.observe" not in visible_after_open
+    assert "real_browser_control.real_browser.verify_extraction" not in visible_after_open
+    assert "real_browser_control.real_browser.extract_evidence" in visible_after_open
+    assert second_turn_state["finish_available"] is True
+    assert last_observation["browser_operation"] == "real_browser.open"
+    assert last_observation["readable_page_perception"] is True
+    assert last_observation["internal_evidence_verification"] == "not_required_for_open_perception"
+
+
+def test_browser_internal_verify_route_is_not_model_visible_but_explicit_forced_verify_is_replanned(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    backend = FakeBrowserReadOnlyBackend(
+        allowed_origins=("sqlite.org",),
+        evidence_cards=(
+            {
+                "evidence_id": "sqlite_doc",
+                "kind": "documentation_page",
+                "title": "SQLite",
+                "summary": "Official SQLite documentation.",
+                "confidence": 0.9,
+            },
+        ),
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"target_origin": "sqlite.org"},
+            },
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.verify_extraction",
+                "arguments": {},
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "SQLite documentation was opened."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Use official SQLite documentation.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c4_browser_verify_hidden",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+        max_provider_decisions=4,
+        max_material_actions=4,
+    )
+
+    second_turn_affordances = set(model.requests[1].canonical_state.model_visible_affordances)
+    third_turn_observation = model.requests[2].canonical_state.recent_observations[-1]
+
+    assert result.status == "completed"
+    assert [receipt.operation for receipt in result.receipts] == ["real_browser.open"]
+    assert backend.call_log == ["real_browser.open"]
+    assert "real_browser_control.real_browser.verify_extraction" not in second_turn_affordances
+    assert third_turn_observation["typed_outcome"] == "MODEL_EXPRESSION_NON_DECISION"
+    assert third_turn_observation["transport_rejection_reason"] == "unavailable_operation"
+    assert third_turn_observation["product_action_kernel_dispatch"] is False
+
+
+def test_extract_evidence_creates_internal_verification_signal_without_model_facing_verify_action(
+    tmp_path: Path,
+) -> None:
+    workspace = _workspace(tmp_path)
+    backend = FakeBrowserReadOnlyBackend(
+        allowed_origins=("sqlite.org",),
+        evidence_cards=(
+            {
+                "evidence_id": "sqlite_wal_doc",
+                "kind": "documentation_page",
+                "title": "Write-Ahead Logging",
+                "summary": "WAL provides more concurrency because readers do not block writers.",
+                "confidence": 0.95,
+            },
+        ),
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"target_origin": "sqlite.org"},
+            },
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.extract_evidence",
+                "arguments": {"scope": "current_page"},
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "WAL supports concurrent readers and writers."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Use official SQLite documentation to explain WAL concurrency.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=MissionKernel(run_root=tmp_path / "runs"),
+        session_id="c4_browser_extract_internal_verify",
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+        max_provider_decisions=4,
+        max_material_actions=4,
+    )
+
+    post_extract_state = model.requests[2].canonical_state.safe_model_dump()
+    post_extract_observation = post_extract_state["recent_observations"][-1]
+
+    assert result.status == "completed"
+    assert [receipt.operation for receipt in result.receipts] == [
+        "real_browser.open",
+        "real_browser.extract_evidence",
+    ]
+    assert "real_browser.verify_extraction" not in backend.call_log
+    assert "real_browser_control.real_browser.verify_extraction" not in set(post_extract_state["model_visible_affordances"])
+    assert post_extract_observation["internal_evidence_verification"] == "passed"
+    assert post_extract_observation["verified_evidence_available"] is True
+
+
 def test_browser_authority_denial_blocks_before_backend_call(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
@@ -162,6 +351,11 @@ def test_browser_follow_link_cannot_activate_button_or_cross_origin(tmp_path: Pa
     backend = FakeBrowserReadOnlyBackend(allowed_origins=("sqlite.org",))
     button_model = ScriptedModelClient(
         [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"target_origin": "sqlite.org"},
+            },
             {"capability": "real_browser_control", "operation": "real_browser.open_result", "arguments": {"ref": "button:delete"}},
         ]
     )
@@ -200,7 +394,7 @@ def test_browser_follow_link_cannot_activate_button_or_cross_origin(tmp_path: Pa
 
     assert button_result.status == "blocked"
     assert button_result.blocked_reason_detail == "browser_follow_ref_not_link"
-    assert backend.call_log == []
+    assert backend.call_log == ["real_browser.open"]
     assert cross_origin_result.status == "blocked"
     assert cross_origin_result.blocked_reason_detail == "browser_origin_transition_not_authorized"
 

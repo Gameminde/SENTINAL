@@ -339,6 +339,16 @@ class PhysicalBrowserReadOnlyBackend:
             "browser_environment_state_hash": str(cards.get("browser_environment_state_hash") or stable_hash(environment_state)),
             "browser_evidence_refs": tuple(result.evidence_refs),
             "evidence_delta": len(result.evidence_refs),
+            "readable_page_perception": bool(
+                operation in {"real_browser.open", "real_browser.open_result", "real_browser.search", "real_browser.extract_evidence"}
+                and result.evidence_refs
+            ),
+            "human_readable_public_evidence_count": len(result.evidence_refs),
+            "internal_evidence_verification": _internal_evidence_verification_status(
+                operation=operation,
+                evidence_count=len(result.evidence_refs),
+            ),
+            "verified_evidence_available": bool(result.evidence_refs),
             "site_authority_match": redact_operator_value(self._last_authority_match),
             "data_not_authority": True,
             "can_execute": False,
@@ -539,6 +549,16 @@ class CanonicalBrowserReadOnlyAdapter:
             "typed_observation": observation["typed_observation"],
             "browser_evidence_refs": evidence_refs,
             "evidence_delta": observation["evidence_delta"],
+            "readable_page_perception": bool(
+                operation in {"real_browser.open", "real_browser.open_result", "real_browser.search", "real_browser.extract_evidence"}
+                and observation["evidence_delta"]
+            ),
+            "human_readable_public_evidence_count": int(observation["evidence_delta"]),
+            "internal_evidence_verification": _internal_evidence_verification_status(
+                operation=operation,
+                evidence_count=int(observation["evidence_delta"]),
+            ),
+            "verified_evidence_available": bool(observation["evidence_delta"]),
             "browser_environment_state_hash": stable_hash(environment_state),
             "data_not_authority": True,
             "can_execute": False,
@@ -726,6 +746,14 @@ def _safe_confidence(value: Any) -> float:
         return max(0.0, min(1.0, float(value)))
     except (TypeError, ValueError):
         return 0.0
+
+
+def _internal_evidence_verification_status(*, operation: str, evidence_count: int) -> str:
+    if operation == "real_browser.extract_evidence":
+        return "passed" if evidence_count > 0 else "no_evidence_to_verify"
+    if operation in {"real_browser.open", "real_browser.open_result", "real_browser.search"}:
+        return "not_required_for_open_perception" if evidence_count > 0 else "no_evidence_to_verify"
+    return "not_applicable"
 
 
 __all__ = [

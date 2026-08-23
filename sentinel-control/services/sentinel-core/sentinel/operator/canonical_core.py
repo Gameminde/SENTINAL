@@ -76,7 +76,9 @@ class EffectKind(StrEnum):
 
 
 _CANONICAL_DECISION_TRANSPORT_REJECTED_PREFIX = "CANONICAL_DECISION_TRANSPORT_REJECTED:"
-_RECOVERABLE_MODEL_NON_DECISION_REASONS = frozenset({"invalid_arguments", "narrative_only_response"})
+_RECOVERABLE_MODEL_NON_DECISION_REASONS = frozenset(
+    {"invalid_arguments", "narrative_only_response", "unavailable_operation"}
+)
 _MAX_MODEL_NON_DECISION_RECOVERIES = 2
 _EVIDENCE_REQUIRED_OBJECTIVE_MARKERS = (
     "cite",
@@ -635,6 +637,7 @@ def build_workspace_browser_readonly_capability_graph() -> ExecutableCapabilityG
                 "additionalProperties": False,
             },
             materiality_verifier="verification_state_observed",
+            model_visible=False,
         ),
         _browser_readonly_route(
             "real_browser.recover_session",
@@ -1016,23 +1019,45 @@ class RootMissionRuntime:
         if route.capability != "real_browser_control":
             return True
         operation = route.operation
-        if operation in {"real_browser.open", "real_browser.observe", "real_browser.recover_session"}:
+        if operation in {"real_browser.open", "real_browser.recover_session"}:
             return True
+        if operation == "real_browser.observe":
+            if not self._browser_page_available():
+                return True
+            return self._browser_has_recoverable_error()
         if operation == "real_browser.verify_extraction":
-            return bool(self.evidence_refs)
+            return False
         return self._browser_page_available()
+
+    def _browser_has_recoverable_error(self) -> bool:
+        state = self._browser_environment_state
+        if not isinstance(state, dict) or not state:
+            return False
+        signals = state.get("execution_signals") if isinstance(state.get("execution_signals"), dict) else {}
+        if str(signals.get("failure_class") or "").strip():
+            return True
+        evaluation = state.get("evaluation") if isinstance(state.get("evaluation"), dict) else {}
+        unknowns = evaluation.get("unknowns")
+        return isinstance(unknowns, (list, tuple)) and "recoverable_error" in set(str(item) for item in unknowns)
 
     def _browser_page_available(self) -> bool:
         state = self._browser_environment_state
         if not isinstance(state, dict) or not state:
             return False
         url = str(state.get("current_url") or state.get("url") or "").strip().lower()
-        if not url or url == "about:blank":
-            return False
         page_available = state.get("page_available")
         if page_available is False:
             return False
-        return True
+        if url and url != "about:blank":
+            return True
+        page = state.get("page") if isinstance(state.get("page"), dict) else {}
+        if not page:
+            return False
+        readiness = str(page.get("readiness") or "").strip().lower()
+        page_hash = str(page.get("page_state_hash") or "").strip()
+        if readiness in {"closed", "blocked", "failed"}:
+            return False
+        return bool(page_hash and readiness in {"observed", "ready", "completed"})
 
     def close(self) -> None:
         if self._closed:
@@ -1157,6 +1182,8 @@ class RootMissionRuntime:
 
     def _assert_decision_arguments_valid(self, decision: CanonicalDecision) -> None:
         route = self.capability_graph.resolve(decision.capability, decision.operation)
+        if decision.decision_origin == DecisionOrigin.MODEL_SELECTED and not self._route_currently_executable_for_model(route):
+            raise ActionKernelError("CANONICAL_DECISION_TRANSPORT_REJECTED:unavailable_operation")
         arguments = _normalize_runtime_arguments_for_route(route, dict(decision.arguments))
         error = _validate_runtime_arguments(arguments, route.arguments_schema)
         if error:
@@ -1696,8 +1723,14 @@ class RootMissionRuntime:
         return False
 
     def _browser_receipt_has_public_evidence(self, receipt: CanonicalEffectReceipt) -> bool:
-        if receipt.operation in {"real_browser.extract_evidence", "real_browser.verify_extraction"}:
+        if receipt.operation in {"real_browser.open", "real_browser.search", "real_browser.open_result", "real_browser.extract_evidence"}:
             if receipt.material_action:
+                return True
+            observation = receipt.safe_observation if isinstance(receipt.safe_observation, dict) else {}
+            if observation.get("readable_page_perception") is True and observation.get("verified_evidence_available") is True:
+                return True
+            evidence_count = observation.get("human_readable_public_evidence_count")
+            if isinstance(evidence_count, int) and evidence_count > 0:
                 return True
             state = self._browser_environment_state if isinstance(self._browser_environment_state, dict) else {}
             memory = state.get("memory") if isinstance(state.get("memory"), dict) else {}
@@ -1707,7 +1740,6 @@ class RootMissionRuntime:
             public_evidence = memory.get("public_evidence") if isinstance(memory, dict) else ()
             if isinstance(public_evidence, (list, tuple)) and public_evidence:
                 return True
-            observation = receipt.safe_observation if isinstance(receipt.safe_observation, dict) else {}
             browser_refs = observation.get("browser_evidence_refs")
             return isinstance(browser_refs, (list, tuple)) and bool(browser_refs)
         return False
@@ -2084,6 +2116,7 @@ def _browser_readonly_route(
     *,
     arguments_schema: dict[str, Any],
     materiality_verifier: str = "browser_state_observed",
+    model_visible: bool = True,
 ) -> CanonicalCapabilityRoute:
     if operation not in READ_ONLY_BROWSER_OPERATIONS:
         raise CanonicalCoreError(f"browser_readonly_route_not_allowed:{operation}")
@@ -2101,6 +2134,7 @@ def _browser_readonly_route(
         proof_contract="canonical_core_browser_readonly_receipt_v1",
         recovery_policy="typed_browser_readonly_recover_or_block",
         cleanup_contract="root_browser_fake_lease_close",
+        model_visible=model_visible,
     )
 
 

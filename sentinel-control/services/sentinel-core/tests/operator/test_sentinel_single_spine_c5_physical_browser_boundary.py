@@ -440,7 +440,6 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
                 "operation": "real_browser.open",
                 "arguments": {"url": "https://sqlite.org/gencol.html"},
             },
-            {"capability": "real_browser_control", "operation": "real_browser.observe", "arguments": {}},
             {"capability": "real_browser_control", "operation": "real_browser.extract_evidence", "arguments": {}},
             {
                 "capability": "sentinel_loop",
@@ -471,8 +470,8 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
     first_browser_receipt = json.loads(real_browser_receipts[0].read_text(encoding="utf-8"))
 
     assert result.status == "completed"
-    assert result.provider_decision_count == 4
-    assert result.material_action_count == 3
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 2
     assert record.status is OperatorMissionStatus.COMPLETED
     assert result.proof_root.root_mission_id == record.mission_id
     assert result.proof_root.receipt_refs == tuple(record.receipt_refs)
@@ -481,11 +480,11 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
     assert BOUNDED_URL_AUTHORITY_REF in engine.bound_authority.allowed_domains
     assert "real_browser.open" in engine.bound_authority.allowed_actions
     assert engine.open_count == 1
-    assert engine.observe_count >= 1
+    assert engine.observe_count == 0
     assert engine.extract_count == 1
     assert engine.close_count == 1
     assert backend.provider_calls == 0
-    assert backend.real_browser_runs == 3
+    assert backend.real_browser_runs == 2
     assert backend.external_network_calls == 0
     assert backend.cleanup_count == 1
     assert backend.lease_released is True
