@@ -328,6 +328,12 @@ class PhysicalBrowserReadOnlyBackend:
             result_refs=result.evidence_refs,
             environment_state=environment_state,
         )
+        page_identity_hash = _physical_page_identity_hash(
+            operation=operation,
+            result=result,
+            environment_state=environment_state,
+            receipt_refs=result.receipt_refs,
+        )
         safe_observation = {
             "backend_kind": "physical",
             "browser_operation": operation,
@@ -335,9 +341,7 @@ class PhysicalBrowserReadOnlyBackend:
             "root_browser_lease_id_hash": str(root_lease.get("root_browser_lease_id_hash") or root_lease.get("lease_hash") or ""),
             "browser_engine_identity_hash": str(root_lease.get("browser_engine_identity_hash") or ""),
             "backend_context_identity_hash": str(root_lease.get("backend_context_identity_hash") or ""),
-            "page_identity_hash": stable_hash(
-                {"operation": operation, "result_hash": result.result_hash, "receipt_refs": result.receipt_refs}
-            ),
+            "page_identity_hash": page_identity_hash,
             "selected_backend_id": str(backend_execution.get("selected_backend_id") or self.selected_backend_id),
             "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(engine, "browser_backend_id", "")),
             "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(engine)),
@@ -771,6 +775,21 @@ def _physical_evidence_refs(
         if text:
             refs.append(text)
     return tuple(dict.fromkeys(refs))
+
+
+def _physical_page_identity_hash(
+    *,
+    operation: str,
+    result: ActionResult,
+    environment_state: dict[str, Any],
+    receipt_refs: tuple[str, ...],
+) -> str:
+    page_state = environment_state.get("page_state") if isinstance(environment_state, dict) else {}
+    if isinstance(page_state, dict):
+        page_hash = str(page_state.get("page_state_hash") or page_state.get("state_hash") or "").strip()
+        if page_hash:
+            return page_hash
+    return stable_hash({"operation": operation, "result_hash": result.result_hash, "receipt_refs": receipt_refs})
 
 
 def _internal_evidence_verification_status(*, operation: str, evidence_count: int) -> str:

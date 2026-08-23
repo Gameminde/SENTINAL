@@ -504,6 +504,7 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
     assert open_observation["human_readable_public_evidence_count"] >= 1
     assert open_observation["internal_evidence_verification"] == "not_required_for_open_perception"
     assert open_observation["verified_evidence_available"] is True
+    assert "real_browser_control.real_browser.extract_evidence" not in set(third_turn_state["model_visible_affordances"])
     assert third_turn_state["browser_environment_state"]["browser"]["selected_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
     assert third_turn_state["browser_environment_state"]["browser"]["actual_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
     assert any(event.event_type == "canonical_browser_readonly_cleanup_completed" for event in events)

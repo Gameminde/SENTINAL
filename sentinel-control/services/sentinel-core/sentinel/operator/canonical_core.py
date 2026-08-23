@@ -1026,6 +1026,8 @@ class RootMissionRuntime:
             return self._browser_has_recoverable_error()
         if operation == "real_browser.verify_extraction":
             return False
+        if operation == "real_browser.extract_evidence":
+            return self._browser_page_available() and not self._browser_extract_completed_on_current_page()
         return self._browser_page_available()
 
     def _browser_has_recoverable_error(self) -> bool:
@@ -1057,6 +1059,28 @@ class RootMissionRuntime:
         if readiness in {"closed", "blocked", "failed"}:
             return False
         return bool(page_hash and readiness in {"observed", "ready", "completed"})
+
+    def _current_browser_page_identity_hash(self) -> str:
+        state = self._browser_environment_state
+        if not isinstance(state, dict):
+            return ""
+        page = state.get("page") if isinstance(state.get("page"), dict) else {}
+        return str(page.get("page_state_hash") or page.get("state_hash") or "").strip()
+
+    def _browser_extract_completed_on_current_page(self) -> bool:
+        current_page = self._current_browser_page_identity_hash()
+        if not current_page:
+            return False
+        for receipt in reversed(self.receipts):
+            if receipt.capability != "real_browser_control" or receipt.operation != "real_browser.extract_evidence":
+                continue
+            observation = receipt.safe_observation if isinstance(receipt.safe_observation, dict) else {}
+            if observation.get("verified_evidence_available") is not True:
+                continue
+            receipt_page = str(observation.get("page_identity_hash") or "").strip()
+            if receipt_page == current_page:
+                return True
+        return False
 
     def close(self) -> None:
         if self._closed:
@@ -2257,6 +2281,7 @@ def _progress_fingerprint_payload(observation: dict[str, Any]) -> dict[str, Any]
     dynamic_keys = {
         "action_signature",
         "action_signature_seen_before",
+        "browser_terminal_receipt",
         "decision_origin",
         "evidence_delta",
         "new_paths",
