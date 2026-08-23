@@ -463,7 +463,9 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
 
     record = kernel.store.load_record(result.root_mission_id)
     events = kernel.store.load_events(result.root_mission_id)
+    second_turn_state = model.requests[1].canonical_state.safe_model_dump()
     third_turn_state = model.requests[2].canonical_state.safe_model_dump()
+    open_observation = second_turn_state["recent_observations"][-1]
     real_browser_receipts = sorted(
         (kernel.store.mission_dir(result.root_mission_id) / "real_browser_control" / "receipts").glob("*.json")
     )
@@ -497,6 +499,11 @@ def test_physical_browser_readonly_backend_runs_through_single_spine_with_sovere
     assert result.receipts[0].safe_observation["backend_kind"] == "physical"
     assert result.receipts[0].safe_observation["selected_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
     assert result.receipts[0].safe_observation["actual_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
+    assert result.receipts[0].evidence_refs
+    assert open_observation["readable_page_perception"] is True
+    assert open_observation["human_readable_public_evidence_count"] >= 1
+    assert open_observation["internal_evidence_verification"] == "not_required_for_open_perception"
+    assert open_observation["verified_evidence_available"] is True
     assert third_turn_state["browser_environment_state"]["browser"]["selected_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
     assert third_turn_state["browser_environment_state"]["browser"]["actual_backend_id"] == SENTINEL_CHROMIUM_BACKEND_ID
     assert any(event.event_type == "canonical_browser_readonly_cleanup_completed" for event in events)

@@ -323,6 +323,11 @@ class PhysicalBrowserReadOnlyBackend:
         root_lease = runtime_context.get("root_browser_runtime_lease") if isinstance(runtime_context, dict) else {}
         if not isinstance(root_lease, dict):
             root_lease = {}
+        evidence_refs = _physical_evidence_refs(
+            operation=operation,
+            result_refs=result.evidence_refs,
+            environment_state=environment_state,
+        )
         safe_observation = {
             "backend_kind": "physical",
             "browser_operation": operation,
@@ -337,18 +342,18 @@ class PhysicalBrowserReadOnlyBackend:
             "actual_backend_id": str(backend_execution.get("actual_backend_id") or getattr(engine, "browser_backend_id", "")),
             "session_backend_kind": str(backend_execution.get("session_backend_kind") or _engine_session_backend_kind(engine)),
             "browser_environment_state_hash": str(cards.get("browser_environment_state_hash") or stable_hash(environment_state)),
-            "browser_evidence_refs": tuple(result.evidence_refs),
-            "evidence_delta": len(result.evidence_refs),
+            "browser_evidence_refs": evidence_refs,
+            "evidence_delta": len(evidence_refs),
             "readable_page_perception": bool(
                 operation in {"real_browser.open", "real_browser.open_result", "real_browser.search", "real_browser.extract_evidence"}
-                and result.evidence_refs
+                and evidence_refs
             ),
-            "human_readable_public_evidence_count": len(result.evidence_refs),
+            "human_readable_public_evidence_count": len(evidence_refs),
             "internal_evidence_verification": _internal_evidence_verification_status(
                 operation=operation,
-                evidence_count=len(result.evidence_refs),
+                evidence_count=len(evidence_refs),
             ),
-            "verified_evidence_available": bool(result.evidence_refs),
+            "verified_evidence_available": bool(evidence_refs),
             "site_authority_match": redact_operator_value(self._last_authority_match),
             "data_not_authority": True,
             "can_execute": False,
@@ -393,7 +398,7 @@ class PhysicalBrowserReadOnlyBackend:
         safe_observation["failure_code"] = str(result.failure_code or result.blocked_reason or "")
         cards["browser_readonly_observation"] = safe_observation
         cards["simulated_backend"] = False
-        return result.model_copy(update={"context_cards": cards})
+        return result.model_copy(update={"context_cards": cards, "evidence_refs": evidence_refs})
 
     def _physical_environment_state(
         self,
@@ -746,6 +751,26 @@ def _safe_confidence(value: Any) -> float:
         return max(0.0, min(1.0, float(value)))
     except (TypeError, ValueError):
         return 0.0
+
+
+def _physical_evidence_refs(
+    *,
+    operation: str,
+    result_refs: tuple[str, ...],
+    environment_state: dict[str, Any],
+) -> tuple[str, ...]:
+    if operation == "real_browser.observe":
+        return tuple(dict.fromkeys(str(ref) for ref in result_refs if str(ref).strip()))
+    refs = [str(ref) for ref in result_refs if str(ref).strip()]
+    operational = environment_state.get("operational_snapshot") if isinstance(environment_state, dict) else {}
+    fields = operational.get("fields") if isinstance(operational, dict) else {}
+    inventory = fields.get("public_evidence_inventory") if isinstance(fields, dict) else {}
+    value = inventory.get("value") if isinstance(inventory, dict) else {}
+    for ref in value.get("evidence_refs", ()) if isinstance(value, dict) else ():
+        text = str(ref).strip()
+        if text:
+            refs.append(text)
+    return tuple(dict.fromkeys(refs))
 
 
 def _internal_evidence_verification_status(*, operation: str, evidence_count: int) -> str:
