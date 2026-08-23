@@ -256,6 +256,8 @@ def _provider_failure_category(error_class: str | None, diagnostic: dict[str, An
         return "PROVIDER_MODEL_UNAVAILABLE"
     if diagnostic.get("provider_transport_error_class"):
         return "PROVIDER_TRANSPORT_ERROR"
+    if diagnostic.get("provider_local_error_class") in {"JSONDecodeError", "ValueError"}:
+        return "PROVIDER_TRANSPORT_ERROR"
     if error_class == "TIMEOUT":
         return "PROVIDER_TRANSPORT_ERROR"
     if error_class == "INVALID_RESPONSE_SCHEMA":

@@ -305,6 +305,10 @@ def _recoverable_provider_failure_code(exc: Exception) -> str:
         "provider_failure_PROVIDER_MODEL_UNAVAILABLE_http_503",
         "PROVIDER_MODEL_UNAVAILABLE_http_503",
         "http_503",
+        "provider_failure_PROVIDER_TRANSPORT_ERROR_local_JSONDecodeError",
+        "PROVIDER_TRANSPORT_ERROR_local_JSONDecodeError",
+        "provider_failure_PROVIDER_TRANSPORT_ERROR_local_ValueError",
+        "PROVIDER_TRANSPORT_ERROR_local_ValueError",
         "provider_mesh_provider_unavailable",
     ):
         if marker in text:
