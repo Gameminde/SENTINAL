@@ -227,6 +227,8 @@ def test_physical_browser_open_failure_produces_terminal_receipt_and_failure_pac
     assert receipt.material_action is False
     observation = receipt.safe_observation
     assert observation["status"] == "recoverable_failed"
+    assert observation["progress_classification"] == "NO_PROGRESS"
+    assert observation["objective_progress"] is False
     assert observation["failure_code"] == "sentinel_chromium_browser_executable_missing"
     assert observation["product_action_kernel_dispatch"] is True
     assert observation["browser_terminal_receipt"]["status"] == "recoverable_failed"

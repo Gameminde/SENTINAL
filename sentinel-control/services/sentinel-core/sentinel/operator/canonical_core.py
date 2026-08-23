@@ -1455,8 +1455,10 @@ class RootMissionRuntime:
         signature_seen = self._action_signature_counts.get(action_signature, 0)
         evidence_fingerprint = stable_hash(_progress_fingerprint_payload(safe_observation))
         evidence_seen = f"evidence:{evidence_fingerprint[:24]}" in set(self.evidence_refs)
-        has_match_progress = bool(new_paths)
-        no_progress = signature_seen > 0 and evidence_seen and not has_match_progress
+        status = str(safe_observation.get("status") or "").strip().lower()
+        action_succeeded = not status or status in {"completed", "success", "passed", "observation_success", "read_only_action_success"}
+        has_match_progress = action_succeeded and bool(new_paths)
+        no_progress = not action_succeeded or (signature_seen > 0 and evidence_seen and not has_match_progress)
         if no_progress:
             classification = "NO_PROGRESS"
         elif has_match_progress:
