@@ -2329,6 +2329,9 @@ def _safe_exception_code(exc: Exception) -> str:
     if isinstance(exc, (CanonicalCoreError, ActionKernelError)) and text and "\n" not in text and len(text) <= 120:
         if re.fullmatch(r"[A-Za-z0-9_.:-]+", text):
             return redact_operator_text(text)
+    if text.startswith("provider_mesh_no_") and "\n" not in text and len(text) <= 160:
+        if re.fullmatch(r"[A-Za-z0-9_.:-]+", text):
+            return redact_operator_text(text)
     if isinstance(exc, CanonicalCoreError) and text and "\n" not in text and len(text) <= 120:
         return redact_operator_text(text)
     return exc.__class__.__name__

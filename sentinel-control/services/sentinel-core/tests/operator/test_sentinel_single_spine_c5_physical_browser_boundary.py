@@ -857,6 +857,68 @@ def test_provider_mesh_checkpoints_transport_json_error_and_resumes_explicit_fal
     assert mesh.safe_transitions[0]["browser_actions_replayed"] is False
 
 
+def test_provider_mesh_no_fallback_surfaces_typed_terminal_blocker(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    primary = ScriptedThenRateLimitModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://www.sqlite.org/wal.html"},
+            },
+        ]
+    )
+    fallback = ScriptedThenProviderAuthErrorModelClient([])
+    mesh = ProviderMesh(
+        providers=(
+            ProviderMeshProviderSpec(
+                provider_id="nvidia",
+                backend_id="nvidia_openai_compatible_chat",
+                model_id="minimaxai/minimax-m3",
+                client=primary,
+                role="primary",
+            ),
+            ProviderMeshProviderSpec(
+                provider_id="opencode_chat",
+                backend_id="opencode_chat_completions",
+                model_id="x-preview-f-free",
+                client=fallback,
+                role="fallback_1",
+            ),
+        ),
+        fallback_order=("minimaxai/minimax-m3", "x-preview-f-free"),
+    )
+
+    result = run_canonical_product_mission(
+        objective="Open official SQLite documentation.",
+        workspace_root=workspace,
+        model_client=mesh,
+        provider_model="nvidia/minimaxai/minimax-m3",
+        kernel=kernel,
+        session_id="c6_provider_mesh_no_fallback_typed_blocker",
+        max_provider_decisions=4,
+        max_material_actions=4,
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "blocked"
+    assert (
+        result.blocked_reason_detail
+        == "provider_mesh_no_fallback_available:provider_failure_PROVIDER_AUTH_ERROR_credential_rejected_http_401"
+    )
+    assert engine.open_count == 1
+    assert len(result.receipts) == 1
+
+
 def test_provider_mesh_planned_handoff_resumes_same_mission_without_replaying_browser_receipt(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")
