@@ -1343,6 +1343,44 @@ def test_model_narrative_messages_remain_cognition_until_action_without_protocol
     assert not any(event.event_type == "canonical_model_decision_failed" for event in events)
 
 
+def test_repeated_assistant_message_prompts_visible_replan_without_forcing_specific_action(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    raw = RawOutputModelClient(
+        [
+            {"content": "I am considering the safest next step."},
+            {"content": "I am still considering the safest next step."},
+            {"content": '{"capability":"workspace","operation":"search","arguments":{"query":"needle"}}'},
+            {"content": "Final Answer: Needle found."},
+        ]
+    )
+    model = ProductModelNativeDecisionClient.for_canonical_decisions(
+        model_client=raw,
+        provider_id="opencode",
+        backend_id="opencode_responses",
+        model_id="muse-spark-1.2-contributor-free",
+    )
+
+    result = run_canonical_product_mission(
+        objective="Find the needle evidence after free-form planning.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="opencode/muse-spark-1.2-contributor-free",
+        kernel=kernel,
+        session_id="session_repeated_assistant_message_replan",
+        max_provider_decisions=5,
+        max_material_actions=2,
+    )
+
+    assert result.status == "completed"
+    second_prompt = raw.requests[1].prompt_text_in_memory_only
+    third_prompt = raw.requests[2].prompt_text_in_memory_only
+    assert "Previous assistant message did not select an executable effect" in second_prompt
+    assert "Repeated assistant messages have not changed state or evidence" in third_prompt
+    assert "workspace.search" in third_prompt
+    assert "must use workspace.search" not in third_prompt
+
+
 def test_narrative_final_answer_can_complete_simple_mission_without_material_receipt(tmp_path: Path) -> None:
     workspace = _workspace(tmp_path)
     kernel = MissionKernel(run_root=tmp_path / "runs")

@@ -1363,6 +1363,14 @@ def _length_bucket(length: int) -> str:
     return "4096+"
 
 
+def _safe_count(value: Any) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(0, parsed)
+
+
 def _canonical_user_model_contract(*, provider_id: str, backend_id: str, model_id: str) -> UserModelContract:
     return UserModelContract(
         selected_provider_id=provider_id,
@@ -1511,6 +1519,8 @@ def _canonical_prompt_state(state: dict[str, Any]) -> dict[str, Any]:
         "last_action": state.get("last_action"),
         "evidence_refs": state.get("evidence_refs"),
         "recent_observations": state.get("recent_observations"),
+        "observations_without_novelty": state.get("observations_without_novelty"),
+        "duplicate_no_progress_count": state.get("duplicate_no_progress_count"),
         "remaining_provider_decisions": state.get("remaining_provider_decisions"),
         "remaining_material_actions": state.get("remaining_material_actions"),
         "finish_available": state.get("finish_available"),
@@ -1592,11 +1602,30 @@ def _canonical_replan_hint(state: dict[str, Any]) -> str:
     observations = state.get("recent_observations")
     if not isinstance(observations, list):
         return ""
+    no_progress_count = _safe_count(state.get("observations_without_novelty"))
     for observation in reversed(observations):
-        if isinstance(observation, dict) and observation.get("typed_outcome") == "MODEL_EXPRESSION_NON_DECISION":
+        if not isinstance(observation, dict):
+            continue
+        typed_outcome = observation.get("typed_outcome")
+        if typed_outcome == "MODEL_EXPRESSION_NON_DECISION":
             return (
                 "Previous response did not select one executable affordance. "
                 "Now choose one available operation from the decision menu, ask a clarification, or finish only with evidence.\n"
+            )
+        if typed_outcome == "MODEL_FINAL_ANSWER_MISSING_EVIDENCE":
+            return (
+                "Previous final answer did not have required evidence. "
+                "Continue by choosing any authorized evidence-producing affordance, ask a clarification, or finish only after evidence is present.\n"
+            )
+        if typed_outcome == "MODEL_ASSISTANT_MESSAGE":
+            if no_progress_count >= 2:
+                return (
+                    "Repeated assistant messages have not changed state or evidence. "
+                    "Select any one authorized operation from the decision menu, ask a clarification, or finish only with evidence; do not repeat planning without new information.\n"
+                )
+            return (
+                "Previous assistant message did not select an executable effect. "
+                "Continue with cognition if useful, or select any one authorized operation from the decision menu when ready.\n"
             )
     return ""
 
