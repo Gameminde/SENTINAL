@@ -887,6 +887,8 @@ class RealBrowserControlRuntime:
             return self._open(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.observe":
             return self._observe(envelope, authority=authority, context=context)
+        if envelope.operation == "real_browser.recover_session":
+            return self._recover_session(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.search":
             return self._search(envelope, authority=authority, context=context)
         if envelope.operation == "real_browser.inspect_result":
@@ -1063,6 +1065,97 @@ class RealBrowserControlRuntime:
             receipt_refs=(receipt.receipt_id,),
             material_action=False,
             observation_summary=f"real browser observed with {len(elements)} stable element refs.",
+            result_hash=receipt.receipt_hash,
+            context_cards=context_cards,
+        )
+
+    def _recover_session(
+        self,
+        envelope: ActionEnvelope,
+        *,
+        authority: MissionAuthorityEnvelope,
+        context: dict[str, Any],
+    ) -> ActionResult:
+        self._require_authorized(authority, "real_browser.recover_session")
+        try:
+            snapshot = self.engine.observe()
+        except Exception as exc:
+            return self._record_observation_failure(
+                envelope,
+                exc=exc,
+                failure_code="real_browser_recover_session_observe_failed",
+                safe_summary=(
+                    "Browser session recovery failed during bounded re-observation; no page observation was "
+                    "fabricated, and a typed body-failure packet is available."
+                ),
+                context=context,
+            )
+        context_cards = self._world_context_cards(
+            snapshot,
+            authority=authority,
+            context=context,
+            progress_state="real_browser_session_recovered_world_model_ready",
+        )
+        elements = tuple(
+            _snapshot_element(element)
+            for element in snapshot.elements
+            if element.visible and element.enabled and not bool(getattr(element, "secret", False))
+        )
+        summary_hash = stable_hash(
+            {
+                "operation": envelope.operation,
+                "title_hash": text_hash(snapshot.page_title),
+                "elements": [element.safe_model_dump() for element in elements],
+            }
+        )
+        receipt = self._record_terminal_observation_receipt(
+            envelope,
+            status="observation_success",
+            failure_code="",
+            element_ref="page:recovered_observation",
+            page_title=snapshot.page_title,
+            page_state_hash=snapshot.state_hash,
+            elements=elements,
+            before_state_hash=snapshot.state_hash,
+            after_state_hash=snapshot.state_hash,
+            browser_environment_state_hash=str(context_cards.get("browser_environment_state_hash") or snapshot.state_hash),
+            bounded_observation_summary_hash=summary_hash,
+            typed_observation={
+                "outcome_kind": "session_recovery_observation_success",
+                "failure_code": "",
+                "element_count": len(elements),
+                "page_state_hash": snapshot.state_hash,
+                "evidence_refs": [
+                    f"browser_state:{snapshot.state_hash}",
+                ],
+                "material_effect_observed": False,
+                "data_not_authority": True,
+                "can_execute": False,
+            },
+            evidence_delta={
+                "changed": False,
+                "before_fingerprint": snapshot.state_hash,
+                "after_fingerprint": snapshot.state_hash,
+                "added_refs": [],
+                "data_not_authority": True,
+                "can_execute": False,
+            },
+        )
+        self._append_event(
+            "real_browser_session_recovered",
+            "Bounded real browser session recovery re-observed the live page.",
+            metadata={"element_count": len(elements), "browser_state_hash": snapshot.state_hash},
+            receipt_refs=[receipt.receipt_id],
+            finalgate_refs=[],
+        )
+        return ActionResult(
+            action_id=envelope.action_id,
+            capability_id=envelope.capability_id,
+            operation=envelope.operation,
+            status="completed",
+            receipt_refs=(receipt.receipt_id,),
+            material_action=False,
+            observation_summary=f"real browser session recovered with {len(elements)} stable element refs.",
             result_hash=receipt.receipt_hash,
             context_cards=context_cards,
         )

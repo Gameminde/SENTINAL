@@ -236,6 +236,60 @@ def test_physical_browser_open_failure_produces_terminal_receipt_and_failure_pac
     assert any(event.event_type == "canonical_model_final_answer_missing_evidence" for event in events)
 
 
+def test_physical_browser_recover_session_is_routed_to_terminal_receipt(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = InstrumentedSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://sqlite.org/gencol.html"},
+            },
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.recover_session",
+                "arguments": {"failure_ref": "receipt:previous"},
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "The governed browser session was recovered."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Recover the current governed browser session.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c5_physical_browser_recover_session_receipt",
+        max_provider_decisions=4,
+        max_material_actions=4,
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "completed"
+    assert result.final_reason == "model_selected_finish"
+    assert engine.open_count == 1
+    assert engine.observe_count >= 1
+    assert [receipt.operation for receipt in result.receipts] == [
+        "real_browser.open",
+        "real_browser.recover_session",
+    ]
+    assert result.receipts[1].status == "completed"
+
+
 def test_public_product_physical_browser_readiness_after_mission_record_and_before_provider(
     tmp_path: Path,
 ) -> None:
