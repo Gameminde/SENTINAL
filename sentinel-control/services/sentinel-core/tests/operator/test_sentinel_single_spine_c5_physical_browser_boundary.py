@@ -23,6 +23,7 @@ from sentinel.operator.real_browser_control_runtime import (
     SENTINEL_CHROMIUM_BACKEND_ID,
     build_canonical_real_browser_engine_from_env,
 )
+from sentinel.organs.browser.cloak_backend import _playwright_open_failure_code
 
 
 class ScriptedModelClient:
@@ -143,6 +144,12 @@ class CancellingSentinelChromiumReadOnlyEngine(InstrumentedSentinelChromiumReadO
         return snapshot
 
 
+class FailingOpenSentinelChromiumReadOnlyEngine(InstrumentedSentinelChromiumReadOnlyEngine):
+    def open(self) -> RealBrowserEngineSnapshot:
+        self.open_count += 1
+        raise RealBrowserControlRuntimeError("sentinel_chromium_browser_executable_missing")
+
+
 def test_canonical_browser_engine_factory_does_not_require_cloak_configuration(
     tmp_path: Path,
     monkeypatch,
@@ -156,6 +163,77 @@ def test_canonical_browser_engine_factory_does_not_require_cloak_configuration(
     assert engine.browser_backend_id == SENTINEL_CHROMIUM_BACKEND_ID
     assert engine.session_manager_backend_kind == "sentinel_chromium"
     assert getattr(engine, "target_url", None) == "about:blank"
+
+
+def test_sentinel_chromium_classifies_missing_playwright_chromium_without_raw_path() -> None:
+    class PlaywrightLaunchError(Exception):
+        pass
+
+    exc = PlaywrightLaunchError(
+        "Executable doesn't exist at C:/private/browser/path/chromium.exe\n"
+        "Please run the following command to download new browsers:\n"
+        "python -m playwright install chromium"
+    )
+
+    assert _playwright_open_failure_code(exc) == "sentinel_chromium_browser_executable_missing"
+
+
+def test_physical_browser_open_failure_produces_terminal_receipt_and_failure_packet(tmp_path: Path) -> None:
+    workspace = _workspace(tmp_path)
+    kernel = MissionKernel(run_root=tmp_path / "runs")
+    engine = FailingOpenSentinelChromiumReadOnlyEngine()
+    backend = PhysicalBrowserReadOnlyBackend(
+        engine=engine,
+        kernel=kernel,
+        allowed_origins=("sqlite.org",),
+    )
+    model = ScriptedModelClient(
+        [
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.open",
+                "arguments": {"url": "https://sqlite.org/datatype3.html"},
+            },
+            {
+                "capability": "sentinel_loop",
+                "operation": "finish",
+                "arguments": {"answer": "SQLite documentation was checked."},
+            },
+        ]
+    )
+
+    result = run_canonical_product_mission(
+        objective="Open official SQLite documentation with the governed browser.",
+        workspace_root=workspace,
+        model_client=model,
+        provider_model="scripted-local/model",
+        kernel=kernel,
+        session_id="c5_physical_browser_open_failure_receipt",
+        max_provider_decisions=2,
+        max_material_actions=2,
+        capability_graph=build_workspace_browser_readonly_capability_graph(),
+        browser_readonly_backend=backend,
+        granted_authorities=("workspace_read", "browser_read", "none"),
+    )
+
+    assert result.status == "blocked"
+    assert result.final_reason == "PROVIDER_DECISION_BUDGET_EXHAUSTED"
+    assert engine.open_count == 1
+    assert result.receipts
+    receipt = result.receipts[0]
+    assert receipt.capability == "real_browser_control"
+    assert receipt.operation == "real_browser.open"
+    assert receipt.status == "recoverable_failed"
+    assert receipt.material_action is False
+    observation = receipt.safe_observation
+    assert observation["status"] == "recoverable_failed"
+    assert observation["failure_code"] == "sentinel_chromium_browser_executable_missing"
+    assert observation["product_action_kernel_dispatch"] is True
+    assert observation["browser_terminal_receipt"]["status"] == "recoverable_failed"
+    assert observation["runtime_failure_fact"]["attempted_operation"] == "real_browser.open"
+    assert observation["model_visible_body_failure_packet"]["attempted_operation"] == "real_browser.open"
+    events = kernel.store.load_events(result.root_mission_id)
+    assert any(event.event_type == "canonical_model_final_answer_missing_evidence" for event in events)
 
 
 def test_public_product_physical_browser_readiness_after_mission_record_and_before_provider(
@@ -268,7 +346,7 @@ def test_public_canonical_product_run_can_enable_sovereign_physical_browser(
         [
             "canonical-product-run",
             "--objective",
-            "Observe official SQLite generated columns documentation.",
+            "Observe the governed browser page.",
             "--workspace",
             str(workspace),
             "--run-root",
@@ -396,7 +474,7 @@ def test_physical_browser_open_uses_model_url_only_at_authorized_dispatch(tmp_pa
     )
 
     result = run_canonical_product_mission(
-        objective="Open official SQLite generated columns documentation.",
+        objective="Open a governed browser page.",
         workspace_root=workspace,
         model_client=model,
         provider_model="scripted-local/model",
@@ -469,7 +547,12 @@ def test_provider_mesh_checkpoints_rate_limit_and_resumes_without_replaying_brow
                 "capability": "real_browser_control",
                 "operation": "real_browser.open",
                 "arguments": {"url": "https://www.sqlite.org/gencol.html"},
-            }
+            },
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.extract_evidence",
+                "arguments": {},
+            },
         ]
     )
     fallback = ScriptedModelClient(
@@ -517,14 +600,16 @@ def test_provider_mesh_checkpoints_rate_limit_and_resumes_without_replaying_brow
 
     assert result.status == "completed"
     assert result.final_reason == "model_selected_finish"
-    assert result.provider_decision_count == 3
-    assert result.material_action_count == 1
+    assert result.provider_decision_count == 4
+    assert result.material_action_count == 2
     assert engine.open_count == 1
-    assert len(result.receipts) == 1
+    assert engine.extract_count == 1
+    assert len(result.receipts) == 2
     assert result.receipts[0].operation == "real_browser.open"
+    assert result.receipts[1].operation == "real_browser.extract_evidence"
     assert fallback.requests
     resumed_state = fallback.requests[0].canonical_state.safe_model_dump()
-    assert resumed_state["material_action_count"] == 1
+    assert resumed_state["material_action_count"] == 2
     assert resumed_state["evidence_refs"]
     assert mesh.safe_transitions[0]["fallback_reason"] == "provider_failure_PROVIDER_RATE_LIMIT_http_429"
     assert mesh.safe_transitions[0]["requested_model"] == "z-ai/glm-5.2"
@@ -553,7 +638,12 @@ def test_provider_mesh_checkpoints_auth_error_and_resumes_explicit_fallback_with
                 "capability": "real_browser_control",
                 "operation": "real_browser.open",
                 "arguments": {"url": "https://www.sqlite.org/gencol.html"},
-            }
+            },
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.extract_evidence",
+                "arguments": {},
+            },
         ]
     )
     fallback = ScriptedModelClient(
@@ -601,14 +691,16 @@ def test_provider_mesh_checkpoints_auth_error_and_resumes_explicit_fallback_with
 
     assert result.status == "completed"
     assert result.final_reason == "model_selected_finish"
-    assert result.provider_decision_count == 3
-    assert result.material_action_count == 1
+    assert result.provider_decision_count == 4
+    assert result.material_action_count == 2
     assert engine.open_count == 1
-    assert len(result.receipts) == 1
+    assert engine.extract_count == 1
+    assert len(result.receipts) == 2
     assert result.receipts[0].operation == "real_browser.open"
+    assert result.receipts[1].operation == "real_browser.extract_evidence"
     assert fallback.requests
     resumed_state = fallback.requests[0].canonical_state.safe_model_dump()
-    assert resumed_state["material_action_count"] == 1
+    assert resumed_state["material_action_count"] == 2
     assert resumed_state["evidence_refs"]
     assert any(
         observation.get("provider_handoff") == "fallback"
@@ -645,7 +737,12 @@ def test_provider_mesh_checkpoints_transport_json_error_and_resumes_explicit_fal
                 "capability": "real_browser_control",
                 "operation": "real_browser.open",
                 "arguments": {"url": "https://www.sqlite.org/wal.html"},
-            }
+            },
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.extract_evidence",
+                "arguments": {},
+            },
         ]
     )
     fallback = ScriptedModelClient(
@@ -693,12 +790,13 @@ def test_provider_mesh_checkpoints_transport_json_error_and_resumes_explicit_fal
 
     assert result.status == "completed"
     assert result.final_reason == "model_selected_finish"
-    assert result.provider_decision_count == 3
-    assert result.material_action_count == 1
+    assert result.provider_decision_count == 4
+    assert result.material_action_count == 2
     assert engine.open_count == 1
+    assert engine.extract_count == 1
     assert fallback.requests
     resumed_state = fallback.requests[0].canonical_state.safe_model_dump()
-    assert resumed_state["material_action_count"] == 1
+    assert resumed_state["material_action_count"] == 2
     assert resumed_state["evidence_refs"]
     assert mesh.safe_transitions[0]["fallback_reason"] == "provider_failure_PROVIDER_TRANSPORT_ERROR_local_JSONDecodeError"
     assert mesh.safe_transitions[0]["fallback_silent"] is False
@@ -720,7 +818,12 @@ def test_provider_mesh_planned_handoff_resumes_same_mission_without_replaying_br
                 "capability": "real_browser_control",
                 "operation": "real_browser.open",
                 "arguments": {"url": "https://www.sqlite.org/wal.html"},
-            }
+            },
+            {
+                "capability": "real_browser_control",
+                "operation": "real_browser.extract_evidence",
+                "arguments": {},
+            },
         ]
     )
     phase_b = ScriptedModelClient(
@@ -750,7 +853,7 @@ def test_provider_mesh_planned_handoff_resumes_same_mission_without_replaying_br
             ),
         ),
         fallback_order=("x-preview-f-free", "muse-spark-1.2-contributor-free"),
-        planned_handoff_after_material_actions=1,
+        planned_handoff_after_material_actions=2,
         planned_handoff_reason="sqlite_evidence_phase_a_complete",
     )
 
@@ -770,13 +873,14 @@ def test_provider_mesh_planned_handoff_resumes_same_mission_without_replaying_br
 
     assert result.status == "completed"
     assert result.final_reason == "model_selected_finish"
-    assert result.provider_decision_count == 2
-    assert result.material_action_count == 1
+    assert result.provider_decision_count == 3
+    assert result.material_action_count == 2
     assert engine.open_count == 1
+    assert engine.extract_count == 1
     assert phase_b.requests
     resumed_state = phase_b.requests[0].canonical_state.safe_model_dump()
     assert resumed_state["root_mission_id"] == result.root_mission_id
-    assert resumed_state["material_action_count"] == 1
+    assert resumed_state["material_action_count"] == 2
     assert resumed_state["evidence_refs"]
     assert any(
         observation.get("provider_handoff") == "planned"
@@ -986,7 +1090,7 @@ def _run_physical_open(
         ]
     )
     result = run_canonical_product_mission(
-        objective="Open official SQLite generated columns documentation.",
+        objective="Open a governed browser page.",
         workspace_root=workspace,
         model_client=model,
         provider_model="scripted-local/model",

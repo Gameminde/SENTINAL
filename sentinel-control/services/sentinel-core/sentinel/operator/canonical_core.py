@@ -1675,12 +1675,42 @@ class RootMissionRuntime:
             )
 
     def _final_answer_requires_more_evidence(self, decision: CanonicalDecision) -> bool:
-        if self.evidence_refs:
+        if self._has_human_readable_evidence():
             return False
         if not _objective_requires_grounded_evidence(self.objective):
             return False
         answer = str(decision.arguments.get("answer") or decision.arguments.get("safe_summary") or "").strip()
         return bool(answer)
+
+    def _has_human_readable_evidence(self) -> bool:
+        for receipt in self.receipts:
+            if receipt.status not in {"completed", "passed", "success"}:
+                continue
+            observation = receipt.safe_observation if isinstance(receipt.safe_observation, dict) else {}
+            if observation.get("runtime_failure_fact"):
+                continue
+            if receipt.capability == "workspace" and _workspace_observation_has_public_content(observation):
+                return True
+            if receipt.capability == "real_browser_control" and self._browser_receipt_has_public_evidence(receipt):
+                return True
+        return False
+
+    def _browser_receipt_has_public_evidence(self, receipt: CanonicalEffectReceipt) -> bool:
+        if receipt.operation in {"real_browser.extract_evidence", "real_browser.verify_extraction"}:
+            if receipt.material_action:
+                return True
+            state = self._browser_environment_state if isinstance(self._browser_environment_state, dict) else {}
+            memory = state.get("memory") if isinstance(state.get("memory"), dict) else {}
+            evidence_count = memory.get("evidence_count") if isinstance(memory, dict) else 0
+            if isinstance(evidence_count, int) and evidence_count > 0:
+                return True
+            public_evidence = memory.get("public_evidence") if isinstance(memory, dict) else ()
+            if isinstance(public_evidence, (list, tuple)) and public_evidence:
+                return True
+            observation = receipt.safe_observation if isinstance(receipt.safe_observation, dict) else {}
+            browser_refs = observation.get("browser_evidence_refs")
+            return isinstance(browser_refs, (list, tuple)) and bool(browser_refs)
+        return False
 
     def _record_final_answer_missing_evidence(self, decision: CanonicalDecision) -> None:
         self.observations_without_novelty += 1
@@ -2173,6 +2203,23 @@ def _observation_paths(observation: dict[str, Any]) -> tuple[str, ...]:
         if isinstance(match_path, str) and match_path and match_path != ".":
             paths.append(match_path)
     return tuple(dict.fromkeys(paths))
+
+
+def _workspace_observation_has_public_content(observation: dict[str, Any]) -> bool:
+    status = str(observation.get("status") or "").lower()
+    if status and status not in {"completed", "success", "passed"}:
+        return False
+    if observation.get("path") and (
+        observation.get("content_hash")
+        or observation.get("content_preview_hash")
+        or observation.get("sha256")
+    ):
+        return True
+    matches = observation.get("matches")
+    if isinstance(matches, (list, tuple)) and any(isinstance(match, dict) for match in matches):
+        return True
+    entries = observation.get("entries")
+    return isinstance(entries, (list, tuple)) and bool(entries)
 
 
 def _progress_fingerprint_payload(observation: dict[str, Any]) -> dict[str, Any]:

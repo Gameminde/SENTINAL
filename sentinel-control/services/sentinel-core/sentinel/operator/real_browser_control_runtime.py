@@ -927,7 +927,30 @@ class RealBrowserControlRuntime:
 
     def _open(self, envelope: ActionEnvelope, *, authority: MissionAuthorityEnvelope, context: dict[str, Any]) -> ActionResult:
         self._require_authorized(authority, "real_browser.open")
-        snapshot = self.engine.open()
+        try:
+            snapshot = self.engine.open()
+        except Exception as exc:
+            failure_code = _browser_runtime_failure_code(
+                exc,
+                default="real_browser_open_failed",
+            )
+            browser_state_hash = _observation_failure_state_hash(
+                operation=envelope.operation,
+                engine=self.engine,
+                failure_code=failure_code,
+                exception_class=exc.__class__.__name__,
+            )
+            context_cards = _recoverable_existing_browser_context_cards(context)
+            return self._recoverable_actuation_failure(
+                envelope,
+                failure_code=failure_code,
+                safe_summary=(
+                    "Browser open failed after product dispatch; no page observation was fabricated, "
+                    "and a typed body-failure packet is available."
+                ),
+                context_cards=context_cards,
+                browser_state_hash=browser_state_hash,
+            )
         context_cards = self._world_context_cards(
             snapshot,
             authority=authority,
@@ -4983,6 +5006,8 @@ def _model_blocker_assessment_schema() -> dict[str, Any]:
 
 
 def _browser_failure_stage(failure_code: str, *, operation: str) -> str:
+    if operation.endswith(".open"):
+        return "browser_runtime_open"
     if failure_code.startswith("real_browser_observe_") or operation.endswith(".observe"):
         return "browser_runtime_observe"
     if "search_control_not_found" in failure_code:
@@ -5008,6 +5033,13 @@ def _browser_failure_stage(failure_code: str, *, operation: str) -> str:
     if operation.endswith("extract_product_cards"):
         return "extraction"
     return "browser_runtime"
+
+
+def _browser_runtime_failure_code(exc: BaseException, *, default: str) -> str:
+    value = str(exc).strip()
+    if value and len(value) <= 96 and all(ch.isalnum() or ch in "._:-" for ch in value):
+        return value
+    return f"{default}:{exc.__class__.__name__}"
 
 
 def _failure_packet_evidence_refs(*, context_cards: dict[str, Any], browser_state_hash: str) -> list[str]:

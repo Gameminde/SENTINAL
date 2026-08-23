@@ -240,7 +240,14 @@ class PlaywrightSessionBackend:
         except BrowserSessionEngineError:
             raise
         except Exception as exc:
-            raise BrowserSessionEngineError(f"playwright_open_failed:{type(exc).__name__}") from exc
+            raise BrowserSessionEngineError(_playwright_open_failure_code(exc)) from exc
+
+
+def _playwright_open_failure_code(exc: BaseException) -> str:
+    message = str(exc).lower()
+    if "executable" in message and "install" in message and "chromium" in message:
+        return "sentinel_chromium_browser_executable_missing"
+    return f"playwright_open_failed:{type(exc).__name__}"
 
 
 @dataclass

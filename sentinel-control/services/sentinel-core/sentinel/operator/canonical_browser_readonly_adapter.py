@@ -371,6 +371,17 @@ class PhysicalBrowserReadOnlyBackend:
                 "can_execute": False,
             },
         )
+        terminal_receipt = cards.get("browser_terminal_receipt")
+        if isinstance(terminal_receipt, dict):
+            safe_observation["browser_terminal_receipt"] = terminal_receipt
+        runtime_failure_fact = cards.get("runtime_failure_fact")
+        if isinstance(runtime_failure_fact, dict):
+            safe_observation["runtime_failure_fact"] = runtime_failure_fact
+        body_failure_packet = cards.get("model_visible_body_failure_packet")
+        if isinstance(body_failure_packet, dict):
+            safe_observation["model_visible_body_failure_packet"] = body_failure_packet
+        safe_observation["failure_code"] = str(result.failure_code or result.blocked_reason or "")
+        cards["browser_readonly_observation"] = safe_observation
         cards["simulated_backend"] = False
         return result.model_copy(update={"context_cards": cards})
 
